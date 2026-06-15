@@ -2,45 +2,31 @@
 // CLOUD-CONNECTED STATE MANAGER (state.js)
 // ==========================================
 import { PROGRAMS } from './constants.js';
-import { getLocalDateKey } from './util.js';
-import { prescribeSetsForLift, isCompletedSet } from './engine.js';
-import { getDayV2, dayLiftEntries, createEmptyV2Program, migrateCustomProgramToV2, migrateProgramToV2 } from './schema.js';
-import { estimateWeekStart } from './dates.js';
-import { emptyAthleteProfile } from './profile.js';
-import { showToast } from './toast.js';
+import { prescribeSetsForLift } from './engine.js';
 
 const supabaseUrl = 'https://uzxvufzlaipdwuffxqyo.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6eHZ1ZnpsYWlwZHd1ZmZ4cXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDE1MTYsImV4cCI6MjA5NjE3NzUxNn0.G26YRJzt4ndScofQvp4fi-G8MP-Fs2Ovn0e6Y9t4Dxg';
 
-// Lazily create (and memoise) the Supabase client on first use. Deferring the
-// `window.supabase` lookup out of module-load is what lets state.js be imported
-// in a DOM-less context (unit tests) without throwing. Returns null offline.
-let _sbClient;
-let _sbInitDone = false;
-function getSupabaseClient() {
-  if (_sbInitDone) return _sbClient;
-  _sbInitDone = true;
-  _sbClient = null;
-  try {
-    if (typeof window !== 'undefined' && window.supabase && supabaseUrl.startsWith('http')) {
-      _sbClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-    } else {
-      console.warn("Supabase global not found. App will run in offline mode.");
-    }
-  } catch (e) {
-    console.error("Critical Supabase initialization failure:", e);
+let supabaseClient = null;
+
+try {
+  if (window.supabase && supabaseUrl.startsWith('http')) {
+    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+  } else {
+    console.warn("Supabase global not found. App will run in offline mode.");
   }
-  return _sbClient;
+} catch (e) {
+  console.error("Critical Supabase initialization failure:", e);
 }
 
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 
 // Base state configuration
-export let appState = {
-  currentWeek: "1",
-  activeProgramId: "hybrid_engine",
-  weekStartedAt: null,
-  weeks: {},
+export let appState = { 
+  currentWeek: "1", 
+  activeProgramId: "hybrid_engine", 
+  weekStartedAt: null, 
+  weeks: {}, 
   exerciseStats: {},
   customExercises: [],
   customPrograms: [],
@@ -49,13 +35,7 @@ export let appState = {
   deloadApplied: null,
   _deloadDismissedWeek: null,
   streakData: { current: 0, longest: 0, lastActivityDate: null },
-  goalData: { milestones: [], completedCount: 0, goalConfig: { primaryGoal: null, goalEventDate: null, goalEventName: null } },
-  athleteProfile: emptyAthleteProfile(),
-  health: null,
-  healthLog: [],
-  liftIdMap: {},
-  liftNames: {},
-  _liftIdVersion: 0,
+  goalData: { milestones: [], completedCount: 0 }
 };
 
 export let activeTab = 'home';
@@ -92,107 +72,25 @@ export function getProgramById(id) {
 // ==========================================
 // PROGRAM LIBRARY CRUD LOGIC
 // ==========================================
-// Translate authored v2 block.group fields into the cockpit's supersets[day]
-// map (only groups with >= 2 members are real supersets).
-function supersetsFromBlockEntries(entries) {
-  const groupMap = {}, counts = {};
-  entries.forEach(en => { if (en.group) { groupMap[en.name] = en.group; counts[en.group] = (counts[en.group] || 0) + 1; } });
-  const ss = {};
-  for (const name in groupMap) {
-    if (counts[groupMap[name]] >= 2) ss[_getLiftIdOrCreate(name)] = groupMap[name];
-  }
-  return ss;
-}
-
-// Private: get-or-create a stable ID for a display name, mutating appState maps.
-function _getLiftIdOrCreate(displayName) {
-  const key = String(displayName || '').trim();
-  if (!key) return key;
-  if (!appState.liftIdMap) appState.liftIdMap = {};
-  if (!appState.liftNames) appState.liftNames = {};
-  if (appState.liftIdMap[key]) return appState.liftIdMap[key];
-  const id = 'lift_' + Math.random().toString(36).slice(2, 10);
-  appState.liftIdMap[key] = id;
-  appState.liftNames[id] = key;
-  return id;
-}
-
-// Rekey all lifts[day] entries from display names to stable IDs.
-// Idempotent: skips any key already starting with 'lift_'.
-// Called once during pullEngineDataFromStorage when _liftIdVersion < 1.
-export function migrateLiftIdsInState() {
-  if ((appState._liftIdVersion || 0) >= 1) return;
-  if (!appState.liftIdMap) appState.liftIdMap = {};
-  if (!appState.liftNames) appState.liftNames = {};
-
-  for (const wk in appState.weeks) {
-    const wkData = appState.weeks[wk];
-    if (!wkData) continue;
-
-    if (wkData.lifts) {
-      for (const day in wkData.lifts) {
-        const dayLifts = wkData.lifts[day];
-        if (!dayLifts || typeof dayLifts !== 'object') continue;
-        const rekeyed = {};
-        for (const name in dayLifts) {
-          const id = name.startsWith('lift_') ? name : _getLiftIdOrCreate(name);
-          rekeyed[id] = dayLifts[name];
-          // Ensure reverse map exists for pre-existing IDs
-          if (name.startsWith('lift_') && !appState.liftNames[name]) {
-            appState.liftNames[name] = name; // fallback display = id
-          }
-        }
-        wkData.lifts[day] = rekeyed;
-      }
-    }
-
-    if (wkData.supersets) {
-      for (const day in wkData.supersets) {
-        const ssMap = wkData.supersets[day];
-        if (!ssMap || typeof ssMap !== 'object') continue;
-        const rekeyed = {};
-        for (const name in ssMap) {
-          const id = name.startsWith('lift_') ? name : _getLiftIdOrCreate(name);
-          rekeyed[id] = ssMap[name];
-        }
-        wkData.supersets[day] = rekeyed;
-      }
-    }
-  }
-
-  appState._liftIdVersion = 1;
-  saveStateToLocalStorage(true);
-}
-
-export function listSeededPrograms() {
-  return Object.keys(PROGRAMS).map(id => ({ id, name: PROGRAMS[id].name, weeks: PROGRAMS[id].totalWeeks }));
-}
-
-export function createCustomProgram(name, totalWeeks, focus, philosophy, templateId) {
+export function createCustomProgram(name, totalWeeks, focus, philosophy) {
   const id = 'prog_' + Date.now();
-  // SCHEMA v2: new custom programs are authored in the unified weeks[] →
-  // days{mon..sun} → block[] tree. Optionally seeded from a library template.
-  let newProg;
-  if (templateId && PROGRAMS[templateId]) {
-    const base = migrateProgramToV2({ id, ...PROGRAMS[templateId] });
-    newProg = {
-      ...base, id,
-      name: name || `${PROGRAMS[templateId].name} (Custom)`,
-      dossier: {
-        creator: 'You',
-        focus: focus || base.dossier?.focus || 'Custom Focus',
-        philosophy: philosophy || base.dossier?.philosophy || 'A custom built training block.',
-      },
-    };
-  } else {
-    newProg = createEmptyV2Program({
-      id,
-      name: name || 'New Custom Program',
-      totalWeeks,
-      dossier: { creator: 'You', focus: focus || 'Custom Focus', philosophy: philosophy || 'A custom built training block.' },
-    });
+  const newProg = {
+    id,
+    name: name || "New Custom Program",
+    totalWeeks: parseInt(totalWeeks, 10) || 12,
+    dossier: { creator: "You", focus: focus || "Custom Focus", philosophy: philosophy || "A custom built training block." },
+    days: {},
+    weeklyVolModifiers: {}
+  };
+  
+  ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+    newProg.days[d] = { title: "Rest", badge: "Rest", color: "var(--text-muted)", desc: "", runs: "Rest", lifts: [] };
+  });
+  
+  for(let i = 1; i <= newProg.totalWeeks; i++) {
+    newProg.weeklyVolModifiers[i.toString()] = { sets: 3, reps: 10, intensityLabel: "Custom Block" };
   }
-
+  
   if (!appState.customPrograms) appState.customPrograms = [];
   appState.customPrograms.push(newProg);
   saveStateToLocalStorage(true);
@@ -226,18 +124,16 @@ export function deleteCustomProgram(id) {
 // ==========================================
 // AUTHENTICATION
 // ==========================================
-export async function loginToSupabase(email, pass) {
-  // Credentials may be passed in (testable) or read from the auth form (the
-  // app's data-action dispatcher calls this with no args).
-  if (email === undefined) email = document.getElementById('loginEmail')?.value || '';
-  if (pass === undefined) pass = document.getElementById('loginPassword')?.value || '';
-
-  if (!getSupabaseClient()) {
+export async function loginToSupabase() {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPassword').value;
+  
+  if (!supabaseClient) {
       showToast("Offline mode — cannot sign in.", true);
       return;
   }
 
-  const { data, error } = await getSupabaseClient().auth.signInWithPassword({ email: email, password: pass });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
 
   if (error) {
     showToast("Login failed: " + error.message.substring(0, 50), true);
@@ -245,16 +141,16 @@ export async function loginToSupabase(email, pass) {
     const authOverlay = document.getElementById('authOverlay');
     if(authOverlay) authOverlay.style.display = 'none';
     showToast('Securely Logged In ✓');
-    // Reload re-runs full init, which pulls cloud data as the now-authenticated
-    // user; pulling here first would just be discarded (and flash stale state).
+    await pullEngineDataFromStorage(); 
     window.location.reload();
   }
 }
+window.loginToSupabase = loginToSupabase; 
 
 export async function checkActiveSession() {
-  if (!getSupabaseClient()) return; 
+  if (!supabaseClient) return; 
   try {
-    const sessionPromise = getSupabaseClient().auth.getSession();
+    const sessionPromise = supabaseClient.auth.getSession();
     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
     const response = await Promise.race([sessionPromise, timeoutPromise]);
     
@@ -280,8 +176,7 @@ export function verifyWeekStorageSchema(wk) {
   if (!appState.weeks) appState.weeks = {};
   
   if (!appState.weeks[wk]) {
-    // PHASE 1 SUPERSETS: Added supersets initialization
-    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, sessionType: {}, supersets: {} };
+    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {} };
     DEFAULT_DAYS.forEach(d => {
       appState.weeks[wk].runs[d] = { dist: '', time: '', rpe: '' };
       appState.weeks[wk].notes[d] = '';
@@ -289,166 +184,54 @@ export function verifyWeekStorageSchema(wk) {
       appState.weeks[wk].bodyWeight[d] = '';
       appState.weeks[wk].gymStats[d] = { time: '', avgHR: '', maxHR: '', cals: '' };
       appState.weeks[wk].lifts[d] = {};
-      appState.weeks[wk].sessionType[d] = d; 
-      appState.weeks[wk].supersets[d] = {}; // Initialize companion map
     });
 
     const activeProgram = getProgramById(appState.activeProgramId);
 
     DEFAULT_DAYS.forEach(d => {
-      const dayV2 = getDayV2(activeProgram, wk, d);
-      const entries = dayLiftEntries(dayV2?.day);
-      if (entries.length > 0) {
-        const weekContext = { label: dayV2?.label || '' };
-        entries.forEach(entry => {
-          appState.weeks[wk].lifts[d][_getLiftIdOrCreate(entry.name)] =
-            prescribeSetsForLift(wk, d, entry, weekContext);
+      const dayBlueprint = activeProgram.days[d];
+      if (dayBlueprint && dayBlueprint.lifts && dayBlueprint.lifts.length > 0) {
+        const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
+
+        dayBlueprint.lifts.forEach(liftName => {
+          appState.weeks[wk].lifts[d][liftName] =
+            prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
         });
-        // SUPERSET CONVERGENCE: carry authored block.group -> cockpit supersets[d]
-        appState.weeks[wk].supersets[d] = supersetsFromBlockEntries(entries);
       }
     });
   }
-
-  // PHASE 1 SUPERSETS: Patch existing weeks that predate supersets architecture
-  if (!appState.weeks[wk].supersets) appState.weeks[wk].supersets = {};
-  DEFAULT_DAYS.forEach(d => {
-    if (!appState.weeks[wk].supersets[d]) appState.weeks[wk].supersets[d] = {};
-  });
-
-  // TIME-AXIS: stamp a real calendar start date on the week (the Monday of the
-  // training week). New weeks inherit the current week-start; historical weeks
-  // are backfilled by estimating 7-day-week offsets so the timeline is monotonic.
-  if (!appState.weeks[wk].startedAt) {
-    appState.weeks[wk].startedAt =
-      estimateWeekStart(appState.weekStartedAt, appState.currentWeek, wk) ||
-      appState.weekStartedAt ||
-      new Date().toISOString();
-  }
-}
-
-// ==========================================
-// SESSION ↔ DAY DECOUPLING
-// ==========================================
-export function getSessionSourceDay(wk, day) {
-  return appState.weeks?.[wk]?.sessionType?.[day] || day;
-}
-
-function dayHasLoggedWork(wk, day) {
-  const wd = appState.weeks?.[wk];
-  if (!wd) return false;
-  if ((parseFloat(wd.runs?.[day]?.dist) || 0) > 0) return true;
-  const lifts = wd.lifts?.[day] || {};
-  for (const l in lifts) {
-    if (Array.isArray(lifts[l]) && lifts[l].some(s => isCompletedSet(s))) return true;
-  }
-  return false;
-}
-
-export function loadSessionIntoDay(targetDay, sourceDay, { force = false } = {}) {
-  const wk = appState.currentWeek;
-  verifyWeekStorageSchema(wk);
-  const weekData = appState.weeks[wk];
-  if (!weekData) return false;
-  if (!force && dayHasLoggedWork(wk, targetDay)) return false;
-
-  const activeProgram = getProgramById(appState.activeProgramId);
-  const dayV2 = getDayV2(activeProgram, wk, sourceDay);
-  const entries = dayLiftEntries(dayV2?.day);
-
-  if (!weekData.sessionType) weekData.sessionType = {};
-  weekData.sessionType[targetDay] = sourceDay;
-
-  // Reseed the target slot's lifts from the source template.
-  weekData.lifts[targetDay] = {};
-  weekData.supersets[targetDay] = {}; // PHASE 1 SUPERSETS: Reset the target map
-  
-  if (entries.length) {
-    const weekContext = { label: dayV2?.label || '' };
-    // SUPERSET CONVERGENCE: authored groups form the base; live source-day edits overlay.
-    Object.assign(weekData.supersets[targetDay], supersetsFromBlockEntries(entries));
-    entries.forEach(entry => {
-      const liftId = _getLiftIdOrCreate(entry.name);
-      weekData.lifts[targetDay][liftId] =
-        prescribeSetsForLift(wk, sourceDay, entry, weekContext);
-
-      // PHASE 1 SUPERSETS: Copy superset relationships if they exist in source
-      if (weekData.supersets[sourceDay]?.[liftId]) {
-        weekData.supersets[targetDay][liftId] = weekData.supersets[sourceDay][liftId];
-      }
-    });
-  }
-  saveStateToLocalStorage(true);
-  return true;
-}
-
-export function resetSessionForDay(targetDay) {
-  return loadSessionIntoDay(targetDay, targetDay, { force: true });
 }
 
 // ==========================================
 // CLOUD PERSISTENCE
 // ==========================================
-export const CLOUD_SYNC_DEBOUNCE_MS = 2000;
-
-// Debounce state — module-scoped so all callers share a single timer.
-let _syncTimer = null;
-let _pendingToast = false;
-
-// Perform the actual Supabase upsert. Called by the timer and by flushCloudSyncNow.
-async function _flushCloudSync() {
-  _syncTimer = null;
-  const wantToast = _pendingToast;
-  _pendingToast = false;
-
-  if (!getSupabaseClient()) return;
-  try {
-    const { data: sessionData } = await getSupabaseClient().auth.getSession();
-    if (!sessionData?.session) {
-      if (wantToast) showToast('Session Saved Locally ✓');
-      return;
-    }
-    const { error } = await getSupabaseClient()
-      .from('user_data')
-      .upsert({ user_id: sessionData.session.user.id, state_data: appState }, { onConflict: 'user_id' });
-    if (error) throw error;
-    if (wantToast) showToast('Session Saved to Cloud ✓');
-  } catch (err) {
-    console.error('Supabase Save Error:', err);
-    showToast('DB Reject: ' + (err.message || 'Unknown error').substring(0, 40), true);
-  }
-}
-
-function scheduleCloudSync(wantToast) {
-  clearTimeout(_syncTimer);
-  if (wantToast) _pendingToast = true;
-  _syncTimer = setTimeout(_flushCloudSync, CLOUD_SYNC_DEBOUNCE_MS);
-}
-
-// localStorage write is always synchronous and immediate.
-// Cloud upsert is coalesced: rapid saves share one network write 2 s after the last call.
-export function saveStateToLocalStorage(suppressToast = false) {
+export async function saveStateToLocalStorage(suppressToast = false) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (e) {
     console.error('Failed to save state locally:', e);
   }
 
-  if (!getSupabaseClient()) {
-    if (!suppressToast) showToast('Session Saved Locally ✓');
-    return;
+  if (supabaseClient) {
+    try {
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      if (!sessionData?.session) {
+        if (!suppressToast) showToast('Session Saved Locally ✓');
+        return;
+      }
+      const { error } = await supabaseClient
+        .from('user_data')
+        .upsert({ user_id: sessionData.session.user.id, state_data: appState }, { onConflict: 'user_id' });
+
+      if (error) throw error;
+      if (!suppressToast) showToast('Session Saved to Cloud ✓');
+    } catch (err) {
+      console.error('Supabase Save Error:', err);
+      if (!suppressToast) showToast('DB Reject: ' + (err.message || 'Unknown error').substring(0, 40), true);
+    }
+  } else {
+     if (!suppressToast) showToast('Session Saved Locally ✓');
   }
-
-  scheduleCloudSync(!suppressToast);
-}
-
-// Bypass the debounce and upsert immediately — call before tab switches,
-// session close, page unload, or any other "commit" moment.
-export async function flushCloudSyncNow() {
-  clearTimeout(_syncTimer);
-  _syncTimer = null;
-  if (!getSupabaseClient()) return;
-  await _flushCloudSync();
 }
 
 export async function pullEngineDataFromStorage() {
@@ -462,30 +245,24 @@ export async function pullEngineDataFromStorage() {
     console.error('Failed to parse local storage:', e);
   }
 
-  const baseDefaults = {
-    currentWeek: '1', activeProgramId: 'hybrid_engine', weekStartedAt: null,
-    weeks: {}, exerciseStats: {}, customExercises: [], customPrograms: [], bodyWeightLog: [],
+  const baseDefaults = { 
+    currentWeek: '1', activeProgramId: 'hybrid_engine', weekStartedAt: null, 
+    weeks: {}, exerciseStats: {}, customExercises: [], customPrograms: [], bodyWeightLog: [], 
     thresholdPaceSeconds: null, deloadApplied: null, _deloadDismissedWeek: null,
     streakData: { current: 0, longest: 0, lastActivityDate: null },
-    goalData: { milestones: [], completedCount: 0, goalConfig: { primaryGoal: null, goalEventDate: null, goalEventName: null } },
-    athleteProfile: emptyAthleteProfile(),
-    health: null,
-    healthLog: [],
-    liftIdMap: {},
-    liftNames: {},
-    _liftIdVersion: 0,
+    goalData: { milestones: [], completedCount: 0 }
   };
 
   if (localData) {
     appState = { ...baseDefaults, ...localData };
   }
 
-  if (getSupabaseClient()) {
+  if (supabaseClient) {
     try {
       const fetchCloud = async () => {
-        const { data: userData, error: authError } = await getSupabaseClient().auth.getUser();
+        const { data: userData, error: authError } = await supabaseClient.auth.getUser();
         if (!authError && userData?.user) {
-            const { data, error } = await getSupabaseClient()
+            const { data, error } = await supabaseClient
               .from('user_data')
               .select('state_data')
               .eq('user_id', userData.user.id)
@@ -519,30 +296,7 @@ export async function pullEngineDataFromStorage() {
   if (appState.thresholdPaceSeconds === undefined) appState.thresholdPaceSeconds = null;
   if (appState.deloadApplied === undefined) appState.deloadApplied = null;
   if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
-  if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0, goalConfig: { primaryGoal: null, goalEventDate: null, goalEventName: null } };
-  if (!appState.goalData.goalConfig) appState.goalData.goalConfig = { primaryGoal: null, goalEventDate: null, goalEventName: null };
-  if (!appState.athleteProfile) appState.athleteProfile = emptyAthleteProfile();
-  if (!('health' in appState)) appState.health = null;
-  if (!appState.healthLog) appState.healthLog = [];
-  if (!appState.liftIdMap) appState.liftIdMap = {};
-  if (!appState.liftNames) appState.liftNames = {};
-  if (appState._liftIdVersion === undefined) appState._liftIdVersion = 0;
-
-  let _migratedAnyProgram = false;
-  appState.customPrograms = (appState.customPrograms || []).map(prog => {
-    if (!prog || prog.schemaVersion === 2) return prog;
-    const orphanCount = Array.isArray(prog.weeks)
-      ? prog.weeks.reduce((n, w) => n + (w?.days || []).reduce((m, d) => m + (d?.exercises || []).length, 0), 0)
-      : 0;
-    const migrated = migrateCustomProgramToV2(prog);
-    const daysHadLifts = prog.days && Object.values(prog.days).some(d => (d?.lifts || []).length > 0);
-    if (orphanCount > 0 && daysHadLifts) {
-      console.warn(`[hybrid] Program "${prog.name}": migrated from days{} (executed source); ${orphanCount} exercise(s) in the old orphaned builder draft were not the executed plan and were not carried over.`);
-    }
-    _migratedAnyProgram = true;
-    return migrated;
-  });
-  if (_migratedAnyProgram) saveStateToLocalStorage(true);
+  if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0 };
 
   const weeksToDelete = [];
   for (const wk in appState.weeks) {
@@ -552,8 +306,6 @@ export async function pullEngineDataFromStorage() {
     if (hasLegacySchema) weeksToDelete.push(wk);
   }
   weeksToDelete.forEach(wk => { delete appState.weeks[wk]; });
-
-  migrateLiftIdsInState();
 
   verifyWeekStorageSchema(appState.currentWeek);
 
@@ -567,17 +319,92 @@ export async function pullEngineDataFromStorage() {
 // ==========================================
 // DATA EXPORT / IMPORT
 // ==========================================
-export function triggerEngineExport() {
-  const filename = 'hybrid_v2_meso_snapshot_wk' + appState.currentWeek + '.json';
-  const json = JSON.stringify(appState);
-  if (window.HybridHealthBridge?.saveTextFile) {
-    window.HybridHealthBridge.saveTextFile(filename, json, 'application/json');
+function fallbackCopyTextToClipboard(text) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.position = "fixed";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) showToast('Summary copied to clipboard!');
+    else showToast('Copy failed.', true);
+  } catch (err) {
+    showToast('Clipboard access denied.', true);
+  }
+  document.body.removeChild(textArea);
+}
+
+export function triggerTextSummaryExport() {
+  const wk = appState.currentWeek;
+  const weekData = appState.weeks[wk];
+  
+  if (!weekData) {
+    showToast("No data to summarize.", true);
     return;
   }
-  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(json);
+
+  let totalVolume = 0;
+  let activeDays = 0;
+  let totalRpeSum = 0;
+  let rpeCount = 0;
+
+  DEFAULT_DAYS.forEach(d => {
+    let dayHasActivity = false;
+
+    if (weekData.lifts[d]) {
+      for (let lift in weekData.lifts[d]) {
+        weekData.lifts[d][lift].forEach(set => {
+          if (set.c) {
+            dayHasActivity = true;
+            const weight = parseFloat(set.w) || 0;
+            const reps = parseInt(set.r, 10) || 0;
+            totalVolume += (weight * reps);
+          }
+        });
+      }
+    }
+
+    const run = weekData.runs[d];
+    if (run && (run.dist || run.time)) {
+      dayHasActivity = true;
+      if (run.rpe) {
+        totalRpeSum += parseFloat(run.rpe);
+        rpeCount++;
+      }
+    }
+
+    if (weekData.gymRpe?.[d]) {
+      totalRpeSum += parseFloat(weekData.gymRpe[d]);
+      rpeCount++;
+    }
+
+    if (dayHasActivity) activeDays++;
+  });
+
+  const avgRpe = rpeCount > 0 ? (totalRpeSum / rpeCount).toFixed(1) : "N/A";
+  const summaryText = `Week ${wk} Summary:\nVolume: ${totalVolume.toLocaleString()} kg\nSessions: ${activeDays}/7 completed\nAvg RPE: ${avgRpe}`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(summaryText).then(() => {
+      showToast('Summary copied to clipboard!');
+    }).catch(err => {
+      fallbackCopyTextToClipboard(summaryText);
+    });
+  } else {
+    fallbackCopyTextToClipboard(summaryText);
+  }
+}
+
+export function triggerEngineExport() {
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appState));
   const anchorNode = document.createElement('a');
   anchorNode.setAttribute('href', dataStr);
-  anchorNode.setAttribute('download', filename);
+  anchorNode.setAttribute('download', 'hybrid_v2_meso_snapshot_wk' + appState.currentWeek + '.json');
   document.body.appendChild(anchorNode);
   anchorNode.click();
   anchorNode.remove();
@@ -622,10 +449,6 @@ export function triggerCSVExport() {
       }
     });
   });
-  if (window.HybridHealthBridge?.saveTextFile) {
-    window.HybridHealthBridge.saveTextFile('hybrid_data_export.csv', csv, 'text/csv');
-    return;
-  }
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -640,25 +463,14 @@ export function triggerEngineImport(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = async function(e) {
+  reader.onload = function(e) {
     try {
       const parsedData = JSON.parse(e.target.result);
       if (parsedData.currentWeek && parsedData.weeks && Object.keys(parsedData.weeks).length > 0) {
         appState = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [], ...parsedData };
         if (!appState.customExercises) appState.customExercises = [];
         if (!appState.customPrograms) appState.customPrograms = [];
-        let _importMigratedAny = false;
-        appState.customPrograms = appState.customPrograms.map(prog => {
-          if (!prog || prog.schemaVersion === 2) return prog;
-          _importMigratedAny = true;
-          return migrateCustomProgramToV2(prog);
-        });
         saveStateToLocalStorage(true);
-        // Await the cloud upsert before signalling success: _onImportSuccess
-        // typically reloads the page, and an un-awaited upsert would be
-        // abandoned mid-flight — the next load would then pull the stale
-        // pre-import cloud state and clobber the freshly imported data.
-        await flushCloudSyncNow();
         if (_onImportSuccess) _onImportSuccess();
         showToast('Data snapshot mounted successfully.');
       } else {
@@ -669,6 +481,17 @@ export function triggerEngineImport(event) {
     }
   };
   reader.readAsText(file);
+}
+
+export function showToast(msg, isError = false) {
+  const toast = document.getElementById('sysToast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.style.background = isError ? 'var(--accent-red)' : 'var(--accent-green)';
+  toast.classList.remove('show');
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  setTimeout(() => { toast.classList.remove('show'); }, 2500);
 }
 
 export function saveNewCustomExerciseToLibrary(exerciseName) {
@@ -682,7 +505,7 @@ export function saveNewCustomExerciseToLibrary(exerciseName) {
 }
 
 export function logActivityForStreak() {
-  const today = getLocalDateKey();
+  const today = new Date().toISOString().slice(0, 10);
   if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
   const lastDate = appState.streakData.lastActivityDate;
   

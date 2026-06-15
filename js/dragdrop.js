@@ -1,7 +1,7 @@
 // ==========================================
 // DRAG & DROP REORDERING
 // ==========================================
-import { showToast } from './toast.js';
+import { showToast } from './state.js';
 
 let sourceDraggedElementNode = null;
 let _getState;
@@ -16,20 +16,14 @@ export function initDragDrop(getStateFn, getSelectedDayFn, saveStateFn) {
 
 export function mountExerciseDragAndDropSystems() {
   const container = document.getElementById('cockpitExercisesContainer');
-  if (!container) return;
   const elements = container.querySelectorAll('.cockpit-exercise');
 
   elements.forEach(element => {
     const grip = element.querySelector('.drag-handle-grip');
     if (!grip) return;
 
-    // Remove old listeners to prevent duplication on re-render
-    const clone = grip.cloneNode(true);
-    grip.parentNode.replaceChild(clone, grip);
-    const newGrip = clone;
-
-    newGrip.addEventListener('mousedown', () => element.setAttribute('draggable', 'true'));
-    newGrip.addEventListener('mouseup', () => element.setAttribute('draggable', 'false'));
+    grip.addEventListener('mousedown', () => element.setAttribute('draggable', 'true'));
+    grip.addEventListener('mouseup', () => element.setAttribute('draggable', 'false'));
 
     element.addEventListener('dragstart', (e) => {
       sourceDraggedElementNode = element;
@@ -47,24 +41,23 @@ export function mountExerciseDragAndDropSystems() {
       if (element === sourceDraggedElementNode) return;
       const bounding = element.getBoundingClientRect();
       const offset = e.clientY - bounding.top;
-      // Implicit DOM sorting: dropping next to a grouped item places it into the group container
       if (offset > bounding.height / 2) element.after(sourceDraggedElementNode);
       else element.before(sourceDraggedElementNode);
     });
 
-    newGrip.addEventListener('touchstart', () => {
+    grip.addEventListener('touchstart', () => {
       sourceDraggedElementNode = element;
       element.classList.add('is-dragging');
       if (navigator.vibrate) navigator.vibrate(10);
     }, { passive: true });
 
-    newGrip.addEventListener('touchmove', (e) => {
+    grip.addEventListener('touchmove', (e) => {
       e.preventDefault();
       const touchLocation = e.touches[0];
       const targetNode = document.elementFromPoint(touchLocation.clientX, touchLocation.clientY);
       if (!targetNode) return;
       const closestCard = targetNode.closest('.cockpit-exercise');
-      if (closestCard && closestCard !== sourceDraggedElementNode) {
+      if (closestCard && closestCard !== sourceDraggedElementNode && closestCard.parentNode === container) {
         const bounding = closestCard.getBoundingClientRect();
         const offset = touchLocation.clientY - bounding.top;
         if (offset > bounding.height / 2) closestCard.after(sourceDraggedElementNode);
@@ -72,7 +65,7 @@ export function mountExerciseDragAndDropSystems() {
       }
     }, { passive: false });
 
-    newGrip.addEventListener('touchend', () => {
+    grip.addEventListener('touchend', () => {
       if (sourceDraggedElementNode) {
         sourceDraggedElementNode.classList.remove('is-dragging');
         sourceDraggedElementNode = null;
@@ -82,37 +75,22 @@ export function mountExerciseDragAndDropSystems() {
   });
 }
 
-// PHASE 3 SUPERSETS: Nested DOM syncing logic
 export function commitReorderedDOMStateToStorage() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const container = document.getElementById('cockpitExercisesContainer');
   const cards = container.querySelectorAll('.cockpit-exercise');
   const wk = appState.currentWeek;
-  
   const newOrderedLiftsMap = {};
-  const newSupersetsMap = {};
-
   cards.forEach(card => {
     const liftName = card.getAttribute('data-liftname');
     if (appState.weeks[wk].lifts[selectedDay][liftName]) {
       newOrderedLiftsMap[liftName] = appState.weeks[wk].lifts[selectedDay][liftName];
-      
-      // Inherit group if dropped into a container, otherwise unlink it natively
-      const parent = card.parentElement;
-      if (parent && parent.classList.contains('superset-container')) {
-        newSupersetsMap[liftName] = parent.dataset.groupId;
-      }
     }
   });
-
   appState.weeks[wk].lifts[selectedDay] = newOrderedLiftsMap;
-  appState.weeks[wk].supersets[selectedDay] = newSupersetsMap;
   _saveState(true);
-  
   showToast('Order Updated ✓');
-  // Dispatch decoupled event to instantly redraw superset visual borders
-  document.dispatchEvent(new CustomEvent('workout:force-rerender'));
 }
 
 // ==========================================
@@ -143,6 +121,7 @@ export function resetTileOrder() {
 
 // ==========================================
 // TILE DRAG AND DROP
+// Long-press to enter edit mode, then drag to reorder.
 // ==========================================
 let tileDragSource   = null;
 let tileDragEditMode = false;
@@ -160,6 +139,7 @@ export function mountTileDragAndDrop() {
     if (tile.dataset.tileDragBound === '1') return;
     tile.dataset.tileDragBound = '1';
 
+    // --- Mouse ---
     tile.addEventListener('mousedown', onTileMouseDown);
     tile.addEventListener('dragstart', onTileDragStart);
     tile.addEventListener('dragover',  onTileDragOver);
@@ -167,6 +147,7 @@ export function mountTileDragAndDrop() {
     tile.addEventListener('drop',      onTileDrop);
     tile.addEventListener('dragend',   onTileDragEnd);
 
+    // --- Touch ---
     tile.addEventListener('touchstart', onTileTouchStart, { passive: true });
     tile.addEventListener('touchmove',  onTileTouchMove,  { passive: false });
     tile.addEventListener('touchend',   onTileTouchEnd);
@@ -199,6 +180,7 @@ function commitTileOrder() {
   showToast('Tile order saved ✓');
 }
 
+// Mouse handlers
 function onTileMouseDown(e) {
   const tile = e.currentTarget;
   tileLongPressTimer = setTimeout(() => {
@@ -253,6 +235,7 @@ function onTileDragEnd(e) {
   if (tileDragEditMode) commitTileOrder();
 }
 
+// Touch handlers
 function onTileTouchStart(e) {
   const tile = e.currentTarget;
   tileLongPressTimer = setTimeout(() => {
@@ -294,22 +277,17 @@ function onTileTouchEnd() {
   }
 }
 
+// ==========================================
+// HIDDEN TILES PERSISTENCE
+// ==========================================
 const TILE_HIDDEN_KEY = 'dashboardTilesHidden';
-
-// Tiles hidden when the user has never customised the grid.
-// Default-visible (7): today, top-mover, streak, consistency, top-lifts, avg-pace, weekly-volume.
-const DEFAULT_HIDDEN_TILES = new Set([
-  'daily-brief', 'goal-progress', 'bodyweight', 'active-fuel',
-  'recovery-score', 'hc-steps', 'hc-sleep', 'hc-rhr',
-]);
 
 export function loadHiddenTiles() {
   try {
     const raw = localStorage.getItem(TILE_HIDDEN_KEY);
-    if (raw !== null) return new Set(JSON.parse(raw));
-    return new Set(DEFAULT_HIDDEN_TILES);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
   } catch {
-    return new Set(DEFAULT_HIDDEN_TILES);
+    return new Set();
   }
 }
 
@@ -323,134 +301,4 @@ export function resetHiddenTiles() {
   try {
     localStorage.removeItem(TILE_HIDDEN_KEY);
   } catch {}
-}
-
-// ==========================================
-// IN-FOCUS CAROUSEL ORDER (long-press → horizontal drag)
-// ==========================================
-const FOCUS_ORDER_KEY = 'inFocusOrder';
-
-export function loadFocusOrder() {
-  try { const raw = localStorage.getItem(FOCUS_ORDER_KEY); return raw ? JSON.parse(raw) : null; }
-  catch { return null; }
-}
-export function saveFocusOrder(ids) {
-  try { localStorage.setItem(FOCUS_ORDER_KEY, JSON.stringify(ids)); } catch {}
-}
-export function resetFocusOrder() {
-  try { localStorage.removeItem(FOCUS_ORDER_KEY); } catch {}
-}
-
-// Reorder the carousel DOM to the saved order; new/unknown cards keep their
-// authored position at the end. Idempotent — safe to call on every render.
-export function applyFocusOrder() {
-  const carousel = document.querySelector('.in-focus-carousel');
-  if (!carousel) return;
-  const order = loadFocusOrder();
-  if (!order) return;
-  Array.from(carousel.querySelectorAll('.carousel-card'))
-    .sort((a, b) => {
-      const ai = order.indexOf(a.dataset.focusId), bi = order.indexOf(b.dataset.focusId);
-      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-    })
-    .forEach(c => carousel.appendChild(c));
-}
-
-let focusDragSource = null;
-let focusEditMode = false;
-let focusLongPressTimer = null;
-let focusTouchActive = false;
-
-export function mountFocusDragAndDrop() {
-  const carousel = document.querySelector('.in-focus-carousel');
-  if (!carousel) return;
-  carousel.querySelectorAll('.carousel-card').forEach(card => {
-    ensureGrip(card);
-    if (card.dataset.focusDragBound === '1') return;
-    card.dataset.focusDragBound = '1';
-    card.addEventListener('dragstart', onFocusDragStart);
-    card.addEventListener('dragover',  onFocusDragOver);
-    card.addEventListener('dragend',   onFocusDragEnd);
-    card.addEventListener('touchmove',  onFocusTouchMove,  { passive: false });
-    card.addEventListener('touchend',   onFocusTouchEnd);
-  });
-}
-
-// Visible drag handle so reordering is discoverable. Tapping the card still
-// navigates; pressing and dragging the grip reorders.
-function ensureGrip(card) {
-  if (card.querySelector('.focus-drag-grip')) return;
-  if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
-  const grip = document.createElement('span');
-  grip.className = 'focus-drag-grip';
-  grip.title = 'Drag to reorder';
-  grip.setAttribute('aria-label', 'Drag to reorder');
-  grip.textContent = '⠿'; // ⠿
-  grip.style.cssText = 'position:absolute;top:6px;right:8px;z-index:3;font-size:0.95rem;line-height:1;color:var(--text-muted,rgba(255,255,255,0.4));cursor:grab;padding:2px 5px;border-radius:6px;touch-action:none;user-select:none;';
-  grip.addEventListener('mousedown', (e) => { e.stopPropagation(); enterFocusEditMode(); card.setAttribute('draggable', 'true'); focusDragSource = card; });
-  grip.addEventListener('mouseup', () => { card.setAttribute('draggable', 'false'); exitFocusEditMode(); });
-  grip.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); });
-  grip.addEventListener('touchstart', (e) => { e.stopPropagation(); enterFocusEditMode(); focusTouchActive = true; focusDragSource = card; card.classList.add('tile-dragging'); }, { passive: true });
-  card.appendChild(grip);
-}
-
-function enterFocusEditMode() {
-  if (focusEditMode) return;
-  focusEditMode = true;
-  document.querySelectorAll('.in-focus-carousel .carousel-card').forEach(c => c.classList.add('tile-drag-mode'));
-  if (navigator.vibrate) navigator.vibrate(30);
-  showToast('Drag to reorder');
-}
-function exitFocusEditMode() {
-  focusEditMode = false;
-  document.querySelectorAll('.in-focus-carousel .carousel-card')
-    .forEach(c => c.classList.remove('tile-drag-mode', 'tile-drag-over'));
-}
-function commitFocusOrder() {
-  const carousel = document.querySelector('.in-focus-carousel');
-  if (!carousel) return;
-  const ids = Array.from(carousel.querySelectorAll('.carousel-card')).map(c => c.dataset.focusId).filter(Boolean);
-  saveFocusOrder(ids);
-  showToast('Order saved ✓');
-}
-
-function onFocusDragStart(e) {
-  clearTimeout(focusLongPressTimer);
-  if (!focusEditMode) { e.preventDefault(); return; }
-  focusDragSource = e.currentTarget;
-  e.currentTarget.classList.add('tile-dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-function onFocusDragOver(e) {
-  if (!focusEditMode || !focusDragSource) return;
-  e.preventDefault();
-  const target = e.currentTarget;
-  if (target === focusDragSource) return;
-  const b = target.getBoundingClientRect();
-  if (e.clientX > b.left + b.width / 2) target.after(focusDragSource);
-  else target.before(focusDragSource);
-}
-function onFocusDragEnd(e) {
-  clearTimeout(focusLongPressTimer);
-  e.currentTarget.classList.remove('tile-dragging');
-  e.currentTarget.setAttribute('draggable', 'false');
-  if (focusEditMode) { commitFocusOrder(); exitFocusEditMode(); }
-}
-function onFocusTouchMove(e) {
-  clearTimeout(focusLongPressTimer);
-  if (!focusTouchActive || !focusDragSource) return;
-  e.preventDefault();
-  const t = e.touches[0];
-  const el = document.elementFromPoint(t.clientX, t.clientY);
-  const target = el && el.closest('.carousel-card');
-  const carousel = document.querySelector('.in-focus-carousel');
-  if (!target || target === focusDragSource || !carousel || !carousel.contains(target)) return;
-  const b = target.getBoundingClientRect();
-  if (t.clientX > b.left + b.width / 2) target.after(focusDragSource);
-  else target.before(focusDragSource);
-}
-function onFocusTouchEnd() {
-  clearTimeout(focusLongPressTimer);
-  if (focusDragSource) focusDragSource.classList.remove('tile-dragging');
-  if (focusTouchActive) { focusTouchActive = false; focusDragSource = null; commitFocusOrder(); exitFocusEditMode(); }
 }
