@@ -167,7 +167,7 @@
     <input type="email" id="loginEmail" placeholder="Email" class="mb-3 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
     <input type="password" id="loginPassword" placeholder="Password" class="mb-5 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
     <button class="btn-action-block btn-blue w-4/5 max-w-xs" data-action="login-supabase">Sign In & Sync</button>
-    <button id="offlineEscapeBtn" class="btn-action-block btn-ghost mt-3 w-4/5 max-w-xs" data-action="close-auth">Continue Offline</button>
+    <button id="offlineEscapeBtn" class="btn-action-block btn-ghost mt-3 w-4/5 max-w-xs" data-action="close-auth" onclick="document.getElementById('authOverlay').style.display='none'">Continue Offline</button>
   </div>
   
   <div class="toast-system" id="sysToast" role="alert" aria-live="assertive">Session Saved ✓</div>
@@ -812,6 +812,14 @@
     </div>
   </div>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!reloading) { reloading = true; window.location.reload(); }
+      });
+    }
+  </script>
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>
