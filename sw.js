@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v95';
+const CACHE_NAME = 'hybrid-training-v96';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -78,7 +78,15 @@ const ASSETS_TO_CACHE = [
   './js/brain/briefing.js',
   './js/brain/weekly_brief.js',
   './js/brain/daily_readiness.js',
-  './js/brain/tradeoffs.js'
+  './js/brain/tradeoffs.js',
+
+  // CDN dependencies — version-pinned so safe to precache with CORS mode.
+  // This is the only way to make them available offline: the browser fetches
+  // <script async> with no-cors mode which produces an opaque (status-0)
+  // response that cannot be stored. Precaching with cors mode gives us a
+  // cacheable response that the network-first handler will serve on cache-hit.
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
 ];
 
 self.addEventListener('install', (event) => {
@@ -97,12 +105,18 @@ self.addEventListener('install', (event) => {
       // Non-atomic precache: cache each asset independently so one failure
       // can't abort the rest. `cache: 'reload'` bypasses the HTTP cache so the
       // precache always pulls fresh bytes, not a stale browser-cached copy.
+      // Cross-origin CDN URLs must use `mode: 'cors'` to produce a cacheable
+      // (non-opaque) response — the same-origin default would give status 0.
       return Promise.allSettled(
-        ASSETS_TO_CACHE.map((url) =>
-          cache.add(new Request(url, { cache: 'reload' })).catch((err) => {
+        ASSETS_TO_CACHE.map((url) => {
+          const isCrossOrigin = url.startsWith('https://') || url.startsWith('http://');
+          const req = isCrossOrigin
+            ? new Request(url, { cache: 'reload', mode: 'cors' })
+            : new Request(url, { cache: 'reload' });
+          return cache.add(req).catch((err) => {
             console.warn('[Service Worker] Skipped precaching', url, err);
-          })
-        )
+          });
+        })
       );
     })
   );
@@ -137,7 +151,7 @@ self.addEventListener('fetch', (event) => {
     p === '/' || p.endsWith('/');
 
   if (isNetworkFirst) {
-    // Network-first for code, styles and markup
+    // Network-first for code, styles and markup.
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -151,24 +165,56 @@ self.addEventListener('fetch', (event) => {
           // Prefer the last known-good cached copy if we have one.
           return caches.match(event.request).then((cached) => cached || networkResponse);
         })
-        .catch(() => caches.match(event.request))
+        .catch((networkError) =>
+          // Network completely unavailable. Fall back to cache; if cache is also
+          // empty re-throw so the browser surfaces the real error rather than
+          // receiving an undefined response (which is worse than a clear failure).
+          caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            throw networkError;
+          })
+        )
     );
   } else {
-    // Cache-first for everything else (HTML, CSS, icons)
+    // Cache-first for everything else (images, fonts, CDN bundles, etc.).
+    // Serve immediately from cache when possible; background-revalidate and
+    // update the cache entry. When the resource isn't cached yet, wait for the
+    // network and cache a successful response for future offline use.
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+        if (cachedResponse) {
+          // Kick off a background revalidation; errors are silently swallowed
+          // because the cached copy is still good.
+          fetch(event.request)
+            .then((networkResponse) => {
+              if (
+                networkResponse?.status === 200 &&
+                (networkResponse.type === 'basic' || networkResponse.type === 'cors')
+              ) {
+                caches.open(CACHE_NAME).then((cache) =>
+                  cache.put(event.request, networkResponse.clone())
+                );
+              }
+            })
+            .catch(() => { /* background refresh failed; cached copy remains */ });
+          return cachedResponse;
+        }
+
+        // Not in cache — must wait for network.
+        return fetch(event.request).then((networkResponse) => {
+          if (
+            networkResponse?.status === 200 &&
+            (networkResponse.type === 'basic' || networkResponse.type === 'cors')
+          ) {
+            caches.open(CACHE_NAME).then((cache) =>
+              cache.put(event.request, networkResponse.clone())
+            );
           }
           return networkResponse;
-        }).catch((err) => {
-          console.log('[Service Worker] Network request failed, relying on cache.', err);
         });
-        return cachedResponse || fetchPromise;
+        // Network failures propagate naturally here: the promise rejects,
+        // event.respondWith receives a rejected promise, and the browser
+        // surfaces a standard NetworkError — preferable to returning undefined.
       })
     );
   }
