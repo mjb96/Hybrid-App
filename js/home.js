@@ -1,27 +1,13 @@
 // ==========================================
-// HOME DASHBOARD — VIEW RENDERER (home.js)
-// ------------------------------------------
-// Owns the DOM rendering of the home view. The tile catalogue (what tiles
-// exist, their config and per-tile data) lives in dashboard-tiles.js; this
-// file consumes TILE_REGISTRY and paints it. Keep render logic here, tile
-// definitions there.
+// FULLY REFACTORED HOME DASHBOARD (home.js)
 // ==========================================
 import { PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
-import { getDisplayBlueprint } from './schema.js';
-import { getProgramById, saveStateToLocalStorage } from './state.js';
+import { getProgramById } from './state.js';
 import { buildRunPreviewRow, buildLiftPreviewRow, buildRestDayPreview } from './templates.js';
-import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload, isCompletedSet, parseDurationToMinutes, computeRecoveryScore, computeReadiness, computeWeeklyLoadSeries, computeStreakView, paceSecondsPerKm, formatPace, getLiftDisplayName } from './engine.js';
-import { big3Maxes } from './metrics/metrics-strength.js';
+import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload } from './engine.js';
 import { getMapFromDB } from './db.js';
-import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard-tiles.js';
-import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles, applyFocusOrder, mountFocusDragAndDrop } from './dragdrop.js';
-import { CATEGORY_META } from './brain/insight_cards.js';
-import { generateInsights, contextVerdict } from './brain/core.js';
-import { composeBriefing, trainingStatus } from './brain/briefing.js';
-import { generateWeekBrief, PHASES, PHASE_TONES } from './brain/weekly_brief.js';
-import { generateDailyBrief } from './brain/daily_readiness.js';
-import { energyProfile, activeCaloriesForDay } from './profile.js';
-import { escapeHtml } from './util.js';
+import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard.js';
+import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 
 let _getState;
 let _getSelectedDay;
@@ -34,6 +20,14 @@ export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getState = getStateFn;
   _getSelectedDay = getSelectedDayFn;
   _getDays = getDaysFn;
+}
+
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  if (parts.length === 3) return (parts[0] * 60) + parts[1] + (parts[2] / 60);
+  if (parts.length === 2) return parts[0] + (parts[1] / 60);
+  return parseFloat(timeStr) || 0;
 }
 
 function formatMinutesToHoursMins(totalMins) {
@@ -68,15 +62,15 @@ function renderTileError(label) {
 function renderMetricTile(config, data) {
   const accentColor = `var(${config.accentVar})`;
   const tagHTML = data.tag
-    ? `<div class="tile-tag font-bold mb-1" style="font-size:0.75rem;color:${data.tagColor || accentColor};">${escapeHtml(data.tag)}</div>`
+    ? `<div class="tile-tag font-bold mb-1" style="font-size:0.75rem;color:${data.tagColor || accentColor};">${data.tag}</div>`
     : '';
   const heroColor = data.state === 'empty' ? 'var(--text-secondary)' : 'var(--text-primary)';
   return `
     <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
     <div>
       ${tagHTML}
-      <div class="font-heavy tile-hero" style="font-size:1.3rem;line-height:1.1;color:${heroColor};">${escapeHtml(data.hero || '--')}</div>
-      <div class="text-muted tile-sub" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(data.sub || '')}</div>
+      <div class="font-heavy tile-hero" style="font-size:1.3rem;line-height:1.1;color:${heroColor};">${data.hero || '--'}</div>
+      <div class="text-muted tile-sub" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>
     </div>
   `;
 }
@@ -90,11 +84,11 @@ function renderRingTile(config, data) {
     <div class="readiness-ring-container">
       <div class="readiness-ring green" style="background:${grad};">
         <div class="readiness-ring-inner">
-          <span class="font-heavy text-inverse" style="font-size:0.75rem;">${escapeHtml(data.hero || '--')}</span>
+          <span class="font-heavy text-inverse" style="font-size:0.75rem;">${data.hero || '--'}</span>
         </div>
       </div>
     </div>
-    <div class="text-muted text-center" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(data.sub || '')}</div>
+    <div class="text-muted text-center" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>
   `;
 }
 
@@ -102,8 +96,8 @@ function renderSplit3Tile(config, data) {
   const accentColor = `var(${config.accentVar})`;
   const rows = (data.rows || []).map(r => `
     <div class="flex-between mb-1" style="font-size:0.75rem;">
-      <span class="text-muted">${escapeHtml(r.label)}</span>
-      <strong class="text-inverse">${escapeHtml(r.value)}</strong>
+      <span class="text-muted">${r.label}</span>
+      <strong class="text-inverse">${r.value}</strong>
     </div>
   `).join('');
   return `
@@ -116,29 +110,13 @@ function renderRatioBarTile(config, data) {
   return `
     <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
     <div>
-      <div class="font-heavy text-inverse mb-1" style="font-size:0.95rem;">${escapeHtml(data.label || '0% / 0%')}</div>
+      <div class="font-heavy text-inverse mb-1" style="font-size:0.95rem;">${data.label || '0% / 0%'}</div>
       <div class="ratio-bar-track mb-1" style="height:5px;border-radius:3px;">
         <div class="ratio-fill-blue" id="tileRatioLiftBar" style="width:${data.liftPct || 50}%;background:#3b82f6;"></div>
         <div class="ratio-fill-pink" id="tileRatioRunBar" style="width:${data.runPct || 50}%;background:#ec4899;"></div>
       </div>
-      <div class="text-muted" style="font-size:0.6rem;">${escapeHtml(data.advice || 'Lift / Run bias')}</div>
+      <div class="text-muted" style="font-size:0.6rem;">${data.advice || 'Lift / Run bias'}</div>
     </div>
-  `;
-}
-
-function renderBriefTile(config, data) {
-  const accent = `var(${config.accentVar})`;
-  const tagHTML = data.tag
-    ? `<span style="font-size:0.6rem;font-weight:700;padding:1px 8px;border-radius:999px;color:${data.tagColor || accent};background:color-mix(in srgb, ${data.tagColor || accent} 15%, transparent);">${escapeHtml(data.tag)}</span>`
-    : '';
-  const heroColor = data.state === 'empty' ? 'var(--text-secondary)' : 'var(--text-primary)';
-  return `
-    <div class="card-icon-title mb-1" style="color:${accent};">
-      <span>${config.icon}</span> ${config.label}
-      ${tagHTML ? `<span style="margin-left:auto;">${tagHTML}</span>` : ''}
-    </div>
-    <div class="font-heavy" style="font-size:0.78rem;line-height:1.3;color:${heroColor};display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(data.hero || '–')}</div>
-    ${data.sub ? `<div class="text-muted mt-1" style="font-size:0.6rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(data.sub)}</div>` : ''}
   `;
 }
 
@@ -150,7 +128,7 @@ function renderProgressTile(config, data) {
       <div class="font-heavy text-inverse mb-1" style="font-size:1.3rem;line-height:1.1;">
         ${data.done || 0} <span class="text-muted" style="font-size:0.9rem;">/ ${data.total || 0}</span>
       </div>
-      <div class="text-muted" style="font-size:0.6rem;">${escapeHtml(data.sub || '')}</div>
+      <div class="text-muted" style="font-size:0.6rem;">${data.sub || ''}</div>
     </div>
   `;
 }
@@ -158,7 +136,6 @@ function renderProgressTile(config, data) {
 function renderTileContent(config, data) {
   if (data.state === 'error') return renderTileError(config.label);
   switch (config.type) {
-    case DashboardTileType.BRIEF:     return renderBriefTile(config, data);
     case DashboardTileType.RING:      return renderRingTile(config, data);
     case DashboardTileType.SPLIT_3:   return renderSplit3Tile(config, data);
     case DashboardTileType.RATIO_BAR: return renderRatioBarTile(config, data);
@@ -316,36 +293,6 @@ export function resetTileCustomiser() {
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, _getSelectedDay());
 }
 
-function renderSupportCards(appState, defaultDays, activeProgram) {
-  const container = document.getElementById('homeSupportCards');
-  if (!container) return;
-
-  const cards = [];
-
-  // Block Progress
-  try {
-    const wk        = parseInt(appState.currentWeek, 10) || 1;
-    const totalWeeks = activeProgram?.totalWeeks || 12;
-    const pct       = Math.min(100, Math.round((wk / totalWeeks) * 100));
-    const phaseName = WEEK_PHASE_NAMES[String(wk)] || activeProgram?.dossier?.focus || 'Training block';
-    const color     = pct >= 75 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#3b82f6';
-    cards.push(`
-      <article class="card-dark p-3 mb-2" style="cursor:pointer;" data-action="open-analytics" data-context="progress">
-        <div class="flex-between mb-2">
-          <div class="text-xs text-muted font-bold uppercase tracking-wider">Block Progress</div>
-          <div class="text-xs font-bold" style="color:${color};">Week ${wk} of ${totalWeeks}</div>
-        </div>
-        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;">
-          <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s;"></div>
-        </div>
-        <div class="text-xs text-muted mt-2">${phaseName} · ${pct}% complete</div>
-      </article>
-    `);
-  } catch {}
-
-  container.innerHTML = cards.join('');
-}
-
 export function renderHome() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
@@ -360,7 +307,7 @@ export function renderHome() {
   if (labelEl) labelEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const homeBlueprint = getDisplayBlueprint(activeProgram, wk, selectedDay);
+  const homeBlueprint = activeProgram.days?.[selectedDay] || { title: "Rest Day", badge: "Rest", color: "#6b7280", desc: "No specific template found.", runs: "Rest", lifts: [] };
 
   const hBadge = document.getElementById('homeFocusBadge');
   const dAccent = document.getElementById('homeDayAccentBar');
@@ -414,7 +361,7 @@ export function renderHome() {
     if (Array.isArray(todayLifts[lift])) {
       todayLifts[lift].forEach(s => {
         if (s) {
-          const isCompleted = isCompletedSet(s);
+          const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
           if (isCompleted) {
             todaySets++;
             todayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
@@ -496,7 +443,6 @@ export function renderHome() {
             if (mapEl) {
               mapEl.style.display = 'block';
               setTimeout(() => {
-                if (typeof L === 'undefined') return;
                 if (activeHomeMapInstance) activeHomeMapInstance.remove();
                 activeHomeMapInstance = L.map('homeMiniMapContainer', {
                   zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false
@@ -516,7 +462,11 @@ export function renderHome() {
       }
       for (let liftName in todayLifts) {
         const expectedSets = Array.isArray(todayLifts[liftName]) ? todayLifts[liftName].length : 4;
-        previewContainer.innerHTML += buildLiftPreviewRow(getLiftDisplayName(appState, liftName), expectedSets);
+        let displayLiftName = liftName;
+        if (!isNaN(liftName) && homeBlueprint.lifts && homeBlueprint.lifts[parseInt(liftName, 10)]) {
+          displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
+        }
+        previewContainer.innerHTML += buildLiftPreviewRow(displayLiftName, expectedSets);
       }
       if (selectedDay === 'sun' || (Object.keys(todayLifts).length === 0 && selectedDay === 'sat')) {
         previewContainer.innerHTML = buildRestDayPreview();
@@ -545,7 +495,7 @@ export function renderHome() {
         if (Array.isArray(weekData.lifts[dKey][lift])) {
           weekData.lifts[dKey][lift].forEach(s => {
             if (s) {
-              const isCompleted = isCompletedSet(s);
+              const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
               if (isCompleted) dailyCompletedSets++;
             }
           });
@@ -555,7 +505,7 @@ export function renderHome() {
 
     const gStats = weekData.gymStats?.[dKey];
     let dailyGymTime = 0;
-    if (gStats && gStats.time) dailyGymTime = parseDurationToMinutes(gStats.time);
+    if (gStats && gStats.time) dailyGymTime = parseTimeToMinutes(gStats.time);
     if (dailyGymTime === 0 && dailyCompletedSets > 0) dailyGymTime = dailyCompletedSets * 3;
     currentWeekGymTimeSum += dailyGymTime;
     dailyGymTimes.push(dailyGymTime);
@@ -568,40 +518,6 @@ export function renderHome() {
   
   if (strengthHero) strengthHero.textContent = formatMinutesToHoursMins(currentWeekGymTimeSum);
   if (runHero) runHero.textContent = currentWeekRunDistSum.toFixed(1) + ' km';
-
-  // TIER 3 — Hybrid Focus: block / goal, week-of, progress, milestone.
-  const totalWeeks = activeProgram?.totalWeeks || 12;
-  const wkNum = parseInt(wk, 10) || 1;
-  const phase = WEEK_PHASE_NAMES[wk] || activeProgram?.dossier?.focus || 'Training block';
-  const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
-  const setW = (id, p) => { const el = document.getElementById(id); if (el) el.style.width = p + '%'; };
-  const setHTML = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
-
-  // Strength track — program block + position + top lift.
-  setTxt('focusStrengthBlock', phase);
-  setTxt('focusStrengthSub', `Week ${wkNum} of ${totalWeeks} · ${formatMinutesToHoursMins(currentWeekGymTimeSum)} trained`);
-  setW('focusStrengthBar', Math.min(100, Math.round((wkNum / totalWeeks) * 100)));
-  const b3 = big3Maxes(appState);
-  const top = [['Squat', b3.squat], ['Bench', b3.bench], ['Deadlift', b3.deadlift]].sort((a, b) => b[1] - a[1])[0];
-  setHTML('focusStrengthMilestone', top && top[1] > 0
-    ? `<span>Top lift</span><b>${top[0]} ${Math.round(top[1])} kg</b>`
-    : `<span>Top lift</span><b>Log to set</b>`);
-
-  // Running track — weekly mileage vs an auto target + avg pace.
-  let maxWeekKm = 0;
-  Object.keys(appState.weeks || {}).forEach(k => {
-    let km = 0; DEFAULT_DAYS.forEach(d => { km += parseFloat(appState.weeks[k]?.runs?.[d]?.dist) || 0; });
-    if (km > maxWeekKm) maxWeekKm = km;
-  });
-  const target = Math.max(20, Math.ceil(Math.max(currentWeekRunDistSum, maxWeekKm) / 5) * 5);
-  const runPct = Math.min(100, Math.round((currentWeekRunDistSum / target) * 100));
-  let tTime = 0, tDist = 0;
-  DEFAULT_DAYS.forEach(d => { const r = weekData.runs?.[d]; if (!r) return; const dd = parseFloat(r.dist) || 0; const p = paceSecondsPerKm(dd, r.time || ''); if (dd > 0 && p > 0) { tTime += p * dd; tDist += dd; } });
-  const avgPace = tDist > 0 ? formatPace(tTime / tDist) : '—';
-  setTxt('focusRunBlock', 'Weekly mileage');
-  setTxt('focusRunSub', `${currentWeekRunDistSum.toFixed(1)} / ${target} km · ${runPct}%`);
-  setW('focusRunBar', runPct);
-  setHTML('focusRunMilestone', `<span>Avg pace</span><b>${avgPace}</b>`);
 
   if (strengthChartContainer && runChartContainer) {
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -652,18 +568,12 @@ export function renderHome() {
     runChartContainer.innerHTML = runHTML;
   }
 
-  // Hybrid Focus carousel: apply saved order + enable reordering.
-  try { applyFocusOrder(); mountFocusDragAndDrop(); }
-  catch (e) { console.warn('[hybrid-focus] reorder skipped:', e); }
-
-  // At a Glance tile grid.
-  try { renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay); mountTileDragAndDrop(); }
-  catch (e) { console.warn('[glance-grid] render skipped:', e); }
+  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
   const progressPercentage = (() => {
     let total = 0, done = 0;
     DEFAULT_DAYS.forEach(dKey => {
-      const bp = getDisplayBlueprint(activeProgram, wk, dKey);
+      const bp = activeProgram.days?.[dKey];
       const isRunScheduled = bp?.runs && !bp.runs.toLowerCase().includes('no structured') && bp.runs.toLowerCase() !== 'rest';
       if (isRunScheduled) total++;
       const rDist = parseFloat(weekData.runs?.[dKey]?.dist) || 0;
@@ -673,7 +583,7 @@ export function renderHome() {
         if (Array.isArray(dayLifts[lift])) {
           dayLifts[lift].forEach(s => {
             total++;
-            if (isCompletedSet(s)) done++;
+            if (s && (s.c === true || s.c === "true" || s.c === "on" || s.c === 1)) done++;
           });
         }
       }
@@ -694,7 +604,7 @@ export function renderHome() {
     let foundNextRun = false;
     for (let offset = 1; offset <= 7; offset++) {
       const checkDay = dayKeys[(todayIdx + offset) % 7];
-      const checkBlueprint = getDisplayBlueprint(activeProgram, wk, checkDay);
+      const checkBlueprint = activeProgram.days?.[checkDay];
       if (checkBlueprint && checkBlueprint.runs &&
           checkBlueprint.runs.toLowerCase() !== 'rest' &&
           !checkBlueprint.runs.toLowerCase().includes('no running') &&
@@ -727,7 +637,7 @@ export function renderHome() {
           if (Array.isArray(pLifts[l])) {
             pLifts[l].forEach(s => { 
               if (s) {
-                const isCompleted = isCompletedSet(s);
+                const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
                 if (isCompleted) prevVol += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0); 
               }
             });
@@ -738,7 +648,7 @@ export function renderHome() {
           if (Array.isArray(cLifts[l])) {
             cLifts[l].forEach(s => { 
               if (s) {
-                const isCompleted = isCompletedSet(s);
+                const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
                 if (isCompleted) currentWeekVolSum += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0); 
               }
             });
@@ -800,357 +710,6 @@ export function renderHome() {
 }
 
 // ==========================================
-// TIER 2.5a — TODAY'S FOCUS (daily readiness)
-// ==========================================
-
-const DR_TONE = { fresh: '#10b981', moderate: '#f59e0b', reduced: '#ef4444' };
-
-export function renderDailyReadiness(appState, days, program, selectedDay) {
-  const card = document.getElementById('dailyReadinessCard');
-  if (!card) return;
-
-  let brief;
-  try {
-    brief = generateDailyBrief(appState, {
-      days,
-      program,
-      selectedDay,
-      currentWeek: appState.currentWeek,
-    });
-  } catch (e) {
-    console.warn('[daily-readiness] brief failed:', e);
-    card.style.display = 'none';
-    return;
-  }
-
-  // Hide when session is already logged (already done for today)
-  if (brief.sessionLogged) { card.style.display = 'none'; return; }
-  // Hide when there's no data from yesterday (nothing to say)
-  if (!brief.hasData) { card.style.display = 'none'; return; }
-
-  card.style.display = '';
-  const accent = DR_TONE[brief.status] || DR_TONE.fresh;
-  card.style.setProperty('--dr-accent', accent);
-  card.style.borderLeftColor = accent;
-
-  const chip     = document.getElementById('drStatusChip');
-  const headline = document.getElementById('drHeadline');
-  const directive = document.getElementById('drDirective');
-  const list     = document.getElementById('drAdjustments');
-
-  if (chip) {
-    chip.textContent = brief.status === 'fresh' ? 'Fresh' : brief.status === 'moderate' ? 'Moderate' : 'Reduced';
-    chip.style.background = `color-mix(in srgb, ${accent} 16%, transparent)`;
-    chip.style.color = accent;
-  }
-  if (headline)  headline.textContent  = brief.headline  || '';
-  if (directive) directive.textContent = brief.directive || '';
-  if (list) {
-    if (brief.adjustments && brief.adjustments.length > 0) {
-      list.innerHTML = brief.adjustments.map(a => `<li>${escapeHtml(a)}</li>`).join('');
-      list.style.display = '';
-    } else {
-      list.innerHTML = '';
-      list.style.display = 'none';
-    }
-  }
-}
-
-// ==========================================
-// TIER 2.5b — YOUR WEEK AHEAD CARD
-// ==========================================
-
-const TONE_COLORS = {
-  risk:        '#ef4444',
-  opportunity: '#f59e0b',
-  goal:        '#3b82f6',
-  recovery:    '#3b82f6',
-  progress:    '#10b981',
-};
-
-export function renderWeekAhead(appState, days, program) {
-  const card = document.getElementById('weekAheadCard');
-  if (!card) return;
-
-  let brief;
-  try {
-    brief = generateWeekBrief(appState, {
-      days,
-      program,
-      currentWeek: appState.currentWeek,
-      maxWeek: program?.totalWeeks || 12,
-      goalConfig: appState?.goalData?.goalConfig,
-    });
-  } catch (e) {
-    console.warn('[week-ahead] brief generation failed:', e);
-    card.style.display = 'none';
-    return;
-  }
-
-  card.style.display = '';
-
-  const accent = TONE_COLORS[brief.tone] || TONE_COLORS.progress;
-  card.style.setProperty('--wa-accent', accent);
-  card.style.borderLeftColor = accent;
-
-  const phaseChip     = document.getElementById('weekAheadPhaseChip');
-  const countdown     = document.getElementById('weekAheadCountdown');
-  const goalBtn       = document.getElementById('weekAheadGoalBtn');
-  const headline      = document.getElementById('weekAheadHeadline');
-  const directive     = document.getElementById('weekAheadDirective');
-  const adjustmentsList = document.getElementById('weekAheadAdjustments');
-  const rationale     = document.getElementById('weekAheadRationale');
-
-  if (phaseChip) {
-    phaseChip.textContent = brief.phase || 'Training';
-    phaseChip.style.background = `color-mix(in srgb, ${accent} 16%, transparent)`;
-    phaseChip.style.color       = accent;
-  }
-
-  if (countdown) {
-    if (brief.weeksToGoal !== null && brief.weeksToGoal > 0) {
-      countdown.textContent = `${brief.weeksToGoal} wk${brief.weeksToGoal !== 1 ? 's' : ''} to go`;
-      countdown.style.display = '';
-    } else {
-      countdown.textContent = '';
-      countdown.style.display = 'none';
-    }
-  }
-
-  if (goalBtn) {
-    goalBtn.textContent    = brief.hasGoal ? 'Edit goal' : 'Set goal';
-    goalBtn.dataset.action = 'open-goal-setup';
-  }
-
-  if (headline)  headline.textContent  = brief.headline  || '';
-  if (directive) directive.textContent = brief.directive || '';
-
-  if (adjustmentsList) {
-    if (brief.adjustments && brief.adjustments.length > 0) {
-      adjustmentsList.innerHTML = brief.adjustments
-        .map(a => `<li>${escapeHtml(a)}</li>`)
-        .join('');
-      adjustmentsList.style.display = '';
-    } else {
-      adjustmentsList.innerHTML = '';
-      adjustmentsList.style.display = 'none';
-    }
-  }
-
-  if (rationale) {
-    if (brief.rationale) {
-      rationale.textContent  = brief.rationale;
-      rationale.style.display = '';
-    } else {
-      rationale.textContent  = '';
-      rationale.style.display = 'none';
-    }
-  }
-}
-
-// ==========================================
-// GOAL SETUP MODAL
-// ==========================================
-
-let _selectedGoalType = null;
-
-function openGoalSetupModal() {
-  const appState    = _getState();
-  const goalConfig  = appState?.goalData?.goalConfig || {};
-
-  _selectedGoalType = goalConfig.primaryGoal || null;
-
-  // Pre-fill form fields
-  const nameEl = document.getElementById('goalEventName');
-  const dateEl = document.getElementById('goalEventDate');
-  if (nameEl) nameEl.value = goalConfig.goalEventName || '';
-  if (dateEl) dateEl.value = goalConfig.goalEventDate || '';
-
-  // Highlight active goal type
-  document.querySelectorAll('.goal-type-btn').forEach(btn => {
-    btn.classList.toggle('selected', btn.dataset.goal === _selectedGoalType);
-  });
-
-  document.getElementById('goalSetupModal')?.classList.add('active');
-}
-
-function closeGoalSetupModal() {
-  document.getElementById('goalSetupModal')?.classList.remove('active');
-  _selectedGoalType = null;
-}
-
-function saveGoalSetup() {
-  const appState = _getState();
-  const nameEl   = document.getElementById('goalEventName');
-  const dateEl   = document.getElementById('goalEventDate');
-
-  if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0, goalConfig: {} };
-  if (!appState.goalData.goalConfig) appState.goalData.goalConfig = {};
-
-  appState.goalData.goalConfig = {
-    primaryGoal:    _selectedGoalType || null,
-    goalEventName:  nameEl ? (nameEl.value.trim() || null) : null,
-    goalEventDate:  dateEl ? (dateEl.value || null) : null,
-  };
-
-  saveStateToLocalStorage(true);
-  closeGoalSetupModal();
-  try { renderHome(); } catch {}
-}
-
-function clearGoalSetup() {
-  const appState = _getState();
-  if (!appState.goalData) return;
-  appState.goalData.goalConfig = { primaryGoal: null, goalEventDate: null, goalEventName: null };
-  saveStateToLocalStorage(true);
-  closeGoalSetupModal();
-  try { renderHome(); } catch {}
-}
-
-// ==========================================
-// TIER 1/2 — TELEMETRY STRIP + COACH'S BRIEFING
-// ==========================================
-function metaColor(tone) {
-  const m = CATEGORY_META[tone] || CATEGORY_META.progress;
-  return m ? m.color : 'var(--accent-blue,#3b82f6)';
-}
-
-function renderIntel(appState, days, program, selectedDay) {
-  const wk = appState.currentWeek || '1';
-  const maxWeek = program?.totalWeeks || 12;
-
-  let report = { insights: [], allInsights: [], meta: { dataWeeks: 0 } };
-  try { report = generateInsights(appState, { days, program, currentWeek: wk, maxWeek, topN: 20 }); } catch {}
-
-  let recovery = { hasData: false };
-  try { recovery = computeRecoveryScore(appState, days); } catch {}
-
-  let readiness = { hasData: false };
-  try {
-    const load = computeWeeklyLoadSeries(appState, days, maxWeek);
-    const totalByWeek = load.lift.map((v, i) => v + (load.run[i] || 0));
-    readiness = computeReadiness(totalByWeek, wk);
-  } catch {}
-
-  const active = activeCaloriesForDay(appState, wk, selectedDay);
-  const energy = energyProfile(appState.athleteProfile, active);
-  const all = report.allInsights || report.insights || [];
-  const ctx = {
-    dataWeeks: report.meta?.dataWeeks || 0,
-    recovery, readiness, energy,
-    focusObservation: all[0]?.observation,
-  };
-
-  renderTelemetryStrip(buildHomeTelemetry(appState, days, selectedDay, energy, recovery, readiness));
-  renderTrainingStatus(composeBriefing(ctx), trainingStatus(readiness), readiness, recovery);
-}
-
-// Always-substantive Tier-1 complications from data we always have, plus
-// energy/readiness when available. `action` is a raw data-action attr string.
-function buildHomeTelemetry(appState, days, selectedDay, energy, recovery, readiness) {
-  const wk = appState.currentWeek || '1';
-  const weekData = appState.weeks?.[wk] || {};
-
-  let vol = 0, runKm = 0, todaySets = 0;
-  days.forEach(d => {
-    const dl = weekData.lifts?.[d] || {};
-    for (const l in dl) {
-      if (!Array.isArray(dl[l])) continue;
-      dl[l].forEach(s => {
-        if (isCompletedSet(s) && !s.isWarmup) { vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); if (d === selectedDay) todaySets++; }
-      });
-    }
-    runKm += parseFloat(weekData.runs?.[d]?.dist) || 0;
-  });
-  const todayDone = todaySets > 0 || (parseFloat(weekData.runs?.[selectedDay]?.dist) || 0) > 0;
-  const streak = computeStreakView(appState.streakData);
-
-  void todayDone; // session status lives in the briefing/Today summary, not the strip
-  const A = (s) => s; // readability for the raw data-action strings
-  const items = [];
-  items.push({ label: 'Streak', value: `${streak.current || 0}d`, action: A('data-action="open-analytics" data-context="streak"') });
-
-  if (energy.hasProfile) {
-    items.push({ label: 'Base',   value: energy.bmr.toLocaleString(),   unit: 'kcal' });
-    items.push({ label: 'Active', value: energy.active.toLocaleString(), unit: 'kcal', action: A('data-action="open-analytics" data-context="active-fuel"') });
-    items.push({ label: 'Burned', value: energy.total.toLocaleString(),  unit: 'kcal', action: A('data-action="open-analytics" data-context="active-fuel"') });
-  } else {
-    items.push({ label: 'Volume', value: Math.round(vol).toLocaleString(), unit: 'kg', action: A('data-action="open-analytics" data-context="weekly-volume"') });
-    items.push({ label: 'Run',    value: `${Math.round(runKm * 10) / 10}`, unit: 'km', action: A('data-action="open-analytics" data-context="running"') });
-    items.push({ label: 'Energy', value: 'Set up', action: A('data-action="open-profile"') });
-  }
-  return items;
-}
-
-function renderTelemetryStrip(items) {
-  const el = document.getElementById('telemetryStrip');
-  if (!el) return;
-  el.innerHTML = (items || []).map(it => `
-    <div class="telemetry-item" ${it.action || ''}>
-      <span class="telemetry-value">${escapeHtml(it.value)}${it.unit ? ` <small>${escapeHtml(it.unit)}</small>` : ''}</span>
-      <span class="telemetry-label">${escapeHtml(it.label)}</span>
-    </div>`).join('');
-}
-
-function renderTrainingStatus(text, status, readiness, recovery) {
-  const el = document.getElementById('brainBriefing');
-  const body = document.getElementById('brainBriefingBody');
-  if (!el || !body) return;
-  el.style.display = 'block';
-  body.textContent = text;
-
-  const c = metaColor(status.tone);
-  const setTxt = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
-
-  const sEl = document.getElementById('tsStatus');
-  if (sEl) { sEl.textContent = status.status; sEl.style.color = c; }
-
-  const vEl = document.getElementById('tsVerdict');
-  if (vEl) {
-    vEl.textContent = status.hasData ? `ACWR ${status.acwr.toFixed(2)}` : 'New';
-    vEl.style.color = c;
-    vEl.style.background = `color-mix(in srgb, ${c} 16%, transparent)`;
-  }
-
-  const marker = document.getElementById('tsLoadMarker');
-  if (marker) {
-    marker.style.left = (status.hasData ? Math.max(3, Math.min(97, (status.acwr / 2) * 100)) : 50) + '%';
-    marker.style.display = status.hasData ? 'block' : 'none';
-  }
-
-  setTxt('tsLoad', status.hasData ? `${Math.round(status.acute).toLocaleString()}` : '—');
-  setTxt('tsBase', status.hasData ? `${Math.round(status.chronic).toLocaleString()}` : '—');
-  setTxt('tsRecovery', recovery?.hasData ? `${recovery.score}%` : '—');
-}
-
-// ==========================================
-// ATHLETE PROFILE CAPTURE
-// ==========================================
-function openProfileModal() {
-  const p = _getState().athleteProfile || {};
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = (v == null ? '' : v); };
-  set('profileAge', p.age);
-  set('profileHeight', p.heightCm);
-  set('profileWeight', p.weightKg);
-  const sex = document.getElementById('profileSex'); if (sex && p.sex) sex.value = p.sex;
-  document.getElementById('profileModal')?.classList.add('active');
-}
-function closeProfileModal() { document.getElementById('profileModal')?.classList.remove('active'); }
-function saveAthleteProfile() {
-  const appState = _getState();
-  const num = (id) => parseFloat(document.getElementById(id)?.value);
-  appState.athleteProfile = {
-    age: parseInt(document.getElementById('profileAge')?.value, 10) || null,
-    sex: document.getElementById('profileSex')?.value || null,
-    heightCm: num('profileHeight') || null,
-    weightKg: num('profileWeight') || null,
-  };
-  saveStateToLocalStorage(true);
-  closeProfileModal();
-  try { renderHome(); } catch {}
-}
-
-// ==========================================
 // EVENT DELEGATION ROUTER
 // ==========================================
 document.addEventListener('click', (e) => {
@@ -1166,29 +725,5 @@ document.addEventListener('click', (e) => {
     closeTileCustomiser(apply);
   } else if (action === 'reset-tile-customiser') {
     resetTileCustomiser();
-  } else if (action === 'open-profile') {
-    openProfileModal();
-  } else if (action === 'close-profile') {
-    closeProfileModal();
-  } else if (action === 'save-profile') {
-    saveAthleteProfile();
-  } else if (action === 'open-goal-setup') {
-    openGoalSetupModal();
-  } else if (action === 'close-goal-setup') {
-    closeGoalSetupModal();
-  } else if (action === 'save-goal-setup') {
-    saveGoalSetup();
-  } else if (action === 'clear-goal-setup') {
-    clearGoalSetup();
   }
-});
-
-// Goal type button selection (delegated to body so it works after DOM load)
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.goal-type-btn');
-  if (!btn) return;
-  _selectedGoalType = btn.dataset.goal || null;
-  document.querySelectorAll('.goal-type-btn').forEach(b => {
-    b.classList.toggle('selected', b === btn);
-  });
 });

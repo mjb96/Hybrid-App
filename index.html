@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>HybridHQ</title>
+  <title>Hybrid Training</title>
+
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#070a12">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="HybridHQ">
+  <meta name="apple-mobile-web-app-title" content="Hybrid Training">
   <link rel="apple-touch-icon" href="./icon-512.png">
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" async></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" async></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
   <link rel="stylesheet" href="./css/styles.css">
   
@@ -25,17 +26,25 @@
     .focus-header-text { font-size: 1.25rem; font-weight: 800; color: var(--text-inverse); letter-spacing: -0.5px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .card-icon-title { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
-    /* Hybrid Focus — equal-width dual track (two tiles side by side) */
+    /* Horizontal Swiping Carousel */
     .in-focus-carousel {
       display: flex;
-      gap: 12px;
-      width: 100%;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      gap: 16px;
+      padding-bottom: 12px;
+      scrollbar-width: none;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding-left: 16px;
+      padding-right: 16px;
     }
     .in-focus-carousel::-webkit-scrollbar { display: none; }
-
+    
     .carousel-card {
-      flex: 1 1 0;
-      min-width: 0;
+      min-width: 88%;
+      scroll-snap-align: center;
+      flex: 0 0 auto;
     }
 
     /* Bar Charts */
@@ -88,15 +97,6 @@
       font-size: 0.6rem;
       color: var(--text-muted);
       font-weight: 600;
-    }
-
-    /* HC context note inside focus cards */
-    .focus-hc-note {
-      font-size: 0.6rem;
-      color: var(--text-muted);
-      margin-top: 5px;
-      line-height: 1.4;
-      min-height: 0;
     }
 
     /* At a Glance 2-col grid */
@@ -158,192 +158,16 @@
     
     .analytics-section { display: none; }
     .analytics-section.active { display: block; }
-
-    /* ── Today's Focus (daily readiness) ─────────────────────── */
-    .daily-readiness-card {
-      padding: 12px 14px 10px;
-      border-left: 3px solid var(--dr-accent, #10b981);
-    }
-    .dr-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 7px;
-    }
-    .dr-label {
-      font-size: 0.58rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-    .dr-status-chip {
-      font-size: 0.6rem;
-      font-weight: 800;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--dr-accent, #10b981) 16%, transparent);
-      color: var(--dr-accent, #10b981);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .dr-headline {
-      font-size: 0.85rem;
-      font-weight: 800;
-      color: var(--text-inverse);
-      line-height: 1.25;
-      margin-bottom: 4px;
-    }
-    .dr-directive {
-      font-size: 0.7rem;
-      line-height: 1.4;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-    .dr-adjustments {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .dr-adjustments li {
-      font-size: 0.68rem;
-      line-height: 1.4;
-      color: var(--text-primary);
-      padding: 3px 0 3px 14px;
-      position: relative;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-    .dr-adjustments li:first-child { border-top: none; }
-    .dr-adjustments li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      color: var(--dr-accent, #10b981);
-      font-weight: 700;
-    }
-
-    /* ── Your Week Ahead card ─────────────────────────────────── */
-    .week-ahead-card {
-      padding: 14px 14px 12px;
-      border-left: 3px solid var(--wa-accent, #3b82f6);
-      cursor: default;
-    }
-    .week-ahead-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .week-ahead-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .week-ahead-phase-chip {
-      font-size: 0.58rem;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--wa-accent, #3b82f6) 18%, transparent);
-      color: var(--wa-accent, #3b82f6);
-    }
-    .week-ahead-countdown {
-      font-size: 0.62rem;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-    .week-ahead-goal-btn {
-      font-size: 0.6rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 999px;
-      padding: 3px 10px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.15s;
-    }
-    .week-ahead-goal-btn:hover { background: rgba(255,255,255,0.1); }
-    .week-ahead-headline {
-      font-size: 0.9rem;
-      font-weight: 800;
-      color: var(--text-inverse);
-      line-height: 1.25;
-      margin-bottom: 6px;
-    }
-    .week-ahead-directive {
-      font-size: 0.75rem;
-      line-height: 1.45;
-      color: var(--text-primary);
-      margin-bottom: 8px;
-    }
-    .week-ahead-adjustments {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 6px;
-    }
-    .week-ahead-adjustments li {
-      font-size: 0.7rem;
-      line-height: 1.4;
-      color: var(--text-primary);
-      padding: 3px 0 3px 14px;
-      position: relative;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-    .week-ahead-adjustments li:first-child { border-top: none; }
-    .week-ahead-adjustments li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      color: var(--wa-accent, #3b82f6);
-      font-weight: 700;
-    }
-    .week-ahead-rationale {
-      font-size: 0.62rem;
-      line-height: 1.4;
-      color: var(--text-muted);
-      border-top: 1px solid rgba(255,255,255,0.06);
-      padding-top: 6px;
-      margin-top: 4px;
-    }
-
-    /* ── Goal Setup Modal ─────────────────────────────────────── */
-    .goal-type-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    .goal-type-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      padding: 12px 8px;
-      background: rgba(255,255,255,0.04);
-      border: 2px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .goal-type-btn.selected {
-      border-color: var(--accent-blue, #3b82f6);
-      background: rgba(59,130,246,0.12);
-    }
-    .goal-type-btn:hover:not(.selected) { background: rgba(255,255,255,0.08); }
-    .goal-type-icon { font-size: 1.4rem; }
-    .goal-type-label { font-size: 0.65rem; font-weight: 700; color: var(--text-inverse); text-align: center; line-height: 1.3; }
   </style>
 </head>
 <body>
 
-  <div id="authOverlay" class="modal-overlay" style="display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-app); z-index: 9999;">
+  <div id="authOverlay" class="modal-overlay" style="display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-dark); z-index: 9999;">
     <h2 class="text-2xl font-heavy text-main mb-4">Hybrid Engine Login</h2>
     <input type="email" id="loginEmail" placeholder="Email" class="mb-3 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
     <input type="password" id="loginPassword" placeholder="Password" class="mb-5 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
     <button class="btn-action-block btn-blue w-4/5 max-w-xs" data-action="login-supabase">Sign In & Sync</button>
-    <button id="offlineEscapeBtn" class="btn-action-block btn-ghost mt-3 w-4/5 max-w-xs" data-action="close-auth" onclick="document.getElementById('authOverlay').style.display='none'">Continue Offline</button>
-    <p style="margin-top:16px;font-size:0.7rem;color:var(--text-muted);text-align:center;">
-      App stuck? <button data-action="clear-cache" style="background:none;border:none;color:var(--color-blue);cursor:pointer;font-size:0.7rem;padding:0;text-decoration:underline;">Clear cache &amp; reload</button>
-    </p>
+    <button id="offlineEscapeBtn" class="btn-action-block btn-ghost mt-3 w-4/5 max-w-xs" data-action="close-auth">Continue Offline</button>
   </div>
   
   <div class="toast-system" id="sysToast" role="alert" aria-live="assertive">Session Saved ✓</div>
@@ -351,54 +175,47 @@
   <main id="app-root">
 
     <section id="view-home" class="view-container active" aria-label="Home Dashboard">
-
-      <!-- Hidden state elements referenced by renderHome logic -->
+      
       <div style="display:none;">
-        <span id="homeWeeklyProgressPct"></span>
+        <span id="homeWeeklyProgressPct">0%</span>
         <div id="homeWeeklyProgressBar"></div>
         <span id="homeBlockTypeLabel"></span>
-        <article id="homeEngineAlertCard"><p id="homeEngineAlertDesc"></p></article>
+        <span id="homeWeeklyProgressTasks"></span>
+        <article id="homeEngineAlertCard"><h2 id="homeEngineAlertTitle"></h2><p id="homeEngineAlertDesc"></p></article>
         <article id="homeDeloadSuggestionCard"><p id="homeDeloadReason"></p></article>
         <article id="homeWeekCompareCard"><div id="homeWeekCompareGrid"></div></article>
-        <div id="homeDrillPreviewContainer"></div>
-        <div id="telemetryStrip"></div>
-        <article id="brainBriefing"><span id="tsVerdict"></span><div id="tsStatus"></div><div id="brainBriefingBody"></div><span id="tsLoad"></span><span id="tsBase"></span><span id="tsRecovery"></span><div id="tsLoadMarker"></div></article>
-        <article id="dailyReadinessCard"><span id="drStatusChip"></span><div id="drHeadline"></div><div id="drDirective"></div><ul id="drAdjustments"></ul></article>
-        <article id="weekAheadCard"><span id="weekAheadPhaseChip"></span><span id="weekAheadCountdown"></span><button id="weekAheadGoalBtn"></button><div id="weekAheadHeadline"></div><div id="weekAheadDirective"></div><ul id="weekAheadAdjustments"></ul><div id="weekAheadRationale"></div></article>
-        <span id="homeWeekBlockIndicator"></span>
-        <span id="homeCalendarDayLabel"></span><span id="homeFocusBadge"></span><div id="homeDayAccentBar"></div>
-        <div id="focusStrengthHCNote"></div><div id="focusRunHCNote"></div>
-        <div id="homeSupportCards"></div>
       </div>
 
-      <!-- Hybrid Focus -->
-      <h2 class="focus-header-text mt-2">Hybrid Focus</h2>
+      <div class="flex-between mb-4 mt-2">
+        <h1 id="homeWeekBlockIndicator" class="text-sm font-bold text-muted uppercase tracking-wider m-0">Week 1</h1>
+        <span class="text-sm font-bold text-accent-blue">SYNCED</span>
+      </div>
 
+      <h2 class="focus-header-text">In Focus</h2>
+      
       <div class="in-focus-carousel">
-
-        <article class="card-dark carousel-card focus-card" data-focus-id="strength" data-action="open-analytics" data-context="strength">
-          <div class="card-icon-title text-accent-blue mb-2"><span>🏋️</span> Strength</div>
-          <div id="focusStrengthBlock" class="focus-block text-inverse">—</div>
-          <div id="focusStrengthSub" class="focus-card-sub"></div>
-          <div class="focus-progress"><div id="focusStrengthBar" class="focus-progress-fill" style="background:var(--color-blue);"></div></div>
+        
+        <article class="card-dark carousel-card" data-action="open-analytics" data-context="strength" style="cursor: pointer;">
+          <div class="flex-between mb-2">
+             <div class="card-icon-title text-accent-blue"><span>🏋️</span> Gym Time • This Week</div>
+          </div>
+          <h3 id="focusStrengthHero" class="text-3xl font-heavy text-inverse leading-tight mb-1">0m</h3>
           <div class="bar-chart-container" id="strengthBarChart"></div>
-          <div id="focusStrengthMilestone" class="focus-milestone"></div>
         </article>
 
-        <article class="card-dark carousel-card focus-card" data-focus-id="running" data-action="open-analytics" data-context="running">
-          <div class="card-icon-title text-accent-pink mb-2"><span>🏃</span> Running</div>
-          <div id="focusRunBlock" class="focus-block text-inverse">—</div>
-          <div id="focusRunSub" class="focus-card-sub"></div>
-          <div class="focus-progress"><div id="focusRunBar" class="focus-progress-fill" style="background:var(--accent-pink,#ec4899);"></div></div>
+        <article class="card-dark carousel-card" data-action="open-analytics" data-context="running" style="cursor: pointer;">
+          <div class="flex-between mb-2">
+             <div class="card-icon-title text-accent-pink"><span>🏃</span> Run Distance • This Week</div>
+          </div>
+          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1">0.0 km</h3>
           <div class="bar-chart-container" id="runBarChart"></div>
-          <div id="focusRunMilestone" class="focus-milestone"></div>
         </article>
 
       </div>
 
-      <!-- At a Glance -->
-      <h2 class="focus-header-text mt-4">At a Glance</h2>
-      <div id="glanceGrid" class="glance-grid"></div>
+      <h2 class="focus-header-text mt-2">At a Glance</h2>
+      
+      <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 
     </section>
 
@@ -413,12 +230,6 @@
         <button class="day-pill" data-action="set-day" data-day="sat">Sat (Run)</button>
         <button class="day-pill" data-action="set-day" data-day="sun">Sun (Rest)</button>
       </nav>
-
-      <div id="cockpitSessionBar" class="flex gap-2 mb-1" style="align-items:center;">
-        <span class="set-num-lbl" style="color:rgba(255,255,255,0.5);white-space:nowrap;">Today's session:</span>
-        <select id="cockpitSessionSelect" aria-label="Session selector" style="flex:1;font-size:0.8rem;padding:5px 8px;background:var(--bg-card,#0a1122);color:#fff;border:1px solid rgba(255,255,255,0.15);border-radius:6px;"></select>
-      </div>
-      <div id="cockpitSessionMoved" style="display:none;font-size:0.65rem;color:var(--accent-amber);margin-bottom:8px;"></div>
 
       <button id="startWorkoutBtn" class="btn-action-block btn-green mb-3" data-action="start-timer">Start Workout</button>
 
@@ -498,7 +309,7 @@
           </div>
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(2, 1fr);">
             <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="gymInputTE" placeholder="--" readonly style="text-align: center; color:#10b981; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-amber">Anaerobic TE</span><input type="text" id="gymInputAnaerobicTE" placeholder="--" readonly style="text-align: center; color:#f59e0b; border-color: rgba(255,255,255,0.1);"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-amber">Aerobic TE</span><input type="text" id="gymInputAerobicTE" placeholder="--" readonly style="text-align: center; color:#f59e0b; border-color: rgba(255,255,255,0.1);"></label>
           </div>
           <div id="gymSetsBreakdown" style="display:none;">
             <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">SET BREAKDOWN (from .FIT)</div>
@@ -521,12 +332,7 @@
       <button class="subview-back-btn" data-action="switch-tab" data-target="home">
         ← Back to Dashboard
       </button>
-
-      <div id="analytics-coach" class="analytics-section">
-        <h2 class="section-header">Coach's Read</h2>
-        <div id="coachDetailBody"></div>
-      </div>
-
+      
       <div id="analytics-strength" class="analytics-section">
         <h2 class="section-header">Strength Analytics</h2>
         
@@ -575,17 +381,6 @@
 
       <div id="analytics-strength_pr" class="analytics-section">
         <h2 class="section-header">Top Lifts & PR Tracking</h2>
-        <h2 class="section-header mt-4">Estimated 1RM Progression</h2>
-        <article class="card-dark p-3 mb-4">
-          <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
-            <span style="color:#3b82f6;">● Squat</span>
-            <span style="color:#f59e0b;">● Bench</span>
-            <span style="color:#ef4444;">● Deadlift</span>
-          </div>
-          <div id="big3ProgressionContainer">
-            <p style="color:var(--text-muted);font-size:0.75rem;">Complete big-3 sets to see 1RM progression.</p>
-          </div>
-        </article>
         <article class="card-dark p-4 mb-4">
           <div id="allLiftsRmContainer_PR">
             <p style="color:var(--text-muted);font-size:0.75rem;">Complete sets to populate lift PRs.</p>
@@ -628,25 +423,6 @@
           </div>
         </article>
 
-        <h2 class="section-header mt-4">Heart Rate Trend (Weekly)</h2>
-        <article class="card-dark p-3 mb-4">
-          <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
-            <span style="color:#22d3ee;">● Avg HR</span>
-            <span style="color:#ef4444;">● Max HR</span>
-          </div>
-          <div id="runHrTrendContainer"></div>
-        </article>
-
-        <h2 class="section-header mt-2">Aerobic Training Effect (Weekly)</h2>
-        <article class="card-dark p-3 mb-4">
-          <div id="runTeTrendContainer"></div>
-        </article>
-
-        <h2 class="section-header mt-2">Latest Run — Lap Splits</h2>
-        <article class="card-dark p-3 mb-4">
-          <div id="analyticsRunSplitsContainer"></div>
-        </article>
-
         <h2 class="section-header mt-4">Heart Rate Zones (Time in Zone)</h2>
         <article class="card-dark p-3 mb-4">
           <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
@@ -668,25 +444,19 @@
           </div>
         </article>
 
-        <div id="runStreamSection" style="display:none;">
-          <h2 class="section-header mt-4">Latest Run — Pace</h2>
-          <article class="card-dark p-3 mb-4">
-            <div id="runPaceDistContainer"></div>
-          </article>
-          <h2 class="section-header mt-2">Latest Run — Grade-Adjusted Pace</h2>
-          <article class="card-dark p-3 mb-4">
-            <div id="runGapDistContainer"></div>
-          </article>
-          <h2 class="section-header mt-2">Latest Run — Heart Rate</h2>
-          <article class="card-dark p-3 mb-4">
-            <div id="runHrCurveContainer"></div>
-          </article>
-          <h2 class="section-header mt-2">Latest Run — Elevation</h2>
-          <article class="card-dark p-3 mb-4">
-            <div id="runElevProfileContainer"></div>
-          </article>
-        </div>
+      </div>
 
+      <div id="analytics-recovery" class="analytics-section">
+        <h2 class="section-header">Recovery Analytics</h2>
+        <h2 class="section-header mt-2">Fatigue Trend (Avg RPE)</h2>
+        <article class="card-dark p-3 mb-4">
+          <div class="flex gap-4 mb-2" style="align-items:center;font-size:0.68rem;">
+            <span style="color:var(--accent-green);">● Fresh &lt;6</span>
+            <span style="color:var(--accent-amber);">● Accumulating 6–8</span>
+            <span style="color:var(--accent-red);">● CNS Load &gt;8</span>
+          </div>
+          <div id="rpeTrendContainer"></div>
+        </article>
       </div>
 
       <div id="analytics-bodyweight" class="analytics-section">
@@ -720,6 +490,7 @@
             </table>
           </div>
         </article>
+        <div id="analytics-streak-detail"></div>
         <div id="analytics-goal-detail"></div>
       </div>
 
@@ -735,19 +506,15 @@
             <div id="recoveryAvgRpe" class="text-lg font-heavy text-inverse">--</div>
           </article>
         </div>
-        <h2 class="section-header">Score Components</h2>
+        <h2 class="section-header">Contribution Breakdown</h2>
         <article class="card-dark p-4 mb-4">
           <div class="flex-between mb-3">
-            <span class="text-sm text-muted">Fatigue component <span style="font-size:0.65rem;">(inverse of avg RPE)</span></span>
-            <span id="recoveryFatigueScore" class="font-heavy text-inverse">--</span>
+            <span class="text-sm text-muted">Sleep Contribution</span>
+            <span id="recoverySleepContrib" class="font-heavy text-inverse">--%</span>
           </div>
           <div class="flex-between mb-3">
-            <span class="text-sm text-muted">Rest component <span style="font-size:0.65rem;">(rest days this week)</span></span>
-            <span id="recoveryRestScore" class="font-heavy text-inverse">--</span>
-          </div>
-          <div class="flex-between mb-3">
-            <span class="text-sm text-muted">Rest days</span>
-            <span id="recoveryRestDays" class="font-heavy text-inverse">--</span>
+            <span class="text-sm text-muted">Fatigue Contribution</span>
+            <span id="recoveryFatigueContrib" class="font-heavy text-inverse">--%</span>
           </div>
           <div class="flex-between">
             <span class="text-sm text-muted">Recommendation</span>
@@ -780,10 +547,6 @@
         <article class="card-dark p-3 mb-4">
           <div id="weekVolChartContainer"></div>
         </article>
-        <h2 class="section-header">Weekly Sets by Muscle Group</h2>
-        <article class="card-dark p-3 mb-4">
-          <div id="muscleSetsContainer"></div>
-        </article>
       </div>
 
       <div id="analytics-streak" class="analytics-section">
@@ -805,44 +568,6 @@
         </article>
       </div>
 
-      <div id="analytics-active-fuel" class="analytics-section">
-        <h2 class="section-header">Active Fuel</h2>
-        <div class="grid-3-col gap-2 mb-4">
-          <article class="card-dark flex-col flex-center p-2" style="border:1px solid rgba(245,158,11,0.35);">
-            <div class="text-xs text-muted mb-1">This Week</div>
-            <div id="fuelThisWeekCals" class="text-lg font-heavy text-inverse">0</div>
-          </article>
-          <article class="card-dark flex-col flex-center p-2" style="border:1px solid rgba(99,102,241,0.35);">
-            <div class="text-xs text-muted mb-1">Avg / Week</div>
-            <div id="fuelAvgCals" class="text-lg font-heavy text-inverse">0</div>
-          </article>
-          <article class="card-dark flex-col flex-center p-2" style="border:1px solid rgba(16,185,129,0.35);">
-            <div class="text-xs text-muted mb-1">Total</div>
-            <div id="fuelTotalCals" class="text-lg font-heavy text-inverse">0</div>
-          </article>
-        </div>
-        <h2 class="section-header">Weekly Calories Trend</h2>
-        <article class="card-dark p-3 mb-4">
-          <div id="fuelChartContainer"></div>
-        </article>
-      </div>
-
-      <div id="analytics-health-steps" class="analytics-section">
-        <h2 class="section-header">Activity &amp; Steps</h2>
-        <div id="healthStepsContent"></div>
-      </div>
-
-      <div id="analytics-health-sleep" class="analytics-section">
-        <h2 class="section-header">Sleep Analysis</h2>
-        <div id="healthSleepContent"></div>
-      </div>
-
-      <div id="analytics-health-rhr" class="analytics-section">
-        <h2 class="section-header">Heart Rate &amp; Recovery</h2>
-        <div id="healthRhrContent"></div>
-      </div>
-
-
     </section>
 
     <section id="view-program" class="view-container" aria-label="Program Hub">
@@ -853,8 +578,7 @@
 
       <nav class="segmented-control mb-4" aria-label="Program Management Modes">
         <button id="btnProgModeActive" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="active" aria-current="page">ACTIVE PLAN</button>
-        <button id="btnProgModeLibrary" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="library">LIBRARY &amp; BUILDER</button>
-        <button id="btnProgModeHealth" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="health">HEALTH DATA</button>
+        <button id="btnProgModeLibrary" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="library">LIBRARY & BUILDER</button>
       </nav>
 
       <div id="progModeActiveContainer">
@@ -878,6 +602,7 @@
         <div id="programBrowserDaysDeck" class="flex-col gap-3 mb-6"></div>
 
         <h2 class="section-header">Data Backups</h2>
+        <button class="btn-action-block btn-blue mb-2 text-left text-lg" data-action="export-text">📝 Copy Weekly Text Summary</button>
         <button class="btn-action-block btn-ghost mb-2 text-left text-lg" data-action="export-json">📤 Export Backup File (JSON)</button>
         <button class="btn-action-block btn-green-ghost mb-2 text-left text-lg" data-action="export-csv">📊 Export Spreadsheet (CSV)</button>
 
@@ -900,10 +625,6 @@
       </div>
 
       <div id="builderViewContainer" style="display: none;"></div>
-
-      <div id="progModeHealthContainer" style="display: none;">
-        <div id="healthSettingsContent"></div>
-      </div>
     </section>
 
   </main>
@@ -967,40 +688,25 @@
     <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" aria-hidden="true">📋</span><span>Program</span></button>
   </nav>
 
-  <div class="modal-overlay" id="finishSessionModal" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
+  <div class="modal-overlay" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
     <div class="modal-content">
       <h2 id="summaryModalTitle" class="text-2xl font-heavy text-inverse mb-1">Session Complete</h2>
-      <p class="text-sm text-muted mb-4">Nice work. Review and confirm your RPE before saving.</p>
-
-      <div id="summaryEmptyWarning" class="card-dark p-3 mb-4" style="border-left:3px solid var(--color-amber,#f59e0b);display:none;">
-        <div class="text-sm text-muted">No sets or distance logged yet — session will be saved as-is.</div>
+      <p class="text-lg text-muted mb-5">Great work today. Here's your summary.</p>
+      <div class="flex-between mb-2">
+        <span class="text-lg text-muted">Total Volume:</span>
+        <strong id="summaryVolume" class="text-inverse">0 kg</strong>
       </div>
-
-      <div id="summaryLiftBlock">
-        <div class="flex-between mb-2">
-          <span class="text-sm text-muted">Total Volume</span>
-          <strong id="summaryVolume" class="text-inverse">0 kg</strong>
-        </div>
-        <div class="flex-between mb-3">
-          <span class="text-sm text-muted">Sets Completed</span>
-          <strong id="summarySets" class="text-inverse">0</strong>
-        </div>
+      <div class="flex-between mb-2">
+        <span class="text-lg text-muted">Sets Completed:</span>
+        <strong id="summarySets" class="text-inverse">0</strong>
       </div>
-
-      <div id="summaryRunBlock">
-        <div class="flex-between mb-3">
-          <span class="text-sm text-muted">Run</span>
-          <strong id="summaryRunDist" class="text-inverse">--</strong>
-        </div>
-      </div>
-
-      <div class="mt-3">
-        <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Gym RPE (1–10)</label>
-        <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-3">
-        <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Run RPE (1–10)</label>
+      <div class="mt-5">
+        <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Confirm Gym RPE (1-10)</label>
+        <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-4">
+        <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Confirm Run RPE (1-10)</label>
         <input type="number" id="summaryRunRPE" min="1" max="10" placeholder="e.g. 6" class="mb-4">
       </div>
-      <button class="btn-action-block btn-blue" data-action="close-finish-modal">Save &amp; Return Home</button>
+      <button class="btn-action-block btn-blue" data-action="close-finish-modal">Save & Return Home</button>
     </div>
   </div>
 
@@ -1045,15 +751,10 @@
   <div class="modal-overlay" id="createProgramModal" role="dialog" aria-modal="true" aria-labelledby="createProgramTitle">
     <div class="modal-content">
       <h2 id="createProgramTitle" class="text-2xl font-heavy text-inverse mb-1">Create Custom Program</h2>
-      <p class="text-sm text-muted mb-4">Scaffold a new program — blank, or pre-filled from a template you can then edit.</p>
+      <p class="text-sm text-muted mb-4">Scaffold a new blank program schema.</p>
       
       <label class="text-xs-bold block mb-1 text-muted">PROGRAM NAME</label>
       <input type="text" id="cpInputName" placeholder="e.g. Winter Bulk Split" class="mb-3">
-
-      <label class="text-xs-bold block mb-1 text-muted">START FROM</label>
-      <select id="cpInputTemplate" class="native-select mb-3" style="text-align:left; font-weight:700;">
-        <option value="">Blank program</option>
-      </select>
       
       <div class="flex gap-2 mb-3">
         <div class="flex-1">
@@ -1069,67 +770,6 @@
       <div class="flex gap-2 mt-4">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-create-program">Cancel</button>
         <button class="btn-action-block btn-blue mt-0" data-action="execute-create-program">Create</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
-    <div class="modal-content">
-      <h2 id="profileModalTitle" class="text-2xl font-heavy text-inverse mb-1">Athlete Profile</h2>
-      <p class="text-sm text-muted mb-4">Powers energy & recovery intelligence (BMR, total burn). For training-load context only — no nutrition or calorie targets.</p>
-
-      <div class="flex gap-2 mb-3">
-        <div style="width:100px;">
-          <label class="text-xs-bold block mb-1 text-muted">AGE</label>
-          <input type="number" id="profileAge" inputmode="numeric" min="10" max="100" placeholder="30">
-        </div>
-        <div class="flex-1">
-          <label class="text-xs-bold block mb-1 text-muted">SEX</label>
-          <select id="profileSex" class="native-select" style="text-align:left;font-weight:700;">
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="flex gap-2 mb-3">
-        <div class="flex-1">
-          <label class="text-xs-bold block mb-1 text-muted">HEIGHT (cm)</label>
-          <input type="number" id="profileHeight" inputmode="numeric" min="120" max="230" placeholder="180">
-        </div>
-        <div class="flex-1">
-          <label class="text-xs-bold block mb-1 text-muted">WEIGHT (kg)</label>
-          <input type="number" id="profileWeight" inputmode="decimal" min="30" max="250" placeholder="80">
-        </div>
-      </div>
-
-      <div class="flex gap-2 mt-4">
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-profile">Cancel</button>
-        <button class="btn-action-block btn-blue mt-0" data-action="save-profile">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="exerciseHistoryModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
-    <div class="modal-content" style="max-height: 80vh; overflow-y: auto;">
-      <h2 class="text-xl font-heavy text-inverse mb-2" id="historyModalTitle">Exercise History</h2>
-      
-      <div class="grid-2-col gap-2 mb-4">
-        <article class="card-dark p-3 text-center" style="border: 1px solid var(--overlay-sm);">
-          <div class="text-xs text-muted mb-1">Best Vol</div>
-          <div class="text-lg font-heavy text-accent-blue" id="historyBestVolume">0 kg</div>
-        </article>
-        <article class="card-dark p-3 text-center" style="border: 1px solid var(--overlay-sm);">
-          <div class="text-xs text-muted mb-1">Best e1RM</div>
-          <div class="text-lg font-heavy text-main" id="historyBestE1RM">0 kg</div>
-        </article>
-      </div>
-
-      <div id="historyModalLog" class="flex-col gap-3">
-        </div>
-
-      <div class="flex gap-2 mt-4">
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-exercise-history">Close</button>
       </div>
     </div>
   </div>
@@ -1157,53 +797,6 @@
     </div>
   </div>
 
-  <!-- Goal Setup Modal -->
-  <div class="modal-overlay" id="goalSetupModal" role="dialog" aria-modal="true" aria-labelledby="goalSetupModalTitle">
-    <div class="modal-content">
-      <h2 id="goalSetupModalTitle" class="text-2xl font-heavy text-inverse mb-1">Training Goal</h2>
-      <p class="text-sm text-muted mb-4">Tell the Brain what you're training for. It uses this to personalise your weekly brief and prioritise coaching insights.</p>
-
-      <div class="mb-4">
-        <label class="text-xs-bold block mb-2 text-muted">PRIMARY GOAL</label>
-        <div class="goal-type-grid" id="goalTypeGrid">
-          <button class="goal-type-btn" data-goal="strength">
-            <span class="goal-type-icon">🏋️</span>
-            <span class="goal-type-label">Strength Peak</span>
-          </button>
-          <button class="goal-type-btn" data-goal="endurance">
-            <span class="goal-type-icon">🏃</span>
-            <span class="goal-type-label">Endurance / Race</span>
-          </button>
-          <button class="goal-type-btn" data-goal="hybrid">
-            <span class="goal-type-icon">⚡</span>
-            <span class="goal-type-label">Hybrid Performance</span>
-          </button>
-          <button class="goal-type-btn" data-goal="recomp">
-            <span class="goal-type-icon">🔄</span>
-            <span class="goal-type-label">Body Recomposition</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="mb-3">
-        <label class="text-xs-bold block mb-1 text-muted">GOAL EVENT NAME (optional)</label>
-        <input type="text" id="goalEventName" placeholder="e.g. Edinburgh Half Marathon, Powerlifting Meet" maxlength="80">
-      </div>
-
-      <div class="mb-4">
-        <label class="text-xs-bold block mb-1 text-muted">GOAL EVENT DATE (optional)</label>
-        <input type="date" id="goalEventDate">
-        <p class="text-xs text-muted mt-1" style="line-height:1.4;">Used to detect your training phase (Base → Build → Peak → Taper) and calibrate directives week-by-week.</p>
-      </div>
-
-      <div class="flex gap-2 mt-4">
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-goal-setup">Cancel</button>
-        <button class="btn-action-block btn-ghost mt-0" data-action="clear-goal-setup" style="color:var(--accent-red,#ef4444);border-color:var(--accent-red,#ef4444);">Clear Goal</button>
-        <button class="btn-action-block btn-blue mt-0" data-action="save-goal-setup">Save</button>
-      </div>
-    </div>
-  </div>
-
   <div id="tileCustomiserBackdrop" class="sheet-backdrop" data-action="close-tile-customiser" data-apply="false"></div>
   <div id="tileCustomiserSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="tileCustomiserTitle">
     <div class="bottom-sheet-handle"></div>
@@ -1220,6 +813,5 @@
   </div>
 
   <script type="module" src="./js/app.js"></script>
-
 </body>
 </html>

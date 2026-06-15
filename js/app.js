@@ -9,38 +9,39 @@ import { openBuilder } from './program_builder.js';
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
   setActiveTab, setSelectedDay, setAppState,
-  getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram, listSeededPrograms,
+  getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   saveStateToLocalStorage,
-  flushCloudSyncNow,
   pullEngineDataFromStorage,
+  triggerTextSummaryExport,
   triggerEngineExport,
   triggerCSVExport,
   triggerEngineImport,
   setImportSuccessCallback,
+  showToast,
   checkActiveSession,
-  loginToSupabase,
-  logActivityForStreak
+  loginToSupabase
 } from './state.js';
-import { showToast } from './toast.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser } from './home.js';
-import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
+import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
   updateInputState, commitWorkoutUIState, toggleGymCheckLoggingState,
   applyQuickFillModifier, appendCustomSetRow, removeCustomSetRow,
-  toggleAccordionManual, toggleQuickPad
+  toggleAccordionManual, toggleQuickPad,
+  openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
+  openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
+  openFinishSessionModal, closeFinishSessionModal,
+  handleExerciseDropdownSelectionChange 
 } from './workout.js';
 
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
-import { saveMapToDB, saveStreamToDB } from './db.js';
+import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
-import { HealthService } from './health/healthService.js';
-import { renderHealthSettings } from './health/healthSettings.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -65,10 +66,10 @@ document.addEventListener('app:navigate', (e) => {
   else openAnalyticsView(target);
 });
 
-setAnalyticsContext('overview');
+window.analyticsContext = 'overview';
 
 export function openAnalyticsView(context) {
-  setAnalyticsContext(context);
+  window.analyticsContext = context;
   switchGlobalAppTab('analytics');
 }
 
@@ -76,8 +77,7 @@ export function switchGlobalAppTab(targetViewID) {
   if (activeTab === 'workout') {
     try { commitWorkoutUIState(); } catch(e) { console.warn(e); }
   }
-  flushCloudSyncNow();
-
+  
   document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   
@@ -121,31 +121,16 @@ export function switchProgramMode(mode) {
 
   if (viewBuilder) viewBuilder.style.display = 'none';
 
-  const btnHealth  = document.getElementById('btnProgModeHealth');
-  const viewHealth = document.getElementById('progModeHealthContainer');
-
   if (mode === 'active') {
     btnActive?.classList.add('active');
     btnLibrary?.classList.remove('active');
-    btnHealth?.classList.remove('active');
     viewActive.style.display = 'block';
     viewLibrary.style.display = 'none';
-    if (viewHealth) viewHealth.style.display = 'none';
-  } else if (mode === 'health') {
-    btnHealth?.classList.add('active');
-    btnActive?.classList.remove('active');
-    btnLibrary?.classList.remove('active');
-    if (viewHealth) viewHealth.style.display = 'block';
-    viewActive.style.display = 'none';
-    viewLibrary.style.display = 'none';
-    renderHealthSettings(appState);
   } else {
     btnLibrary?.classList.add('active');
     btnActive?.classList.remove('active');
-    btnHealth?.classList.remove('active');
     viewLibrary.style.display = 'block';
     viewActive.style.display = 'none';
-    if (viewHealth) viewHealth.style.display = 'none';
     renderProgramLibrary();
   }
 }
@@ -347,29 +332,20 @@ export function cancelWeekAdvance() {
   saveStateToLocalStorage(true);
 }
 
-export function openCreateProgramModal() {
-  const sel = document.getElementById('cpInputTemplate');
-  if (sel) {
-    sel.innerHTML = '<option value="">Blank program</option>' +
-      listSeededPrograms().map(p => `<option value="${p.id}">${p.name} (${p.weeks} wks)</option>`).join('');
-  }
-  document.getElementById('createProgramModal').classList.add('active');
-}
+export function openCreateProgramModal() { document.getElementById('createProgramModal').classList.add('active'); }
 export function closeCreateProgramModal() { document.getElementById('createProgramModal').classList.remove('active'); }
 
 export function executeCreateProgram() {
   const name = document.getElementById('cpInputName').value;
   const focus = document.getElementById('cpInputFocus').value;
   const wks = document.getElementById('cpInputWeeks').value;
-  const templateId = document.getElementById('cpInputTemplate')?.value || '';
-  createCustomProgram(name, wks, focus, "", templateId);
+  createCustomProgram(name, wks, focus, "");
   closeCreateProgramModal();
   renderProgramLibrary();
-  showToast(templateId ? 'Program created from template!' : 'Custom Program Created!');
+  showToast('Custom Program Created!');
   document.getElementById('cpInputName').value = '';
   document.getElementById('cpInputFocus').value = '';
   document.getElementById('cpInputWeeks').value = '12';
-  const tmpl = document.getElementById('cpInputTemplate'); if (tmpl) tmpl.value = '';
 }
 
 export function executeDeleteProgram(id) {
@@ -503,13 +479,13 @@ document.addEventListener('click', (e) => {
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   
   // Export & Data
+  else if (action === 'export-text') triggerTextSummaryExport();
   else if (action === 'export-json') triggerEngineExport();
   else if (action === 'export-csv') triggerCSVExport();
   
   // Auth
   else if (action === 'login-supabase') loginToSupabase();
   else if (action === 'close-auth') document.getElementById('authOverlay').style.display = 'none';
-  else if (action === 'clear-cache') clearCacheAndReload();
   
   // Summary Modals
   else if (action === 'open-today-summary') openTodaySummaryModal();
@@ -521,14 +497,6 @@ document.addEventListener('click', (e) => {
   
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
-
-  // Health Connect
-  else if (action === 'sync-health') syncHealthData(false).then(() => {
-    if (document.getElementById('progModeHealthContainer')?.style.display === 'block') {
-      renderHealthSettings(appState);
-    }
-  });
-  else if (action === 'disconnect-health') disconnectHealthData();
 });
 
 document.addEventListener('change', (e) => {
@@ -565,10 +533,9 @@ initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
 
 // === DEVICE IMPORT WIRING ===
 
-initGarminRunImport((distance, timeStr, coordinates, stats, stream) => {
+initGarminRunImport((distance, timeStr, coordinates, stats) => {
   const wk = appState.currentWeek;
   const sd = selectedDay;
-  const hasStreams = !!(stream && stream.n > 0);
   if (appState.weeks[wk]) {
     if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
     appState.weeks[wk].runs[sd] = {
@@ -582,22 +549,18 @@ initGarminRunImport((distance, timeStr, coordinates, stats, stream) => {
       cals:           stats?.calories     != null ? Math.round(stats.calories)    : '',
       avgCadence:     stats?.avgCadence   != null ? Math.round(stats.avgCadence)  : '',
       trainingEffect: stats?.trainingEffect != null ? stats.trainingEffect        : '',
-      anaerobicTE:    stats?.anaerobicTE   != null ? stats.anaerobicTE             : '',
+      aerobicTE:      stats?.aerobicTE    != null ? stats.aerobicTE               : '',
       hrZones:        stats?.hrZones      || null,
       splits:         stats?.splits       || null,
-      hasStreams,                       // flag only; bulky arrays live in IndexedDB
     };
   }
-  // Bulky payloads (GPS route, per-record streams) go to IndexedDB, never the
-  // synced state blob. Persist state once both writes settle.
-  const tasks = [];
-  if (coordinates && coordinates.length > 0) tasks.push(saveMapToDB(wk, sd, coordinates));
-  if (hasStreams) tasks.push(saveStreamToDB(wk, sd, 'run', stream));
-  try { logActivityForStreak(); } catch (e) { console.warn(e); }
-  Promise.allSettled(tasks).then(() => {
-    saveStateToLocalStorage(true);
-    hydrateCurrentView();
-  });
+  if (coordinates && coordinates.length > 0) {
+    saveMapToDB(wk, sd, coordinates).then(() => {
+      saveStateToLocalStorage(true); hydrateCurrentView();
+    });
+  } else {
+    saveStateToLocalStorage(true); hydrateCurrentView();
+  }
 });
 
 initGarminGymImport((timeStr, stats) => {
@@ -612,31 +575,14 @@ initGarminGymImport((timeStr, stats) => {
     g.maxHR       = stats?.maxHR       != null ? Math.round(stats.maxHR)      : '';
     g.cals        = stats?.calories    != null ? Math.round(stats.calories)   : '';
     g.trainingEffect = stats?.trainingEffect != null ? stats.trainingEffect   : '';
-    g.anaerobicTE = stats?.anaerobicTE != null ? stats.anaerobicTE            : '';
+    g.aerobicTE   = stats?.aerobicTE   != null ? stats.aerobicTE              : '';
     g.gymSets     = stats?.gymSets     || null;
   }
-  try { logActivityForStreak(); } catch (e) { console.warn(e); }
   saveStateToLocalStorage(true);
   hydrateCurrentView();
 });
 
 setImportSuccessCallback(() => hydrateCurrentView());
-
-async function clearCacheAndReload() {
-  try {
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-    }
-  } catch (e) {
-    console.warn('Cache clear error:', e);
-  }
-  window.location.reload(true);
-}
 
 function checkForAutomaticWeekAdvance() {
   if (!appState.weekStartedAt) {
@@ -672,38 +618,6 @@ function checkForAutomaticWeekAdvance() {
   }
 }
 
-async function syncHealthData(silent = true) {
-  if (HealthService.availability() === 'NOT_SUPPORTED') return;
-  try {
-    const snapshot = await HealthService.sync(appState, () => saveStateToLocalStorage(true));
-    if (snapshot.error) {
-      if (!silent) showToast(healthErrorMessage(snapshot.error), true);
-      return;
-    }
-    if (!silent) showToast('Health data synced ✓');
-    hydrateCurrentView();
-  } catch (e) {
-    console.warn('[Health] Sync failed silently:', e);
-  }
-}
-
-function healthErrorMessage(errorCode) {
-  if (errorCode === 'health_connect_not_installed') return 'Health Connect app is not installed.';
-  if (errorCode === 'permissions_denied') return 'Health Connect permissions denied.';
-  return 'Health data unavailable.';
-}
-
-function disconnectHealthData() {
-  appState.health    = null;
-  appState.healthLog = [];
-  saveStateToLocalStorage(true);
-  showToast('Health data disconnected.');
-  if (document.getElementById('progModeHealthContainer')?.style.display === 'block') {
-    renderHealthSettings(appState);
-  }
-  hydrateCurrentView();
-}
-
 async function bootstrapApp() {
   try {
     determineDefaultCalendarDay();
@@ -719,89 +633,16 @@ async function bootstrapApp() {
     checkActiveTimerOnLoad();
     checkForAutomaticWeekAdvance();
 
-    // Health Connect sync fires after the UI is up. Runs silently so a
-    // missing bridge (desktop, iOS) never blocks or notifies the user.
-    syncHealthData(true);
-
-    // One-time historical backfill: populate healthLog for the last 30 days.
-    // Guarded by a timestamp so it only runs once per install.
-    if (!appState.healthBackfilledAt) {
-      appState.healthBackfilledAt = new Date().toISOString();
-      HealthService.backfill(appState, () => saveStateToLocalStorage(true), { days: 90 });
-    }
-
   } catch (fatalLifecycleError) {
     console.error("Critical layout generation block runtime defense:", fatalLifecycleError);
   }
 
-  // Skip SW in the Android APK: WebViewAssetLoader serves assets locally and the
-  // SW's internal fetch calls can't reach the appassets origin from inside the worker.
-  if (!window.HybridHealthBridge && 'serviceWorker' in navigator) {
-    // When a freshly-installed SW takes control mid-session (skipWaiting +
-    // clients.claim), the page is still showing the OLD cached resources it
-    // loaded with. Reload once so the now-active SW can serve fresh code —
-    // this is what auto-unsticks a PWA pinned to a stale/broken build. The
-    // guard prevents a reload loop.
-    let _swReloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (_swReloading) return;
-      _swReloading = true;
-      window.location.reload();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.warn('Service worker registration failed:', err);
     });
-
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => reg.update())  // always check for a fresh SW on every load
-      .catch(err => {
-        console.warn('Service worker registration failed:', err);
-      });
   }
 }
-
-// Flush any pending cloud write when the user leaves (tab close, navigate away,
-// background on mobile). localStorage already holds the data; this just makes
-// the cloud copy current before the page is unloaded.
-window.addEventListener('pagehide', () => { flushCloudSyncNow(); });
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') flushCloudSyncNow();
-});
-
-// ─── Android back-button bridge ───────────────────────────────────────────────
-// Called by MainActivity via evaluateJavascript. Returns 'handled' if the back
-// event was consumed by the web layer, or 'exit' to let native handle it.
-window.__onAndroidBack = function() {
-  // 1. Close any active modal (.active class pattern).
-  const activeModal = document.querySelector('.modal-overlay.active');
-  if (activeModal) { activeModal.classList.remove('active'); return 'handled'; }
-
-  // 2. Close any active bottom sheet (tileCustomiserSheet uses its own close fn).
-  const activeSheet = document.querySelector('.bottom-sheet.active');
-  if (activeSheet) {
-    if (activeSheet.id === 'tileCustomiserSheet') {
-      closeTileCustomiser(false);
-    } else {
-      activeSheet.classList.remove('active');
-      document.querySelector('.sheet-backdrop.active')?.classList.remove('active');
-    }
-    return 'handled';
-  }
-
-  // 3. todaySummaryModal uses inline style.display rather than .active.
-  const summaryModal = document.getElementById('todaySummaryModal');
-  if (summaryModal && summaryModal.style.display === 'flex') {
-    closeTodaySummaryModal(); return 'handled';
-  }
-
-  // 4. authOverlay uses initial inline display:flex; close sets display:none.
-  const authEl = document.getElementById('authOverlay');
-  if (authEl && authEl.style.display === 'flex') {
-    authEl.style.display = 'none'; return 'handled';
-  }
-
-  // 5. Navigate home if not already there.
-  if (activeTab !== 'home') { switchGlobalAppTab('home'); return 'handled'; }
-
-  return 'exit';
-};
 
 if (document.readyState === 'loading') {
   document.addEventListener("DOMContentLoaded", bootstrapApp);

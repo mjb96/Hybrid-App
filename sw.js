@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v96';
+const CACHE_NAME = 'hybrid-training-v22';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -12,113 +12,29 @@ const ASSETS_TO_CACHE = [
   './js/app.js',
   './js/constants.js',
   './js/analytics.js',
-  './js/dashboard-tiles.js',
+  './js/dashboard.js',
   './js/db.js',
   './js/dragdrop.js',
   './js/engine.js',
-  './js/schema.js',
   './js/debug.js',
-  './js/util.js',
-  './js/dates.js',
-  './js/profile.js',
   './js/garmin.js',
   './js/home.js',
   './js/state.js',
-  './js/toast.js',
   './js/templates.js',
   './js/timers.js',
   './js/workout.js',
   './js/workout-map.js',
-  './js/workout-exercise-picker.js',
-  './js/workout-session-modals.js',
-  './js/program_builder.js',
-  './js/builder-exercise-row.js',
-  './js/builder-run-editor.js',
-  './js/builder-progression.js',
-  './js/builder-preview.js',
-
-  // Analytics — coordinator, charts, shared utils and per-tab views
-  './js/analytics/charts.js',
-  './js/analytics/utils.js',
-  './js/analytics/views/_healthTrend.js',
-  './js/analytics/views/view-strength.js',
-  './js/analytics/views/view-running.js',
-  './js/analytics/views/view-bodyweight.js',
-  './js/analytics/views/view-recovery.js',
-  './js/analytics/views/view-progress.js',
-  './js/analytics/views/view-health-sleep.js',
-  './js/analytics/views/view-health-steps.js',
-  './js/analytics/views/view-health-rhr.js',
-
-  // Metrics — aggregation helpers
-  './js/metrics/metrics-load.js',
-  './js/metrics/metrics-running.js',
-  './js/metrics/metrics-strength.js',
-
-  // Health — ingestion, calculations and settings
-  './js/health/healthTypes.js',
-  './js/health/healthService.js',
-  './js/health/healthCalculations.js',
-  './js/health/healthConnect.js',
-  './js/health/healthSettings.js',
-  './js/health/healthBaselines.js',
-
-  // Hybrid Brain — intelligence layer
-  './js/brain/constants_brain.js',
-  './js/brain/insight_cards.js',
-  './js/brain/load_models.js',
-  './js/brain/analysis.js',
-  './js/brain/attribution.js',
-  './js/brain/insights.js',
-  './js/brain/core.js',
-  './js/brain/brain_dashboard.js',
-  './js/brain/analytics_brain.js',
-  './js/brain/exercise_metadata.js',
-  './js/brain/session_fatigue.js',
-  './js/brain/briefing.js',
-  './js/brain/weekly_brief.js',
-  './js/brain/daily_readiness.js',
-  './js/brain/tradeoffs.js',
-
-  // CDN dependencies — version-pinned so safe to precache with CORS mode.
-  // This is the only way to make them available offline: the browser fetches
-  // <script async> with no-cors mode which produces an opaque (status-0)
-  // response that cannot be stored. Precaching with cors mode gives us a
-  // cacheable response that the network-first handler will serve on cache-hit.
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  './js/program_builder.js'
 ];
 
 self.addEventListener('install', (event) => {
-  // Activate this worker as soon as it's parsed — do NOT gate takeover on the
-  // precache. cache.addAll() is all-or-nothing: a single missing/renamed asset
-  // or one transient network blip during install would reject the whole thing,
-  // leaving the new SW stuck in "waiting" while the OLD worker keeps serving
-  // stale code indefinitely. That deadlock is exactly how the PWA gets pinned
-  // to a broken build (the APK is immune — it never registers a SW). Calling
-  // skipWaiting() here, before the precache, guarantees the new SW always takes
-  // over on the next load regardless of precache outcome.
-  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Pre-caching offline assets');
-      // Non-atomic precache: cache each asset independently so one failure
-      // can't abort the rest. `cache: 'reload'` bypasses the HTTP cache so the
-      // precache always pulls fresh bytes, not a stale browser-cached copy.
-      // Cross-origin CDN URLs must use `mode: 'cors'` to produce a cacheable
-      // (non-opaque) response — the same-origin default would give status 0.
-      return Promise.allSettled(
-        ASSETS_TO_CACHE.map((url) => {
-          const isCrossOrigin = url.startsWith('https://') || url.startsWith('http://');
-          const req = isCrossOrigin
-            ? new Request(url, { cache: 'reload', mode: 'cors' })
-            : new Request(url, { cache: 'reload' });
-          return cache.add(req).catch((err) => {
-            console.warn('[Service Worker] Skipped precaching', url, err);
-          });
-        })
-      );
-    })
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('[Service Worker] Pre-caching offline assets');
+        return cache.addAll(ASSETS_TO_CACHE);
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -137,84 +53,43 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Network-first for code/markup/styles (JS, CSS, HTML) so fixes reach users on
-// the next reload instead of being pinned to a stale cache. Only static media
-// (icons/images/fonts) stays cache-first. Falls back to cache offline.
+// Network-first for JS modules so bug fixes reach users immediately;
+// fall back to cache only when offline.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  const p = url.pathname;
-  const isNetworkFirst =
-    p.startsWith('/js/') || p.endsWith('.js') ||
-    p.endsWith('.css') || p.endsWith('.html') ||
-    p === '/' || p.endsWith('/');
+  const isJSModule = url.pathname.startsWith('/js/') || url.pathname.endsWith('.js');
 
-  if (isNetworkFirst) {
-    // Network-first for code, styles and markup.
+  if (isJSModule) {
+    // Network-first for JS
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-            return networkResponse;
-          }
-          // Non-200 (404 mid-deploy, 5xx, opaque): a broken response for an ES
-          // module aborts the whole import graph and white-screens the app.
-          // Prefer the last known-good cached copy if we have one.
-          return caches.match(event.request).then((cached) => cached || networkResponse);
-        })
-        .catch((networkError) =>
-          // Network completely unavailable. Fall back to cache; if cache is also
-          // empty re-throw so the browser surfaces the real error rather than
-          // receiving an undefined response (which is worse than a clear failure).
-          caches.match(event.request).then((cached) => {
-            if (cached) return cached;
-            throw networkError;
-          })
-        )
-    );
-  } else {
-    // Cache-first for everything else (images, fonts, CDN bundles, etc.).
-    // Serve immediately from cache when possible; background-revalidate and
-    // update the cache entry. When the resource isn't cached yet, wait for the
-    // network and cache a successful response for future offline use.
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          // Kick off a background revalidation; errors are silently swallowed
-          // because the cached copy is still good.
-          fetch(event.request)
-            .then((networkResponse) => {
-              if (
-                networkResponse?.status === 200 &&
-                (networkResponse.type === 'basic' || networkResponse.type === 'cors')
-              ) {
-                caches.open(CACHE_NAME).then((cache) =>
-                  cache.put(event.request, networkResponse.clone())
-                );
-              }
-            })
-            .catch(() => { /* background refresh failed; cached copy remains */ });
-          return cachedResponse;
-        }
-
-        // Not in cache — must wait for network.
-        return fetch(event.request).then((networkResponse) => {
-          if (
-            networkResponse?.status === 200 &&
-            (networkResponse.type === 'basic' || networkResponse.type === 'cors')
-          ) {
-            caches.open(CACHE_NAME).then((cache) =>
-              cache.put(event.request, networkResponse.clone())
-            );
           }
           return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+  } else {
+    // Cache-first for everything else (HTML, CSS, icons)
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        }).catch((err) => {
+          console.log('[Service Worker] Network request failed, relying on cache.', err);
         });
-        // Network failures propagate naturally here: the promise rejects,
-        // event.respondWith receives a rejected promise, and the browser
-        // surfaces a standard NetworkError — preferable to returning undefined.
+        return cachedResponse || fetchPromise;
       })
     );
   }
