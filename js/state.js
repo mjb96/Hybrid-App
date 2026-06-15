@@ -4,6 +4,7 @@
 import { PROGRAMS } from './constants.js';
 import { prescribeSetsForLift } from './engine.js';
 import { todayKey } from './dates.js';
+import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
 
@@ -194,7 +195,7 @@ export function verifyWeekStorageSchema(wk) {
     DEFAULT_DAYS.forEach(d => {
       const dayBlueprint = activeProgram.days[d];
       if (dayBlueprint && dayBlueprint.lifts && dayBlueprint.lifts.length > 0) {
-        const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
+        const weekModifier = getWeekModifier(activeProgram, wk);
 
         dayBlueprint.lifts.forEach(liftName => {
           appState.weeks[wk].lifts[d][liftName] =
