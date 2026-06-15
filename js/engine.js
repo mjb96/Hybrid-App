@@ -255,3 +255,20 @@ export function computeExercisePRs(state, stats = {}) {
 export function shouldSuggestDeload() {
   return { suggest: false, reason: '' };
 }
+
+// ==========================================
+// METRICS RE-EXPORTS (backwards-compatible)
+// ==========================================
+export {
+  weeklyTonnageSeries, weeklyE1rmByLift, allLiftsStats,
+  big3Progression, big3Maxes, weeklyVolumeByMuscle,
+} from './metrics/metrics-strength.js';
+
+export {
+  weeklyDistanceSeries, weeklyElevationSeries, weeklyPaceSeries,
+  weeklyHrSeries, weeklyHrZonesSeries, weeklyCadenceSeries, weeklyTrainingEffectSeries,
+} from './metrics/metrics-running.js';
+
+export {
+  weeklyLoadSeries, weeklyRpeSeries, readinessMetrics, recoveryMetrics, streakView,
+} from './metrics/metrics-load.js';
