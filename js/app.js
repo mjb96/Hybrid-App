@@ -509,6 +509,7 @@ document.addEventListener('click', (e) => {
   // Auth
   else if (action === 'login-supabase') loginToSupabase();
   else if (action === 'close-auth') document.getElementById('authOverlay').style.display = 'none';
+  else if (action === 'clear-cache') clearCacheAndReload();
   
   // Summary Modals
   else if (action === 'open-today-summary') openTodaySummaryModal();
@@ -620,6 +621,22 @@ initGarminGymImport((timeStr, stats) => {
 });
 
 setImportSuccessCallback(() => hydrateCurrentView());
+
+async function clearCacheAndReload() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) {
+    console.warn('Cache clear error:', e);
+  }
+  window.location.reload(true);
+}
 
 function checkForAutomaticWeekAdvance() {
   if (!appState.weekStartedAt) {
