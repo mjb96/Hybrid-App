@@ -2,7 +2,8 @@
 // PERFORMANCE MATRIX — analytics.js
 // ==========================================
 import { CONFIG, PROGRAMS } from './constants.js';
-import { getProgramById, saveStateToLocalStorage } from './state.js'; 
+import { getProgramById, saveStateToLocalStorage } from './state.js';
+import { todayKey, dateKey, formatDayMonth } from './dates.js'; 
 
 let _getState;
 let _getDays;
@@ -34,7 +35,7 @@ export function logBodyWeight() {
 
   if (!appState.bodyWeightLog) appState.bodyWeightLog = [];
   
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const existingIdx = appState.bodyWeightLog.findIndex(l => l.date === today);
   if (existingIdx >= 0) {
     appState.bodyWeightLog[existingIdx].weight = weight;
@@ -206,10 +207,7 @@ function renderBodyWeightChart(container, bwLog) {
 
   const sorted = [...validEntries].sort((a, b) => a.date.localeCompare(b.date));
   const weights = sorted.map(e => e.weight);
-  const labels  = sorted.map(e => {
-    const d = new Date(e.date + 'T00:00:00');
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  });
+  const labels  = sorted.map(e => formatDayMonth(e.date));
 
   const W = 400, H = 150, PAD_L = 45, PAD_B = 30, PAD_T = 15, PAD_R = 10;
   const chartW = W - PAD_L - PAD_R;
@@ -910,7 +908,7 @@ function renderStreakDetail(data) {
         const base = appState.weekStartedAt ? new Date(appState.weekStartedAt) : new Date();
         const approx = new Date(base);
         approx.setDate(base.getDate() - ((parseInt(appState.currentWeek, 10) - weekNum) * 7) + dayIdx);
-        activeDates.add(approx.toISOString().slice(0, 10));
+        activeDates.add(dateKey(approx));
       }
     });
   }
@@ -920,7 +918,7 @@ function renderStreakDetail(data) {
   for (let i = 0; i <= 90; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = dateKey(d);
     if (activeDates.has(ds)) { if (i === streak) streak++; }
     else { if (i === streak) break; }
   }

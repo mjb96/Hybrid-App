@@ -3,6 +3,9 @@
 // ==========================================
 import { PROGRAMS } from './constants.js';
 import { prescribeSetsForLift } from './engine.js';
+import { todayKey } from './dates.js';
+export { showToast } from './toast.js';
+import { showToast } from './toast.js';
 
 const supabaseUrl = 'https://uzxvufzlaipdwuffxqyo.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6eHZ1ZnpsYWlwZHd1ZmZ4cXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDE1MTYsImV4cCI6MjA5NjE3NzUxNn0.G26YRJzt4ndScofQvp4fi-G8MP-Fs2Ovn0e6Y9t4Dxg';
@@ -483,16 +486,6 @@ export function triggerEngineImport(event) {
   reader.readAsText(file);
 }
 
-export function showToast(msg, isError = false) {
-  const toast = document.getElementById('sysToast');
-  if (!toast) return;
-  toast.textContent = msg;
-  toast.style.background = isError ? 'var(--accent-red)' : 'var(--accent-green)';
-  toast.classList.remove('show');
-  void toast.offsetWidth;
-  toast.classList.add('show');
-  setTimeout(() => { toast.classList.remove('show'); }, 2500);
-}
 
 export function saveNewCustomExerciseToLibrary(exerciseName) {
   const cleanedName = exerciseName.trim();
@@ -505,7 +498,7 @@ export function saveNewCustomExerciseToLibrary(exerciseName) {
 }
 
 export function logActivityForStreak() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
   const lastDate = appState.streakData.lastActivityDate;
   
