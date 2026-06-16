@@ -26,11 +26,11 @@ try {
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 
 // Base state configuration
-export let appState = { 
-  currentWeek: "1", 
-  activeProgramId: "hybrid_engine", 
-  weekStartedAt: null, 
-  weeks: {}, 
+export let appState = {
+  currentWeek: "1",
+  activeProgramId: "hybrid_engine",
+  weekStartedAt: null,
+  weeks: {},
   exerciseStats: {},
   customExercises: [],
   customPrograms: [],
@@ -39,7 +39,9 @@ export let appState = {
   deloadApplied: null,
   _deloadDismissedWeek: null,
   streakData: { current: 0, longest: 0, lastActivityDate: null },
-  goalData: { milestones: [], completedCount: 0 }
+  goalData: { milestones: [], completedCount: 0 },
+  liftNames: {},
+  liftIdMap: {},
 };
 
 export let activeTab = 'home';

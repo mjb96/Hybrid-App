@@ -3,7 +3,7 @@
 // ==========================================
 import { getProgramById } from './state.js';
 import { CONFIG, EXERCISE_LIBRARY } from './constants.js';
-import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs } from './engine.js';
+import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, getLiftDisplayName } from './engine.js';
 import { triggerRestTimerEngine, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js'; 
@@ -268,9 +268,11 @@ export function renderWorkout() {
     exCard.setAttribute('data-liftname', liftName);
     exCard.setAttribute('draggable', 'true');
 
-    let displayLiftName = liftName;
+    let displayLiftName;
     if (!isNaN(liftName) && homeBlueprint.lifts && homeBlueprint.lifts[parseInt(liftName, 10)]) {
       displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
+    } else {
+      displayLiftName = getLiftDisplayName(appState, liftName);
     }
 
     let blueprintLabel = `Target: Working Sets`;

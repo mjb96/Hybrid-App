@@ -4,7 +4,7 @@
 import { PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
 import { getProgramById } from './state.js';
 import { buildRunPreviewRow, buildLiftPreviewRow, buildRestDayPreview } from './templates.js';
-import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload } from './engine.js';
+import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
 import { getMapFromDB } from './db.js';
 import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
@@ -462,9 +462,11 @@ export function renderHome() {
       }
       for (let liftName in todayLifts) {
         const expectedSets = Array.isArray(todayLifts[liftName]) ? todayLifts[liftName].length : 4;
-        let displayLiftName = liftName;
+        let displayLiftName;
         if (!isNaN(liftName) && homeBlueprint.lifts && homeBlueprint.lifts[parseInt(liftName, 10)]) {
           displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
+        } else {
+          displayLiftName = getLiftDisplayName(appState, liftName);
         }
         previewContainer.innerHTML += buildLiftPreviewRow(displayLiftName, expectedSets);
       }

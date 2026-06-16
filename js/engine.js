@@ -13,6 +13,117 @@ export function initEngine(getStateFn, getDaysFn) {
 }
 
 // ==========================================
+// PRIMITIVE EXPORTS (D1–D6)
+// ==========================================
+
+export function epley1RM(weight, reps) {
+  const w = parseFloat(weight) || 0;
+  const r = parseInt(reps, 10) || 0;
+  if (w <= 0 || r === 0) return 0;
+  return w * (1 + r / 30);
+}
+
+export function isCompletedSet(s) {
+  if (!s) return false;
+  return s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+}
+
+export function parseDurationToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const parts = String(timeStr).split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+  if (parts.length === 2) return parts[0] + parts[1] / 60;
+  return parseFloat(timeStr) || 0;
+}
+
+export function paceSecondsPerKm(distKm, timeStr) {
+  const d = parseFloat(distKm) || 0;
+  if (!d || !timeStr) return 0;
+  const mins = parseDurationToMinutes(timeStr);
+  if (!mins) return 0;
+  return (mins * 60) / d;
+}
+
+export function formatPace(secsPerKm) {
+  if (!secsPerKm || secsPerKm === 0) return '--';
+  const m = Math.floor(secsPerKm / 60);
+  const s = Math.round(secsPerKm % 60).toString().padStart(2, '0');
+  return `${m}:${s}/km`;
+}
+
+// ==========================================
+// LIFT IDENTITY MAP (D8)
+// getLiftId — registers a name → stable opaque key, idempotent.
+// getLiftDisplayName — resolves key back to display name.
+// resolveLiftKey — maps display name → stored key.
+// ==========================================
+
+export function getLiftId(state, name) {
+  if (!name) return '';
+  if (!state.liftIdMap) state.liftIdMap = {};
+  if (!state.liftNames) state.liftNames = {};
+  if (state.liftIdMap[name]) return state.liftIdMap[name];
+  const id = 'lift_' + Math.random().toString(36).slice(2, 10);
+  state.liftIdMap[name] = id;
+  state.liftNames[id] = name;
+  return id;
+}
+
+export function getLiftDisplayName(state, id) {
+  return (state.liftNames && state.liftNames[id]) || id;
+}
+
+export function resolveLiftKey(state, name) {
+  return (state.liftIdMap && state.liftIdMap[name]) || name;
+}
+
+// ==========================================
+// FIND LAST PERFORMANCE (D9)
+// Scans weeks in descending order for the last completed working sets of a
+// given lift. Accepts both ID-keyed and plain-string-keyed storage.
+// Returns { weekKey, day, workingSets } or null.
+// ==========================================
+
+export function findLastPerformance(state, name, { excludeWeek, days = [] } = {}) {
+  const key = resolveLiftKey(state, name);
+  const weeks = Object.keys(state.weeks || {}).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+  for (const wKey of weeks) {
+    if (wKey === excludeWeek) continue;
+    const wkData = state.weeks[wKey];
+    for (const d of days) {
+      const setsArr = wkData?.lifts?.[d]?.[key];
+      if (!Array.isArray(setsArr) || setsArr.length === 0) continue;
+      const workingSets = setsArr.filter(s => isCompletedSet(s) && !s.isWarmup);
+      if (workingSets.length > 0) return { weekKey: wKey, day: d, workingSets };
+    }
+  }
+  return null;
+}
+
+// ==========================================
+// GRADE-ADJUSTED PACE (D10)
+// Returns per-point GAP (s/km). Index 0 is always 0.
+// Uphill → GAP < actual pace; downhill → GAP > actual pace.
+// ==========================================
+
+export function computeGAP(distKm, elapsedSec, altitude) {
+  if (!distKm || distKm.length < 1 || !altitude || altitude.length < 1) return [];
+  if (distKm.length === 1) return [0];
+  const result = [0];
+  for (let i = 1; i < distKm.length; i++) {
+    const dDist = distKm[i] - distKm[i - 1];
+    const dTime = elapsedSec[i] - elapsedSec[i - 1];
+    const dElev = altitude[i] - altitude[i - 1];
+    if (dDist <= 0 || dTime <= 0) { result.push(0); continue; }
+    const grade  = dElev / (dDist * 1000);
+    const factor = Math.exp(grade * 3.5);
+    result.push((dTime / dDist) / factor);
+  }
+  return result;
+}
+
+// ==========================================
 // TEXT DESCRIPTION PARSER ENGINE
 // ==========================================
 export function parseTargetFromDescription(descString, liftName) {
@@ -97,15 +208,33 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
 
   let totalRpeSum = 0, rpeCount = 0;
   const pastWkData = appState.weeks[(cWk - 1).toString()];
-  
+
   if (pastWkData) {
+    // Primary: per-set RPE on completed sets
+    let hasPerSetRpe = false;
     DEFAULT_DAYS.forEach(d => {
-      const runRpe = parseInt(pastWkData.runs?.[d]?.rpe, 10) || 0;
-      if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
-      
-      const gymRpe = parseInt(pastWkData.gymRpe?.[d], 10) || 0;
-      if (gymRpe > 0) { totalRpeSum += gymRpe; rpeCount++; }
+      const dayLifts = pastWkData.lifts?.[d] || {};
+      for (const lift in dayLifts) {
+        if (!Array.isArray(dayLifts[lift])) continue;
+        dayLifts[lift].forEach(s => {
+          if (isCompletedSet(s) && s.rpe) {
+            const rpe = parseFloat(s.rpe) || 0;
+            if (rpe > 0) { totalRpeSum += rpe; rpeCount++; hasPerSetRpe = true; }
+          }
+        });
+      }
     });
+
+    // Fallback: session-level RPE (gym + run)
+    if (!hasPerSetRpe) {
+      DEFAULT_DAYS.forEach(d => {
+        const runRpe = parseInt(pastWkData.runs?.[d]?.rpe, 10) || 0;
+        if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
+
+        const gymRpe = parseInt(pastWkData.gymRpe?.[d], 10) || 0;
+        if (gymRpe > 0) { totalRpeSum += gymRpe; rpeCount++; }
+      });
+    }
   }
   
   const pastWeekAvgRpe = rpeCount > 0 ? totalRpeSum / rpeCount : 0;
