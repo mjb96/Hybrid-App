@@ -1,9 +1,9 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v22';
+const CACHE_NAME = 'hybrid-training-v28';
 
-const ASSETS_TO_CACHE = [
+const LOCAL_ASSETS = [
   './',
   './index.html',
   './css/styles.css',
@@ -24,17 +24,43 @@ const ASSETS_TO_CACHE = [
   './js/timers.js',
   './js/workout.js',
   './js/workout-map.js',
-  './js/program_builder.js'
+  './js/program_builder.js',
+  './js/toast.js',
+  './js/util.js',
+  './js/dates.js',
+  './js/schema.js',
+  './js/metrics/metrics-strength.js',
+  './js/metrics/metrics-running.js',
+  './js/metrics/metrics-load.js',
+  './js/analytics/utils.js',
+  './js/analytics/charts.js',
+  './js/analytics/views/view-strength.js',
+  './js/analytics/views/view-running.js',
+  './js/analytics/views/view-recovery.js',
+  './js/analytics/views/view-bodyweight.js',
+  './js/analytics/views/view-progress.js',
+];
+
+const CDN_ASSETS = [
+  new Request('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', { mode: 'cors' }),
+  new Request('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', { mode: 'cors' }),
+  new Request('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', { mode: 'cors' }),
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[Service Worker] Pre-caching offline assets');
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[Service Worker] Pre-caching offline assets');
+      const all = [...LOCAL_ASSETS, ...CDN_ASSETS];
+      return Promise.allSettled(
+        all.map((asset) =>
+          cache.add(asset).catch((err) =>
+            console.warn('[Service Worker] Failed to cache:', typeof asset === 'string' ? asset : asset.url, err)
+          )
+        )
+      );
+    })
   );
 });
 
@@ -54,7 +80,7 @@ self.addEventListener('activate', (event) => {
 });
 
 // Network-first for JS modules so bug fixes reach users immediately;
-// fall back to cache only when offline.
+// fall back to cache only when offline; re-throw if cache is also empty.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -62,7 +88,6 @@ self.addEventListener('fetch', (event) => {
   const isJSModule = url.pathname.startsWith('/js/') || url.pathname.endsWith('.js');
 
   if (isJSModule) {
-    // Network-first for JS
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -72,10 +97,15 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() =>
+          caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            throw new Error('[SW] Offline and not in cache: ' + event.request.url);
+          })
+        )
     );
   } else {
-    // Cache-first for everything else (HTML, CSS, icons)
+    // Cache-first for everything else (HTML, CSS, icons, CDN)
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {

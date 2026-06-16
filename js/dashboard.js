@@ -27,6 +27,8 @@
 //   state:       'loaded'|'empty'|'error'
 // }
 
+import { dateKey } from './dates.js';
+
 // ==========================================
 // TILE TYPE ENUM
 // ==========================================
@@ -517,7 +519,7 @@ export const TILE_REGISTRY = [
               const base  = appState.weekStartedAt ? new Date(appState.weekStartedAt) : new Date();
               const approx = new Date(base);
               approx.setDate(base.getDate() - ((parseInt(appState.currentWeek, 10) - weekNum) * 7) + dayIdx);
-              activeDates.add(approx.toISOString().slice(0, 10));
+              activeDates.add(dateKey(approx));
             }
           });
         }
@@ -531,7 +533,7 @@ export const TILE_REGISTRY = [
         for (let i = 0; i <= 90; i++) {
           const d = new Date(today);
           d.setDate(today.getDate() - i);
-          const ds = d.toISOString().slice(0, 10);
+          const ds = dateKey(d);
           if (activeDates.has(ds)) {
             if (i === streak) streak++;
           } else {

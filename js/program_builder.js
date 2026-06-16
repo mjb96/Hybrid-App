@@ -2,6 +2,7 @@
 // PROGRAM BUILDER LOGIC (program_builder.js)
 // ==========================================
 import { saveStateToLocalStorage, getProgramById } from './state.js';
+import { getWeekModifier } from './schema.js';
 
 let activeBuilderId = null;
 
@@ -43,10 +44,13 @@ function renderWeeks(program) {
   const container = document.getElementById('weeksContainer');
   if (!program.weeks) program.weeks = []; 
   
-  container.innerHTML = program.weeks.map((week, wIdx) => `
+  container.innerHTML = program.weeks.map((week, wIdx) => {
+    const mod = getWeekModifier(program, String(wIdx + 1));
+    const modLabel = mod.intensityLabel ? `<span class="text-xs text-muted" style="font-weight:400;">${mod.sets}×${mod.reps} — ${mod.intensityLabel}</span>` : '';
+    return `
     <div class="card-dark p-4 mb-4" style="border: 1px solid var(--overlay-sm);">
       <div class="flex-between mb-3">
-        <h3 class="font-heavy text-lg">Week ${wIdx + 1}</h3>
+        <div><h3 class="font-heavy text-lg">Week ${wIdx + 1}</h3>${modLabel}</div>
         <button class="btn-pad" style="color: var(--accent-red); border-color: rgba(239,68,68,0.2);" data-action="remove-week" data-w="${wIdx}">✕ Remove Week</button>
       </div>
       <div id="daysContainer_${wIdx}">
@@ -54,7 +58,8 @@ function renderWeeks(program) {
       </div>
       <button class="btn-pad mt-2 w-full" data-action="add-day" data-w="${wIdx}">+ Add Day to Week ${wIdx + 1}</button>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderDay(day, wIdx, dIdx) {
