@@ -117,6 +117,56 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
 
   const trendEl = document.getElementById('rpeTrendContainerDetail');
   if (trendEl) _renderRpeTrendChart(trendEl, data, getState, getDays);
+
+  // ATL/CTL-derived load balance
+  const windowEl = document.getElementById('recoveryWindowCard');
+  if (windowEl) {
+    const { atl = 0, ctl = 0 } = appState.loadMetrics || {};
+    const hasLoad = ctl > 0;
+    const tsb     = ctl - atl;
+    const acwr    = hasLoad ? Math.round((atl / ctl) * 100) / 100 : 0;
+
+    let loadStatus, loadColor, loadNote;
+    if (!hasLoad) {
+      loadStatus = '—';
+      loadColor  = 'rgba(255,255,255,0.5)';
+      loadNote   = 'Log sessions with RPE and duration to unlock load balance.';
+    } else if (tsb > 0) {
+      loadStatus = 'Fresh';
+      loadColor  = '#10b981';
+      loadNote   = `Acute load is below your 28-day baseline. ACWR: ${acwr}.`;
+    } else if (acwr < 1.15) {
+      loadStatus = 'Balanced';
+      loadColor  = '#94a3b8';
+      loadNote   = `Load is tracking your fitness baseline. ACWR: ${acwr}.`;
+    } else {
+      loadStatus = 'Fatigued';
+      loadColor  = '#ef4444';
+      loadNote   = `Recent load exceeds baseline by ${Math.round((acwr - 1) * 100)}%. ACWR: ${acwr}. Prioritise recovery.`;
+    }
+
+    windowEl.innerHTML = `
+      <h2 class="section-header mt-2">Load Balance</h2>
+      <article class="card-dark p-4 mb-4">
+        <div class="flex-between mb-3">
+          <span class="text-sm text-muted">ATL (7-day load)</span>
+          <span class="font-heavy text-inverse">${hasLoad ? Math.round(atl) : '—'}</span>
+        </div>
+        <div class="flex-between mb-3">
+          <span class="text-sm text-muted">CTL (28-day baseline)</span>
+          <span class="font-heavy text-inverse">${hasLoad ? Math.round(ctl) : '—'}</span>
+        </div>
+        <div class="flex-between mb-3">
+          <span class="text-sm text-muted">Form (TSB)</span>
+          <span class="font-heavy" style="color:${loadColor};">${hasLoad ? (tsb >= 0 ? '+' : '') + Math.round(tsb) : '—'}</span>
+        </div>
+        <div class="flex-between">
+          <span class="text-sm text-muted">Status</span>
+          <span class="font-heavy" style="color:${loadColor};">${loadStatus}</span>
+        </div>
+        <div class="text-xs text-muted mt-3" style="line-height:1.5;">${loadNote}</div>
+      </article>`;
+  }
 }
 
 function _renderRpeTrendChart(container, data, getState, getDays) {

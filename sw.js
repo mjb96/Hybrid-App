@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v30';
+const CACHE_NAME = 'hybrid-training-v31';
 
 const LOCAL_ASSETS = [
   './',
@@ -44,6 +44,7 @@ const LOCAL_ASSETS = [
   './js/analytics/views/view-training-status.js',
   './js/analytics/views/view-load-focus.js',
   './js/analytics/views/view-run-crossref.js',
+  './js/analytics/views/view-vdot.js',
 ];
 
 const CDN_ASSETS = [

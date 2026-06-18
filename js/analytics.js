@@ -17,6 +17,7 @@ import {
 import { renderTrainingStatusAnalytics } from './analytics/views/view-training-status.js';
 import { renderLoadFocusAnalytics } from './analytics/views/view-load-focus.js';
 import { renderRunCrossRefAnalytics } from './analytics/views/view-run-crossref.js';
+import { renderVdotAnalytics } from './analytics/views/view-vdot.js';
 
 let _getState;
 let _getDays;
@@ -281,6 +282,10 @@ export function renderAnalytics() {
     case 'run-crossref':
       document.getElementById('analytics-run-crossref').classList.add('active');
       renderRunCrossRefAnalytics(data, _getState, _getDays);
+      break;
+    case 'vdot':
+      document.getElementById('analytics-vdot').classList.add('active');
+      renderVdotAnalytics(data, _getState, _getDays);
       break;
     default:
       document.getElementById('analytics-strength').classList.add('active');
