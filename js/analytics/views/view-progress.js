@@ -155,6 +155,41 @@ export function renderStreakDetail(data, getState, getDays) {
       `;
     }
   }
+
+  // Consistency heatmap
+  const trainingDays = [];
+  for (const wk in appState.weeks || {}) {
+    const wkData = appState.weeks[wk];
+    defaultDays.forEach((d, dayIdx) => {
+      let completedSets = 0;
+      const dayLifts = wkData?.lifts?.[d] || {};
+      for (const lift in dayLifts) {
+        if (Array.isArray(dayLifts[lift])) {
+          completedSets += dayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
+        }
+      }
+      const gymHasData = completedSets > 0;
+      const runHasData = parseFloat(wkData?.runs?.[d]?.dist) > 0;
+      if (gymHasData || runHasData) {
+        trainingDays.push({ week: parseInt(wk, 10), dayIdx, gym: gymHasData, run: runHasData });
+      }
+    });
+  }
+
+  // Find or create heatmap header + container after detailEl
+  let heatmapHeader = document.querySelector('.streak-heatmap-header');
+  let heatmapContainer = document.getElementById('streakHeatmapContainer');
+  if (!heatmapContainer && detailEl) {
+    heatmapHeader = document.createElement('h2');
+    heatmapHeader.className = 'section-header mt-3 streak-heatmap-header';
+    heatmapHeader.textContent = 'Training Calendar';
+    heatmapContainer = document.createElement('div');
+    heatmapContainer.id = 'streakHeatmapContainer';
+    detailEl.after(heatmapHeader);
+    heatmapHeader.after(heatmapContainer);
+  }
+
+  renderConsistencyHeatmap(heatmapContainer, trainingDays, data.weekLabels);
 }
 
 export function renderGoalProgressDetail(data, getState) {

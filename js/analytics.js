@@ -4,7 +4,7 @@
 import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
-import { renderStrengthAnalytics, render1RMList } from './analytics/views/view-strength.js';
+import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
 import { renderRunningAnalytics } from './analytics/views/view-running.js';
 import { renderRecoveryAnalytics, renderRecoveryScoreDetail } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
@@ -237,6 +237,7 @@ export function renderAnalytics() {
     case 'strength_pr':
       document.getElementById('analytics-strength_pr').classList.add('active');
       render1RMList(document.getElementById('allLiftsRmContainer_PR'), data.dynamicStats);
+      render1RMProgressSection(document.getElementById('analytics-strength_pr'), data.weekLabels, _getState, _getDays);
       break;
     case 'running':
       document.getElementById('analytics-running').classList.add('active');
@@ -252,7 +253,7 @@ export function renderAnalytics() {
       break;
     case 'bodyweight':
       document.getElementById('analytics-bodyweight').classList.add('active');
-      renderBodyWeightAnalytics(data);
+      renderBodyWeightAnalytics(data, _getState);
       break;
     case 'progress':
       document.getElementById('analytics-progress').classList.add('active');
