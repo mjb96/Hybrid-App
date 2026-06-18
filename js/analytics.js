@@ -14,6 +14,9 @@ import {
   renderStreakDetail,
   renderGoalProgressDetail,
 } from './analytics/views/view-progress.js';
+import { renderTrainingStatusAnalytics } from './analytics/views/view-training-status.js';
+import { renderLoadFocusAnalytics } from './analytics/views/view-load-focus.js';
+import { renderRunCrossRefAnalytics } from './analytics/views/view-run-crossref.js';
 
 let _getState;
 let _getDays;
@@ -266,6 +269,18 @@ export function renderAnalytics() {
       document.getElementById('analytics-progress').classList.add('active');
       renderProgressAnalytics(data, _getState);
       renderGoalProgressDetail(data, _getState);
+      break;
+    case 'training-status':
+      document.getElementById('analytics-training-status').classList.add('active');
+      renderTrainingStatusAnalytics(data, _getState, _getDays);
+      break;
+    case 'load-focus':
+      document.getElementById('analytics-load-focus').classList.add('active');
+      renderLoadFocusAnalytics(data, _getState, _getDays);
+      break;
+    case 'run-crossref':
+      document.getElementById('analytics-run-crossref').classList.add('active');
+      renderRunCrossRefAnalytics(data, _getState, _getDays);
       break;
     default:
       document.getElementById('analytics-strength').classList.add('active');

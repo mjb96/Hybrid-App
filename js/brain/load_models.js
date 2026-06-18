@@ -173,6 +173,34 @@ function buildDailyTimeline(state) {
   return entries.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Returns { atl: number[], ctl: number[] } — EWMA ATL and CTL at end of each week.
+// Advances through all 7 days per week (rest days contribute 0 load) so EWMA
+// decay is calendar-correct. Series length equals maxWeek.
+export function weeklyLoadMetricsSeries(state, days, maxWeek) {
+  let atl = 0, ctl = 0;
+  const atlSeries = [], ctlSeries = [];
+  for (let w = 1; w <= maxWeek; w++) {
+    const wkData = (state.weeks || {})[String(w)];
+    DAY_KEYS.forEach(d => {
+      let dayLoad = 0;
+      if (wkData) {
+        const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
+        const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
+        const runRpe  = parseFloat(wkData.runs?.[d]?.rpe) || 0;
+        const runMins = parseMinutes(wkData.runs?.[d]?.time);
+        dayLoad =
+          (gymRpe > 0 && gymMins > 0 ? gymRpe * gymMins : 0) +
+          (runRpe > 0 && runMins > 0 ? runRpe * runMins : 0);
+      }
+      atl = dayLoad * λ_ATL + atl * (1 - λ_ATL);
+      ctl = dayLoad * λ_CTL + ctl * (1 - λ_CTL);
+    });
+    atlSeries.push(atl);
+    ctlSeries.push(ctl);
+  }
+  return { atl: atlSeries, ctl: ctlSeries };
+}
+
 // Recomputes CTL (28-day EWMA) and ATL (7-day EWMA) from the full history.
 // Returns { atl, ctl } — stored as appState.loadMetrics and persisted on
 // every save. TSB = CTL - ATL (positive = fresh, negative = fatigued).
