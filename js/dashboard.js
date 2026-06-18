@@ -77,9 +77,10 @@ export const TILE_REGISTRY = [
 
         const todayLifts = weekData.lifts?.[selectedDay] || {};
         const todayRun   = weekData.runs?.[selectedDay]  || {};
-        let completedSets = 0;
+        let completedSets = 0, totalSets = 0;
         for (const lift in todayLifts) {
           if (Array.isArray(todayLifts[lift])) {
+            totalSets     += todayLifts[lift].length;
             completedSets += todayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
           }
         }
@@ -87,11 +88,13 @@ export const TILE_REGISTRY = [
         const isLogged = completedSets > 0 || runDist > 0;
 
         if (isLogged) {
+          const completionPct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 100;
+          const pctColor = completionPct >= 100 ? 'var(--color-green)' : completionPct >= 50 ? 'var(--color-amber)' : 'var(--color-red)';
           return {
-            hero:     '✓ Done',
-            sub:      `${completedSets} sets${runDist > 0 ? ' · ' + runDist + ' km' : ''}`,
-            tag:      'Completed',
-            tagColor: 'var(--color-green)',
+            hero:     totalSets > 0 ? `${completionPct}%` : '✓ Done',
+            sub:      `${completedSets}${totalSets > 0 ? '/' + totalSets : ''} sets${runDist > 0 ? ' · ' + runDist + ' km' : ''}`,
+            tag:      completionPct >= 100 ? 'Complete' : `${completionPct}% done`,
+            tagColor: pctColor,
             state:    'loaded',
           };
         }
@@ -120,24 +123,55 @@ export const TILE_REGISTRY = [
     order:     1,
     renderData(appState, defaultDays) {
       try {
-        const wk = appState.currentWeek || '1';
+        const wk       = appState.currentWeek || '1';
         const weekData = appState.weeks?.[wk];
-        if (!weekData) return { hero: 'Adpt', sub: 'Log workouts for score.', ringPct: 0, ringColor: 'var(--color-blue)', state: 'empty' };
 
+        // RPE signal — this week's average perceived exertion
         let totalRpe = 0, rpeCount = 0;
-        defaultDays.forEach(d => {
-          const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
-          const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
-          if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
-          if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
-        });
+        if (weekData) {
+          defaultDays.forEach(d => {
+            const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
+            const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
+            if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+            if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
+          });
+        }
+        const avgRpe = rpeCount > 0 ? totalRpe / rpeCount : 0;
 
-        if (rpeCount === 0) return { hero: 'Adpt', sub: 'Log workouts for score.', ringPct: 0, ringColor: 'var(--color-blue)', state: 'empty' };
+        // Load balance signal — EWMA ATL/CTL stored on every save
+        const { atl = 0, ctl = 0 } = appState.loadMetrics || {};
+        const hasLoad = ctl > 0;
+        const tsb  = hasLoad ? ctl - atl : 0;   // positive = fresher than baseline
+        const acwr = hasLoad ? Math.round((atl / ctl) * 100) / 100 : 0;
 
-        const avg = totalRpe / rpeCount;
-        if (avg < 6)   return { hero: 'High', sub: 'Well rested. Push intensity.', ringPct: 100, ringColor: 'var(--color-green)',  state: 'loaded' };
-        if (avg < 8)   return { hero: 'Fair', sub: 'Fatigue building. Sleep well.', ringPct: 65,  ringColor: 'var(--color-amber)',  state: 'loaded' };
-        return             { hero: 'Warn', sub: 'High fatigue. Drop volume.',    ringPct: 30,  ringColor: 'var(--color-red)',    state: 'loaded' };
+        if (!hasLoad && rpeCount === 0) {
+          return { hero: 'Adpt', sub: 'Log sessions for readiness.', ringPct: 0, ringColor: 'var(--color-blue)', state: 'empty' };
+        }
+
+        // Overreach zone: ACWR > 1.5 is an immediate flag regardless of RPE
+        if (hasLoad && acwr > 1.5) {
+          return { hero: 'Risk', sub: `ACWR ${acwr} — reduce load now.`, ringPct: 15, ringColor: 'var(--color-red)', state: 'loaded' };
+        }
+
+        // Composite: TSB + ACWR driving primary state, RPE as secondary modifier
+        if (hasLoad) {
+          const sub = `ACWR ${acwr} · RPE ${rpeCount > 0 ? avgRpe.toFixed(1) : '--'}`;
+          if (tsb > 0 && (rpeCount === 0 || avgRpe < 7)) {
+            return { hero: 'Prime', sub, ringPct: 95, ringColor: 'var(--color-green)', state: 'loaded' };
+          }
+          if (acwr <= 1.0 || (tsb >= -5 && (rpeCount === 0 || avgRpe < 8))) {
+            return { hero: 'Good',  sub, ringPct: 72, ringColor: 'var(--color-green)', state: 'loaded' };
+          }
+          if (acwr <= 1.3) {
+            return { hero: 'Fair',  sub, ringPct: 48, ringColor: 'var(--color-amber)', state: 'loaded' };
+          }
+          return   { hero: 'Taxed', sub, ringPct: 25, ringColor: 'var(--color-red)',   state: 'loaded' };
+        }
+
+        // Fallback: RPE only (no session duration logged yet for EWMA)
+        if (avgRpe < 6) return { hero: 'High',  sub: 'Well rested. Push intensity.',  ringPct: 90, ringColor: 'var(--color-green)', state: 'loaded' };
+        if (avgRpe < 8) return { hero: 'Fair',  sub: 'Fatigue building. Sleep well.', ringPct: 55, ringColor: 'var(--color-amber)', state: 'loaded' };
+        return                 { hero: 'Warn',  sub: 'High fatigue. Drop volume.',     ringPct: 25, ringColor: 'var(--color-red)',   state: 'loaded' };
       } catch {
         return { hero: '--', sub: 'Unavailable', ringPct: 0, ringColor: 'var(--color-blue)', state: 'error' };
       }
@@ -357,19 +391,31 @@ export const TILE_REGISTRY = [
         let gymTSS = 0, runTSS = 0;
         if (weekData) {
           defaultDays.forEach(d => {
-            let completedSets = 0;
-            const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
+            // Gym TSS: prefer sRPE × duration (mins); fall back to sets × RPE × 4 (est. ~4 min/set)
+            const gRpe    = parseInt(weekData.gymRpe?.[d], 10) || 0;
+            const gymMins = parseFloat(weekData.gymStats?.[d]?.time) || 0;
             const dayLifts = weekData.lifts?.[d] || {};
+            let completedSets = 0;
             for (const lift in dayLifts) {
               if (Array.isArray(dayLifts[lift])) {
                 completedSets += dayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
               }
             }
-            gymTSS += completedSets * (gRpe > 0 ? gRpe : 6);
+            if (gymMins > 0 && gRpe > 0) {
+              gymTSS += gymMins * gRpe;
+            } else if (completedSets > 0) {
+              gymTSS += completedSets * (gRpe > 0 ? gRpe : 6) * 4;
+            }
 
+            // Run TSS: prefer sRPE × duration (mins); fall back to dist × RPE × 8 (est. ~8 min/km)
             const rDist = parseFloat(weekData.runs?.[d]?.dist) || 0;
             const rRpe  = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
-            runTSS += rDist * (rRpe > 0 ? rRpe : 6) * 3;
+            const rMins = parseTimeToMinutes(weekData.runs?.[d]?.time);
+            if (rMins > 0 && rRpe > 0) {
+              runTSS += rMins * rRpe;
+            } else if (rDist > 0) {
+              runTSS += rDist * (rRpe > 0 ? rRpe : 6) * 8;
+            }
           });
         }
 
@@ -400,38 +446,56 @@ export const TILE_REGISTRY = [
     order:     8,
     renderData(appState, defaultDays) {
       try {
-        const wk = appState.currentWeek || '1';
+        const wk       = appState.currentWeek || '1';
         const weekData = appState.weeks?.[wk];
-        if (!weekData) return { hero: '--', sub: 'No data yet', tag: 'N/A', tagColor: 'var(--text-secondary)', state: 'empty' };
 
-        // Recovery score: inverse of accumulated fatigue (average weekly RPE)
+        // Component 1: RPE fatigue factor (0-100, higher = better recovered)
         let totalRpe = 0, rpeCount = 0;
-        defaultDays.forEach(d => {
-          const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
-          const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
-          if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
-          if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
-        });
+        if (weekData) {
+          defaultDays.forEach(d => {
+            const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
+            const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
+            if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+            if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
+          });
+        }
+        const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
+        const rpeFactor = rpeCount > 0 ? Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100))) : null;
 
-        if (rpeCount === 0) return { hero: '--', sub: 'Log sessions for score', tag: 'N/A', tagColor: 'var(--text-secondary)', state: 'empty' };
+        // Component 2: Load balance factor from ACWR (0-100)
+        const { atl = 0, ctl = 0 } = appState.loadMetrics || {};
+        const hasLoad = ctl > 0;
+        let acwrFactor = null;
+        if (hasLoad) {
+          const acwr = atl / ctl;
+          if      (acwr <= 0.8) acwrFactor = 80;
+          else if (acwr <= 1.0) acwrFactor = 100;
+          else if (acwr <= 1.3) acwrFactor = Math.round(100 - ((acwr - 1.0) / 0.3) * 60);
+          else if (acwr <= 1.5) acwrFactor = Math.round(40  - ((acwr - 1.3) / 0.2) * 35);
+          else                  acwrFactor = 5;
+          acwrFactor = Math.max(0, Math.min(100, acwrFactor));
+        }
 
-        const avgRpe = totalRpe / rpeCount;
-        // Map RPE 1-10 to recovery 100-0 (higher RPE = lower recovery)
-        const score = Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100)));
-        const sleepContrib = Math.round(score * 0.4);
-        const fatigueContrib = Math.round(score * 0.6);
+        // Composite score from available components
+        let score, subLine;
+        if (rpeFactor !== null && acwrFactor !== null) {
+          score   = Math.round(rpeFactor * 0.6 + acwrFactor * 0.4);
+          subLine = `Fatigue ${rpeFactor}%  ·  Load ${acwrFactor}%`;
+        } else if (rpeFactor !== null) {
+          score   = rpeFactor;
+          subLine = `RPE fatigue index · add session duration for full score`;
+        } else if (acwrFactor !== null) {
+          score   = acwrFactor;
+          subLine = `Load balance score · log RPE for full data`;
+        } else {
+          return { hero: '--', sub: 'Log sessions for score', tag: 'N/A', tagColor: 'var(--text-secondary)', state: 'empty' };
+        }
 
-        let tag = `${score}%`, tagColor = 'var(--color-green)';
+        let tagColor = 'var(--color-green)';
         if (score < 40) tagColor = 'var(--color-red)';
         else if (score < 70) tagColor = 'var(--color-amber)';
 
-        return {
-          hero:  `${score}%`,
-          sub:   `Sleep ~${sleepContrib}%  Fatigue ~${fatigueContrib}%`,
-          tag,
-          tagColor,
-          state: 'loaded',
-        };
+        return { hero: `${score}%`, sub: subLine, tag: `${score}%`, tagColor, state: 'loaded' };
       } catch {
         return { hero: '--', sub: 'Unavailable', state: 'error' };
       }
@@ -578,42 +642,222 @@ export const TILE_REGISTRY = [
     order:     11,
     renderData(appState, defaultDays, activeProgram) {
       try {
-        const wk     = parseInt(appState.currentWeek, 10) || 1;
-        const total  = activeProgram?.totalWeeks || 12;
-        const pct    = Math.round((wk / total) * 100);
+        const wk    = parseInt(appState.currentWeek, 10) || 1;
+        const total = activeProgram?.totalWeeks || 12;
+        const calPct = Math.round((wk / total) * 100);
 
-        // Compute weekly completion as the "next milestone"
-        const weekData = appState.weeks?.[appState.currentWeek];
-        let weekDone = 0, weekTotal = 0;
-        if (weekData) {
+        // Performance consistency: average across every logged week so far
+        let totalConsistency = 0, weeksWithData = 0;
+        for (let w = 1; w <= wk; w++) {
+          const wData = appState.weeks?.[String(w)];
+          if (!wData) continue;
+          let wDone = 0, wTotal = 0;
           defaultDays.forEach(dKey => {
             const bp = activeProgram?.days?.[dKey];
             const isRunScheduled = bp?.runs && !bp.runs.toLowerCase().includes('no structured') && bp.runs.toLowerCase() !== 'rest';
-            if (isRunScheduled) weekTotal++;
-            const rDist = parseFloat(weekData.runs?.[dKey]?.dist) || 0;
-            if (isRunScheduled && rDist > 0) weekDone++;
-
-            const dayLifts = weekData.lifts?.[dKey] || {};
+            if (isRunScheduled) wTotal++;
+            const rDist = parseFloat(wData.runs?.[dKey]?.dist) || 0;
+            if (isRunScheduled && rDist > 0) wDone++;
+            const dayLifts = wData.lifts?.[dKey] || {};
             for (const lift in dayLifts) {
               if (Array.isArray(dayLifts[lift])) {
                 dayLifts[lift].forEach(s => {
-                  weekTotal++;
-                  if (s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)) weekDone++;
+                  wTotal++;
+                  if (s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)) wDone++;
                 });
               }
             }
           });
+          if (wTotal > 0) { totalConsistency += wDone / wTotal; weeksWithData++; }
         }
+        const avgConsistency = weeksWithData > 0 ? Math.round((totalConsistency / weeksWithData) * 100) : 0;
 
-        const weekPct = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0;
-        const remaining = total - wk;
+        let status, statusColor;
+        if (!weeksWithData)          { status = 'No data';   statusColor = 'var(--text-secondary)'; }
+        else if (avgConsistency >= 80) { status = 'On Track';  statusColor = 'var(--color-green)'; }
+        else if (avgConsistency >= 60) { status = 'Behind';    statusColor = 'var(--color-amber)'; }
+        else                           { status = 'At Risk';   statusColor = 'var(--color-red)'; }
 
         return {
-          hero:  `${pct}%`,
-          sub:   `Wk ${wk}/${total} · ${remaining} wk${remaining !== 1 ? 's' : ''} left`,
-          tag:   `This week: ${weekPct}%`,
-          tagColor: weekPct >= 80 ? 'var(--color-green)' : weekPct >= 50 ? 'var(--color-amber)' : 'var(--color-blue)',
-          state: 'loaded',
+          hero:     `${calPct}%`,
+          sub:      `Wk ${wk}/${total} · ${weeksWithData > 0 ? avgConsistency + '% avg consistency' : 'No data yet'}`,
+          tag:      status,
+          tagColor: statusColor,
+          state:    'loaded',
+        };
+      } catch {
+        return { hero: '--', sub: 'Unavailable', state: 'error' };
+      }
+    },
+  },
+  // ---- HRV (HEALTH CONNECT) ----------------------------------------
+  {
+    id:        'hrv',
+    type:      DashboardTileType.RING,
+    icon:      '💓',
+    label:     'HRV',
+    accentVar: '--color-green',
+    navTarget: 'recovery-score',
+    order:     12,
+    renderData(appState) {
+      try {
+        const hc  = appState.healthConnect;
+        const log = hc?.hrv;
+        if (!hc?.connected || !log?.length) {
+          return { hero: '--', sub: 'Connect Health app', ringPct: 0, ringColor: 'var(--color-blue)', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
+        }
+        const sorted  = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const latest  = sorted[0].rmssd;
+        const count30 = Math.min(sorted.length, 30);
+        const avg30   = sorted.slice(0, count30).reduce((s, e) => s + e.rmssd, 0) / count30;
+        const delta   = latest - avg30;
+        const ringPct = Math.min(100, Math.round((latest / 100) * 100));
+        return {
+          hero:      `${Math.round(latest)}ms`,
+          sub:       `${Math.round(avg30)}ms 30-day avg`,
+          tag:       `${delta >= 0 ? '+' : ''}${Math.round(delta)} vs 30d`,
+          tagColor:  delta >= 0 ? 'var(--color-green)' : 'var(--color-red)',
+          ringPct,
+          ringColor: delta >= 0 ? 'var(--color-green)' : 'var(--color-amber)',
+          state:     'loaded',
+        };
+      } catch {
+        return { hero: '--', sub: 'Unavailable', ringPct: 0, ringColor: 'var(--color-blue)', state: 'error' };
+      }
+    },
+  },
+
+  // ---- RESTING HR (HEALTH CONNECT) ---------------------------------
+  {
+    id:        'resting-hr',
+    type:      DashboardTileType.METRIC,
+    icon:      '❤️',
+    label:     'Resting HR',
+    accentVar: '--color-pink',
+    navTarget: 'recovery-score',
+    order:     13,
+    renderData(appState) {
+      try {
+        const hc  = appState.healthConnect;
+        const log = hc?.restingHR;
+        if (!hc?.connected || !log?.length) {
+          return { hero: '--', sub: 'Connect Health app', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
+        }
+        const sorted  = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const latest  = sorted[0].bpm;
+        const count7  = Math.min(sorted.length, 7);
+        const avg7    = sorted.slice(0, count7).reduce((s, e) => s + e.bpm, 0) / count7;
+        const delta   = latest - Math.round(avg7);
+        return {
+          hero:     `${latest} bpm`,
+          sub:      `${Math.round(avg7)} bpm 7-day avg`,
+          tag:      `${delta <= 0 ? '' : '+'}${delta} vs 7d avg`,
+          tagColor: delta <= 0 ? 'var(--color-green)' : 'var(--color-red)',
+          state:    'loaded',
+        };
+      } catch {
+        return { hero: '--', sub: 'Unavailable', state: 'error' };
+      }
+    },
+  },
+
+  // ---- SLEEP (HEALTH CONNECT) --------------------------------------
+  {
+    id:        'sleep',
+    type:      DashboardTileType.METRIC,
+    icon:      '🌙',
+    label:     'Sleep',
+    accentVar: '--color-blue',
+    navTarget: 'recovery-score',
+    order:     14,
+    renderData(appState) {
+      try {
+        const hc  = appState.healthConnect;
+        const log = hc?.sleep;
+        if (!hc?.connected || !log?.length) {
+          return { hero: '--', sub: 'Connect Health app', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
+        }
+        const sorted  = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const latest  = sorted[0];
+        const count7  = Math.min(sorted.length, 7);
+        const avg7hrs = sorted.slice(0, count7).reduce((s, e) => s + (e.totalHours || 0), 0) / count7;
+        const h = Math.floor(latest.totalHours);
+        const m = Math.round((latest.totalHours - h) * 60);
+        return {
+          hero:     `${h}h ${m}m`,
+          sub:      'Last night',
+          tag:      `${avg7hrs.toFixed(1)}h 7d avg`,
+          tagColor: latest.totalHours >= 7.5 ? 'var(--color-green)' : latest.totalHours >= 6 ? 'var(--color-amber)' : 'var(--color-red)',
+          state:    'loaded',
+        };
+      } catch {
+        return { hero: '--', sub: 'Unavailable', state: 'error' };
+      }
+    },
+  },
+
+  // ---- STEPS (HEALTH CONNECT) --------------------------------------
+  {
+    id:        'steps',
+    type:      DashboardTileType.METRIC,
+    icon:      '👟',
+    label:     'Steps',
+    accentVar: '--color-amber',
+    navTarget: 'recovery-score',
+    order:     15,
+    renderData(appState) {
+      try {
+        const hc  = appState.healthConnect;
+        const log = hc?.steps;
+        if (!hc?.connected || !log?.length) {
+          return { hero: '--', sub: 'Connect Health app', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
+        }
+        const sorted   = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const today    = sorted[0].count;
+        const count7   = Math.min(sorted.length, 7);
+        const dailyAvg = Math.round(sorted.slice(0, count7).reduce((s, e) => s + e.count, 0) / count7);
+        const goal     = hc.stepGoal || 10000;
+        const pctGoal  = Math.min(100, Math.round((today / goal) * 100));
+        return {
+          hero:     today.toLocaleString(),
+          sub:      `${dailyAvg.toLocaleString()} daily avg`,
+          tag:      `${pctGoal}% of goal`,
+          tagColor: pctGoal >= 100 ? 'var(--color-green)' : pctGoal >= 75 ? 'var(--color-amber)' : 'var(--color-blue)',
+          state:    'loaded',
+        };
+      } catch {
+        return { hero: '--', sub: 'Unavailable', state: 'error' };
+      }
+    },
+  },
+
+  // ---- VO₂ MAX (HEALTH CONNECT) ------------------------------------
+  {
+    id:        'vo2max',
+    type:      DashboardTileType.METRIC,
+    icon:      '🫁',
+    label:     'VO₂ Max',
+    accentVar: '--color-pink',
+    navTarget: 'vdot',
+    order:     16,
+    renderData(appState) {
+      try {
+        const hc  = appState.healthConnect;
+        const log = hc?.vo2max;
+        if (!hc?.connected || !log?.length) {
+          return { hero: '--', sub: 'Connect Health app', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
+        }
+        const sorted  = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const latest  = sorted[0].value;
+        const first   = sorted[sorted.length - 1].value;
+        const delta   = latest - first;
+        const fitness = latest >= 55 ? 'Excellent' : latest >= 45 ? 'Good' : latest >= 35 ? 'Average' : 'Below Avg';
+        return {
+          hero:     `${latest.toFixed(1)}`,
+          sub:      `mL/kg/min · ${fitness}`,
+          tag:      sorted.length > 1 ? `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} all-time` : 'First reading',
+          tagColor: delta >= 0 ? 'var(--color-green)' : 'var(--color-red)',
+          state:    'loaded',
         };
       } catch {
         return { hero: '--', sub: 'Unavailable', state: 'error' };

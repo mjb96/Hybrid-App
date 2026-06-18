@@ -80,6 +80,7 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
   const wk          = appState.currentWeek || '1';
   const weekData    = appState.weeks?.[wk];
 
+  // Component 1: RPE fatigue factor
   let totalRpe = 0, rpeCount = 0;
   if (weekData) {
     defaultDays.forEach(d => {
@@ -89,14 +90,34 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
       if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
     });
   }
+  const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
+  const rpeFactor = rpeCount > 0 ? Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100))) : null;
 
-  const avgRpe         = rpeCount > 0 ? totalRpe / rpeCount : 0;
-  const score          = rpeCount > 0 ? Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100))) : 0;
-  const sleepContrib   = Math.round(score * 0.4);
-  const fatigueContrib = Math.round(score * 0.6);
+  // Component 2: ACWR load balance factor
+  const { atl = 0, ctl = 0 } = appState.loadMetrics || {};
+  const hasLoad = ctl > 0;
+  let acwrFactor = null, acwrRounded = 0;
+  if (hasLoad) {
+    const acwr = atl / ctl;
+    acwrRounded = Math.round(acwr * 100) / 100;
+    if      (acwr <= 0.8) acwrFactor = 80;
+    else if (acwr <= 1.0) acwrFactor = 100;
+    else if (acwr <= 1.3) acwrFactor = Math.round(100 - ((acwr - 1.0) / 0.3) * 60);
+    else if (acwr <= 1.5) acwrFactor = Math.round(40  - ((acwr - 1.3) / 0.2) * 35);
+    else                  acwrFactor = 5;
+    acwrFactor = Math.max(0, Math.min(100, acwrFactor));
+  }
+
+  // Composite score
+  let score = 0;
+  if      (rpeFactor !== null && acwrFactor !== null) score = Math.round(rpeFactor * 0.6 + acwrFactor * 0.4);
+  else if (rpeFactor !== null)                        score = rpeFactor;
+  else if (acwrFactor !== null)                       score = acwrFactor;
+
+  const hasData = rpeFactor !== null || acwrFactor !== null;
 
   let recommendation = 'Log workouts to generate recovery insights.';
-  if (rpeCount > 0) {
+  if (hasData) {
     if      (score >= 80) recommendation = 'Well recovered. You can push intensity today.';
     else if (score >= 60) recommendation = 'Moderately recovered. Stick to planned volume.';
     else if (score >= 40) recommendation = 'Fatigue accumulating. Prioritise sleep tonight.';
@@ -105,14 +126,14 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
 
   const heroEl  = document.getElementById('recoveryScoreHero');
   const rpeEl   = document.getElementById('recoveryAvgRpe');
-  const sleepEl = document.getElementById('recoverySleepContrib');
-  const fatEl   = document.getElementById('recoveryFatigueContrib');
+  const sleepEl = document.getElementById('recoverySleepContrib');  // now shows ACWR load balance
+  const fatEl   = document.getElementById('recoveryFatigueContrib'); // now shows RPE fatigue
   const recEl   = document.getElementById('recoveryRecommendation');
 
-  if (heroEl)  heroEl.textContent  = rpeCount > 0 ? `${score}%` : '--';
+  if (heroEl)  heroEl.textContent  = hasData ? `${score}%` : '--';
   if (rpeEl)   rpeEl.textContent   = rpeCount > 0 ? avgRpe.toFixed(1) : '--';
-  if (sleepEl) sleepEl.textContent = rpeCount > 0 ? `~${sleepContrib}%` : '--';
-  if (fatEl)   fatEl.textContent   = rpeCount > 0 ? `~${fatigueContrib}%` : '--';
+  if (sleepEl) sleepEl.textContent = acwrFactor !== null ? `${acwrFactor}% (ACWR ${acwrRounded})` : 'Log session duration';
+  if (fatEl)   fatEl.textContent   = rpeFactor  !== null ? `${rpeFactor}%` : 'Log RPE';
   if (recEl)   recEl.textContent   = recommendation;
 
   const trendEl = document.getElementById('rpeTrendContainerDetail');
