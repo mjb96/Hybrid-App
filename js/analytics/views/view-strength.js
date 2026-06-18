@@ -1,7 +1,7 @@
 // ==========================================
 // STRENGTH VIEW (analytics/views/view-strength.js)
 // ==========================================
-import { renderVolumeChart } from '../charts.js';
+import { renderVolumeChart, render1RMProgressChart } from '../charts.js';
 
 const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
@@ -77,4 +77,67 @@ export function render1RMList(container, dynamicStats) {
     : '';
 
   container.innerHTML = summaryBar + rows;
+}
+
+export function render1RMProgressSection(sectionEl, weekLabels, getState, getDays) {
+  if (!sectionEl) return;
+
+  const prListEl = sectionEl.querySelector('#allLiftsRmContainer_PR');
+  if (!prListEl) return;
+
+  // Find or create the header + container before #allLiftsRmContainer_PR
+  let headerEl = sectionEl.querySelector('.rm-progress-header');
+  let container = sectionEl.querySelector('#rmProgressChartContainer');
+  if (!container) {
+    headerEl = document.createElement('h2');
+    headerEl.className = 'section-header mt-3 rm-progress-header';
+    headerEl.textContent = '1RM Progress (12 Weeks)';
+    container = document.createElement('div');
+    container.id = 'rmProgressChartContainer';
+    prListEl.before(headerEl);
+    headerEl.before(container);
+    // Re-insert: header then container then prListEl
+    prListEl.before(container);
+  }
+
+  const appState = getState();
+  const defaultDays = getDays();
+
+  const sqNames = ['back squat', 'squat', 'front squat'];
+  const bpNames = ['bench press', 'incline bench press', 'incline barbell press'];
+  const dlNames = ['deadlift', 'romanian deadlift', 'deficit deadlift'];
+
+  const sqData = [], bpData = [], dlData = [];
+
+  for (let w = 1; w <= weekLabels.length; w++) {
+    const wKey = w.toString();
+    const wkData = appState.weeks?.[wKey];
+    let sqMax = 0, bpMax = 0, dlMax = 0;
+
+    if (wkData) {
+      defaultDays.forEach(d => {
+        const dayLifts = wkData.lifts?.[d] || {};
+        for (const lift in dayLifts) {
+          if (!Array.isArray(dayLifts[lift])) continue;
+          const liftLower = lift.toLowerCase();
+          dayLifts[lift].forEach(s => {
+            const completed = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+            const weight = parseFloat(s.w) || 0;
+            const reps   = parseInt(s.r, 10) || 0;
+            if (!completed || weight <= 0 || reps <= 0) return;
+            const e1rm = weight * (1 + reps / 30);
+            if (sqNames.some(n => liftLower.includes(n))) sqMax = Math.max(sqMax, e1rm);
+            if (bpNames.some(n => liftLower.includes(n))) bpMax = Math.max(bpMax, e1rm);
+            if (dlNames.some(n => liftLower.includes(n))) dlMax = Math.max(dlMax, e1rm);
+          });
+        }
+      });
+    }
+
+    sqData.push(sqMax);
+    bpData.push(bpMax);
+    dlData.push(dlMax);
+  }
+
+  render1RMProgressChart(container, weekLabels, sqData, bpData, dlData);
 }

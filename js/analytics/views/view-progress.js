@@ -2,7 +2,7 @@
 // PROGRESS VIEW (analytics/views/view-progress.js)
 // ==========================================
 import { formatPace, rpeColour, paceZoneColour } from '../utils.js';
-import { renderVolumeChart } from '../charts.js';
+import { renderVolumeChart, renderConsistencyHeatmap } from '../charts.js';
 import { dateKey } from '../../dates.js';
 import { getProgramById } from '../../state.js';
 

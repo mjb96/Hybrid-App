@@ -2,7 +2,7 @@
 // RUNNING VIEW (analytics/views/view-running.js)
 // ==========================================
 import { formatPace, paceZoneColour } from '../utils.js';
-import { renderHrZonesChart, renderCadenceChart } from '../charts.js';
+import { renderHrZonesChart, renderCadenceChart, renderPaceLineChart } from '../charts.js';
 
 export function renderRunningAnalytics(data) {
   const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -14,6 +14,27 @@ export function renderRunningAnalytics(data) {
   if (thresholdInput && data.thresholdSecs && !thresholdInput.value) {
     thresholdInput.value = data.thresholdSecs;
   }
+
+  // Inject pace line chart above the pace list
+  const paceArticle = document.querySelector('#analytics-running article');
+  if (paceArticle) {
+    let paceHeader = paceArticle.previousElementSibling;
+    if (!paceHeader || !paceHeader.classList.contains('pace-trend-header')) {
+      paceHeader = document.createElement('h2');
+      paceHeader.className = 'section-header pace-trend-header';
+      paceHeader.textContent = 'Pace Trend';
+      paceArticle.before(paceHeader);
+    }
+  }
+
+  const paceTrendEl = document.getElementById('paceTrendContainer');
+  let paceLineContainer = document.getElementById('paceLineChartContainer');
+  if (!paceLineContainer && paceTrendEl) {
+    paceLineContainer = document.createElement('div');
+    paceLineContainer.id = 'paceLineChartContainer';
+    paceTrendEl.before(paceLineContainer);
+  }
+  renderPaceLineChart(paceLineContainer, data.weekLabels, data.paceData, data.thresholdSecs || 0);
 
   const paceContainer = document.getElementById('paceTrendContainer');
   if (paceContainer) {
