@@ -18,6 +18,8 @@ import { renderTrainingStatusAnalytics } from './analytics/views/view-training-s
 import { renderLoadFocusAnalytics } from './analytics/views/view-load-focus.js';
 import { renderRunCrossRefAnalytics } from './analytics/views/view-run-crossref.js';
 import { renderVdotAnalytics } from './analytics/views/view-vdot.js';
+import { renderAvgPaceAnalytics } from './analytics/views/view-avg-pace.js';
+import { renderStressBalanceAnalytics } from './analytics/views/view-stress-balance.js';
 
 let _getState;
 let _getDays;
@@ -287,6 +289,14 @@ export function renderAnalytics() {
     case 'vdot':
       document.getElementById('analytics-vdot').classList.add('active');
       renderVdotAnalytics(data, _getState, _getDays);
+      break;
+    case 'avg-pace':
+      document.getElementById('analytics-avg-pace').classList.add('active');
+      renderAvgPaceAnalytics(data, _getState);
+      break;
+    case 'stress-balance':
+      document.getElementById('analytics-stress-balance').classList.add('active');
+      renderStressBalanceAnalytics(data, _getState, _getDays);
       break;
     default:
       document.getElementById('analytics-strength').classList.add('active');

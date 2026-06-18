@@ -559,3 +559,81 @@ export function renderPaceLineChart(container, weekLabels, paceData, thresholdSe
 
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${thresholdSvg}${line}${dots}${xAxis}</svg>`;
 }
+
+export function renderACWRChart(container, weekLabels, atlSeries, ctlSeries) {
+  if (!container) return;
+  const valid = atlSeries.some(v => v > 0) || ctlSeries.some(v => v > 0);
+  if (!valid || weekLabels.length < 2) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.6);font-size:0.9rem;padding:12px 0;">Log sessions with RPE and duration to unlock load history.</p>';
+    return;
+  }
+
+  const W = 400, H = 200, PAD_L = 42, PAD_B = 28, PAD_T = 15, PAD_R = 15;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_B - PAD_T;
+  const n = weekLabels.length;
+
+  const maxVal = Math.max(...atlSeries, ...ctlSeries, 1);
+  const toX = i => PAD_L + (i / (n - 1)) * chartW;
+  const toY = v => PAD_T + chartH - (v / maxVal) * chartH;
+
+  // Safe zone band: ATL 0.8–1.3× CTL
+  let bandSvg = '';
+  let safePts1 = '', safePts2 = '';
+  for (let i = 0; i < n; i++) {
+    const ctl = ctlSeries[i];
+    if (ctl > 0) {
+      safePts1 += `${toX(i).toFixed(1)},${toY(ctl * 0.8).toFixed(1)} `;
+      safePts2 += `${toX(i).toFixed(1)},${toY(ctl * 1.3).toFixed(1)} `;
+    }
+  }
+  const allPts = safePts1 + safePts2.split(' ').filter(Boolean).reverse().join(' ');
+  if (allPts.trim()) {
+    bandSvg = `<polygon points="${allPts}" fill="#10b981" opacity="0.08"/>`;
+  }
+
+  // CTL line (blue, dashed)
+  let ctlPts = '';
+  ctlSeries.forEach((v, i) => { if (v > 0) ctlPts += `${toX(i).toFixed(1)},${toY(v).toFixed(1)} `; });
+  const ctlLine = ctlPts.trim()
+    ? `<polyline fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,3" stroke-linejoin="round" points="${ctlPts.trim()}"/>`
+    : '';
+
+  // ATL line (amber, solid)
+  let atlPts = '', atlDots = '';
+  atlSeries.forEach((v, i) => {
+    if (v <= 0) return;
+    atlPts  += `${toX(i).toFixed(1)},${toY(v).toFixed(1)} `;
+    // colour dot by ACWR zone
+    const acwr = ctlSeries[i] > 0 ? v / ctlSeries[i] : 0;
+    const dc = acwr === 0 ? '#94a3b8' : acwr <= 1.0 ? '#10b981' : acwr <= 1.3 ? '#f59e0b' : '#ef4444';
+    atlDots += `<circle cx="${toX(i).toFixed(1)}" cy="${toY(v).toFixed(1)}" r="4" fill="${dc}" stroke="#111827" stroke-width="1.5"/>`;
+  });
+  const atlLine = atlPts.trim()
+    ? `<polyline fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${atlPts.trim()}"/>`
+    : '';
+
+  // Y axis gridlines
+  let yAxis = '';
+  [0.25, 0.5, 0.75, 1].forEach(pct => {
+    const val = Math.round(maxVal * pct);
+    const vy  = toY(maxVal * pct);
+    yAxis += `<text x="${PAD_L - 5}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="rgba(255,255,255,0.45)">${val}</text>`;
+    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+  });
+
+  // X axis labels (show every 2nd to avoid crowding)
+  let xAxis = '';
+  weekLabels.forEach((label, i) => {
+    if (n > 8 && i % 2 !== 0) return;
+    xAxis += `<text x="${toX(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.6)">${label}</text>`;
+  });
+
+  // Legend
+  const legend = `
+    <text x="${PAD_L}" y="${PAD_T - 2}" font-size="9" fill="#f59e0b">▬ ATL (acute)</text>
+    <text x="${PAD_L + 90}" y="${PAD_T - 2}" font-size="9" fill="#3b82f6" stroke-dasharray="4,2">- - CTL (chronic)</text>
+    <text x="${PAD_L + 195}" y="${PAD_T - 2}" font-size="9" fill="#10b981">■ Safe zone</text>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${bandSvg}${ctlLine}${atlLine}${atlDots}${xAxis}${legend}</svg>`;
+}

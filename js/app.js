@@ -424,6 +424,86 @@ export function openTodaySummaryModal() {
   document.getElementById('todaySummarySets').textContent    = sets;
   document.getElementById('todaySummaryGymRpe').textContent  = gymRpe || '--';
 
+  // Set-by-set breakdown
+  const breakdownEl = document.getElementById('todaySummarySetBreakdown');
+  if (breakdownEl) {
+    if (hasLift && weekData) {
+      const dayLifts = weekData.lifts?.[todayKey] || {};
+      const liftNames = Object.keys(dayLifts).filter(l => Array.isArray(dayLifts[l]) && dayLifts[l].length > 0);
+      if (liftNames.length > 0) {
+        let html = '<div class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">Set Breakdown</div>';
+        liftNames.forEach(lift => {
+          const completedSets = dayLifts[lift].filter(s => s && s.c);
+          if (completedSets.length === 0) return;
+          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${lift}</div>`;
+          completedSets.forEach((s, idx) => {
+            html += `<div class="flex-between text-sm" style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+              <span class="text-muted">Set ${idx + 1}</span>
+              <span class="text-inverse">${parseFloat(s.w) || 0} kg × ${parseInt(s.r, 10) || 0} reps</span>
+            </div>`;
+          });
+          html += '</div>';
+        });
+        breakdownEl.innerHTML = html;
+        breakdownEl.style.display = '';
+      } else {
+        breakdownEl.style.display = 'none';
+      }
+    } else {
+      breakdownEl.style.display = 'none';
+    }
+  }
+
+  // vs last week comparison
+  const vsEl = document.getElementById('todaySummaryVsLastWeek');
+  if (vsEl && (hasLift || hasRun)) {
+    const prevWk   = (parseInt(wk, 10) - 1).toString();
+    const prevData = appState.weeks?.[prevWk];
+    if (prevData) {
+      let prevVol = 0, prevSets = 0, prevDist = 0;
+      const prevLifts = prevData.lifts?.[todayKey] || {};
+      for (const lift in prevLifts) {
+        if (Array.isArray(prevLifts[lift])) {
+          prevLifts[lift].forEach(s => {
+            if (s && s.c) { prevSets++; prevVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
+          });
+        }
+      }
+      prevDist = parseFloat(prevData.runs?.[todayKey]?.dist) || 0;
+
+      const volDelta  = volume - prevVol;
+      const setsDelta = sets   - prevSets;
+      const distDelta = (runDist || 0) - prevDist;
+
+      const fmt = (n, unit) => {
+        if (n === 0) return `<span class="text-muted">= ${unit}</span>`;
+        const sign = n > 0 ? '+' : '';
+        const color = n > 0 ? '#10b981' : '#ef4444';
+        return `<span style="color:${color};">${sign}${Math.round(Math.abs(n) * 10) / 10} ${unit}</span>`;
+      };
+
+      let rows = '';
+      if (hasLift && (prevVol > 0 || volume > 0)) {
+        rows += `<div class="flex-between text-sm mb-1"><span class="text-muted">Volume vs last week</span>${fmt(volDelta, 'kg')}</div>`;
+        rows += `<div class="flex-between text-sm mb-1"><span class="text-muted">Sets vs last week</span>${fmt(setsDelta, 'sets')}</div>`;
+      }
+      if (hasRun && (prevDist > 0 || (runDist || 0) > 0)) {
+        rows += `<div class="flex-between text-sm mb-1"><span class="text-muted">Distance vs last week</span>${fmt(distDelta, 'km')}</div>`;
+      }
+
+      if (rows) {
+        vsEl.innerHTML = `<div class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">vs Week ${prevWk}</div>${rows}`;
+        vsEl.style.display = '';
+      } else {
+        vsEl.style.display = 'none';
+      }
+    } else {
+      vsEl.style.display = 'none';
+    }
+  } else if (vsEl) {
+    vsEl.style.display = 'none';
+  }
+
   document.getElementById('todaySummaryRunBlock').style.display = hasRun ? '' : 'none';
   document.getElementById('todaySummaryRunDist').textContent  = runDist ? runDist + ' km' : '-- km';
   document.getElementById('todaySummaryRunTime').textContent  = runTime || '--:--';

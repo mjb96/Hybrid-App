@@ -2,6 +2,7 @@
 // RECOVERY VIEW (analytics/views/view-recovery.js)
 // ==========================================
 import { renderRpeChart } from '../charts.js';
+import { saveStateToLocalStorage } from '../../state.js';
 
 export function renderRecoveryAnalytics(data, getState, getDays) {
   const appState    = getState();
@@ -108,13 +109,36 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
     acwrFactor = Math.max(0, Math.min(100, acwrFactor));
   }
 
-  // Composite score
-  let score = 0;
-  if      (rpeFactor !== null && acwrFactor !== null) score = Math.round(rpeFactor * 0.6 + acwrFactor * 0.4);
-  else if (rpeFactor !== null)                        score = rpeFactor;
-  else if (acwrFactor !== null)                       score = acwrFactor;
+  // Component 3: Wellness factor from today's check-in
+  const today = new Date().toISOString().slice(0, 10);
+  const todayWellness = (appState.wellnessLog || []).find(e => e.date === today);
+  let wellnessFactor = null;
+  if (todayWellness) {
+    const sleepScore    = Math.min(100, ((todayWellness.sleep || 0) / 8) * 100);
+    const moodScore     = ((todayWellness.mood || 3) / 5) * 100;
+    const sorenessScore = ((6 - (todayWellness.soreness || 3)) / 5) * 100;
+    wellnessFactor = Math.round(sleepScore * 0.4 + moodScore * 0.3 + sorenessScore * 0.3);
+    wellnessFactor = Math.max(0, Math.min(100, wellnessFactor));
+  }
 
-  const hasData = rpeFactor !== null || acwrFactor !== null;
+  // Composite score — 3-component when all available
+  let score = 0;
+  const hasData = rpeFactor !== null || acwrFactor !== null || wellnessFactor !== null;
+  if (wellnessFactor !== null && rpeFactor !== null && acwrFactor !== null) {
+    score = Math.round(rpeFactor * 0.35 + acwrFactor * 0.25 + wellnessFactor * 0.40);
+  } else if (wellnessFactor !== null && rpeFactor !== null) {
+    score = Math.round(rpeFactor * 0.55 + wellnessFactor * 0.45);
+  } else if (wellnessFactor !== null && acwrFactor !== null) {
+    score = Math.round(acwrFactor * 0.45 + wellnessFactor * 0.55);
+  } else if (wellnessFactor !== null) {
+    score = wellnessFactor;
+  } else if (rpeFactor !== null && acwrFactor !== null) {
+    score = Math.round(rpeFactor * 0.6 + acwrFactor * 0.4);
+  } else if (rpeFactor !== null) {
+    score = rpeFactor;
+  } else if (acwrFactor !== null) {
+    score = acwrFactor;
+  }
 
   let recommendation = 'Log workouts to generate recovery insights.';
   if (hasData) {
@@ -126,8 +150,8 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
 
   const heroEl  = document.getElementById('recoveryScoreHero');
   const rpeEl   = document.getElementById('recoveryAvgRpe');
-  const sleepEl = document.getElementById('recoverySleepContrib');  // now shows ACWR load balance
-  const fatEl   = document.getElementById('recoveryFatigueContrib'); // now shows RPE fatigue
+  const sleepEl = document.getElementById('recoverySleepContrib');  // shows ACWR load balance
+  const fatEl   = document.getElementById('recoveryFatigueContrib'); // shows RPE fatigue
   const recEl   = document.getElementById('recoveryRecommendation');
 
   if (heroEl)  heroEl.textContent  = hasData ? `${score}%` : '--';
@@ -135,6 +159,9 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
   if (sleepEl) sleepEl.textContent = acwrFactor !== null ? `${acwrFactor}% (ACWR ${acwrRounded})` : 'Log session duration';
   if (fatEl)   fatEl.textContent   = rpeFactor  !== null ? `${rpeFactor}%` : 'Log RPE';
   if (recEl)   recEl.textContent   = recommendation;
+
+  // Wellness check-in form
+  _renderWellnessForm(getState, getDays, data);
 
   const trendEl = document.getElementById('rpeTrendContainerDetail');
   if (trendEl) _renderRpeTrendChart(trendEl, data, getState, getDays);
@@ -188,6 +215,84 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
         <div class="text-xs text-muted mt-3" style="line-height:1.5;">${loadNote}</div>
       </article>`;
   }
+}
+
+function _renderWellnessForm(getState, getDays, data) {
+  const section = document.getElementById('analytics-recovery-score');
+  if (!section) return;
+
+  let formEl = section.querySelector('.wellness-checkin-form');
+  if (!formEl) {
+    formEl = document.createElement('div');
+    formEl.className = 'wellness-checkin-form mb-4';
+    // Insert before the load-balance card (windowEl), or append
+    const windowEl = document.getElementById('recoveryWindowCard');
+    if (windowEl) section.insertBefore(formEl, windowEl);
+    else section.appendChild(formEl);
+  }
+
+  const appState = getState();
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = (appState.wellnessLog || []).find(e => e.date === today) || {};
+
+  const ratingBtns = (name, current, max) => {
+    let html = '';
+    for (let i = 1; i <= max; i++) {
+      const active = (current || 0) === i ? 'background:rgba(59,130,246,0.35);color:#fff;border-color:#3b82f6;' : '';
+      html += `<button class="btn-pad text-sm" style="min-width:36px;padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;${active}" data-wellness="${name}" data-val="${i}">${i}</button>`;
+    }
+    return html;
+  };
+
+  formEl.innerHTML = `
+    <h2 class="section-header mt-2">Daily Wellness Check-In</h2>
+    <article class="card-dark p-4 mb-2">
+      <div class="mb-3">
+        <div class="text-sm text-muted mb-2">Sleep last night (hours)</div>
+        <input id="wellnessSleepInput" type="number" min="0" max="12" step="0.5"
+          value="${existing.sleep || ''}" placeholder="e.g. 7.5"
+          style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:8px 12px;width:100%;font-size:0.9rem;"/>
+      </div>
+      <div class="mb-3">
+        <div class="text-sm text-muted mb-2">Mood (1 = low, 5 = great)</div>
+        <div class="flex gap-2" id="wellnessMoodBtns">${ratingBtns('mood', existing.mood, 5)}</div>
+      </div>
+      <div class="mb-3">
+        <div class="text-sm text-muted mb-2">Muscle soreness (1 = none, 5 = very sore)</div>
+        <div class="flex gap-2" id="wellnessSorenessBtns">${ratingBtns('soreness', existing.soreness, 5)}</div>
+      </div>
+      <button id="wellnessSaveBtn" class="btn-action-block btn-blue mt-0" style="width:100%;">Save Check-In</button>
+      ${existing.sleep || existing.mood || existing.soreness ? '<div class="text-xs text-muted mt-2 text-center">✓ Check-in saved for today</div>' : ''}
+    </article>`;
+
+  // Rating button clicks — highlight selection
+  formEl.querySelectorAll('[data-wellness]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.wellness;
+      formEl.querySelectorAll(`[data-wellness="${name}"]`).forEach(b => {
+        b.style.cssText = 'min-width:36px;padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;';
+      });
+      btn.style.cssText = 'min-width:36px;padding:4px 8px;border:1px solid #3b82f6;border-radius:6px;background:rgba(59,130,246,0.35);color:#fff;';
+    });
+  });
+
+  // Save button
+  document.getElementById('wellnessSaveBtn')?.addEventListener('click', () => {
+    const appState = getState();
+    const sleepVal = parseFloat(document.getElementById('wellnessSleepInput')?.value) || 0;
+    const moodVal  = parseInt(formEl.querySelector('[data-wellness="mood"][style*="#3b82f6"]')?.dataset.val || existing.mood || 0, 10);
+    const soreVal  = parseInt(formEl.querySelector('[data-wellness="soreness"][style*="#3b82f6"]')?.dataset.val || existing.soreness || 0, 10);
+
+    if (!appState.wellnessLog) appState.wellnessLog = [];
+    const idx = appState.wellnessLog.findIndex(e => e.date === today);
+    const entry = { date: today, sleep: sleepVal, mood: moodVal, soreness: soreVal };
+    if (idx >= 0) appState.wellnessLog[idx] = entry;
+    else appState.wellnessLog.push(entry);
+
+    saveStateToLocalStorage(true);
+    // Re-render this section by re-invoking with same data args
+    renderRecoveryScoreDetail(data, getState, getDays);
+  });
 }
 
 function _renderRpeTrendChart(container, data, getState, getDays) {

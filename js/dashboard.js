@@ -346,7 +346,7 @@ export const TILE_REGISTRY = [
     icon:      '⏱️',
     label:     'Avg Pace',
     accentVar: '--color-pink',
-    navTarget: 'running',
+    navTarget: 'avg-pace',
     order:     6,
     renderData(appState, defaultDays) {
       try {
@@ -382,7 +382,7 @@ export const TILE_REGISTRY = [
     icon:      '⚖️',
     label:     'Stress Balance',
     accentVar: '--color-amber',
-    navTarget: 'recovery',
+    navTarget: 'stress-balance',
     order:     7,
     renderData(appState, defaultDays) {
       try {
@@ -476,19 +476,45 @@ export const TILE_REGISTRY = [
           acwrFactor = Math.max(0, Math.min(100, acwrFactor));
         }
 
-        // Composite score from available components
+        // Component 3: Wellness factor (sleep, mood, soreness) — 0-100
+        const today = new Date().toISOString().slice(0, 10);
+        const todayWellness = (appState.wellnessLog || []).find(e => e.date === today);
+        let wellnessFactor = null;
+        if (todayWellness) {
+          const sleepScore    = Math.min(100, ((todayWellness.sleep || 0) / 8) * 100);
+          const moodScore     = ((todayWellness.mood || 3) / 5) * 100;
+          const sorenessScore = ((6 - (todayWellness.soreness || 3)) / 5) * 100;
+          wellnessFactor = Math.round(sleepScore * 0.4 + moodScore * 0.3 + sorenessScore * 0.3);
+          wellnessFactor = Math.max(0, Math.min(100, wellnessFactor));
+        }
+
+        // Composite score — weights shift when wellness data is present
         let score, subLine;
-        if (rpeFactor !== null && acwrFactor !== null) {
+        const components = [rpeFactor, acwrFactor, wellnessFactor].filter(v => v !== null).length;
+        if (components === 0) {
+          return { hero: '--', sub: 'Log sessions for score', tag: 'N/A', tagColor: 'var(--text-secondary)', state: 'empty' };
+        }
+        if (wellnessFactor !== null && rpeFactor !== null && acwrFactor !== null) {
+          score   = Math.round(rpeFactor * 0.35 + acwrFactor * 0.25 + wellnessFactor * 0.40);
+          subLine = `Fatigue ${rpeFactor}%  ·  Load ${acwrFactor}%  ·  Wellness ${wellnessFactor}%`;
+        } else if (wellnessFactor !== null && rpeFactor !== null) {
+          score   = Math.round(rpeFactor * 0.55 + wellnessFactor * 0.45);
+          subLine = `Fatigue ${rpeFactor}%  ·  Wellness ${wellnessFactor}%`;
+        } else if (wellnessFactor !== null && acwrFactor !== null) {
+          score   = Math.round(acwrFactor * 0.45 + wellnessFactor * 0.55);
+          subLine = `Load ${acwrFactor}%  ·  Wellness ${wellnessFactor}%`;
+        } else if (wellnessFactor !== null) {
+          score   = wellnessFactor;
+          subLine = `Wellness check-in only · log workouts for full score`;
+        } else if (rpeFactor !== null && acwrFactor !== null) {
           score   = Math.round(rpeFactor * 0.6 + acwrFactor * 0.4);
           subLine = `Fatigue ${rpeFactor}%  ·  Load ${acwrFactor}%`;
         } else if (rpeFactor !== null) {
           score   = rpeFactor;
           subLine = `RPE fatigue index · add session duration for full score`;
-        } else if (acwrFactor !== null) {
+        } else {
           score   = acwrFactor;
           subLine = `Load balance score · log RPE for full data`;
-        } else {
-          return { hero: '--', sub: 'Log sessions for score', tag: 'N/A', tagColor: 'var(--text-secondary)', state: 'empty' };
         }
 
         let tagColor = 'var(--color-green)';
