@@ -7,6 +7,7 @@ import { todayKey } from './dates.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
+import { recomputeLoadMetrics } from './brain/load_models.js';
 
 const supabaseUrl = 'https://uzxvufzlaipdwuffxqyo.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6eHZ1ZnpsYWlwZHd1ZmZ4cXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDE1MTYsImV4cCI6MjA5NjE3NzUxNn0.G26YRJzt4ndScofQvp4fi-G8MP-Fs2Ovn0e6Y9t4Dxg';
@@ -42,6 +43,7 @@ export let appState = {
   goalData: { milestones: [], completedCount: 0 },
   liftNames: {},
   liftIdMap: {},
+  loadMetrics: { atl: 0, ctl: 0 },
 };
 
 export let activeTab = 'home';
@@ -212,6 +214,7 @@ export function verifyWeekStorageSchema(wk) {
 // CLOUD PERSISTENCE
 // ==========================================
 export async function saveStateToLocalStorage(suppressToast = false) {
+  appState.loadMetrics = recomputeLoadMetrics(appState);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (e) {
@@ -251,12 +254,13 @@ export async function pullEngineDataFromStorage() {
     console.error('Failed to parse local storage:', e);
   }
 
-  const baseDefaults = { 
-    currentWeek: '1', activeProgramId: 'hybrid_engine', weekStartedAt: null, 
-    weeks: {}, exerciseStats: {}, customExercises: [], customPrograms: [], bodyWeightLog: [], 
+  const baseDefaults = {
+    currentWeek: '1', activeProgramId: 'hybrid_engine', weekStartedAt: null,
+    weeks: {}, exerciseStats: {}, customExercises: [], customPrograms: [], bodyWeightLog: [],
     thresholdPaceSeconds: null, deloadApplied: null, _deloadDismissedWeek: null,
     streakData: { current: 0, longest: 0, lastActivityDate: null },
-    goalData: { milestones: [], completedCount: 0 }
+    goalData: { milestones: [], completedCount: 0 },
+    loadMetrics: { atl: 0, ctl: 0 },
   };
 
   if (localData) {
@@ -303,6 +307,7 @@ export async function pullEngineDataFromStorage() {
   if (appState.deloadApplied === undefined) appState.deloadApplied = null;
   if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
   if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0 };
+  if (!appState.loadMetrics) appState.loadMetrics = { atl: 0, ctl: 0 };
 
   const weeksToDelete = [];
   for (const wk in appState.weeks) {
@@ -314,6 +319,7 @@ export async function pullEngineDataFromStorage() {
   weeksToDelete.forEach(wk => { delete appState.weeks[wk]; });
 
   verifyWeekStorageSchema(appState.currentWeek);
+  appState.loadMetrics = recomputeLoadMetrics(appState);
 
   try {
     emitStorageLoadedEvent();
