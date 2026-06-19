@@ -4,7 +4,7 @@
 import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
-import { renderStrengthAnalytics, render1RMList } from './analytics/views/view-strength.js';
+import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
 import { renderRunningAnalytics } from './analytics/views/view-running.js';
 import { renderRecoveryAnalytics, renderRecoveryScoreDetail } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
@@ -18,6 +18,8 @@ import { renderTrainingStatusAnalytics } from './analytics/views/view-training-s
 import { renderLoadFocusAnalytics } from './analytics/views/view-load-focus.js';
 import { renderRunCrossRefAnalytics } from './analytics/views/view-run-crossref.js';
 import { renderVdotAnalytics } from './analytics/views/view-vdot.js';
+import { renderAvgPaceAnalytics } from './analytics/views/view-avg-pace.js';
+import { renderStressBalanceAnalytics } from './analytics/views/view-stress-balance.js';
 
 let _getState;
 let _getDays;
@@ -237,6 +239,7 @@ export function renderAnalytics() {
     case 'strength_pr':
       document.getElementById('analytics-strength_pr').classList.add('active');
       render1RMList(document.getElementById('allLiftsRmContainer_PR'), data.dynamicStats);
+      render1RMProgressSection(document.getElementById('analytics-strength_pr'), data.weekLabels, _getState, _getDays);
       break;
     case 'running':
       document.getElementById('analytics-running').classList.add('active');
@@ -252,7 +255,7 @@ export function renderAnalytics() {
       break;
     case 'bodyweight':
       document.getElementById('analytics-bodyweight').classList.add('active');
-      renderBodyWeightAnalytics(data);
+      renderBodyWeightAnalytics(data, _getState);
       break;
     case 'progress':
       document.getElementById('analytics-progress').classList.add('active');
@@ -286,6 +289,14 @@ export function renderAnalytics() {
     case 'vdot':
       document.getElementById('analytics-vdot').classList.add('active');
       renderVdotAnalytics(data, _getState, _getDays);
+      break;
+    case 'avg-pace':
+      document.getElementById('analytics-avg-pace').classList.add('active');
+      renderAvgPaceAnalytics(data, _getState);
+      break;
+    case 'stress-balance':
+      document.getElementById('analytics-stress-balance').classList.add('active');
+      renderStressBalanceAnalytics(data, _getState, _getDays);
       break;
     default:
       document.getElementById('analytics-strength').classList.add('active');

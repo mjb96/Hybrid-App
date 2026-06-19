@@ -506,14 +506,14 @@
             <div id="recoveryAvgRpe" class="text-lg font-heavy text-inverse">--</div>
           </article>
         </div>
-        <h2 class="section-header">Contribution Breakdown</h2>
+        <h2 class="section-header">Score Breakdown</h2>
         <article class="card-dark p-4 mb-4">
           <div class="flex-between mb-3">
-            <span class="text-sm text-muted">Sleep Contribution</span>
+            <span class="text-sm text-muted">Load Balance (ACWR) · 40%</span>
             <span id="recoverySleepContrib" class="font-heavy text-inverse">--%</span>
           </div>
           <div class="flex-between mb-3">
-            <span class="text-sm text-muted">Fatigue Contribution</span>
+            <span class="text-sm text-muted">RPE Fatigue Index · 60%</span>
             <span id="recoveryFatigueContrib" class="font-heavy text-inverse">--%</span>
           </div>
           <div class="flex-between">
@@ -605,6 +605,32 @@
         <div id="vdotNote"></div>
       </div>
 
+      <div id="analytics-avg-pace" class="analytics-section">
+        <h2 class="section-header">Pace Analysis</h2>
+        <div id="apHeroCards" class="grid-2-col gap-2 mb-4"></div>
+        <h2 class="section-header">Pace Trend</h2>
+        <article class="card-dark p-3 mb-4">
+          <div id="apPaceChart"></div>
+        </article>
+        <h2 class="section-header">Pace Distribution</h2>
+        <article class="card-dark p-3 mb-4">
+          <div id="apDistributionChart"></div>
+        </article>
+        <div id="apNote" class="mb-4"></div>
+      </div>
+
+      <div id="analytics-stress-balance" class="analytics-section">
+        <h2 class="section-header">Training Load &amp; Stress Balance</h2>
+        <div id="sbHeroCards" class="grid-3-col gap-2 mb-4"></div>
+        <h2 class="section-header">ATL vs CTL — Load History</h2>
+        <article class="card-dark p-3 mb-4">
+          <div id="sbACWRChart"></div>
+        </article>
+        <div id="sbNote" class="mb-4"></div>
+        <h2 class="section-header">This Week's Stress Breakdown</h2>
+        <div id="sbWeeklyBreakdown" class="mb-4"></div>
+      </div>
+
     </section>
 
     <section id="view-program" class="view-container" aria-label="Program Hub">
@@ -684,6 +710,7 @@
           <span class="text-lg text-muted">Gym RPE</span>
           <strong id="todaySummaryGymRpe" class="text-inverse">--</strong>
         </div>
+        <div id="todaySummarySetBreakdown" style="display:none;" class="mb-3"></div>
       </div>
 
       <div id="todaySummaryRunBlock" style="display:none;">
@@ -709,6 +736,8 @@
         <div class="text-xs text-muted mb-1" style="text-transform:uppercase;letter-spacing:0.05em;">Notes</div>
         <p id="todaySummaryNotes" class="text-sm text-inverse mb-3" style="white-space:pre-wrap;"></p>
       </div>
+
+      <div id="todaySummaryVsLastWeek" style="display:none;" class="mb-3"></div>
 
       <p id="todaySummaryEmpty" class="text-sm text-muted mb-4" style="display:none;">No data logged yet for today.</p>
 

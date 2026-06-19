@@ -265,3 +265,375 @@ export function renderCadenceChart(container, weekLabels, cadenceData) {
 
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${line}${dots}${xAxis}</svg>`;
 }
+
+export function render1RMProgressChart(container, weekLabels, sqData, bpData, dlData) {
+  if (!container) return;
+  const hasAny = (sqData.some(v => v > 0) || bpData.some(v => v > 0) || dlData.some(v => v > 0));
+  if (!hasAny || weekLabels.length < 1) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.6);font-size:0.9rem;padding:12px 0;">Complete squat, bench or deadlift sets to see 1RM progress.</p>';
+    return;
+  }
+
+  const W = 400, H = 190, PAD_L = 52, PAD_B = 30, PAD_T = 22, PAD_R = 15;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_B - PAD_T;
+  const n = weekLabels.length;
+
+  const allVals = [...sqData, ...bpData, ...dlData].filter(v => v > 0);
+  const minVal = Math.max(0, Math.min(...allVals) - 5);
+  const maxVal = Math.max(...allVals) + 5;
+  const range = Math.max(maxVal - minVal, 1);
+
+  const toX = i => PAD_L + (i / n) * chartW + chartW / n / 2;
+  const toY = v => PAD_T + chartH - ((v - minVal) / range) * chartH;
+
+  // Y axis gridlines at 25%, 50%, 75%
+  let yAxis = '';
+  [0.25, 0.5, 0.75].forEach(pct => {
+    const val = minVal + pct * range;
+    const vy = toY(val);
+    yAxis += `<text x="${PAD_L - 6}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="rgba(255,255,255,0.5)">${Math.round(val)}</text>`;
+    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>`;
+  });
+
+  // X axis labels
+  let xAxis = '';
+  weekLabels.forEach((label, i) => {
+    const lx = toX(i);
+    xAxis += `<text x="${lx.toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.7)">${label}</text>`;
+  });
+
+  // Draw a series line + dots, skipping zeros
+  const drawSeries = (data, color) => {
+    const nonZero = data.map((v, i) => ({ v, i })).filter(p => p.v > 0);
+    if (nonZero.length === 0) return '';
+    let result = '';
+    if (nonZero.length >= 2) {
+      const pts = nonZero.map(p => `${toX(p.i).toFixed(1)},${toY(p.v).toFixed(1)}`).join(' ');
+      result += `<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${pts}"/>`;
+    }
+    nonZero.forEach(p => {
+      result += `<circle cx="${toX(p.i).toFixed(1)}" cy="${toY(p.v).toFixed(1)}" r="4" fill="${color}" stroke="#111827" stroke-width="1.5"/>`;
+    });
+    return result;
+  };
+
+  const series = drawSeries(sqData, '#3b82f6') + drawSeries(bpData, '#10b981') + drawSeries(dlData, '#f59e0b');
+
+  // Legend at top
+  const legend =
+    `<circle cx="${PAD_L}" cy="10" r="5" fill="#3b82f6"/>` +
+    `<text x="${PAD_L + 8}" y="14" font-size="10" fill="rgba(255,255,255,0.8)">SQ</text>` +
+    `<circle cx="${PAD_L + 38}" cy="10" r="5" fill="#10b981"/>` +
+    `<text x="${PAD_L + 46}" y="14" font-size="10" fill="rgba(255,255,255,0.8)">BP</text>` +
+    `<circle cx="${PAD_L + 76}" cy="10" r="5" fill="#f59e0b"/>` +
+    `<text x="${PAD_L + 84}" y="14" font-size="10" fill="rgba(255,255,255,0.8)">DL</text>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${series}${xAxis}${legend}</svg>`;
+}
+
+export function renderBodyWeightWithMA(container, bwLog) {
+  if (!container) return;
+  const validEntries = (bwLog || []).filter(e => e && e.date && e.weight > 0);
+  if (validEntries.length < 3) {
+    renderBodyWeightChart(container, bwLog);
+    return;
+  }
+
+  const sorted = [...validEntries].sort((a, b) => a.date.localeCompare(b.date));
+  const weights = sorted.map(e => e.weight);
+  const labels  = sorted.map(e => formatDayMonth(e.date));
+  const n = weights.length;
+
+  const W = 400, H = 165, PAD_L = 48, PAD_B = 30, PAD_T = 22, PAD_R = 12;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_B - PAD_T;
+
+  const minW = Math.min(...weights) - 0.8;
+  const maxW = Math.max(...weights) + 0.8;
+  const rangeW = Math.max(maxW - minW, 1);
+
+  const toX = i => PAD_L + (i / (n - 1)) * chartW;
+  const toY = w => PAD_T + chartH - ((w - minW) / rangeW) * chartH;
+
+  // Compute 7-day moving average (rolling window from index 0)
+  const ma = weights.map((_, i) => {
+    const window = weights.slice(Math.max(0, i - 6), i + 1);
+    return window.reduce((a, b) => a + b, 0) / window.length;
+  });
+
+  // Raw line fill
+  const fillPath = `M ${toX(0).toFixed(1)},${(PAD_T + chartH).toFixed(1)} ` +
+    weights.map((w, i) => `L ${toX(i).toFixed(1)},${toY(w).toFixed(1)}`).join(' ') +
+    ` L ${toX(n - 1).toFixed(1)},${(PAD_T + chartH).toFixed(1)} Z`;
+  const fill = `<path d="${fillPath}" fill="#a855f7" opacity="0.10"/>`;
+
+  // Raw line
+  const rawPoints = weights.map((w, i) => `${toX(i).toFixed(1)},${toY(w).toFixed(1)}`).join(' ');
+  const rawLine = `<polyline fill="none" stroke="#a855f7" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" points="${rawPoints}"/>`;
+
+  // Raw dots
+  let rawDots = '';
+  weights.forEach((w, i) => {
+    rawDots += `<circle cx="${toX(i).toFixed(1)}" cy="${toY(w).toFixed(1)}" r="3" fill="#a855f7" opacity="0.7"/>`;
+  });
+
+  // MA dashed line
+  const maPoints = ma.map((w, i) => `${toX(i).toFixed(1)},${toY(w).toFixed(1)}`).join(' ');
+  const maLine = `<polyline fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5" stroke-dasharray="5,3" stroke-linejoin="round" stroke-linecap="round" points="${maPoints}"/>`;
+
+  // Y axis: min, mid, max
+  let yAxis = '';
+  const midW = (minW + maxW) / 2;
+  [minW, midW, maxW].forEach(w => {
+    const vy = toY(w);
+    yAxis += `<text x="${PAD_L - 6}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="rgba(255,255,255,0.6)">${w.toFixed(1)}</text>`;
+    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>`;
+  });
+
+  // X axis dates
+  let xAxis = '';
+  const step = n <= 8 ? 1 : Math.ceil(n / 6);
+  for (let i = 0; i < n; i += step) {
+    xAxis += `<text x="${toX(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.7)">${labels[i]}</text>`;
+  }
+
+  // Legend top-left
+  const legend =
+    `<circle cx="${PAD_L}" cy="11" r="4" fill="#a855f7"/>` +
+    `<text x="${PAD_L + 8}" y="15" font-size="10" fill="rgba(255,255,255,0.75)">Daily</text>` +
+    `<line x1="${PAD_L + 42}" y1="11" x2="${PAD_L + 58}" y2="11" stroke="rgba(255,255,255,0.85)" stroke-width="2" stroke-dasharray="4,2"/>` +
+    `<text x="${PAD_L + 62}" y="15" font-size="10" fill="rgba(255,255,255,0.75)">7d MA</text>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${fill}${rawLine}${rawDots}${maLine}${xAxis}${legend}</svg>`;
+}
+
+export function renderConsistencyHeatmap(container, trainingDays, weekLabels) {
+  if (!container) return;
+  if (!trainingDays || trainingDays.length === 0) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.6);font-size:0.9rem;padding:12px 0;">Log workouts to see your training calendar.</p>';
+    return;
+  }
+
+  const CELL = 13, GAP = 2, STEP = 15;
+  const PAD_L = 20, PAD_T = 18;
+  const nWeeks = weekLabels.length;
+  const nDays = 7;
+  const gridW = PAD_L + nWeeks * STEP;
+  const gridH = PAD_T + nDays * STEP;
+  const legendH = 18;
+  const totalH = gridH + legendH;
+
+  // Background grid
+  let bg = '';
+  for (let w = 0; w < nWeeks; w++) {
+    for (let d = 0; d < nDays; d++) {
+      const cx = PAD_L + w * STEP;
+      const cy = PAD_T + d * STEP;
+      bg += `<rect x="${cx}" y="${cy}" width="${CELL}" height="${CELL}" fill="rgba(255,255,255,0.05)" rx="2"/>`;
+    }
+  }
+
+  // Week labels above columns
+  let wkLabels = '';
+  weekLabels.forEach((lbl, w) => {
+    const cx = PAD_L + w * STEP + CELL / 2;
+    wkLabels += `<text x="${cx}" y="${PAD_T - 4}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)">${lbl}</text>`;
+  });
+
+  // Day labels left column
+  const dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  let dayLabels = '';
+  dayNames.forEach((name, d) => {
+    const cy = PAD_T + d * STEP + CELL / 2 + 3;
+    dayLabels += `<text x="${PAD_L - 4}" y="${cy}" text-anchor="end" font-size="9" fill="rgba(255,255,255,0.4)">${name}</text>`;
+  });
+
+  // Overlay trained cells
+  let cells = '';
+  trainingDays.forEach(({ week, dayIdx, gym, run }) => {
+    const w = week - 1;
+    if (w < 0 || w >= nWeeks || dayIdx < 0 || dayIdx >= nDays) return;
+    const cx = PAD_L + w * STEP;
+    const cy = PAD_T + dayIdx * STEP;
+    let color;
+    if (gym && run) color = '#10b981';
+    else if (gym)   color = '#3b82f6';
+    else if (run)   color = '#ec4899';
+    else return;
+    cells += `<rect x="${cx}" y="${cy}" width="${CELL}" height="${CELL}" fill="${color}" opacity="0.85" rx="2"/>`;
+  });
+
+  // Legend row at bottom
+  const ly = gridH + 4;
+  const legend =
+    `<rect x="${PAD_L}" y="${ly}" width="10" height="10" fill="#3b82f6" rx="2"/>` +
+    `<text x="${PAD_L + 13}" y="${ly + 8}" font-size="9" fill="rgba(255,255,255,0.7)">Gym</text>` +
+    `<rect x="${PAD_L + 38}" y="${ly}" width="10" height="10" fill="#ec4899" rx="2"/>` +
+    `<text x="${PAD_L + 51}" y="${ly + 8}" font-size="9" fill="rgba(255,255,255,0.7)">Run</text>` +
+    `<rect x="${PAD_L + 74}" y="${ly}" width="10" height="10" fill="#10b981" rx="2"/>` +
+    `<text x="${PAD_L + 87}" y="${ly + 8}" font-size="9" fill="rgba(255,255,255,0.7)">Both</text>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${gridW} ${totalH}" style="width:100%;height:auto;display:block;">${bg}${wkLabels}${dayLabels}${cells}${legend}</svg>`;
+}
+
+export function renderPaceLineChart(container, weekLabels, paceData, thresholdSecs) {
+  if (!container) return;
+  const nonZero = paceData.filter(s => s > 0);
+  if (nonZero.length === 0 || weekLabels.length < 1) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.6);font-size:0.9rem;padding:12px 0;">Log runs with time to see pace trend.</p>';
+    return;
+  }
+
+  const W = 400, H = 165, PAD_L = 44, PAD_B = 30, PAD_T = 15, PAD_R = 15;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_B - PAD_T;
+  const n = weekLabels.length;
+
+  const minPace = Math.min(...nonZero) - 5;
+  const maxPace = Math.max(...nonZero) + 5;
+  const range = Math.max(maxPace - minPace, 1);
+
+  const toX = i => PAD_L + (i / n) * chartW + chartW / n / 2;
+  const toY = s => PAD_T + chartH - ((s - minPace) / range) * chartH;
+
+  const fmtPace = s => {
+    const sec = Math.round(s);
+    return Math.floor(sec / 60) + ':' + (sec % 60).toString().padStart(2, '0');
+  };
+
+  // Y axis gridlines at 3 levels
+  let yAxis = '';
+  [0.25, 0.5, 0.75].forEach(pct => {
+    const val = minPace + pct * range;
+    const vy = toY(val);
+    yAxis += `<text x="${PAD_L - 6}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="rgba(255,255,255,0.5)">${fmtPace(val)}</text>`;
+    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>`;
+  });
+
+  // Threshold band and line
+  let thresholdSvg = '';
+  if (thresholdSecs > 0) {
+    const ty = toY(thresholdSecs);
+    const easyY = toY(thresholdSecs * 1.15);
+    // Shade band between threshold and easy zone (lower secs = higher on chart)
+    const bandTop = Math.min(ty, easyY);
+    const bandBot = Math.max(ty, easyY);
+    const bandH = bandBot - bandTop;
+    if (bandH > 0) {
+      thresholdSvg += `<rect x="${PAD_L}" y="${bandTop.toFixed(1)}" width="${chartW}" height="${bandH.toFixed(1)}" fill="#f59e0b" opacity="0.10"/>`;
+    }
+    thresholdSvg += `<line x1="${PAD_L}" y1="${ty.toFixed(1)}" x2="${W - PAD_R}" y2="${ty.toFixed(1)}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>`;
+    thresholdSvg += `<text x="${W - PAD_R}" y="${(ty - 4).toFixed(1)}" text-anchor="end" font-size="9" fill="#f59e0b">Threshold</text>`;
+  }
+
+  // Dots and line
+  let dots = '';
+  let linePts = '';
+  weekLabels.forEach((label, i) => {
+    const s = paceData[i];
+    if (s <= 0) return;
+    const x = toX(i), y = toY(s);
+    linePts += `${x.toFixed(1)},${y.toFixed(1)} `;
+
+    let dotColor = '#ec4899';
+    if (thresholdSecs > 0) {
+      if (s > thresholdSecs * 1.15)      dotColor = '#10b981'; // easy
+      else if (s > thresholdSecs)         dotColor = '#f59e0b'; // tempo
+      else                                dotColor = '#ef4444'; // threshold+
+    }
+    dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${dotColor}" stroke="#111827" stroke-width="1.5"/>`;
+  });
+
+  const ptArr = linePts.trim().split(' ').filter(Boolean);
+  const line = ptArr.length >= 2
+    ? `<polyline fill="none" stroke="rgba(236,72,153,0.65)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${linePts.trim()}"/>`
+    : '';
+
+  // X axis
+  let xAxis = '';
+  weekLabels.forEach((label, i) => {
+    const lx = toX(i);
+    xAxis += `<text x="${lx.toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.7)">${label}</text>`;
+  });
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${thresholdSvg}${line}${dots}${xAxis}</svg>`;
+}
+
+export function renderACWRChart(container, weekLabels, atlSeries, ctlSeries) {
+  if (!container) return;
+  const valid = atlSeries.some(v => v > 0) || ctlSeries.some(v => v > 0);
+  if (!valid || weekLabels.length < 2) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.6);font-size:0.9rem;padding:12px 0;">Log sessions with RPE and duration to unlock load history.</p>';
+    return;
+  }
+
+  const W = 400, H = 200, PAD_L = 42, PAD_B = 28, PAD_T = 15, PAD_R = 15;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_B - PAD_T;
+  const n = weekLabels.length;
+
+  const maxVal = Math.max(...atlSeries, ...ctlSeries, 1);
+  const toX = i => PAD_L + (i / (n - 1)) * chartW;
+  const toY = v => PAD_T + chartH - (v / maxVal) * chartH;
+
+  // Safe zone band: ATL 0.8–1.3× CTL
+  let bandSvg = '';
+  let safePts1 = '', safePts2 = '';
+  for (let i = 0; i < n; i++) {
+    const ctl = ctlSeries[i];
+    if (ctl > 0) {
+      safePts1 += `${toX(i).toFixed(1)},${toY(ctl * 0.8).toFixed(1)} `;
+      safePts2 += `${toX(i).toFixed(1)},${toY(ctl * 1.3).toFixed(1)} `;
+    }
+  }
+  const allPts = safePts1 + safePts2.split(' ').filter(Boolean).reverse().join(' ');
+  if (allPts.trim()) {
+    bandSvg = `<polygon points="${allPts}" fill="#10b981" opacity="0.08"/>`;
+  }
+
+  // CTL line (blue, dashed)
+  let ctlPts = '';
+  ctlSeries.forEach((v, i) => { if (v > 0) ctlPts += `${toX(i).toFixed(1)},${toY(v).toFixed(1)} `; });
+  const ctlLine = ctlPts.trim()
+    ? `<polyline fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,3" stroke-linejoin="round" points="${ctlPts.trim()}"/>`
+    : '';
+
+  // ATL line (amber, solid)
+  let atlPts = '', atlDots = '';
+  atlSeries.forEach((v, i) => {
+    if (v <= 0) return;
+    atlPts  += `${toX(i).toFixed(1)},${toY(v).toFixed(1)} `;
+    // colour dot by ACWR zone
+    const acwr = ctlSeries[i] > 0 ? v / ctlSeries[i] : 0;
+    const dc = acwr === 0 ? '#94a3b8' : acwr <= 1.0 ? '#10b981' : acwr <= 1.3 ? '#f59e0b' : '#ef4444';
+    atlDots += `<circle cx="${toX(i).toFixed(1)}" cy="${toY(v).toFixed(1)}" r="4" fill="${dc}" stroke="#111827" stroke-width="1.5"/>`;
+  });
+  const atlLine = atlPts.trim()
+    ? `<polyline fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${atlPts.trim()}"/>`
+    : '';
+
+  // Y axis gridlines
+  let yAxis = '';
+  [0.25, 0.5, 0.75, 1].forEach(pct => {
+    const val = Math.round(maxVal * pct);
+    const vy  = toY(maxVal * pct);
+    yAxis += `<text x="${PAD_L - 5}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="rgba(255,255,255,0.45)">${val}</text>`;
+    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+  });
+
+  // X axis labels (show every 2nd to avoid crowding)
+  let xAxis = '';
+  weekLabels.forEach((label, i) => {
+    if (n > 8 && i % 2 !== 0) return;
+    xAxis += `<text x="${toX(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.6)">${label}</text>`;
+  });
+
+  // Legend
+  const legend = `
+    <text x="${PAD_L}" y="${PAD_T - 2}" font-size="9" fill="#f59e0b">▬ ATL (acute)</text>
+    <text x="${PAD_L + 90}" y="${PAD_T - 2}" font-size="9" fill="#3b82f6" stroke-dasharray="4,2">- - CTL (chronic)</text>
+    <text x="${PAD_L + 195}" y="${PAD_T - 2}" font-size="9" fill="#10b981">■ Safe zone</text>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${bandSvg}${ctlLine}${atlLine}${atlDots}${xAxis}${legend}</svg>`;
+}

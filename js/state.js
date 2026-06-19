@@ -44,6 +44,8 @@ export let appState = {
   liftNames: {},
   liftIdMap: {},
   loadMetrics: { atl: 0, ctl: 0 },
+  healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
+  wellnessLog: [],
 };
 
 export let activeTab = 'home';
@@ -261,6 +263,8 @@ export async function pullEngineDataFromStorage() {
     streakData: { current: 0, longest: 0, lastActivityDate: null },
     goalData: { milestones: [], completedCount: 0 },
     loadMetrics: { atl: 0, ctl: 0 },
+    healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
+    wellnessLog: [],
   };
 
   if (localData) {
@@ -308,6 +312,8 @@ export async function pullEngineDataFromStorage() {
   if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
   if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0 };
   if (!appState.loadMetrics) appState.loadMetrics = { atl: 0, ctl: 0 };
+  if (!appState.healthConnect) appState.healthConnect = { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 };
+  if (!appState.wellnessLog) appState.wellnessLog = [];
 
   const weeksToDelete = [];
   for (const wk in appState.weeks) {
