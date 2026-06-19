@@ -44,7 +44,11 @@ function _syncSettingsUI() {
   if (nameInput) nameInput.value = s.name || '';
 
   const bwInput = document.getElementById('settingsBodyWeight');
-  if (bwInput) bwInput.value = s.defaultBodyWeight || '';
+  if (bwInput) {
+    const bwLog = appState.bodyWeightLog || [];
+    const latest = bwLog.length > 0 ? bwLog[bwLog.length - 1].weight : null;
+    bwInput.value = latest ?? (s.defaultBodyWeight || '');
+  }
 
   const bwUnit = document.getElementById('settingsBodyWeightUnit');
   if (bwUnit) bwUnit.textContent = s.weightUnit || 'kg';
@@ -117,7 +121,13 @@ export function saveBodyWeight() {
   if (isNaN(val)) return;
   const appState = _ensureSettings();
   appState.settings.defaultBodyWeight = val;
+  if (!appState.bodyWeightLog) appState.bodyWeightLog = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const idx = appState.bodyWeightLog.findIndex(l => l.date === today);
+  if (idx >= 0) appState.bodyWeightLog[idx].weight = val;
+  else appState.bodyWeightLog.push({ date: today, weight: val });
   saveStateToLocalStorage(true);
+  showToast(`Body weight saved: ${val} ${appState.settings.weightUnit || 'kg'}`);
 }
 
 export function setWeightUnit(unit) {

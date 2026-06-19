@@ -205,19 +205,29 @@
           <div class="bar-chart-container" id="strengthBarChart"></div>
         </article>
 
-        <article class="card-dark carousel-card" data-action="open-analytics" data-context="running" style="cursor: pointer;">
+        <article class="card-dark carousel-card" style="cursor: pointer;">
           <div class="flex-between mb-2">
-             <div class="card-icon-title text-accent-pink"><span>🏃</span> Run Distance • This Week</div>
+             <div class="card-icon-title text-accent-pink" data-action="open-analytics" data-context="running"><span>🏃</span> Run Distance • This Week</div>
+             <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
           </div>
-          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1">0.0 km</h3>
-          <div class="bar-chart-container" id="runBarChart"></div>
+          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1" data-action="open-analytics" data-context="running">0.0 km</h3>
+          <div class="bar-chart-container" id="runBarChart" data-action="open-analytics" data-context="running"></div>
         </article>
 
       </div>
 
       <h2 class="focus-header-text mt-2">At a Glance</h2>
-      
+
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
+
+      <h2 class="focus-header-text mt-2">Activity</h2>
+      <article class="card-dark p-3 mb-4">
+        <div class="cal-legend mb-2">
+          <span class="cal-dot cal-dot-gym"></span><span class="cal-legend-label">Gym</span>
+          <span class="cal-dot cal-dot-run" style="margin-left:10px;"></span><span class="cal-legend-label">Run</span>
+        </div>
+        <div id="homeCalendarContainer"></div>
+      </article>
 
     </section>
 
@@ -756,6 +766,73 @@
       <div class="flex gap-2 mt-2">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-today-summary">Close</button>
         <button class="btn-action-block btn-blue mt-0" data-action="close-today-summary-nav">Go to Workout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run Logger Modal -->
+  <div class="modal-overlay rl-overlay" id="runLoggerModal" role="dialog" aria-modal="true" aria-label="Log a Run">
+    <div class="modal-sheet rl-sheet">
+      <div class="rl-header">
+        <span class="rl-title">Log Run</span>
+        <button class="settings-close-btn" data-action="close-run-logger" aria-label="Close">✕</button>
+      </div>
+
+      <div class="rl-day-row">
+        <button class="rl-day-btn" data-action="rl-day" data-day="mon">Mon</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="tue">Tue</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="wed">Wed</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="thu">Thu</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="fri">Fri</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="sat">Sat</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="sun">Sun</button>
+      </div>
+
+      <div class="rl-fields">
+        <div class="rl-field-row">
+          <label class="rl-label">Distance</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlDist" class="rl-input" placeholder="0.0" step="0.1" min="0">
+            <span class="rl-unit-badge" id="rlDistUnit">km</span>
+          </div>
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">Duration</label>
+          <input type="text" id="rlTime" class="rl-input" placeholder="mm:ss" inputmode="numeric">
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">RPE</label>
+          <div class="rl-rpe-row">
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="6">6</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="7">7</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="8">8</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="9">9</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="10">10</button>
+          </div>
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">Avg HR</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlAvgHR" class="rl-input" placeholder="—" min="0">
+            <span class="rl-unit-badge">bpm</span>
+          </div>
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">Elevation</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlElev" class="rl-input" placeholder="—" min="0">
+            <span class="rl-unit-badge">m</span>
+          </div>
+        </div>
+        <div class="rl-field-row rl-field-col">
+          <label class="rl-label">Notes</label>
+          <textarea id="rlNotes" class="rl-input rl-textarea" placeholder="How did it feel?" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="rl-actions">
+        <button class="btn-action-block btn-ghost mt-0" data-action="close-run-logger">Cancel</button>
+        <button class="btn-action-block btn-indigo mt-0" data-action="save-run-log">Save Run</button>
       </div>
     </div>
   </div>

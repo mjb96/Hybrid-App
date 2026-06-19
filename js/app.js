@@ -42,6 +42,7 @@ import {
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
+import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun, handleRunLoggerRpeClick } from './run-logger.js';
 import {
   initSettings, openSettings, closeSettings,
   saveName, saveBodyWeight, setWeightUnit, setRestDefault,
@@ -585,6 +586,13 @@ document.addEventListener('click', (e) => {
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
 
+  // Run Logger
+  else if (action === 'open-run-logger') openRunLogger();
+  else if (action === 'close-run-logger') closeRunLogger();
+  else if (action === 'save-run-log')    saveManualRun();
+  else if (action === 'rl-day')          { document.querySelectorAll('[data-action="rl-day"]').forEach(b => b.classList.remove('active')); target.classList.add('active'); }
+  else if (action === 'rl-rpe')          handleRunLoggerRpeClick(target);
+
   // Export & Data
   else if (action === 'export-text') triggerTextSummaryExport();
   else if (action === 'export-json') triggerEngineExport();
@@ -653,6 +661,7 @@ initAnalytics(getState, getDays);
 initDragDrop(getState, getSelectedDay, saveState);
 initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
 initSettings(getState);
+initRunLogger(getState);
 
 // === DEVICE IMPORT WIRING ===
 

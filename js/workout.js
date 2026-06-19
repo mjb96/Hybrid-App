@@ -539,6 +539,7 @@ export function commitWorkoutUIState() {
           if (wIn) appState.weeks[wk].lifts[selectedDay][liftName][idx].w = wIn.value;
           if (rIn) appState.weeks[wk].lifts[selectedDay][liftName][idx].r = rIn.value;
           if (cIn) appState.weeks[wk].lifts[selectedDay][liftName][idx].c = cIn.checked;
+          if (row.classList.contains('is-pr')) appState.weeks[wk].lifts[selectedDay][liftName][idx].isPR = true;
         }
       });
     });
@@ -597,6 +598,28 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       if (!_appState.weeks[_wk].dates) _appState.weeks[_wk].dates = {};
       if (!_appState.weeks[_wk].dates[_selDay]) {
         _appState.weeks[_wk].dates[_selDay] = new Date().toISOString().slice(0, 10);
+      }
+
+      // PR detection — compare this set's e1RM against stored all-time max
+      if (liftName && setType !== 'W' && _sIdx >= 0) {
+        const wIn = parentRow?.querySelector('.input-weight-node');
+        const rIn = parentRow?.querySelector('.input-reps-node');
+        const w = parseFloat(wIn?.value) || 0;
+        const r = parseInt(rIn?.value, 10) || 0;
+        if (w > 0 && r > 0) {
+          const e1rm = w * (1 + r / 30);
+          const prevMax = _appState.exerciseStats?.[liftName]?.allTimeMax || 0;
+          if (e1rm > prevMax + 0.01) {
+            parentRow.classList.add('is-pr');
+            if (!parentRow.querySelector('.pr-badge')) {
+              const badge = document.createElement('span');
+              badge.className = 'pr-badge';
+              badge.textContent = 'PR';
+              parentRow.appendChild(badge);
+            }
+            showToast(`🏆 New PR — ${liftName}!`);
+          }
+        }
       }
     } catch(e) { console.warn(e); }
   } else {

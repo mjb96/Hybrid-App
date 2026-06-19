@@ -37,7 +37,8 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
   const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
   const typeClass  = type === 'W' ? 'type-warmup' : type === 'D' ? 'type-dropset' : type === 'F' ? 'type-amrap' : '';
 
-  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass}" data-set-index="${sIdx}">
+  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}">
+    ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
     <div class="set-num-lbl tactile-scale"
          data-action="quick-log"
          data-liftname="${safeLiftName}"
