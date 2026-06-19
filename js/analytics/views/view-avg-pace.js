@@ -131,7 +131,7 @@ function _renderPaceDistribution(container, paceData, thresholdSecs) {
           <span class="text-sm" style="color:${z.color};">${z.label}</span>
           <span class="text-sm text-muted">${z.count} week${z.count !== 1 ? 's' : ''} · ${z.pct}%</span>
         </div>
-        <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:8px;overflow:hidden;">
+        <div style="background:var(--overlay-md);border-radius:4px;height:8px;overflow:hidden;">
           <div style="width:${z.pct}%;background:${z.color};height:100%;border-radius:4px;transition:width 0.4s;"></div>
         </div>
       </div>`;

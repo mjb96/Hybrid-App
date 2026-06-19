@@ -241,17 +241,23 @@ function renderDaySplit(days) {
         const day = days[dayKey];
         if (!day) return '';
         const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+        const hasPreview = !isRest && !!(day.workoutPreview || day.lifts?.length || (day.runs && day.runs !== 'Rest'));
+        const interactiveAttrs = hasPreview
+          ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${_currentProgramId}" role="button" tabindex="0"`
+          : '';
         return `
-          <div class="day-split-row ${isRest ? 'day-split-row--rest' : ''}">
+          <div class="day-split-row ${isRest ? 'day-split-row--rest' : ''} ${hasPreview ? 'day-split-row--interactive' : ''}" ${interactiveAttrs}>
             <div class="day-split-day">${dayNames[dayKey]}</div>
             <div class="day-split-title">${day.title || dayKey}</div>
             <div class="day-split-badge" style="border-color: ${day.color || 'transparent'}; color: ${day.color || 'var(--text-muted)'}">
               ${day.badge || '—'}
             </div>
+            ${hasPreview ? `<span class="day-split-chevron">›</span>` : ''}
           </div>
         `;
       }).filter(Boolean).join('')}
     </div>
+    <p class="day-split-hint">Tap a day to preview the full workout</p>
   `;
 }
 
@@ -277,6 +283,163 @@ export function closeProgramDetail() {
   returnToLibrary();
 }
 
+// ── Workout Preview Modal ─────────────────────────────────────────────────────
+
+export function openDayPreviewModal(dayKey, programId) {
+  const resolvedId = programId || _currentProgramId;
+  const catalog = getCatalogEntry(resolvedId);
+  const day = catalog?.days?.[dayKey] || PROGRAMS[resolvedId]?.days?.[dayKey];
+  if (!day) return;
+
+  const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+  if (isRest) return;
+
+  const backdrop = document.getElementById('wpmBackdrop');
+  const sheet    = document.getElementById('wpmSheet');
+  const titleEl  = document.getElementById('wpmTitle');
+  const badgeEl  = document.getElementById('wpmBadge');
+  const bodyEl   = document.getElementById('wpmBody');
+
+  if (!sheet || !backdrop) return;
+
+  const dayLabels = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+
+  titleEl.textContent = day.title || dayLabels[dayKey] || dayKey;
+  badgeEl.textContent = day.badge || '';
+  badgeEl.style.color = day.color || 'var(--accent-blue)';
+  badgeEl.style.borderColor = (day.color || 'var(--accent-blue)') + '55';
+
+  if (day.workoutPreview?.type === 'STRENGTH') {
+    bodyEl.innerHTML = renderStrengthPreview(day.workoutPreview.exercises);
+  } else if (day.workoutPreview?.type === 'RUNNING') {
+    bodyEl.innerHTML = renderRunningPreview(day.workoutPreview.phases);
+  } else {
+    bodyEl.innerHTML = renderFallbackPreview(day);
+  }
+
+  backdrop.classList.add('active');
+  sheet.classList.add('active');
+}
+
+function _parseDescExercises(desc) {
+  if (!desc || desc === 'Rest') return [];
+  // Match "Exercise Name (4×8–10)" — handles × or x, en-dash or hyphen in reps
+  const rx = /([A-Za-z][^(,\n]+?)\s*\((\d+)\s*[×xX]\s*([^)]+)\)/g;
+  const results = [];
+  let m;
+  while ((m = rx.exec(desc)) !== null) {
+    results.push({ name: m[1].trim(), sets: m[2], reps: m[3].trim().replace(/\.$/, '') });
+  }
+  return results;
+}
+
+function renderFallbackPreview(day) {
+  let html = '';
+  const hasRun = day.runs && day.runs !== 'Rest';
+  const hasLifts = day.lifts?.length;
+
+  if (hasRun) {
+    html += `
+      <div class="wpm-type-label wpm-type-label--running">🏃 Running</div>
+      <div class="wpm-fallback-run">${day.runs}</div>
+    `;
+  }
+
+  if (hasLifts) {
+    const parsed = _parseDescExercises(day.desc);
+    html += `
+      <div class="wpm-type-label wpm-type-label--strength" style="${hasRun ? 'margin-top:16px;' : ''}">🏋️ Strength Session</div>
+    `;
+    if (parsed.length > 0) {
+      html += `
+        <div class="wpm-strength-grid wpm-strength-grid--compact">
+          <div class="wpm-grid-header">
+            <span>Exercise</span><span>Sets</span><span>Reps</span>
+          </div>
+          ${parsed.map(ex => `
+            <div class="wpm-grid-row">
+              <span class="wpm-ex-name">${ex.name}</span>
+              <span class="wpm-ex-val">${ex.sets}</span>
+              <span class="wpm-ex-val">${ex.reps}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="wpm-exercise-list">
+          ${day.lifts.map(lift => `<div class="wpm-exercise-item">${lift}</div>`).join('')}
+        </div>
+      `;
+      if (day.desc && day.desc !== 'Rest') {
+        html += `<div class="wpm-fallback-desc">${day.desc}</div>`;
+      }
+    }
+  }
+
+  return html || '<p class="wpm-empty">No preview available for this day.</p>';
+}
+
+export function closeDayPreviewModal() {
+  document.getElementById('wpmBackdrop')?.classList.remove('active');
+  document.getElementById('wpmSheet')?.classList.remove('active');
+}
+
+function renderStrengthPreview(exercises) {
+  if (!exercises?.length) return '<p class="wpm-empty">No exercises listed.</p>';
+  return `
+    <div class="wpm-type-label wpm-type-label--strength">🏋️ Strength Session</div>
+    <div class="wpm-strength-grid">
+      <div class="wpm-grid-header">
+        <span>Exercise</span><span>Sets</span><span>Reps</span><span>RPE</span><span>Rest</span>
+      </div>
+      ${exercises.map(ex => `
+        <div class="wpm-grid-row">
+          <span class="wpm-ex-name">${ex.exercise}</span>
+          <span class="wpm-ex-val">${ex.sets}</span>
+          <span class="wpm-ex-val">${ex.reps}</span>
+          <span class="wpm-ex-val wpm-rpe" data-rpe="${ex.rpe}">${ex.rpe}</span>
+          <span class="wpm-ex-val wpm-rest">${ex.rest}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderRunningPreview(phases) {
+  if (!phases?.length) return '<p class="wpm-empty">No phases listed.</p>';
+  const phaseIcons = { warmup: '🌡️', mainSet: '⚡', strength: '🏋️', cooldown: '🧊' };
+  const phaseColors = { warmup: '#22d3ee', mainSet: '#ef4444', strength: '#8b5cf6', cooldown: '#10b981' };
+
+  return `
+    <div class="wpm-type-label wpm-type-label--running">🏃 Running Session</div>
+    <div class="wpm-running-timeline">
+      ${phases.map((phase, i) => {
+        const icon  = phaseIcons[phase.type] || '●';
+        const color = phaseColors[phase.type] || '#94a3b8';
+        const isLast = i === phases.length - 1;
+        return `
+          <div class="wpm-phase ${isLast ? 'wpm-phase--last' : ''}">
+            <div class="wpm-phase-connector" style="--phase-color:${color}">
+              <div class="wpm-phase-dot">${icon}</div>
+              ${!isLast ? '<div class="wpm-phase-line"></div>' : ''}
+            </div>
+            <div class="wpm-phase-content">
+              <div class="wpm-phase-header">
+                <span class="wpm-phase-name" style="color:${color}">${phase.name}</span>
+                <span class="wpm-phase-duration">${phase.duration}</span>
+              </div>
+              <div class="wpm-phase-pace">${phase.pace}</div>
+              <div class="wpm-phase-desc">${phase.description}</div>
+              ${phase.notes ? `<div class="wpm-phase-note">💡 ${phase.notes}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 export function handleDetailAction(action, el) {
   switch (action) {
     case 'close-program-detail':
@@ -285,14 +448,12 @@ export function handleDetailAction(action, el) {
     case 'make-active-from-detail': {
       const id = el.getAttribute('data-program-id');
       if (id) {
-        // Trigger make active (imported from app.js at runtime)
         document.dispatchEvent(new CustomEvent('library:make-active', { detail: { id } }));
       }
       break;
     }
     case 'view-active-program': {
       closeProgramDetail();
-      // Navigate to active program view
       document.dispatchEvent(new CustomEvent('library:view-active'));
       break;
     }
@@ -301,5 +462,14 @@ export function handleDetailAction(action, el) {
       if (id) renderProgramDetail(id, _appState);
       break;
     }
+    case 'open-day-preview': {
+      const dayKey   = el.getAttribute('data-day');
+      const progId   = el.getAttribute('data-program-id');
+      if (dayKey) openDayPreviewModal(dayKey, progId);
+      break;
+    }
+    case 'close-day-preview':
+      closeDayPreviewModal();
+      break;
   }
 }

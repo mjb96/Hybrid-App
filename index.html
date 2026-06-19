@@ -163,12 +163,56 @@
 </head>
 <body>
 
-  <div id="authOverlay" class="modal-overlay" style="display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-dark); z-index: 9999;">
-    <h2 class="text-2xl font-heavy text-main mb-4">Hybrid Engine Login</h2>
-    <input type="email" id="loginEmail" placeholder="Email" class="mb-3 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
-    <input type="password" id="loginPassword" placeholder="Password" class="mb-5 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
-    <button class="btn-action-block btn-blue w-4/5 max-w-xs" data-action="login-supabase">Sign In & Sync</button>
-    <button id="offlineEscapeBtn" class="btn-action-block btn-ghost mt-3 w-4/5 max-w-xs" data-action="close-auth" onclick="document.getElementById('authOverlay').style.display='none'">Continue Offline</button>
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="auth-brand-icon">⚡</div>
+        <div class="auth-brand-name">Hybrid Engine</div>
+        <div class="auth-brand-sub">Train smarter. Track everything.</div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab auth-tab--active" data-auth-tab="signin">Sign In</button>
+        <button class="auth-tab" data-auth-tab="signup">Create Account</button>
+      </div>
+
+      <div class="auth-panel" id="authPanelSignin">
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input type="email" id="loginEmail" class="auth-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input type="password" id="loginPassword" class="auth-input" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="auth-error" id="authSigninError" style="display:none"></div>
+        <button class="auth-submit" data-action="login-supabase" id="authSigninBtn">
+          <span class="auth-submit-text">Sign In &amp; Sync</span>
+          <span class="auth-submit-spinner" style="display:none">⟳</span>
+        </button>
+      </div>
+
+      <div class="auth-panel" id="authPanelSignup" style="display:none">
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input type="email" id="signupEmail" class="auth-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input type="password" id="signupPassword" class="auth-input" placeholder="Min. 8 characters" autocomplete="new-password">
+        </div>
+        <div class="auth-error" id="authSignupError" style="display:none"></div>
+        <div class="auth-success" id="authSignupSuccess" style="display:none">
+          Check your inbox to confirm your email, then sign in.
+        </div>
+        <button class="auth-submit" data-action="signup-supabase" id="authSignupBtn">
+          <span class="auth-submit-text">Create Account</span>
+          <span class="auth-submit-spinner" style="display:none">⟳</span>
+        </button>
+      </div>
+
+      <button class="auth-offline-btn" data-action="close-auth">Continue Offline</button>
+    </div>
   </div>
   
   <div class="toast-system" id="sysToast" role="alert" aria-live="assertive">Session Saved ✓</div>
@@ -291,10 +335,7 @@
       <article class="card-dark workout-run-card" id="cockpitRunPanel">
         <div class="flex-between mb-3">
           <h2 class="workout-run-title m-0" id="cockpitRunHeader">🏃 Aerobic Session</h2>
-          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid rgba(34,211,238,0.4); color: #22d3ee; font-size:0.65rem;">
-            ⌚ Import .FIT
-            <input type="file" id="fitUpload" accept=".fit" class="hidden-input">
-          </label>
+          <span id="runTypeBadge" class="run-type-badge" style="display:none"></span>
         </div>
 
         <div id="runMapContainer" style="height: 180px; width: 100%; border-radius: 8px; display: none; margin-bottom: 12px; z-index: 1;"></div>
@@ -306,6 +347,14 @@
           <label><span class="set-num-lbl block mb-1">Time</span><input type="text" id="runInputTime" placeholder="00:00"></label>
           <label><span class="set-num-lbl block mb-1">RPE</span><input type="number" id="runInputRpeCockpit" placeholder="1-10" max="10"></label>
         </div>
+
+        <div class="run-pace-row mb-3" id="runPaceRow">
+          <span class="run-pace-label">AVG PACE</span>
+          <input type="text" id="runInputPace" class="run-pace-input" placeholder="—:—— /km" autocomplete="off">
+          <span class="run-pace-unit">/km</span>
+        </div>
+
+        <textarea id="runInputNotes" class="run-notes-input" placeholder="How did it feel? Route, conditions, notes…"></textarea>
 
         <div id="runExtraStats" style="display: none; padding-top: 8px; border-top: 1px dashed rgba(34,211,238,0.2);">
           <div class="run-grid-inputs mb-2">
@@ -330,6 +379,16 @@
           </div>
         </div>
 
+        <label class="fit-import-tile fit-import-tile--run cursor-pointer mt-3">
+          <div class="fit-import-tile__icon">⌚</div>
+          <div class="fit-import-tile__text">
+            <div class="fit-import-tile__title">Import Run from Watch</div>
+            <div class="fit-import-tile__sub">Garmin · Apple Watch · .FIT file</div>
+          </div>
+          <div class="fit-import-tile__arrow">›</div>
+          <input type="file" id="fitUpload" accept=".fit" class="hidden-input">
+        </label>
+
       </article>
 
       <div class="app-section-heading">
@@ -342,15 +401,9 @@
       <button class="btn-action-block btn-dashed mt-3 mb-5" data-action="open-add-exercise">+ Add Unplanned Exercise</button>
 
       <article class="card-dark mt-4 p-4">
-        <div class="flex-between mb-3">
-          <div>
-            <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
-            <div class="app-section-heading__sub">RPE, notes &amp; .FIT import</div>
-          </div>
-          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid var(--accent-blue); flex-shrink:0;">
-            ⌚ Import Gym .FIT
-            <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
-          </label>
+        <div class="mb-3">
+          <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
+          <div class="app-section-heading__sub">RPE &amp; session notes</div>
         </div>
 
         <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
@@ -374,6 +427,16 @@
           <input type="number" id="sessionGymRpeCockpit" placeholder="Overall Gym RPE (1-10)" max="10" aria-label="Overall Gym RPE">
         </div>
         <textarea id="sessionNotesInput" placeholder="How did today feel? Sleep? Energy?" aria-label="Session Notes"></textarea>
+
+        <label class="fit-import-tile fit-import-tile--gym cursor-pointer mt-3">
+          <div class="fit-import-tile__icon">⌚</div>
+          <div class="fit-import-tile__text">
+            <div class="fit-import-tile__title">Import Gym Session from Watch</div>
+            <div class="fit-import-tile__sub">Garmin · Apple Watch · .FIT file</div>
+          </div>
+          <div class="fit-import-tile__arrow">›</div>
+          <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
+        </label>
       </article>
 
       <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Session</button>
@@ -730,7 +793,7 @@
         <div id="programDetailContent"></div>
       </div>
 
-      <!-- ═══════ ACTIVE PLAN VIEW (program overview, week matrix, daily tiers) ═══════ -->
+      <!-- ═══════ ACTIVE PLAN VIEW ═══════ -->
       <div id="progActivePlanView" style="display:none;">
 
         <div class="detail-back-bar mb-4">
@@ -740,45 +803,43 @@
           <span class="active-plan-label">Active Program</span>
         </div>
 
-        <article class="card-dark p-4 mb-4">
-          <label for="globalWeekSelect" class="text-xs-bold block mb-1 text-muted">MACROCYCLE WEEK</label>
-          <select class="native-select select-dark w-full" id="globalWeekSelect" data-action="macro-week-switch">
-            <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
-            <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
-            <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
-            <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
-          </select>
-        </article>
+        <!-- Program hero card (populated by JS) -->
+        <div id="activePlanHero" class="aplan-hero mb-3"></div>
+
+        <!-- Week stepper -->
+        <div class="aplan-week-nav mb-4">
+          <button class="aplan-week-btn" data-action="aplan-week-step" data-delta="-1" aria-label="Previous week">‹</button>
+          <div class="aplan-week-center">
+            <div class="aplan-week-label">MACROCYCLE WEEK</div>
+            <div id="aplanWeekNum" class="aplan-week-num">1</div>
+            <div id="aplanPhaseName" class="aplan-phase-name"></div>
+          </div>
+          <button class="aplan-week-btn" data-action="aplan-week-step" data-delta="1" aria-label="Next week">›</button>
+        </div>
 
         <nav class="segmented-control mb-4" aria-label="Program Views">
-          <button id="btnBrowserTabOverview" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="overview" aria-current="page">OVERVIEW</button>
-          <button id="btnBrowserTabWeeks" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="weeks">WAVE MATRIX</button>
-          <button id="btnBrowserTabTiers" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="tiers">DAILY TIERS</button>
+          <button id="btnBrowserTabOverview" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="overview" aria-current="page">THIS WEEK</button>
+          <button id="btnBrowserTabWeeks" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="weeks">SCHEDULE</button>
         </nav>
 
+        <!-- Tab content -->
         <div id="programBrowserDetails"></div>
-        <div id="programBrowserDaysDeck" class="flex-col gap-3 mb-6"></div>
+        <div id="programBrowserDaysDeck" style="display:none;"></div>
 
-        <h2 class="section-header">Data Backups</h2>
-        <button class="btn-action-block btn-blue mb-2 text-left text-lg" data-action="export-text">📝 Copy Weekly Text Summary</button>
-        <button class="btn-action-block btn-ghost mb-2 text-left text-lg" data-action="export-json">📤 Export Backup File (JSON)</button>
-        <button class="btn-action-block btn-green-ghost mb-2 text-left text-lg" data-action="export-csv">📊 Export Spreadsheet (CSV)</button>
-        <label class="btn-action-block btn-ghost block text-left text-lg cursor-pointer" tabindex="0">
-          📥 Import Backup File
-          <input type="file" id="programFileImporter" accept=".json" data-action="import-json" class="hidden-input">
-        </label>
+        <!-- Hidden select kept for handleMacroWeekSwitch compatibility -->
+        <select id="globalWeekSelect" style="display:none;" data-action="macro-week-switch">
+          <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
+          <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
+          <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
+          <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
+        </select>
+
 
       </div>
 
       <!-- ═══════ BUILDER VIEW ═══════ -->
       <div id="builderViewContainer" style="display:none;"></div>
 
-      <!-- Legacy grid containers kept for compatibility with renderProgramLibrary() -->
-      <div id="progModeActiveContainer" style="display:none;"></div>
-      <div id="progModeLibraryContainer" style="display:none;">
-        <div id="libraryGridCustom"></div>
-        <div id="libraryGridSystem"></div>
-      </div>
 
     </section>
 
@@ -1087,9 +1148,11 @@
 
         <!-- Data -->
         <div class="settings-section">
-          <div class="settings-section-label">Data</div>
+          <div class="settings-section-label">Data &amp; Backups</div>
           <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
-          <button class="settings-action-btn" data-action="import-data">Import Training Data</button>
+          <button class="settings-action-btn" data-action="export-csv">Export Spreadsheet (CSV)</button>
+          <button class="settings-action-btn" data-action="export-text">Copy Weekly Text Summary</button>
+          <button class="settings-action-btn" data-action="import-data">Import Backup File</button>
           <input type="file" id="settingsImportFile" accept=".json" class="hidden-input">
           <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
         </div>
@@ -1204,18 +1267,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="programSwitchModal" role="dialog" aria-modal="true" aria-labelledby="switchModalTitle">
-    <div class="modal-content">
-      <h2 id="switchModalTitle" class="text-2xl font-heavy text-accent-amber mb-1">Switch Program?</h2>
-      <p class="text-lg text-muted mb-5">Switching programs will clear all logged data for Week <span id="programSwitchWeekLabel"></span>. Your other weeks are untouched. This cannot be undone.</p>
-      <div class="flex gap-2">
-        <button class="btn-action-block btn-ghost mt-0" data-action="cancel-program-switch">Keep Current</button>
-        <button class="btn-action-block btn-amber mt-0" data-action="confirm-program-switch">Switch & Clear</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="createProgramModal" role="dialog" aria-modal="true" aria-labelledby="createProgramTitle">
+<div class="modal-overlay" id="createProgramModal" role="dialog" aria-modal="true" aria-labelledby="createProgramTitle">
     <div class="modal-content">
       <h2 id="createProgramTitle" class="text-2xl font-heavy text-inverse mb-1">Create Custom Program</h2>
       <p class="text-sm text-muted mb-4">Scaffold a new blank program schema.</p>
@@ -1262,6 +1314,21 @@
         <button class="btn-action-block btn-amber mt-0" data-action="execute-deload-week">Apply Deload</button>
       </div>
     </div>
+  </div>
+
+  <!-- Workout Preview Modal (day detail bottom-sheet) -->
+  <div id="wpmBackdrop" class="sheet-backdrop" data-action="close-day-preview"></div>
+  <div id="wpmSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="wpmTitle">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header">
+      <div class="wpm-header-left">
+        <h3 id="wpmTitle" class="bottom-sheet-title">Workout Preview</h3>
+        <span id="wpmBadge" class="wpm-badge"></span>
+      </div>
+      <button class="sheet-close-btn" data-action="close-day-preview" aria-label="Close">✕</button>
+    </div>
+    <div id="wpmBody" class="wpm-body"></div>
+    <div style="height: 16px;"></div>
   </div>
 
   <div id="tileCustomiserBackdrop" class="sheet-backdrop" data-action="close-tile-customiser" data-apply="false"></div>

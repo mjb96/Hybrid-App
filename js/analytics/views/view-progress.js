@@ -218,7 +218,7 @@ export function renderGoalProgressDetail(data, getState) {
         <span class="text-sm text-muted">Mesocycle progress</span>
         <span class="font-heavy text-inverse">Wk ${wk} / ${total}</span>
       </div>
-      <div style="height:8px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:12px;">
+      <div style="height:8px;border-radius:4px;background:var(--overlay-md);overflow:hidden;margin-bottom:12px;">
         <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--color-blue),var(--color-indigo,#6366f1));border-radius:4px;transition:width 0.5s var(--ease-out);"></div>
       </div>
       <div class="flex-between mb-2" style="font-size:0.8rem;">

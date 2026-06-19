@@ -1,12 +1,12 @@
 // ==========================================
 // CLEANED CORE PROTOCOL ROUTER (app.js)
 // ==========================================
-import { CONFIG, PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
+import { PROGRAMS, WEEK_PHASE_NAMES } from './constants.js';
 import { devWarn } from './debug.js';
-import { buildProgramOverviewHTML, buildWeekMatrixHTML, buildDaysSplitHTML, buildLibraryCardHTML } from './templates.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
-import { handleDetailAction } from './programs/detail.js';
+import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
+import { getCatalogEntry } from './programs/catalog.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -14,16 +14,16 @@ import {
   getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
+  mergeWeekSchema,
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
   triggerTextSummaryExport,
-  triggerEngineExport,
   triggerCSVExport,
-  triggerEngineImport,
   setImportSuccessCallback,
   showToast,
   checkActiveSession,
-  loginToSupabase
+  loginToSupabase,
+  signUpToSupabase
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
@@ -69,7 +69,6 @@ document.addEventListener('app:library-updated', () => {
   try {
     updateLibraryState(appState);
     renderLibrary();
-    renderProgramLibrary(); // keep legacy grids in sync
   } catch (err) {
     console.warn('Library render failed after builder closed.', err);
   }
@@ -83,6 +82,8 @@ document.addEventListener('app:navigate', (e) => {
 });
 
 window.analyticsContext = 'overview';
+
+let _activePlanDisplayWeek = null;
 
 export function openAnalyticsView(context) {
   window.analyticsContext = context;
@@ -129,22 +130,15 @@ export function launchActiveWorkoutCockpit() {
 // PROGRAM LIBRARY ROUTING
 // ==========================================
 export function switchProgramMode(mode) {
-  const libraryScreen = document.getElementById('programLibraryScreen');
-  const detailScreen  = document.getElementById('programDetailScreen');
+  const libraryScreen  = document.getElementById('programLibraryScreen');
+  const detailScreen   = document.getElementById('programDetailScreen');
   const activePlanView = document.getElementById('progActivePlanView');
-  const viewBuilder   = document.getElementById('builderViewContainer');
-  // Legacy containers — kept hidden
-  const legacyActive  = document.getElementById('progModeActiveContainer');
-  const legacyLibrary = document.getElementById('progModeLibraryContainer');
-
-  // Reset all
-  if (legacyActive)  legacyActive.style.display  = 'none';
-  if (legacyLibrary) legacyLibrary.style.display  = 'none';
+  const viewBuilder    = document.getElementById('builderViewContainer');
 
   if (mode === 'active') {
-    if (libraryScreen) libraryScreen.style.display = 'none';
-    if (detailScreen)  detailScreen.style.display  = 'none';
-    if (viewBuilder)   viewBuilder.style.display   = 'none';
+    if (libraryScreen)  libraryScreen.style.display  = 'none';
+    if (detailScreen)   detailScreen.style.display   = 'none';
+    if (viewBuilder)    viewBuilder.style.display    = 'none';
     showActivePlanView(true);
   } else if (mode === 'builder') {
     if (libraryScreen)  libraryScreen.style.display  = 'none';
@@ -152,7 +146,6 @@ export function switchProgramMode(mode) {
     if (activePlanView) activePlanView.style.display = 'none';
     if (viewBuilder)    viewBuilder.style.display    = 'block';
   } else {
-    // 'library' — default
     if (viewBuilder)    viewBuilder.style.display    = 'none';
     if (activePlanView) activePlanView.style.display = 'none';
     if (detailScreen)   detailScreen.style.display   = 'none';
@@ -162,74 +155,21 @@ export function switchProgramMode(mode) {
   }
 }
 
-export function renderProgramLibrary() {
-  const customGrid = document.getElementById('libraryGridCustom');
-  const systemGrid = document.getElementById('libraryGridSystem');
-  if (!customGrid || !systemGrid) return;
-
-  const currentActiveId = appState.activeProgramId;
-
-  if (!appState.customPrograms || appState.customPrograms.length === 0) {
-    customGrid.innerHTML = '<div class="text-sm text-muted text-center p-3 border-dashed" style="border: 1px dashed var(--overlay-sm); border-radius: 8px;">No custom programs created yet.</div>';
-  } else {
-    customGrid.innerHTML = appState.customPrograms.map(p => 
-      buildLibraryCardHTML(p, p.id, true, p.id === currentActiveId)
-    ).join('');
-  }
-
-  let systemHTML = '';
-  for (const [id, prog] of Object.entries(PROGRAMS)) {
-    systemHTML += buildLibraryCardHTML(prog, id, false, id === currentActiveId);
-  }
-  systemGrid.innerHTML = systemHTML;
-}
 
 export function triggerMakeActiveProgram(newProgramId) {
   if (newProgramId === appState.activeProgramId) return;
-
-  const hasLoggedData = appState.weeks && appState.weeks[appState.currentWeek] &&
-    Object.values(appState.weeks[appState.currentWeek].lifts || {}).some(day =>
-      Object.values(day).some(sets => sets.some(s => s.c))
-    );
-
-  if (hasLoggedData) {
-    const modal = document.getElementById('programSwitchModal');
-    const label = document.getElementById('programSwitchWeekLabel');
-    if (modal) modal.setAttribute('data-pending', newProgramId);
-    if (label) label.textContent = appState.currentWeek;
-    if (modal) modal.classList.add('active');
-  } else {
-    applyProgramSwitch(newProgramId);
-  }
-}
-
-export function confirmProgramSwitch() {
-  const modal = document.getElementById('programSwitchModal');
-  if (!modal) return;
-  const newProgramId = modal.getAttribute('data-pending');
-  modal.classList.remove('active');
   applyProgramSwitch(newProgramId);
 }
 
-export function cancelProgramSwitch() {
-  const modal = document.getElementById('programSwitchModal');
-  if (modal) modal.classList.remove('active');
-}
 
 function applyProgramSwitch(newProgramId) {
   appState.activeProgramId = newProgramId;
-  if (appState.weeks && appState.weeks[appState.currentWeek]) {
-    delete appState.weeks[appState.currentWeek];
-  }
   appState.weekStartedAt = new Date().toISOString();
-
+  mergeWeekSchema(appState.currentWeek);
   saveStateToLocalStorage(true);
   hydrateCurrentView();
-  
-  if (document.getElementById('progModeLibraryContainer')?.style.display === 'block') {
-    renderProgramLibrary(); 
-  }
-  showToast('Program Template Switched ✓');
+  showActivePlanView(true);
+  showToast('Program switched ✓');
 }
 
 export function handleMacroWeekSwitch() {
@@ -272,31 +212,156 @@ function safeRenderExecution(renderFn, viewLabel) {
 
 export function switchBrowserSectionTab(tabName) {
   const overviewContainer = document.getElementById('programBrowserDetails');
-  const daysContainer = document.getElementById('programBrowserDaysDeck');
   const tabOverview = document.getElementById('btnBrowserTabOverview');
   const tabWeeks = document.getElementById('btnBrowserTabWeeks');
-  const tabTiers = document.getElementById('btnBrowserTabTiers');
 
   if (tabOverview) tabOverview.classList.remove('active');
   if (tabWeeks) tabWeeks.classList.remove('active');
-  if (tabTiers) tabTiers.classList.remove('active');
+
+  _renderActivePlanHero();
+  _renderActivePlanWeekNav();
 
   const prog = getProgramById(appState.activeProgramId);
-  const currentWk = appState.currentWeek || "1";
+  const catalog = getCatalogEntry(appState.activeProgramId);
 
-  if (tabName === 'overview' && overviewContainer && daysContainer) {
-    if (tabOverview) tabOverview.classList.add('active');
-    overviewContainer.innerHTML = buildProgramOverviewHTML(prog, currentWk);
-    daysContainer.innerHTML = '';
-  } else if (tabName === 'weeks' && overviewContainer && daysContainer) {
+  if (!overviewContainer) return;
+
+  if (tabName === 'weeks') {
     if (tabWeeks) tabWeeks.classList.add('active');
-    overviewContainer.innerHTML = buildWeekMatrixHTML(prog, currentWk);
-    daysContainer.innerHTML = '';
-  } else if (tabName === 'tiers' && overviewContainer && daysContainer) {
-    if (tabTiers) tabTiers.classList.add('active');
-    overviewContainer.innerHTML = '';
-    daysContainer.innerHTML = buildDaysSplitHTML(prog);
+    overviewContainer.innerHTML = _renderScheduleTab(catalog, prog);
+  } else {
+    if (tabOverview) tabOverview.classList.add('active');
+    overviewContainer.innerHTML = _renderThisWeekTab(catalog, prog);
   }
+}
+
+function _renderActivePlanHero() {
+  const heroEl = document.getElementById('activePlanHero');
+  if (!heroEl) return;
+
+  const catalog = getCatalogEntry(appState.activeProgramId);
+  const prog = getProgramById(appState.activeProgramId);
+  const name = catalog?.name || prog?.name || 'Active Program';
+  const icon = catalog?.icon || '📋';
+  const g = catalog?.coverGradient || ['#1a0e2e', '#0d1b2a'];
+  const accentColor = catalog?.accentColor || '#8b5cf6';
+  const displayWk = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
+  const actualWk  = parseInt(appState.currentWeek || '1', 10);
+  const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
+  const progress = Math.min(100, Math.round(((actualWk - 1) / totalWeeks) * 100));
+  const phaseName = WEEK_PHASE_NAMES[String(displayWk)] || '';
+
+  heroEl.innerHTML = `
+    <div class="aplan-hero-inner" style="background: linear-gradient(135deg, ${g[0]}, ${g[1]})">
+      <div class="aplan-hero-icon">${icon}</div>
+      <div class="aplan-hero-content">
+        <div class="aplan-hero-eyebrow">ACTIVE PROGRAM</div>
+        <div class="aplan-hero-name">${name}</div>
+        ${phaseName ? `<div class="aplan-hero-phase">${phaseName}</div>` : ''}
+        <div class="aplan-hero-progress-row">
+          <div class="aplan-hero-bar">
+            <div class="aplan-hero-fill" style="width: ${progress}%; background: ${accentColor}"></div>
+          </div>
+          <span class="aplan-hero-pct">${progress}%</span>
+        </div>
+        <div class="aplan-hero-weeks">${actualWk} of ${totalWeeks} weeks</div>
+      </div>
+    </div>
+  `;
+}
+
+function _renderActivePlanWeekNav() {
+  const numEl   = document.getElementById('aplanWeekNum');
+  const phaseEl = document.getElementById('aplanPhaseName');
+  const displayWk = _activePlanDisplayWeek || appState.currentWeek || '1';
+  if (numEl) numEl.textContent = displayWk;
+  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[displayWk] || '';
+}
+
+function _renderThisWeekTab(catalog, prog) {
+  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const dayShort = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  const jsDayToKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const todayKey = jsDayToKey[new Date().getDay()];
+  const catalogDays = catalog?.days || {};
+  const legacyDays = prog?.days || {};
+
+  const cards = dayOrder.map(dayKey => {
+    const cd = catalogDays[dayKey];
+    const ld = legacyDays[dayKey];
+    const isToday = dayKey === todayKey;
+    const title = cd?.title || ld?.title || (dayKey === 'sun' ? 'Rest Day' : 'Training');
+    const badge = cd?.badge || '';
+    const color = cd?.color || 'var(--accent-blue)';
+    const isRest = !cd?.lifts?.length && (!cd?.runs || cd?.runs === 'Rest')
+                && !ld?.lifts?.length && (!ld?.runs || ld?.runs === 'Rest');
+    const hasPreview = !isRest && !!(
+      cd?.workoutPreview
+      || cd?.lifts?.length || (cd?.runs && cd?.runs !== 'Rest')
+      || ld?.lifts?.length || (ld?.runs && ld?.runs !== 'Rest')
+    );
+    return `
+      <div class="aplan-day-card ${isToday ? 'aplan-day-card--today' : ''} ${isRest ? 'aplan-day-card--rest' : ''}"
+           ${hasPreview ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${appState.activeProgramId}" role="button" tabindex="0"` : ''}>
+        <div class="aplan-day-label">${dayShort[dayKey]}</div>
+        <div class="aplan-day-body">
+          <div class="aplan-day-title">${title}</div>
+          ${badge ? `<div class="aplan-day-badge" style="color:${color};border-color:${color}40">${badge}</div>` : ''}
+        </div>
+        ${hasPreview ? '<span class="aplan-day-chevron">›</span>' : ''}
+        ${isToday ? '<div class="aplan-today-pip"></div>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  return `<div class="aplan-day-list">${cards}</div>`;
+}
+
+function _renderScheduleTab(catalog, prog) {
+  const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
+  const displayWkNum = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
+  const actualWkNum  = parseInt(appState.currentWeek || '1', 10);
+
+  const cells = [];
+  for (let w = 1; w <= totalWeeks; w++) {
+    const isCurrent = w === displayWkNum;
+    const isPast = w < displayWkNum;
+    const isActual = w === actualWkNum && displayWkNum !== actualWkNum;
+    const phase = WEEK_PHASE_NAMES[String(w)] || '';
+    cells.push(`
+      <button class="aplan-sched-cell ${isCurrent ? 'aplan-sched-cell--current' : ''} ${isPast ? 'aplan-sched-cell--past' : ''} ${isActual ? 'aplan-sched-cell--actual' : ''}"
+              data-action="aplan-set-week" data-week="${w}" title="${phase}">
+        ${w}
+      </button>
+    `);
+  }
+
+  const phaseGroups = {};
+  for (let w = 1; w <= totalWeeks; w++) {
+    const p = WEEK_PHASE_NAMES[String(w)] || 'Training';
+    if (!phaseGroups[p]) phaseGroups[p] = [];
+    phaseGroups[p].push(w);
+  }
+
+  const legendItems = Object.entries(phaseGroups).map(([phase, wks]) => {
+    const isActive = wks.includes(displayWkNum);
+    return `
+      <div class="aplan-phase-item ${isActive ? 'aplan-phase-item--active' : ''}">
+        <span class="aplan-phase-wks">Wk ${wks[0]}${wks.length > 1 ? `–${wks[wks.length - 1]}` : ''}</span>
+        <span class="aplan-phase-label">${phase}</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="aplan-schedule">
+      <div class="aplan-sched-grid">${cells.join('')}</div>
+      <div class="aplan-phase-breakdown">
+        <div class="aplan-phase-breakdown-title">PHASE BREAKDOWN</div>
+        <div class="aplan-phase-list">${legendItems}</div>
+      </div>
+    </div>
+  `;
 }
 
 export function triggerEditActiveProgram(progId) {
@@ -314,11 +379,7 @@ export function triggerEditActiveProgram(progId) {
       appState.customPrograms.push(source);
       
       appState.activeProgramId = newId;
-      
-      if (appState.weeks && appState.weeks[appState.currentWeek]) {
-        delete appState.weeks[appState.currentWeek];
-      }
-      
+      mergeWeekSchema(appState.currentWeek);
       saveStateToLocalStorage(true);
       hydrateCurrentView();
       
@@ -326,14 +387,6 @@ export function triggerEditActiveProgram(progId) {
       openBuilder(newId);
     }
   } else {
-    if (appState.weeks && appState.weeks[appState.currentWeek]) {
-      if (confirm("Reset current week's log to apply your new template edits immediately? (Press Cancel to apply only to future weeks)")) {
-         delete appState.weeks[appState.currentWeek];
-         saveStateToLocalStorage(true);
-         hydrateCurrentView();
-      }
-    }
-    
     switchProgramMode('builder');
     openBuilder(progId);
   }
@@ -388,7 +441,8 @@ export function executeDeleteProgram(id) {
   if(confirm("Are you sure you want to delete this custom program?")) {
     const result = deleteCustomProgram(id);
     if (result.success) {
-      renderProgramLibrary();
+      updateLibraryState(appState);
+      renderLibrary();
       showToast('Program deleted.');
     } else {
       showToast(result.message, true);
@@ -398,7 +452,8 @@ export function executeDeleteProgram(id) {
 
 export function executeDuplicateProgram(id) {
   duplicateCustomProgram(id);
-  renderProgramLibrary();
+  updateLibraryState(appState);
+  renderLibrary();
 }
 
 // ==========================================
@@ -586,8 +641,6 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-create-program') openCreateProgramModal();
   else if (action === 'close-create-program') closeCreateProgramModal();
   else if (action === 'execute-create-program') executeCreateProgram();
-  else if (action === 'cancel-program-switch') cancelProgramSwitch();
-  else if (action === 'confirm-program-switch') confirmProgramSwitch();
   else if (action === 'cancel-week-advance') cancelWeekAdvance();
   else if (action === 'confirm-week-advance') confirmWeekAdvance();
   else if (action === 'edit-program') triggerEditActiveProgram(progId);
@@ -600,12 +653,37 @@ document.addEventListener('click', (e) => {
   else if (['open-program-detail', 'prog-filter', 'prog-quick-search', 'hero-dot'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
-  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program'].includes(action)) {
+  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'close-day-preview'].includes(action)) {
     handleDetailAction(action, target);
   }
   else if (action === 'close-active-plan-view') {
     showActivePlanView(false);
     returnToLibrary();
+  }
+  else if (action === 'aplan-week-step') {
+    const delta = parseInt(target.getAttribute('data-delta'), 10);
+    const cur = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
+    const prog = getProgramById(appState.activeProgramId);
+    const maxWk = prog?.totalWeeks || 12;
+    const next = Math.min(Math.max(1, cur + delta), maxWk);
+    if (next !== cur) {
+      _activePlanDisplayWeek = String(next);
+      appState.currentWeek = String(next);
+      const wkSel = document.getElementById('globalWeekSelect');
+      if (wkSel) wkSel.value = appState.currentWeek;
+      saveStateToLocalStorage(true);
+      verifyWeekStorageSchema(appState.currentWeek);
+      const activeTabEl = document.getElementById('btnBrowserTabWeeks');
+      switchBrowserSectionTab(activeTabEl?.classList.contains('active') ? 'weeks' : 'overview');
+    }
+  }
+  else if (action === 'aplan-set-week') {
+    const wk = target.getAttribute('data-week');
+    if (wk && wk !== _activePlanDisplayWeek) {
+      _activePlanDisplayWeek = wk;
+      const activeTabEl = document.getElementById('btnBrowserTabWeeks');
+      switchBrowserSectionTab(activeTabEl?.classList.contains('active') ? 'weeks' : 'overview');
+    }
   }
   
   // Settings
@@ -638,12 +716,15 @@ document.addEventListener('click', (e) => {
 
   // Export & Data
   else if (action === 'export-text') triggerTextSummaryExport();
-  else if (action === 'export-json') triggerEngineExport();
   else if (action === 'export-csv') triggerCSVExport();
   
   // Auth
   else if (action === 'login-supabase') loginToSupabase();
-  else if (action === 'close-auth') document.getElementById('authOverlay').style.display = 'none';
+  else if (action === 'signup-supabase') signUpToSupabase();
+  else if (action === 'close-auth') {
+    const overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
   
   // Summary Modals
   else if (action === 'open-today-summary') openTodaySummaryModal();
@@ -655,6 +736,18 @@ document.addEventListener('click', (e) => {
   
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
+});
+
+// Auth tab switching
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-auth-tab]');
+  if (!tab) return;
+  const which = tab.getAttribute('data-auth-tab');
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('auth-tab--active', t.getAttribute('data-auth-tab') === which));
+  const signinPanel = document.getElementById('authPanelSignin');
+  const signupPanel = document.getElementById('authPanelSignup');
+  if (signinPanel) signinPanel.style.display = which === 'signin' ? '' : 'none';
+  if (signupPanel) signupPanel.style.display = which === 'signup' ? '' : 'none';
 });
 
 document.addEventListener('change', (e) => {
@@ -679,7 +772,6 @@ document.addEventListener('change', (e) => {
   const action = actionTarget.getAttribute('data-action');
 
   if (action === 'macro-week-switch') handleMacroWeekSwitch();
-  else if (action === 'import-json') triggerEngineImport(e);
 });
 
 document.addEventListener('blur', (e) => {
@@ -710,6 +802,7 @@ export function showActivePlanView(show) {
   if (builder)       builder.style.display       = 'none';
 
   if (show) {
+    _activePlanDisplayWeek = appState.currentWeek;
     const wkSelect = document.getElementById('globalWeekSelect');
     if (wkSelect) wkSelect.value = appState.currentWeek;
     switchBrowserSectionTab('overview');
@@ -721,10 +814,9 @@ document.addEventListener('library:make-active', (e) => {
   const id = e.detail?.id;
   if (id) {
     triggerMakeActiveProgram(id);
-    // After switching, update library state and return to library
     updateLibraryState(appState);
-    returnToLibrary();
     renderLibrary();
+    showActivePlanView(true);
   }
 });
 

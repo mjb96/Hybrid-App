@@ -93,8 +93,8 @@ export function renderStressBalanceAnalytics(data, getState, getDays) {
           <span class="font-heavy" style="color:${statusColor};">${status}</span>
         </div>
         <div class="text-xs text-muted" style="line-height:1.6;">${statusNote}</div>
-        <div class="text-xs text-muted mt-3" style="line-height:1.5;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;">
-          <strong style="color:rgba(255,255,255,0.7);">Safe zone guide:</strong>
+        <div class="text-xs text-muted mt-3" style="line-height:1.5;border-top:1px solid var(--glass-border);padding-top:10px;">
+          <strong style="color:var(--text-primary);">Safe zone guide:</strong>
           ACWR 0.8–1.0 = optimal balance · 1.0–1.3 = productive overreach · >1.3 = elevated injury risk
         </div>
       </article>`;
@@ -139,7 +139,7 @@ function _renderWeeklyBreakdown(container, appState, days) {
 
     const dayLabel = d.charAt(0).toUpperCase() + d.slice(1);
     rows += `
-      <div class="flex-between text-sm mb-2" style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div class="flex-between text-sm mb-2" style="padding:6px 0;border-bottom:1px solid var(--glass-border);">
         <span class="text-muted">${dayLabel}</span>
         <div class="flex gap-3">
           ${gymLoad > 0 ? `<span style="color:#3b82f6;">Gym ${gymLoad}</span>` : ''}

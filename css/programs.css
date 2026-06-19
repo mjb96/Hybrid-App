@@ -1152,6 +1152,337 @@
   letter-spacing: 0.01em;
 }
 
+/* Interactive day rows */
+.day-split-row--interactive {
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.day-split-row--interactive:active {
+  background: rgba(255,255,255,0.07);
+  transform: scale(0.99);
+}
+
+.day-split-chevron {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.day-split-row--interactive:hover .day-split-chevron,
+.day-split-row--interactive:focus .day-split-chevron {
+  color: rgba(255,255,255,0.45);
+}
+
+.day-split-row--interactive:focus-visible {
+  outline: 2px solid rgba(139,92,246,0.5);
+  outline-offset: 2px;
+}
+
+.day-split-hint {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* ── Workout Preview Modal (wpm) ────────────────────────────────────────────── */
+
+.wpm-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wpm-badge {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+  border-radius: 5px;
+  padding: 2px 8px;
+  width: fit-content;
+}
+
+.wpm-body {
+  padding-bottom: 4px;
+}
+
+.wpm-type-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+
+.wpm-type-label--strength {
+  background: rgba(239,68,68,0.08);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.15);
+}
+
+.wpm-type-label--running {
+  background: rgba(34,211,238,0.08);
+  color: #22d3ee;
+  border: 1px solid rgba(34,211,238,0.15);
+}
+
+/* Strength grid */
+.wpm-strength-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.wpm-strength-grid--compact .wpm-grid-header,
+.wpm-strength-grid--compact .wpm-grid-row {
+  grid-template-columns: 1fr 50px 64px;
+}
+
+.wpm-grid-header {
+  display: grid;
+  grid-template-columns: 1fr 44px 56px 44px 72px;
+  gap: 0;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  font-size: 0.58rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.wpm-grid-row {
+  display: grid;
+  grid-template-columns: 1fr 44px 56px 44px 72px;
+  gap: 0;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border-top: 1px solid rgba(255,255,255,0.04);
+  align-items: center;
+}
+
+.wpm-grid-row:last-child {
+  border-bottom: none;
+}
+
+.wpm-ex-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.wpm-ex-val {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
+}
+
+.wpm-rpe {
+  font-weight: 800;
+}
+
+.wpm-rpe[data-rpe="8"],
+.wpm-rpe[data-rpe="8.5"],
+.wpm-rpe[data-rpe="9"] { color: #f97316; }
+
+.wpm-rpe[data-rpe="7"],
+.wpm-rpe[data-rpe="7.5"] { color: #f59e0b; }
+
+.wpm-rpe[data-rpe="6"],
+.wpm-rpe[data-rpe="6.5"] { color: #10b981; }
+
+.wpm-rest {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Running timeline */
+.wpm-running-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.wpm-phase {
+  display: flex;
+  gap: 14px;
+}
+
+.wpm-phase-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.wpm-phase-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid var(--phase-color, rgba(255,255,255,0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.wpm-phase-line {
+  width: 2px;
+  flex: 1;
+  min-height: 16px;
+  background: rgba(255,255,255,0.07);
+  margin: 4px 0;
+}
+
+.wpm-phase-content {
+  flex: 1;
+  padding-bottom: 20px;
+  min-width: 0;
+}
+
+.wpm-phase--last .wpm-phase-content {
+  padding-bottom: 4px;
+}
+
+.wpm-phase-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+
+.wpm-phase-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.wpm-phase-duration {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+
+.wpm-phase-pace {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.wpm-phase-desc {
+  font-size: 0.73rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.45;
+}
+
+.wpm-phase-note {
+  margin-top: 6px;
+  font-size: 0.68rem;
+  color: rgba(245,158,11,0.85);
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.15);
+  border-radius: 6px;
+  padding: 6px 9px;
+  line-height: 1.4;
+}
+
+.wpm-empty {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
+  padding: 20px 0;
+}
+
+.wpm-fallback-run {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.75);
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.wpm-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.wpm-exercise-item {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.75);
+  padding: 9px 14px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.wpm-exercise-item:last-child { border-bottom: none; }
+
+.wpm-fallback-desc {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.38);
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+/* Light mode fallback */
+html[data-theme="light"] .wpm-fallback-run {
+  color: rgba(0,0,0,0.70);
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .wpm-exercise-list { border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .wpm-exercise-item {
+  color: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.01);
+  border-bottom-color: rgba(0,0,0,0.05);
+}
+html[data-theme="light"] .wpm-fallback-desc { color: rgba(0,0,0,0.38); }
+
+/* Light mode */
+html[data-theme="light"] .day-split-hint { color: rgba(0,0,0,0.25); }
+html[data-theme="light"] .day-split-row--interactive:active { background: rgba(0,0,0,0.05); }
+html[data-theme="light"] .day-split-chevron { color: rgba(0,0,0,0.18); }
+html[data-theme="light"] .wpm-grid-header { background: rgba(0,0,0,0.03); color: rgba(0,0,0,0.35); }
+html[data-theme="light"] .wpm-grid-row { background: rgba(0,0,0,0.01); border-color: rgba(0,0,0,0.05); }
+html[data-theme="light"] .wpm-ex-name { color: rgba(0,0,0,0.80); }
+html[data-theme="light"] .wpm-ex-val { color: rgba(0,0,0,0.50); }
+html[data-theme="light"] .wpm-rest { color: rgba(0,0,0,0.32); }
+html[data-theme="light"] .wpm-phase-desc { color: rgba(0,0,0,0.55); }
+html[data-theme="light"] .wpm-phase-pace { color: rgba(0,0,0,0.40); }
+html[data-theme="light"] .wpm-phase-duration { color: rgba(0,0,0,0.30); }
+html[data-theme="light"] .wpm-phase-line { background: rgba(0,0,0,0.09); }
+html[data-theme="light"] .wpm-phase-dot { background: rgba(0,0,0,0.03); }
+html[data-theme="light"] .wpm-strength-grid { border-color: rgba(0,0,0,0.07); }
+
 /* Author Card */
 .detail-author-card {
   display: flex;
@@ -1425,8 +1756,494 @@ html[data-theme="light"] .detail-social-proof {
 }
 
 
-/* Active plan view header label */
-.active-plan-label {
+/* ==========================================================================
+   ACTIVE PLAN VIEW — Premium overhaul
+   ========================================================================== */
+
+/* Hero card */
+.aplan-hero {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.aplan-hero-inner {
+  position: relative;
+  padding: 20px 18px 18px;
+  border-radius: 18px;
+  overflow: hidden;
+  min-height: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.aplan-hero-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.45));
+  pointer-events: none;
+}
+
+.aplan-hero-icon {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 3rem;
+  opacity: 0.28;
+  filter: blur(0.5px);
+  pointer-events: none;
+}
+
+.aplan-hero-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+}
+
+.aplan-hero-eyebrow {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.aplan-hero-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.aplan-hero-phase {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 10px;
+}
+
+.aplan-hero-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.aplan-hero-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.18);
+  overflow: hidden;
+}
+
+.aplan-hero-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.aplan-hero-pct {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.6);
+  flex-shrink: 0;
+}
+
+.aplan-hero-weeks {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.38);
+  font-weight: 600;
+}
+
+/* Week Navigator */
+.aplan-week-nav {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1.5px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+
+.aplan-week-btn {
+  flex-shrink: 0;
+  width: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 14px 0;
+  transition: color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+
+.aplan-week-btn:hover { color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.04); }
+.aplan-week-btn:active { background: rgba(255,255,255,0.08); }
+
+.aplan-week-center {
+  flex: 1;
+  text-align: center;
+  padding: 12px 8px;
+  border-left: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.aplan-week-label {
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.28);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.aplan-week-num {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.aplan-phase-name {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+  margin-top: 3px;
+  min-height: 0.9em;
+}
+
+/* Day cards — THIS WEEK tab */
+.aplan-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.aplan-day-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.aplan-day-card[data-action="open-day-preview"] {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aplan-day-card[data-action="open-day-preview"]:active {
+  background: rgba(255,255,255,0.06);
+  transform: scale(0.99);
+}
+
+.aplan-day-card--today {
+  border-color: rgba(139,92,246,0.35);
+  background: rgba(139,92,246,0.06);
+}
+
+.aplan-day-card--rest { opacity: 0.45; }
+
+.aplan-day-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.aplan-day-card--today .aplan-day-label {
+  color: #a78bfa;
+}
+
+.aplan-day-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.aplan-day-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aplan-day-card--today .aplan-day-title {
+  color: #f1f5f9;
+}
+
+.aplan-day-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-top: 3px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.aplan-day-chevron {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.aplan-day-card[data-action="open-day-preview"]:hover .aplan-day-chevron,
+.aplan-day-card[data-action="open-day-preview"]:focus .aplan-day-chevron {
+  color: rgba(255,255,255,0.45);
+}
+
+.aplan-today-pip {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a78bfa;
+}
+
+/* Schedule tab */
+.aplan-schedule { margin-bottom: 16px; }
+
+.aplan-sched-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.aplan-sched-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.4);
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.aplan-sched-cell:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7); }
+.aplan-sched-cell:active { transform: scale(0.95); }
+
+.aplan-sched-cell--past {
+  color: rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.04);
+}
+
+.aplan-sched-cell--current {
+  background: rgba(139,92,246,0.2);
+  border-color: rgba(139,92,246,0.5);
+  color: #c4b5fd;
+  box-shadow: 0 0 0 2px rgba(139,92,246,0.15);
+}
+
+.aplan-sched-cell--actual {
+  border-color: rgba(34,197,94,0.5);
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.12);
+}
+
+.aplan-phase-breakdown {
+  background: rgba(255,255,255,0.02);
+  border: 1.5px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.aplan-phase-breakdown-title {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: rgba(255,255,255,0.28);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.aplan-phase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aplan-phase-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.aplan-phase-wks {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.28);
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.aplan-phase-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+}
+
+.aplan-phase-item--active .aplan-phase-wks { color: #a78bfa; }
+.aplan-phase-item--active .aplan-phase-label { color: rgba(255,255,255,0.8); }
+
+/* Light mode overrides — active plan view */
+html[data-theme="light"] .aplan-week-nav {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+html[data-theme="light"] .aplan-week-btn {
+  color: rgba(0,0,0,0.30);
+}
+html[data-theme="light"] .aplan-week-btn:hover {
+  color: rgba(0,0,0,0.60);
+  background: rgba(0,0,0,0.03);
+}
+html[data-theme="light"] .aplan-week-center {
+  border-color: rgba(0,0,0,0.07);
+}
+html[data-theme="light"] .aplan-week-label {
+  color: rgba(0,0,0,0.28);
+}
+html[data-theme="light"] .aplan-week-num {
+  color: #0f172a;
+}
+html[data-theme="light"] .aplan-phase-name {
+  color: rgba(0,0,0,0.38);
+}
+html[data-theme="light"] .aplan-day-card {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.07);
+}
+html[data-theme="light"] .aplan-day-card--today {
+  background: rgba(99,102,241,0.06);
+  border-color: rgba(99,102,241,0.28);
+}
+html[data-theme="light"] .aplan-day-card[data-action="open-day-preview"]:active {
+  background: rgba(0,0,0,0.05);
+}
+html[data-theme="light"] .aplan-day-label { color: rgba(0,0,0,0.32); }
+html[data-theme="light"] .aplan-day-card--today .aplan-day-label { color: #4f46e5; }
+html[data-theme="light"] .aplan-day-title { color: rgba(0,0,0,0.75); }
+html[data-theme="light"] .aplan-day-card--today .aplan-day-title { color: #0f172a; }
+html[data-theme="light"] .aplan-day-chevron { color: rgba(0,0,0,0.18); }
+html[data-theme="light"] .aplan-today-pip { background: #4f46e5; }
+html[data-theme="light"] .aplan-sched-cell {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.42);
+}
+html[data-theme="light"] .aplan-sched-cell:hover {
+  background: rgba(0,0,0,0.05);
+  color: rgba(0,0,0,0.70);
+}
+html[data-theme="light"] .aplan-sched-cell--past {
+  color: rgba(0,0,0,0.22);
+  border-color: rgba(0,0,0,0.05);
+}
+html[data-theme="light"] .aplan-sched-cell--current {
+  background: rgba(99,102,241,0.12);
+  border-color: rgba(99,102,241,0.40);
+  color: #4338ca;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+}
+html[data-theme="light"] .aplan-sched-cell--actual {
+  border-color: rgba(22,163,74,0.45);
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.10);
+}
+html[data-theme="light"] .aplan-phase-breakdown {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.06);
+}
+html[data-theme="light"] .aplan-phase-breakdown-title { color: rgba(0,0,0,0.28); }
+html[data-theme="light"] .aplan-phase-wks { color: rgba(0,0,0,0.30); }
+html[data-theme="light"] .aplan-phase-label { color: rgba(0,0,0,0.50); }
+html[data-theme="light"] .aplan-phase-item--active .aplan-phase-wks { color: #4f46e5; }
+html[data-theme="light"] .aplan-phase-item--active .aplan-phase-label { color: #0f172a; }
+
+/* ==========================================================================
+   GENERAL LIGHT MODE FIXES — existing components missing light mode rules
+   ========================================================================== */
+
+/* Day split rows (detail page) */
+html[data-theme="light"] .day-split-row {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.06);
+}
+html[data-theme="light"] .day-split-day { color: rgba(0,0,0,0.32); }
+html[data-theme="light"] .day-split-title { color: rgba(0,0,0,0.70); }
+
+/* Author card */
+html[data-theme="light"] .detail-author-card {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.07);
+}
+html[data-theme="light"] .detail-author-icon { background: rgba(0,0,0,0.05); }
+html[data-theme="light"] .detail-author-name { color: rgba(0,0,0,0.75); }
+html[data-theme="light"] .detail-author-type { color: rgba(0,0,0,0.38); }
+
+/* Social proof values */
+html[data-theme="light"] .social-proof-value { color: #0f172a; }
+html[data-theme="light"] .social-proof-label { color: rgba(0,0,0,0.35); }
+
+/* Equipment chips */
+html[data-theme="light"] .detail-equipment-chip {
+  color: rgba(0,0,0,0.60);
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+}
+
+/* WPM modal label */
+html[data-theme="light"] .wpm-type-label--strength {
+  background: rgba(239,68,68,0.06);
+  color: #dc2626;
+  border-color: rgba(239,68,68,0.18);
+}
+html[data-theme="light"] .wpm-type-label--running {
+  background: rgba(34,211,238,0.06);
+  color: #0891b2;
+  border-color: rgba(34,211,238,0.18);
+}
+html[data-theme="light"] .wpm-phase-note {
+  background: rgba(245,158,11,0.05);
+  border-color: rgba(245,158,11,0.20);
+  color: rgba(180,110,0,0.85);
+}
+html[data-theme="light"] .wpm-empty { color: rgba(0,0,0,0.30); }
+
+/* Active plan label (back bar) */
+html[data-theme="light"] .active-plan-label {
   font-size: 0.68rem;
   font-weight: 800;
   color: rgba(255,255,255,0.35);

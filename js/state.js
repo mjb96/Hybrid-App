@@ -2,6 +2,7 @@
 // CLOUD-CONNECTED STATE MANAGER (state.js)
 // ==========================================
 import { PROGRAMS } from './constants.js';
+import { getCatalogEntry } from './programs/catalog.js';
 import { prescribeSetsForLift } from './engine.js';
 import { todayKey } from './dates.js';
 import { getWeekModifier } from './schema.js';
@@ -76,7 +77,22 @@ export function getProgramById(id) {
     const custom = appState.customPrograms.find(p => p.id === id);
     if (custom) return custom;
   }
-  return PROGRAMS[id] || PROGRAMS['hybrid_engine'];
+  if (PROGRAMS[id]) return PROGRAMS[id];
+  // Catalog-only programs — normalize to workout-compatible shape
+  const catalogEntry = getCatalogEntry(id);
+  if (catalogEntry) {
+    return {
+      ...catalogEntry,
+      totalWeeks: catalogEntry.durationWeeks || 12,
+      weeklyVolModifiers: catalogEntry.weeklyVolModifiers || {},
+      dossier: catalogEntry.dossier || {
+        creator: catalogEntry.author?.name || 'HybridHQ',
+        focus:   catalogEntry.tagline || '',
+        philosophy: catalogEntry.description || '',
+      },
+    };
+  }
+  return PROGRAMS['hybrid_engine'];
 }
 
 // ==========================================
@@ -134,28 +150,93 @@ export function deleteCustomProgram(id) {
 // ==========================================
 // AUTHENTICATION
 // ==========================================
+function _setAuthLoading(btnId, spinnerId, isLoading) {
+  const btn = document.getElementById(btnId);
+  const spinner = document.getElementById(spinnerId);
+  if (!btn) return;
+  btn.disabled = isLoading;
+  const textEl = btn.querySelector('.auth-submit-text');
+  if (textEl) textEl.style.opacity = isLoading ? '0.5' : '1';
+  if (spinner) spinner.style.display = isLoading ? '' : 'none';
+}
+
+function _showAuthError(errorElId, msg) {
+  const el = document.getElementById(errorElId);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? '' : 'none';
+}
+
 export async function loginToSupabase() {
-  const email = document.getElementById('loginEmail').value;
-  const pass = document.getElementById('loginPassword').value;
-  
+  const email = document.getElementById('loginEmail')?.value?.trim();
+  const pass = document.getElementById('loginPassword')?.value;
+
   if (!supabaseClient) {
-      showToast("Offline mode — cannot sign in.", true);
-      return;
+    showToast("Offline mode — cannot sign in.", true);
+    return;
   }
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+  _setAuthLoading('authSigninBtn', null, true);
+  _showAuthError('authSigninError', '');
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+
+  _setAuthLoading('authSigninBtn', null, false);
 
   if (error) {
-    showToast("Login failed: " + error.message.substring(0, 50), true);
+    _showAuthError('authSigninError', error.message);
   } else {
     const authOverlay = document.getElementById('authOverlay');
-    if(authOverlay) authOverlay.style.display = 'none';
+    if (authOverlay) authOverlay.style.display = 'none';
     showToast('Securely Logged In ✓');
-    await pullEngineDataFromStorage(); 
+    await pullEngineDataFromStorage();
     window.location.reload();
   }
 }
-window.loginToSupabase = loginToSupabase; 
+window.loginToSupabase = loginToSupabase;
+
+export async function signUpToSupabase() {
+  const email = document.getElementById('signupEmail')?.value?.trim();
+  const pass = document.getElementById('signupPassword')?.value;
+
+  if (!supabaseClient) {
+    showToast("Offline mode — cannot create account.", true);
+    return;
+  }
+  if (!email || !pass) {
+    _showAuthError('authSignupError', 'Please enter your email and a password.');
+    return;
+  }
+  if (pass.length < 8) {
+    _showAuthError('authSignupError', 'Password must be at least 8 characters.');
+    return;
+  }
+
+  _setAuthLoading('authSignupBtn', null, true);
+  _showAuthError('authSignupError', '');
+  const successEl = document.getElementById('authSignupSuccess');
+  if (successEl) successEl.style.display = 'none';
+
+  const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+
+  _setAuthLoading('authSignupBtn', null, false);
+
+  if (error) {
+    _showAuthError('authSignupError', error.message);
+  } else if (data?.session) {
+    // Auto-confirmed (email confirmation disabled in Supabase)
+    const authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'none';
+    showToast('Account created! Welcome ✓');
+    window.location.reload();
+  } else {
+    // Email confirmation required
+    if (successEl) successEl.style.display = '';
+    const btn = document.getElementById('authSignupBtn');
+    if (btn) btn.disabled = true;
+  }
+}
+window.signUpToSupabase = signUpToSupabase;
 
 export async function checkActiveSession() {
   if (!supabaseClient) return; 
@@ -210,6 +291,27 @@ export function verifyWeekStorageSchema(wk) {
       }
     });
   }
+}
+
+// Merge a new program's exercise slots into an existing week without touching
+// any already-logged sets. Called after a program switch so the cockpit shows
+// the new exercises while preserving all historical log data.
+export function mergeWeekSchema(wk) {
+  verifyWeekStorageSchema(wk); // creates the week object if it doesn't exist yet
+  const activeProgram = getProgramById(appState.activeProgramId);
+  if (!activeProgram?.days) return;
+  const weekModifier = getWeekModifier(activeProgram, wk);
+  DEFAULT_DAYS.forEach(d => {
+    const dayBlueprint = activeProgram.days[d];
+    if (!dayBlueprint?.lifts?.length) return;
+    if (!appState.weeks[wk].lifts[d]) appState.weeks[wk].lifts[d] = {};
+    dayBlueprint.lifts.forEach(liftName => {
+      if (!appState.weeks[wk].lifts[d][liftName]) {
+        appState.weeks[wk].lifts[d][liftName] =
+          prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
+      }
+    });
+  });
 }
 
 // ==========================================
