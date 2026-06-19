@@ -43,6 +43,16 @@ const QUERY_ALIASES = {
   'recomp':         ['body_composition', 'recomposition'],
   'strength':       ['barbell', 'powerlifting', 'compound'],
   'hypertrophy':    ['muscle', 'size', 'volume', 'bodybuilding'],
+  'kettlebell':     ['kb', 'swing', 'hardstyle', 'minimalist'],
+  'home':           ['bodyweight', 'no-equipment', 'calisthenics', 'home-training'],
+  'bodyweight':     ['home', 'calisthenics', 'push-ups', 'pull-ups'],
+  '10k':            ['10km', 'ten-k', 'running', 'endurance'],
+  'juggernaut':     ['wave-loading', 'periodization', 'intermediate'],
+  'starting strength': ['rippetoe', 'linear-progression', 'beginner-barbell'],
+  'gvt':            ['german-volume', '10x10', 'poliquin'],
+  'concurrent':     ['hybrid', 'strength', 'running'],
+  'sub 20':         ['sub-20', '5k', 'speed', 'intervals'],
+  'lean bulk':      ['muscle-gain', 'lean-bulk', 'hypertrophy', 'bulk'],
 };
 
 // Tokenise a string into lowercase words
@@ -136,11 +146,13 @@ export const POPULAR_SEARCHES = [
   { query: 'hybrid',          label: 'Hybrid Training' },
   { query: 'hyrox',           label: 'Hyrox Prep' },
   { query: 'strength',        label: 'Strength Programs' },
-  { query: 'half marathon',   label: 'Half Marathon' },
-  { query: 'fat loss',        label: 'Fat Loss' },
   { query: 'beginner',        label: 'Beginner Programs' },
   { query: 'muscle',          label: 'Build Muscle' },
-  { query: 'ppl',             label: 'Push Pull Legs' },
   { query: 'running',         label: 'Running Plans' },
+  { query: 'fat loss',        label: 'Fat Loss' },
+  { query: 'kettlebell',      label: 'Kettlebell' },
+  { query: 'half marathon',   label: 'Half Marathon' },
   { query: '5/3/1',           label: '5/3/1 Programs' },
+  { query: 'home',            label: 'Home Training' },
+  { query: 'sub 20',          label: 'Sub-20 5K' },
 ];

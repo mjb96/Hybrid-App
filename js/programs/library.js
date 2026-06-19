@@ -201,7 +201,7 @@ function renderHeroBanner(programs) {
   `).join('');
 
   const dots = programs.map((_, i) => `
-    <button class="hero-dot-btn ${i === 0 ? 'active' : ''}" data-slide="${i}"></button>
+    <button class="hero-dot-btn ${i === 0 ? 'active' : ''}" data-action="hero-dot" data-slide="${i}"></button>
   `).join('');
 
   return `
@@ -408,6 +408,20 @@ function setupLibraryEvents() {
   }
 }
 
+function jumpHeroSlide(index) {
+  const slides = document.querySelectorAll('.hero-slide');
+  const dots = document.querySelectorAll('.hero-dot-btn');
+  if (index < 0 || index >= slides.length) return;
+  slides[_heroIndex].classList.remove('active');
+  dots[_heroIndex]?.classList.remove('active');
+  _heroIndex = index;
+  slides[_heroIndex].classList.add('active');
+  dots[_heroIndex]?.classList.add('active');
+  // Reset the auto-advance timer
+  clearInterval(_heroInterval);
+  _heroInterval = setInterval(advanceHero, 4000);
+}
+
 // ── Event delegation entry point (called from app.js) ─────────────────────────
 
 export function handleLibraryAction(action, el, event) {
@@ -420,6 +434,11 @@ export function handleLibraryAction(action, el, event) {
     case 'prog-filter': {
       const filter = el.getAttribute('data-filter');
       setActiveFilter(filter);
+      break;
+    }
+    case 'hero-dot': {
+      const slide = parseInt(el.getAttribute('data-slide'), 10);
+      if (!isNaN(slide)) jumpHeroSlide(slide);
       break;
     }
     case 'prog-quick-search': {

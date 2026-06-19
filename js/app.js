@@ -597,7 +597,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
 
   // New Program Library actions
-  else if (['open-program-detail', 'prog-filter', 'prog-quick-search'].includes(action)) {
+  else if (['open-program-detail', 'prog-filter', 'prog-quick-search', 'hero-dot'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
   else if (['close-program-detail', 'make-active-from-detail', 'view-active-program'].includes(action)) {

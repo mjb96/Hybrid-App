@@ -73,7 +73,7 @@ export const COLLECTION_DEFINITIONS = [
     label: "Hyrox Collection",
     subtitle: "Race day ready",
     icon: '🏟️',
-    filter: p => p.category === 'hyrox',
+    filter: p => p.category === 'hyrox' || p.tags?.includes('hyrox'),
     sort: (a, b) => b.popularity - a.popularity,
     limit: 6,
   },
@@ -127,9 +127,9 @@ export const COLLECTION_DEFINITIONS = [
     label: "Endurance",
     subtitle: "Build your aerobic engine",
     icon: '🫀',
-    filter: p => p.category === 'endurance' || p.category === 'running',
+    filter: p => p.category === 'endurance' || p.category === 'running' || p.tags?.includes('aerobic') || p.goals?.includes('aerobic-base'),
     sort: (a, b) => b.popularity - a.popularity,
-    limit: 6,
+    limit: 8,
   },
   {
     id: 'general-fitness-collection',
@@ -143,11 +143,11 @@ export const COLLECTION_DEFINITIONS = [
   {
     id: 'community-favourites',
     label: "Community Favourites",
-    subtitle: "Battle-tested by the community",
+    subtitle: "Battle-tested by thousands of athletes",
     icon: '👥',
-    filter: p => p.author.type === 'community',
-    sort: (a, b) => b.enrolledCount - a.enrolledCount,
-    limit: 6,
+    filter: p => p.ratingCount >= 600 && p.rating >= 4.4,
+    sort: (a, b) => b.ratingCount - a.ratingCount,
+    limit: 8,
   },
 ];
 
