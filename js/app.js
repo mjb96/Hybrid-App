@@ -43,6 +43,7 @@ import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './t
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
 import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun, handleRunLoggerRpeClick } from './run-logger.js';
+import { initOnboarding, shouldShowOnboarding, startOnboarding, handleOnboardingAction } from './onboarding.js';
 import {
   initSettings, openSettings, closeSettings,
   saveName, saveBodyWeight, setWeightUnit, setRestDefault,
@@ -586,6 +587,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
 
+  // Onboarding
+  else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
+    handleOnboardingAction(action, target);
+  }
+
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();
   else if (action === 'close-run-logger') closeRunLogger();
@@ -662,6 +668,7 @@ initDragDrop(getState, getSelectedDay, saveState);
 initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
 initSettings(getState);
 initRunLogger(getState);
+initOnboarding(getState);
 
 // === DEVICE IMPORT WIRING ===
 
@@ -767,6 +774,7 @@ async function bootstrapApp() {
     window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
+    if (shouldShowOnboarding()) setTimeout(() => startOnboarding(), 300);
 
   } catch (fatalLifecycleError) {
     console.error("Critical layout generation block runtime defense:", fatalLifecycleError);

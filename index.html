@@ -837,6 +837,88 @@
     </div>
   </div>
 
+  <!-- Onboarding -->
+  <div class="ob-overlay" id="onboardingOverlay" aria-modal="true" role="dialog" aria-label="Setup">
+
+    <!-- Step 1: Name -->
+    <div class="ob-step ob-step-active" id="ob-step-1">
+      <div class="ob-card">
+        <div class="ob-emoji">⚡</div>
+        <h1 class="ob-heading">Welcome to<br>Hybrid Engine</h1>
+        <p class="ob-sub">Build strength. Run faster. Let's set you up.</p>
+        <div class="ob-field">
+          <label class="ob-label" for="obName">What's your name?</label>
+          <input type="text" id="obName" class="ob-input" placeholder="Your name" autocomplete="given-name">
+        </div>
+        <button class="ob-cta" data-action="ob-next" data-to="2">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Goal -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-card">
+        <h1 class="ob-heading">What's your<br>main goal?</h1>
+        <p class="ob-sub">We'll pick the right program for you.</p>
+        <div class="ob-goal-grid">
+          <button class="ob-goal-btn" data-action="ob-goal" data-goal="strength">
+            <span class="ob-goal-icon">🏋️</span>
+            <span class="ob-goal-name">Strength First</span>
+            <span class="ob-goal-desc">Build muscle &amp; strength, light cardio</span>
+          </button>
+          <button class="ob-goal-btn active" data-action="ob-goal" data-goal="hybrid">
+            <span class="ob-goal-icon">⚡</span>
+            <span class="ob-goal-name">True Hybrid</span>
+            <span class="ob-goal-desc">Balance lifting and running</span>
+          </button>
+          <button class="ob-goal-btn" data-action="ob-goal" data-goal="endurance">
+            <span class="ob-goal-icon">🏃</span>
+            <span class="ob-goal-name">Run-Focused</span>
+            <span class="ob-goal-desc">Improve race performance, maintain strength</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Program -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-card">
+        <h1 class="ob-heading">Pick your program</h1>
+        <p class="ob-sub">You can switch anytime in the Program tab.</p>
+        <div class="ob-prog-list" id="obProgramList"></div>
+        <button class="ob-back-link" data-action="ob-back" data-to="2">← Back</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Quick Setup -->
+    <div class="ob-step" id="ob-step-4">
+      <div class="ob-card">
+        <div class="ob-emoji">🎯</div>
+        <h1 class="ob-heading">Quick Setup</h1>
+        <p class="ob-sub">Optional — change these anytime in Settings.</p>
+        <div class="ob-field">
+          <label class="ob-label">Body weight</label>
+          <div class="ob-row">
+            <input type="number" id="obBodyWeight" class="ob-input ob-input-sm" placeholder="75" min="1" step="0.5">
+            <div class="ob-toggle-group">
+              <button class="ob-toggle-btn active" data-action="ob-unit" data-unit="kg">kg</button>
+              <button class="ob-toggle-btn" data-action="ob-unit" data-unit="lb">lb</button>
+            </div>
+          </div>
+        </div>
+        <div class="ob-field">
+          <label class="ob-label">Distance unit</label>
+          <div class="ob-toggle-group">
+            <button class="ob-toggle-btn active" data-action="ob-dist-unit" data-unit="km">km</button>
+            <button class="ob-toggle-btn" data-action="ob-dist-unit" data-unit="mi">miles</button>
+          </div>
+        </div>
+        <button class="ob-cta" data-action="ob-finish">Let's go 🚀</button>
+        <button class="ob-skip" data-action="ob-finish">Skip for now</button>
+      </div>
+    </div>
+
+  </div>
+
   <!-- Settings Panel -->
   <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
     <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
