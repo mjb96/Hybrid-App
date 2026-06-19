@@ -163,12 +163,56 @@
 </head>
 <body>
 
-  <div id="authOverlay" class="modal-overlay" style="display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-dark); z-index: 9999;">
-    <h2 class="text-2xl font-heavy text-main mb-4">Hybrid Engine Login</h2>
-    <input type="email" id="loginEmail" placeholder="Email" class="mb-3 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
-    <input type="password" id="loginPassword" placeholder="Password" class="mb-5 p-3 w-4/5 max-w-xs" style="color: black; border-radius: 8px;">
-    <button class="btn-action-block btn-blue w-4/5 max-w-xs" data-action="login-supabase">Sign In & Sync</button>
-    <button id="offlineEscapeBtn" class="btn-action-block btn-ghost mt-3 w-4/5 max-w-xs" data-action="close-auth" onclick="document.getElementById('authOverlay').style.display='none'">Continue Offline</button>
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="auth-brand-icon">⚡</div>
+        <div class="auth-brand-name">Hybrid Engine</div>
+        <div class="auth-brand-sub">Train smarter. Track everything.</div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab auth-tab--active" data-auth-tab="signin">Sign In</button>
+        <button class="auth-tab" data-auth-tab="signup">Create Account</button>
+      </div>
+
+      <div class="auth-panel" id="authPanelSignin">
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input type="email" id="loginEmail" class="auth-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input type="password" id="loginPassword" class="auth-input" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="auth-error" id="authSigninError" style="display:none"></div>
+        <button class="auth-submit" data-action="login-supabase" id="authSigninBtn">
+          <span class="auth-submit-text">Sign In &amp; Sync</span>
+          <span class="auth-submit-spinner" style="display:none">⟳</span>
+        </button>
+      </div>
+
+      <div class="auth-panel" id="authPanelSignup" style="display:none">
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input type="email" id="signupEmail" class="auth-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input type="password" id="signupPassword" class="auth-input" placeholder="Min. 8 characters" autocomplete="new-password">
+        </div>
+        <div class="auth-error" id="authSignupError" style="display:none"></div>
+        <div class="auth-success" id="authSignupSuccess" style="display:none">
+          Check your inbox to confirm your email, then sign in.
+        </div>
+        <button class="auth-submit" data-action="signup-supabase" id="authSignupBtn">
+          <span class="auth-submit-text">Create Account</span>
+          <span class="auth-submit-spinner" style="display:none">⟳</span>
+        </button>
+      </div>
+
+      <button class="auth-offline-btn" data-action="close-auth">Continue Offline</button>
+    </div>
   </div>
   
   <div class="toast-system" id="sysToast" role="alert" aria-live="assertive">Session Saved ✓</div>
@@ -291,6 +335,7 @@
       <article class="card-dark workout-run-card" id="cockpitRunPanel">
         <div class="flex-between mb-3">
           <h2 class="workout-run-title m-0" id="cockpitRunHeader">🏃 Aerobic Session</h2>
+          <span id="runTypeBadge" class="run-type-badge" style="display:none"></span>
         </div>
 
         <div id="runMapContainer" style="height: 180px; width: 100%; border-radius: 8px; display: none; margin-bottom: 12px; z-index: 1;"></div>

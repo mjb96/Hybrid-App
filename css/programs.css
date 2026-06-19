@@ -1247,6 +1247,11 @@
   border: 1px solid rgba(255,255,255,0.06);
 }
 
+.wpm-strength-grid--compact .wpm-grid-header,
+.wpm-strength-grid--compact .wpm-grid-row {
+  grid-template-columns: 1fr 50px 64px;
+}
+
 .wpm-grid-header {
   display: grid;
   grid-template-columns: 1fr 44px 56px 44px 72px;

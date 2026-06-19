@@ -22,7 +22,8 @@ import {
   setImportSuccessCallback,
   showToast,
   checkActiveSession,
-  loginToSupabase
+  loginToSupabase,
+  signUpToSupabase
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
@@ -719,7 +720,11 @@ document.addEventListener('click', (e) => {
   
   // Auth
   else if (action === 'login-supabase') loginToSupabase();
-  else if (action === 'close-auth') document.getElementById('authOverlay').style.display = 'none';
+  else if (action === 'signup-supabase') signUpToSupabase();
+  else if (action === 'close-auth') {
+    const overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
   
   // Summary Modals
   else if (action === 'open-today-summary') openTodaySummaryModal();
@@ -731,6 +736,18 @@ document.addEventListener('click', (e) => {
   
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
+});
+
+// Auth tab switching
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-auth-tab]');
+  if (!tab) return;
+  const which = tab.getAttribute('data-auth-tab');
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('auth-tab--active', t.getAttribute('data-auth-tab') === which));
+  const signinPanel = document.getElementById('authPanelSignin');
+  const signupPanel = document.getElementById('authPanelSignup');
+  if (signinPanel) signinPanel.style.display = which === 'signin' ? '' : 'none';
+  if (signupPanel) signupPanel.style.display = which === 'signup' ? '' : 'none';
 });
 
 document.addEventListener('change', (e) => {

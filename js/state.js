@@ -150,28 +150,93 @@ export function deleteCustomProgram(id) {
 // ==========================================
 // AUTHENTICATION
 // ==========================================
+function _setAuthLoading(btnId, spinnerId, isLoading) {
+  const btn = document.getElementById(btnId);
+  const spinner = document.getElementById(spinnerId);
+  if (!btn) return;
+  btn.disabled = isLoading;
+  const textEl = btn.querySelector('.auth-submit-text');
+  if (textEl) textEl.style.opacity = isLoading ? '0.5' : '1';
+  if (spinner) spinner.style.display = isLoading ? '' : 'none';
+}
+
+function _showAuthError(errorElId, msg) {
+  const el = document.getElementById(errorElId);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? '' : 'none';
+}
+
 export async function loginToSupabase() {
-  const email = document.getElementById('loginEmail').value;
-  const pass = document.getElementById('loginPassword').value;
-  
+  const email = document.getElementById('loginEmail')?.value?.trim();
+  const pass = document.getElementById('loginPassword')?.value;
+
   if (!supabaseClient) {
-      showToast("Offline mode — cannot sign in.", true);
-      return;
+    showToast("Offline mode — cannot sign in.", true);
+    return;
   }
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
+  _setAuthLoading('authSigninBtn', null, true);
+  _showAuthError('authSigninError', '');
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+
+  _setAuthLoading('authSigninBtn', null, false);
 
   if (error) {
-    showToast("Login failed: " + error.message.substring(0, 50), true);
+    _showAuthError('authSigninError', error.message);
   } else {
     const authOverlay = document.getElementById('authOverlay');
-    if(authOverlay) authOverlay.style.display = 'none';
+    if (authOverlay) authOverlay.style.display = 'none';
     showToast('Securely Logged In ✓');
-    await pullEngineDataFromStorage(); 
+    await pullEngineDataFromStorage();
     window.location.reload();
   }
 }
-window.loginToSupabase = loginToSupabase; 
+window.loginToSupabase = loginToSupabase;
+
+export async function signUpToSupabase() {
+  const email = document.getElementById('signupEmail')?.value?.trim();
+  const pass = document.getElementById('signupPassword')?.value;
+
+  if (!supabaseClient) {
+    showToast("Offline mode — cannot create account.", true);
+    return;
+  }
+  if (!email || !pass) {
+    _showAuthError('authSignupError', 'Please enter your email and a password.');
+    return;
+  }
+  if (pass.length < 8) {
+    _showAuthError('authSignupError', 'Password must be at least 8 characters.');
+    return;
+  }
+
+  _setAuthLoading('authSignupBtn', null, true);
+  _showAuthError('authSignupError', '');
+  const successEl = document.getElementById('authSignupSuccess');
+  if (successEl) successEl.style.display = 'none';
+
+  const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+
+  _setAuthLoading('authSignupBtn', null, false);
+
+  if (error) {
+    _showAuthError('authSignupError', error.message);
+  } else if (data?.session) {
+    // Auto-confirmed (email confirmation disabled in Supabase)
+    const authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'none';
+    showToast('Account created! Welcome ✓');
+    window.location.reload();
+  } else {
+    // Email confirmation required
+    if (successEl) successEl.style.display = '';
+    const btn = document.getElementById('authSignupBtn');
+    if (btn) btn.disabled = true;
+  }
+}
+window.signUpToSupabase = signUpToSupabase;
 
 export async function checkActiveSession() {
   if (!supabaseClient) return; 

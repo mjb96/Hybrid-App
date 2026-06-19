@@ -321,6 +321,18 @@ export function openDayPreviewModal(dayKey, programId) {
   sheet.classList.add('active');
 }
 
+function _parseDescExercises(desc) {
+  if (!desc || desc === 'Rest') return [];
+  // Match "Exercise Name (4×8–10)" — handles × or x, en-dash or hyphen in reps
+  const rx = /([A-Za-z][^(,\n]+?)\s*\((\d+)\s*[×xX]\s*([^)]+)\)/g;
+  const results = [];
+  let m;
+  while ((m = rx.exec(desc)) !== null) {
+    results.push({ name: m[1].trim(), sets: m[2], reps: m[3].trim().replace(/\.$/, '') });
+  }
+  return results;
+}
+
 function renderFallbackPreview(day) {
   let html = '';
   const hasRun = day.runs && day.runs !== 'Rest';
@@ -334,16 +346,35 @@ function renderFallbackPreview(day) {
   }
 
   if (hasLifts) {
+    const parsed = _parseDescExercises(day.desc);
     html += `
       <div class="wpm-type-label wpm-type-label--strength" style="${hasRun ? 'margin-top:16px;' : ''}">🏋️ Strength Session</div>
-      <div class="wpm-exercise-list">
-        ${day.lifts.map(lift => `<div class="wpm-exercise-item">${lift}</div>`).join('')}
-      </div>
     `;
-  }
-
-  if (day.desc && day.desc !== 'Rest') {
-    html += `<div class="wpm-fallback-desc">${day.desc}</div>`;
+    if (parsed.length > 0) {
+      html += `
+        <div class="wpm-strength-grid wpm-strength-grid--compact">
+          <div class="wpm-grid-header">
+            <span>Exercise</span><span>Sets</span><span>Reps</span>
+          </div>
+          ${parsed.map(ex => `
+            <div class="wpm-grid-row">
+              <span class="wpm-ex-name">${ex.name}</span>
+              <span class="wpm-ex-val">${ex.sets}</span>
+              <span class="wpm-ex-val">${ex.reps}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="wpm-exercise-list">
+          ${day.lifts.map(lift => `<div class="wpm-exercise-item">${lift}</div>`).join('')}
+        </div>
+      `;
+      if (day.desc && day.desc !== 'Rest') {
+        html += `<div class="wpm-fallback-desc">${day.desc}</div>`;
+      }
+    }
   }
 
   return html || '<p class="wpm-empty">No preview available for this day.</p>';
