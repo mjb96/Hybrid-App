@@ -45,7 +45,7 @@ import { initGarminRunImport, initGarminGymImport } from './garmin.js';
 import {
   initSettings, openSettings, closeSettings,
   saveName, saveBodyWeight, setWeightUnit, setRestDefault,
-  setProgressionIncrement, setDistanceUnit, stepCurrentWeek, setAutoAdvanceWeek,
+  setProgressionIncrement, setDistanceUnit, setTheme, stepCurrentWeek, setAutoAdvanceWeek,
   saveThresholdPace as saveSettingsThresholdPace,
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
@@ -575,6 +575,7 @@ document.addEventListener('click', (e) => {
   else if (e.target.id === 'settingsOverlay') closeSettings();
   else if (action === 'set-unit') setWeightUnit(target.getAttribute('data-unit'));
   else if (action === 'set-dist-unit') setDistanceUnit(target.getAttribute('data-unit'));
+  else if (action === 'set-theme')    setTheme(target.getAttribute('data-theme-val'));
   else if (action === 'set-rest-default') setRestDefault(parseInt(target.getAttribute('data-secs'), 10));
   else if (action === 'set-progression') setProgressionIncrement(parseFloat(target.getAttribute('data-kg')));
   else if (action === 'week-step') stepCurrentWeek(parseInt(target.getAttribute('data-delta'), 10));

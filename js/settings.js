@@ -53,6 +53,7 @@ function _syncSettingsUI() {
   _setToggleActive('[data-action="set-dist-unit"]', `[data-unit="${s.distanceUnit || 'km'}"]`);
   _setToggleActive('[data-action="set-rest-default"]', `[data-secs="${s.restTimerDefault || 90}"]`);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${s.progressionIncrement || 2.5}"]`);
+  _setToggleActive('[data-action="set-theme"]', `[data-theme-val="${s.theme || 'dark'}"]`);
 
   const weekEl = document.getElementById('settingsCurrentWeek');
   if (weekEl) weekEl.textContent = _getState().currentWeek || '1';
@@ -144,6 +145,15 @@ export function setProgressionIncrement(kg) {
   saveStateToLocalStorage(true);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${kg}"]`);
   showToast(`Progression step: ${kg}kg`);
+}
+
+export function setTheme(mode) {
+  const appState = _ensureSettings();
+  appState.settings.theme = mode;
+  saveStateToLocalStorage(true);
+  document.documentElement.dataset.theme = mode;
+  _setToggleActive('[data-action="set-theme"]', `[data-theme-val="${mode}"]`);
+  showToast(`${mode === 'light' ? 'Light' : 'Dark'} mode`);
 }
 
 export function setDistanceUnit(unit) {
@@ -360,6 +370,7 @@ window.onHealthConnectData = function(payload) {
 export function applySettingsOnBoot(appState) {
   const s = appState.settings || {};
   if (s.restTimerDefault) setRestDuration(s.restTimerDefault);
+  document.documentElement.dataset.theme = s.theme || 'dark';
   _refreshAvatar();
   // Expose getters for native bridge + week stepper
   window._hybridGetState = _getState;
