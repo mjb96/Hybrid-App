@@ -730,7 +730,7 @@
         <div id="programDetailContent"></div>
       </div>
 
-      <!-- ═══════ ACTIVE PLAN VIEW (program overview, week matrix, daily tiers) ═══════ -->
+      <!-- ═══════ ACTIVE PLAN VIEW ═══════ -->
       <div id="progActivePlanView" style="display:none;">
 
         <div class="detail-back-bar mb-4">
@@ -740,24 +740,36 @@
           <span class="active-plan-label">Active Program</span>
         </div>
 
-        <article class="card-dark p-4 mb-4">
-          <label for="globalWeekSelect" class="text-xs-bold block mb-1 text-muted">MACROCYCLE WEEK</label>
-          <select class="native-select select-dark w-full" id="globalWeekSelect" data-action="macro-week-switch">
-            <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
-            <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
-            <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
-            <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
-          </select>
-        </article>
+        <!-- Program hero card (populated by JS) -->
+        <div id="activePlanHero" class="aplan-hero mb-3"></div>
+
+        <!-- Week stepper -->
+        <div class="aplan-week-nav mb-4">
+          <button class="aplan-week-btn" data-action="aplan-week-step" data-delta="-1" aria-label="Previous week">‹</button>
+          <div class="aplan-week-center">
+            <div class="aplan-week-label">MACROCYCLE WEEK</div>
+            <div id="aplanWeekNum" class="aplan-week-num">1</div>
+            <div id="aplanPhaseName" class="aplan-phase-name"></div>
+          </div>
+          <button class="aplan-week-btn" data-action="aplan-week-step" data-delta="1" aria-label="Next week">›</button>
+        </div>
 
         <nav class="segmented-control mb-4" aria-label="Program Views">
-          <button id="btnBrowserTabOverview" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="overview" aria-current="page">OVERVIEW</button>
-          <button id="btnBrowserTabWeeks" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="weeks">WAVE MATRIX</button>
-          <button id="btnBrowserTabTiers" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="tiers">DAILY TIERS</button>
+          <button id="btnBrowserTabOverview" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="overview" aria-current="page">THIS WEEK</button>
+          <button id="btnBrowserTabWeeks" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-browser-tab" data-tab="weeks">SCHEDULE</button>
         </nav>
 
+        <!-- Tab content -->
         <div id="programBrowserDetails"></div>
-        <div id="programBrowserDaysDeck" class="flex-col gap-3 mb-6"></div>
+        <div id="programBrowserDaysDeck" style="display:none;"></div>
+
+        <!-- Hidden select kept for handleMacroWeekSwitch compatibility -->
+        <select id="globalWeekSelect" style="display:none;" data-action="macro-week-switch">
+          <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
+          <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
+          <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
+          <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
+        </select>
 
         <h2 class="section-header">Data Backups</h2>
         <button class="btn-action-block btn-blue mb-2 text-left text-lg" data-action="export-text">📝 Copy Weekly Text Summary</button>

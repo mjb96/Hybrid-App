@@ -3,10 +3,11 @@
 // ==========================================
 import { CONFIG, PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
 import { devWarn } from './debug.js';
-import { buildProgramOverviewHTML, buildWeekMatrixHTML, buildDaysSplitHTML, buildLibraryCardHTML } from './templates.js';
+import { buildLibraryCardHTML } from './templates.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
+import { getCatalogEntry } from './programs/catalog.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -225,10 +226,7 @@ function applyProgramSwitch(newProgramId) {
 
   saveStateToLocalStorage(true);
   hydrateCurrentView();
-  
-  if (document.getElementById('progModeLibraryContainer')?.style.display === 'block') {
-    renderProgramLibrary(); 
-  }
+  showActivePlanView(true);
   showToast('Program Template Switched ✓');
 }
 
@@ -272,31 +270,148 @@ function safeRenderExecution(renderFn, viewLabel) {
 
 export function switchBrowserSectionTab(tabName) {
   const overviewContainer = document.getElementById('programBrowserDetails');
-  const daysContainer = document.getElementById('programBrowserDaysDeck');
   const tabOverview = document.getElementById('btnBrowserTabOverview');
   const tabWeeks = document.getElementById('btnBrowserTabWeeks');
-  const tabTiers = document.getElementById('btnBrowserTabTiers');
 
   if (tabOverview) tabOverview.classList.remove('active');
   if (tabWeeks) tabWeeks.classList.remove('active');
-  if (tabTiers) tabTiers.classList.remove('active');
+
+  _renderActivePlanHero();
+  _renderActivePlanWeekNav();
 
   const prog = getProgramById(appState.activeProgramId);
-  const currentWk = appState.currentWeek || "1";
+  const catalog = getCatalogEntry(appState.activeProgramId);
 
-  if (tabName === 'overview' && overviewContainer && daysContainer) {
-    if (tabOverview) tabOverview.classList.add('active');
-    overviewContainer.innerHTML = buildProgramOverviewHTML(prog, currentWk);
-    daysContainer.innerHTML = '';
-  } else if (tabName === 'weeks' && overviewContainer && daysContainer) {
+  if (!overviewContainer) return;
+
+  if (tabName === 'weeks') {
     if (tabWeeks) tabWeeks.classList.add('active');
-    overviewContainer.innerHTML = buildWeekMatrixHTML(prog, currentWk);
-    daysContainer.innerHTML = '';
-  } else if (tabName === 'tiers' && overviewContainer && daysContainer) {
-    if (tabTiers) tabTiers.classList.add('active');
-    overviewContainer.innerHTML = '';
-    daysContainer.innerHTML = buildDaysSplitHTML(prog);
+    overviewContainer.innerHTML = _renderScheduleTab(catalog, prog);
+  } else {
+    if (tabOverview) tabOverview.classList.add('active');
+    overviewContainer.innerHTML = _renderThisWeekTab(catalog, prog);
   }
+}
+
+function _renderActivePlanHero() {
+  const heroEl = document.getElementById('activePlanHero');
+  if (!heroEl) return;
+
+  const catalog = getCatalogEntry(appState.activeProgramId);
+  const prog = getProgramById(appState.activeProgramId);
+  const name = catalog?.name || prog?.name || 'Active Program';
+  const icon = catalog?.icon || '📋';
+  const g = catalog?.coverGradient || ['#1a0e2e', '#0d1b2a'];
+  const accentColor = catalog?.accentColor || '#8b5cf6';
+  const currentWk = parseInt(appState.currentWeek || '1', 10);
+  const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
+  const progress = Math.min(100, Math.round(((currentWk - 1) / totalWeeks) * 100));
+  const phaseName = WEEK_PHASE_NAMES[appState.currentWeek] || '';
+
+  heroEl.innerHTML = `
+    <div class="aplan-hero-inner" style="background: linear-gradient(135deg, ${g[0]}, ${g[1]})">
+      <div class="aplan-hero-icon">${icon}</div>
+      <div class="aplan-hero-content">
+        <div class="aplan-hero-eyebrow">ACTIVE PROGRAM</div>
+        <div class="aplan-hero-name">${name}</div>
+        ${phaseName ? `<div class="aplan-hero-phase">${phaseName}</div>` : ''}
+        <div class="aplan-hero-progress-row">
+          <div class="aplan-hero-bar">
+            <div class="aplan-hero-fill" style="width: ${progress}%; background: ${accentColor}"></div>
+          </div>
+          <span class="aplan-hero-pct">${progress}%</span>
+        </div>
+        <div class="aplan-hero-weeks">${currentWk} of ${totalWeeks} weeks</div>
+      </div>
+    </div>
+  `;
+}
+
+function _renderActivePlanWeekNav() {
+  const numEl   = document.getElementById('aplanWeekNum');
+  const phaseEl = document.getElementById('aplanPhaseName');
+  if (numEl) numEl.textContent = appState.currentWeek || '1';
+  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[appState.currentWeek] || '';
+}
+
+function _renderThisWeekTab(catalog, prog) {
+  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const dayShort = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  const jsDayToKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const todayKey = jsDayToKey[new Date().getDay()];
+  const catalogDays = catalog?.days || {};
+  const legacyDays = prog?.days || {};
+
+  const cards = dayOrder.map(dayKey => {
+    const cd = catalogDays[dayKey];
+    const ld = legacyDays[dayKey];
+    const isToday = dayKey === todayKey;
+    const title = cd?.title || ld?.title || (dayKey === 'sun' ? 'Rest Day' : 'Training');
+    const badge = cd?.badge || '';
+    const color = cd?.color || 'var(--accent-blue)';
+    const hasPreview = !!cd?.workoutPreview;
+    const isRest = !cd?.lifts?.length && (!cd?.runs || cd?.runs === 'Rest')
+                && !ld?.lifts?.length && (!ld?.runs || ld?.runs === 'Rest');
+    return `
+      <div class="aplan-day-card ${isToday ? 'aplan-day-card--today' : ''} ${isRest ? 'aplan-day-card--rest' : ''}"
+           ${hasPreview ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${appState.activeProgramId}" role="button" tabindex="0"` : ''}>
+        <div class="aplan-day-label">${dayShort[dayKey]}</div>
+        <div class="aplan-day-body">
+          <div class="aplan-day-title">${title}</div>
+          ${badge ? `<div class="aplan-day-badge" style="color:${color};border-color:${color}40">${badge}</div>` : ''}
+        </div>
+        ${hasPreview ? '<span class="aplan-day-chevron">›</span>' : ''}
+        ${isToday ? '<div class="aplan-today-pip"></div>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  return `<div class="aplan-day-list">${cards}</div>`;
+}
+
+function _renderScheduleTab(catalog, prog) {
+  const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
+  const currentWkNum = parseInt(appState.currentWeek || '1', 10);
+
+  const cells = [];
+  for (let w = 1; w <= totalWeeks; w++) {
+    const isCurrent = w === currentWkNum;
+    const isPast = w < currentWkNum;
+    const phase = WEEK_PHASE_NAMES[String(w)] || '';
+    cells.push(`
+      <button class="aplan-sched-cell ${isCurrent ? 'aplan-sched-cell--current' : ''} ${isPast ? 'aplan-sched-cell--past' : ''}"
+              data-action="aplan-set-week" data-week="${w}" title="${phase}">
+        ${w}
+      </button>
+    `);
+  }
+
+  const phaseGroups = {};
+  for (let w = 1; w <= totalWeeks; w++) {
+    const p = WEEK_PHASE_NAMES[String(w)] || 'Training';
+    if (!phaseGroups[p]) phaseGroups[p] = [];
+    phaseGroups[p].push(w);
+  }
+
+  const legendItems = Object.entries(phaseGroups).map(([phase, wks]) => {
+    const isActive = wks.includes(currentWkNum);
+    return `
+      <div class="aplan-phase-item ${isActive ? 'aplan-phase-item--active' : ''}">
+        <span class="aplan-phase-wks">Wk ${wks[0]}${wks.length > 1 ? `–${wks[wks.length - 1]}` : ''}</span>
+        <span class="aplan-phase-label">${phase}</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="aplan-schedule">
+      <div class="aplan-sched-grid">${cells.join('')}</div>
+      <div class="aplan-phase-breakdown">
+        <div class="aplan-phase-breakdown-title">PHASE BREAKDOWN</div>
+        <div class="aplan-phase-list">${legendItems}</div>
+      </div>
+    </div>
+  `;
 }
 
 export function triggerEditActiveProgram(progId) {
@@ -607,6 +722,33 @@ document.addEventListener('click', (e) => {
     showActivePlanView(false);
     returnToLibrary();
   }
+  else if (action === 'aplan-week-step') {
+    const delta = parseInt(target.getAttribute('data-delta'), 10);
+    const cur = parseInt(appState.currentWeek || '1', 10);
+    const prog = getProgramById(appState.activeProgramId);
+    const maxWk = prog?.totalWeeks || 12;
+    const next = Math.min(Math.max(1, cur + delta), maxWk);
+    if (next !== cur) {
+      appState.currentWeek = String(next);
+      const wkSel = document.getElementById('globalWeekSelect');
+      if (wkSel) wkSel.value = appState.currentWeek;
+      saveStateToLocalStorage(true);
+      verifyWeekStorageSchema(appState.currentWeek);
+      const activeTabEl = document.getElementById('btnBrowserTabWeeks');
+      switchBrowserSectionTab(activeTabEl?.classList.contains('active') ? 'weeks' : 'overview');
+    }
+  }
+  else if (action === 'aplan-set-week') {
+    const wk = target.getAttribute('data-week');
+    if (wk && wk !== appState.currentWeek) {
+      appState.currentWeek = wk;
+      const wkSel = document.getElementById('globalWeekSelect');
+      if (wkSel) wkSel.value = wk;
+      saveStateToLocalStorage(true);
+      verifyWeekStorageSchema(appState.currentWeek);
+      switchBrowserSectionTab('overview');
+    }
+  }
   
   // Settings
   else if (action === 'open-settings') openSettings();
@@ -721,10 +863,9 @@ document.addEventListener('library:make-active', (e) => {
   const id = e.detail?.id;
   if (id) {
     triggerMakeActiveProgram(id);
-    // After switching, update library state and return to library
     updateLibraryState(appState);
-    returnToLibrary();
     renderLibrary();
+    showActivePlanView(true);
   }
 });
 
