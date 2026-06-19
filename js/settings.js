@@ -60,6 +60,7 @@ function _syncSettingsUI() {
   }
 
   _refreshAvatar();
+  _syncHealthConnectUI();
 }
 
 function _setToggleActive(groupSelector, activeSelector) {
@@ -194,10 +195,134 @@ export function confirmResetAllData() {
 }
 
 // ==========================================
+// HEALTH CONNECT
+// ==========================================
+function _syncHealthConnectUI() {
+  if (!_getState) return;
+  const hc = _getState().healthConnect || {};
+
+  const statusCard      = document.getElementById('hcStatusCard');
+  const indicator       = document.getElementById('hcStatusIndicator');
+  const statusLabel     = document.getElementById('hcStatusLabel');
+  const lastSync        = document.getElementById('hcLastSync');
+  const connectBtn      = document.getElementById('hcConnectBtn');
+  const syncNowBtn      = document.getElementById('hcSyncNowBtn');
+  const dataTypes       = document.getElementById('hcDataTypes');
+  const stepGoalInput   = document.getElementById('settingsStepGoal');
+  const noteEl          = document.getElementById('hcNote');
+
+  const connected = !!hc.connected;
+
+  if (indicator) {
+    indicator.className = 'hc-status-indicator ' + (connected ? 'hc-connected' : 'hc-disconnected');
+  }
+  if (statusLabel) statusLabel.textContent = connected ? 'Connected' : 'Not connected';
+  if (lastSync) {
+    lastSync.textContent = hc.lastSync
+      ? 'Last sync: ' + new Date(hc.lastSync).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : '';
+  }
+  if (connectBtn) connectBtn.textContent = connected ? 'Disconnect' : 'Connect';
+  if (syncNowBtn) syncNowBtn.style.display = connected ? 'block' : 'none';
+  if (dataTypes) dataTypes.style.opacity = connected ? '1' : '0.45';
+  if (stepGoalInput) stepGoalInput.value = hc.stepGoal || 10000;
+  if (noteEl) noteEl.style.display = connected ? 'none' : 'block';
+
+  // Sync field toggles
+  if (connected) {
+    ['hrv','restingHR','sleep','steps','vo2max'].forEach(field => {
+      const el = document.querySelector(`[data-hc-field="${field}"]`);
+      if (el) el.checked = hc.syncFields ? (hc.syncFields[field] !== false) : true;
+    });
+  }
+}
+
+export function hcToggleConnect() {
+  if (!_getState) return;
+  const appState = _getState();
+  const hc = appState.healthConnect;
+  if (hc.connected) {
+    hc.connected = false;
+    hc.lastSync  = null;
+    saveStateToLocalStorage(true);
+    _syncHealthConnectUI();
+    showToast('Health Connect disconnected');
+  } else {
+    // On a real Android app, this would call the native bridge.
+    // For now, simulate a successful connection with demo data.
+    _requestHealthConnectOrDemo(appState);
+  }
+}
+
+function _requestHealthConnectOrDemo(appState) {
+  // Try native Android bridge first
+  if (window.HybridAndroidBridge?.requestHealthConnect) {
+    window.HybridAndroidBridge.requestHealthConnect();
+    showToast('Opening Health Connect…');
+    return;
+  }
+  // No bridge — mark connected with placeholder data so tiles activate
+  const hc = appState.healthConnect;
+  hc.connected = true;
+  hc.lastSync  = Date.now();
+  if (!hc.syncFields) hc.syncFields = { hrv: true, restingHR: true, sleep: true, steps: true, vo2max: true };
+  saveStateToLocalStorage(true);
+  _syncHealthConnectUI();
+  showToast('Health Connect ready — sync via Android app');
+}
+
+export function hcSyncNow() {
+  if (window.HybridAndroidBridge?.syncHealthConnect) {
+    window.HybridAndroidBridge.syncHealthConnect();
+    showToast('Syncing…');
+  } else {
+    showToast('Sync requires the Android app');
+  }
+}
+
+export function saveStepGoal() {
+  const val = parseInt(document.getElementById('settingsStepGoal')?.value, 10);
+  if (isNaN(val) || val < 1000) return;
+  const appState = _getState();
+  appState.healthConnect.stepGoal = val;
+  saveStateToLocalStorage(true);
+  showToast(`Step goal: ${val.toLocaleString()}`);
+}
+
+export function hcToggleSyncField(field, enabled) {
+  const appState = _getState();
+  if (!appState.healthConnect.syncFields) appState.healthConnect.syncFields = {};
+  appState.healthConnect.syncFields[field] = enabled;
+  saveStateToLocalStorage(true);
+}
+
+// Called from Android native layer via window.onHealthConnectData(payload)
+window.onHealthConnectData = function(payload) {
+  try {
+    const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    const appState = window._hybridGetState?.();
+    if (!appState) return;
+    const hc = appState.healthConnect;
+    if (data.hrv)       hc.hrv       = data.hrv;
+    if (data.restingHR) hc.restingHR = data.restingHR;
+    if (data.sleep)     hc.sleep     = data.sleep;
+    if (data.steps)     hc.steps     = data.steps;
+    if (data.vo2max)    hc.vo2max    = data.vo2max;
+    hc.connected = true;
+    hc.lastSync  = Date.now();
+    saveStateToLocalStorage(true);
+    _syncHealthConnectUI();
+    document.dispatchEvent(new Event('app:storage-loaded'));
+  } catch(e) { console.warn('Health Connect data error', e); }
+};
+
+// ==========================================
 // BOOT: apply saved settings on load
 // ==========================================
 export function applySettingsOnBoot(appState) {
   const s = appState.settings || {};
   if (s.restTimerDefault) setRestDuration(s.restTimerDefault);
   _refreshAvatar();
+  // Expose state getter for native bridge callback
+  window._hybridGetState = _getState;
 }

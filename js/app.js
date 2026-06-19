@@ -47,7 +47,8 @@ import {
   saveName, saveBodyWeight, setWeightUnit, setRestDefault,
   setProgressionIncrement, saveThresholdPace as saveSettingsThresholdPace,
   exportData, triggerImport, handleImportFile, confirmResetAllData,
-  applySettingsOnBoot
+  applySettingsOnBoot,
+  hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
 } from './settings.js';
 
 document.addEventListener('app:storage-loaded', () => {
@@ -577,6 +578,8 @@ document.addEventListener('click', (e) => {
   else if (action === 'export-data') exportData();
   else if (action === 'import-data') triggerImport();
   else if (action === 'reset-all-data') confirmResetAllData();
+  else if (action === 'hc-toggle-connect') hcToggleConnect();
+  else if (action === 'hc-sync-now') hcSyncNow();
 
   // Export & Data
   else if (action === 'export-text') triggerTextSummaryExport();
@@ -611,6 +614,11 @@ document.addEventListener('change', (e) => {
     handleImportFile(target.files?.[0]);
     return;
   }
+  const hcField = target.getAttribute?.('data-hc-field');
+  if (hcField) {
+    hcToggleSyncField(hcField, target.checked);
+    return;
+  }
 
   // Data-action based handlers
   const actionTarget = target.closest('[data-action]');
@@ -626,6 +634,7 @@ document.addEventListener('blur', (e) => {
   if (id === 'settingsNameInput') saveName();
   else if (id === 'settingsBodyWeight') saveBodyWeight();
   else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
+  else if (id === 'settingsStepGoal') saveStepGoal();
 }, true);
 
 // ==========================================

@@ -838,6 +838,40 @@
           <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
         </div>
 
+        <!-- Health Connect -->
+        <div class="settings-section">
+          <div class="settings-section-label">Health Connect</div>
+
+          <div class="hc-status-card" id="hcStatusCard">
+            <div class="hc-status-indicator" id="hcStatusIndicator"></div>
+            <div class="hc-status-text">
+              <span class="hc-status-label" id="hcStatusLabel">Not connected</span>
+              <span class="hc-last-sync text-xs text-muted" id="hcLastSync"></span>
+            </div>
+            <button class="hc-connect-btn" id="hcConnectBtn" data-action="hc-toggle-connect">Connect</button>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-row-label">Daily Step Goal</label>
+            <div class="settings-input-unit-row">
+              <input type="number" class="settings-input settings-input-short" id="settingsStepGoal" placeholder="10000" min="1000" max="50000" step="500">
+              <span class="settings-unit-badge">steps</span>
+            </div>
+          </div>
+
+          <div class="hc-data-types" id="hcDataTypes">
+            <div class="settings-section-label" style="margin-top:10px;">Sync Data Types</div>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncHrv" data-hc-field="hrv" checked><span>Heart Rate Variability (HRV)</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncRhr" data-hc-field="restingHR" checked><span>Resting Heart Rate</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSleep" data-hc-field="sleep" checked><span>Sleep Duration</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSteps" data-hc-field="steps" checked><span>Daily Steps</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncVo2" data-hc-field="vo2max" checked><span>VO₂ Max</span></label>
+          </div>
+
+          <button class="settings-action-btn" id="hcSyncNowBtn" data-action="hc-sync-now" style="display:none;">Sync Now</button>
+          <p class="hc-note" id="hcNote">Requires Hybrid Engine Android app with Health Connect permission granted.</p>
+        </div>
+
         <!-- App -->
         <div class="settings-section">
           <div class="settings-section-label">App</div>
