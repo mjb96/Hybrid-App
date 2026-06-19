@@ -228,6 +228,27 @@ export function verifyWeekStorageSchema(wk) {
   }
 }
 
+// Merge a new program's exercise slots into an existing week without touching
+// any already-logged sets. Called after a program switch so the cockpit shows
+// the new exercises while preserving all historical log data.
+export function mergeWeekSchema(wk) {
+  verifyWeekStorageSchema(wk); // creates the week object if it doesn't exist yet
+  const activeProgram = getProgramById(appState.activeProgramId);
+  if (!activeProgram?.days) return;
+  const weekModifier = getWeekModifier(activeProgram, wk);
+  DEFAULT_DAYS.forEach(d => {
+    const dayBlueprint = activeProgram.days[d];
+    if (!dayBlueprint?.lifts?.length) return;
+    if (!appState.weeks[wk].lifts[d]) appState.weeks[wk].lifts[d] = {};
+    dayBlueprint.lifts.forEach(liftName => {
+      if (!appState.weeks[wk].lifts[d][liftName]) {
+        appState.weeks[wk].lifts[d][liftName] =
+          prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
+      }
+    });
+  });
+}
+
 // ==========================================
 // CLOUD PERSISTENCE
 // ==========================================

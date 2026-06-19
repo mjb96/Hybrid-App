@@ -14,6 +14,7 @@ import {
   getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
+  mergeWeekSchema,
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
   triggerTextSummaryExport,
@@ -154,47 +155,18 @@ export function switchProgramMode(mode) {
 
 export function triggerMakeActiveProgram(newProgramId) {
   if (newProgramId === appState.activeProgramId) return;
-
-  const hasLoggedData = appState.weeks && appState.weeks[appState.currentWeek] &&
-    Object.values(appState.weeks[appState.currentWeek].lifts || {}).some(day =>
-      Object.values(day).some(sets => sets.some(s => s.c))
-    );
-
-  if (hasLoggedData) {
-    const modal = document.getElementById('programSwitchModal');
-    const label = document.getElementById('programSwitchWeekLabel');
-    if (modal) modal.setAttribute('data-pending', newProgramId);
-    if (label) label.textContent = appState.currentWeek;
-    if (modal) modal.classList.add('active');
-  } else {
-    applyProgramSwitch(newProgramId);
-  }
-}
-
-export function confirmProgramSwitch() {
-  const modal = document.getElementById('programSwitchModal');
-  if (!modal) return;
-  const newProgramId = modal.getAttribute('data-pending');
-  modal.classList.remove('active');
   applyProgramSwitch(newProgramId);
 }
 
-export function cancelProgramSwitch() {
-  const modal = document.getElementById('programSwitchModal');
-  if (modal) modal.classList.remove('active');
-}
 
 function applyProgramSwitch(newProgramId) {
   appState.activeProgramId = newProgramId;
-  if (appState.weeks && appState.weeks[appState.currentWeek]) {
-    delete appState.weeks[appState.currentWeek];
-  }
   appState.weekStartedAt = new Date().toISOString();
-
+  mergeWeekSchema(appState.currentWeek);
   saveStateToLocalStorage(true);
   hydrateCurrentView();
   showActivePlanView(true);
-  showToast('Program Template Switched ✓');
+  showToast('Program switched ✓');
 }
 
 export function handleMacroWeekSwitch() {
@@ -670,8 +642,6 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-create-program') openCreateProgramModal();
   else if (action === 'close-create-program') closeCreateProgramModal();
   else if (action === 'execute-create-program') executeCreateProgram();
-  else if (action === 'cancel-program-switch') cancelProgramSwitch();
-  else if (action === 'confirm-program-switch') confirmProgramSwitch();
   else if (action === 'cancel-week-advance') cancelWeekAdvance();
   else if (action === 'confirm-week-advance') confirmWeekAdvance();
   else if (action === 'edit-program') triggerEditActiveProgram(progId);
