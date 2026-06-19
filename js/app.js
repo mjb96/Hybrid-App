@@ -36,7 +36,8 @@ import {
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
-  handleExerciseDropdownSelectionChange 
+  handleExerciseDropdownSelectionChange,
+  handleExerciseSearch, addExerciseToDayFromLibrary
 } from './workout.js';
 
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
@@ -652,6 +653,10 @@ document.addEventListener('blur', (e) => {
   else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
   else if (id === 'settingsStepGoal') saveStepGoal();
 }, true);
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'elSearchInput') handleExerciseSearch(e.target.value);
+});
 
 // ==========================================
 // BOOTSTRAP AND INITIALIZATION

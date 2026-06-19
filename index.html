@@ -1106,18 +1106,19 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="addExerciseModal" role="dialog" aria-modal="true" aria-labelledby="addExerciseModalTitle">
-    <div class="modal-content">
-      <h2 id="addExerciseModalTitle" class="text-2xl font-heavy text-inverse mb-1">Add Exercise</h2>
-      <p class="text-lg text-muted mb-5">Throw in an extra movement for today's session.</p>
-      <select id="newExerciseSelect" class="native-select mb-4 w-full"></select>
-      <div id="customExerciseTextInputContainer" class="mb-5" style="display: none;">
-        <label for="customExerciseTextInput" class="text-xs-bold block mb-1 text-muted">ENTER CUSTOM EXERCISE NAME</label>
-        <input type="text" id="customExerciseTextInput" placeholder="e.g. Weighted Chin-Up" style="width: 100%;" autocomplete="off">
+  <div class="modal-overlay el-overlay" id="addExerciseModal" role="dialog" aria-modal="true" aria-label="Add Exercise">
+    <div class="modal-sheet el-sheet">
+      <div class="el-header">
+        <span class="el-title">Add Exercise</span>
+        <button class="settings-close-btn" data-action="close-add-exercise" aria-label="Close">&#x2715;</button>
       </div>
-      <div class="flex gap-2">
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-add-exercise">Cancel</button>
-        <button class="btn-action-block btn-blue mt-0" data-action="confirm-add-exercise">Add</button>
+      <div class="el-search-wrap">
+        <input type="search" id="elSearchInput" class="el-search" placeholder="Search exercises&#x2026;" autocomplete="off">
+      </div>
+      <div class="el-list" id="elList"></div>
+      <div class="el-custom-row">
+        <input type="text" id="customExerciseTextInput" class="el-custom-input" placeholder="Or type a custom exercise name&#x2026;" autocomplete="off">
+        <button class="el-custom-add-btn" data-action="confirm-add-exercise">Add</button>
       </div>
     </div>
   </div>

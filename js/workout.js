@@ -889,73 +889,78 @@ export function toggleAccordionManual(elementNode) {
   try { moveRestTimerToActiveExercise(); } catch(e) { console.warn(e); }
 }
 
-export function populateExerciseDropdown() {
-  const select = document.getElementById('newExerciseSelect');
-  if (!select) return;
-  
-  const appState = _getState ? _getState() : { customExercises: [] };
-  select.innerHTML = '';
-  
-  for (const [category, exercises] of Object.entries(EXERCISE_LIBRARY)) {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = category;
-    const sortedExercises = [...exercises].sort();
-    sortedExercises.forEach(exercise => {
-      const option = document.createElement('option');
-      option.value = exercise;
-      option.textContent = exercise;
-      optgroup.appendChild(option);
-    });
-    select.appendChild(optgroup);
-  }
-
-  if (appState.customExercises && appState.customExercises.length > 0) {
-    const customGroup = document.createElement('optgroup');
-    customGroup.label = "⭐️ Custom Movements";
-    [...appState.customExercises].sort().forEach(exercise => {
-      const option = document.createElement('option');
-      option.value = exercise;
-      option.textContent = exercise;
-      customGroup.appendChild(option);
-    });
-    select.appendChild(customGroup);
-  }
-
-  const divider = document.createElement('option');
-  divider.disabled = true;
-  divider.textContent = "──────────────────";
-  select.appendChild(divider);
-
-  const customWildcard = document.createElement('option');
-  customWildcard.value = "__WRITE_CUSTOM__";
-  customWildcard.textContent = "✍️ Type Custom Exercise Name...";
-  select.appendChild(customWildcard);
+function _exChip(name, appState) {
+  const pr = appState.exerciseStats?.[name]?.allTimeMax;
+  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
+  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${name.replace(/"/g, '&quot;')}">${name}${prStr}</button>`;
 }
 
-export function handleExerciseDropdownSelectionChange() {
-  const select = document.getElementById('newExerciseSelect');
-  const textContainer = document.getElementById('customExerciseTextInputContainer');
-  if (!select || !textContainer) return;
+function _renderExerciseLibraryList(query) {
+  const container = document.getElementById('elList');
+  if (!container) return;
+  const appState = _getState();
+  const q = (query || '').toLowerCase().trim();
+  let html = '';
 
-  if (select.value === "__WRITE_CUSTOM__") {
-    textContainer.style.display = 'block';
-    const input = document.getElementById('customExerciseTextInput');
-    if (input) input.focus();
+  if (q) {
+    const results = [];
+    for (const [cat, exs] of Object.entries(EXERCISE_LIBRARY)) {
+      exs.forEach(ex => { if (ex.toLowerCase().includes(q)) results.push({ ex, cat }); });
+    }
+    (appState.customExercises || []).forEach(ex => {
+      if (ex.toLowerCase().includes(q)) results.push({ ex, cat: 'Custom' });
+    });
+    if (results.length === 0) {
+      html = '<div class="el-empty">No matches — type a custom name below</div>';
+    } else {
+      html = results.map(({ ex }) => _exChip(ex, appState)).join('');
+    }
   } else {
-    textContainer.style.display = 'none';
+    for (const [cat, exs] of Object.entries(EXERCISE_LIBRARY)) {
+      html += `<div class="el-cat-label">${cat}</div>`;
+      html += [...exs].sort().map(ex => _exChip(ex, appState)).join('');
+    }
+    if (appState.customExercises?.length) {
+      html += `<div class="el-cat-label">⭐ Custom</div>`;
+      html += [...appState.customExercises].sort().map(ex => _exChip(ex, appState)).join('');
+    }
   }
+  container.innerHTML = html;
 }
+
+export function handleExerciseSearch(query) {
+  _renderExerciseLibraryList(query);
+}
+
+export function addExerciseToDayFromLibrary(name) {
+  if (!name) return;
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
+  if (!appState.weeks[wk].lifts[selectedDay][name]) {
+    appState.weeks[wk].lifts[selectedDay][name] = [{ w: '', r: '10', c: false }];
+  }
+  _saveState(true);
+  closeAddExerciseModal();
+  renderWorkout();
+  showToast(`Added: ${name}`);
+}
+
+// Keep populateExerciseDropdown as no-op for compat
+export function populateExerciseDropdown() {}
+export function handleExerciseDropdownSelectionChange() {}
 
 export function openAddExerciseModal() {
-  populateExerciseDropdown();
-  
-  const textContainer = document.getElementById('customExerciseTextInputContainer');
-  const txtInput = document.getElementById('customExerciseTextInput');
-  if (textContainer) textContainer.style.display = 'none';
-  if (txtInput) txtInput.value = '';
-
   const modal = document.getElementById('addExerciseModal');
-  if (modal) modal.classList.add('active');
+  if (!modal) return;
+  const searchInput = document.getElementById('elSearchInput');
+  const customInput = document.getElementById('customExerciseTextInput');
+  if (searchInput) searchInput.value = '';
+  if (customInput) customInput.value = '';
+  _renderExerciseLibraryList('');
+  modal.classList.add('active');
+  setTimeout(() => searchInput?.focus(), 80);
 }
 
 export function closeAddExerciseModal() {
@@ -964,40 +969,11 @@ export function closeAddExerciseModal() {
 }
 
 export function confirmAddExercise() {
-  const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const select = document.getElementById('newExerciseSelect');
-  if (!select) return;
-
-  let liftName = select.value;
-  
-  if (liftName === "__WRITE_CUSTOM__") {
-    const rawInput = document.getElementById('customExerciseTextInput');
-    liftName = rawInput ? rawInput.value.trim() : '';
-    
-    if (!liftName) {
-      showToast('Please type an exercise name.', true);
-      return;
-    }
-    
-    saveNewCustomExerciseToLibrary(liftName);
-  }
-
-  if (!liftName) return;
-
-  const wk = appState.currentWeek;
-  if (!appState.weeks[wk].lifts[selectedDay]) {
-    appState.weeks[wk].lifts[selectedDay] = {};
-  }
-
-  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName] = [{ w: '', r: '10', c: false }];
-  }
-
-  _saveState(true);
-  closeAddExerciseModal();
-  renderWorkout();
-  showToast(`Added: ${liftName}`);
+  const customInput = document.getElementById('customExerciseTextInput');
+  const name = customInput?.value?.trim();
+  if (!name) { showToast('Type a custom exercise name first'); return; }
+  saveNewCustomExerciseToLibrary(name);
+  addExerciseToDayFromLibrary(name);
 }
 
 export function openConfirmResetModal() {
@@ -1143,6 +1119,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'rest-adjust') adjustRestDuration(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'open-add-exercise') openAddExerciseModal();
   else if (action === 'close-add-exercise') closeAddExerciseModal();
+  else if (action === 'el-pick') addExerciseToDayFromLibrary(e.target.closest('[data-action="el-pick"]')?.getAttribute('data-exname'));
   else if (action === 'confirm-add-exercise') confirmAddExercise();
   else if (action === 'open-reset-modal') openConfirmResetModal();
   else if (action === 'close-reset-modal') closeConfirmResetModal();
