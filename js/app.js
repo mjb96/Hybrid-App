@@ -6,7 +6,7 @@ import { devWarn } from './debug.js';
 import { buildProgramOverviewHTML, buildWeekMatrixHTML, buildDaysSplitHTML, buildLibraryCardHTML } from './templates.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
-import { handleDetailAction } from './programs/detail.js';
+import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -600,7 +600,7 @@ document.addEventListener('click', (e) => {
   else if (['open-program-detail', 'prog-filter', 'prog-quick-search', 'hero-dot'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
-  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program'].includes(action)) {
+  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'close-day-preview'].includes(action)) {
     handleDetailAction(action, target);
   }
   else if (action === 'close-active-plan-view') {

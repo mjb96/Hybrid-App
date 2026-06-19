@@ -1264,6 +1264,21 @@
     </div>
   </div>
 
+  <!-- Workout Preview Modal (day detail bottom-sheet) -->
+  <div id="wpmBackdrop" class="sheet-backdrop" data-action="close-day-preview"></div>
+  <div id="wpmSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="wpmTitle">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header">
+      <div class="wpm-header-left">
+        <h3 id="wpmTitle" class="bottom-sheet-title">Workout Preview</h3>
+        <span id="wpmBadge" class="wpm-badge"></span>
+      </div>
+      <button class="sheet-close-btn" data-action="close-day-preview" aria-label="Close">✕</button>
+    </div>
+    <div id="wpmBody" class="wpm-body"></div>
+    <div style="height: 16px;"></div>
+  </div>
+
   <div id="tileCustomiserBackdrop" class="sheet-backdrop" data-action="close-tile-customiser" data-apply="false"></div>
   <div id="tileCustomiserSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="tileCustomiserTitle">
     <div class="bottom-sheet-handle"></div>

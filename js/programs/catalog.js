@@ -55,13 +55,95 @@ export const PROGRAM_CATALOG = [
     coverGradient: ['#1a0e2e', '#2d1a5c'], accentColor: '#8b5cf6', icon: '⚡',
     collections: ['featured', 'hybridhq-picks', 'hybrid-collection', 'recommended-starters', 'most-popular'],
     days: {
-      mon: { title: 'Strength A', badge: 'Push + Pull', color: 'var(--accent-blue)', desc: 'Full body strength focus. Bench, Row, Squat.', runs: 'Rest', lifts: ['Bench Press', 'Barbell Row', 'Back Squat', 'Lateral Raise', 'Hammer Curl'] },
-      tue: { title: 'Intervals + Arms', badge: 'Run + Accessory', color: 'var(--accent-pink)', desc: 'Track intervals followed by arm work.', runs: '⚡ 6×800m (90s recovery)', lifts: ['Pull-Ups', 'Incline DB Press', 'Barbell Curl', 'Tricep Band Pushdown'] },
-      wed: { title: 'Strength B', badge: 'Lower + Pull', color: 'var(--accent-green)', desc: 'Lower body focus. Deadlift, Romanian DL.', runs: 'Rest', lifts: ['Deadlift', 'Romanian Deadlift', 'Bulgarian Split Squat', 'Calf Raises', 'Face Pull'] },
-      thu: { title: 'Tempo Run', badge: 'Threshold', color: 'var(--accent-amber)', desc: 'Sustained effort at lactate threshold.', runs: '🔥 Tempo: 4×8 min @ threshold pace (2min rest)', lifts: [] },
-      fri: { title: 'Strength C', badge: 'Upper Body', color: 'var(--accent-blue)', desc: 'OHP, chin-ups, accessories.', runs: 'Rest', lifts: ['Standing OHP', 'Chin-Ups', 'Seated DB Shoulder Press', 'Rear Delt Fly', 'Incline DB Curl'] },
-      sat: { title: 'Long Run', badge: 'Zone 2', color: 'var(--accent-pink)', desc: 'Easy aerobic long run. Conversational pace.', runs: 'Zone 2 Long Run: 50-70 min', lifts: [] },
-      sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Full rest. Sleep, eat, recover.', runs: 'Rest', lifts: [] },
+      mon: {
+        title: 'Strength A', badge: 'Push + Pull', color: 'var(--accent-blue)',
+        desc: 'Full body strength focus. Bench, Row, Squat.', runs: 'Rest',
+        lifts: ['Bench Press', 'Barbell Row', 'Back Squat', 'Lateral Raise', 'Hammer Curl'],
+        workoutPreview: {
+          type: 'STRENGTH',
+          exercises: [
+            { exercise: 'Bench Press',   sets: 4, reps: '6–8',   rpe: 7,   rest: '3 min' },
+            { exercise: 'Barbell Row',   sets: 4, reps: '6–8',   rpe: 7,   rest: '3 min' },
+            { exercise: 'Back Squat',    sets: 3, reps: '8–10',  rpe: 6,   rest: '2.5 min' },
+            { exercise: 'Lateral Raise', sets: 3, reps: '12–15', rpe: 7,   rest: '90 sec' },
+            { exercise: 'Hammer Curl',   sets: 3, reps: '10–12', rpe: 7,   rest: '90 sec' },
+          ],
+        },
+      },
+      tue: {
+        title: 'Intervals + Arms', badge: 'Run + Accessory', color: 'var(--accent-pink)',
+        desc: 'Track intervals followed by arm work.', runs: '⚡ 6×800m (90s recovery)',
+        lifts: ['Pull-Ups', 'Incline DB Press', 'Barbell Curl', 'Tricep Band Pushdown'],
+        workoutPreview: {
+          type: 'RUNNING',
+          phases: [
+            { name: 'Warm-Up',   type: 'warmup',   duration: '10 min',   pace: 'Zone 1–2 (easy)',         description: 'Easy jog + dynamic drills (leg swings, high knees)' },
+            { name: 'Intervals', type: 'mainSet',  duration: '6 × 800m', pace: '5K race pace',            description: '90 sec recovery jog between each rep', notes: 'Stay relaxed on recovery; aim for even splits across all 6 reps' },
+            { name: 'Arm Work',  type: 'strength', duration: '~20 min',  pace: '—',                       description: 'Pull-Ups 3×max · Incline DB Press 3×10 · Barbell Curl 3×12 · Tricep Pushdown 3×15' },
+            { name: 'Cool-Down', type: 'cooldown', duration: '5 min',    pace: 'Zone 1 (very easy)',      description: 'Easy walk + calf & quad stretch' },
+          ],
+        },
+      },
+      wed: {
+        title: 'Strength B', badge: 'Lower + Pull', color: 'var(--accent-green)',
+        desc: 'Lower body focus. Deadlift, Romanian DL.', runs: 'Rest',
+        lifts: ['Deadlift', 'Romanian Deadlift', 'Bulgarian Split Squat', 'Calf Raises', 'Face Pull'],
+        workoutPreview: {
+          type: 'STRENGTH',
+          exercises: [
+            { exercise: 'Deadlift',              sets: 4, reps: '4–6',   rpe: 8,   rest: '4 min' },
+            { exercise: 'Romanian Deadlift',     sets: 3, reps: '8–10',  rpe: 7,   rest: '2.5 min' },
+            { exercise: 'Bulgarian Split Squat', sets: 3, reps: '8–10',  rpe: 7.5, rest: '2 min' },
+            { exercise: 'Calf Raises',           sets: 4, reps: '15–20', rpe: 6,   rest: '60 sec' },
+            { exercise: 'Face Pull',             sets: 3, reps: '15–20', rpe: 6,   rest: '60 sec' },
+          ],
+        },
+      },
+      thu: {
+        title: 'Tempo Run', badge: 'Threshold', color: 'var(--accent-amber)',
+        desc: 'Sustained effort at lactate threshold.', runs: '🔥 Tempo: 4×8 min @ threshold pace (2min rest)',
+        lifts: [],
+        workoutPreview: {
+          type: 'RUNNING',
+          phases: [
+            { name: 'Warm-Up',   type: 'warmup',  duration: '12 min',    pace: 'Zone 1–2 (easy)',          description: 'Easy jog building gradually to a comfortable stride' },
+            { name: 'Tempo',     type: 'mainSet', duration: '4 × 8 min', pace: 'Threshold (RPE 7–8)',      description: '2 min walking recovery between each rep', notes: '"Comfortably hard" — can speak short sentences but not hold a full conversation' },
+            { name: 'Cool-Down', type: 'cooldown', duration: '8 min',    pace: 'Zone 1 (very easy)',       description: 'Easy jog + full leg stretch (quad, hamstring, calf)' },
+          ],
+        },
+      },
+      fri: {
+        title: 'Strength C', badge: 'Upper Body', color: 'var(--accent-blue)',
+        desc: 'OHP, chin-ups, accessories.', runs: 'Rest',
+        lifts: ['Standing OHP', 'Chin-Ups', 'Seated DB Shoulder Press', 'Rear Delt Fly', 'Incline DB Curl'],
+        workoutPreview: {
+          type: 'STRENGTH',
+          exercises: [
+            { exercise: 'Standing OHP',             sets: 4, reps: '5–6',   rpe: 8, rest: '3 min' },
+            { exercise: 'Chin-Ups',                 sets: 4, reps: 'Max',   rpe: 8, rest: '2.5 min' },
+            { exercise: 'Seated DB Shoulder Press', sets: 3, reps: '10–12', rpe: 7, rest: '90 sec' },
+            { exercise: 'Rear Delt Fly',            sets: 3, reps: '15–20', rpe: 7, rest: '60 sec' },
+            { exercise: 'Incline DB Curl',          sets: 3, reps: '10–12', rpe: 7, rest: '60 sec' },
+          ],
+        },
+      },
+      sat: {
+        title: 'Long Run', badge: 'Zone 2', color: 'var(--accent-pink)',
+        desc: 'Easy aerobic long run. Conversational pace.', runs: 'Zone 2 Long Run: 50-70 min',
+        lifts: [],
+        workoutPreview: {
+          type: 'RUNNING',
+          phases: [
+            { name: 'Warm-Up',   type: 'warmup',  duration: '5 min',     pace: 'Walk / Zone 1',           description: 'Brisk walk + light dynamic warm-up' },
+            { name: 'Long Run',  type: 'mainSet', duration: '50–70 min', pace: 'Zone 2 (conversational)', description: 'Continuous easy aerobic run — you should hold a full conversation', notes: 'Never push harder than RPE 5–6. Slow down on hills to keep HR in zone.' },
+            { name: 'Cool-Down', type: 'cooldown', duration: '5–10 min', pace: 'Walk / Zone 1',           description: 'Easy walk + full body stretch' },
+          ],
+        },
+      },
+      sun: {
+        title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)',
+        desc: 'Full rest. Sleep, eat, recover.', runs: 'Rest', lifts: [],
+      },
     },
     weeklyVolModifiers: {
       '1': { sets: 3, reps: 8, intensityLabel: 'Foundation Block' }, '2': { sets: 3, reps: 8, intensityLabel: 'Foundation Block' },
