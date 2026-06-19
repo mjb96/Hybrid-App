@@ -3473,3 +3473,207 @@ h2.section-header::after { display: none; }
   background: rgba(99,102,241,0.10) !important;
 }
 
+/* ==========================================================================
+   LIGHT MODE OVERRIDES — Counters the dark upgrade block above
+   Applied only when html[data-theme="light"] is set
+   ========================================================================== */
+
+/* --- Body: replace dark gradients with soft pastel washes --- */
+html[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse at 80% 0%,   rgba(99,102,241,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 90%,  rgba(6,182,212,0.04)  0%, transparent 45%),
+    radial-gradient(ellipse at 55% 55%,  rgba(139,92,246,0.03) 0%, transparent 55%) !important;
+}
+
+/* --- Card: override dark gradient → clean white --- */
+html[data-theme="light"] .card-dark {
+  background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid rgba(0,0,0,0.07) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+html[data-theme="light"] .card-dark:hover {
+  border-color: rgba(99,102,241,0.25) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+
+/* --- Section header text --- */
+html[data-theme="light"] h2.section-header {
+  color: rgba(15,23,42,0.75) !important;
+}
+
+/* --- App-wide section heading --- */
+html[data-theme="light"] .app-section-heading__title {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .app-section-heading__sub {
+  color: rgba(0,0,0,0.42) !important;
+}
+
+/* --- Home header --- */
+html[data-theme="light"] .home-app-label {
+  color: rgba(0,0,0,0.30) !important;
+}
+html[data-theme="light"] .home-week-label {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .home-phase-label {
+  color: rgba(79,70,229,0.75) !important;
+}
+
+/* --- In Focus metric cards: gym (soft indigo) & run (soft cyan) --- */
+html[data-theme="light"] .home-metric-card--gym {
+  background: linear-gradient(145deg, #eef0ff 0%, #e8ebff 100%) !important;
+  border: 1px solid rgba(99,102,241,0.18) !important;
+  box-shadow: 0 6px 24px rgba(99,102,241,0.10), 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+html[data-theme="light"] .home-metric-card--run {
+  background: linear-gradient(145deg, #ecfeff 0%, #e0f9ff 100%) !important;
+  border: 1px solid rgba(6,182,212,0.20) !important;
+  box-shadow: 0 6px 24px rgba(6,182,212,0.08), 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+/* Card glow orb: subtle in light mode */
+html[data-theme="light"] .home-metric-card--gym::after { opacity: 0.06 !important; }
+html[data-theme="light"] .home-metric-card--run::after  { opacity: 0.06 !important; }
+
+/* Metric card text */
+html[data-theme="light"] .hmcard-label {
+  opacity: 0.55 !important;
+}
+html[data-theme="light"] .home-metric-card--gym .hmcard-label { color: #4338ca !important; }
+html[data-theme="light"] .home-metric-card--run .hmcard-label { color: #0891b2 !important; }
+html[data-theme="light"] .hmcard-hero {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .hmcard-sub {
+  color: rgba(0,0,0,0.38) !important;
+}
+
+/* Log run FAB in light mode */
+html[data-theme="light"] .home-metric-card .log-run-fab {
+  background: rgba(6,182,212,0.10) !important;
+  border: 1px solid rgba(6,182,212,0.25) !important;
+  color: #0891b2 !important;
+}
+
+/* --- Glance cards --- */
+html[data-theme="light"] .glance-card {
+  background: linear-gradient(155deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid rgba(0,0,0,0.07) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06) !important;
+}
+html[data-theme="light"] .tile-hero {
+  color: #0f172a !important;
+}
+
+/* --- Bottom nav: frosted light glass --- */
+html[data-theme="light"] .bottom-nav {
+  background: rgba(255,255,255,0.94) !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  box-shadow: 0 -1px 0 rgba(0,0,0,0.05), 0 8px 32px rgba(0,0,0,0.10) !important;
+}
+html[data-theme="light"] .nav-item.active::before {
+  background: rgba(99,102,241,0.08) !important;
+}
+html[data-theme="light"] .nav-item::after {
+  background: #6366f1 !important;
+}
+
+/* --- Day pills --- */
+html[data-theme="light"] .day-pill {
+  background: rgba(0,0,0,0.04) !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  color: rgba(0,0,0,0.55) !important;
+}
+html[data-theme="light"] .day-pill:hover {
+  background: rgba(0,0,0,0.07) !important;
+  border-color: rgba(0,0,0,0.18) !important;
+  color: rgba(0,0,0,0.80) !important;
+}
+html[data-theme="light"] .day-pill.active {
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(99,102,241,0.35) !important;
+}
+
+/* --- Workout exercise cards --- */
+html[data-theme="light"] .cockpit-exercise:not(.collapsed) {
+  border-color: rgba(99,102,241,0.18) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(99,102,241,0.06) !important;
+}
+html[data-theme="light"] .cockpit-exercise.completed {
+  border-color: rgba(16,185,129,0.18) !important;
+}
+html[data-theme="light"] .cockpit-exercise:not(.collapsed) .cockpit-header {
+  background: rgba(99,102,241,0.03) !important;
+}
+
+/* --- Session timer bar --- */
+html[data-theme="light"] .session-timer-bar {
+  background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.04)) !important;
+  border: 1px solid rgba(16,185,129,0.22) !important;
+}
+
+/* Global rest timer stays dark per existing rule — no change needed */
+
+/* --- Run cockpit card --- */
+html[data-theme="light"] #cockpitRunPanel {
+  background: linear-gradient(145deg, #ecfeff, #e0f9ff) !important;
+  border: 1px solid rgba(6,182,212,0.22) !important;
+  border-left: 3px solid rgba(6,182,212,0.55) !important;
+  box-shadow: 0 4px 16px rgba(6,182,212,0.08) !important;
+}
+html[data-theme="light"] #cockpitRunPanel .workout-run-title { color: #0891b2 !important; }
+html[data-theme="light"] #cockpitRunPanel .workout-run-desc,
+html[data-theme="light"] #cockpitRunPanel #cockpitRunSpecs { color: #0f172a !important; }
+html[data-theme="light"] #cockpitRunPanel .set-num-lbl { color: #475569 !important; }
+html[data-theme="light"] #cockpitRunPanel input {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(6,182,212,0.22) !important;
+  color: #0f172a !important;
+}
+
+/* --- Activity history button --- */
+html[data-theme="light"] .btn-history-link {
+  background: linear-gradient(135deg, rgba(99,102,241,0.05), rgba(139,92,246,0.05)) !important;
+  border: 1px solid rgba(99,102,241,0.15) !important;
+}
+html[data-theme="light"] .btn-history-link:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.09), rgba(139,92,246,0.09)) !important;
+  border-color: rgba(99,102,241,0.22) !important;
+}
+
+/* --- Analytics back button --- */
+html[data-theme="light"] .subview-back-btn {
+  background: rgba(59,130,246,0.06) !important;
+  border: 1px solid rgba(59,130,246,0.18) !important;
+  color: #1d4ed8 !important;
+}
+
+/* --- Modal content --- */
+html[data-theme="light"] .modal-content {
+  background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18) !important;
+}
+
+/* --- Settings panel --- */
+html[data-theme="light"] .settings-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+}
+
+/* --- Bottom sheet --- */
+html[data-theme="light"] .bottom-sheet {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-top: 1px solid rgba(0,0,0,0.07) !important;
+}
+
+/* --- Onboarding --- */
+html[data-theme="light"] .ob-card {
+  background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%) !important;
+  border: 1px solid rgba(0,0,0,0.07) !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.12) !important;
+}
+
