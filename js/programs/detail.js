@@ -241,7 +241,7 @@ function renderDaySplit(days) {
         const day = days[dayKey];
         if (!day) return '';
         const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
-        const hasPreview = !!day.workoutPreview && !isRest;
+        const hasPreview = !isRest && !!(day.workoutPreview || day.lifts?.length || (day.runs && day.runs !== 'Rest'));
         const interactiveAttrs = hasPreview
           ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${_currentProgramId}" role="button" tabindex="0"`
           : '';
@@ -286,12 +286,14 @@ export function closeProgramDetail() {
 // ── Workout Preview Modal ─────────────────────────────────────────────────────
 
 export function openDayPreviewModal(dayKey, programId) {
-  const catalog = getCatalogEntry(programId || _currentProgramId);
-  const days = catalog?.days;
-  const day = days?.[dayKey];
-  if (!day || !day.workoutPreview) return;
+  const resolvedId = programId || _currentProgramId;
+  const catalog = getCatalogEntry(resolvedId);
+  const day = catalog?.days?.[dayKey] || PROGRAMS[resolvedId]?.days?.[dayKey];
+  if (!day) return;
 
-  const preview = day.workoutPreview;
+  const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+  if (isRest) return;
+
   const backdrop = document.getElementById('wpmBackdrop');
   const sheet    = document.getElementById('wpmSheet');
   const titleEl  = document.getElementById('wpmTitle');
@@ -307,16 +309,44 @@ export function openDayPreviewModal(dayKey, programId) {
   badgeEl.style.color = day.color || 'var(--accent-blue)';
   badgeEl.style.borderColor = (day.color || 'var(--accent-blue)') + '55';
 
-  if (preview.type === 'STRENGTH') {
-    bodyEl.innerHTML = renderStrengthPreview(preview.exercises);
-  } else if (preview.type === 'RUNNING') {
-    bodyEl.innerHTML = renderRunningPreview(preview.phases);
+  if (day.workoutPreview?.type === 'STRENGTH') {
+    bodyEl.innerHTML = renderStrengthPreview(day.workoutPreview.exercises);
+  } else if (day.workoutPreview?.type === 'RUNNING') {
+    bodyEl.innerHTML = renderRunningPreview(day.workoutPreview.phases);
   } else {
-    bodyEl.innerHTML = `<p class="wpm-empty">No preview available for this day.</p>`;
+    bodyEl.innerHTML = renderFallbackPreview(day);
   }
 
   backdrop.classList.add('active');
   sheet.classList.add('active');
+}
+
+function renderFallbackPreview(day) {
+  let html = '';
+  const hasRun = day.runs && day.runs !== 'Rest';
+  const hasLifts = day.lifts?.length;
+
+  if (hasRun) {
+    html += `
+      <div class="wpm-type-label wpm-type-label--running">🏃 Running</div>
+      <div class="wpm-fallback-run">${day.runs}</div>
+    `;
+  }
+
+  if (hasLifts) {
+    html += `
+      <div class="wpm-type-label wpm-type-label--strength" style="${hasRun ? 'margin-top:16px;' : ''}">🏋️ Strength Session</div>
+      <div class="wpm-exercise-list">
+        ${day.lifts.map(lift => `<div class="wpm-exercise-item">${lift}</div>`).join('')}
+      </div>
+    `;
+  }
+
+  if (day.desc && day.desc !== 'Rest') {
+    html += `<div class="wpm-fallback-desc">${day.desc}</div>`;
+  }
+
+  return html || '<p class="wpm-empty">No preview available for this day.</p>';
 }
 
 export function closeDayPreviewModal() {

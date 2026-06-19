@@ -1412,6 +1412,56 @@
   padding: 20px 0;
 }
 
+.wpm-fallback-run {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.75);
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.wpm-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.wpm-exercise-item {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.75);
+  padding: 9px 14px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.wpm-exercise-item:last-child { border-bottom: none; }
+
+.wpm-fallback-desc {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.38);
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+/* Light mode fallback */
+html[data-theme="light"] .wpm-fallback-run {
+  color: rgba(0,0,0,0.70);
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .wpm-exercise-list { border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .wpm-exercise-item {
+  color: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.01);
+  border-bottom-color: rgba(0,0,0,0.05);
+}
+html[data-theme="light"] .wpm-fallback-desc { color: rgba(0,0,0,0.38); }
+
 /* Light mode */
 html[data-theme="light"] .day-split-hint { color: rgba(0,0,0,0.25); }
 html[data-theme="light"] .day-split-row--interactive:active { background: rgba(0,0,0,0.05); }

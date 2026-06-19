@@ -292,9 +292,13 @@ function _renderThisWeekTab(catalog, prog) {
     const title = cd?.title || ld?.title || (dayKey === 'sun' ? 'Rest Day' : 'Training');
     const badge = cd?.badge || '';
     const color = cd?.color || 'var(--accent-blue)';
-    const hasPreview = !!cd?.workoutPreview;
     const isRest = !cd?.lifts?.length && (!cd?.runs || cd?.runs === 'Rest')
                 && !ld?.lifts?.length && (!ld?.runs || ld?.runs === 'Rest');
+    const hasPreview = !isRest && !!(
+      cd?.workoutPreview
+      || cd?.lifts?.length || (cd?.runs && cd?.runs !== 'Rest')
+      || ld?.lifts?.length || (ld?.runs && ld?.runs !== 'Rest')
+    );
     return `
       <div class="aplan-day-card ${isToday ? 'aplan-day-card--today' : ''} ${isRest ? 'aplan-day-card--rest' : ''}"
            ${hasPreview ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${appState.activeProgramId}" role="button" tabindex="0"` : ''}>
