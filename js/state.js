@@ -265,6 +265,7 @@ export async function pullEngineDataFromStorage() {
     loadMetrics: { atl: 0, ctl: 0 },
     healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
     wellnessLog: [],
+    settings: { name: '', weightUnit: 'kg', restTimerDefault: 90, progressionIncrement: 2.5, defaultBodyWeight: null },
   };
 
   if (localData) {

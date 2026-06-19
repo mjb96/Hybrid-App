@@ -42,6 +42,13 @@ import {
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
+import {
+  initSettings, openSettings, closeSettings,
+  saveName, saveBodyWeight, setWeightUnit, setRestDefault,
+  setProgressionIncrement, saveThresholdPace as saveSettingsThresholdPace,
+  exportData, triggerImport, handleImportFile, confirmResetAllData,
+  applySettingsOnBoot
+} from './settings.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -560,6 +567,17 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   
+  // Settings
+  else if (action === 'open-settings') openSettings();
+  else if (action === 'close-settings') closeSettings();
+  else if (e.target.id === 'settingsOverlay') closeSettings();
+  else if (action === 'set-unit') setWeightUnit(target.getAttribute('data-unit'));
+  else if (action === 'set-rest-default') setRestDefault(parseInt(target.getAttribute('data-secs'), 10));
+  else if (action === 'set-progression') setProgressionIncrement(parseFloat(target.getAttribute('data-kg')));
+  else if (action === 'export-data') exportData();
+  else if (action === 'import-data') triggerImport();
+  else if (action === 'reset-all-data') confirmResetAllData();
+
   // Export & Data
   else if (action === 'export-text') triggerTextSummaryExport();
   else if (action === 'export-json') triggerEngineExport();
@@ -583,10 +601,14 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('change', (e) => {
   const target = e.target;
-  
+
   // ID-based handlers (No data-action required)
   if (target.id === 'analyticsThresholdPaceInput') {
     saveThresholdPace(target.value);
+    return;
+  }
+  if (target.id === 'settingsImportFile') {
+    handleImportFile(target.files?.[0]);
     return;
   }
 
@@ -598,6 +620,13 @@ document.addEventListener('change', (e) => {
   if (action === 'macro-week-switch') handleMacroWeekSwitch();
   else if (action === 'import-json') triggerEngineImport(e);
 });
+
+document.addEventListener('blur', (e) => {
+  const id = e.target.id;
+  if (id === 'settingsNameInput') saveName();
+  else if (id === 'settingsBodyWeight') saveBodyWeight();
+  else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
+}, true);
 
 // ==========================================
 // BOOTSTRAP AND INITIALIZATION
@@ -612,6 +641,7 @@ initHome(getState, getSelectedDay, getDays);
 initAnalytics(getState, getDays);
 initDragDrop(getState, getSelectedDay, saveState);
 initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
+initSettings(getState);
 
 // === DEVICE IMPORT WIRING ===
 
@@ -713,6 +743,7 @@ async function bootstrapApp() {
     setCockpitActiveDay(currentDay);
     switchGlobalAppTab(currentTab);
     checkActiveTimerOnLoad();
+    applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
 
   } catch (fatalLifecycleError) {

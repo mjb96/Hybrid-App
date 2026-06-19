@@ -188,7 +188,9 @@
 
       <div class="flex-between mb-4 mt-2">
         <h1 id="homeWeekBlockIndicator" class="text-sm font-bold text-muted uppercase tracking-wider m-0">Week 1</h1>
-        <span class="text-sm font-bold text-accent-blue">SYNCED</span>
+        <button class="profile-avatar-btn" id="profileAvatarBtn" data-action="open-settings" aria-label="Settings">
+          <span id="profileAvatarInitials">?</span>
+        </button>
       </div>
 
       <h2 class="focus-header-text">In Focus</h2>
@@ -754,6 +756,97 @@
       <div class="flex gap-2 mt-2">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-today-summary">Close</button>
         <button class="btn-action-block btn-blue mt-0" data-action="close-today-summary-nav">Go to Workout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
+
+      <div class="settings-header">
+        <div class="settings-profile-hero">
+          <div class="settings-avatar-large" id="settingsAvatarLarge">?</div>
+          <div>
+            <div class="settings-name-display" id="settingsNameDisplay">Athlete</div>
+            <div class="text-xs text-muted mt-1">Personal Profile</div>
+          </div>
+        </div>
+        <button class="settings-close-btn" data-action="close-settings" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="settings-body">
+
+        <!-- Profile -->
+        <div class="settings-section">
+          <div class="settings-section-label">Profile</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Name</label>
+            <input type="text" class="settings-input" id="settingsNameInput" placeholder="Your name" maxlength="30">
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Body Weight</label>
+            <div class="settings-input-unit-row">
+              <input type="number" class="settings-input settings-input-short" id="settingsBodyWeight" placeholder="75" min="30" max="300" step="0.5">
+              <span class="settings-unit-badge" id="settingsBodyWeightUnit">kg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Training -->
+        <div class="settings-section">
+          <div class="settings-section-label">Training</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Weight Unit</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" id="unitKgBtn" data-action="set-unit" data-unit="kg">kg</button>
+              <button class="settings-toggle-btn" id="unitLbsBtn" data-action="set-unit" data-unit="lbs">lbs</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Default Rest Timer</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="60">60s</button>
+              <button class="settings-toggle-btn active" data-action="set-rest-default" data-secs="90">90s</button>
+              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="120">2m</button>
+              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="180">3m</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Progression Step</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-progression" data-kg="1.25">1.25</button>
+              <button class="settings-toggle-btn active" data-action="set-progression" data-kg="2.5">2.5</button>
+              <button class="settings-toggle-btn" data-action="set-progression" data-kg="5">5 kg</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Threshold Pace</label>
+            <div class="settings-input-unit-row">
+              <input type="text" class="settings-input settings-input-short" id="settingsThresholdPace" placeholder="4:30" maxlength="5">
+              <span class="settings-unit-badge">min/km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data -->
+        <div class="settings-section">
+          <div class="settings-section-label">Data</div>
+          <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
+          <button class="settings-action-btn" data-action="import-data">Import Training Data</button>
+          <input type="file" id="settingsImportFile" accept=".json" class="hidden-input">
+          <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
+        </div>
+
+        <!-- App -->
+        <div class="settings-section">
+          <div class="settings-section-label">App</div>
+          <div class="settings-row settings-row-info">
+            <span class="settings-row-label">Version</span>
+            <span class="text-xs text-muted">Hybrid Engine v1.0</span>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

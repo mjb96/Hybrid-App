@@ -1723,3 +1723,232 @@ td {
 }
 .cockpit-set-row .rpe-pad-row { display: none; }
 .cockpit-set-row.is-complete .rpe-pad-row { display: flex; }
+
+/* ==========================================
+   PROFILE AVATAR BUTTON
+   ========================================== */
+.profile-avatar-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  border: 2px solid rgba(99, 102, 241, 0.5);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+.profile-avatar-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
+}
+.profile-avatar-btn:active { transform: scale(0.95); }
+
+/* ==========================================
+   SETTINGS OVERLAY & PANEL
+   ========================================== */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.settings-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+.settings-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 100vw);
+  background: var(--bg-deep, #080f1e);
+  border-left: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow-y: auto;
+}
+.settings-panel.active {
+  transform: translateX(0);
+}
+
+/* Header */
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);
+  flex-shrink: 0;
+}
+.settings-profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.settings-avatar-large {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  border: 2px solid rgba(99, 102, 241, 0.5);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+}
+.settings-name-display {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  letter-spacing: -0.01em;
+}
+.settings-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.settings-close-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Body */
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 40px;
+}
+.settings-section {
+  padding: 16px 20px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.settings-section:last-child { border-bottom: none; }
+.settings-section-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  margin-bottom: 12px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-info { cursor: default; }
+.settings-row-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+/* Inputs */
+.settings-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 7px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.settings-input:focus { border-color: rgba(99,102,241,0.6); }
+.settings-input-short { width: 80px; }
+.settings-input-unit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-unit-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+
+/* Toggle group */
+.settings-toggle-group {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.settings-toggle-btn {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.settings-toggle-btn:hover {
+  background: rgba(255,255,255,0.09);
+  color: rgba(255,255,255,0.7);
+}
+.settings-toggle-btn.active {
+  background: rgba(99,102,241,0.2);
+  border-color: rgba(99,102,241,0.5);
+  color: #a5b4fc;
+}
+
+/* Action buttons */
+.settings-action-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 11px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.65);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.settings-action-btn:last-child { border-bottom: none; }
+.settings-action-btn:hover { color: #fff; }
+.settings-action-btn-danger { color: rgba(239,68,68,0.6); }
+.settings-action-btn-danger:hover { color: #f87171; }
