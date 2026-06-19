@@ -73,9 +73,13 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
     </div>
     <div class="quick-pad-row">
       <button class="btn-pad tactile-scale" data-action="quick-modifier" data-modifier="match" data-sidx="${sIdx}">LAST</button>
-      <button class="btn-pad tactile-scale" data-action="quick-modifier" data-modifier="p25" data-sidx="${sIdx}">+2.5kg</button>
+      <button class="btn-pad tactile-scale" data-action="quick-modifier" data-modifier="p25" data-sidx="${sIdx}">+2.5</button>
       <button class="btn-pad tactile-scale" data-action="quick-modifier" data-modifier="p5" data-sidx="${sIdx}">+5kg</button>
       <button class="btn-pad tactile-scale" data-action="quick-modifier" data-modifier="r1" data-sidx="${sIdx}">+1 Rep</button>
+    </div>
+    <div class="rpe-pad-row">
+      <span class="rpe-pad-label">RPE</span>
+      ${[6,7,8,9,10].map(v => `<button class="btn-rpe tactile-scale${sData.rpe === v ? ' rpe-selected' : ''}" data-action="set-rpe" data-sidx="${sIdx}" data-rpe="${v}">${v}</button>`).join('')}
     </div>
   </div>`;
 }

@@ -16,10 +16,17 @@ export function initDragDrop(getStateFn, getSelectedDayFn, saveStateFn) {
 
 export function mountExerciseDragAndDropSystems() {
   const container = document.getElementById('cockpitExercisesContainer');
-  const elements = container.querySelectorAll('.cockpit-exercise');
+  // Iterate direct children: standalone .cockpit-exercise AND .superset-group wrappers
+  const topLevelElements = Array.from(container.children);
 
-  elements.forEach(element => {
-    const grip = element.querySelector('.drag-handle-grip');
+  topLevelElements.forEach(element => {
+    // For superset groups, use the group header as grip; for standalone exercises, use the inner grip
+    let grip;
+    if (element.classList.contains('superset-group')) {
+      grip = element.querySelector('.superset-group-header');
+    } else if (element.classList.contains('cockpit-exercise')) {
+      grip = element.querySelector('.drag-handle-grip');
+    }
     if (!grip) return;
 
     grip.addEventListener('mousedown', () => element.setAttribute('draggable', 'true'));
@@ -56,12 +63,13 @@ export function mountExerciseDragAndDropSystems() {
       const touchLocation = e.touches[0];
       const targetNode = document.elementFromPoint(touchLocation.clientX, touchLocation.clientY);
       if (!targetNode) return;
-      const closestCard = targetNode.closest('.cockpit-exercise');
-      if (closestCard && closestCard !== sourceDraggedElementNode && closestCard.parentNode === container) {
-        const bounding = closestCard.getBoundingClientRect();
+      // Find a top-level draggable child of container
+      const closestTopLevel = targetNode.closest('.cockpit-exercise, .superset-group');
+      if (closestTopLevel && closestTopLevel !== sourceDraggedElementNode && closestTopLevel.parentNode === container) {
+        const bounding = closestTopLevel.getBoundingClientRect();
         const offset = touchLocation.clientY - bounding.top;
-        if (offset > bounding.height / 2) closestCard.after(sourceDraggedElementNode);
-        else closestCard.before(sourceDraggedElementNode);
+        if (offset > bounding.height / 2) closestTopLevel.after(sourceDraggedElementNode);
+        else closestTopLevel.before(sourceDraggedElementNode);
       }
     }, { passive: false });
 
@@ -79,13 +87,22 @@ export function commitReorderedDOMStateToStorage() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const container = document.getElementById('cockpitExercisesContainer');
-  const cards = container.querySelectorAll('.cockpit-exercise');
   const wk = appState.currentWeek;
   const newOrderedLiftsMap = {};
-  cards.forEach(card => {
-    const liftName = card.getAttribute('data-liftname');
-    if (appState.weeks[wk].lifts[selectedDay][liftName]) {
-      newOrderedLiftsMap[liftName] = appState.weeks[wk].lifts[selectedDay][liftName];
+  // Read direct children in DOM order: superset groups expand to their inner exercises
+  Array.from(container.children).forEach(child => {
+    if (child.classList.contains('superset-group')) {
+      child.querySelectorAll('.cockpit-exercise').forEach(card => {
+        const liftName = card.getAttribute('data-liftname');
+        if (liftName && appState.weeks[wk].lifts[selectedDay][liftName]) {
+          newOrderedLiftsMap[liftName] = appState.weeks[wk].lifts[selectedDay][liftName];
+        }
+      });
+    } else if (child.classList.contains('cockpit-exercise')) {
+      const liftName = child.getAttribute('data-liftname');
+      if (liftName && appState.weeks[wk].lifts[selectedDay][liftName]) {
+        newOrderedLiftsMap[liftName] = appState.weeks[wk].lifts[selectedDay][liftName];
+      }
     }
   });
   appState.weeks[wk].lifts[selectedDay] = newOrderedLiftsMap;

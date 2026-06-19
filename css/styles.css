@@ -1547,7 +1547,9 @@ td {
   border-left: 3px solid var(--ss-color, #3b82f6);
   padding-left: 8px;
   margin-bottom: 14px;
+  cursor: grab;
 }
+.superset-group.is-dragging { opacity: 0.45; }
 .superset-group-header {
   display: flex;
   align-items: center;
@@ -1649,3 +1651,75 @@ td {
   width: 100%;
   margin-bottom: 4px;
 }
+
+/* ==========================================================================
+   REST TIMER COUNTDOWN
+   ========================================================================== */
+.global-timer-bar {
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  cursor: default;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.global-timer-bar.rest-warning {
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+}
+.rest-timer-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.timer-label { font-size: 0.7rem; font-weight: 700; color: #a3e635; letter-spacing: 0.08em; text-transform: uppercase; }
+.rest-timer-actions { display: flex; gap: 6px; align-items: center; }
+.rest-adj-btn {
+  font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 8px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.6); cursor: pointer;
+}
+.rest-adj-btn:active { background: rgba(255,255,255,0.12); }
+.rest-skip-btn {
+  font-size: 0.65rem; font-weight: 800; padding: 3px 10px; border-radius: 8px;
+  background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4);
+  color: #60a5fa; cursor: pointer;
+}
+.rest-progress-track {
+  width: 100%; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
+}
+.rest-progress-fill {
+  height: 100%; background: #3b82f6; border-radius: 2px;
+  transition: width 0.25s linear, background 0.3s ease;
+}
+.global-timer-bar.rest-warning .rest-progress-fill { background: #f59e0b; }
+.global-timer-bar.rest-done .rest-progress-fill { background: #10b981; width: 100% !important; }
+
+/* ==========================================================================
+   PER-SET RPE
+   ========================================================================== */
+.rpe-pad-row {
+  grid-column: span 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 4px;
+}
+.rpe-pad-label {
+  font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-right: 2px;
+  flex-shrink: 0;
+}
+.btn-rpe {
+  flex: 1; font-size: 0.7rem; font-weight: 700; padding: 4px 0;
+  border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.35);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.btn-rpe:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.7); }
+.btn-rpe.rpe-selected {
+  background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5);
+  color: #f87171; font-weight: 800;
+}
+.cockpit-set-row .rpe-pad-row { display: none; }
+.cockpit-set-row.is-complete .rpe-pad-row { display: flex; }

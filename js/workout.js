@@ -4,7 +4,7 @@
 import { getProgramById } from './state.js';
 import { CONFIG, EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, getLiftDisplayName } from './engine.js';
-import { triggerRestTimerEngine, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
+import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js'; 
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
@@ -439,8 +439,7 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   try {
     const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
     const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
-    const setType = parentRow.classList.contains('type-warmup') ? 'W'
-      : parentRow.classList.contains('type-amrap') ? 'F' : '';
+    const setType = appState.weeks[wk].lifts?.[selectedDay]?.[liftName]?.[sIdx]?.type || '';
     triggerRestTimerEngine(liftName, setRpe, setType);
   } catch(e) { console.warn(e); }
 
@@ -588,8 +587,11 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
       const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
-      const setType = parentRow && parentRow.classList.contains('type-warmup') ? 'W'
-        : parentRow && parentRow.classList.contains('type-amrap') ? 'F' : '';
+      const _appState = _getState();
+      const _selDay = _getSelectedDay();
+      const _wk = _appState.currentWeek;
+      const _sIdx = exCard ? Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow) : -1;
+      const setType = _appState.weeks[_wk].lifts?.[_selDay]?.[liftName]?.[_sIdx]?.type || '';
       triggerRestTimerEngine(liftName, setRpe, setType);
     } catch(e) { console.warn(e); }
   } else {
@@ -829,6 +831,23 @@ export function unpairSuperset(liftName) {
   Object.keys(dayMeta).forEach(n => { if (dayMeta[n]?.groupId === groupId) delete dayMeta[n].groupId; });
   _saveState(true);
   renderWorkout();
+}
+
+export function setPerSetRpe(liftName, sIdx, rpe) {
+  const appState = _getState();
+  const day = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const sets = appState.weeks[wk].lifts?.[day]?.[liftName];
+  if (!sets || !sets[sIdx]) return;
+  sets[sIdx].rpe = (sets[sIdx].rpe === rpe) ? null : rpe; // toggle off if same
+  _saveState(true);
+  // DOM-only update: toggle active class without full re-render
+  const rowEl = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"] .cockpit-set-row[data-set-index="${sIdx}"]`);
+  if (rowEl) {
+    rowEl.querySelectorAll('.btn-rpe').forEach(btn => {
+      btn.classList.toggle('rpe-selected', parseInt(btn.getAttribute('data-rpe'), 10) === sets[sIdx].rpe);
+    });
+  }
 }
 
 export function toggleAccordionManual(elementNode) {
@@ -1092,6 +1111,8 @@ document.addEventListener('click', (e) => {
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
   else if (action === 'unlink-superset') unpairSuperset(liftName);
   else if (action === 'toggle-accordion') toggleAccordionManual(exCard);
+  else if (action === 'set-rpe') setPerSetRpe(liftName, sIdx, parseInt(target.getAttribute('data-rpe'), 10));
+  else if (action === 'rest-adjust') adjustRestDuration(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'open-add-exercise') openAddExerciseModal();
   else if (action === 'close-add-exercise') closeAddExerciseModal();
   else if (action === 'confirm-add-exercise') confirmAddExercise();
