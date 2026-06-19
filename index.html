@@ -771,26 +771,12 @@
           <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
         </select>
 
-        <h2 class="section-header">Data Backups</h2>
-        <button class="btn-action-block btn-blue mb-2 text-left text-lg" data-action="export-text">📝 Copy Weekly Text Summary</button>
-        <button class="btn-action-block btn-ghost mb-2 text-left text-lg" data-action="export-json">📤 Export Backup File (JSON)</button>
-        <button class="btn-action-block btn-green-ghost mb-2 text-left text-lg" data-action="export-csv">📊 Export Spreadsheet (CSV)</button>
-        <label class="btn-action-block btn-ghost block text-left text-lg cursor-pointer" tabindex="0">
-          📥 Import Backup File
-          <input type="file" id="programFileImporter" accept=".json" data-action="import-json" class="hidden-input">
-        </label>
 
       </div>
 
       <!-- ═══════ BUILDER VIEW ═══════ -->
       <div id="builderViewContainer" style="display:none;"></div>
 
-      <!-- Legacy grid containers kept for compatibility with renderProgramLibrary() -->
-      <div id="progModeActiveContainer" style="display:none;"></div>
-      <div id="progModeLibraryContainer" style="display:none;">
-        <div id="libraryGridCustom"></div>
-        <div id="libraryGridSystem"></div>
-      </div>
 
     </section>
 
@@ -1099,9 +1085,11 @@
 
         <!-- Data -->
         <div class="settings-section">
-          <div class="settings-section-label">Data</div>
+          <div class="settings-section-label">Data &amp; Backups</div>
           <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
-          <button class="settings-action-btn" data-action="import-data">Import Training Data</button>
+          <button class="settings-action-btn" data-action="export-csv">Export Spreadsheet (CSV)</button>
+          <button class="settings-action-btn" data-action="export-text">Copy Weekly Text Summary</button>
+          <button class="settings-action-btn" data-action="import-data">Import Backup File</button>
           <input type="file" id="settingsImportFile" accept=".json" class="hidden-input">
           <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
         </div>

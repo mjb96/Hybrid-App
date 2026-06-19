@@ -14,8 +14,8 @@ export function openBuilder(programId) {
   const container = document.getElementById('builderViewContainer');
   if(container) container.style.display = 'block';
   
-  const libraryContainer = document.getElementById('progModeLibraryContainer');
-  if(libraryContainer) libraryContainer.style.display = 'none';
+  const libraryScreen = document.getElementById('programLibraryScreen');
+  if(libraryScreen) libraryScreen.style.display = 'none';
   
   renderBuilderUI(program);
 }
@@ -184,7 +184,8 @@ const removeExercise = (wIdx, dIdx, eIdx) => {
 
 const closeBuilder = () => {
   document.getElementById('builderViewContainer').style.display = 'none';
-  document.getElementById('progModeLibraryContainer').style.display = 'block';
+  const libraryScreen = document.getElementById('programLibraryScreen');
+  if (libraryScreen) libraryScreen.style.display = 'block';
   document.dispatchEvent(new CustomEvent('app:library-updated'));
 };
 

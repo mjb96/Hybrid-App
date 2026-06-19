@@ -2,6 +2,7 @@
 // CLOUD-CONNECTED STATE MANAGER (state.js)
 // ==========================================
 import { PROGRAMS } from './constants.js';
+import { getCatalogEntry } from './programs/catalog.js';
 import { prescribeSetsForLift } from './engine.js';
 import { todayKey } from './dates.js';
 import { getWeekModifier } from './schema.js';
@@ -76,7 +77,22 @@ export function getProgramById(id) {
     const custom = appState.customPrograms.find(p => p.id === id);
     if (custom) return custom;
   }
-  return PROGRAMS[id] || PROGRAMS['hybrid_engine'];
+  if (PROGRAMS[id]) return PROGRAMS[id];
+  // Catalog-only programs — normalize to workout-compatible shape
+  const catalogEntry = getCatalogEntry(id);
+  if (catalogEntry) {
+    return {
+      ...catalogEntry,
+      totalWeeks: catalogEntry.durationWeeks || 12,
+      weeklyVolModifiers: catalogEntry.weeklyVolModifiers || {},
+      dossier: catalogEntry.dossier || {
+        creator: catalogEntry.author?.name || 'HybridHQ',
+        focus:   catalogEntry.tagline || '',
+        philosophy: catalogEntry.description || '',
+      },
+    };
+  }
+  return PROGRAMS['hybrid_engine'];
 }
 
 // ==========================================

@@ -1,9 +1,8 @@
 // ==========================================
 // CLEANED CORE PROTOCOL ROUTER (app.js)
 // ==========================================
-import { CONFIG, PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
+import { PROGRAMS, WEEK_PHASE_NAMES } from './constants.js';
 import { devWarn } from './debug.js';
-import { buildLibraryCardHTML } from './templates.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
@@ -18,9 +17,7 @@ import {
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
   triggerTextSummaryExport,
-  triggerEngineExport,
   triggerCSVExport,
-  triggerEngineImport,
   setImportSuccessCallback,
   showToast,
   checkActiveSession,
@@ -70,7 +67,6 @@ document.addEventListener('app:library-updated', () => {
   try {
     updateLibraryState(appState);
     renderLibrary();
-    renderProgramLibrary(); // keep legacy grids in sync
   } catch (err) {
     console.warn('Library render failed after builder closed.', err);
   }
@@ -130,22 +126,15 @@ export function launchActiveWorkoutCockpit() {
 // PROGRAM LIBRARY ROUTING
 // ==========================================
 export function switchProgramMode(mode) {
-  const libraryScreen = document.getElementById('programLibraryScreen');
-  const detailScreen  = document.getElementById('programDetailScreen');
+  const libraryScreen  = document.getElementById('programLibraryScreen');
+  const detailScreen   = document.getElementById('programDetailScreen');
   const activePlanView = document.getElementById('progActivePlanView');
-  const viewBuilder   = document.getElementById('builderViewContainer');
-  // Legacy containers — kept hidden
-  const legacyActive  = document.getElementById('progModeActiveContainer');
-  const legacyLibrary = document.getElementById('progModeLibraryContainer');
-
-  // Reset all
-  if (legacyActive)  legacyActive.style.display  = 'none';
-  if (legacyLibrary) legacyLibrary.style.display  = 'none';
+  const viewBuilder    = document.getElementById('builderViewContainer');
 
   if (mode === 'active') {
-    if (libraryScreen) libraryScreen.style.display = 'none';
-    if (detailScreen)  detailScreen.style.display  = 'none';
-    if (viewBuilder)   viewBuilder.style.display   = 'none';
+    if (libraryScreen)  libraryScreen.style.display  = 'none';
+    if (detailScreen)   detailScreen.style.display   = 'none';
+    if (viewBuilder)    viewBuilder.style.display    = 'none';
     showActivePlanView(true);
   } else if (mode === 'builder') {
     if (libraryScreen)  libraryScreen.style.display  = 'none';
@@ -153,7 +142,6 @@ export function switchProgramMode(mode) {
     if (activePlanView) activePlanView.style.display = 'none';
     if (viewBuilder)    viewBuilder.style.display    = 'block';
   } else {
-    // 'library' — default
     if (viewBuilder)    viewBuilder.style.display    = 'none';
     if (activePlanView) activePlanView.style.display = 'none';
     if (detailScreen)   detailScreen.style.display   = 'none';
@@ -163,27 +151,6 @@ export function switchProgramMode(mode) {
   }
 }
 
-export function renderProgramLibrary() {
-  const customGrid = document.getElementById('libraryGridCustom');
-  const systemGrid = document.getElementById('libraryGridSystem');
-  if (!customGrid || !systemGrid) return;
-
-  const currentActiveId = appState.activeProgramId;
-
-  if (!appState.customPrograms || appState.customPrograms.length === 0) {
-    customGrid.innerHTML = '<div class="text-sm text-muted text-center p-3 border-dashed" style="border: 1px dashed var(--overlay-sm); border-radius: 8px;">No custom programs created yet.</div>';
-  } else {
-    customGrid.innerHTML = appState.customPrograms.map(p => 
-      buildLibraryCardHTML(p, p.id, true, p.id === currentActiveId)
-    ).join('');
-  }
-
-  let systemHTML = '';
-  for (const [id, prog] of Object.entries(PROGRAMS)) {
-    systemHTML += buildLibraryCardHTML(prog, id, false, id === currentActiveId);
-  }
-  systemGrid.innerHTML = systemHTML;
-}
 
 export function triggerMakeActiveProgram(newProgramId) {
   if (newProgramId === appState.activeProgramId) return;
@@ -503,7 +470,8 @@ export function executeDeleteProgram(id) {
   if(confirm("Are you sure you want to delete this custom program?")) {
     const result = deleteCustomProgram(id);
     if (result.success) {
-      renderProgramLibrary();
+      updateLibraryState(appState);
+      renderLibrary();
       showToast('Program deleted.');
     } else {
       showToast(result.message, true);
@@ -513,7 +481,8 @@ export function executeDeleteProgram(id) {
 
 export function executeDuplicateProgram(id) {
   duplicateCustomProgram(id);
-  renderProgramLibrary();
+  updateLibraryState(appState);
+  renderLibrary();
 }
 
 // ==========================================
@@ -780,7 +749,6 @@ document.addEventListener('click', (e) => {
 
   // Export & Data
   else if (action === 'export-text') triggerTextSummaryExport();
-  else if (action === 'export-json') triggerEngineExport();
   else if (action === 'export-csv') triggerCSVExport();
   
   // Auth
@@ -821,7 +789,6 @@ document.addEventListener('change', (e) => {
   const action = actionTarget.getAttribute('data-action');
 
   if (action === 'macro-week-switch') handleMacroWeekSwitch();
-  else if (action === 'import-json') triggerEngineImport(e);
 });
 
 document.addEventListener('blur', (e) => {
