@@ -4,7 +4,9 @@
 import { CONFIG, PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
 import { devWarn } from './debug.js';
 import { buildProgramOverviewHTML, buildWeekMatrixHTML, buildDaysSplitHTML, buildLibraryCardHTML } from './templates.js';
-import { openBuilder } from './program_builder.js'; 
+import { openBuilder } from './program_builder.js';
+import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
+import { handleDetailAction } from './programs/detail.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -65,7 +67,9 @@ document.addEventListener('app:storage-loaded', () => {
 
 document.addEventListener('app:library-updated', () => {
   try {
-    renderProgramLibrary();
+    updateLibraryState(appState);
+    renderLibrary();
+    renderProgramLibrary(); // keep legacy grids in sync
   } catch (err) {
     console.warn('Library render failed after builder closed.', err);
   }
@@ -125,25 +129,36 @@ export function launchActiveWorkoutCockpit() {
 // PROGRAM LIBRARY ROUTING
 // ==========================================
 export function switchProgramMode(mode) {
-  const btnActive = document.getElementById('btnProgModeActive');
-  const btnLibrary = document.getElementById('btnProgModeLibrary');
-  const viewActive = document.getElementById('progModeActiveContainer');
-  const viewLibrary = document.getElementById('progModeLibraryContainer');
-  const viewBuilder = document.getElementById('builderViewContainer');
+  const libraryScreen = document.getElementById('programLibraryScreen');
+  const detailScreen  = document.getElementById('programDetailScreen');
+  const activePlanView = document.getElementById('progActivePlanView');
+  const viewBuilder   = document.getElementById('builderViewContainer');
+  // Legacy containers — kept hidden
+  const legacyActive  = document.getElementById('progModeActiveContainer');
+  const legacyLibrary = document.getElementById('progModeLibraryContainer');
 
-  if (viewBuilder) viewBuilder.style.display = 'none';
+  // Reset all
+  if (legacyActive)  legacyActive.style.display  = 'none';
+  if (legacyLibrary) legacyLibrary.style.display  = 'none';
 
   if (mode === 'active') {
-    btnActive?.classList.add('active');
-    btnLibrary?.classList.remove('active');
-    viewActive.style.display = 'block';
-    viewLibrary.style.display = 'none';
+    if (libraryScreen) libraryScreen.style.display = 'none';
+    if (detailScreen)  detailScreen.style.display  = 'none';
+    if (viewBuilder)   viewBuilder.style.display   = 'none';
+    showActivePlanView(true);
+  } else if (mode === 'builder') {
+    if (libraryScreen)  libraryScreen.style.display  = 'none';
+    if (detailScreen)   detailScreen.style.display   = 'none';
+    if (activePlanView) activePlanView.style.display = 'none';
+    if (viewBuilder)    viewBuilder.style.display    = 'block';
   } else {
-    btnLibrary?.classList.add('active');
-    btnActive?.classList.remove('active');
-    viewLibrary.style.display = 'block';
-    viewActive.style.display = 'none';
-    renderProgramLibrary();
+    // 'library' — default
+    if (viewBuilder)    viewBuilder.style.display    = 'none';
+    if (activePlanView) activePlanView.style.display = 'none';
+    if (detailScreen)   detailScreen.style.display   = 'none';
+    if (libraryScreen)  libraryScreen.style.display  = 'block';
+    updateLibraryState(appState);
+    renderLibrary();
   }
 }
 
@@ -239,7 +254,15 @@ export function hydrateCurrentView() {
   else if (activeTab === 'program') {
     const wkSelect = document.getElementById('globalWeekSelect');
     if (wkSelect) wkSelect.value = appState.currentWeek;
-    switchBrowserSectionTab('overview');
+
+    // If active plan view is visible, refresh it; otherwise render library
+    const activePlanView = document.getElementById('progActivePlanView');
+    if (activePlanView && activePlanView.style.display !== 'none') {
+      switchBrowserSectionTab('overview');
+    } else {
+      updateLibraryState(appState);
+      renderLibrary();
+    }
   }
 }
 
@@ -299,7 +322,7 @@ export function triggerEditActiveProgram(progId) {
       saveStateToLocalStorage(true);
       hydrateCurrentView();
       
-      switchProgramMode('library');
+      switchProgramMode('builder');
       openBuilder(newId);
     }
   } else {
@@ -311,7 +334,7 @@ export function triggerEditActiveProgram(progId) {
       }
     }
     
-    switchProgramMode('library');
+    switchProgramMode('builder');
     openBuilder(progId);
   }
 }
@@ -353,7 +376,8 @@ export function executeCreateProgram() {
   const wks = document.getElementById('cpInputWeeks').value;
   createCustomProgram(name, wks, focus, "");
   closeCreateProgramModal();
-  renderProgramLibrary();
+  updateLibraryState(appState);
+  renderLibrary();
   showToast('Custom Program Created!');
   document.getElementById('cpInputName').value = '';
   document.getElementById('cpInputFocus').value = '';
@@ -571,6 +595,18 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-builder') openBuilder(progId);
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
+
+  // New Program Library actions
+  else if (['open-program-detail', 'prog-filter', 'prog-quick-search', 'hero-dot'].includes(action)) {
+    handleLibraryAction(action, target, e);
+  }
+  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program'].includes(action)) {
+    handleDetailAction(action, target);
+  }
+  else if (action === 'close-active-plan-view') {
+    showActivePlanView(false);
+    returnToLibrary();
+  }
   
   // Settings
   else if (action === 'open-settings') openSettings();
@@ -659,6 +695,44 @@ document.addEventListener('input', (e) => {
 });
 
 // ==========================================
+// PROGRAM LIBRARY HELPERS
+// ==========================================
+
+export function showActivePlanView(show) {
+  const libraryScreen = document.getElementById('programLibraryScreen');
+  const detailScreen  = document.getElementById('programDetailScreen');
+  const activePlan    = document.getElementById('progActivePlanView');
+  const builder       = document.getElementById('builderViewContainer');
+
+  if (libraryScreen) libraryScreen.style.display = show ? 'none' : 'block';
+  if (detailScreen)  detailScreen.style.display  = 'none';
+  if (activePlan)    activePlan.style.display    = show ? 'block' : 'none';
+  if (builder)       builder.style.display       = 'none';
+
+  if (show) {
+    const wkSelect = document.getElementById('globalWeekSelect');
+    if (wkSelect) wkSelect.value = appState.currentWeek;
+    switchBrowserSectionTab('overview');
+  }
+}
+
+// Custom event bridge from detail page → app.js
+document.addEventListener('library:make-active', (e) => {
+  const id = e.detail?.id;
+  if (id) {
+    triggerMakeActiveProgram(id);
+    // After switching, update library state and return to library
+    updateLibraryState(appState);
+    returnToLibrary();
+    renderLibrary();
+  }
+});
+
+document.addEventListener('library:view-active', () => {
+  showActivePlanView(true);
+});
+
+// ==========================================
 // BOOTSTRAP AND INITIALIZATION
 // ==========================================
 const getState = () => appState;
@@ -674,6 +748,7 @@ initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
 initSettings(getState);
 initRunLogger(getState);
 initOnboarding(getState);
+initProgramLibrary(appState);
 
 // === DEVICE IMPORT WIRING ===
 

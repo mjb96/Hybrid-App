@@ -19,6 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
   <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/programs.css">
   
   <style>
     .hidden-input { display: none; }
@@ -186,37 +187,51 @@
         <article id="homeWeekCompareCard"><div id="homeWeekCompareGrid"></div></article>
       </div>
 
-      <div class="flex-between mb-4 mt-2">
-        <h1 id="homeWeekBlockIndicator" class="text-sm font-bold text-muted uppercase tracking-wider m-0">Week 1</h1>
+      <div class="home-header">
+        <div class="home-header-meta">
+          <span class="home-app-label">Hybrid Engine</span>
+          <h1 id="homeWeekBlockIndicator" class="home-week-label">Week 1</h1>
+          <span class="home-phase-label" id="homePhaseLabelTag"></span>
+        </div>
         <button class="profile-avatar-btn" id="profileAvatarBtn" data-action="open-settings" aria-label="Settings">
           <span id="profileAvatarInitials">?</span>
         </button>
       </div>
 
-      <h2 class="focus-header-text">In Focus</h2>
-      
+      <div class="app-section-heading">
+        <div class="app-section-heading__title">In Focus</div>
+        <div class="app-section-heading__sub">Your training this week</div>
+      </div>
+
       <div class="in-focus-carousel">
-        
-        <article class="card-dark carousel-card" data-action="open-analytics" data-context="strength" style="cursor: pointer;">
-          <div class="flex-between mb-2">
-             <div class="card-icon-title text-accent-blue"><span>🏋️</span> Gym Time • This Week</div>
+
+        <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="strength">
+          <div class="hmcard-top">
+            <span class="hmcard-icon">🏋️</span>
+            <span class="hmcard-label">Gym Time · This Week</span>
           </div>
-          <h3 id="focusStrengthHero" class="text-3xl font-heavy text-inverse leading-tight mb-1">0m</h3>
+          <h3 id="focusStrengthHero" class="hmcard-hero">0m</h3>
+          <div class="hmcard-sub" id="focusStrengthSub">tap to view analytics</div>
           <div class="bar-chart-container" id="strengthBarChart"></div>
         </article>
 
-        <article class="card-dark carousel-card" style="cursor: pointer;">
-          <div class="flex-between mb-2">
-             <div class="card-icon-title text-accent-pink" data-action="open-analytics" data-context="running"><span>🏃</span> Run Distance • This Week</div>
-             <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
+        <article class="card-dark carousel-card home-metric-card home-metric-card--run" data-action="open-analytics" data-context="running">
+          <div class="hmcard-top">
+            <span class="hmcard-icon">🏃</span>
+            <span class="hmcard-label">Run Distance · This Week</span>
+            <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
           </div>
-          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1" data-action="open-analytics" data-context="running">0.0 km</h3>
-          <div class="bar-chart-container" id="runBarChart" data-action="open-analytics" data-context="running"></div>
+          <h3 id="focusRunHero" class="hmcard-hero">0.0 km</h3>
+          <div class="hmcard-sub" id="focusRunSub">tap to view analytics</div>
+          <div class="bar-chart-container" id="runBarChart"></div>
         </article>
 
       </div>
 
-      <h2 class="focus-header-text mt-2">At a Glance</h2>
+      <div class="app-section-heading" style="margin-top: 20px;">
+        <div class="app-section-heading__title">At a Glance</div>
+        <div class="app-section-heading__sub">Key metrics snapshot</div>
+      </div>
 
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 
@@ -228,7 +243,19 @@
     </section>
 
     <section id="view-workout" class="view-container" aria-label="Workout Cockpit">
-      
+
+      <div class="workout-cockpit-header">
+        <div class="wch-meta">
+          <span class="wch-label">Workout</span>
+          <h2 class="wch-title">Today's Session</h2>
+          <span class="wch-sub" id="cockpitSessionStatus">Ready to train</span>
+        </div>
+        <div class="wch-badge">
+          <span class="wch-badge-dot"></span>
+          Cockpit
+        </div>
+      </div>
+
       <nav class="workout-day-selector" id="cockpitDaySelectorBar" aria-label="Day Selector">
         <button class="day-pill active" data-action="set-day" data-day="mon" aria-current="page">Mon (Push)</button>
         <button class="day-pill" data-action="set-day" data-day="tue">Tue (Pull)</button>
@@ -293,17 +320,22 @@
             <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="runInputTE" placeholder="--" readonly style="text-align:center; color:#10b981;"></label>
           </div>
           <div id="runHrZonesContainer" style="display:none; margin-bottom:8px;">
-            <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">HR ZONES (time in zone)</div>
+            <div class="set-num-lbl mb-1">HR ZONES (time in zone)</div>
             <div id="runHrZonesBar" style="display:flex; border-radius:4px; overflow:hidden; height:8px; margin-bottom:4px;"></div>
-            <div id="runHrZonesLabels" style="display:flex; justify-content:space-between; font-size:0.6rem; color:rgba(255,255,255,0.4);"></div>
+            <div id="runHrZonesLabels" style="display:flex; justify-content:space-between; font-size:0.6rem;"></div>
           </div>
           <div id="runSplitsContainer" style="display:none;">
-            <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">KM SPLITS</div>
+            <div class="set-num-lbl mb-1">KM SPLITS</div>
             <div id="runSplitsTable"></div>
           </div>
         </div>
 
       </article>
+
+      <div class="app-section-heading">
+        <div class="app-section-heading__title">Exercises</div>
+        <div class="app-section-heading__sub">Tap a set to log weight &amp; reps</div>
+      </div>
 
       <div id="cockpitExercisesContainer"></div>
 
@@ -311,26 +343,29 @@
 
       <article class="card-dark mt-4 p-4">
         <div class="flex-between mb-3">
-          <h2 class="section-header m-0">Session Overview</h2>
-          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid var(--accent-blue);">
+          <div>
+            <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
+            <div class="app-section-heading__sub">RPE, notes &amp; .FIT import</div>
+          </div>
+          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid var(--accent-blue); flex-shrink:0;">
             ⌚ Import Gym .FIT
             <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
           </label>
         </div>
 
-        <div id="gymStatsRow" style="display: none; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1); margin-bottom: 8px;">
+        <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(4, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="--" readonly style="text-align: center; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-pink">Avg HR</span><input type="text" id="gymInputAvgHR" placeholder="--" readonly style="text-align: center; color:#22d3ee; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-pink">Max HR</span><input type="text" id="gymInputMaxHR" placeholder="--" readonly style="text-align: center; color:#22d3ee; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-green">Cals</span><input type="text" id="gymInputCals" placeholder="--" readonly style="text-align: center; color:#10b981; border-color: rgba(255,255,255,0.1);"></label>
+            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="--" readonly style="text-align: center;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-pink">Avg HR</span><input type="text" id="gymInputAvgHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-pink">Max HR</span><input type="text" id="gymInputMaxHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-green">Cals</span><input type="text" id="gymInputCals" placeholder="--" readonly style="text-align: center; color:#10b981;"></label>
           </div>
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(2, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="gymInputTE" placeholder="--" readonly style="text-align: center; color:#10b981; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-amber">Aerobic TE</span><input type="text" id="gymInputAerobicTE" placeholder="--" readonly style="text-align: center; color:#f59e0b; border-color: rgba(255,255,255,0.1);"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="gymInputTE" placeholder="--" readonly style="text-align: center; color:#10b981;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-amber">Aerobic TE</span><input type="text" id="gymInputAerobicTE" placeholder="--" readonly style="text-align: center; color:#f59e0b;"></label>
           </div>
           <div id="gymSetsBreakdown" style="display:none;">
-            <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">SET BREAKDOWN (from .FIT)</div>
+            <div class="set-num-lbl mb-1">SET BREAKDOWN (from .FIT)</div>
             <div id="gymSetsTable"></div>
           </div>
         </div>
@@ -660,20 +695,53 @@
 
     </section>
 
-    <section id="view-program" class="view-container" aria-label="Program Hub">
-      <header class="mb-5">
-        <h2 class="text-3xl font-heavy tracking-tight mb-1">Program Hub</h2>
-        <p class="text-sm font-medium text-muted">Manage your active meso-cycle and explore the library.</p>
-      </header>
+    <section id="view-program" class="view-container" aria-label="Program Library">
 
-      <nav class="segmented-control mb-4" aria-label="Program Management Modes">
-        <button id="btnProgModeActive" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="active" aria-current="page">ACTIVE PLAN</button>
-        <button id="btnProgModeLibrary" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="library">LIBRARY & BUILDER</button>
-      </nav>
+      <!-- ═══════ LIBRARY SCREEN (default entry) ═══════ -->
+      <div id="programLibraryScreen">
 
-      <div id="progModeActiveContainer">
+        <!-- Active Program Banner -->
+        <div id="activeProgBanner" class="mb-4" style="display:none;"></div>
+
+        <!-- Search Bar -->
+        <div class="prog-search-bar mb-3">
+          <div class="prog-search-input-wrap">
+            <svg class="search-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="progSearchInput" placeholder="Search programs, goals, coaches..." autocomplete="off" autocorrect="off" spellcheck="false">
+            <button id="progSearchClear">✕</button>
+          </div>
+        </div>
+
+        <!-- Filter Chips -->
+        <div id="progFilterChips" class="filter-chips-row mb-4"></div>
+
+        <!-- Library Content (collections / browse mode) -->
+        <div id="progLibraryContent"></div>
+
+        <!-- Search Results (shown when typing) -->
+        <div id="progSearchResults" style="display:none;"></div>
+
+      </div>
+
+      <!-- ═══════ PROGRAM DETAIL SCREEN ═══════ -->
+      <div id="programDetailScreen" style="display:none;">
+        <div id="programDetailContent"></div>
+      </div>
+
+      <!-- ═══════ ACTIVE PLAN VIEW (program overview, week matrix, daily tiers) ═══════ -->
+      <div id="progActivePlanView" style="display:none;">
+
+        <div class="detail-back-bar mb-4">
+          <button class="detail-back-btn" data-action="close-active-plan-view">
+            <span class="detail-back-icon">‹</span> Library
+          </button>
+          <span class="active-plan-label">Active Program</span>
+        </div>
+
         <article class="card-dark p-4 mb-4">
-          <label for="globalWeekSelect" class="text-xs-bold block mb-1 text-muted">TARGET TIMELINE MACROCYCLE WEEK</label>
+          <label for="globalWeekSelect" class="text-xs-bold block mb-1 text-muted">MACROCYCLE WEEK</label>
           <select class="native-select select-dark w-full" id="globalWeekSelect" data-action="macro-week-switch">
             <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
             <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
@@ -695,26 +763,23 @@
         <button class="btn-action-block btn-blue mb-2 text-left text-lg" data-action="export-text">📝 Copy Weekly Text Summary</button>
         <button class="btn-action-block btn-ghost mb-2 text-left text-lg" data-action="export-json">📤 Export Backup File (JSON)</button>
         <button class="btn-action-block btn-green-ghost mb-2 text-left text-lg" data-action="export-csv">📊 Export Spreadsheet (CSV)</button>
-
         <label class="btn-action-block btn-ghost block text-left text-lg cursor-pointer" tabindex="0">
           📥 Import Backup File
           <input type="file" id="programFileImporter" accept=".json" data-action="import-json" class="hidden-input">
         </label>
+
       </div>
 
-      <div id="progModeLibraryContainer" style="display: none;">
-        <div class="flex-between mb-4 mt-2">
-          <h2 class="section-header m-0" style="margin-bottom: 0;">Your Programs</h2>
-          <button class="btn-action-block btn-blue m-0" style="width: auto; padding: 8px 16px; font-size: 0.8rem;" data-action="open-create-program">+ Create New</button>
-        </div>
-        
-        <div id="libraryGridCustom" class="flex-col gap-3 mb-5"></div>
-        
-        <h2 class="section-header">Built-In Blueprints</h2>
-        <div id="libraryGridSystem" class="flex-col gap-3 mb-6"></div>
+      <!-- ═══════ BUILDER VIEW ═══════ -->
+      <div id="builderViewContainer" style="display:none;"></div>
+
+      <!-- Legacy grid containers kept for compatibility with renderProgramLibrary() -->
+      <div id="progModeActiveContainer" style="display:none;"></div>
+      <div id="progModeLibraryContainer" style="display:none;">
+        <div id="libraryGridCustom"></div>
+        <div id="libraryGridSystem"></div>
       </div>
 
-      <div id="builderViewContainer" style="display: none;"></div>
     </section>
 
   </main>
