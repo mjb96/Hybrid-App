@@ -238,10 +238,20 @@
         <span class="timer-clock" id="workoutDurationClock">00:00</span>
       </div>
 
-      <button class="global-timer-bar" id="cockpitTimerBar" data-action="dismiss-rest" aria-label="Dismiss Rest Timer">
-        <span class="timer-txt">⏸ RESTING <span class="text-xxs text-accent-blue">(TAP TO START NEXT SET)</span></span>
-        <span class="timer-clock" id="cockpitTimerClock">0:00</span>
-      </button>
+      <div class="global-timer-bar" id="cockpitTimerBar">
+        <div class="rest-timer-body">
+          <span class="timer-label" id="restTimerLabel">⏸ REST</span>
+          <span class="timer-clock" id="cockpitTimerClock">1:30</span>
+          <div class="rest-timer-actions">
+            <button class="rest-adj-btn" data-action="rest-adjust" data-delta="-30">−30s</button>
+            <button class="rest-adj-btn" data-action="rest-adjust" data-delta="30">+30s</button>
+            <button class="rest-skip-btn" data-action="dismiss-rest">Done</button>
+          </div>
+        </div>
+        <div class="rest-progress-track">
+          <div class="rest-progress-fill" id="restProgressFill" style="width:100%"></div>
+        </div>
+      </div>
 
       <article class="card-dark workout-run-card" id="cockpitRunPanel">
         <div class="flex-between mb-3">

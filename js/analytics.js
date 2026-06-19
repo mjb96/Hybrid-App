@@ -192,6 +192,11 @@ function collectAnalyticsData() {
             weekVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
             data.globalTotalSets++;
           }
+          // Collect per-set RPE if available
+          if (completed && s.rpe && s.type !== 'W') {
+            weekRpeSum += s.rpe;
+            weekRpeCount++;
+          }
         });
       }
     });
