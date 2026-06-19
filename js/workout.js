@@ -435,11 +435,13 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   appState.weeks[wk].lifts[selectedDay][liftName][sIdx] = { w: targetW, r: targetR, c: true };
 
   parentRow.classList.add('is-complete');
-  
+
   try {
     const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
     const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
-    triggerRestTimerEngine(liftName, setRpe);
+    const setType = parentRow.classList.contains('type-warmup') ? 'W'
+      : parentRow.classList.contains('type-amrap') ? 'F' : '';
+    triggerRestTimerEngine(liftName, setRpe, setType);
   } catch(e) { console.warn(e); }
 
   _saveState(true);
@@ -586,7 +588,9 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
       const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
-      triggerRestTimerEngine(liftName, setRpe);
+      const setType = parentRow && parentRow.classList.contains('type-warmup') ? 'W'
+        : parentRow && parentRow.classList.contains('type-amrap') ? 'F' : '';
+      triggerRestTimerEngine(liftName, setRpe, setType);
     } catch(e) { console.warn(e); }
   } else {
     if (parentRow) parentRow.classList.remove('is-complete');
