@@ -15,6 +15,11 @@ export const CATEGORIES = {
   body_composition:{ label: 'Body Composition',  icon: '🔥', color: '#f59e0b' },
   general_fitness: { label: 'General Fitness',   icon: '🎯', color: '#06b6d4' },
   tactical:        { label: 'Tactical',          icon: '🎖️', color: '#84cc16' },
+  bodybuilding:    { label: 'Bodybuilding',      icon: '🏛️', color: '#e879f9' },
+  triathlon:       { label: 'Triathlon',         icon: '🏊', color: '#0ea5e9' },
+  mobility:        { label: 'Mobility',          icon: '🧘', color: '#86efac' },
+  functional:      { label: 'Functional',        icon: '⚙️', color: '#fb923c' },
+  sport_specific:  { label: 'Sport-Specific',    icon: '🎽', color: '#38bdf8' },
 };
 
 export const DIFFICULTY_LABELS = {
