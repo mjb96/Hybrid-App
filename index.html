@@ -188,7 +188,9 @@
 
       <div class="flex-between mb-4 mt-2">
         <h1 id="homeWeekBlockIndicator" class="text-sm font-bold text-muted uppercase tracking-wider m-0">Week 1</h1>
-        <span class="text-sm font-bold text-accent-blue">SYNCED</span>
+        <button class="profile-avatar-btn" id="profileAvatarBtn" data-action="open-settings" aria-label="Settings">
+          <span id="profileAvatarInitials">?</span>
+        </button>
       </div>
 
       <h2 class="focus-header-text">In Focus</h2>
@@ -203,19 +205,25 @@
           <div class="bar-chart-container" id="strengthBarChart"></div>
         </article>
 
-        <article class="card-dark carousel-card" data-action="open-analytics" data-context="running" style="cursor: pointer;">
+        <article class="card-dark carousel-card" style="cursor: pointer;">
           <div class="flex-between mb-2">
-             <div class="card-icon-title text-accent-pink"><span>🏃</span> Run Distance • This Week</div>
+             <div class="card-icon-title text-accent-pink" data-action="open-analytics" data-context="running"><span>🏃</span> Run Distance • This Week</div>
+             <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
           </div>
-          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1">0.0 km</h3>
-          <div class="bar-chart-container" id="runBarChart"></div>
+          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1" data-action="open-analytics" data-context="running">0.0 km</h3>
+          <div class="bar-chart-container" id="runBarChart" data-action="open-analytics" data-context="running"></div>
         </article>
 
       </div>
 
       <h2 class="focus-header-text mt-2">At a Glance</h2>
-      
+
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
+
+      <button class="btn-history-link mb-4" data-action="open-analytics" data-context="activity">
+        <span>📅 Activity History</span>
+        <span class="btn-history-arrow">→</span>
+      </button>
 
     </section>
 
@@ -238,10 +246,20 @@
         <span class="timer-clock" id="workoutDurationClock">00:00</span>
       </div>
 
-      <button class="global-timer-bar" id="cockpitTimerBar" data-action="dismiss-rest" aria-label="Dismiss Rest Timer">
-        <span class="timer-txt">⏸ RESTING <span class="text-xxs text-accent-blue">(TAP TO START NEXT SET)</span></span>
-        <span class="timer-clock" id="cockpitTimerClock">0:00</span>
-      </button>
+      <div class="global-timer-bar" id="cockpitTimerBar">
+        <div class="rest-timer-body">
+          <span class="timer-label" id="restTimerLabel">⏸ REST</span>
+          <span class="timer-clock" id="cockpitTimerClock">1:30</span>
+          <div class="rest-timer-actions">
+            <button class="rest-adj-btn" data-action="rest-adjust" data-delta="-30">−30s</button>
+            <button class="rest-adj-btn" data-action="rest-adjust" data-delta="30">+30s</button>
+            <button class="rest-skip-btn" data-action="dismiss-rest">Done</button>
+          </div>
+        </div>
+        <div class="rest-progress-track">
+          <div class="rest-progress-fill" id="restProgressFill" style="width:100%"></div>
+        </div>
+      </div>
 
       <article class="card-dark workout-run-card" id="cockpitRunPanel">
         <div class="flex-between mb-3">
@@ -631,6 +649,15 @@
         <div id="sbWeeklyBreakdown" class="mb-4"></div>
       </div>
 
+      <div id="analytics-activity" class="analytics-section">
+        <h2 class="section-header">Activity History</h2>
+        <div class="cal-legend mb-3">
+          <span class="cal-dot cal-dot-gym"></span><span class="cal-legend-label">Gym</span>
+          <span class="cal-dot cal-dot-run" style="margin-left:10px;"></span><span class="cal-legend-label">Run</span>
+        </div>
+        <div id="analyticsCalendarContainer"></div>
+      </div>
+
     </section>
 
     <section id="view-program" class="view-container" aria-label="Program Hub">
@@ -748,6 +775,314 @@
     </div>
   </div>
 
+  <!-- Run Logger Modal -->
+  <div class="modal-overlay rl-overlay" id="runLoggerModal" role="dialog" aria-modal="true" aria-label="Log a Run">
+    <div class="modal-sheet rl-sheet">
+      <div class="rl-header">
+        <span class="rl-title">Log Run</span>
+        <button class="settings-close-btn" data-action="close-run-logger" aria-label="Close">✕</button>
+      </div>
+
+      <div class="rl-day-row">
+        <button class="rl-day-btn" data-action="rl-day" data-day="mon">Mon</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="tue">Tue</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="wed">Wed</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="thu">Thu</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="fri">Fri</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="sat">Sat</button>
+        <button class="rl-day-btn" data-action="rl-day" data-day="sun">Sun</button>
+      </div>
+
+      <div class="rl-fields">
+        <div class="rl-field-row">
+          <label class="rl-label">Distance</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlDist" class="rl-input" placeholder="0.0" step="0.1" min="0">
+            <span class="rl-unit-badge" id="rlDistUnit">km</span>
+          </div>
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">Duration</label>
+          <input type="text" id="rlTime" class="rl-input" placeholder="mm:ss" inputmode="numeric">
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">RPE</label>
+          <div class="rl-rpe-row">
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="6">6</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="7">7</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="8">8</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="9">9</button>
+            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="10">10</button>
+          </div>
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">Avg HR</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlAvgHR" class="rl-input" placeholder="—" min="0">
+            <span class="rl-unit-badge">bpm</span>
+          </div>
+        </div>
+        <div class="rl-field-row">
+          <label class="rl-label">Elevation</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlElev" class="rl-input" placeholder="—" min="0">
+            <span class="rl-unit-badge">m</span>
+          </div>
+        </div>
+        <div class="rl-field-row rl-field-col">
+          <label class="rl-label">Notes</label>
+          <textarea id="rlNotes" class="rl-input rl-textarea" placeholder="How did it feel?" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="rl-actions">
+        <button class="btn-action-block btn-ghost mt-0" data-action="close-run-logger">Cancel</button>
+        <button class="btn-action-block btn-indigo mt-0" data-action="save-run-log">Save Run</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div class="ob-overlay" id="onboardingOverlay" aria-modal="true" role="dialog" aria-label="Setup">
+
+    <!-- Step 1: Name -->
+    <div class="ob-step ob-step-active" id="ob-step-1">
+      <div class="ob-card">
+        <div class="ob-emoji">⚡</div>
+        <h1 class="ob-heading">Welcome to<br>Hybrid Engine</h1>
+        <p class="ob-sub">Build strength. Run faster. Let's set you up.</p>
+        <div class="ob-field">
+          <label class="ob-label" for="obName">What's your name?</label>
+          <input type="text" id="obName" class="ob-input" placeholder="Your name" autocomplete="given-name">
+        </div>
+        <button class="ob-cta" data-action="ob-next" data-to="2">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Goal -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-card">
+        <h1 class="ob-heading">What's your<br>main goal?</h1>
+        <p class="ob-sub">We'll pick the right program for you.</p>
+        <div class="ob-goal-grid">
+          <button class="ob-goal-btn" data-action="ob-goal" data-goal="strength">
+            <span class="ob-goal-icon">🏋️</span>
+            <span class="ob-goal-name">Strength First</span>
+            <span class="ob-goal-desc">Build muscle &amp; strength, light cardio</span>
+          </button>
+          <button class="ob-goal-btn active" data-action="ob-goal" data-goal="hybrid">
+            <span class="ob-goal-icon">⚡</span>
+            <span class="ob-goal-name">True Hybrid</span>
+            <span class="ob-goal-desc">Balance lifting and running</span>
+          </button>
+          <button class="ob-goal-btn" data-action="ob-goal" data-goal="endurance">
+            <span class="ob-goal-icon">🏃</span>
+            <span class="ob-goal-name">Run-Focused</span>
+            <span class="ob-goal-desc">Improve race performance, maintain strength</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Program -->
+    <div class="ob-step" id="ob-step-3">
+      <div class="ob-card">
+        <h1 class="ob-heading">Pick your program</h1>
+        <p class="ob-sub">You can switch anytime in the Program tab.</p>
+        <div class="ob-prog-list" id="obProgramList"></div>
+        <button class="ob-back-link" data-action="ob-back" data-to="2">← Back</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Quick Setup -->
+    <div class="ob-step" id="ob-step-4">
+      <div class="ob-card">
+        <div class="ob-emoji">🎯</div>
+        <h1 class="ob-heading">Quick Setup</h1>
+        <p class="ob-sub">Optional — change these anytime in Settings.</p>
+        <div class="ob-field">
+          <label class="ob-label">Body weight</label>
+          <div class="ob-row">
+            <input type="number" id="obBodyWeight" class="ob-input ob-input-sm" placeholder="75" min="1" step="0.5">
+            <div class="ob-toggle-group">
+              <button class="ob-toggle-btn active" data-action="ob-unit" data-unit="kg">kg</button>
+              <button class="ob-toggle-btn" data-action="ob-unit" data-unit="lb">lb</button>
+            </div>
+          </div>
+        </div>
+        <div class="ob-field">
+          <label class="ob-label">Distance unit</label>
+          <div class="ob-toggle-group">
+            <button class="ob-toggle-btn active" data-action="ob-dist-unit" data-unit="km">km</button>
+            <button class="ob-toggle-btn" data-action="ob-dist-unit" data-unit="mi">miles</button>
+          </div>
+        </div>
+        <button class="ob-cta" data-action="ob-finish">Let's go 🚀</button>
+        <button class="ob-skip" data-action="ob-finish">Skip for now</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
+
+      <div class="settings-header">
+        <div class="settings-profile-hero">
+          <div class="settings-avatar-large" id="settingsAvatarLarge">?</div>
+          <div>
+            <div class="settings-name-display" id="settingsNameDisplay">Athlete</div>
+            <div class="text-xs text-muted mt-1">Personal Profile</div>
+          </div>
+        </div>
+        <button class="settings-close-btn" data-action="close-settings" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="settings-body">
+
+        <!-- Profile -->
+        <div class="settings-section">
+          <div class="settings-section-label">Profile</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Name</label>
+            <input type="text" class="settings-input" id="settingsNameInput" placeholder="Your name" maxlength="30">
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Body Weight</label>
+            <div class="settings-input-unit-row">
+              <input type="number" class="settings-input settings-input-short" id="settingsBodyWeight" placeholder="75" min="30" max="300" step="0.5">
+              <span class="settings-unit-badge" id="settingsBodyWeightUnit">kg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Training -->
+        <!-- Week Management -->
+        <div class="settings-section">
+          <div class="settings-section-label">Program Week</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Current Week</label>
+            <div class="week-stepper">
+              <button class="week-stepper-btn" data-action="week-step" data-delta="-1">−</button>
+              <span class="week-stepper-val" id="settingsCurrentWeek">1</span>
+              <button class="week-stepper-btn" data-action="week-step" data-delta="1">+</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Auto-advance week</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsAutoAdvance" checked>
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-label">Training</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Weight Unit</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" id="unitKgBtn" data-action="set-unit" data-unit="kg">kg</button>
+              <button class="settings-toggle-btn" id="unitLbsBtn" data-action="set-unit" data-unit="lbs">lbs</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Distance Unit</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" data-action="set-dist-unit" data-unit="km">km</button>
+              <button class="settings-toggle-btn" data-action="set-dist-unit" data-unit="mi">miles</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Default Rest Timer</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="60">60s</button>
+              <button class="settings-toggle-btn active" data-action="set-rest-default" data-secs="90">90s</button>
+              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="120">2m</button>
+              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="180">3m</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Progression Step</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-progression" data-kg="1.25">1.25</button>
+              <button class="settings-toggle-btn active" data-action="set-progression" data-kg="2.5">2.5</button>
+              <button class="settings-toggle-btn" data-action="set-progression" data-kg="5">5 kg</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Threshold Pace</label>
+            <div class="settings-input-unit-row">
+              <input type="text" class="settings-input settings-input-short" id="settingsThresholdPace" placeholder="4:30" maxlength="5">
+              <span class="settings-unit-badge">min/km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data -->
+        <div class="settings-section">
+          <div class="settings-section-label">Data</div>
+          <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
+          <button class="settings-action-btn" data-action="import-data">Import Training Data</button>
+          <input type="file" id="settingsImportFile" accept=".json" class="hidden-input">
+          <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
+        </div>
+
+        <!-- Health Connect -->
+        <div class="settings-section">
+          <div class="settings-section-label">Health Connect</div>
+
+          <div class="hc-status-card" id="hcStatusCard">
+            <div class="hc-status-indicator" id="hcStatusIndicator"></div>
+            <div class="hc-status-text">
+              <span class="hc-status-label" id="hcStatusLabel">Not connected</span>
+              <span class="hc-last-sync text-xs text-muted" id="hcLastSync"></span>
+            </div>
+            <button class="hc-connect-btn" id="hcConnectBtn" data-action="hc-toggle-connect">Connect</button>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-row-label">Daily Step Goal</label>
+            <div class="settings-input-unit-row">
+              <input type="number" class="settings-input settings-input-short" id="settingsStepGoal" placeholder="10000" min="1000" max="50000" step="500">
+              <span class="settings-unit-badge">steps</span>
+            </div>
+          </div>
+
+          <div class="hc-data-types" id="hcDataTypes">
+            <div class="settings-section-label" style="margin-top:10px;">Sync Data Types</div>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncHrv" data-hc-field="hrv" checked><span>Heart Rate Variability (HRV)</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncRhr" data-hc-field="restingHR" checked><span>Resting Heart Rate</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSleep" data-hc-field="sleep" checked><span>Sleep Duration</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSteps" data-hc-field="steps" checked><span>Daily Steps</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncVo2" data-hc-field="vo2max" checked><span>VO₂ Max</span></label>
+          </div>
+
+          <button class="settings-action-btn" id="hcSyncNowBtn" data-action="hc-sync-now" style="display:none;">Sync Now</button>
+          <p class="hc-note" id="hcNote">Requires Hybrid Engine Android app with Health Connect permission granted.</p>
+        </div>
+
+        <!-- App -->
+        <div class="settings-section">
+          <div class="settings-section-label">App</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Appearance</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" data-action="set-theme" data-theme-val="dark">Dark</button>
+              <button class="settings-toggle-btn" data-action="set-theme" data-theme-val="light">Light</button>
+            </div>
+          </div>
+          <div class="settings-row settings-row-info">
+            <span class="settings-row-label">Version</span>
+            <span class="text-xs text-muted">Hybrid Engine v1.0</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
     <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" aria-hidden="true">🏋️</span><span>Workout</span></button>
@@ -776,18 +1111,19 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="addExerciseModal" role="dialog" aria-modal="true" aria-labelledby="addExerciseModalTitle">
-    <div class="modal-content">
-      <h2 id="addExerciseModalTitle" class="text-2xl font-heavy text-inverse mb-1">Add Exercise</h2>
-      <p class="text-lg text-muted mb-5">Throw in an extra movement for today's session.</p>
-      <select id="newExerciseSelect" class="native-select mb-4 w-full"></select>
-      <div id="customExerciseTextInputContainer" class="mb-5" style="display: none;">
-        <label for="customExerciseTextInput" class="text-xs-bold block mb-1 text-muted">ENTER CUSTOM EXERCISE NAME</label>
-        <input type="text" id="customExerciseTextInput" placeholder="e.g. Weighted Chin-Up" style="width: 100%;" autocomplete="off">
+  <div class="modal-overlay el-overlay" id="addExerciseModal" role="dialog" aria-modal="true" aria-label="Add Exercise">
+    <div class="modal-sheet el-sheet">
+      <div class="el-header">
+        <span class="el-title">Add Exercise</span>
+        <button class="settings-close-btn" data-action="close-add-exercise" aria-label="Close">&#x2715;</button>
       </div>
-      <div class="flex gap-2">
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-add-exercise">Cancel</button>
-        <button class="btn-action-block btn-blue mt-0" data-action="confirm-add-exercise">Add</button>
+      <div class="el-search-wrap">
+        <input type="search" id="elSearchInput" class="el-search" placeholder="Search exercises&#x2026;" autocomplete="off">
+      </div>
+      <div class="el-list" id="elList"></div>
+      <div class="el-custom-row">
+        <input type="text" id="customExerciseTextInput" class="el-custom-input" placeholder="Or type a custom exercise name&#x2026;" autocomplete="off">
+        <button class="el-custom-add-btn" data-action="confirm-add-exercise">Add</button>
       </div>
     </div>
   </div>

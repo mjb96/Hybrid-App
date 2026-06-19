@@ -36,12 +36,24 @@ import {
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
-  handleExerciseDropdownSelectionChange 
+  handleExerciseDropdownSelectionChange,
+  handleExerciseSearch, addExerciseToDayFromLibrary
 } from './workout.js';
 
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
+import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun, handleRunLoggerRpeClick } from './run-logger.js';
+import { initOnboarding, shouldShowOnboarding, startOnboarding, handleOnboardingAction } from './onboarding.js';
+import {
+  initSettings, openSettings, closeSettings,
+  saveName, saveBodyWeight, setWeightUnit, setRestDefault,
+  setProgressionIncrement, setDistanceUnit, setTheme, stepCurrentWeek, setAutoAdvanceWeek,
+  saveThresholdPace as saveSettingsThresholdPace,
+  exportData, triggerImport, handleImportFile, confirmResetAllData,
+  applySettingsOnBoot,
+  hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
+} from './settings.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -386,7 +398,7 @@ export function openTodaySummaryModal() {
     for (const lift in dayLifts) {
       if (Array.isArray(dayLifts[lift])) {
         dayLifts[lift].forEach(s => {
-          if (s && s.c) {
+          if (s && s.c && s.type !== 'W') {
             sets++;
             volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
           }
@@ -437,8 +449,10 @@ export function openTodaySummaryModal() {
           if (completedSets.length === 0) return;
           html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${lift}</div>`;
           completedSets.forEach((s, idx) => {
+            const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;
+            const labelColor = s.type === 'W' ? '#94a3b8' : s.type === 'D' ? '#f97316' : s.type === 'F' ? '#ef4444' : 'rgba(255,255,255,0.5)';
             html += `<div class="flex-between text-sm" style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-              <span class="text-muted">Set ${idx + 1}</span>
+              <span style="color:${labelColor};">${typeLabel}</span>
               <span class="text-inverse">${parseFloat(s.w) || 0} kg × ${parseInt(s.r, 10) || 0} reps</span>
             </div>`;
           });
@@ -558,6 +572,34 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   
+  // Settings
+  else if (action === 'open-settings') openSettings();
+  else if (action === 'close-settings') closeSettings();
+  else if (e.target.id === 'settingsOverlay') closeSettings();
+  else if (action === 'set-unit') setWeightUnit(target.getAttribute('data-unit'));
+  else if (action === 'set-dist-unit') setDistanceUnit(target.getAttribute('data-unit'));
+  else if (action === 'set-theme')    setTheme(target.getAttribute('data-theme-val'));
+  else if (action === 'set-rest-default') setRestDefault(parseInt(target.getAttribute('data-secs'), 10));
+  else if (action === 'set-progression') setProgressionIncrement(parseFloat(target.getAttribute('data-kg')));
+  else if (action === 'week-step') stepCurrentWeek(parseInt(target.getAttribute('data-delta'), 10));
+  else if (action === 'export-data') exportData();
+  else if (action === 'import-data') triggerImport();
+  else if (action === 'reset-all-data') confirmResetAllData();
+  else if (action === 'hc-toggle-connect') hcToggleConnect();
+  else if (action === 'hc-sync-now') hcSyncNow();
+
+  // Onboarding
+  else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
+    handleOnboardingAction(action, target);
+  }
+
+  // Run Logger
+  else if (action === 'open-run-logger') openRunLogger();
+  else if (action === 'close-run-logger') closeRunLogger();
+  else if (action === 'save-run-log')    saveManualRun();
+  else if (action === 'rl-day')          { document.querySelectorAll('[data-action="rl-day"]').forEach(b => b.classList.remove('active')); target.classList.add('active'); }
+  else if (action === 'rl-rpe')          handleRunLoggerRpeClick(target);
+
   // Export & Data
   else if (action === 'export-text') triggerTextSummaryExport();
   else if (action === 'export-json') triggerEngineExport();
@@ -581,12 +623,19 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('change', (e) => {
   const target = e.target;
-  
+
   // ID-based handlers (No data-action required)
   if (target.id === 'analyticsThresholdPaceInput') {
     saveThresholdPace(target.value);
     return;
   }
+  if (target.id === 'settingsImportFile') {
+    handleImportFile(target.files?.[0]);
+    return;
+  }
+  const hcField = target.getAttribute?.('data-hc-field');
+  if (hcField) { hcToggleSyncField(hcField, target.checked); return; }
+  if (target.id === 'settingsAutoAdvance') { setAutoAdvanceWeek(target.checked); return; }
 
   // Data-action based handlers
   const actionTarget = target.closest('[data-action]');
@@ -595,6 +644,18 @@ document.addEventListener('change', (e) => {
 
   if (action === 'macro-week-switch') handleMacroWeekSwitch();
   else if (action === 'import-json') triggerEngineImport(e);
+});
+
+document.addEventListener('blur', (e) => {
+  const id = e.target.id;
+  if (id === 'settingsNameInput') saveName();
+  else if (id === 'settingsBodyWeight') saveBodyWeight();
+  else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
+  else if (id === 'settingsStepGoal') saveStepGoal();
+}, true);
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'elSearchInput') handleExerciseSearch(e.target.value);
 });
 
 // ==========================================
@@ -610,6 +671,9 @@ initHome(getState, getSelectedDay, getDays);
 initAnalytics(getState, getDays);
 initDragDrop(getState, getSelectedDay, saveState);
 initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
+initSettings(getState);
+initRunLogger(getState);
+initOnboarding(getState);
 
 // === DEVICE IMPORT WIRING ===
 
@@ -665,6 +729,7 @@ initGarminGymImport((timeStr, stats) => {
 setImportSuccessCallback(() => hydrateCurrentView());
 
 function checkForAutomaticWeekAdvance() {
+  if (appState.settings?.autoAdvanceWeek === false) return;
   if (!appState.weekStartedAt) {
     appState.weekStartedAt = new Date().toISOString();
     saveStateToLocalStorage(true);
@@ -711,7 +776,10 @@ async function bootstrapApp() {
     setCockpitActiveDay(currentDay);
     switchGlobalAppTab(currentTab);
     checkActiveTimerOnLoad();
+    window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
+    applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
+    if (shouldShowOnboarding()) setTimeout(() => startOnboarding(), 300);
 
   } catch (fatalLifecycleError) {
     console.error("Critical layout generation block runtime defense:", fatalLifecycleError);

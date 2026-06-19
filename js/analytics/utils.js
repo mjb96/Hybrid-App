@@ -3,6 +3,32 @@
 // ==========================================
 import { CONFIG } from '../constants.js';
 
+const KM_TO_MI = 0.621371;
+
+// Returns display string e.g. "5.2 km" or "3.2 mi"
+// unit comes from appState.settings?.distanceUnit ('km' | 'mi')
+export function formatDist(km, unit = 'km', decimals = 1) {
+  if (!km || isNaN(km)) return unit === 'mi' ? '0.0 mi' : '0.0 km';
+  const val = unit === 'mi' ? km * KM_TO_MI : km;
+  return val.toFixed(decimals) + ' ' + unit;
+}
+
+// Convert km value for display (no label)
+export function distVal(km, unit = 'km') {
+  return unit === 'mi' ? parseFloat((km * KM_TO_MI).toFixed(2)) : parseFloat(km);
+}
+
+// Pace unit label
+export function paceUnit(unit = 'km') {
+  return unit === 'mi' ? 'min/mi' : 'min/km';
+}
+
+// Convert pace (secs/km) to display pace (secs/unit)
+export function paceForUnit(secsPerKm, unit = 'km') {
+  if (!secsPerKm) return 0;
+  return unit === 'mi' ? secsPerKm / KM_TO_MI : secsPerKm;
+}
+
 export function parsePaceSeconds(distKm, timeStr) {
   if (!distKm || !timeStr || parseFloat(distKm) === 0) return 0;
   const parts = timeStr.split(':').map(Number);

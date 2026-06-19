@@ -1,12 +1,13 @@
 // ==========================================
 // RUNNING VIEW (analytics/views/view-running.js)
 // ==========================================
-import { formatPace, paceZoneColour } from '../utils.js';
+import { formatPace, paceZoneColour, formatDist } from '../utils.js';
 import { renderHrZonesChart, renderCadenceChart, renderPaceLineChart } from '../charts.js';
 
 export function renderRunningAnalytics(data) {
+  const distUnit = data.distUnit || 'km';
   const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setText('allTimeRunDist', data.globalTotalDist.toFixed(1) + ' km');
+  setText('allTimeRunDist', formatDist(data.globalTotalDist, distUnit));
   setText('allTimeRunElev', Math.round(data.globalTotalElev) + ' m');
   setText('allTimeRunCals', Math.round(data.globalTotalCals).toLocaleString());
 

@@ -423,7 +423,7 @@ export function renderHome() {
               <span class="text-xs text-accent-pink font-bold">Run Logged</span>
               <span class="text-xs text-main">${todayRun.time || '--:--'}</span>
             </div>
-            <div class="text-lg font-heavy text-inverse" style="margin-top:2px;">${todayRunDist} km</div>
+            <div class="text-lg font-heavy text-inverse" style="margin-top:2px;">${appState.settings?.distanceUnit === 'mi' ? (todayRunDist * 0.621371).toFixed(2) + ' mi' : todayRunDist + ' km'}</div>
             <div class="flex gap-2 text-xs text-muted" style="margin-top:2px;">
               ${todayRun.avgHR ? `<span>❤️ ${Math.round(todayRun.avgHR)} bpm</span>` : ''}
               ${todayRun.elev  ? `<span>⛰️ ${Math.round(todayRun.elev)}m</span>`     : ''}
@@ -518,8 +518,11 @@ export function renderHome() {
   const strengthChartContainer = document.getElementById('strengthBarChart');
   const runChartContainer = document.getElementById('runBarChart');
   
+  const distUnit = _getState().settings?.distanceUnit || 'km';
   if (strengthHero) strengthHero.textContent = formatMinutesToHoursMins(currentWeekGymTimeSum);
-  if (runHero) runHero.textContent = currentWeekRunDistSum.toFixed(1) + ' km';
+  if (runHero) runHero.textContent = distUnit === 'mi'
+    ? (currentWeekRunDistSum * 0.621371).toFixed(1) + ' mi'
+    : currentWeekRunDistSum.toFixed(1) + ' km';
 
   if (strengthChartContainer && runChartContainer) {
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -658,6 +661,10 @@ export function renderHome() {
         }
       });
 
+      const distUnit = appState.settings?.distanceUnit || 'km';
+      const KM_TO_MI = 0.621371;
+      const toDisplayDist = km => distUnit === 'mi' ? km * KM_TO_MI : km;
+
       const makeMetric = (label, current, prev, unit, higherIsBetter = true) => {
         if (prev === 0) return '';
         const diff = current - prev;
@@ -667,13 +674,13 @@ export function renderHome() {
         const colour = diff === 0 ? 'var(--text-muted)' : isPositive ? '#10b981' : '#ef4444';
         return `<div class="card-dark p-2 text-center" style="border:1px solid rgba(255,255,255,0.08);">
           <div class="text-xs text-muted mb-1">${label}</div>
-          <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'km' ? current.toFixed(1) : Math.round(current).toLocaleString()) : current}${unit ? ' '+unit : ''}</div>
+          <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'kg' ? Math.round(current).toLocaleString() : current.toFixed(1)) : current}${unit ? ' '+unit : ''}</div>
           <div class="text-xs font-bold" style="color:${colour};">${arrow} ${Math.abs(pct)}%</div>
         </div>`;
       };
 
       const volHTML  = makeMetric('Volume', currentWeekVolSum, prevVol, 'kg');
-      const distHTML = makeMetric('Running', currentWeekRunDistSum, prevDist, 'km');
+      const distHTML = makeMetric('Running', toDisplayDist(currentWeekRunDistSum), toDisplayDist(prevDist), distUnit);
       const combined = [volHTML, distHTML].filter(Boolean).join('');
       if (combined) {
         compareGrid.innerHTML = combined;
@@ -709,6 +716,104 @@ export function renderHome() {
       deloadCard.style.display = 'none';
     }
   }
+
+}
+
+// ==========================================
+// ACTIVITY CALENDAR
+// ==========================================
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const FULL_MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const _DAY_OFFSET = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+function _inferDate(wk, day, currentWeek) {
+  // Compute the Monday of the current training week, then offset by week delta
+  const now = new Date();
+  const todayDow = (now.getDay() + 6) % 7; // 0=Mon
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - todayDow);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  const weekOffset = (currentWeek || 1) - (parseInt(wk, 10) || 1);
+  const dayOffset  = _DAY_OFFSET[day] ?? 0;
+  const d = new Date(thisMonday);
+  d.setDate(thisMonday.getDate() - weekOffset * 7 + dayOffset);
+  return d.toISOString().slice(0, 10);
+}
+
+function _buildActivityMap(appState) {
+  const map = {};
+  const weeks = appState.weeks || {};
+  const currentWeek = appState.currentWeek || 1;
+
+  for (const wk in weeks) {
+    const wd = weeks[wk];
+    if (!wd) continue;
+    const dates = wd.dates || {};
+    const lifts = wd.lifts || {};
+    const runs  = wd.runs  || {};
+
+    // Collect all days that have any activity
+    const allDays = new Set([...Object.keys(lifts), ...Object.keys(runs)]);
+
+    for (const day of allDays) {
+      // Use stamped date if available, otherwise infer from week offset
+      const ds = dates[day] || _inferDate(wk, day, currentWeek);
+      if (!ds) continue;
+      if (!map[ds]) map[ds] = { gym: false, run: false };
+
+      const dayLifts = lifts[day] || {};
+      for (const ln in dayLifts) {
+        if (Array.isArray(dayLifts[ln]) && dayLifts[ln].some(s => s?.c)) {
+          map[ds].gym = true; break;
+        }
+      }
+      const run = runs[day];
+      if (run && parseFloat(run.dist) > 0) map[ds].run = true;
+    }
+  }
+  return map;
+}
+
+function _renderCalendarMonth(year, month, activityMap, today) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
+
+  let cells = '';
+  for (let i = 0; i < firstDow; i++) cells += '<div class="cal-cell"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const act = activityMap[ds] || {};
+    const isToday = ds === today;
+    const dots = [
+      act.gym ? '<span class="cal-dot cal-dot-gym"></span>' : '',
+      act.run ? '<span class="cal-dot cal-dot-run"></span>' : '',
+    ].join('');
+    cells += `<div class="cal-cell${isToday ? ' cal-today' : ''}${(act.gym||act.run) ? ' cal-has-activity' : ''}">
+      <span class="cal-num">${d}</span>${dots ? `<div class="cal-dots">${dots}</div>` : ''}
+    </div>`;
+  }
+
+  return `<div class="cal-month">
+    <div class="cal-month-name">${FULL_MONTH[month]} ${year}</div>
+    <div class="cal-grid">
+      ${['M','T','W','T','F','S','S'].map(h => `<div class="cal-hdr">${h}</div>`).join('')}
+      ${cells}
+    </div>
+  </div>`;
+}
+
+export function renderActivityCalendar(appState, containerId = 'homeCalendarContainer') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const map = _buildActivityMap(appState);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const y = now.getFullYear(), m = now.getMonth();
+  const prevM = m === 0 ? 11 : m - 1;
+  const prevY = m === 0 ? y - 1 : y;
+  container.innerHTML = _renderCalendarMonth(prevY, prevM, map, today) + _renderCalendarMonth(y, m, map, today);
 }
 
 // ==========================================

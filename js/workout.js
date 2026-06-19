@@ -4,7 +4,7 @@
 import { getProgramById } from './state.js';
 import { CONFIG, EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, getLiftDisplayName } from './engine.js';
-import { triggerRestTimerEngine, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
+import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js'; 
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
@@ -23,6 +23,75 @@ export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn
   _getDays = getDaysFn;
   _saveState = saveStateFn;
   _switchTab = switchTabFn;
+}
+
+// ==========================================
+// PRIVATE HELPERS
+// ==========================================
+function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedDay, appState, homeBlueprint, isCollapsed, groupId, ssColor) {
+  const setsArr = loggedLiftsData[liftName];
+  if (!Array.isArray(setsArr)) return null;
+
+  const isCompleted = setsArr.length > 0 && setsArr.every(s => s?.c);
+  const exCard = document.createElement('div');
+  exCard.className = `cockpit-exercise${isCollapsed ? ' collapsed' : ''}${isCompleted ? ' completed' : ''}`;
+  exCard.setAttribute('data-liftname', liftName);
+  exCard.setAttribute('draggable', 'true');
+
+  let displayLiftName;
+  if (!isNaN(liftName) && homeBlueprint.lifts?.[parseInt(liftName, 10)]) {
+    displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
+  } else {
+    displayLiftName = getLiftDisplayName(appState, liftName);
+  }
+
+  let blueprintLabel = 'Target: Working Sets';
+  let diagnostic = { isStalled: false, suggestedWeight: '' };
+  try {
+    diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName);
+    const parsedTarget = parseTargetFromDescription(homeBlueprint.desc, displayLiftName);
+    blueprintLabel = `Target: ${parsedTarget.sets} × ${parsedTarget.reps}`;
+    if (diagnostic.isStalled) {
+      blueprintLabel = '⚠️ DE-LOAD: Slashed Sets (-20%)';
+    } else if (diagnostic.suggestedWeight !== '') {
+      blueprintLabel = `💡 Suggested: ${diagnostic.suggestedWeight}kg × ${parsedTarget.reps}`;
+    }
+  } catch(e) { console.warn(e); }
+
+  let historicalLineText = 'Baseline Loading Profile Verified';
+  if (appState.exerciseStats?.[displayLiftName]) {
+    historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + 'kg (Est. 1RM)';
+  }
+
+  const pastWkNum = parseInt(wk, 10) - 1;
+  if (pastWkNum >= 1 && appState.weeks) {
+    const pastWkData = appState.weeks[pastWkNum.toString()];
+    if (pastWkData?.lifts?.[selectedDay]?.[liftName]) {
+      const doneSets = pastWkData.lifts[selectedDay][liftName].filter(s => s?.c && s.w && s.r);
+      if (doneSets.length > 0) {
+        historicalLineText = 'Last Session: [ ' + doneSets.map(s => s.w + 'kg × ' + s.r).join(', ') + ' ]';
+      }
+    }
+  }
+
+  const safeLiftName   = liftName.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  const displaySafeName = displayLiftName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const setsMarkup = setsArr.map((sData, sIdx) => {
+    let ghostSet = null;
+    if (pastWkNum >= 1 && appState.weeks) {
+      const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
+      if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
+    }
+    return buildSetRow(sData, sIdx, safeLiftName, ghostSet);
+  }).join('');
+
+  try {
+    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, historicalLineText, setsMarkup, groupId, ssColor });
+  } catch(e) {
+    exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
+  }
+  return exCard;
 }
 
 // ==========================================
@@ -246,94 +315,77 @@ export function renderWorkout() {
     exercisesContainer.innerHTML = buildEmptyWorkoutCard();
   }
 
+  // Ensure liftMeta exists
+  if (!weekData.liftMeta) weekData.liftMeta = {};
+  if (!weekData.liftMeta[selectedDay]) weekData.liftMeta[selectedDay] = {};
+  const liftMeta = weekData.liftMeta[selectedDay];
+
+  // Build superset group map
+  const SS_COLORS = { A: '#3b82f6', B: '#a855f7', C: '#10b981', D: '#f59e0b', E: '#ec4899', F: '#06b6d4' };
+  const groupMap = {};
+  for (const ln in loggedLiftsData) {
+    const gId = liftMeta[ln]?.groupId;
+    if (gId) {
+      if (!groupMap[gId]) groupMap[gId] = [];
+      if (!groupMap[gId].includes(ln)) groupMap[gId].push(ln);
+    }
+  }
+
+  const renderedLifts = new Set();
   let isFirstAccordionField = true;
 
   for (let liftName in loggedLiftsData) {
+    if (renderedLifts.has(liftName)) continue;
     const setsArr = loggedLiftsData[liftName];
     if (!Array.isArray(setsArr)) continue;
-    
-    const isCompleted = setsArr.length > 0 && setsArr.every(s => s && s.c);
-    const isCompletedClass = isCompleted ? 'completed' : '';
 
-    let isCollapsedClass = 'collapsed';
-    if (previouslyExpandedLift) {
-      if (liftName === previouslyExpandedLift) isCollapsedClass = '';
-    } else if (isFirstAccordionField && !isCompleted) {
-      isCollapsedClass = '';
-      isFirstAccordionField = false;
-    }
+    const groupId     = liftMeta[liftName]?.groupId;
+    const groupMembers = groupId && groupMap[groupId]?.length > 1 ? groupMap[groupId] : null;
 
-    const exCard = document.createElement('div');
-    exCard.className = 'cockpit-exercise ' + isCollapsedClass + ' ' + isCompletedClass;
-    exCard.setAttribute('data-liftname', liftName);
-    exCard.setAttribute('draggable', 'true');
+    if (groupMembers) {
+      const ssColor = SS_COLORS[groupId] || '#3b82f6';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'superset-group';
+      wrapper.style.setProperty('--ss-color', ssColor);
+      wrapper.setAttribute('data-group-id', groupId);
 
-    let displayLiftName;
-    if (!isNaN(liftName) && homeBlueprint.lifts && homeBlueprint.lifts[parseInt(liftName, 10)]) {
-      displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
-    } else {
-      displayLiftName = getLiftDisplayName(appState, liftName);
-    }
+      const hdr = document.createElement('div');
+      hdr.className = 'superset-group-header';
+      hdr.innerHTML = `<span class="superset-badge">SS ${groupId}</span><span class="text-xs text-muted" style="margin-left:8px;">Alternate exercises · rest after both</span>`;
+      wrapper.appendChild(hdr);
 
-    let blueprintLabel = `Target: Working Sets`;
-    try {
-      const diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName);
-      const parsedTarget = parseTargetFromDescription(homeBlueprint.desc, displayLiftName);
-      blueprintLabel = `Target: ${parsedTarget.sets} × ${parsedTarget.reps}`;
-      
-      if (diagnostic.isStalled) {
-        blueprintLabel = '⚠️ DE-LOAD: Slashed Sets (-20%)';
-      } else if (diagnostic.suggestedWeight !== '') {
-        blueprintLabel = `💡 Suggested: ${diagnostic.suggestedWeight}kg × ${parsedTarget.reps}`;
-      }
-    } catch(e) { console.warn(e); }
+      groupMembers.forEach((memberLift, mIdx) => {
+        if (!Array.isArray(loggedLiftsData[memberLift])) return;
+        const memberSets = loggedLiftsData[memberLift];
+        const mCompleted = memberSets.length > 0 && memberSets.every(s => s?.c);
 
-    let historicalLineText = 'Baseline Loading Profile Verified';
-    if (appState.exerciseStats && appState.exerciseStats[displayLiftName]) {
-      historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + 'kg (Est. 1RM)';
-    }
+        let mCollapsed = true;
+        if (previouslyExpandedLift === memberLift) mCollapsed = false;
+        else if (isFirstAccordionField && !mCompleted) { mCollapsed = false; isFirstAccordionField = false; }
 
-    let historicalSetData = null;
-    const pastWkNum = parseInt(wk, 10) - 1;
-    if (pastWkNum >= 1 && appState.weeks) {
-      const pastWeekData = appState.weeks[pastWkNum.toString()];
-      if (pastWeekData && pastWeekData.lifts?.[selectedDay]?.[liftName]) {
-        const finishedHistoricalSets = pastWeekData.lifts[selectedDay][liftName].filter(s => s && s.c && s.w && s.r);
-        if (finishedHistoricalSets.length > 0) {
-          historicalLineText = 'Last Session: [ ' + finishedHistoricalSets.map(s => s.w + 'kg × ' + s.r).join(', ') + ' ]';
+        const card = _buildExerciseCardEl(memberLift, loggedLiftsData, weekData, wk, selectedDay, appState, homeBlueprint, mCollapsed, groupId, ssColor);
+        if (card) wrapper.appendChild(card);
+
+        if (mIdx < groupMembers.length - 1) {
+          const connector = document.createElement('div');
+          connector.className = 'superset-connector';
+          connector.textContent = `↕ SS ${groupId}`;
+          wrapper.appendChild(connector);
         }
-      }
-    }
-
-    const safeLiftName = liftName.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-    const displaySafeName = displayLiftName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    const setsMarkup = setsArr.map((sData, sIdx) => {
-      let linkedGhostSet = null;
-      if (pastWkNum >= 1 && appState.weeks) {
-        const historicalList = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
-        if (historicalList && historicalList[sIdx] && historicalList[sIdx].w && historicalList[sIdx].r) {
-          linkedGhostSet = historicalList[sIdx];
-        }
-      }
-      return buildSetRow(sData, sIdx, safeLiftName, linkedGhostSet);
-    }).join('');
-
-    try {
-      exCard.innerHTML = buildExerciseCard({
-        displaySafeName,
-        safeLiftName,
-        isCompleted,
-        diagnostic: computeDiagnosticForLift(wk, selectedDay, liftName),
-        blueprintLabel,
-        historicalLineText,
-        setsMarkup
+        renderedLifts.add(memberLift);
       });
-    } catch(e) {
-      exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
-    }
 
-    exercisesContainer.appendChild(exCard);
+      exercisesContainer.appendChild(wrapper);
+    } else {
+      const isCompleted = setsArr.length > 0 && setsArr.every(s => s?.c);
+      let isCollapsed = true;
+      if (previouslyExpandedLift === liftName) isCollapsed = false;
+      else if (isFirstAccordionField && !isCompleted) { isCollapsed = false; isFirstAccordionField = false; }
+
+      const card = _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedDay, appState, homeBlueprint, isCollapsed, null, null);
+      if (card) exercisesContainer.appendChild(card);
+      renderedLifts.add(liftName);
+    }
   }
 
   try {
@@ -383,11 +435,12 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   appState.weeks[wk].lifts[selectedDay][liftName][sIdx] = { w: targetW, r: targetR, c: true };
 
   parentRow.classList.add('is-complete');
-  
+
   try {
     const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
     const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
-    triggerRestTimerEngine(liftName, setRpe);
+    const setType = appState.weeks[wk].lifts?.[selectedDay]?.[liftName]?.[sIdx]?.type || '';
+    triggerRestTimerEngine(liftName, setRpe, setType);
   } catch(e) { console.warn(e); }
 
   _saveState(true);
@@ -486,6 +539,7 @@ export function commitWorkoutUIState() {
           if (wIn) appState.weeks[wk].lifts[selectedDay][liftName][idx].w = wIn.value;
           if (rIn) appState.weeks[wk].lifts[selectedDay][liftName][idx].r = rIn.value;
           if (cIn) appState.weeks[wk].lifts[selectedDay][liftName][idx].c = cIn.checked;
+          if (row.classList.contains('is-pr')) appState.weeks[wk].lifts[selectedDay][liftName][idx].isPR = true;
         }
       });
     });
@@ -534,7 +588,39 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
       const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
-      triggerRestTimerEngine(liftName, setRpe);
+      const _appState = _getState();
+      const _selDay = _getSelectedDay();
+      const _wk = _appState.currentWeek;
+      const _sIdx = exCard ? Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow) : -1;
+      const setType = _appState.weeks[_wk].lifts?.[_selDay]?.[liftName]?.[_sIdx]?.type || '';
+      triggerRestTimerEngine(liftName, setRpe, setType);
+      // Stamp workout date on first set completion for this day
+      if (!_appState.weeks[_wk].dates) _appState.weeks[_wk].dates = {};
+      if (!_appState.weeks[_wk].dates[_selDay]) {
+        _appState.weeks[_wk].dates[_selDay] = new Date().toISOString().slice(0, 10);
+      }
+
+      // PR detection — compare this set's e1RM against stored all-time max
+      if (liftName && setType !== 'W' && _sIdx >= 0) {
+        const wIn = parentRow?.querySelector('.input-weight-node');
+        const rIn = parentRow?.querySelector('.input-reps-node');
+        const w = parseFloat(wIn?.value) || 0;
+        const r = parseInt(rIn?.value, 10) || 0;
+        if (w > 0 && r > 0) {
+          const e1rm = w * (1 + r / 30);
+          const prevMax = _appState.exerciseStats?.[liftName]?.allTimeMax || 0;
+          if (e1rm > prevMax + 0.01) {
+            parentRow.classList.add('is-pr');
+            if (!parentRow.querySelector('.pr-badge')) {
+              const badge = document.createElement('span');
+              badge.className = 'pr-badge';
+              badge.textContent = 'PR';
+              parentRow.appendChild(badge);
+            }
+            showToast(`🏆 New PR — ${liftName}!`);
+          }
+        }
+      }
     } catch(e) { console.warn(e); }
   } else {
     if (parentRow) parentRow.classList.remove('is-complete');
@@ -625,6 +711,26 @@ export function appendCustomSetRow(btnNode, liftName) {
   renderWorkout();
 }
 
+export function appendWarmupSetRow(btnNode, liftName) {
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+
+  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
+  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
+    appState.weeks[wk].lifts[selectedDay][liftName] = [];
+  }
+  const sets = appState.weeks[wk].lifts[selectedDay][liftName];
+  // Insert warmup before first working set, or at index 0
+  const firstWorkingIdx = sets.findIndex(s => !s.type || s.type !== 'W');
+  const newSet = { w: '', r: '', c: false, type: 'W' };
+  if (firstWorkingIdx === -1) sets.push(newSet);
+  else sets.splice(firstWorkingIdx, 0, newSet);
+
+  _saveState(true);
+  renderWorkout();
+}
+
 export function removeCustomSetRow(liftName, setIndex) {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
@@ -640,6 +746,138 @@ export function removeCustomSetRow(liftName, setIndex) {
   }
 }
 
+export function cycleSetType(liftName, sIdx) {
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
+  if (!setArr || sIdx >= setArr.length) return;
+
+  const cycle = { '': 'W', 'W': 'D', 'D': 'F', 'F': '' };
+  const newType = cycle[setArr[sIdx].type || ''];
+  setArr[sIdx].type = newType;
+
+  // Update DOM without full re-render
+  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
+  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
+  if (row) {
+    row.classList.remove('type-warmup', 'type-dropset', 'type-amrap');
+    if (newType === 'W') row.classList.add('type-warmup');
+    else if (newType === 'D') row.classList.add('type-dropset');
+    else if (newType === 'F') row.classList.add('type-amrap');
+    const lbl  = row.querySelector('.set-num-lbl');
+    const pill = row.querySelector('.type-pill');
+    const numLabels  = { '': `S${sIdx + 1}`, 'W': 'W', 'D': 'D', 'F': 'F' };
+    const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
+    if (lbl)  lbl.textContent  = numLabels[newType];
+    if (pill) pill.textContent = pillLabels[newType];
+  }
+  _saveState(true);
+}
+
+export function showSupersetLinkPanel(exCard) {
+  if (!exCard) return;
+  const appState   = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const liftName = exCard.getAttribute('data-liftname');
+
+  document.querySelectorAll('.ss-link-panel').forEach(p => p.remove());
+
+  if (!appState.weeks[wk].liftMeta) appState.weeks[wk].liftMeta = {};
+  if (!appState.weeks[wk].liftMeta[selectedDay]) appState.weeks[wk].liftMeta[selectedDay] = {};
+  const dayMeta  = appState.weeks[wk].liftMeta[selectedDay];
+  const myGroupId = dayMeta[liftName]?.groupId;
+  const dayLifts  = Object.keys(appState.weeks[wk]?.lifts?.[selectedDay] || {});
+  const others    = dayLifts.filter(n => n !== liftName);
+
+  const panel = document.createElement('div');
+  panel.className = 'ss-link-panel';
+
+  if (myGroupId) {
+    const partners = Object.keys(dayMeta).filter(n => n !== liftName && dayMeta[n]?.groupId === myGroupId);
+    panel.innerHTML = `
+      <div class="ss-panel-title">Superset ${myGroupId} — paired with: ${partners.map(n => getLiftDisplayName(appState, n)).join(', ') || 'none'}</div>
+      <button class="btn-pad" style="color:#ef4444;border-color:rgba(239,68,68,0.3);" data-action="unlink-superset" data-liftname="${liftName}">Unlink superset</button>`;
+  } else if (others.length === 0) {
+    panel.innerHTML = `<div class="ss-panel-title" style="color:#94a3b8;">Add more exercises to pair as a superset.</div>`;
+  } else {
+    let html = '<div class="ss-panel-title">Pair with:</div>';
+    others.forEach(name => {
+      const safe    = name.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+      const display = getLiftDisplayName(appState, name);
+      html += `<button class="btn-pad" data-action="link-superset" data-liftname="${liftName}" data-partner="${safe}">${display}</button>`;
+    });
+    panel.innerHTML = html;
+  }
+
+  exCard.classList.remove('collapsed');
+  const header = exCard.querySelector('.cockpit-header');
+  if (header) header.after(panel);
+
+  setTimeout(() => {
+    const close = (ev) => {
+      if (!panel.contains(ev.target) && !ev.target.closest('[data-action="show-ss-panel"]')) {
+        panel.remove();
+        document.removeEventListener('click', close);
+      }
+    };
+    document.addEventListener('click', close);
+  }, 0);
+}
+
+export function pairAsSuperset(liftName, partnerName) {
+  const appState   = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+
+  if (!appState.weeks[wk].liftMeta) appState.weeks[wk].liftMeta = {};
+  if (!appState.weeks[wk].liftMeta[selectedDay]) appState.weeks[wk].liftMeta[selectedDay] = {};
+  const dayMeta = appState.weeks[wk].liftMeta[selectedDay];
+
+  const used = new Set(Object.values(dayMeta).map(m => m?.groupId).filter(Boolean));
+  let letter = 'A';
+  while (used.has(letter)) letter = String.fromCharCode(letter.charCodeAt(0) + 1);
+
+  dayMeta[liftName]    = { ...(dayMeta[liftName]    || {}), groupId: letter };
+  dayMeta[partnerName] = { ...(dayMeta[partnerName] || {}), groupId: letter };
+
+  _saveState(true);
+  renderWorkout();
+}
+
+export function unpairSuperset(liftName) {
+  const appState   = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+
+  const dayMeta = appState.weeks?.[wk]?.liftMeta?.[selectedDay];
+  if (!dayMeta) return;
+  const groupId = dayMeta[liftName]?.groupId;
+  if (!groupId) return;
+
+  Object.keys(dayMeta).forEach(n => { if (dayMeta[n]?.groupId === groupId) delete dayMeta[n].groupId; });
+  _saveState(true);
+  renderWorkout();
+}
+
+export function setPerSetRpe(liftName, sIdx, rpe) {
+  const appState = _getState();
+  const day = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const sets = appState.weeks[wk].lifts?.[day]?.[liftName];
+  if (!sets || !sets[sIdx]) return;
+  sets[sIdx].rpe = (sets[sIdx].rpe === rpe) ? null : rpe; // toggle off if same
+  _saveState(true);
+  // DOM-only update: toggle active class without full re-render
+  const rowEl = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"] .cockpit-set-row[data-set-index="${sIdx}"]`);
+  if (rowEl) {
+    rowEl.querySelectorAll('.btn-rpe').forEach(btn => {
+      btn.classList.toggle('rpe-selected', parseInt(btn.getAttribute('data-rpe'), 10) === sets[sIdx].rpe);
+    });
+  }
+}
+
 export function toggleAccordionManual(elementNode) {
   if (!elementNode) return;
   const wasCollapsed = elementNode.classList.contains('collapsed');
@@ -651,73 +889,78 @@ export function toggleAccordionManual(elementNode) {
   try { moveRestTimerToActiveExercise(); } catch(e) { console.warn(e); }
 }
 
-export function populateExerciseDropdown() {
-  const select = document.getElementById('newExerciseSelect');
-  if (!select) return;
-  
-  const appState = _getState ? _getState() : { customExercises: [] };
-  select.innerHTML = '';
-  
-  for (const [category, exercises] of Object.entries(EXERCISE_LIBRARY)) {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = category;
-    const sortedExercises = [...exercises].sort();
-    sortedExercises.forEach(exercise => {
-      const option = document.createElement('option');
-      option.value = exercise;
-      option.textContent = exercise;
-      optgroup.appendChild(option);
-    });
-    select.appendChild(optgroup);
-  }
-
-  if (appState.customExercises && appState.customExercises.length > 0) {
-    const customGroup = document.createElement('optgroup');
-    customGroup.label = "⭐️ Custom Movements";
-    [...appState.customExercises].sort().forEach(exercise => {
-      const option = document.createElement('option');
-      option.value = exercise;
-      option.textContent = exercise;
-      customGroup.appendChild(option);
-    });
-    select.appendChild(customGroup);
-  }
-
-  const divider = document.createElement('option');
-  divider.disabled = true;
-  divider.textContent = "──────────────────";
-  select.appendChild(divider);
-
-  const customWildcard = document.createElement('option');
-  customWildcard.value = "__WRITE_CUSTOM__";
-  customWildcard.textContent = "✍️ Type Custom Exercise Name...";
-  select.appendChild(customWildcard);
+function _exChip(name, appState) {
+  const pr = appState.exerciseStats?.[name]?.allTimeMax;
+  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
+  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${name.replace(/"/g, '&quot;')}">${name}${prStr}</button>`;
 }
 
-export function handleExerciseDropdownSelectionChange() {
-  const select = document.getElementById('newExerciseSelect');
-  const textContainer = document.getElementById('customExerciseTextInputContainer');
-  if (!select || !textContainer) return;
+function _renderExerciseLibraryList(query) {
+  const container = document.getElementById('elList');
+  if (!container) return;
+  const appState = _getState();
+  const q = (query || '').toLowerCase().trim();
+  let html = '';
 
-  if (select.value === "__WRITE_CUSTOM__") {
-    textContainer.style.display = 'block';
-    const input = document.getElementById('customExerciseTextInput');
-    if (input) input.focus();
+  if (q) {
+    const results = [];
+    for (const [cat, exs] of Object.entries(EXERCISE_LIBRARY)) {
+      exs.forEach(ex => { if (ex.toLowerCase().includes(q)) results.push({ ex, cat }); });
+    }
+    (appState.customExercises || []).forEach(ex => {
+      if (ex.toLowerCase().includes(q)) results.push({ ex, cat: 'Custom' });
+    });
+    if (results.length === 0) {
+      html = '<div class="el-empty">No matches — type a custom name below</div>';
+    } else {
+      html = results.map(({ ex }) => _exChip(ex, appState)).join('');
+    }
   } else {
-    textContainer.style.display = 'none';
+    for (const [cat, exs] of Object.entries(EXERCISE_LIBRARY)) {
+      html += `<div class="el-cat-label">${cat}</div>`;
+      html += [...exs].sort().map(ex => _exChip(ex, appState)).join('');
+    }
+    if (appState.customExercises?.length) {
+      html += `<div class="el-cat-label">⭐ Custom</div>`;
+      html += [...appState.customExercises].sort().map(ex => _exChip(ex, appState)).join('');
+    }
   }
+  container.innerHTML = html;
 }
+
+export function handleExerciseSearch(query) {
+  _renderExerciseLibraryList(query);
+}
+
+export function addExerciseToDayFromLibrary(name) {
+  if (!name) return;
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
+  if (!appState.weeks[wk].lifts[selectedDay][name]) {
+    appState.weeks[wk].lifts[selectedDay][name] = [{ w: '', r: '10', c: false }];
+  }
+  _saveState(true);
+  closeAddExerciseModal();
+  renderWorkout();
+  showToast(`Added: ${name}`);
+}
+
+// Keep populateExerciseDropdown as no-op for compat
+export function populateExerciseDropdown() {}
+export function handleExerciseDropdownSelectionChange() {}
 
 export function openAddExerciseModal() {
-  populateExerciseDropdown();
-  
-  const textContainer = document.getElementById('customExerciseTextInputContainer');
-  const txtInput = document.getElementById('customExerciseTextInput');
-  if (textContainer) textContainer.style.display = 'none';
-  if (txtInput) txtInput.value = '';
-
   const modal = document.getElementById('addExerciseModal');
-  if (modal) modal.classList.add('active');
+  if (!modal) return;
+  const searchInput = document.getElementById('elSearchInput');
+  const customInput = document.getElementById('customExerciseTextInput');
+  if (searchInput) searchInput.value = '';
+  if (customInput) customInput.value = '';
+  _renderExerciseLibraryList('');
+  modal.classList.add('active');
+  setTimeout(() => searchInput?.focus(), 80);
 }
 
 export function closeAddExerciseModal() {
@@ -726,40 +969,11 @@ export function closeAddExerciseModal() {
 }
 
 export function confirmAddExercise() {
-  const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const select = document.getElementById('newExerciseSelect');
-  if (!select) return;
-
-  let liftName = select.value;
-  
-  if (liftName === "__WRITE_CUSTOM__") {
-    const rawInput = document.getElementById('customExerciseTextInput');
-    liftName = rawInput ? rawInput.value.trim() : '';
-    
-    if (!liftName) {
-      showToast('Please type an exercise name.', true);
-      return;
-    }
-    
-    saveNewCustomExerciseToLibrary(liftName);
-  }
-
-  if (!liftName) return;
-
-  const wk = appState.currentWeek;
-  if (!appState.weeks[wk].lifts[selectedDay]) {
-    appState.weeks[wk].lifts[selectedDay] = {};
-  }
-
-  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName] = [{ w: '', r: '10', c: false }];
-  }
-
-  _saveState(true);
-  closeAddExerciseModal();
-  renderWorkout();
-  showToast(`Added: ${liftName}`);
+  const customInput = document.getElementById('customExerciseTextInput');
+  const name = customInput?.value?.trim();
+  if (!name) { showToast('Type a custom exercise name first'); return; }
+  saveNewCustomExerciseToLibrary(name);
+  addExerciseToDayFromLibrary(name);
 }
 
 export function openConfirmResetModal() {
@@ -894,10 +1108,18 @@ document.addEventListener('click', (e) => {
   else if (action === 'quick-modifier') applyQuickFillModifier(target, target.getAttribute('data-modifier'), sIdx);
   else if (action === 'toggle-pad') toggleQuickPad(row);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
+  else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
+  else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
+  else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
+  else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
+  else if (action === 'unlink-superset') unpairSuperset(liftName);
   else if (action === 'toggle-accordion') toggleAccordionManual(exCard);
+  else if (action === 'set-rpe') setPerSetRpe(liftName, sIdx, parseInt(target.getAttribute('data-rpe'), 10));
+  else if (action === 'rest-adjust') adjustRestDuration(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'open-add-exercise') openAddExerciseModal();
   else if (action === 'close-add-exercise') closeAddExerciseModal();
+  else if (action === 'el-pick') addExerciseToDayFromLibrary(e.target.closest('[data-action="el-pick"]')?.getAttribute('data-exname'));
   else if (action === 'confirm-add-exercise') confirmAddExercise();
   else if (action === 'open-reset-modal') openConfirmResetModal();
   else if (action === 'close-reset-modal') closeConfirmResetModal();
