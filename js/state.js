@@ -186,7 +186,7 @@ export function verifyWeekStorageSchema(wk) {
   if (!appState.weeks) appState.weeks = {};
   
   if (!appState.weeks[wk]) {
-    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {} };
+    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} };
     DEFAULT_DAYS.forEach(d => {
       appState.weeks[wk].runs[d] = { dist: '', time: '', rpe: '' };
       appState.weeks[wk].notes[d] = '';

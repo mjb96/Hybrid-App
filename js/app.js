@@ -386,7 +386,7 @@ export function openTodaySummaryModal() {
     for (const lift in dayLifts) {
       if (Array.isArray(dayLifts[lift])) {
         dayLifts[lift].forEach(s => {
-          if (s && s.c) {
+          if (s && s.c && s.type !== 'W') {
             sets++;
             volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
           }
@@ -437,8 +437,10 @@ export function openTodaySummaryModal() {
           if (completedSets.length === 0) return;
           html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${lift}</div>`;
           completedSets.forEach((s, idx) => {
+            const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;
+            const labelColor = s.type === 'W' ? '#94a3b8' : s.type === 'D' ? '#f97316' : s.type === 'F' ? '#ef4444' : 'rgba(255,255,255,0.5)';
             html += `<div class="flex-between text-sm" style="padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-              <span class="text-muted">Set ${idx + 1}</span>
+              <span style="color:${labelColor};">${typeLabel}</span>
               <span class="text-inverse">${parseFloat(s.w) || 0} kg × ${parseInt(s.r, 10) || 0} reps</span>
             </div>`;
           });
