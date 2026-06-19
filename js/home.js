@@ -423,7 +423,7 @@ export function renderHome() {
               <span class="text-xs text-accent-pink font-bold">Run Logged</span>
               <span class="text-xs text-main">${todayRun.time || '--:--'}</span>
             </div>
-            <div class="text-lg font-heavy text-inverse" style="margin-top:2px;">${todayRunDist} km</div>
+            <div class="text-lg font-heavy text-inverse" style="margin-top:2px;">${appState.settings?.distanceUnit === 'mi' ? (todayRunDist * 0.621371).toFixed(2) + ' mi' : todayRunDist + ' km'}</div>
             <div class="flex gap-2 text-xs text-muted" style="margin-top:2px;">
               ${todayRun.avgHR ? `<span>❤️ ${Math.round(todayRun.avgHR)} bpm</span>` : ''}
               ${todayRun.elev  ? `<span>⛰️ ${Math.round(todayRun.elev)}m</span>`     : ''}
@@ -518,8 +518,11 @@ export function renderHome() {
   const strengthChartContainer = document.getElementById('strengthBarChart');
   const runChartContainer = document.getElementById('runBarChart');
   
+  const distUnit = _getState().settings?.distanceUnit || 'km';
   if (strengthHero) strengthHero.textContent = formatMinutesToHoursMins(currentWeekGymTimeSum);
-  if (runHero) runHero.textContent = currentWeekRunDistSum.toFixed(1) + ' km';
+  if (runHero) runHero.textContent = distUnit === 'mi'
+    ? (currentWeekRunDistSum * 0.621371).toFixed(1) + ' mi'
+    : currentWeekRunDistSum.toFixed(1) + ' km';
 
   if (strengthChartContainer && runChartContainer) {
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -658,6 +661,10 @@ export function renderHome() {
         }
       });
 
+      const distUnit = appState.settings?.distanceUnit || 'km';
+      const KM_TO_MI = 0.621371;
+      const toDisplayDist = km => distUnit === 'mi' ? km * KM_TO_MI : km;
+
       const makeMetric = (label, current, prev, unit, higherIsBetter = true) => {
         if (prev === 0) return '';
         const diff = current - prev;
@@ -667,13 +674,13 @@ export function renderHome() {
         const colour = diff === 0 ? 'var(--text-muted)' : isPositive ? '#10b981' : '#ef4444';
         return `<div class="card-dark p-2 text-center" style="border:1px solid rgba(255,255,255,0.08);">
           <div class="text-xs text-muted mb-1">${label}</div>
-          <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'km' ? current.toFixed(1) : Math.round(current).toLocaleString()) : current}${unit ? ' '+unit : ''}</div>
+          <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'kg' ? Math.round(current).toLocaleString() : current.toFixed(1)) : current}${unit ? ' '+unit : ''}</div>
           <div class="text-xs font-bold" style="color:${colour};">${arrow} ${Math.abs(pct)}%</div>
         </div>`;
       };
 
       const volHTML  = makeMetric('Volume', currentWeekVolSum, prevVol, 'kg');
-      const distHTML = makeMetric('Running', currentWeekRunDistSum, prevDist, 'km');
+      const distHTML = makeMetric('Running', toDisplayDist(currentWeekRunDistSum), toDisplayDist(prevDist), distUnit);
       const combined = [volHTML, distHTML].filter(Boolean).join('');
       if (combined) {
         compareGrid.innerHTML = combined;

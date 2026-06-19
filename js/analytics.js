@@ -99,6 +99,7 @@ function collectAnalyticsData() {
 
     thresholdSecs: appState.thresholdPaceSeconds || null,
     bodyWeightLog: appState.bodyWeightLog || [],
+    distUnit: appState.settings?.distanceUnit || 'km',
   };
 
   if (appState.weeks) {

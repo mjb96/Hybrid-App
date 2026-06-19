@@ -92,7 +92,7 @@ export const TILE_REGISTRY = [
           const pctColor = completionPct >= 100 ? 'var(--color-green)' : completionPct >= 50 ? 'var(--color-amber)' : 'var(--color-red)';
           return {
             hero:     totalSets > 0 ? `${completionPct}%` : '✓ Done',
-            sub:      `${completedSets}${totalSets > 0 ? '/' + totalSets : ''} sets${runDist > 0 ? ' · ' + runDist + ' km' : ''}`,
+            sub:      `${completedSets}${totalSets > 0 ? '/' + totalSets : ''} sets${runDist > 0 ? ' · ' + (appState.settings?.distanceUnit === 'mi' ? (runDist * 0.621371).toFixed(2) + ' mi' : runDist + ' km') : ''}`,
             tag:      completionPct >= 100 ? 'Complete' : `${completionPct}% done`,
             tagColor: pctColor,
             state:    'loaded',
@@ -363,12 +363,14 @@ export const TILE_REGISTRY = [
           });
         }
         if (totalDist > 0 && totalMins > 0) {
-          const paceMin = totalMins / totalDist;
+          const distUnit = appState.settings?.distanceUnit || 'km';
+          const displayDist = distUnit === 'mi' ? totalDist * 0.621371 : totalDist;
+          const paceMin = totalMins / displayDist;
           const pm = Math.floor(paceMin);
           const ps = Math.round((paceMin - pm) * 60).toString().padStart(2, '0');
-          return { hero: `${pm}:${ps}`, sub: 'min/km this week', state: 'loaded' };
+          return { hero: `${pm}:${ps}`, sub: `min/${distUnit} this week`, state: 'loaded' };
         }
-        return { hero: '--:--', sub: 'min/km this week', state: 'empty' };
+        return { hero: '--:--', sub: `min/${appState.settings?.distanceUnit || 'km'} this week`, state: 'empty' };
       } catch {
         return { hero: '--:--', sub: 'min/km this week', state: 'error' };
       }

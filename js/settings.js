@@ -50,8 +50,15 @@ function _syncSettingsUI() {
   if (bwUnit) bwUnit.textContent = s.weightUnit || 'kg';
 
   _setToggleActive('[data-action="set-unit"]', `[data-unit="${s.weightUnit || 'kg'}"]`);
+  _setToggleActive('[data-action="set-dist-unit"]', `[data-unit="${s.distanceUnit || 'km'}"]`);
   _setToggleActive('[data-action="set-rest-default"]', `[data-secs="${s.restTimerDefault || 90}"]`);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${s.progressionIncrement || 2.5}"]`);
+
+  const weekEl = document.getElementById('settingsCurrentWeek');
+  if (weekEl) weekEl.textContent = _getState().currentWeek || '1';
+
+  const autoAdv = document.getElementById('settingsAutoAdvance');
+  if (autoAdv) autoAdv.checked = s.autoAdvanceWeek !== false;
 
   const threshEl = document.getElementById('settingsThresholdPace');
   if (threshEl && appState.thresholdPaceSeconds) {
@@ -137,6 +144,37 @@ export function setProgressionIncrement(kg) {
   saveStateToLocalStorage(true);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${kg}"]`);
   showToast(`Progression step: ${kg}kg`);
+}
+
+export function setDistanceUnit(unit) {
+  const appState = _ensureSettings();
+  appState.settings.distanceUnit = unit;
+  saveStateToLocalStorage(true);
+  _setToggleActive('[data-action="set-dist-unit"]', `[data-unit="${unit}"]`);
+  showToast(`Distance unit: ${unit}`);
+  document.dispatchEvent(new Event('app:storage-loaded')); // refresh tiles
+}
+
+export function stepCurrentWeek(delta) {
+  const appState = _getState();
+  const activeProgram = window._hybridGetProgram?.();
+  const maxWeek = activeProgram?.totalWeeks || 12;
+  const current = parseInt(appState.currentWeek, 10);
+  const next = Math.max(1, Math.min(maxWeek, current + delta));
+  if (next === current) return;
+  appState.currentWeek = next.toString();
+  appState.weekStartedAt = new Date().toISOString();
+  saveStateToLocalStorage(true);
+  const el = document.getElementById('settingsCurrentWeek');
+  if (el) el.textContent = next;
+  showToast(`Week ${next}`);
+  document.dispatchEvent(new Event('app:storage-loaded'));
+}
+
+export function setAutoAdvanceWeek(enabled) {
+  const appState = _ensureSettings();
+  appState.settings.autoAdvanceWeek = enabled;
+  saveStateToLocalStorage(true);
 }
 
 export function saveThresholdPace() {
@@ -323,6 +361,6 @@ export function applySettingsOnBoot(appState) {
   const s = appState.settings || {};
   if (s.restTimerDefault) setRestDuration(s.restTimerDefault);
   _refreshAvatar();
-  // Expose state getter for native bridge callback
+  // Expose getters for native bridge + week stepper
   window._hybridGetState = _getState;
 }

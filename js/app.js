@@ -45,7 +45,8 @@ import { initGarminRunImport, initGarminGymImport } from './garmin.js';
 import {
   initSettings, openSettings, closeSettings,
   saveName, saveBodyWeight, setWeightUnit, setRestDefault,
-  setProgressionIncrement, saveThresholdPace as saveSettingsThresholdPace,
+  setProgressionIncrement, setDistanceUnit, stepCurrentWeek, setAutoAdvanceWeek,
+  saveThresholdPace as saveSettingsThresholdPace,
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
@@ -573,8 +574,10 @@ document.addEventListener('click', (e) => {
   else if (action === 'close-settings') closeSettings();
   else if (e.target.id === 'settingsOverlay') closeSettings();
   else if (action === 'set-unit') setWeightUnit(target.getAttribute('data-unit'));
+  else if (action === 'set-dist-unit') setDistanceUnit(target.getAttribute('data-unit'));
   else if (action === 'set-rest-default') setRestDefault(parseInt(target.getAttribute('data-secs'), 10));
   else if (action === 'set-progression') setProgressionIncrement(parseFloat(target.getAttribute('data-kg')));
+  else if (action === 'week-step') stepCurrentWeek(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'export-data') exportData();
   else if (action === 'import-data') triggerImport();
   else if (action === 'reset-all-data') confirmResetAllData();
@@ -615,10 +618,8 @@ document.addEventListener('change', (e) => {
     return;
   }
   const hcField = target.getAttribute?.('data-hc-field');
-  if (hcField) {
-    hcToggleSyncField(hcField, target.checked);
-    return;
-  }
+  if (hcField) { hcToggleSyncField(hcField, target.checked); return; }
+  if (target.id === 'settingsAutoAdvance') { setAutoAdvanceWeek(target.checked); return; }
 
   // Data-action based handlers
   const actionTarget = target.closest('[data-action]');
@@ -706,6 +707,7 @@ initGarminGymImport((timeStr, stats) => {
 setImportSuccessCallback(() => hydrateCurrentView());
 
 function checkForAutomaticWeekAdvance() {
+  if (appState.settings?.autoAdvanceWeek === false) return;
   if (!appState.weekStartedAt) {
     appState.weekStartedAt = new Date().toISOString();
     saveStateToLocalStorage(true);
@@ -752,6 +754,7 @@ async function bootstrapApp() {
     setCockpitActiveDay(currentDay);
     switchGlobalAppTab(currentTab);
     checkActiveTimerOnLoad();
+    window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
 

@@ -794,6 +794,26 @@
         </div>
 
         <!-- Training -->
+        <!-- Week Management -->
+        <div class="settings-section">
+          <div class="settings-section-label">Program Week</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Current Week</label>
+            <div class="week-stepper">
+              <button class="week-stepper-btn" data-action="week-step" data-delta="-1">−</button>
+              <span class="week-stepper-val" id="settingsCurrentWeek">1</span>
+              <button class="week-stepper-btn" data-action="week-step" data-delta="1">+</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Auto-advance week</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsAutoAdvance" checked>
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+        </div>
+
         <div class="settings-section">
           <div class="settings-section-label">Training</div>
           <div class="settings-row">
@@ -801,6 +821,13 @@
             <div class="settings-toggle-group">
               <button class="settings-toggle-btn active" id="unitKgBtn" data-action="set-unit" data-unit="kg">kg</button>
               <button class="settings-toggle-btn" id="unitLbsBtn" data-action="set-unit" data-unit="lbs">lbs</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Distance Unit</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" data-action="set-dist-unit" data-unit="km">km</button>
+              <button class="settings-toggle-btn" data-action="set-dist-unit" data-unit="mi">miles</button>
             </div>
           </div>
           <div class="settings-row">

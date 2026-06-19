@@ -186,7 +186,7 @@ export function verifyWeekStorageSchema(wk) {
   if (!appState.weeks) appState.weeks = {};
   
   if (!appState.weeks[wk]) {
-    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} };
+    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, dates: {} };
     DEFAULT_DAYS.forEach(d => {
       appState.weeks[wk].runs[d] = { dist: '', time: '', rpe: '' };
       appState.weeks[wk].notes[d] = '';
@@ -265,7 +265,7 @@ export async function pullEngineDataFromStorage() {
     loadMetrics: { atl: 0, ctl: 0 },
     healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
     wellnessLog: [],
-    settings: { name: '', weightUnit: 'kg', restTimerDefault: 90, progressionIncrement: 2.5, defaultBodyWeight: null },
+    settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', restTimerDefault: 90, progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true },
   };
 
   if (localData) {

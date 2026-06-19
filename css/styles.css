@@ -2026,3 +2026,80 @@ td {
   line-height: 1.5;
   margin-top: 8px;
 }
+
+/* ==========================================
+   WEEK STEPPER
+   ========================================== */
+.week-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.week-stepper-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.week-stepper-btn:hover { background: rgba(255,255,255,0.16); }
+.week-stepper-val {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ==========================================
+   SETTINGS TOGGLE SWITCH
+   ========================================== */
+.settings-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.settings-switch input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.settings-switch-track {
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.15);
+  transition: background 0.2s ease;
+  position: relative;
+}
+.settings-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.settings-switch input:checked ~ .settings-switch-track {
+  background: rgba(99,102,241,0.5);
+  border-color: rgba(99,102,241,0.6);
+}
+.settings-switch input:checked ~ .settings-switch-track::after {
+  transform: translateX(18px);
+  background: #fff;
+}

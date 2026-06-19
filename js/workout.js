@@ -593,6 +593,11 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const _sIdx = exCard ? Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow) : -1;
       const setType = _appState.weeks[_wk].lifts?.[_selDay]?.[liftName]?.[_sIdx]?.type || '';
       triggerRestTimerEngine(liftName, setRpe, setType);
+      // Stamp workout date on first set completion for this day
+      if (!_appState.weeks[_wk].dates) _appState.weeks[_wk].dates = {};
+      if (!_appState.weeks[_wk].dates[_selDay]) {
+        _appState.weeks[_wk].dates[_selDay] = new Date().toISOString().slice(0, 10);
+      }
     } catch(e) { console.warn(e); }
   } else {
     if (parentRow) parentRow.classList.remove('is-complete');
