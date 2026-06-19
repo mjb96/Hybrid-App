@@ -988,6 +988,24 @@ input[type="checkbox"].gym-check:checked ~ .gym-check-icon { opacity: 1; }
   color: var(--text-primary);
   background: var(--blue-alpha);
 }
+.append-set-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.append-set-row .btn-pad-append {
+  margin-top: 0;
+  flex: 1;
+}
+.btn-append-warmup {
+  border-color: rgba(251, 191, 36, 0.25);
+  color: rgba(251, 191, 36, 0.6);
+}
+.btn-append-warmup:hover {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+}
 
 .empty-state-card {
   text-align: center;
@@ -1592,19 +1610,22 @@ td {
 /* ---- SS link button & panel ---- */
 .btn-ss-link {
   font-size: 0.6rem;
-  font-weight: 800;
-  padding: 4px 9px;
-  border-radius: 16px;
-  background: rgba(59,130,246,0.08);
-  border: 1px solid rgba(59,130,246,0.22);
-  color: #60a5fa;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.28);
   cursor: pointer;
   white-space: nowrap;
   margin: 0 var(--space-2);
   flex-shrink: 0;
-  transition: background var(--duration-fast) ease;
+  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease, background var(--duration-fast) ease;
 }
-.btn-ss-link:hover { background: rgba(59,130,246,0.2); }
+.btn-ss-link:hover {
+  color: rgba(255,255,255,0.55);
+  border-color: rgba(255,255,255,0.22);
+}
 .btn-ss-link.ss-active {
   background: var(--ss-color, #3b82f6);
   color: #fff;

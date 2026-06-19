@@ -677,6 +677,26 @@ export function appendCustomSetRow(btnNode, liftName) {
   renderWorkout();
 }
 
+export function appendWarmupSetRow(btnNode, liftName) {
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+
+  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
+  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
+    appState.weeks[wk].lifts[selectedDay][liftName] = [];
+  }
+  const sets = appState.weeks[wk].lifts[selectedDay][liftName];
+  // Insert warmup before first working set, or at index 0
+  const firstWorkingIdx = sets.findIndex(s => !s.type || s.type !== 'W');
+  const newSet = { w: '', r: '', c: false, type: 'W' };
+  if (firstWorkingIdx === -1) sets.push(newSet);
+  else sets.splice(firstWorkingIdx, 0, newSet);
+
+  _saveState(true);
+  renderWorkout();
+}
+
 export function removeCustomSetRow(liftName, setIndex) {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
@@ -1061,6 +1081,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'quick-modifier') applyQuickFillModifier(target, target.getAttribute('data-modifier'), sIdx);
   else if (action === 'toggle-pad') toggleQuickPad(row);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
+  else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
   else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
   else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
