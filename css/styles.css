@@ -744,6 +744,112 @@ select.native-select {
 .workout-run-desc { font-size: var(--text-lg); margin-bottom: var(--space-3); color: var(--text-primary); }
 .run-grid-inputs  { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
 
+/* ── Live pace row ─────────────────────────────────────────────────────────── */
+.run-pace-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(34,211,238,0.06);
+  border: 1px solid rgba(34,211,238,0.18);
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+.run-pace-label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(34,211,238,0.6);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.run-pace-input {
+  flex: 1;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #22d3ee !important;
+  font-size: 1.1rem !important;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 !important;
+}
+.run-pace-input::placeholder { color: rgba(34,211,238,0.25); }
+.run-pace-unit {
+  font-size: 0.65rem;
+  color: rgba(34,211,238,0.45);
+  flex-shrink: 0;
+}
+
+/* ── Run notes textarea ────────────────────────────────────────────────────── */
+.run-notes-input {
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 10px 12px;
+  resize: none;
+  min-height: 56px;
+  box-sizing: border-box;
+}
+.run-notes-input::placeholder { color: rgba(255,255,255,0.2); }
+.run-notes-input:focus {
+  outline: none;
+  border-color: rgba(34,211,238,0.3);
+  background: rgba(34,211,238,0.03);
+}
+
+/* ── FIT import tile ───────────────────────────────────────────────────────── */
+.fit-import-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.fit-import-tile--run {
+  background: rgba(34,211,238,0.05);
+  border: 1px solid rgba(34,211,238,0.18);
+}
+.fit-import-tile--run:hover { background: rgba(34,211,238,0.09); border-color: rgba(34,211,238,0.3); }
+.fit-import-tile--gym {
+  background: rgba(59,130,246,0.05);
+  border: 1px solid rgba(59,130,246,0.18);
+}
+.fit-import-tile--gym:hover { background: rgba(59,130,246,0.09); border-color: rgba(59,130,246,0.3); }
+
+.fit-import-tile__icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.fit-import-tile__text { flex: 1; min-width: 0; }
+.fit-import-tile__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.fit-import-tile--run .fit-import-tile__title { color: #22d3ee; }
+.fit-import-tile--gym .fit-import-tile__title { color: #60a5fa; }
+.fit-import-tile__sub {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.32);
+}
+.fit-import-tile__arrow {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
 
 /* --- 6d. Cockpit exercise accordions --- */
 .cockpit-exercise {
@@ -3820,11 +3926,43 @@ html[data-theme="light"] #view-workout .card-dark input[type="number"] {
   color: #0f172a;
 }
 
-/* Import .FIT ghost button label inside workout */
-html[data-theme="light"] #view-workout .btn-ghost {
-  color: rgba(0, 0, 0, 0.55) !important;
-  border-color: rgba(0, 0, 0, 0.14) !important;
+/* Run pace row — light mode */
+html[data-theme="light"] .run-pace-row {
+  background: rgba(8,145,178,0.05);
+  border-color: rgba(8,145,178,0.20);
 }
+html[data-theme="light"] .run-pace-label { color: rgba(8,145,178,0.65); }
+html[data-theme="light"] .run-pace-input { color: #0891b2 !important; }
+html[data-theme="light"] .run-pace-input::placeholder { color: rgba(8,145,178,0.25); }
+html[data-theme="light"] .run-pace-unit { color: rgba(8,145,178,0.45); }
+
+/* Run notes textarea — light mode */
+html[data-theme="light"] .run-notes-input {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+  color: #0f172a;
+}
+html[data-theme="light"] .run-notes-input::placeholder { color: rgba(0,0,0,0.25); }
+html[data-theme="light"] .run-notes-input:focus {
+  border-color: rgba(8,145,178,0.30);
+  background: rgba(8,145,178,0.02);
+}
+
+/* FIT import tile — light mode */
+html[data-theme="light"] .fit-import-tile--run {
+  background: rgba(8,145,178,0.04);
+  border-color: rgba(8,145,178,0.18);
+}
+html[data-theme="light"] .fit-import-tile--run:hover { background: rgba(8,145,178,0.08); border-color: rgba(8,145,178,0.28); }
+html[data-theme="light"] .fit-import-tile--run .fit-import-tile__title { color: #0891b2; }
+html[data-theme="light"] .fit-import-tile--gym {
+  background: rgba(59,130,246,0.04);
+  border-color: rgba(59,130,246,0.18);
+}
+html[data-theme="light"] .fit-import-tile--gym:hover { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.28); }
+html[data-theme="light"] .fit-import-tile--gym .fit-import-tile__title { color: #2563eb; }
+html[data-theme="light"] .fit-import-tile__sub { color: rgba(0,0,0,0.35); }
+html[data-theme="light"] .fit-import-tile__arrow { color: rgba(0,0,0,0.18); }
 
 /* Run card extra stats divider */
 html[data-theme="light"] #runExtraStats {

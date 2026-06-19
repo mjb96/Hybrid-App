@@ -13,6 +13,34 @@ import { renderRunMap } from './workout-map.js';
 
 let _getState;
 let _getSelectedDay;
+
+// ── Pace helpers ──────────────────────────────────────────────────────────────
+function _paceFromDistTime(distKm, timeStr) {
+  const dist = parseFloat(distKm);
+  if (!dist || dist <= 0 || !timeStr) return '';
+  const parts = String(timeStr).trim().split(':');
+  let secs = 0;
+  if (parts.length === 3) secs = +parts[0] * 3600 + +parts[1] * 60 + parseFloat(parts[2]);
+  else if (parts.length === 2) secs = +parts[0] * 60 + parseFloat(parts[1]);
+  if (!secs) return '';
+  const secPerKm = secs / dist;
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function _timeFromPaceDist(paceStr, distKm) {
+  const dist = parseFloat(distKm);
+  if (!dist || dist <= 0 || !paceStr) return '';
+  const parts = String(paceStr).trim().replace(/\/km.*/i, '').trim().split(':');
+  if (parts.length !== 2) return '';
+  const secPerKm = +parts[0] * 60 + parseFloat(parts[1]);
+  if (!secPerKm) return '';
+  const totalSecs = secPerKm * dist;
+  const m = Math.floor(totalSecs / 60);
+  const s = Math.round(totalSecs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
 let _getDays;
 let _saveState;
 let _switchTab;
@@ -121,11 +149,13 @@ export function renderWorkout() {
   const homeBlueprint = activeProgram.days?.[selectedDay] || { lifts: [], runs: "Rest" };
 
   // --- RUN METRICS ---
-  const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '' };
-  
+  const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '', pace: '', notes: '' };
+
   const distEl       = document.getElementById('runInputDist');
   const timeEl       = document.getElementById('runInputTime');
   const rpeCockpitEl = document.getElementById('runInputRpeCockpit');
+  const paceEl       = document.getElementById('runInputPace');
+  const notesRunEl   = document.getElementById('runInputNotes');
   const avgHREl      = document.getElementById('runInputAvgHR');
   const maxHREl      = document.getElementById('runInputMaxHR');
   const elevEl       = document.getElementById('runInputElev');
@@ -135,10 +165,17 @@ export function renderWorkout() {
   if (distEl)       distEl.value       = runContext.dist        || '';
   if (timeEl)       timeEl.value       = runContext.time        || '';
   if (rpeCockpitEl) rpeCockpitEl.value = runContext.rpe         || '';
+  if (notesRunEl)   notesRunEl.value   = runContext.notes       || '';
   if (avgHREl)      avgHREl.value      = runContext.avgHR       || '';
   if (maxHREl)      maxHREl.value      = runContext.maxHR       || '';
   if (elevEl)       elevEl.value       = runContext.elev        || '';
   if (calsEl)       calsEl.value       = runContext.cals        || '';
+
+  // Restore or compute pace
+  if (paceEl) {
+    const storedPace = runContext.pace || _paceFromDistTime(runContext.dist, runContext.time);
+    paceEl.value = storedPace ? `${storedPace}` : '';
+  }
 
   const hasRunExtra = runContext.avgHR || runContext.maxHR || runContext.elev || runContext.cals ||
                       runContext.avgCadence || runContext.descent || runContext.trainingEffect;
@@ -481,23 +518,29 @@ export function commitWorkoutUIState() {
   const wk = appState.currentWeek;
   const weekData = appState.weeks[wk];
 
-  const distEl = document.getElementById('runInputDist');
-  const timeEl = document.getElementById('runInputTime');
-  const rpeRunEl = document.getElementById('runInputRpeCockpit');
-  const avgHREl = document.getElementById('runInputAvgHR');
-  const maxHREl = document.getElementById('runInputMaxHR');
-  const elevEl = document.getElementById('runInputElev');
-  const calsEl = document.getElementById('runInputCals');
+  const distEl     = document.getElementById('runInputDist');
+  const timeEl     = document.getElementById('runInputTime');
+  const rpeRunEl   = document.getElementById('runInputRpeCockpit');
+  const paceEl     = document.getElementById('runInputPace');
+  const notesRunEl = document.getElementById('runInputNotes');
+  const avgHREl    = document.getElementById('runInputAvgHR');
+  const maxHREl    = document.getElementById('runInputMaxHR');
+  const elevEl     = document.getElementById('runInputElev');
+  const calsEl     = document.getElementById('runInputCals');
 
   if (distEl && distEl.offsetParent !== null) {
-    weekData.runs[selectedDay] = { 
-        dist: distEl.value, 
-        time: timeEl.value, 
-        rpe: rpeRunEl.value,
-        avgHR: avgHREl ? avgHREl.value : '',
-        maxHR: maxHREl ? maxHREl.value : '',
-        elev: elevEl ? elevEl.value : '',
-        cals: calsEl ? calsEl.value : ''
+    const existing = weekData.runs[selectedDay] || {};
+    weekData.runs[selectedDay] = {
+      ...existing,
+      dist:  distEl.value,
+      time:  timeEl.value,
+      rpe:   rpeRunEl.value,
+      pace:  paceEl   ? paceEl.value   : '',
+      notes: notesRunEl ? notesRunEl.value : '',
+      avgHR: avgHREl ? avgHREl.value : '',
+      maxHR: maxHREl ? maxHREl.value : '',
+      elev:  elevEl  ? elevEl.value  : '',
+      cals:  calsEl  ? calsEl.value  : '',
     };
   }
 
@@ -1141,7 +1184,25 @@ document.addEventListener('change', (e) => {
 
 document.addEventListener('focusout', (e) => {
   const target = e.target;
-  if (target.matches('.input-weight-node, .input-reps-node, #sessionNotesInput, #sessionGymRpeCockpit, #runInputDist, #runInputTime, #runInputRpeCockpit')) {
+  if (target.matches('.input-weight-node, .input-reps-node, #sessionNotesInput, #sessionGymRpeCockpit, #runInputDist, #runInputTime, #runInputRpeCockpit, #runInputPace, #runInputNotes')) {
     commitWorkoutUIState();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  const target = e.target;
+  const distEl  = document.getElementById('runInputDist');
+  const timeEl  = document.getElementById('runInputTime');
+  const paceEl  = document.getElementById('runInputPace');
+  if (!distEl || !timeEl || !paceEl) return;
+
+  if (target.id === 'runInputDist' || target.id === 'runInputTime') {
+    // dist + time → derive pace
+    const computed = _paceFromDistTime(distEl.value, timeEl.value);
+    if (computed) paceEl.value = computed;
+  } else if (target.id === 'runInputPace') {
+    // pace + dist → derive time
+    const derived = _timeFromPaceDist(paceEl.value, distEl.value);
+    if (derived) timeEl.value = derived;
   }
 });

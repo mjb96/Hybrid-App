@@ -291,10 +291,6 @@
       <article class="card-dark workout-run-card" id="cockpitRunPanel">
         <div class="flex-between mb-3">
           <h2 class="workout-run-title m-0" id="cockpitRunHeader">🏃 Aerobic Session</h2>
-          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid rgba(34,211,238,0.4); color: #22d3ee; font-size:0.65rem;">
-            ⌚ Import .FIT
-            <input type="file" id="fitUpload" accept=".fit" class="hidden-input">
-          </label>
         </div>
 
         <div id="runMapContainer" style="height: 180px; width: 100%; border-radius: 8px; display: none; margin-bottom: 12px; z-index: 1;"></div>
@@ -306,6 +302,14 @@
           <label><span class="set-num-lbl block mb-1">Time</span><input type="text" id="runInputTime" placeholder="00:00"></label>
           <label><span class="set-num-lbl block mb-1">RPE</span><input type="number" id="runInputRpeCockpit" placeholder="1-10" max="10"></label>
         </div>
+
+        <div class="run-pace-row mb-3" id="runPaceRow">
+          <span class="run-pace-label">AVG PACE</span>
+          <input type="text" id="runInputPace" class="run-pace-input" placeholder="—:—— /km" autocomplete="off">
+          <span class="run-pace-unit">/km</span>
+        </div>
+
+        <textarea id="runInputNotes" class="run-notes-input" placeholder="How did it feel? Route, conditions, notes…"></textarea>
 
         <div id="runExtraStats" style="display: none; padding-top: 8px; border-top: 1px dashed rgba(34,211,238,0.2);">
           <div class="run-grid-inputs mb-2">
@@ -330,6 +334,16 @@
           </div>
         </div>
 
+        <label class="fit-import-tile fit-import-tile--run cursor-pointer mt-3">
+          <div class="fit-import-tile__icon">⌚</div>
+          <div class="fit-import-tile__text">
+            <div class="fit-import-tile__title">Import Run from Watch</div>
+            <div class="fit-import-tile__sub">Garmin · Apple Watch · .FIT file</div>
+          </div>
+          <div class="fit-import-tile__arrow">›</div>
+          <input type="file" id="fitUpload" accept=".fit" class="hidden-input">
+        </label>
+
       </article>
 
       <div class="app-section-heading">
@@ -342,15 +356,9 @@
       <button class="btn-action-block btn-dashed mt-3 mb-5" data-action="open-add-exercise">+ Add Unplanned Exercise</button>
 
       <article class="card-dark mt-4 p-4">
-        <div class="flex-between mb-3">
-          <div>
-            <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
-            <div class="app-section-heading__sub">RPE, notes &amp; .FIT import</div>
-          </div>
-          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid var(--accent-blue); flex-shrink:0;">
-            ⌚ Import Gym .FIT
-            <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
-          </label>
+        <div class="mb-3">
+          <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
+          <div class="app-section-heading__sub">RPE &amp; session notes</div>
         </div>
 
         <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
@@ -374,6 +382,16 @@
           <input type="number" id="sessionGymRpeCockpit" placeholder="Overall Gym RPE (1-10)" max="10" aria-label="Overall Gym RPE">
         </div>
         <textarea id="sessionNotesInput" placeholder="How did today feel? Sleep? Energy?" aria-label="Session Notes"></textarea>
+
+        <label class="fit-import-tile fit-import-tile--gym cursor-pointer mt-3">
+          <div class="fit-import-tile__icon">⌚</div>
+          <div class="fit-import-tile__text">
+            <div class="fit-import-tile__title">Import Gym Session from Watch</div>
+            <div class="fit-import-tile__sub">Garmin · Apple Watch · .FIT file</div>
+          </div>
+          <div class="fit-import-tile__arrow">›</div>
+          <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
+        </label>
       </article>
 
       <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Session</button>
