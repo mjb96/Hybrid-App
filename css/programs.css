@@ -1296,10 +1296,10 @@ html[data-theme="light"] .prog-card--active {
 }
 
 /* Collection row header */
-html[data-theme="light"] .collection-label {
+html[data-theme="light"] .collection-title {
   color: #0f172a !important;
 }
-html[data-theme="light"] .collection-sub {
+html[data-theme="light"] .collection-subtitle {
   color: rgba(0,0,0,0.40) !important;
 }
 html[data-theme="light"] .collection-see-all {
@@ -1422,5 +1422,25 @@ html[data-theme="light"] .focus-bar-pct {
 html[data-theme="light"] .detail-social-proof {
   background: rgba(0,0,0,0.02) !important;
   border-color: rgba(0,0,0,0.07) !important;
+}
+
+
+/* Active plan view header label */
+.active-plan-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+html[data-theme="light"] .active-plan-label {
+  color: rgba(0,0,0,0.30);
+}
+
+/* Hero banner text — stays on a dark overlay image so white is fine in both modes.
+   Only adjust the badge chip background which is rgba white (slightly odd on light). */
+html[data-theme="light"] .hero-badge {
+  background: rgba(0,0,0,0.20) !important;
+  color: rgba(255,255,255,0.90) !important;
 }
 
