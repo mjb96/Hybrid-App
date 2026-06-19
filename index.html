@@ -243,7 +243,19 @@
     </section>
 
     <section id="view-workout" class="view-container" aria-label="Workout Cockpit">
-      
+
+      <div class="workout-cockpit-header">
+        <div class="wch-meta">
+          <span class="wch-label">Workout</span>
+          <h2 class="wch-title">Today's Session</h2>
+          <span class="wch-sub" id="cockpitSessionStatus">Ready to train</span>
+        </div>
+        <div class="wch-badge">
+          <span class="wch-badge-dot"></span>
+          Cockpit
+        </div>
+      </div>
+
       <nav class="workout-day-selector" id="cockpitDaySelectorBar" aria-label="Day Selector">
         <button class="day-pill active" data-action="set-day" data-day="mon" aria-current="page">Mon (Push)</button>
         <button class="day-pill" data-action="set-day" data-day="tue">Tue (Pull)</button>
@@ -308,17 +320,22 @@
             <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="runInputTE" placeholder="--" readonly style="text-align:center; color:#10b981;"></label>
           </div>
           <div id="runHrZonesContainer" style="display:none; margin-bottom:8px;">
-            <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">HR ZONES (time in zone)</div>
+            <div class="set-num-lbl mb-1">HR ZONES (time in zone)</div>
             <div id="runHrZonesBar" style="display:flex; border-radius:4px; overflow:hidden; height:8px; margin-bottom:4px;"></div>
-            <div id="runHrZonesLabels" style="display:flex; justify-content:space-between; font-size:0.6rem; color:rgba(255,255,255,0.4);"></div>
+            <div id="runHrZonesLabels" style="display:flex; justify-content:space-between; font-size:0.6rem;"></div>
           </div>
           <div id="runSplitsContainer" style="display:none;">
-            <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">KM SPLITS</div>
+            <div class="set-num-lbl mb-1">KM SPLITS</div>
             <div id="runSplitsTable"></div>
           </div>
         </div>
 
       </article>
+
+      <div class="app-section-heading">
+        <div class="app-section-heading__title">Exercises</div>
+        <div class="app-section-heading__sub">Tap a set to log weight &amp; reps</div>
+      </div>
 
       <div id="cockpitExercisesContainer"></div>
 
@@ -326,26 +343,29 @@
 
       <article class="card-dark mt-4 p-4">
         <div class="flex-between mb-3">
-          <h2 class="section-header m-0">Session Overview</h2>
-          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid var(--accent-blue);">
+          <div>
+            <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
+            <div class="app-section-heading__sub">RPE, notes &amp; .FIT import</div>
+          </div>
+          <label class="btn-action-block btn-ghost text-xs cursor-pointer m-0 px-3 py-1 inline-block w-auto" style="border: 1px solid var(--accent-blue); flex-shrink:0;">
             ⌚ Import Gym .FIT
             <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
           </label>
         </div>
 
-        <div id="gymStatsRow" style="display: none; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1); margin-bottom: 8px;">
+        <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(4, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="--" readonly style="text-align: center; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-pink">Avg HR</span><input type="text" id="gymInputAvgHR" placeholder="--" readonly style="text-align: center; color:#22d3ee; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-pink">Max HR</span><input type="text" id="gymInputMaxHR" placeholder="--" readonly style="text-align: center; color:#22d3ee; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-green">Cals</span><input type="text" id="gymInputCals" placeholder="--" readonly style="text-align: center; color:#10b981; border-color: rgba(255,255,255,0.1);"></label>
+            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="--" readonly style="text-align: center;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-pink">Avg HR</span><input type="text" id="gymInputAvgHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-pink">Max HR</span><input type="text" id="gymInputMaxHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-green">Cals</span><input type="text" id="gymInputCals" placeholder="--" readonly style="text-align: center; color:#10b981;"></label>
           </div>
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(2, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="gymInputTE" placeholder="--" readonly style="text-align: center; color:#10b981; border-color: rgba(255,255,255,0.1);"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-amber">Aerobic TE</span><input type="text" id="gymInputAerobicTE" placeholder="--" readonly style="text-align: center; color:#f59e0b; border-color: rgba(255,255,255,0.1);"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-green">Training Effect</span><input type="text" id="gymInputTE" placeholder="--" readonly style="text-align: center; color:#10b981;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-amber">Aerobic TE</span><input type="text" id="gymInputAerobicTE" placeholder="--" readonly style="text-align: center; color:#f59e0b;"></label>
           </div>
           <div id="gymSetsBreakdown" style="display:none;">
-            <div class="set-num-lbl mb-1" style="color:rgba(255,255,255,0.4);">SET BREAKDOWN (from .FIT)</div>
+            <div class="set-num-lbl mb-1">SET BREAKDOWN (from .FIT)</div>
             <div id="gymSetsTable"></div>
           </div>
         </div>

@@ -3862,3 +3862,139 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   background: rgba(220, 38, 38, 0.06) !important;
 }
 
+/* ==========================================================================
+   WORKOUT TAB — CINEMATIC DESIGN UPGRADE
+   Matches the structural feel of the Home and Programs tabs
+   ========================================================================== */
+
+/* Workout cockpit header — mirrors .home-header */
+.workout-cockpit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 18px;
+  margin-top: 4px;
+}
+.wch-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wch-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.28);
+}
+.wch-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin: 0;
+}
+.wch-sub {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(16,185,129,0.70);
+  letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+
+/* Workout status badge (top-right of header) */
+.wch-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16,185,129,0.10);
+  border: 1px solid rgba(16,185,129,0.22);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(16,185,129,0.80);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.wch-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+/* Day selector: fade right edge to hint at horizontal scroll */
+.workout-day-selector {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent 100%);
+}
+
+/* Gym stats row divider (was hardcoded rgba white — invisible in both modes) */
+#gymStatsRow {
+  border-bottom: 1px dashed rgba(255,255,255,0.09) !important;
+}
+
+/* Gym stats inputs: remove white hardcoded border */
+#gymStatsRow input[readonly] {
+  border-color: rgba(255,255,255,0.09) !important;
+}
+
+/* "Set breakdown from .FIT" label */
+#gymSetsBreakdown .set-num-lbl {
+  color: rgba(255,255,255,0.38) !important;
+}
+
+/* HR zones label in run card */
+#runHrZonesContainer .set-num-lbl,
+#runSplitsContainer .set-num-lbl {
+  color: rgba(255,255,255,0.38) !important;
+}
+
+/* Session Overview card — give it a top separator glow */
+#view-workout > article.card-dark:last-of-type {
+  margin-top: 28px;
+  border-top: 1px solid rgba(99,102,241,0.12);
+  box-shadow: 0 -1px 0 rgba(99,102,241,0.08), 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+
+/* Start Workout button: keep flush with day pills, no extra gap needed */
+#startWorkoutBtn {
+  margin-top: 2px;
+}
+
+/* Light mode overrides for workout header */
+html[data-theme="light"] .wch-label {
+  color: rgba(0,0,0,0.30);
+}
+html[data-theme="light"] .wch-title {
+  color: #0f172a;
+}
+html[data-theme="light"] .wch-sub {
+  color: rgba(5,150,105,0.80);
+}
+html[data-theme="light"] .wch-badge {
+  background: rgba(16,185,129,0.07);
+  border-color: rgba(16,185,129,0.20);
+  color: rgba(5,150,105,0.85);
+}
+html[data-theme="light"] #gymStatsRow {
+  border-bottom-color: rgba(0,0,0,0.08) !important;
+}
+html[data-theme="light"] #gymStatsRow input[readonly] {
+  border-color: rgba(0,0,0,0.10) !important;
+  background: rgba(0,0,0,0.03) !important;
+}
+html[data-theme="light"] #gymSetsBreakdown .set-num-lbl,
+html[data-theme="light"] #runHrZonesContainer .set-num-lbl,
+html[data-theme="light"] #runSplitsContainer .set-num-lbl {
+  color: rgba(0,0,0,0.38) !important;
+}
+html[data-theme="light"] #view-workout > article.card-dark:last-of-type {
+  border-top-color: rgba(99,102,241,0.09);
+  box-shadow: 0 -1px 0 rgba(99,102,241,0.06), 0 4px 16px rgba(0,0,0,0.07) !important;
+}
+
