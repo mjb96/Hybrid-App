@@ -3677,3 +3677,188 @@ html[data-theme="light"] .ob-card {
   box-shadow: 0 24px 64px rgba(0,0,0,0.12) !important;
 }
 
+/* ==========================================================================
+   WORKOUT TAB — LIGHT MODE FIXES
+   Targets every component in view-workout that uses hard-coded dark values
+   ========================================================================== */
+
+/* Exercise card body (was rgba(0,0,0,0.18) — nearly black) */
+html[data-theme="light"] .cockpit-body {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+/* Quick-pad row container (was rgba(0,0,0,0.25)) */
+html[data-theme="light"] .quick-pad-row {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Quick-pad weight/rep preset buttons */
+html[data-theme="light"] .btn-pad {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.11) !important;
+  color: rgba(0, 0, 0, 0.60) !important;
+}
+html[data-theme="light"] .btn-pad:hover {
+  background: rgba(0, 0, 0, 0.09) !important;
+  color: rgba(0, 0, 0, 0.85) !important;
+}
+
+/* "Add set / Add warm-up" dashed append button */
+html[data-theme="light"] .btn-pad-append {
+  border-color: rgba(0, 0, 0, 0.18);
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] .btn-pad-append:hover {
+  border-color: #6366f1;
+  color: #4f46e5;
+  background: rgba(99, 102, 241, 0.06);
+}
+html[data-theme="light"] .btn-append-warmup {
+  border-color: rgba(245, 158, 11, 0.35);
+  color: rgba(180, 115, 0, 0.75);
+}
+html[data-theme="light"] .btn-append-warmup:hover {
+  border-color: #f59e0b;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.07);
+}
+
+/* Per-set RPE buttons */
+html[data-theme="light"] .btn-rpe {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: rgba(0, 0, 0, 0.50) !important;
+}
+html[data-theme="light"] .btn-rpe:hover {
+  border-color: rgba(0, 0, 0, 0.25) !important;
+  color: rgba(0, 0, 0, 0.75) !important;
+}
+html[data-theme="light"] .btn-rpe.rpe-selected {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.40) !important;
+  color: #dc2626 !important;
+}
+
+/* Set row dividers */
+html[data-theme="light"] .cockpit-set-row {
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Completed set row highlight */
+html[data-theme="light"] .cockpit-set-row.is-complete {
+  background: linear-gradient(90deg, rgba(16,185,129,0.07), transparent);
+}
+
+/* Empty state card */
+html[data-theme="light"] .empty-state-card {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Rest decompression banner */
+html[data-theme="light"] .rest-decompression-banner {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.10);
+  color: rgba(0, 0, 0, 0.55);
+}
+
+/* Session timer bar text (lime green "SESSION ACTIVE" on light bg) */
+html[data-theme="light"] .timer-txt {
+  color: #059669;
+}
+html[data-theme="light"] .timer-clock {
+  color: #0f172a;
+}
+
+/* Rest timer — adj/skip buttons */
+html[data-theme="light"] .rest-adj-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.14);
+  color: rgba(0, 0, 0, 0.55);
+}
+html[data-theme="light"] .rest-adj-btn:active {
+  background: rgba(0, 0, 0, 0.10);
+}
+html[data-theme="light"] .rest-skip-btn {
+  background: rgba(59, 130, 246, 0.10);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #1d4ed8;
+}
+
+/* Rest timer label */
+html[data-theme="light"] #restTimerLabel {
+  color: rgba(0, 0, 0, 0.50);
+}
+html[data-theme="light"] #cockpitTimerClock {
+  color: #0f172a;
+}
+
+/* Rest progress track (was rgba(255,255,255,0.08) — invisible) */
+html[data-theme="light"] .rest-progress-track {
+  background: rgba(0, 0, 0, 0.10);
+}
+
+/* Start Workout button keeps the green gradient — already looks good in light */
+
+/* "Add Unplanned Exercise" dashed button */
+html[data-theme="light"] .btn-dashed {
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  color: rgba(0, 0, 0, 0.50) !important;
+  background: transparent !important;
+}
+html[data-theme="light"] .btn-dashed:hover {
+  border-color: #6366f1 !important;
+  color: #4f46e5 !important;
+  background: rgba(99, 102, 241, 0.05) !important;
+}
+
+/* Session Overview card at bottom of workout */
+html[data-theme="light"] #view-workout .card-dark textarea,
+html[data-theme="light"] #view-workout .card-dark input[type="number"] {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+}
+
+/* Import .FIT ghost button label inside workout */
+html[data-theme="light"] #view-workout .btn-ghost {
+  color: rgba(0, 0, 0, 0.55) !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+}
+
+/* Run card extra stats divider */
+html[data-theme="light"] #runExtraStats {
+  border-top-color: rgba(0, 0, 0, 0.10) !important;
+}
+
+/* HR zones bar track */
+html[data-theme="light"] #runHrZonesLabels,
+html[data-theme="light"] .set-num-lbl {
+  color: rgba(0, 0, 0, 0.40) !important;
+}
+
+/* Cockpit exercise drag handle */
+html[data-theme="light"] .drag-handle-grip {
+  color: rgba(0, 0, 0, 0.30);
+}
+html[data-theme="light"] .drag-handle-grip:hover {
+  color: #6366f1;
+}
+
+/* History last-session hint line */
+html[data-theme="light"] .cockpit-history-line {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.07);
+  border-color: rgba(59, 130, 246, 0.15);
+}
+
+/* "Finish Session" and "Clear Today's Log" — danger ghost in light */
+html[data-theme="light"] .btn-danger-ghost {
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.30) !important;
+  background: transparent !important;
+}
+html[data-theme="light"] .btn-danger-ghost:hover {
+  background: rgba(220, 38, 38, 0.06) !important;
+}
+
