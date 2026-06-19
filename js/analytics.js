@@ -20,6 +20,7 @@ import { renderRunCrossRefAnalytics } from './analytics/views/view-run-crossref.
 import { renderVdotAnalytics } from './analytics/views/view-vdot.js';
 import { renderAvgPaceAnalytics } from './analytics/views/view-avg-pace.js';
 import { renderStressBalanceAnalytics } from './analytics/views/view-stress-balance.js';
+import { renderActivityCalendar } from './home.js';
 
 let _getState;
 let _getDays;
@@ -303,6 +304,10 @@ export function renderAnalytics() {
     case 'stress-balance':
       document.getElementById('analytics-stress-balance').classList.add('active');
       renderStressBalanceAnalytics(data, _getState, _getDays);
+      break;
+    case 'activity':
+      document.getElementById('analytics-activity').classList.add('active');
+      renderActivityCalendar(_getState(), 'analyticsCalendarContainer');
       break;
     default:
       document.getElementById('analytics-strength').classList.add('active');

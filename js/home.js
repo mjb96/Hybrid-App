@@ -717,7 +717,6 @@ export function renderHome() {
     }
   }
 
-  renderActivityCalendar(appState);
 }
 
 // ==========================================
@@ -726,19 +725,44 @@ export function renderHome() {
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const _DAY_OFFSET = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+function _inferDate(wk, day, currentWeek) {
+  // Compute the Monday of the current training week, then offset by week delta
+  const now = new Date();
+  const todayDow = (now.getDay() + 6) % 7; // 0=Mon
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - todayDow);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  const weekOffset = (currentWeek || 1) - (parseInt(wk, 10) || 1);
+  const dayOffset  = _DAY_OFFSET[day] ?? 0;
+  const d = new Date(thisMonday);
+  d.setDate(thisMonday.getDate() - weekOffset * 7 + dayOffset);
+  return d.toISOString().slice(0, 10);
+}
+
 function _buildActivityMap(appState) {
   const map = {};
   const weeks = appState.weeks || {};
+  const currentWeek = appState.currentWeek || 1;
+
   for (const wk in weeks) {
     const wd = weeks[wk];
     if (!wd) continue;
     const dates = wd.dates || {};
     const lifts = wd.lifts || {};
     const runs  = wd.runs  || {};
-    for (const day in dates) {
-      const ds = dates[day];
+
+    // Collect all days that have any activity
+    const allDays = new Set([...Object.keys(lifts), ...Object.keys(runs)]);
+
+    for (const day of allDays) {
+      // Use stamped date if available, otherwise infer from week offset
+      const ds = dates[day] || _inferDate(wk, day, currentWeek);
       if (!ds) continue;
       if (!map[ds]) map[ds] = { gym: false, run: false };
+
       const dayLifts = lifts[day] || {};
       for (const ln in dayLifts) {
         if (Array.isArray(dayLifts[ln]) && dayLifts[ln].some(s => s?.c)) {
@@ -780,8 +804,8 @@ function _renderCalendarMonth(year, month, activityMap, today) {
   </div>`;
 }
 
-export function renderActivityCalendar(appState) {
-  const container = document.getElementById('homeCalendarContainer');
+export function renderActivityCalendar(appState, containerId = 'homeCalendarContainer') {
+  const container = document.getElementById(containerId);
   if (!container) return;
   const map = _buildActivityMap(appState);
   const now = new Date();

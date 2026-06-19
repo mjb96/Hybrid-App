@@ -3040,3 +3040,31 @@ html[data-theme="light"] .el-custom-input {
   border-color: rgba(0,0,0,0.12);
   color: #0f172a;
 }
+
+/* Activity History link button on home screen */
+.btn-history-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 18px;
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: var(--radius-lg);
+  color: #a5b4fc;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-history-link:hover, .btn-history-link:active {
+  background: rgba(99,102,241,0.16);
+}
+.btn-history-arrow {
+  opacity: 0.6;
+}
+html[data-theme="light"] .btn-history-link {
+  background: rgba(99,102,241,0.06);
+  border-color: rgba(99,102,241,0.25);
+  color: var(--color-indigo);
+}

@@ -220,14 +220,10 @@
 
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 
-      <h2 class="focus-header-text mt-2">Activity</h2>
-      <article class="card-dark p-3 mb-4">
-        <div class="cal-legend mb-2">
-          <span class="cal-dot cal-dot-gym"></span><span class="cal-legend-label">Gym</span>
-          <span class="cal-dot cal-dot-run" style="margin-left:10px;"></span><span class="cal-legend-label">Run</span>
-        </div>
-        <div id="homeCalendarContainer"></div>
-      </article>
+      <button class="btn-history-link mb-4" data-action="open-analytics" data-context="activity">
+        <span>📅 Activity History</span>
+        <span class="btn-history-arrow">→</span>
+      </button>
 
     </section>
 
@@ -651,6 +647,15 @@
         <div id="sbNote" class="mb-4"></div>
         <h2 class="section-header">This Week's Stress Breakdown</h2>
         <div id="sbWeeklyBreakdown" class="mb-4"></div>
+      </div>
+
+      <div id="analytics-activity" class="analytics-section">
+        <h2 class="section-header">Activity History</h2>
+        <div class="cal-legend mb-3">
+          <span class="cal-dot cal-dot-gym"></span><span class="cal-legend-label">Gym</span>
+          <span class="cal-dot cal-dot-run" style="margin-left:10px;"></span><span class="cal-legend-label">Run</span>
+        </div>
+        <div id="analyticsCalendarContainer"></div>
       </div>
 
     </section>
