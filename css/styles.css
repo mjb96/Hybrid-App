@@ -3068,3 +3068,408 @@ html[data-theme="light"] .btn-history-link {
   border-color: rgba(99,102,241,0.25);
   color: var(--color-indigo);
 }
+
+
+/* ==========================================================================
+   APP-WIDE DESIGN UPGRADE — Netflix/Spotify aesthetic
+   Overrides and extends existing styles for a unified cinematic feel
+   ========================================================================== */
+
+/* --- Background: richer cinematic gradients --- */
+body {
+  background-image:
+    radial-gradient(ellipse at 80% 0%,   rgba(99,102,241,0.13) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 90%,  rgba(6,182,212,0.07)  0%, transparent 45%),
+    radial-gradient(ellipse at 55% 55%,  rgba(139,92,246,0.05) 0%, transparent 55%);
+  background-attachment: fixed;
+}
+
+/* --- Card upgrade: subtle gradient overlay + softer inner glow --- */
+.card-dark {
+  background: linear-gradient(160deg, rgba(12,17,35,1) 0%, rgba(9,14,26,1) 100%);
+  border: 1px solid rgba(255,255,255,0.055);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.035);
+}
+.card-dark:hover {
+  border-color: rgba(99,102,241,0.20);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(99,102,241,0.08);
+}
+
+/* --- App-wide section heading component --- */
+.app-section-heading {
+  margin-bottom: 16px;
+}
+.app-section-heading__title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.app-section-heading__sub {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.38);
+  font-weight: 500;
+  margin-top: 3px;
+  letter-spacing: 0.01em;
+}
+
+/* Override the old section-header: give it the same feel */
+h2.section-header {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.10em;
+  display: block;
+  margin-bottom: 14px;
+}
+h2.section-header::after { display: none; }
+
+/* --- Home header (app name + week) --- */
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  margin-top: 6px;
+}
+.home-header-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-app-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.28);
+}
+.home-week-label {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0;
+}
+.home-phase-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(99,102,241,0.75);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+/* --- Profile avatar button --- */
+.profile-avatar-btn {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #6366f1, #3b82f6);
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(99,102,241,0.40);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.profile-avatar-btn:hover { box-shadow: 0 6px 20px rgba(99,102,241,0.55); }
+.profile-avatar-btn:active { transform: scale(0.94); }
+
+/* --- Home "In Focus" cards --- */
+.home-metric-card {
+  position: relative;
+  overflow: hidden;
+  padding: 18px !important;
+  min-height: 155px;
+  cursor: pointer;
+}
+.home-metric-card::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -10%;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  opacity: 0.07;
+  pointer-events: none;
+}
+.home-metric-card--gym {
+  background: linear-gradient(145deg, #090e2a 0%, #0c1a3a 100%) !important;
+  border: 1px solid rgba(99,102,241,0.22) !important;
+  box-shadow: 0 8px 32px rgba(99,102,241,0.12), 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+.home-metric-card--gym::after { background: #6366f1; }
+.home-metric-card--run {
+  background: linear-gradient(145deg, #001a1a 0%, #052424 100%) !important;
+  border: 1px solid rgba(34,211,238,0.20) !important;
+  box-shadow: 0 8px 32px rgba(34,211,238,0.08), 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+.home-metric-card--run::after { background: #22d3ee; }
+
+.hmcard-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.hmcard-icon { font-size: 1.3rem; line-height: 1; }
+.hmcard-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  opacity: 0.55;
+}
+.home-metric-card--gym .hmcard-label { color: #a5b4fc; }
+.home-metric-card--run .hmcard-label { color: #67e8f9; }
+
+.hmcard-hero {
+  font-size: 2.2rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+  margin-bottom: 3px !important;
+}
+.hmcard-sub {
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.3);
+  font-weight: 500;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+/* Log run FAB inside the metric card */
+.home-metric-card .log-run-fab {
+  margin-left: auto;
+  background: rgba(34,211,238,0.12);
+  border: 1px solid rgba(34,211,238,0.28);
+  color: #22d3ee;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+.home-metric-card .log-run-fab:hover {
+  background: rgba(34,211,238,0.22);
+  box-shadow: 0 0 12px rgba(34,211,238,0.25);
+}
+
+/* --- Glance tile upgrade --- */
+.glance-card {
+  background: linear-gradient(155deg, rgba(11,16,33,1) 0%, rgba(8,12,22,1) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.055) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45) !important;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+.glance-card:active { transform: scale(0.95) !important; }
+
+.tile-hero {
+  font-size: 1.55rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.05 !important;
+}
+
+/* --- Bottom nav upgrade --- */
+.bottom-nav {
+  background: rgba(4,6,14,0.94) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 -1px 0 rgba(255,255,255,0.025), 0 20px 60px rgba(0,0,0,0.85) !important;
+}
+
+.nav-item {
+  position: relative;
+  z-index: 1;
+}
+.nav-item span.icon {
+  font-size: 1.45rem !important;
+}
+.nav-item.active span.icon {
+  transform: translateY(-5px) scale(1.18) !important;
+  opacity: 1 !important;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 44px;
+  background: rgba(99,102,241,0.10);
+  border-radius: 14px;
+  z-index: -1;
+}
+.nav-item::after {
+  bottom: 7px !important;
+  width: 22px !important;
+  height: 3px !important;
+  border-radius: 3px !important;
+  background: #818cf8 !important;
+}
+
+/* --- Workout day pill upgrade --- */
+.day-pill {
+  background: rgba(9,14,26,0.95) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 24px !important;
+  padding: 7px 16px !important;
+  font-size: 0.66rem !important;
+  color: rgba(255,255,255,0.40) !important;
+  transition: all 0.15s ease !important;
+}
+.day-pill:hover {
+  border-color: rgba(255,255,255,0.16) !important;
+  color: rgba(255,255,255,0.72) !important;
+  background: rgba(14,20,44,0.95) !important;
+}
+.day-pill.active {
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 14px rgba(99,102,241,0.42) !important;
+  transform: none !important;
+}
+
+/* --- Start workout button upgrade --- */
+#startWorkoutBtn.btn-green {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+  border: none !important;
+  border-top: 1px solid rgba(255,255,255,0.18) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 6px 24px rgba(16,185,129,0.35) !important;
+  letter-spacing: 0.10em !important;
+}
+
+/* --- Workout exercise card upgrade --- */
+.cockpit-exercise {
+  border-radius: var(--radius-xl) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+}
+.cockpit-exercise:not(.collapsed) {
+  border-color: rgba(99,102,241,0.20) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.06) !important;
+}
+.cockpit-exercise.completed {
+  border-color: rgba(16,185,129,0.20) !important;
+}
+.cockpit-exercise.completed:not(.collapsed) {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(16,185,129,0.08) !important;
+}
+.cockpit-header {
+  background: rgba(255,255,255,0.01) !important;
+}
+.cockpit-exercise:not(.collapsed) .cockpit-header {
+  background: rgba(99,102,241,0.04) !important;
+  border-bottom-color: rgba(255,255,255,0.06) !important;
+}
+
+/* --- Session timer bar upgrade --- */
+.session-timer-bar {
+  background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06)) !important;
+  border: 1px solid rgba(16,185,129,0.25) !important;
+  border-radius: var(--radius-xl) !important;
+}
+.global-timer-bar {
+  background: linear-gradient(135deg, rgba(34,211,238,0.10), rgba(34,211,238,0.04)) !important;
+  border: 1px solid rgba(34,211,238,0.22) !important;
+  border-radius: var(--radius-xl) !important;
+}
+
+/* --- Run card (cockpit) upgrade --- */
+#cockpitRunPanel {
+  background: linear-gradient(145deg, #001a1a, #032020) !important;
+  border: 1px solid rgba(34,211,238,0.22) !important;
+  border-left: 3px solid rgba(34,211,238,0.6) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 8px 24px rgba(34,211,238,0.06) !important;
+}
+
+/* --- Activity history link button upgrade --- */
+.btn-history-link {
+  background: linear-gradient(135deg, rgba(99,102,241,0.07), rgba(139,92,246,0.07)) !important;
+  border: 1px solid rgba(99,102,241,0.18) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: 16px 20px !important;
+}
+.btn-history-link:hover {
+  background: linear-gradient(135deg, rgba(99,102,241,0.13), rgba(139,92,246,0.13)) !important;
+  border-color: rgba(99,102,241,0.28) !important;
+}
+
+/* --- Analytics stat cards upgrade --- */
+#analytics-strength .card-dark,
+#analytics-running .card-dark,
+#analytics-recovery .card-dark,
+#analytics-bodyweight .card-dark,
+#analytics-streak .card-dark,
+#analytics-recovery-score .card-dark,
+#analytics-weekly-volume .card-dark,
+#analytics-training-status .card-dark {
+  border: 1px solid rgba(255,255,255,0.055) !important;
+}
+.card-dark .text-lg.font-heavy.text-inverse {
+  font-size: 1.3rem;
+  letter-spacing: -0.025em;
+}
+
+/* --- Analytics back button upgrade --- */
+.subview-back-btn {
+  background: rgba(59,130,246,0.08) !important;
+  border: 1px solid rgba(59,130,246,0.20) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: 10px 18px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+}
+
+/* --- Modal content upgrade --- */
+.modal-content {
+  background: linear-gradient(160deg, rgba(12,17,35,1) 0%, rgba(8,12,22,1) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.75) !important;
+}
+
+/* --- Settings panel upgrade --- */
+.settings-panel {
+  background: linear-gradient(180deg, #0a0f22 0%, #060a18 100%);
+}
+.settings-section-label {
+  letter-spacing: 0.10em !important;
+}
+
+/* --- Bottom sheet upgrade --- */
+.bottom-sheet {
+  background: linear-gradient(180deg, #0d1228 0%, #080d1e 100%) !important;
+  border-top: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* --- Onboarding upgrade --- */
+.ob-card {
+  background: linear-gradient(160deg, rgba(12,17,35,0.98) 0%, rgba(8,12,22,0.98) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+}
+.ob-cta {
+  background: linear-gradient(135deg, #4f46e5, #6366f1) !important;
+  box-shadow: 0 6px 24px rgba(99,102,241,0.40) !important;
+}
+.ob-goal-btn.active {
+  border-color: rgba(99,102,241,0.5) !important;
+  background: rgba(99,102,241,0.10) !important;
+}
+

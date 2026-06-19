@@ -187,37 +187,51 @@
         <article id="homeWeekCompareCard"><div id="homeWeekCompareGrid"></div></article>
       </div>
 
-      <div class="flex-between mb-4 mt-2">
-        <h1 id="homeWeekBlockIndicator" class="text-sm font-bold text-muted uppercase tracking-wider m-0">Week 1</h1>
+      <div class="home-header">
+        <div class="home-header-meta">
+          <span class="home-app-label">Hybrid Engine</span>
+          <h1 id="homeWeekBlockIndicator" class="home-week-label">Week 1</h1>
+          <span class="home-phase-label" id="homePhaseLabelTag"></span>
+        </div>
         <button class="profile-avatar-btn" id="profileAvatarBtn" data-action="open-settings" aria-label="Settings">
           <span id="profileAvatarInitials">?</span>
         </button>
       </div>
 
-      <h2 class="focus-header-text">In Focus</h2>
-      
+      <div class="app-section-heading">
+        <div class="app-section-heading__title">In Focus</div>
+        <div class="app-section-heading__sub">Your training this week</div>
+      </div>
+
       <div class="in-focus-carousel">
-        
-        <article class="card-dark carousel-card" data-action="open-analytics" data-context="strength" style="cursor: pointer;">
-          <div class="flex-between mb-2">
-             <div class="card-icon-title text-accent-blue"><span>🏋️</span> Gym Time • This Week</div>
+
+        <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="strength">
+          <div class="hmcard-top">
+            <span class="hmcard-icon">🏋️</span>
+            <span class="hmcard-label">Gym Time · This Week</span>
           </div>
-          <h3 id="focusStrengthHero" class="text-3xl font-heavy text-inverse leading-tight mb-1">0m</h3>
+          <h3 id="focusStrengthHero" class="hmcard-hero">0m</h3>
+          <div class="hmcard-sub" id="focusStrengthSub">tap to view analytics</div>
           <div class="bar-chart-container" id="strengthBarChart"></div>
         </article>
 
-        <article class="card-dark carousel-card" style="cursor: pointer;">
-          <div class="flex-between mb-2">
-             <div class="card-icon-title text-accent-pink" data-action="open-analytics" data-context="running"><span>🏃</span> Run Distance • This Week</div>
-             <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
+        <article class="card-dark carousel-card home-metric-card home-metric-card--run" data-action="open-analytics" data-context="running">
+          <div class="hmcard-top">
+            <span class="hmcard-icon">🏃</span>
+            <span class="hmcard-label">Run Distance · This Week</span>
+            <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
           </div>
-          <h3 id="focusRunHero" class="text-3xl font-heavy text-inverse leading-tight mb-1" data-action="open-analytics" data-context="running">0.0 km</h3>
-          <div class="bar-chart-container" id="runBarChart" data-action="open-analytics" data-context="running"></div>
+          <h3 id="focusRunHero" class="hmcard-hero">0.0 km</h3>
+          <div class="hmcard-sub" id="focusRunSub">tap to view analytics</div>
+          <div class="bar-chart-container" id="runBarChart"></div>
         </article>
 
       </div>
 
-      <h2 class="focus-header-text mt-2">At a Glance</h2>
+      <div class="app-section-heading" style="margin-top: 20px;">
+        <div class="app-section-heading__title">At a Glance</div>
+        <div class="app-section-heading__sub">Key metrics snapshot</div>
+      </div>
 
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 
