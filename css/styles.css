@@ -3998,3 +3998,130 @@ html[data-theme="light"] #view-workout > article.card-dark:last-of-type {
   box-shadow: 0 -1px 0 rgba(99,102,241,0.06), 0 4px 16px rgba(0,0,0,0.07) !important;
 }
 
+/* ==========================================================================
+   COMPREHENSIVE LIGHT MODE FIXES — Round 2
+   Covers: readiness ring, bar chart, progress tracks, glance tile skeleton,
+   onboarding, settings extras, table headers, ratio bars
+   ========================================================================== */
+
+/* Readiness ring inner (was var(--bg-dark, #070a12) — near-black circle) */
+html[data-theme="light"] .readiness-ring-inner {
+  background-color: #ffffff !important;
+}
+/* Ring track (the unfilled arc portion) */
+html[data-theme="light"] .readiness-ring {
+  filter: none;
+}
+
+/* Bar chart dashed reference line (in inline <style>, rgba white 15%) */
+html[data-theme="light"] .bar-chart-container::before {
+  border-bottom-color: rgba(0,0,0,0.12) !important;
+}
+
+/* Progress tracks (rgba(255,255,255,0.03) — invisible on light) */
+html[data-theme="light"] .progress-track {
+  background: rgba(0,0,0,0.10) !important;
+}
+html[data-theme="light"] .trend-track-bg {
+  background: rgba(0,0,0,0.10) !important;
+}
+
+/* Ratio bar track in the At-a-Glance ratio tile */
+html[data-theme="light"] .tile-interactive .ratio-bar-track {
+  background: rgba(0,0,0,0.10) !important;
+}
+/* The full-size ratio bar (was rgba(0,0,0,0.35) — works but can be lighter) */
+html[data-theme="light"] .ratio-bar-track {
+  background: rgba(0,0,0,0.08) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+}
+
+/* Glance tile skeleton loading lines */
+html[data-theme="light"] .tile-skeleton-line {
+  background: rgba(0,0,0,0.08) !important;
+}
+
+/* Settings: section divider (rgba white 4% — invisible) */
+html[data-theme="light"] .settings-section {
+  border-bottom-color: rgba(0,0,0,0.06) !important;
+}
+/* Settings: name display text */
+html[data-theme="light"] .settings-name-display {
+  color: #0f172a !important;
+}
+
+/* Table headers */
+html[data-theme="light"] th {
+  color: #475569 !important;
+}
+html[data-theme="light"] td {
+  border-bottom-color: rgba(0,0,0,0.06) !important;
+  color: #1e293b !important;
+}
+
+/* Onboarding: inputs (rgba white 6% bg — near-invisible) */
+html[data-theme="light"] .ob-input {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.14) !important;
+  color: #0f172a !important;
+}
+html[data-theme="light"] .ob-input:focus {
+  border-color: rgba(99,102,241,0.5) !important;
+  background: #ffffff !important;
+}
+
+/* Onboarding: toggle buttons */
+html[data-theme="light"] .ob-toggle-btn {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  color: rgba(0,0,0,0.55) !important;
+}
+html[data-theme="light"] .ob-toggle-btn.active {
+  background: rgba(99,102,241,0.12) !important;
+  border-color: rgba(99,102,241,0.40) !important;
+  color: #4f46e5 !important;
+}
+
+/* Onboarding: goal buttons */
+html[data-theme="light"] .ob-goal-btn {
+  background: rgba(0,0,0,0.03) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+}
+html[data-theme="light"] .ob-goal-btn.active {
+  background: rgba(99,102,241,0.09) !important;
+  border-color: rgba(99,102,241,0.35) !important;
+}
+
+/* Analytics: chart empty-state text (inline color:rgba(255,255,255,0.6)) */
+html[data-theme="light"] #analytics-strength p,
+html[data-theme="light"] #analytics-running p,
+html[data-theme="light"] #analytics-recovery p,
+html[data-theme="light"] #analytics-bodyweight p,
+html[data-theme="light"] #analytics-streak p {
+  color: rgba(0,0,0,0.45) !important;
+}
+
+/* Metric mini box (analytics drill-down) */
+html[data-theme="light"] .metric-mini-box {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+html[data-theme="light"] .metric-mini-box .val {
+  color: #0f172a !important;
+}
+
+
+/* Tile skeleton loading lines (background moved from inline to CSS) */
+.tile-skeleton-line {
+  background: rgba(255,255,255,0.07);
+  animation: shimmer 1.4s infinite linear;
+}
+html[data-theme="light"] .tile-skeleton-line {
+  background: rgba(0,0,0,0.08);
+}
+@keyframes shimmer {
+  0%   { opacity: 0.5; }
+  50%  { opacity: 1.0; }
+  100% { opacity: 0.5; }
+}

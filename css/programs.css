@@ -1209,3 +1209,218 @@
   font-size: 0.78rem;
   font-weight: 600;
 }
+
+/* ==========================================================================
+   PROGRAMS TAB — LIGHT MODE OVERRIDES
+   programs.css had zero light mode rules. This section covers everything.
+   ========================================================================== */
+
+/* Search bar */
+html[data-theme="light"] .prog-search-input-wrap {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+html[data-theme="light"] .prog-search-input-wrap:focus-within {
+  background: #ffffff !important;
+  border-color: rgba(99,102,241,0.45) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.10), 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+html[data-theme="light"] .search-icon-svg {
+  color: rgba(0,0,0,0.30) !important;
+}
+html[data-theme="light"] #progSearchInput {
+  color: #0f172a !important;
+}
+html[data-theme="light"] #progSearchInput::placeholder {
+  color: rgba(0,0,0,0.32) !important;
+}
+html[data-theme="light"] #progSearchClear {
+  color: rgba(0,0,0,0.35) !important;
+}
+
+/* Filter chips */
+html[data-theme="light"] .filter-chip {
+  border-color: rgba(0,0,0,0.12) !important;
+  background: rgba(0,0,0,0.04) !important;
+  color: rgba(0,0,0,0.55) !important;
+}
+html[data-theme="light"] .filter-chip:hover {
+  border-color: rgba(0,0,0,0.20) !important;
+  color: rgba(0,0,0,0.80) !important;
+}
+html[data-theme="light"] .filter-chip.active {
+  background: rgba(99,102,241,0.10) !important;
+  border-color: rgba(99,102,241,0.35) !important;
+  color: #4f46e5 !important;
+}
+
+/* Active program banner */
+html[data-theme="light"] .active-prog-card {
+  background: #ffffff !important;
+  border-color: rgba(99,102,241,0.18) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
+}
+html[data-theme="light"] .active-prog-name {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .active-prog-meta {
+  color: rgba(0,0,0,0.42) !important;
+}
+html[data-theme="light"] .active-prog-pct {
+  color: rgba(0,0,0,0.55) !important;
+}
+html[data-theme="light"] .active-prog-arrow {
+  color: rgba(0,0,0,0.25) !important;
+}
+
+/* Program cards */
+html[data-theme="light"] .prog-card {
+  border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07) !important;
+}
+html[data-theme="light"] .prog-card--small .prog-card-info,
+html[data-theme="light"] .prog-card--large .prog-card-info {
+  background: #ffffff !important;
+}
+html[data-theme="light"] .prog-card--small .prog-card-name,
+html[data-theme="light"] .prog-card--large .prog-card-name {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .prog-card--small .prog-card-meta,
+html[data-theme="light"] .prog-card--large .prog-card-meta {
+  color: rgba(0,0,0,0.40) !important;
+}
+html[data-theme="light"] .prog-card--active {
+  border-color: rgba(99,102,241,0.35) !important;
+}
+
+/* Collection row header */
+html[data-theme="light"] .collection-label {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .collection-sub {
+  color: rgba(0,0,0,0.40) !important;
+}
+html[data-theme="light"] .collection-see-all {
+  color: rgba(99,102,241,0.80) !important;
+}
+
+/* Filtered/search results */
+html[data-theme="light"] .filtered-grid-title {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .filtered-grid-count {
+  color: rgba(0,0,0,0.40) !important;
+}
+html[data-theme="light"] .search-results-count {
+  color: rgba(0,0,0,0.45) !important;
+}
+html[data-theme="light"] .search-results-count strong {
+  color: rgba(0,0,0,0.75) !important;
+}
+html[data-theme="light"] .search-empty-title {
+  color: rgba(0,0,0,0.55) !important;
+}
+html[data-theme="light"] .search-empty-sub {
+  color: rgba(0,0,0,0.35) !important;
+}
+
+/* Popular search chips (landing) */
+html[data-theme="light"] .popular-searches-title {
+  color: rgba(0,0,0,0.35) !important;
+}
+html[data-theme="light"] .popular-search-chip {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  color: rgba(0,0,0,0.60) !important;
+}
+html[data-theme="light"] .popular-search-chip:active {
+  background: rgba(99,102,241,0.09) !important;
+  border-color: rgba(99,102,241,0.28) !important;
+  color: #4f46e5 !important;
+}
+
+/* Create program CTA */
+html[data-theme="light"] .create-cta-inner {
+  background: rgba(0,0,0,0.02) !important;
+  border-color: rgba(0,0,0,0.14) !important;
+}
+html[data-theme="light"] .create-cta-title {
+  color: rgba(0,0,0,0.65) !important;
+}
+html[data-theme="light"] .create-cta-subtitle {
+  color: rgba(0,0,0,0.38) !important;
+}
+
+/* Program detail back button */
+html[data-theme="light"] .detail-back-btn {
+  color: rgba(0,0,0,0.45) !important;
+}
+html[data-theme="light"] .detail-back-icon {
+  color: rgba(0,0,0,0.30) !important;
+}
+
+/* Detail stats row */
+html[data-theme="light"] .detail-stats-row {
+  background: #f8fafc !important;
+  border-color: rgba(0,0,0,0.07) !important;
+}
+html[data-theme="light"] .detail-stat-value {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .detail-stat-label {
+  color: rgba(0,0,0,0.40) !important;
+}
+html[data-theme="light"] .detail-stat-divider {
+  background: rgba(0,0,0,0.07) !important;
+}
+
+/* Detail "active program" variant CTA button */
+html[data-theme="light"] .detail-cta-btn--active {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.14) !important;
+  color: rgba(0,0,0,0.55) !important;
+}
+
+/* Detail rating */
+html[data-theme="light"] .detail-rating-value {
+  color: #0f172a !important;
+}
+html[data-theme="light"] .detail-rating-count {
+  color: rgba(0,0,0,0.38) !important;
+}
+
+/* Detail section titles and body text */
+html[data-theme="light"] .detail-section-title {
+  color: rgba(0,0,0,0.38) !important;
+}
+html[data-theme="light"] .detail-description {
+  color: rgba(0,0,0,0.65) !important;
+}
+html[data-theme="light"] .detail-highlight-item {
+  color: rgba(0,0,0,0.70) !important;
+}
+html[data-theme="light"] .detail-outcome-chip {
+  background: rgba(0,0,0,0.02) !important;
+  border-color: rgba(0,0,0,0.07) !important;
+  color: rgba(0,0,0,0.60) !important;
+}
+
+/* Training focus bars */
+html[data-theme="light"] .focus-bar-track {
+  background: rgba(0,0,0,0.09) !important;
+}
+html[data-theme="light"] .focus-bar-label {
+  color: rgba(0,0,0,0.45) !important;
+}
+html[data-theme="light"] .focus-bar-pct {
+  color: rgba(0,0,0,0.35) !important;
+}
+
+/* Social proof / enrolment block */
+html[data-theme="light"] .detail-social-proof {
+  background: rgba(0,0,0,0.02) !important;
+  border-color: rgba(0,0,0,0.07) !important;
+}
+

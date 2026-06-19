@@ -45,9 +45,9 @@ function formatMinutesToHoursMins(totalMins) {
 
 function renderTileLoading() {
   return `
-    <div class="tile-skeleton-line" style="width:60%;height:12px;border-radius:4px;background:rgba(255,255,255,0.07);margin-bottom:8px;"></div>
-    <div class="tile-skeleton-line" style="width:40%;height:22px;border-radius:4px;background:rgba(255,255,255,0.07);margin-bottom:6px;"></div>
-    <div class="tile-skeleton-line" style="width:80%;height:10px;border-radius:4px;background:rgba(255,255,255,0.05);"></div>
+    <div class="tile-skeleton-line" style="width:60%;height:12px;border-radius:4px;margin-bottom:8px;"></div>
+    <div class="tile-skeleton-line" style="width:40%;height:22px;border-radius:4px;margin-bottom:6px;"></div>
+    <div class="tile-skeleton-line" style="width:80%;height:10px;border-radius:4px;"></div>
   `;
 }
 
@@ -78,7 +78,9 @@ function renderMetricTile(config, data) {
 function renderRingTile(config, data) {
   const ringColor = data.ringColor || 'var(--color-blue)';
   const pct = data.ringPct || 0;
-  const grad = `conic-gradient(${ringColor} ${pct}%, rgba(255,255,255,0.1) 0)`;
+  const isLight = document.documentElement.dataset.theme === 'light';
+  const trackColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
+  const grad = `conic-gradient(${ringColor} ${pct}%, ${trackColor} 0)`;
   return `
     <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
     <div class="readiness-ring-container">
