@@ -251,7 +251,7 @@ function _renderWellnessForm(getState, getDays, data) {
         <div class="text-sm text-muted mb-2">Sleep last night (hours)</div>
         <input id="wellnessSleepInput" type="number" min="0" max="12" step="0.5"
           value="${existing.sleep || ''}" placeholder="e.g. 7.5"
-          style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:8px 12px;width:100%;font-size:0.9rem;"/>
+          style="border-radius:8px;padding:8px 12px;width:100%;font-size:0.9rem;"/>
       </div>
       <div class="mb-3">
         <div class="text-sm text-muted mb-2">Mood (1 = low, 5 = great)</div>
@@ -270,7 +270,7 @@ function _renderWellnessForm(getState, getDays, data) {
     btn.addEventListener('click', () => {
       const name = btn.dataset.wellness;
       formEl.querySelectorAll(`[data-wellness="${name}"]`).forEach(b => {
-        b.style.cssText = 'min-width:36px;padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;';
+        b.style.cssText = 'min-width:36px;padding:4px 8px;border-radius:6px;';
       });
       btn.style.cssText = 'min-width:36px;padding:4px 8px;border:1px solid #3b82f6;border-radius:6px;background:rgba(59,130,246,0.35);color:#fff;';
     });

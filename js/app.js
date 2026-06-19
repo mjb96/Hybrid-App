@@ -82,6 +82,8 @@ document.addEventListener('app:navigate', (e) => {
 
 window.analyticsContext = 'overview';
 
+let _activePlanDisplayWeek = null;
+
 export function openAnalyticsView(context) {
   window.analyticsContext = context;
   switchGlobalAppTab('analytics');
@@ -242,10 +244,11 @@ function _renderActivePlanHero() {
   const icon = catalog?.icon || '📋';
   const g = catalog?.coverGradient || ['#1a0e2e', '#0d1b2a'];
   const accentColor = catalog?.accentColor || '#8b5cf6';
-  const currentWk = parseInt(appState.currentWeek || '1', 10);
+  const displayWk = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
+  const actualWk  = parseInt(appState.currentWeek || '1', 10);
   const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
-  const progress = Math.min(100, Math.round(((currentWk - 1) / totalWeeks) * 100));
-  const phaseName = WEEK_PHASE_NAMES[appState.currentWeek] || '';
+  const progress = Math.min(100, Math.round(((actualWk - 1) / totalWeeks) * 100));
+  const phaseName = WEEK_PHASE_NAMES[String(displayWk)] || '';
 
   heroEl.innerHTML = `
     <div class="aplan-hero-inner" style="background: linear-gradient(135deg, ${g[0]}, ${g[1]})">
@@ -260,7 +263,7 @@ function _renderActivePlanHero() {
           </div>
           <span class="aplan-hero-pct">${progress}%</span>
         </div>
-        <div class="aplan-hero-weeks">${currentWk} of ${totalWeeks} weeks</div>
+        <div class="aplan-hero-weeks">${actualWk} of ${totalWeeks} weeks</div>
       </div>
     </div>
   `;
@@ -269,8 +272,9 @@ function _renderActivePlanHero() {
 function _renderActivePlanWeekNav() {
   const numEl   = document.getElementById('aplanWeekNum');
   const phaseEl = document.getElementById('aplanPhaseName');
-  if (numEl) numEl.textContent = appState.currentWeek || '1';
-  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[appState.currentWeek] || '';
+  const displayWk = _activePlanDisplayWeek || appState.currentWeek || '1';
+  if (numEl) numEl.textContent = displayWk;
+  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[displayWk] || '';
 }
 
 function _renderThisWeekTab(catalog, prog) {
@@ -310,15 +314,17 @@ function _renderThisWeekTab(catalog, prog) {
 
 function _renderScheduleTab(catalog, prog) {
   const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
-  const currentWkNum = parseInt(appState.currentWeek || '1', 10);
+  const displayWkNum = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
+  const actualWkNum  = parseInt(appState.currentWeek || '1', 10);
 
   const cells = [];
   for (let w = 1; w <= totalWeeks; w++) {
-    const isCurrent = w === currentWkNum;
-    const isPast = w < currentWkNum;
+    const isCurrent = w === displayWkNum;
+    const isPast = w < displayWkNum;
+    const isActual = w === actualWkNum && displayWkNum !== actualWkNum;
     const phase = WEEK_PHASE_NAMES[String(w)] || '';
     cells.push(`
-      <button class="aplan-sched-cell ${isCurrent ? 'aplan-sched-cell--current' : ''} ${isPast ? 'aplan-sched-cell--past' : ''}"
+      <button class="aplan-sched-cell ${isCurrent ? 'aplan-sched-cell--current' : ''} ${isPast ? 'aplan-sched-cell--past' : ''} ${isActual ? 'aplan-sched-cell--actual' : ''}"
               data-action="aplan-set-week" data-week="${w}" title="${phase}">
         ${w}
       </button>
@@ -333,7 +339,7 @@ function _renderScheduleTab(catalog, prog) {
   }
 
   const legendItems = Object.entries(phaseGroups).map(([phase, wks]) => {
-    const isActive = wks.includes(currentWkNum);
+    const isActive = wks.includes(displayWkNum);
     return `
       <div class="aplan-phase-item ${isActive ? 'aplan-phase-item--active' : ''}">
         <span class="aplan-phase-wks">Wk ${wks[0]}${wks.length > 1 ? `–${wks[wks.length - 1]}` : ''}</span>
@@ -376,14 +382,6 @@ export function triggerEditActiveProgram(progId) {
       openBuilder(newId);
     }
   } else {
-    if (appState.weeks && appState.weeks[appState.currentWeek]) {
-      if (confirm("Reset current week's log to apply your new template edits immediately? (Press Cancel to apply only to future weeks)")) {
-         delete appState.weeks[appState.currentWeek];
-         saveStateToLocalStorage(true);
-         hydrateCurrentView();
-      }
-    }
-    
     switchProgramMode('builder');
     openBuilder(progId);
   }
@@ -659,11 +657,12 @@ document.addEventListener('click', (e) => {
   }
   else if (action === 'aplan-week-step') {
     const delta = parseInt(target.getAttribute('data-delta'), 10);
-    const cur = parseInt(appState.currentWeek || '1', 10);
+    const cur = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
     const prog = getProgramById(appState.activeProgramId);
     const maxWk = prog?.totalWeeks || 12;
     const next = Math.min(Math.max(1, cur + delta), maxWk);
     if (next !== cur) {
+      _activePlanDisplayWeek = String(next);
       appState.currentWeek = String(next);
       const wkSel = document.getElementById('globalWeekSelect');
       if (wkSel) wkSel.value = appState.currentWeek;
@@ -675,13 +674,10 @@ document.addEventListener('click', (e) => {
   }
   else if (action === 'aplan-set-week') {
     const wk = target.getAttribute('data-week');
-    if (wk && wk !== appState.currentWeek) {
-      appState.currentWeek = wk;
-      const wkSel = document.getElementById('globalWeekSelect');
-      if (wkSel) wkSel.value = wk;
-      saveStateToLocalStorage(true);
-      verifyWeekStorageSchema(appState.currentWeek);
-      switchBrowserSectionTab('overview');
+    if (wk && wk !== _activePlanDisplayWeek) {
+      _activePlanDisplayWeek = wk;
+      const activeTabEl = document.getElementById('btnBrowserTabWeeks');
+      switchBrowserSectionTab(activeTabEl?.classList.contains('active') ? 'weeks' : 'overview');
     }
   }
   
@@ -785,6 +781,7 @@ export function showActivePlanView(show) {
   if (builder)       builder.style.display       = 'none';
 
   if (show) {
+    _activePlanDisplayWeek = appState.currentWeek;
     const wkSelect = document.getElementById('globalWeekSelect');
     if (wkSelect) wkSelect.value = appState.currentWeek;
     switchBrowserSectionTab('overview');

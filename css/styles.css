@@ -4097,8 +4097,42 @@ html[data-theme="light"] #analytics-strength p,
 html[data-theme="light"] #analytics-running p,
 html[data-theme="light"] #analytics-recovery p,
 html[data-theme="light"] #analytics-bodyweight p,
-html[data-theme="light"] #analytics-streak p {
+html[data-theme="light"] #analytics-streak p,
+html[data-theme="light"] #analytics-stress-balance p,
+html[data-theme="light"] #analytics-training-status p,
+html[data-theme="light"] #analytics-load-focus p,
+html[data-theme="light"] #analytics-run-crossref p,
+html[data-theme="light"] #analytics-vdot p,
+html[data-theme="light"] #analytics-avg-pace p,
+html[data-theme="light"] #analytics-progress p,
+html[data-theme="light"] #analytics-recovery-score p,
+html[data-theme="light"] #analytics-weekly-volume p,
+html[data-theme="light"] #analytics-strength_pr p {
   color: rgba(0,0,0,0.45) !important;
+}
+
+/* Analytics stat card borders — override hardcoded dark rgba in light mode */
+html[data-theme="light"] #analytics-strength .card-dark,
+html[data-theme="light"] #analytics-running .card-dark,
+html[data-theme="light"] #analytics-recovery .card-dark,
+html[data-theme="light"] #analytics-bodyweight .card-dark,
+html[data-theme="light"] #analytics-streak .card-dark,
+html[data-theme="light"] #analytics-recovery-score .card-dark,
+html[data-theme="light"] #analytics-weekly-volume .card-dark,
+html[data-theme="light"] #analytics-training-status .card-dark,
+html[data-theme="light"] #analytics-stress-balance .card-dark,
+html[data-theme="light"] #analytics-load-focus .card-dark,
+html[data-theme="light"] #analytics-run-crossref .card-dark,
+html[data-theme="light"] #analytics-vdot .card-dark,
+html[data-theme="light"] #analytics-avg-pace .card-dark,
+html[data-theme="light"] #analytics-progress .card-dark,
+html[data-theme="light"] #analytics-strength_pr .card-dark {
+  border-color: rgba(0,0,0,0.07) !important;
+}
+
+/* Analytics SVG chart grid lines — swap white to dark in light mode */
+html[data-theme="light"] #view-analytics svg line {
+  stroke: rgba(0,0,0,0.10) !important;
 }
 
 /* Metric mini box (analytics drill-down) */
