@@ -19,6 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
   <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/programs.css">
   
   <style>
     .hidden-input { display: none; }
@@ -660,20 +661,53 @@
 
     </section>
 
-    <section id="view-program" class="view-container" aria-label="Program Hub">
-      <header class="mb-5">
-        <h2 class="text-3xl font-heavy tracking-tight mb-1">Program Hub</h2>
-        <p class="text-sm font-medium text-muted">Manage your active meso-cycle and explore the library.</p>
-      </header>
+    <section id="view-program" class="view-container" aria-label="Program Library">
 
-      <nav class="segmented-control mb-4" aria-label="Program Management Modes">
-        <button id="btnProgModeActive" class="btn-pad active flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="active" aria-current="page">ACTIVE PLAN</button>
-        <button id="btnProgModeLibrary" class="btn-pad flex-1 py-2 text-sm font-heavy" data-action="switch-program-mode" data-mode="library">LIBRARY & BUILDER</button>
-      </nav>
+      <!-- ═══════ LIBRARY SCREEN (default entry) ═══════ -->
+      <div id="programLibraryScreen">
 
-      <div id="progModeActiveContainer">
+        <!-- Active Program Banner -->
+        <div id="activeProgBanner" class="mb-4" style="display:none;"></div>
+
+        <!-- Search Bar -->
+        <div class="prog-search-bar mb-3">
+          <div class="prog-search-input-wrap">
+            <svg class="search-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="progSearchInput" placeholder="Search programs, goals, coaches..." autocomplete="off" autocorrect="off" spellcheck="false">
+            <button id="progSearchClear">✕</button>
+          </div>
+        </div>
+
+        <!-- Filter Chips -->
+        <div id="progFilterChips" class="filter-chips-row mb-4"></div>
+
+        <!-- Library Content (collections / browse mode) -->
+        <div id="progLibraryContent"></div>
+
+        <!-- Search Results (shown when typing) -->
+        <div id="progSearchResults" style="display:none;"></div>
+
+      </div>
+
+      <!-- ═══════ PROGRAM DETAIL SCREEN ═══════ -->
+      <div id="programDetailScreen" style="display:none;">
+        <div id="programDetailContent"></div>
+      </div>
+
+      <!-- ═══════ ACTIVE PLAN VIEW (program overview, week matrix, daily tiers) ═══════ -->
+      <div id="progActivePlanView" style="display:none;">
+
+        <div class="detail-back-bar mb-4">
+          <button class="detail-back-btn" data-action="close-active-plan-view">
+            <span class="detail-back-icon">‹</span> Library
+          </button>
+          <span style="font-size:0.68rem; font-weight:800; color:rgba(255,255,255,0.35); letter-spacing:0.05em; text-transform:uppercase;">Active Program</span>
+        </div>
+
         <article class="card-dark p-4 mb-4">
-          <label for="globalWeekSelect" class="text-xs-bold block mb-1 text-muted">TARGET TIMELINE MACROCYCLE WEEK</label>
+          <label for="globalWeekSelect" class="text-xs-bold block mb-1 text-muted">MACROCYCLE WEEK</label>
           <select class="native-select select-dark w-full" id="globalWeekSelect" data-action="macro-week-switch">
             <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
             <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
@@ -695,26 +729,23 @@
         <button class="btn-action-block btn-blue mb-2 text-left text-lg" data-action="export-text">📝 Copy Weekly Text Summary</button>
         <button class="btn-action-block btn-ghost mb-2 text-left text-lg" data-action="export-json">📤 Export Backup File (JSON)</button>
         <button class="btn-action-block btn-green-ghost mb-2 text-left text-lg" data-action="export-csv">📊 Export Spreadsheet (CSV)</button>
-
         <label class="btn-action-block btn-ghost block text-left text-lg cursor-pointer" tabindex="0">
           📥 Import Backup File
           <input type="file" id="programFileImporter" accept=".json" data-action="import-json" class="hidden-input">
         </label>
+
       </div>
 
-      <div id="progModeLibraryContainer" style="display: none;">
-        <div class="flex-between mb-4 mt-2">
-          <h2 class="section-header m-0" style="margin-bottom: 0;">Your Programs</h2>
-          <button class="btn-action-block btn-blue m-0" style="width: auto; padding: 8px 16px; font-size: 0.8rem;" data-action="open-create-program">+ Create New</button>
-        </div>
-        
-        <div id="libraryGridCustom" class="flex-col gap-3 mb-5"></div>
-        
-        <h2 class="section-header">Built-In Blueprints</h2>
-        <div id="libraryGridSystem" class="flex-col gap-3 mb-6"></div>
+      <!-- ═══════ BUILDER VIEW ═══════ -->
+      <div id="builderViewContainer" style="display:none;"></div>
+
+      <!-- Legacy grid containers kept for compatibility with renderProgramLibrary() -->
+      <div id="progModeActiveContainer" style="display:none;"></div>
+      <div id="progModeLibraryContainer" style="display:none;">
+        <div id="libraryGridCustom"></div>
+        <div id="libraryGridSystem"></div>
       </div>
 
-      <div id="builderViewContainer" style="display: none;"></div>
     </section>
 
   </main>
