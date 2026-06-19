@@ -368,11 +368,7 @@ export function triggerEditActiveProgram(progId) {
       appState.customPrograms.push(source);
       
       appState.activeProgramId = newId;
-      
-      if (appState.weeks && appState.weeks[appState.currentWeek]) {
-        delete appState.weeks[appState.currentWeek];
-      }
-      
+      mergeWeekSchema(appState.currentWeek);
       saveStateToLocalStorage(true);
       hydrateCurrentView();
       
