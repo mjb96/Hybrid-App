@@ -10,7 +10,23 @@ export function initOnboarding(getStateFn) {
 }
 
 export function shouldShowOnboarding() {
-  return !_getState().settings?.onboardingComplete;
+  const s = _getState();
+  if (s.settings?.onboardingComplete) return false;
+
+  // Existing user: has logged data or a saved name — skip onboarding and mark done
+  const hasData = s.settings?.name
+    || Object.keys(s.weeks || {}).length > 0
+    || (s.bodyWeightLog || []).length > 0
+    || (s.customExercises || []).length > 0;
+
+  if (hasData) {
+    if (!s.settings) s.settings = {};
+    s.settings.onboardingComplete = true;
+    import('./state.js').then(({ saveStateToLocalStorage }) => saveStateToLocalStorage(true));
+    return false;
+  }
+
+  return true;
 }
 
 export function startOnboarding() {
