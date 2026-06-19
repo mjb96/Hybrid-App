@@ -124,7 +124,7 @@ function collectAnalyticsData() {
             const weight = parseFloat(s.w) || 0;
             const reps   = parseInt(s.r, 10) || 0;
 
-            if (completed && weight > 0 && reps > 0) {
+            if (completed && weight > 0 && reps > 0 && s.type !== 'W') {
               const e1rm = weight * (1 + reps / 30);
               if (e1rm > data.dynamicStats[lift].allTimeMax)          data.dynamicStats[lift].allTimeMax = e1rm;
               if (wKey === appState.currentWeek && e1rm > data.dynamicStats[lift].currentEstimatedMax) data.dynamicStats[lift].currentEstimatedMax = e1rm;
@@ -188,7 +188,7 @@ function collectAnalyticsData() {
         if (!Array.isArray(dayLifts[lift])) continue;
         dayLifts[lift].forEach(s => {
           const completed = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
-          if (completed) {
+          if (completed && s.type !== 'W') {
             weekVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
             data.globalTotalSets++;
           }
