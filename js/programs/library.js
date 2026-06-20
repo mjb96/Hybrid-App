@@ -2,7 +2,7 @@
 // PROGRAM LIBRARY — Training program discovery and management
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
-import { getHomeCollections, filterByCategory } from './collections.js';
+import { getHomeCollections, filterByCategory, getCollectionDef } from './collections.js';
 import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
@@ -158,31 +158,52 @@ function renderSavedPrograms() {
   if (!content) return;
 
   const bookmarkIds = _appState?.programLibrary?.bookmarks || [];
-  const saved = PROGRAM_CATALOG.filter(p => bookmarkIds.includes(p.id));
+  const allSaved = PROGRAM_CATALOG.filter(p => bookmarkIds.includes(p.id));
 
-  if (saved.length === 0) {
+  if (allSaved.length === 0) {
     content.style.display = 'block';
     content.innerHTML = `
       <div class="lib-empty-state">
         <div class="lib-empty-icon">🔖</div>
         <div class="lib-empty-title">No saved programs yet</div>
-        <div class="lib-empty-sub">Tap the bookmark icon on any program to save it here</div>
+        <div class="lib-empty-sub">Tap the bookmark icon on any program or workout to save it here</div>
         <button class="lib-empty-cta" data-action="lib-tab" data-tab="discover">Browse Programs</button>
       </div>
     `;
     return;
   }
 
+  const savedPrograms = allSaved.filter(p => !isWod(p));
+  const savedWorkouts = allSaved.filter(p => isWod(p));
+
+  let html = '';
+
+  if (savedPrograms.length > 0) {
+    html += `
+      <div class="filtered-grid-header mb-4">
+        <div class="filtered-grid-title">🔖 Saved Programs</div>
+        <div class="filtered-grid-count">${savedPrograms.length} program${savedPrograms.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="program-grid${savedWorkouts.length > 0 ? ' mb-6' : ''}">
+        ${savedPrograms.map(p => renderProgramCard(p, 'large')).join('')}
+      </div>
+    `;
+  }
+
+  if (savedWorkouts.length > 0) {
+    html += `
+      <div class="filtered-grid-header mb-4${savedPrograms.length > 0 ? ' mt-4' : ''}">
+        <div class="filtered-grid-title">⚡ Saved Workouts</div>
+        <div class="filtered-grid-count">${savedWorkouts.length} workout${savedWorkouts.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="program-grid">
+        ${savedWorkouts.map(p => renderProgramCard(p, 'large')).join('')}
+      </div>
+    `;
+  }
+
   content.style.display = 'block';
-  content.innerHTML = `
-    <div class="filtered-grid-header mb-4">
-      <div class="filtered-grid-title">🔖 Saved Programs</div>
-      <div class="filtered-grid-count">${saved.length} programs</div>
-    </div>
-    <div class="program-grid">
-      ${saved.map(p => renderProgramCard(p, 'large')).join('')}
-    </div>
-  `;
+  content.innerHTML = html;
 }
 
 function renderCompletedPrograms() {
@@ -422,28 +443,39 @@ function renderCollectionRow(collection, programs, withReasonBadge = false) {
 }
 
 function renderFilteredGrid(container) {
-  let programs = filterByCategory(_activeFilter);
+  let programs;
+  let titleText;
+
+  const collectionDef = getCollectionDef(_activeFilter);
+  if (collectionDef) {
+    // "See All" came from a collection row — apply that collection's filter without a limit
+    programs = PROGRAM_CATALOG.filter(collectionDef.filter).sort(collectionDef.sort);
+    titleText = `${collectionDef.icon} ${collectionDef.label}`;
+  } else {
+    programs = filterByCategory(_activeFilter);
+    const categoryInfo = _activeFilter === 'home_gym'
+      ? { label: 'Home Gym', icon: '🏠' }
+      : (CATEGORIES[_activeFilter] || { label: _activeFilter, icon: '📋' });
+    const titleParts = [categoryInfo.icon, categoryInfo.label];
+    const diffLabel = _activeDifficulty ? DIFFICULTY_LABELS[_activeDifficulty]?.label : null;
+    if (diffLabel) titleParts.push(`· ${diffLabel}`);
+    titleText = titleParts.join(' ');
+  }
+
   if (_activeDifficulty) {
     programs = programs.filter(p => p.difficulty === _activeDifficulty);
   }
 
-  const categoryInfo = _activeFilter === 'home_gym'
-    ? { label: 'Home Gym', icon: '🏠' }
-    : (CATEGORIES[_activeFilter] || { label: _activeFilter, icon: '📋' });
-
-  const diffLabel = _activeDifficulty
-    ? DIFFICULTY_LABELS[_activeDifficulty]?.label
-    : null;
-
-  const titleParts = [categoryInfo.icon, categoryInfo.label];
-  if (diffLabel) titleParts.push(`· ${diffLabel}`);
+  const allWods = programs.length > 0 && programs.every(p => isWod(p));
+  const countNoun = allWods ? 'workout' : 'program';
+  const countLabel = `${programs.length} ${countNoun}${programs.length !== 1 ? 's' : ''}`;
 
   const cards = programs.map(p => renderProgramCard(p, 'large')).join('');
 
   container.innerHTML = `
     <div class="filtered-grid-header mb-4">
-      <div class="filtered-grid-title">${titleParts.join(' ')}</div>
-      <div class="filtered-grid-count">${programs.length} program${programs.length !== 1 ? 's' : ''}</div>
+      <div class="filtered-grid-title">${titleText}</div>
+      <div class="filtered-grid-count">${countLabel}</div>
     </div>
     <div class="program-grid">
       ${cards || '<div class="lib-empty-state"><div class="lib-empty-icon">🔍</div><div class="lib-empty-title">No programs found</div><div class="lib-empty-sub">Try adjusting your filters</div></div>'}
@@ -453,6 +485,10 @@ function renderFilteredGrid(container) {
 
 // ── Program cards ─────────────────────────────────────────────────────────────
 
+function isWod(program) {
+  return program.tags?.includes('hyrox-wod');
+}
+
 export function renderProgramCard(program, size = 'small', showBadge = false) {
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const dots = '●'.repeat(diff.dots) + '○'.repeat(4 - diff.dots);
@@ -460,11 +496,20 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   const saved = isBookmarked(program.id);
   const completed = isProgramCompleted(program.id);
   const showRating = program.rating && (size === 'large' || showBadge);
+  const wod = isWod(program);
 
   // Equipment tier label for large cards
-  const equipTierLabel = size === 'large' && program.equipmentTier
+  const equipTierLabel = size === 'large' && program.equipmentTier && !wod
     ? { gym: 'Full Gym', home: 'Home Gym', garage_gym: 'Garage Gym', bodyweight: 'Bodyweight', minimal: 'Minimal' }[program.equipmentTier]
     : null;
+
+  // Duration label — WODs show session length in minutes, programs show weeks
+  const durationLabel = wod && program.sessionDurationMinutes
+    ? `~${program.sessionDurationMinutes.min}–${program.sessionDurationMinutes.max} min`
+    : `${program.durationWeeks}w`;
+
+  // Category label — WODs get a "Workout" prefix so they're distinct from multi-week programs
+  const categoryLabel = wod ? 'Workout' : (CATEGORIES[program.category]?.label || program.category);
 
   return `
     <div class="prog-card prog-card--${size} ${isActive ? 'prog-card--active' : ''} ${completed ? 'prog-card--completed' : ''}"
@@ -476,7 +521,8 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
         <div class="prog-card-badges">
           ${isActive ? '<span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}
           ${completed && !isActive ? '<span class="prog-badge prog-badge--completed">DONE</span>' : ''}
-          ${program.featured && !isActive && !completed ? '<span class="prog-badge prog-badge--featured">FEATURED</span>' : ''}
+          ${wod && !isActive && !completed ? '<span class="prog-badge prog-badge--wod">WOD</span>' : ''}
+          ${program.featured && !isActive && !completed && !wod ? '<span class="prog-badge prog-badge--featured">FEATURED</span>' : ''}
           ${program.isNew && !isActive && !completed ? '<span class="prog-badge prog-badge--new">NEW</span>' : ''}
         </div>
         <button class="prog-card-bookmark ${saved ? 'saved' : ''}"
@@ -494,9 +540,9 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
       <div class="prog-card-info">
         <div class="prog-card-name">${program.name}</div>
         <div class="prog-card-meta">
-          <span class="prog-card-category" style="color: ${program.accentColor}">${CATEGORIES[program.category]?.label || program.category}</span>
+          <span class="prog-card-category" style="color: ${program.accentColor}">${categoryLabel}</span>
           <span class="prog-card-sep">·</span>
-          <span>${program.durationWeeks}w</span>
+          <span>${durationLabel}</span>
           ${equipTierLabel ? `<span class="prog-card-sep">·</span><span class="prog-card-equip">${equipTierLabel}</span>` : ''}
         </div>
         <div class="prog-card-diff" style="color: ${diff.color}" title="${diff.label}">${dots}</div>
