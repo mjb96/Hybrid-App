@@ -4878,6 +4878,23 @@ html[data-theme="light"] .profile-completion-name {
 html[data-theme="light"] .profile-stat-label,
 html[data-theme="light"] .profile-section-title,
 html[data-theme="light"] .profile-subsection-title { color: #94a3b8; }
+html[data-theme="light"] .profile-settings-btn {
+  border-color: rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.05);
+  color: rgba(0,0,0,0.55);
+}
+html[data-theme="light"] .profile-settings-btn:hover {
+  background: rgba(0,0,0,0.09);
+  border-color: rgba(0,0,0,0.18);
+  color: rgba(0,0,0,0.8);
+}
+html[data-theme="light"] .profile-active-prog-meta { color: #94a3b8; }
+html[data-theme="light"] .profile-active-prog-bar { background: rgba(0,0,0,0.06); }
+html[data-theme="light"] .profile-active-prog-arrow { color: rgba(0,0,0,0.25); }
+html[data-theme="light"] .profile-empty-text { color: #94a3b8; }
+html[data-theme="light"] .profile-pr-row { border-bottom-color: rgba(0,0,0,0.06); }
+html[data-theme="light"] .profile-pr-tag { color: #94a3b8; }
+html[data-theme="light"] .profile-completion-meta { color: #94a3b8; }
 
 /* ── PR row enhancements ─────────────────────────────────────────── */
 
