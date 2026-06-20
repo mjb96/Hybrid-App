@@ -609,6 +609,11 @@
   color: #fff;
 }
 
+.prog-badge--wod {
+  background: rgba(124,58,237,0.9);
+  color: #fff;
+}
+
 .prog-card-rating {
   position: absolute;
   bottom: 7px;
