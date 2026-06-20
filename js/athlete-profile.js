@@ -459,7 +459,7 @@ function _recentSessions(state, days, limit = 5) {
         dateLabel = `Week ${w} · ${dName}`;
       }
 
-      sessions.push({ type, dateLabel, liftDone, runDist });
+      sessions.push({ type, dateLabel, liftDone, runDist, week: w, day: d });
       if (sessions.length >= limit) break outer;
     }
   }
@@ -538,12 +538,18 @@ function _recentRow(session) {
   }
 
   return `
-    <div class="profile-recent-row">
+    <div class="profile-recent-row profile-recent-row--clickable"
+         data-action="open-session-detail"
+         data-week="${session.week}"
+         data-day="${_esc(session.day)}"
+         data-datelabel="${_esc(session.dateLabel)}"
+         role="button" tabindex="0" aria-label="View ${_esc(session.dateLabel)} session details">
       <div class="profile-recent-icon profile-recent-icon--${session.type}">${icon}</div>
       <div class="profile-recent-info">
         <div class="profile-recent-date">${_esc(session.dateLabel)}</div>
         ${desc ? `<div class="profile-recent-desc">${desc}</div>` : ''}
       </div>
+      <span class="profile-recent-chevron">›</span>
     </div>
   `;
 }
@@ -566,6 +572,122 @@ function _completionRow(completion) {
       <span class="profile-completion-badge">✓</span>
     </div>
   `;
+}
+
+// ── Session detail modal ──────────────────────────────────────────────────────
+
+function openSessionDetailModal(el) {
+  if (!_getState) return;
+  const week      = el.getAttribute('data-week');
+  const day       = el.getAttribute('data-day');
+  const dateLabel = el.getAttribute('data-datelabel') || `Week ${week}`;
+  if (!week || !day) return;
+
+  const state      = _getState();
+  const weekData   = (state.weeks || {})[week];
+  const modal      = document.getElementById('sessionDetailModal');
+  const body       = document.getElementById('sessionDetailBody');
+  const dateEl     = document.getElementById('sessionDetailDate');
+  if (!modal || !body) return;
+
+  if (dateEl) dateEl.textContent = dateLabel;
+
+  const weightUnit = state.settings?.weightUnit || 'kg';
+  let html = '';
+
+  if (weekData) {
+    // ── Lifts ─────────────────────────────────────────────────────────────────
+    const dayLifts  = weekData.lifts?.[day] || {};
+    const liftNames = Object.keys(dayLifts).filter(l => {
+      const sets = dayLifts[l];
+      return Array.isArray(sets) && sets.some(s => s && s.c);
+    });
+
+    if (liftNames.length > 0) {
+      html += `<div class="sds-section"><div class="sds-section-title">Exercises</div>`;
+      liftNames.forEach(lift => {
+        const allSets       = dayLifts[lift];
+        const completedSets = allSets.filter(s => s && s.c);
+        if (completedSets.length === 0) return;
+        const displayName = getLiftDisplayName(state, lift);
+        html += `<div class="sds-lift"><div class="sds-lift-name">${_esc(displayName)}</div>`;
+        let workingSetNum = 0;
+        completedSets.forEach(s => {
+          const isWarmup = s.type === 'W';
+          if (!isWarmup) workingSetNum++;
+          const typeLabel = isWarmup ? 'Warmup' : s.type === 'D' ? `Drop ${workingSetNum}` : s.type === 'F' ? 'Fail' : `Set ${workingSetNum}`;
+          const wt        = parseFloat(s.w) || 0;
+          const reps      = parseInt(s.r, 10) || 0;
+          const prBadge   = s.isPR ? ' <span class="sds-pr-badge">PR</span>' : '';
+          const rpeText   = s.rpe ? ` · RPE ${_esc(String(s.rpe))}` : '';
+          html += `<div class="sds-set-row${isWarmup ? ' sds-set-row--warmup' : ''}">
+            <span class="sds-set-label">${typeLabel}</span>
+            <span class="sds-set-detail">${wt}&nbsp;${weightUnit}&nbsp;×&nbsp;${reps}&nbsp;reps${rpeText}${prBadge}</span>
+          </div>`;
+        });
+        html += `</div>`;
+      });
+      html += `</div>`;
+
+      // Gym stats
+      const gymStats    = weekData.gymStats?.[day] || {};
+      const gymRpe      = weekData.gymRpe?.[day] || '';
+      const hasGymStats = gymStats.time || gymStats.avgHR || gymStats.maxHR || gymStats.cals || gymRpe;
+      if (hasGymStats) {
+        html += `<div class="sds-section"><div class="sds-section-title">Gym Stats</div>`;
+        if (gymStats.time)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Duration</span><span class="sds-stat-value">${_esc(gymStats.time)}</span></div>`;
+        if (gymStats.avgHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Avg HR</span><span class="sds-stat-value">${_esc(gymStats.avgHR)} bpm</span></div>`;
+        if (gymStats.maxHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Max HR</span><span class="sds-stat-value">${_esc(gymStats.maxHR)} bpm</span></div>`;
+        if (gymStats.cals)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Calories</span><span class="sds-stat-value">${_esc(gymStats.cals)} kcal</span></div>`;
+        if (gymRpe)         html += `<div class="sds-stat-row"><span class="sds-stat-label">Session RPE</span><span class="sds-stat-value">${_esc(gymRpe)} / 10</span></div>`;
+        html += `</div>`;
+      }
+    }
+
+    // ── Run ───────────────────────────────────────────────────────────────────
+    const runData = weekData.runs?.[day] || {};
+    const runDist = parseFloat(runData.dist) || 0;
+    if (runDist > 0 || runData.time) {
+      html += `<div class="sds-section"><div class="sds-section-title">Run</div>`;
+      if (runDist > 0)   html += `<div class="sds-stat-row"><span class="sds-stat-label">Distance</span><span class="sds-stat-value">${runDist.toFixed(2)} km</span></div>`;
+      if (runData.time)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Time</span><span class="sds-stat-value">${_esc(runData.time)}</span></div>`;
+      if (runData.pace)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Pace</span><span class="sds-stat-value">${_esc(runData.pace)} /km</span></div>`;
+      if (runData.avgHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Avg HR</span><span class="sds-stat-value">${_esc(runData.avgHR)} bpm</span></div>`;
+      if (runData.maxHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Max HR</span><span class="sds-stat-value">${_esc(runData.maxHR)} bpm</span></div>`;
+      if (runData.elev)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Elevation</span><span class="sds-stat-value">${_esc(runData.elev)} m</span></div>`;
+      if (runData.cals)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Calories</span><span class="sds-stat-value">${_esc(runData.cals)} kcal</span></div>`;
+      if (runData.rpe)   html += `<div class="sds-stat-row"><span class="sds-stat-label">RPE</span><span class="sds-stat-value">${_esc(runData.rpe)} / 10</span></div>`;
+      if (runData.notes?.trim()) html += `<div class="sds-stat-row sds-stat-row--notes"><span class="sds-stat-label">Notes</span><span class="sds-stat-value sds-notes-value">${_esc(runData.notes)}</span></div>`;
+      html += `</div>`;
+    }
+
+    // ── Body weight ───────────────────────────────────────────────────────────
+    const bw = weekData.bodyWeight?.[day];
+    if (bw) {
+      html += `<div class="sds-section"><div class="sds-section-title">Body</div>`;
+      html += `<div class="sds-stat-row"><span class="sds-stat-label">Body Weight</span><span class="sds-stat-value">${_esc(bw)} ${weightUnit}</span></div>`;
+      html += `</div>`;
+    }
+
+    // ── Session notes ─────────────────────────────────────────────────────────
+    const sessionNotes = weekData.notes?.[day] || '';
+    if (sessionNotes.trim()) {
+      html += `<div class="sds-section"><div class="sds-section-title">Notes</div>`;
+      html += `<p class="sds-notes-value">${_esc(sessionNotes)}</p>`;
+      html += `</div>`;
+    }
+  }
+
+  if (!html) {
+    html = '<p class="text-sm text-muted">No data found for this session.</p>';
+  }
+
+  body.innerHTML = html;
+  modal.classList.add('active');
+}
+
+function closeSessionDetailModal() {
+  document.getElementById('sessionDetailModal')?.classList.remove('active');
 }
 
 // ── Action handler ────────────────────────────────────────────────────────────
@@ -624,5 +746,16 @@ export function handleProfileAction(action, el) {
 
   if (action === 'close-pr-goal-modal') {
     document.getElementById('prGoalModal')?.classList.remove('active');
+    return;
+  }
+
+  if (action === 'open-session-detail') {
+    openSessionDetailModal(el);
+    return;
+  }
+
+  if (action === 'close-session-detail') {
+    closeSessionDetailModal();
+    return;
   }
 }

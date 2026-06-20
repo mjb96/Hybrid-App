@@ -737,7 +737,7 @@ document.addEventListener('click', (e) => {
   }
   
   // Athlete Profile
-  else if (action === 'set-pr-goal' || action === 'confirm-pr-goal' || action === 'close-pr-goal-modal')
+  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail'].includes(action))
     handleProfileAction(action, target);
 
   // Analytics

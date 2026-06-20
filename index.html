@@ -1369,6 +1369,23 @@
     </div>
   </div>
 
+  <!-- Session Detail Modal -->
+  <div id="sessionDetailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sessionDetailTitle">
+    <div class="modal-content sds-modal-content">
+      <div class="sds-header">
+        <div>
+          <h2 id="sessionDetailTitle" class="text-xl font-heavy text-main mb-0">Session Details</h2>
+          <p id="sessionDetailDate" class="sds-date-label"></p>
+        </div>
+        <button class="settings-close-btn" data-action="close-session-detail" aria-label="Close">✕</button>
+      </div>
+      <div id="sessionDetailBody" class="sds-body"></div>
+      <div class="flex gap-2 mt-4">
+        <button class="btn-action-block btn-ghost mt-0" data-action="close-session-detail">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     if ('serviceWorker' in navigator) {
       let reloading = false;
