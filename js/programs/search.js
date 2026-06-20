@@ -53,6 +53,24 @@ const QUERY_ALIASES = {
   'concurrent':     ['hybrid', 'strength', 'running'],
   'sub 20':         ['sub-20', '5k', 'speed', 'intervals'],
   'lean bulk':      ['muscle-gain', 'lean-bulk', 'hypertrophy', 'bulk'],
+  'bodybuilding':   ['muscle', 'hypertrophy', 'arnold', 'volume', 'physique'],
+  'physique':       ['bodybuilding', 'aesthetic', 'hypertrophy', 'body-composition'],
+  'triathlon':      ['swim', 'bike', 'run', 'multi-sport', 'endurance'],
+  'swim bike run':  ['triathlon', 'multi-sport', 'endurance'],
+  'mobility':       ['flexibility', 'stretch', 'movement', 'joint', 'yoga'],
+  'flexibility':    ['mobility', 'stretch', 'movement'],
+  'functional':     ['gpp', 'general-physical-preparedness', 'crossfit', 'conditioning'],
+  'gpp':            ['functional', 'general-physical-preparedness', 'conditioning'],
+  'sport specific': ['sport-specific', 'athletic', 'performance'],
+  'home gym':       ['home', 'dumbbell', 'no-equipment', 'bodyweight'],
+  'garage gym':     ['barbell', 'home', 'home-gym', 'rack'],
+  'powerlifting':   ['squat', 'bench', 'deadlift', 'total', 'competition'],
+  'squat':          ['powerlifting', 'strength', 'compound'],
+  'deadlift':       ['powerlifting', 'strength', 'compound'],
+  'couch to 5k':    ['c25k', 'beginner', 'running', 'jogging'],
+  'c25k':           ['couch-to-5k', 'beginner', 'running'],
+  'half marathon':  ['half-marathon', '21k', 'running', 'endurance'],
+  'hyrox':          ['hyrox-collection', 'race', 'functional-fitness'],
 };
 
 // Tokenise a string into lowercase words
@@ -155,4 +173,8 @@ export const POPULAR_SEARCHES = [
   { query: '5/3/1',           label: '5/3/1 Programs' },
   { query: 'home',            label: 'Home Training' },
   { query: 'sub 20',          label: 'Sub-20 5K' },
+  { query: 'bodybuilding',    label: 'Bodybuilding' },
+  { query: 'powerlifting',    label: 'Powerlifting' },
+  { query: 'triathlon',       label: 'Triathlon' },
+  { query: 'mobility',        label: 'Mobility' },
 ];

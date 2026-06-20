@@ -2261,3 +2261,218 @@ html[data-theme="light"] .hero-badge {
   color: rgba(255,255,255,0.90) !important;
 }
 
+/* =============================================================================
+   LIBRARY TABS
+============================================================================= */
+#progLibraryTabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 4px;
+}
+
+.lib-tab {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.lib-tab.active {
+  background: rgba(139,92,246,0.15);
+  color: var(--accent-purple, #8b5cf6);
+}
+
+.lib-tab-count {
+  background: var(--accent-purple, #8b5cf6);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  min-width: 18px;
+  text-align: center;
+}
+
+html[data-theme="light"] #progLibraryTabs { border-color: rgba(0,0,0,0.06); }
+html[data-theme="light"] .lib-tab { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); color: #6d28d9; }
+
+/* =============================================================================
+   LIBRARY EMPTY STATES (Saved / Completed)
+============================================================================= */
+.lib-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  text-align: center;
+  gap: 8px;
+}
+
+.lib-empty-icon {
+  font-size: 2.8rem;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.lib-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.lib-empty-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  max-width: 240px;
+  line-height: 1.5;
+}
+
+.lib-empty-cta {
+  margin-top: 16px;
+  padding: 10px 24px;
+  border-radius: 20px;
+  border: none;
+  background: var(--accent-purple, #8b5cf6);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.lib-empty-cta:active { opacity: 0.8; }
+
+/* =============================================================================
+   PROGRAM CARD — Bookmark button
+============================================================================= */
+.prog-card-cover { position: relative; }
+
+.prog-card-bookmark {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  line-height: 1;
+  padding: 0;
+}
+
+.prog-card-bookmark:active { transform: scale(0.88); }
+.prog-card-bookmark.saved { background: rgba(139,92,246,0.85); }
+
+/* Completed card tint */
+.prog-card--completed .prog-card-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(16,185,129,0.12);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.prog-badge--completed {
+  background: rgba(16,185,129,0.25);
+  color: #10b981;
+  border-color: rgba(16,185,129,0.4);
+}
+
+/* =============================================================================
+   DETAIL PAGE — Bookmark & Completion
+============================================================================= */
+.detail-back-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-bookmark-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  line-height: 1;
+  padding: 0;
+}
+.detail-bookmark-btn:active { transform: scale(0.88); }
+.detail-bookmark-btn.saved {
+  background: rgba(139,92,246,0.25);
+  border-color: rgba(139,92,246,0.5);
+}
+
+.detail-completed-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #10b981;
+  background: rgba(16,185,129,0.15);
+  border: 1px solid rgba(16,185,129,0.3);
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.detail-complete-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(16,185,129,0.3);
+  background: rgba(16,185,129,0.08);
+  color: #10b981;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.detail-complete-btn:active { background: rgba(16,185,129,0.15); }
+
+.detail-cta-btn--completed {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+}
+
+html[data-theme="light"] .detail-bookmark-btn {
+  border-color: rgba(0,0,0,0.10);
+  background: rgba(0,0,0,0.04);
+  color: rgba(0,0,0,0.6);
+}
+html[data-theme="light"] .detail-bookmark-btn.saved {
+  background: rgba(139,92,246,0.10);
+  border-color: rgba(139,92,246,0.3);
+}
+

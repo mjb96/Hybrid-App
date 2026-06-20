@@ -1,14 +1,16 @@
 // =============================================================================
-// PROGRAM LIBRARY — Netflix-style discovery UI
+// PROGRAM LIBRARY — Training program discovery and management
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { getHomeCollections, filterByCategory } from './collections.js';
 import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
+import { isBookmarked, toggleBookmark, isProgramCompleted, recordRecentlyViewed } from '../state.js';
 
 let _appState = null;
 let _activeFilter = 'all';
+let _activeTab = 'discover'; // 'discover' | 'saved' | 'completed'
 let _searchQuery = '';
 let _searchDebounce = null;
 
@@ -27,8 +29,15 @@ export function renderLibrary() {
   if (!screen) return;
 
   renderActiveProgramBanner();
-  renderFilterChips();
-  renderLibraryContent();
+  renderLibraryTabs();
+  if (_activeTab === 'discover') {
+    renderFilterChips();
+    renderLibraryContent();
+  } else if (_activeTab === 'saved') {
+    renderSavedPrograms();
+  } else if (_activeTab === 'completed') {
+    renderCompletedPrograms();
+  }
   setupLibraryEvents();
 }
 
@@ -79,17 +88,119 @@ function renderActiveProgramBanner() {
   `;
 }
 
+// ── Library tabs ─────────────────────────────────────────────────────────────
+
+function renderLibraryTabs() {
+  const container = document.getElementById('progLibraryTabs');
+  if (!container) return;
+
+  const savedCount = _appState?.programLibrary?.bookmarks?.length || 0;
+  const completedCount = _appState?.programLibrary?.completions?.length || 0;
+
+  container.innerHTML = `
+    <button class="lib-tab ${_activeTab === 'discover' ? 'active' : ''}" data-action="lib-tab" data-tab="discover">
+      Discover
+    </button>
+    <button class="lib-tab ${_activeTab === 'saved' ? 'active' : ''}" data-action="lib-tab" data-tab="saved">
+      Saved${savedCount > 0 ? ` <span class="lib-tab-count">${savedCount}</span>` : ''}
+    </button>
+    <button class="lib-tab ${_activeTab === 'completed' ? 'active' : ''}" data-action="lib-tab" data-tab="completed">
+      Completed${completedCount > 0 ? ` <span class="lib-tab-count">${completedCount}</span>` : ''}
+    </button>
+  `;
+}
+
+function renderSavedPrograms() {
+  const filterEl = document.getElementById('progFilterChips');
+  const content = document.getElementById('progLibraryContent');
+  const searchResults = document.getElementById('progSearchResults');
+  if (filterEl) filterEl.innerHTML = '';
+  if (searchResults) searchResults.style.display = 'none';
+  if (!content) return;
+
+  const bookmarkIds = _appState?.programLibrary?.bookmarks || [];
+  const saved = PROGRAM_CATALOG.filter(p => bookmarkIds.includes(p.id));
+
+  if (saved.length === 0) {
+    content.style.display = 'block';
+    content.innerHTML = `
+      <div class="lib-empty-state">
+        <div class="lib-empty-icon">🔖</div>
+        <div class="lib-empty-title">No saved programs yet</div>
+        <div class="lib-empty-sub">Tap the bookmark icon on any program to save it here</div>
+        <button class="lib-empty-cta" data-action="lib-tab" data-tab="discover">Browse Programs</button>
+      </div>
+    `;
+    return;
+  }
+
+  content.style.display = 'block';
+  content.innerHTML = `
+    <div class="filtered-grid-header mb-4">
+      <div class="filtered-grid-title">🔖 Saved Programs</div>
+      <div class="filtered-grid-count">${saved.length} programs</div>
+    </div>
+    <div class="program-grid">
+      ${saved.map(p => renderProgramCard(p, 'large')).join('')}
+    </div>
+  `;
+}
+
+function renderCompletedPrograms() {
+  const filterEl = document.getElementById('progFilterChips');
+  const content = document.getElementById('progLibraryContent');
+  const searchResults = document.getElementById('progSearchResults');
+  if (filterEl) filterEl.innerHTML = '';
+  if (searchResults) searchResults.style.display = 'none';
+  if (!content) return;
+
+  const completions = _appState?.programLibrary?.completions || [];
+  const completed = completions
+    .map(c => ({ completion: c, program: PROGRAM_CATALOG.find(p => p.id === c.programId) }))
+    .filter(x => x.program)
+    .sort((a, b) => new Date(b.completion.completedAt) - new Date(a.completion.completedAt));
+
+  if (completed.length === 0) {
+    content.style.display = 'block';
+    content.innerHTML = `
+      <div class="lib-empty-state">
+        <div class="lib-empty-icon">🏆</div>
+        <div class="lib-empty-title">No completed programs yet</div>
+        <div class="lib-empty-sub">Finish a program and mark it complete to track your progress</div>
+        <button class="lib-empty-cta" data-action="lib-tab" data-tab="discover">Find a Program</button>
+      </div>
+    `;
+    return;
+  }
+
+  content.style.display = 'block';
+  content.innerHTML = `
+    <div class="filtered-grid-header mb-4">
+      <div class="filtered-grid-title">🏆 Completed Programs</div>
+      <div class="filtered-grid-count">${completed.length} programs</div>
+    </div>
+    <div class="program-grid">
+      ${completed.map(({ program }) => renderProgramCard(program, 'large')).join('')}
+    </div>
+  `;
+}
+
 // ── Filter chips ──────────────────────────────────────────────────────────────
 
 const FILTER_CHIPS = [
   { key: 'all',             label: 'All' },
   { key: 'hybrid',          label: '⚡ Hybrid' },
   { key: 'strength',        label: '🏋️ Strength' },
+  { key: 'hypertrophy',     label: '💪 Muscle' },
+  { key: 'bodybuilding',    label: '🏛️ Bodybuilding' },
+  { key: 'powerlifting',    label: '🔋 Powerlifting' },
   { key: 'hyrox',           label: '🏟️ Hyrox' },
   { key: 'running',         label: '🏃 Running' },
-  { key: 'hypertrophy',     label: '💪 Muscle' },
-  { key: 'body_composition',label: '🔥 Fat Loss' },
   { key: 'endurance',       label: '🫀 Endurance' },
+  { key: 'triathlon',       label: '🏊 Triathlon' },
+  { key: 'body_composition',label: '🔥 Fat Loss' },
+  { key: 'mobility',        label: '🧘 Mobility' },
+  { key: 'functional',      label: '⚙️ Functional' },
   { key: 'general_fitness', label: '🎯 General' },
   { key: 'tactical',        label: '🎖️ Tactical' },
 ];
@@ -97,6 +208,11 @@ const FILTER_CHIPS = [
 function renderFilterChips() {
   const container = document.getElementById('progFilterChips');
   if (!container) return;
+
+  if (_activeTab !== 'discover') {
+    container.innerHTML = '';
+    return;
+  }
 
   container.innerHTML = FILTER_CHIPS.map(chip => `
     <button class="filter-chip ${_activeFilter === chip.key ? 'active' : ''}"
@@ -257,9 +373,11 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.beginner;
   const dots = '●'.repeat(diff.dots) + '○'.repeat(4 - diff.dots);
   const isActive = _appState?.activeProgramId === program.id;
+  const saved = isBookmarked(program.id);
+  const completed = isProgramCompleted(program.id);
 
   return `
-    <div class="prog-card prog-card--${size} ${isActive ? 'prog-card--active' : ''}"
+    <div class="prog-card prog-card--${size} ${isActive ? 'prog-card--active' : ''} ${completed ? 'prog-card--completed' : ''}"
          data-action="open-program-detail"
          data-program-id="${program.id}">
       <div class="prog-card-cover"
@@ -267,9 +385,16 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
         <div class="prog-card-icon">${program.icon}</div>
         <div class="prog-card-badges">
           ${isActive ? '<span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}
-          ${program.featured && !isActive ? '<span class="prog-badge prog-badge--featured">FEATURED</span>' : ''}
-          ${program.isNew && !isActive ? '<span class="prog-badge prog-badge--new">NEW</span>' : ''}
+          ${completed && !isActive ? '<span class="prog-badge prog-badge--completed">DONE</span>' : ''}
+          ${program.featured && !isActive && !completed ? '<span class="prog-badge prog-badge--featured">FEATURED</span>' : ''}
+          ${program.isNew && !isActive && !completed ? '<span class="prog-badge prog-badge--new">NEW</span>' : ''}
         </div>
+        <button class="prog-card-bookmark ${saved ? 'saved' : ''}"
+                data-action="toggle-bookmark"
+                data-program-id="${program.id}"
+                aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
+          ${saved ? '🔖' : '🤍'}
+        </button>
         ${showBadge && program.rating ? `
           <div class="prog-card-rating">
             <span class="rating-star">★</span> ${program.rating}
@@ -452,6 +577,30 @@ export function handleLibraryAction(action, el, event) {
       }
       break;
     }
+    case 'lib-tab': {
+      const tab = el.getAttribute('data-tab');
+      if (tab && tab !== _activeTab) {
+        _activeTab = tab;
+        _searchQuery = '';
+        const inp = document.getElementById('progSearchInput');
+        if (inp) inp.value = '';
+        renderLibrary();
+      }
+      break;
+    }
+    case 'toggle-bookmark': {
+      event?.stopPropagation();
+      const id = el.getAttribute('data-program-id');
+      if (!id) break;
+      const nowSaved = toggleBookmark(id);
+      // Update just the bookmark button without re-rendering the whole card
+      el.className = `prog-card-bookmark ${nowSaved ? 'saved' : ''}`;
+      el.setAttribute('aria-label', nowSaved ? 'Remove bookmark' : 'Save program');
+      el.textContent = nowSaved ? '🔖' : '🤍';
+      // Refresh tab counts
+      renderLibraryTabs();
+      break;
+    }
   }
 }
 
@@ -469,6 +618,7 @@ function openProgramDetail(programId) {
   const detailScreen = document.getElementById('programDetailScreen');
   if (!libraryScreen || !detailScreen) return;
 
+  recordRecentlyViewed(programId);
   libraryScreen.style.display = 'none';
   detailScreen.style.display = 'block';
   detailScreen.scrollTop = 0;

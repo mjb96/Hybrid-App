@@ -47,6 +47,13 @@ export let appState = {
   loadMetrics: { atl: 0, ctl: 0 },
   healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
   wellnessLog: [],
+  programLibrary: {
+    bookmarks: [],           // array of program IDs
+    completions: [],         // array of { programId, completedAt, weeksCompleted }
+    recentlyViewed: [],      // array of { programId, viewedAt } — capped at 20
+    personalRatings: {},     // map of programId → { rating, review, ratedAt }
+    activeFilters: {},       // persisted filter panel state
+  },
 };
 
 export let activeTab = 'home';
@@ -93,6 +100,68 @@ export function getProgramById(id) {
     };
   }
   return PROGRAMS['hybrid_engine'];
+}
+
+// ==========================================
+// PROGRAM LIBRARY — Bookmarks, Completions, Ratings
+// ==========================================
+
+function ensureProgramLibrary() {
+  if (!appState.programLibrary) {
+    appState.programLibrary = { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} };
+  }
+}
+
+export function toggleBookmark(programId) {
+  ensureProgramLibrary();
+  const lib = appState.programLibrary;
+  const idx = lib.bookmarks.indexOf(programId);
+  if (idx === -1) {
+    lib.bookmarks.push(programId);
+  } else {
+    lib.bookmarks.splice(idx, 1);
+  }
+  saveStateToLocalStorage(true);
+  return lib.bookmarks.includes(programId);
+}
+
+export function isBookmarked(programId) {
+  return appState.programLibrary?.bookmarks?.includes(programId) ?? false;
+}
+
+export function markProgramCompleted(programId, weeksCompleted) {
+  ensureProgramLibrary();
+  const existing = appState.programLibrary.completions.find(c => c.programId === programId);
+  if (existing) {
+    existing.completedAt = new Date().toISOString();
+    existing.weeksCompleted = weeksCompleted;
+  } else {
+    appState.programLibrary.completions.push({ programId, completedAt: new Date().toISOString(), weeksCompleted });
+  }
+  saveStateToLocalStorage(true);
+}
+
+export function isProgramCompleted(programId) {
+  return appState.programLibrary?.completions?.some(c => c.programId === programId) ?? false;
+}
+
+export function recordRecentlyViewed(programId) {
+  ensureProgramLibrary();
+  const lib = appState.programLibrary;
+  lib.recentlyViewed = lib.recentlyViewed.filter(v => v.programId !== programId);
+  lib.recentlyViewed.unshift({ programId, viewedAt: new Date().toISOString() });
+  if (lib.recentlyViewed.length > 20) lib.recentlyViewed.length = 20;
+  saveStateToLocalStorage(false);
+}
+
+export function savePersonalRating(programId, rating, review = '') {
+  ensureProgramLibrary();
+  appState.programLibrary.personalRatings[programId] = { rating, review, ratedAt: new Date().toISOString() };
+  saveStateToLocalStorage(true);
+}
+
+export function getPersonalRating(programId) {
+  return appState.programLibrary?.personalRatings?.[programId] ?? null;
 }
 
 // ==========================================
