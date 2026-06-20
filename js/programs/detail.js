@@ -170,7 +170,7 @@ export function renderProgramDetail(programId, appState) {
           <div class="social-proof-label">Athletes</div>
         </div>
         <div class="social-proof-stat">
-          <div class="social-proof-value">${Math.round((program.completionRate || 0) * 100)}%</div>
+          <div class="social-proof-value">${Math.round(program.completionRate || 0)}%</div>
           <div class="social-proof-label">Completion Rate</div>
         </div>
         <div class="social-proof-stat">
