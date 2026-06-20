@@ -32,6 +32,7 @@ export function renderProgramDetail(programId, appState) {
   const completed = isProgramCompleted(programId);
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const category = CATEGORIES[program.category] || { label: program.category || 'Program', icon: '📋', color: '#8b5cf6' };
+  const wod = program.tags?.includes('hyrox-wod');
 
   const similarPrograms = getSimilarPrograms(program, 6);
 
@@ -71,6 +72,27 @@ export function renderProgramDetail(programId, appState) {
 
     <!-- Quick Stats Row -->
     <div class="detail-stats-row">
+      ${wod ? `
+      <div class="detail-stat">
+        <div class="detail-stat-value">${program.sessionDurationMinutes ? `${program.sessionDurationMinutes.min}–${program.sessionDurationMinutes.max}m` : '—'}</div>
+        <div class="detail-stat-label">Duration</div>
+      </div>
+      <div class="detail-stat-divider"></div>
+      <div class="detail-stat">
+        <div class="detail-stat-value" style="color: ${diff.color}">${diff.label}</div>
+        <div class="detail-stat-label">Level</div>
+      </div>
+      <div class="detail-stat-divider"></div>
+      <div class="detail-stat">
+        <div class="detail-stat-value">${program.rating ? `${program.rating} ★` : '—'}</div>
+        <div class="detail-stat-label">Rating</div>
+      </div>
+      <div class="detail-stat-divider"></div>
+      <div class="detail-stat">
+        <div class="detail-stat-value">${program.enrolledCount ? program.enrolledCount.toLocaleString() : '—'}</div>
+        <div class="detail-stat-label">Athletes</div>
+      </div>
+      ` : `
       <div class="detail-stat">
         <div class="detail-stat-value">${program.durationWeeks || '12'}</div>
         <div class="detail-stat-label">Weeks</div>
@@ -90,6 +112,7 @@ export function renderProgramDetail(programId, appState) {
         <div class="detail-stat-value">${program.sessionDurationMinutes ? program.sessionDurationMinutes.max + 'm' : '—'}</div>
         <div class="detail-stat-label">Per Session</div>
       </div>
+      `}
     </div>
 
     <!-- Program Tags (Difficulty + Goals) -->
@@ -112,7 +135,7 @@ export function renderProgramDetail(programId, appState) {
               Train Again
            </button>`
         : `<button class="detail-cta-btn" data-action="make-active-from-detail" data-program-id="${programId}">
-              Start This Program
+              ${wod ? 'Start This Workout' : 'Start This Program'}
            </button>`
       }
       ${isActive && !completed ? `
@@ -153,7 +176,7 @@ export function renderProgramDetail(programId, appState) {
     ` : ''}
 
     <!-- Sample Workout -->
-    ${renderSampleWorkout(program, programData)}
+    ${renderSampleWorkout(program, programData, wod)}
 
     <!-- Expected Outcomes -->
     ${program.expectedOutcomes?.length ? `
@@ -213,8 +236,8 @@ export function renderProgramDetail(programId, appState) {
       </div>
     ` : ''}
 
-    <!-- Day Split Preview -->
-    ${(program.days || programData?.days) ? `
+    <!-- Day Split Preview (programs only — WODs have no weekly structure) -->
+    ${!wod && (program.days || programData?.days) ? `
       <div class="detail-section">
         <div class="detail-section-title">Weekly Structure</div>
         ${renderDaySplit(program.days || programData?.days)}
@@ -286,7 +309,7 @@ function renderFocusBars(metrics) {
   `;
 }
 
-function renderSampleWorkout(program, programData) {
+function renderSampleWorkout(program, programData, wod = false) {
   const days = program.days || programData?.days;
   if (!days) return '';
 
@@ -357,14 +380,18 @@ function renderSampleWorkout(program, programData) {
     ? `color: ${accentColor}; border-color: ${accentColor}40`
     : `color: var(--text-secondary); border-color: rgba(255,255,255,0.12)`;
 
+  // WODs: drop the day-of-week label (it's irrelevant) and use "The Workout" as section title
+  const sectionTitle = wod ? 'The Workout' : 'Sample Session';
+  const headerHtml = wod
+    ? (chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : '')
+    : `<span class="sample-workout-dayname">${dayNames[chosenKey]}</span>
+       ${chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : ''}`;
+
   return `
     <div class="detail-section">
-      <div class="detail-section-title">Sample Session</div>
+      <div class="detail-section-title">${sectionTitle}</div>
       <div class="sample-workout-card">
-        <div class="sample-workout-header">
-          <span class="sample-workout-dayname">${dayNames[chosenKey]}</span>
-          ${chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : ''}
-        </div>
+        ${headerHtml ? `<div class="sample-workout-header">${headerHtml}</div>` : ''}
         <div class="sample-workout-title">${isRun ? '🏃' : '🏋️'} ${chosenDay.title || 'Training Session'}</div>
         ${bodyHtml}
       </div>
