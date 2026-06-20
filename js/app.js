@@ -56,7 +56,7 @@ import {
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
 } from './settings.js';
-import { initAthleteProfile, renderAthleteProfile } from './athlete-profile.js';
+import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -736,6 +736,9 @@ document.addEventListener('click', (e) => {
     switchGlobalAppTab('workout'); 
   }
   
+  // Athlete Profile
+  else if (action === 'set-pr-goal') handleProfileAction(action, target);
+
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
 });
@@ -847,7 +850,7 @@ initSettings(getState);
 initRunLogger(getState);
 initOnboarding(getState);
 initProgramLibrary(appState);
-initAthleteProfile(getState, getDays);
+initAthleteProfile(getState, getDays, saveState);
 
 // === DEVICE IMPORT WIRING ===
 

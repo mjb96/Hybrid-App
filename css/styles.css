@@ -4879,3 +4879,174 @@ html[data-theme="light"] .profile-stat-label,
 html[data-theme="light"] .profile-section-title,
 html[data-theme="light"] .profile-subsection-title { color: #94a3b8; }
 
+/* ── PR row enhancements ─────────────────────────────────────────── */
+
+.profile-pr-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-pr-row--has-goal {
+  flex-direction: column;
+  align-items: stretch;
+  padding-bottom: 10px;
+}
+
+.profile-pr-row-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-pr-trend {
+  font-size: 0.62rem;
+  font-weight: 800;
+  margin-left: 4px;
+  letter-spacing: 0.01em;
+}
+.profile-pr-trend--up   { color: #10b981; }
+.profile-pr-trend--down { color: #f43f5e; }
+
+.profile-pr-set-goal-btn {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.profile-pr-set-goal-btn:active { background: rgba(255,255,255,0.12); }
+
+.profile-pr-goal-bar {
+  margin-top: 8px;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.profile-pr-goal-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7c3aed, #4f46e5);
+  transition: width 0.4s ease;
+}
+.profile-pr-goal-meta {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.28);
+  margin-top: 4px;
+}
+
+/* ── Activity heatmap ────────────────────────────────────────────── */
+
+.profile-heatmap-day-labels {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.profile-heatmap-day-label {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.profile-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.profile-heatmap-cell {
+  height: 13px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.05);
+}
+.profile-heatmap-cell--lift { background: rgba(139,92,246,0.65); }
+.profile-heatmap-cell--run  { background: rgba(6,182,212,0.65); }
+.profile-heatmap-cell--both { background: linear-gradient(90deg, rgba(139,92,246,0.75), rgba(6,182,212,0.75)); }
+
+/* ── Recent sessions list ────────────────────────────────────────── */
+
+.profile-recent-list { display: flex; flex-direction: column; gap: 8px; }
+
+.profile-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card, #090e1a);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.profile-recent-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.profile-recent-icon--lift { background: rgba(139,92,246,0.15); }
+.profile-recent-icon--run  { background: rgba(6,182,212,0.15); }
+.profile-recent-icon--both { background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(6,182,212,0.18)); }
+
+.profile-recent-info { flex: 1; min-width: 0; }
+
+.profile-recent-date {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profile-recent-desc {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Volume trend chip ───────────────────────────────────────────── */
+
+.profile-trend-chip {
+  display: block;
+  font-size: 0.57rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 5px;
+  letter-spacing: 0.02em;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+.profile-trend-chip--up   { background: rgba(16,185,129,0.12); color: #10b981; }
+.profile-trend-chip--down { background: rgba(244,63,94,0.12);  color: #f43f5e; }
+
+/* ── Light theme overrides ───────────────────────────────────────── */
+
+html[data-theme="light"] .profile-recent-row { background: #fff; border-color: rgba(0,0,0,0.07); }
+html[data-theme="light"] .profile-recent-date { color: #0f172a; }
+html[data-theme="light"] .profile-recent-desc { color: #94a3b8; }
+html[data-theme="light"] .profile-heatmap-cell { background: rgba(0,0,0,0.05); }
+html[data-theme="light"] .profile-heatmap-day-label { color: #94a3b8; }
+html[data-theme="light"] .profile-pr-set-goal-btn { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.03); color: #94a3b8; }
+html[data-theme="light"] .profile-pr-goal-bar { background: rgba(0,0,0,0.06); }
+html[data-theme="light"] .profile-pr-goal-meta { color: #94a3b8; }
+html[data-theme="light"] .profile-pr-trend--up   { color: #059669; }
+html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
