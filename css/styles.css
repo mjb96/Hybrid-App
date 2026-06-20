@@ -4565,19 +4565,22 @@ html[data-theme="light"] .auth-offline-btn:hover {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  border: 1.5px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.45);
-  font-size: 0.9rem;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   flex-shrink: 0;
 }
-
-.profile-settings-btn:active { background: rgba(255,255,255,0.08); }
+.profile-settings-btn:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.8);
+}
+.profile-settings-btn:active { background: rgba(255,255,255,0.12); transform: scale(0.93); }
 
 /* Sections */
 .profile-section {
