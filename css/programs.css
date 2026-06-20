@@ -77,6 +77,10 @@
 
 .filter-chips-row::-webkit-scrollbar { display: none; }
 
+.filter-chips-row--sm {
+  gap: 6px;
+}
+
 .filter-chip {
   flex-shrink: 0;
   padding: 7px 14px;
@@ -101,6 +105,16 @@
 
 .filter-chip:active {
   transform: scale(0.96);
+}
+
+.filter-chip--sm {
+  padding: 5px 11px;
+  font-size: 0.66rem;
+  border-radius: 16px;
+}
+
+.filter-chip--sm.active {
+  background: rgba(255,255,255,0.06);
 }
 
 
@@ -193,6 +207,68 @@
   font-size: 1.2rem;
   color: rgba(255,255,255,0.3);
   line-height: 1;
+}
+
+.active-prog-meta-sep {
+  color: rgba(255,255,255,0.2);
+  margin: 0 4px;
+}
+
+.active-prog-next-label {
+  color: rgba(255,255,255,0.55);
+}
+
+/* Progress bar — full width below the inner row */
+.active-prog-progress-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  margin: 0 16px;
+}
+
+.active-prog-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Footer row — percentage + Continue CTA */
+.active-prog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 14px;
+}
+
+.active-prog-complete-text {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.02em;
+}
+
+.active-prog-continue-btn {
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(139,92,246,0.5);
+  background: rgba(139,92,246,0.12);
+  color: #c4b5fd;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.active-prog-continue-btn:active {
+  transform: scale(0.96);
+  background: rgba(139,92,246,0.22);
+}
+
+/* Program card equipment label */
+.prog-card-equip {
+  color: rgba(255,255,255,0.3);
+  font-size: 0.65rem;
 }
 
 
@@ -883,6 +959,66 @@
   letter-spacing: 0.04em;
 }
 
+/* Program tags row (difficulty + equipment + goals) */
+.detail-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+
+.detail-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.detail-tag--difficulty {
+  border-color: currentColor;
+  background: transparent;
+}
+
+.detail-tag--equipment {
+  color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+}
+
+.detail-tag--goal {
+  color: rgba(255,255,255,0.4);
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+}
+
+/* Stars */
+.detail-stars {
+  color: #f59e0b;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.detail-rating--empty {
+  opacity: 0.5;
+}
+
+.detail-rating-empty-text {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+}
+
+/* Social proof muted value */
+.social-proof-value--muted {
+  color: rgba(255,255,255,0.2) !important;
+}
+
 /* CTA */
 .detail-cta-wrap {
   display: flex;
@@ -1007,10 +1143,15 @@
 }
 
 /* Training Focus Bars */
+@keyframes bar-expand {
+  from { width: 0; opacity: 0.4; }
+  to   { width: var(--bar-target); opacity: 1; }
+}
+
 .focus-bars {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .focus-bar-row {
@@ -1020,17 +1161,18 @@
 }
 
 .focus-bar-label {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.5);
-  width: 90px;
+  color: rgba(255,255,255,0.45);
+  width: 88px;
   flex-shrink: 0;
+  letter-spacing: 0.01em;
 }
 
 .focus-bar-track {
   flex: 1;
-  height: 6px;
-  background: rgba(255,255,255,0.06);
+  height: 5px;
+  background: rgba(255,255,255,0.07);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -1038,16 +1180,19 @@
 .focus-bar-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.6s var(--ease-spring);
+  width: var(--bar-target);
+  animation: bar-expand 0.65s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 
-.focus-bar-pct {
-  font-size: 0.62rem;
+.focus-bar-qual {
+  font-size: 0.6rem;
   font-weight: 700;
-  color: rgba(255,255,255,0.3);
-  width: 28px;
+  color: rgba(255,255,255,0.28);
+  width: 52px;
   text-align: right;
   flex-shrink: 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 /* Social Proof */
@@ -1190,6 +1335,126 @@
   margin-bottom: 0;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+/* ── Sample Workout Card ─────────────────────────────────────────────────────── */
+
+.sample-workout-card {
+  background: rgba(255,255,255,0.03);
+  border: 1.5px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.sample-workout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sample-workout-dayname {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.sample-workout-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  border: 1px solid;
+  border-radius: 5px;
+  padding: 2px 7px;
+  letter-spacing: 0.02em;
+}
+
+.sample-workout-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.88);
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+
+/* Strength exercise list */
+.sample-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sample-exercise-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.sample-exercise-row:last-of-type { border-bottom: none; }
+
+.sample-ex-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.72);
+}
+
+.sample-ex-prescription {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.38);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.sample-ex-more {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.25);
+  padding-top: 8px;
+  letter-spacing: 0.01em;
+}
+
+/* Running phase list */
+.sample-run-phases {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sample-run-phase {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.sample-run-phase:last-child { border-bottom: none; }
+
+.sample-run-phase-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.72);
+}
+
+.sample-run-phase-detail {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  flex-shrink: 0;
+  margin-left: 12px;
+  text-align: right;
+}
+
+/* Fallback plain run description */
+.sample-run-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.5;
 }
 
 /* ── Workout Preview Modal (wpm) ────────────────────────────────────────────── */

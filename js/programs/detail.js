@@ -92,6 +92,15 @@ export function renderProgramDetail(programId, appState) {
       </div>
     </div>
 
+    <!-- Program Tags (Difficulty + Goals) -->
+    <div class="detail-tags-row">
+      <span class="detail-tag detail-tag--difficulty" style="color: ${diff.color}; border-color: ${diff.color}40">
+        ${'●'.repeat(diff.dots)}${'○'.repeat(4 - diff.dots)} ${diff.label}
+      </span>
+      ${program.equipmentTier ? `<span class="detail-tag detail-tag--equipment">${{ gym: '🏢 Full Gym', home: '🏠 Home Gym', garage_gym: '🔩 Garage Gym', bodyweight: '🤸 Bodyweight', minimal: '⚡ Minimal' }[program.equipmentTier] || program.equipmentTier}</span>` : ''}
+      ${(program.goals || []).slice(0, 3).map(g => `<span class="detail-tag detail-tag--goal">${g.replace(/-/g, ' ')}</span>`).join('')}
+    </div>
+
     <!-- CTA -->
     <div class="detail-cta-wrap">
       ${isActive
@@ -111,13 +120,16 @@ export function renderProgramDetail(programId, appState) {
           Mark as Complete
         </button>
       ` : ''}
-      ${program.rating ? `
-        <div class="detail-rating">
-          <span class="detail-rating-star">★</span>
-          <span class="detail-rating-value">${program.rating}</span>
-          <span class="detail-rating-count">(${(program.ratingCount || 0).toLocaleString()})</span>
-        </div>
-      ` : ''}
+      ${program.rating
+        ? `<div class="detail-rating">
+             ${renderStars(program.rating)}
+             <span class="detail-rating-value">${program.rating}</span>
+             <span class="detail-rating-count">${(program.ratingCount || 0).toLocaleString()} ratings</span>
+           </div>`
+        : `<div class="detail-rating detail-rating--empty">
+             <span class="detail-rating-empty-text">No ratings yet</span>
+           </div>`
+      }
     </div>
 
     <!-- Description -->
@@ -139,6 +151,9 @@ export function renderProgramDetail(programId, appState) {
         </div>
       </div>
     ` : ''}
+
+    <!-- Sample Workout -->
+    ${renderSampleWorkout(program, programData)}
 
     <!-- Expected Outcomes -->
     ${program.expectedOutcomes?.length ? `
@@ -163,19 +178,27 @@ export function renderProgramDetail(programId, appState) {
     ` : ''}
 
     <!-- Social Proof -->
-    ${program.enrolledCount ? `
+    ${program.enrolledCount || program.completionRate || program.rating ? `
       <div class="detail-social-proof">
+        ${program.enrolledCount ? `
+          <div class="social-proof-stat">
+            <div class="social-proof-value">${(program.enrolledCount || 0).toLocaleString()}</div>
+            <div class="social-proof-label">Athletes</div>
+          </div>
+        ` : ''}
+        ${program.completionRate ? `
+          <div class="social-proof-stat">
+            <div class="social-proof-value">${Math.round((program.completionRate || 0) * 100)}%</div>
+            <div class="social-proof-label">Completion Rate</div>
+          </div>
+        ` : ''}
         <div class="social-proof-stat">
-          <div class="social-proof-value">${(program.enrolledCount || 0).toLocaleString()}</div>
-          <div class="social-proof-label">Athletes</div>
-        </div>
-        <div class="social-proof-stat">
-          <div class="social-proof-value">${Math.round(program.completionRate || 0)}%</div>
-          <div class="social-proof-label">Completion Rate</div>
-        </div>
-        <div class="social-proof-stat">
-          <div class="social-proof-value">${program.rating || '—'}</div>
-          <div class="social-proof-label">Average Rating</div>
+          ${program.rating
+            ? `<div class="social-proof-value">${program.rating} <span style="color: #f59e0b">★</span></div>
+               <div class="social-proof-label">${(program.ratingCount || 0).toLocaleString()} Ratings</div>`
+            : `<div class="social-proof-value social-proof-value--muted">—</div>
+               <div class="social-proof-label">No Ratings Yet</div>`
+          }
         </div>
       </div>
     ` : ''}
@@ -225,28 +248,126 @@ export function renderProgramDetail(programId, appState) {
   `;
 }
 
+function renderStars(rating) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  const empty = 5 - full - (half ? 1 : 0);
+  return `<span class="detail-stars" aria-label="${rating} out of 5 stars">
+    ${'★'.repeat(full)}${half ? '⯨' : ''}${'☆'.repeat(empty)}
+  </span>`;
+}
+
 function renderFocusBars(metrics) {
+  const qualLabel = v => v >= 80 ? 'Very High' : v >= 60 ? 'High' : v >= 35 ? 'Moderate' : 'Low';
   const bars = [
     { label: 'Strength',     value: metrics.strengthEmphasis,     color: '#ef4444' },
     { label: 'Hypertrophy',  value: metrics.hypertrophyEmphasis,  color: '#3b82f6' },
     { label: 'Endurance',    value: metrics.enduranceEmphasis,    color: '#22d3ee' },
     { label: 'Conditioning', value: metrics.conditioningEmphasis, color: '#f59e0b' },
-    { label: 'Recovery Load',value: metrics.recoveryDemand,       color: '#8b5cf6' },
-  ];
+    { label: 'Recovery',     value: metrics.recoveryDemand,       color: '#8b5cf6' },
+  ].filter(b => b.value > 0);
+
+  if (!bars.length) return '';
 
   return `
     <div class="focus-bars">
-      ${bars.map(bar => `
+      ${bars.map((bar, i) => `
         <div class="focus-bar-row">
           <div class="focus-bar-label">${bar.label}</div>
           <div class="focus-bar-track">
             <div class="focus-bar-fill"
-                 style="width: ${bar.value}%; background: ${bar.color}">
+                 style="--bar-target: ${bar.value}%; background: ${bar.color}; animation-delay: ${i * 70}ms">
             </div>
           </div>
-          <div class="focus-bar-pct">${bar.value}</div>
+          <div class="focus-bar-qual">${qualLabel(bar.value)}</div>
         </div>
       `).join('')}
+    </div>
+  `;
+}
+
+function renderSampleWorkout(program, programData) {
+  const days = program.days || programData?.days;
+  if (!days) return '';
+
+  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const dayNames = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+
+  let chosenDay = null, chosenKey = null;
+  for (const key of dayOrder) {
+    const day = days[key];
+    if (!day) continue;
+    const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+    if (!isRest && day.workoutPreview) { chosenDay = day; chosenKey = key; break; }
+  }
+  // Fallback: any non-rest day without a structured preview
+  if (!chosenDay) {
+    for (const key of dayOrder) {
+      const day = days[key];
+      if (!day) continue;
+      const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+      if (!isRest) { chosenDay = day; chosenKey = key; break; }
+    }
+  }
+  if (!chosenDay) return '';
+
+  const preview = chosenDay.workoutPreview;
+  const isRun = preview?.type === 'RUNNING' || (!preview?.type && chosenDay.runs && chosenDay.runs !== 'Rest' && !chosenDay.lifts?.length);
+  let bodyHtml = '';
+
+  if (preview?.type === 'STRENGTH' && preview.exercises?.length) {
+    const shown = preview.exercises.slice(0, 5);
+    const extra = preview.exercises.length - shown.length;
+    bodyHtml = `
+      <div class="sample-exercise-list">
+        ${shown.map(ex => `
+          <div class="sample-exercise-row">
+            <span class="sample-ex-name">${ex.exercise}</span>
+            <span class="sample-ex-prescription">${ex.sets} × ${ex.reps}</span>
+          </div>
+        `).join('')}
+        ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
+      </div>`;
+  } else if (preview?.type === 'RUNNING' && preview.phases?.length) {
+    bodyHtml = `
+      <div class="sample-run-phases">
+        ${preview.phases.map(ph => `
+          <div class="sample-run-phase">
+            <span class="sample-run-phase-name">${ph.name}</span>
+            <span class="sample-run-phase-detail">${ph.duration} · ${ph.pace}</span>
+          </div>
+        `).join('')}
+      </div>`;
+  } else if (chosenDay.lifts?.length) {
+    const shown = chosenDay.lifts.slice(0, 5);
+    const extra = chosenDay.lifts.length - shown.length;
+    bodyHtml = `
+      <div class="sample-exercise-list">
+        ${shown.map(l => `<div class="sample-exercise-row"><span class="sample-ex-name">${l}</span></div>`).join('')}
+        ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
+      </div>`;
+  } else if (chosenDay.runs && chosenDay.runs !== 'Rest') {
+    bodyHtml = `<div class="sample-run-text">${chosenDay.runs}</div>`;
+  }
+
+  if (!bodyHtml) return '';
+
+  const accentColor = chosenDay.color?.startsWith('var(') ? null : chosenDay.color;
+  const badgeStyle = accentColor
+    ? `color: ${accentColor}; border-color: ${accentColor}40`
+    : `color: var(--text-secondary); border-color: rgba(255,255,255,0.12)`;
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">Sample Session</div>
+      <div class="sample-workout-card">
+        <div class="sample-workout-header">
+          <span class="sample-workout-dayname">${dayNames[chosenKey]}</span>
+          ${chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : ''}
+        </div>
+        <div class="sample-workout-title">${isRun ? '🏃' : '🏋️'} ${chosenDay.title || 'Training Session'}</div>
+        ${bodyHtml}
+      </div>
     </div>
   `;
 }
