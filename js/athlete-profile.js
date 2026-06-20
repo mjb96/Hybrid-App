@@ -4,7 +4,6 @@
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { big3Maxes } from './metrics/metrics-strength.js';
 import { getLiftDisplayName } from './engine.js';
-import { getProgramById } from './state.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -599,25 +598,40 @@ function openSessionDetailModal(el) {
   if (weekData) {
     // ── Lifts ─────────────────────────────────────────────────────────────────
     const dayLifts  = weekData.lifts?.[day] || {};
-    const liftNames = Object.keys(dayLifts).filter(l => {
+    const liftMeta  = weekData.liftMeta?.[day] || {};
+
+    // Build superset group map (mirrors cockpit render logic)
+    const groupMap = {};
+    for (const ln of Object.keys(dayLifts)) {
+      const gId = liftMeta[ln]?.groupId;
+      if (gId) {
+        if (!groupMap[gId]) groupMap[gId] = [];
+        if (!groupMap[gId].includes(ln)) groupMap[gId].push(ln);
+      }
+    }
+
+    // Produce ordered list matching cockpit render order exactly:
+    // iterate storage order, but when a superset is first encountered pull all
+    // its members together (same as the cockpit does with renderedLifts).
+    const seen = new Set();
+    const orderedLifts = [];
+    for (const liftName of Object.keys(dayLifts)) {
+      if (seen.has(liftName)) continue;
+      const gId     = liftMeta[liftName]?.groupId;
+      const members = gId && groupMap[gId]?.length > 1 ? groupMap[gId] : null;
+      if (members) {
+        members.forEach(m => { if (!seen.has(m)) { orderedLifts.push(m); seen.add(m); } });
+      } else {
+        orderedLifts.push(liftName);
+        seen.add(liftName);
+      }
+    }
+
+    // Keep only exercises that have at least one completed set
+    const liftNames = orderedLifts.filter(l => {
       const sets = dayLifts[l];
       return Array.isArray(sets) && sets.some(s => s && s.c);
     });
-
-    // Sort by program blueprint order so exercises appear in the same sequence
-    // as the workout cockpit. User-added exercises (not in blueprint) go last.
-    const activeProgram   = state.activeProgramId ? getProgramById(state.activeProgramId) : null;
-    const blueprintLifts  = activeProgram?.days?.[day]?.lifts || [];
-    if (blueprintLifts.length > 0) {
-      liftNames.sort((a, b) => {
-        const ai = blueprintLifts.indexOf(a);
-        const bi = blueprintLifts.indexOf(b);
-        if (ai === -1 && bi === -1) return 0;
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      });
-    }
 
     if (liftNames.length > 0) {
       html += `<div class="sds-section"><div class="sds-section-title">Exercises</div>`;
