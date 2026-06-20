@@ -56,6 +56,7 @@ import {
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
 } from './settings.js';
+import { initAthleteProfile, renderAthleteProfile } from './athlete-profile.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -187,10 +188,11 @@ export function handleMacroWeekSwitch() {
 
 export function hydrateCurrentView() {
   verifyWeekStorageSchema(appState.currentWeek);
-  
+
   if (activeTab === 'home') safeRenderExecution(renderHome, "Home Dashboard Render");
   else if (activeTab === 'workout') safeRenderExecution(renderWorkout, "Workout Cockpit Render");
   else if (activeTab === 'analytics') safeRenderExecution(renderAnalytics, "Performance Matrix Render");
+  else if (activeTab === 'profile') safeRenderExecution(renderAthleteProfile, "Athlete Profile Render");
   else if (activeTab === 'program') {
     const wkSelect = document.getElementById('globalWeekSelect');
     if (wkSelect) wkSelect.value = appState.currentWeek;
@@ -650,7 +652,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
 
   // New Program Library actions
-  else if (['open-program-detail', 'prog-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark'].includes(action)) {
+  else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
   else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete'].includes(action)) {
@@ -824,6 +826,10 @@ document.addEventListener('library:view-active', () => {
   showActivePlanView(true);
 });
 
+document.addEventListener('library:continue-training', () => {
+  switchGlobalAppTab('workout');
+});
+
 // ==========================================
 // BOOTSTRAP AND INITIALIZATION
 // ==========================================
@@ -841,6 +847,7 @@ initSettings(getState);
 initRunLogger(getState);
 initOnboarding(getState);
 initProgramLibrary(appState);
+initAthleteProfile(getState, getDays);
 
 // === DEVICE IMPORT WIRING ===
 

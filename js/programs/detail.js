@@ -92,6 +92,15 @@ export function renderProgramDetail(programId, appState) {
       </div>
     </div>
 
+    <!-- Program Tags (Difficulty + Goals) -->
+    <div class="detail-tags-row">
+      <span class="detail-tag detail-tag--difficulty" style="color: ${diff.color}; border-color: ${diff.color}40">
+        ${'●'.repeat(diff.dots)}${'○'.repeat(4 - diff.dots)} ${diff.label}
+      </span>
+      ${program.equipmentTier ? `<span class="detail-tag detail-tag--equipment">${{ gym: '🏢 Full Gym', home: '🏠 Home Gym', garage_gym: '🔩 Garage Gym', bodyweight: '🤸 Bodyweight', minimal: '⚡ Minimal' }[program.equipmentTier] || program.equipmentTier}</span>` : ''}
+      ${(program.goals || []).slice(0, 3).map(g => `<span class="detail-tag detail-tag--goal">${g.replace(/-/g, ' ')}</span>`).join('')}
+    </div>
+
     <!-- CTA -->
     <div class="detail-cta-wrap">
       ${isActive
@@ -111,13 +120,16 @@ export function renderProgramDetail(programId, appState) {
           Mark as Complete
         </button>
       ` : ''}
-      ${program.rating ? `
-        <div class="detail-rating">
-          <span class="detail-rating-star">★</span>
-          <span class="detail-rating-value">${program.rating}</span>
-          <span class="detail-rating-count">(${(program.ratingCount || 0).toLocaleString()})</span>
-        </div>
-      ` : ''}
+      ${program.rating
+        ? `<div class="detail-rating">
+             ${renderStars(program.rating)}
+             <span class="detail-rating-value">${program.rating}</span>
+             <span class="detail-rating-count">${(program.ratingCount || 0).toLocaleString()} ratings</span>
+           </div>`
+        : `<div class="detail-rating detail-rating--empty">
+             <span class="detail-rating-empty-text">No ratings yet</span>
+           </div>`
+      }
     </div>
 
     <!-- Description -->
@@ -163,19 +175,27 @@ export function renderProgramDetail(programId, appState) {
     ` : ''}
 
     <!-- Social Proof -->
-    ${program.enrolledCount ? `
+    ${program.enrolledCount || program.completionRate || program.rating ? `
       <div class="detail-social-proof">
+        ${program.enrolledCount ? `
+          <div class="social-proof-stat">
+            <div class="social-proof-value">${(program.enrolledCount || 0).toLocaleString()}</div>
+            <div class="social-proof-label">Athletes</div>
+          </div>
+        ` : ''}
+        ${program.completionRate ? `
+          <div class="social-proof-stat">
+            <div class="social-proof-value">${Math.round((program.completionRate || 0) * 100)}%</div>
+            <div class="social-proof-label">Completion Rate</div>
+          </div>
+        ` : ''}
         <div class="social-proof-stat">
-          <div class="social-proof-value">${(program.enrolledCount || 0).toLocaleString()}</div>
-          <div class="social-proof-label">Athletes</div>
-        </div>
-        <div class="social-proof-stat">
-          <div class="social-proof-value">${Math.round(program.completionRate || 0)}%</div>
-          <div class="social-proof-label">Completion Rate</div>
-        </div>
-        <div class="social-proof-stat">
-          <div class="social-proof-value">${program.rating || '—'}</div>
-          <div class="social-proof-label">Average Rating</div>
+          ${program.rating
+            ? `<div class="social-proof-value">${program.rating} <span style="color: #f59e0b">★</span></div>
+               <div class="social-proof-label">${(program.ratingCount || 0).toLocaleString()} Ratings</div>`
+            : `<div class="social-proof-value social-proof-value--muted">—</div>
+               <div class="social-proof-label">No Ratings Yet</div>`
+          }
         </div>
       </div>
     ` : ''}
@@ -223,6 +243,15 @@ export function renderProgramDetail(programId, appState) {
     <!-- Bottom spacer -->
     <div style="height: 48px;"></div>
   `;
+}
+
+function renderStars(rating) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  const empty = 5 - full - (half ? 1 : 0);
+  return `<span class="detail-stars" aria-label="${rating} out of 5 stars">
+    ${'★'.repeat(full)}${half ? '⯨' : ''}${'☆'.repeat(empty)}
+  </span>`;
 }
 
 function renderFocusBars(metrics) {

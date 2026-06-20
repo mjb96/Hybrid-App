@@ -6,10 +6,11 @@ import { getHomeCollections, filterByCategory } from './collections.js';
 import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
-import { isBookmarked, toggleBookmark, isProgramCompleted, recordRecentlyViewed } from '../state.js';
+import { isBookmarked, toggleBookmark, isProgramCompleted, recordRecentlyViewed, getProgramById } from '../state.js';
 
 let _appState = null;
 let _activeFilter = 'all';
+let _activeDifficulty = null; // null | 'beginner' | 'intermediate' | 'advanced' | 'elite'
 let _activeTab = 'discover'; // 'discover' | 'saved' | 'completed'
 let _searchQuery = '';
 let _searchDebounce = null;
@@ -32,6 +33,7 @@ export function renderLibrary() {
   renderLibraryTabs();
   if (_activeTab === 'discover') {
     renderFilterChips();
+    renderDifficultyChips();
     renderLibraryContent();
   } else if (_activeTab === 'saved') {
     renderSavedPrograms();
@@ -42,6 +44,30 @@ export function renderLibrary() {
 }
 
 // ── Active program banner ─────────────────────────────────────────────────────
+
+function getNextWorkoutInfo(programId) {
+  const catalog = getCatalogEntry(programId);
+  const programData = getProgramById(programId);
+  const days = catalog?.days || programData?.days;
+  if (!days) return null;
+
+  const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const todayIdx = new Date().getDay();
+
+  for (let i = 0; i < 7; i++) {
+    const dayKey = DAY_KEYS[(todayIdx + i) % 7];
+    const day = days[dayKey];
+    if (!day) continue;
+    const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+    if (!isRest) {
+      return {
+        label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : 'Next',
+        title: day.title || day.badge || dayKey,
+      };
+    }
+  }
+  return null;
+}
 
 function renderActiveProgramBanner() {
   const banner = document.getElementById('activeProgBanner');
@@ -56,33 +82,46 @@ function renderActiveProgramBanner() {
 
   const catalog = getCatalogEntry(activeId);
   const programName = catalog?.name || _appState.customPrograms?.find(p => p.id === activeId)?.name || 'My Program';
-  const currentWeek = _appState.currentWeek || '1';
+  const currentWeek = parseInt(_appState.currentWeek || '1', 10);
   const totalWeeks = catalog?.durationWeeks || 12;
+  const pct = Math.min(100, Math.round((currentWeek / totalWeeks) * 100));
+  const accent = catalog?.accentColor || '#8b5cf6';
+  const circumference = 113;
+  const dashArray = Math.round((pct / 100) * circumference);
+  const nextWorkout = getNextWorkoutInfo(activeId);
 
   banner.style.display = 'block';
   banner.innerHTML = `
     <div class="active-prog-card" data-action="open-program-detail" data-program-id="${activeId}">
-      <div class="active-prog-glow" style="background: ${catalog?.accentColor || '#8b5cf6'}20"></div>
+      <div class="active-prog-glow" style="background: ${accent}22"></div>
       <div class="active-prog-inner">
         <div class="active-prog-left">
           <span class="active-prog-badge">NOW TRAINING</span>
           <div class="active-prog-name">${programName}</div>
-          <div class="active-prog-meta">Week ${currentWeek} of ${totalWeeks}</div>
+          <div class="active-prog-meta">Week ${currentWeek} of ${totalWeeks}
+            ${nextWorkout ? `<span class="active-prog-meta-sep">·</span> <span class="active-prog-next-label">${nextWorkout.label}: ${nextWorkout.title}</span>` : ''}
+          </div>
         </div>
         <div class="active-prog-right">
           <div class="active-prog-progress-ring">
             <svg width="44" height="44" viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3"/>
+              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
               <circle cx="22" cy="22" r="18" fill="none"
-                stroke="${catalog?.accentColor || '#8b5cf6'}" stroke-width="3"
-                stroke-dasharray="${Math.round((currentWeek / totalWeeks) * 113)} 113"
+                stroke="${accent}" stroke-width="3"
+                stroke-dasharray="${dashArray} ${circumference}"
                 stroke-linecap="round"
                 transform="rotate(-90 22 22)"/>
             </svg>
-            <span class="active-prog-pct">${Math.round((currentWeek / totalWeeks) * 100)}%</span>
+            <span class="active-prog-pct">${pct}%</span>
           </div>
-          <span class="active-prog-arrow">›</span>
         </div>
+      </div>
+      <div class="active-prog-progress-bar">
+        <div class="active-prog-progress-fill" style="width: ${pct}%; background: ${accent}"></div>
+      </div>
+      <div class="active-prog-footer">
+        <span class="active-prog-complete-text">${pct}% Complete</span>
+        <button class="active-prog-continue-btn" data-action="continue-active-program" style="--accent: ${accent}">Continue →</button>
       </div>
     </div>
   `;
@@ -191,18 +230,27 @@ const FILTER_CHIPS = [
   { key: 'all',             label: 'All' },
   { key: 'hybrid',          label: '⚡ Hybrid' },
   { key: 'strength',        label: '🏋️ Strength' },
-  { key: 'hypertrophy',     label: '💪 Muscle' },
-  { key: 'bodybuilding',    label: '🏛️ Bodybuilding' },
-  { key: 'powerlifting',    label: '🔋 Powerlifting' },
-  { key: 'hyrox',           label: '🏟️ Hyrox' },
-  { key: 'running',         label: '🏃 Running' },
-  { key: 'endurance',       label: '🫀 Endurance' },
-  { key: 'triathlon',       label: '🏊 Triathlon' },
+  { key: 'hypertrophy',     label: '💪 Hypertrophy' },
   { key: 'body_composition',label: '🔥 Fat Loss' },
+  { key: 'running',         label: '🏃 Running' },
+  { key: 'hyrox',           label: '🏟️ Hyrox' },
+  { key: 'endurance',       label: '🫀 Endurance' },
+  { key: 'home_gym',        label: '🏠 Home Gym' },
+  { key: 'bodybuilding',    label: '🏛️ Bodybuilding' },
+  { key: 'powerlifting',    label: '🔱 Powerlifting' },
+  { key: 'triathlon',       label: '🏊 Triathlon' },
   { key: 'mobility',        label: '🧘 Mobility' },
   { key: 'functional',      label: '⚙️ Functional' },
   { key: 'general_fitness', label: '🎯 General' },
   { key: 'tactical',        label: '🎖️ Tactical' },
+];
+
+const DIFFICULTY_CHIPS = [
+  { key: null,           label: 'All Levels', color: null },
+  { key: 'beginner',     label: 'Beginner',   color: '#10b981' },
+  { key: 'intermediate', label: 'Intermediate', color: '#f59e0b' },
+  { key: 'advanced',     label: 'Advanced',   color: '#ef4444' },
+  { key: 'elite',        label: 'Elite',      color: '#dc2626' },
 ];
 
 function renderFilterChips() {
@@ -221,6 +269,29 @@ function renderFilterChips() {
       ${chip.label}
     </button>
   `).join('');
+}
+
+function renderDifficultyChips() {
+  const container = document.getElementById('progDifficultyChips');
+  if (!container) return;
+
+  if (_activeTab !== 'discover') {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = DIFFICULTY_CHIPS.map(chip => {
+    const isActive = _activeDifficulty === chip.key;
+    const colorStyle = chip.color && isActive ? `style="border-color: ${chip.color}; color: ${chip.color};"` : '';
+    return `
+      <button class="filter-chip filter-chip--sm ${isActive ? 'active' : ''}"
+              data-action="diff-filter"
+              data-difficulty="${chip.key || ''}"
+              ${colorStyle}>
+        ${chip.label}
+      </button>
+    `;
+  }).join('');
 }
 
 // ── Library content ───────────────────────────────────────────────────────────
@@ -351,18 +422,31 @@ function renderCollectionRow(collection, programs, withReasonBadge = false) {
 }
 
 function renderFilteredGrid(container) {
-  const programs = filterByCategory(_activeFilter);
-  const categoryInfo = CATEGORIES[_activeFilter] || { label: _activeFilter, icon: '📋' };
+  let programs = filterByCategory(_activeFilter);
+  if (_activeDifficulty) {
+    programs = programs.filter(p => p.difficulty === _activeDifficulty);
+  }
+
+  const categoryInfo = _activeFilter === 'home_gym'
+    ? { label: 'Home Gym', icon: '🏠' }
+    : (CATEGORIES[_activeFilter] || { label: _activeFilter, icon: '📋' });
+
+  const diffLabel = _activeDifficulty
+    ? DIFFICULTY_LABELS[_activeDifficulty]?.label
+    : null;
+
+  const titleParts = [categoryInfo.icon, categoryInfo.label];
+  if (diffLabel) titleParts.push(`· ${diffLabel}`);
 
   const cards = programs.map(p => renderProgramCard(p, 'large')).join('');
 
   container.innerHTML = `
     <div class="filtered-grid-header mb-4">
-      <div class="filtered-grid-title">${categoryInfo.icon} ${categoryInfo.label}</div>
-      <div class="filtered-grid-count">${programs.length} programs</div>
+      <div class="filtered-grid-title">${titleParts.join(' ')}</div>
+      <div class="filtered-grid-count">${programs.length} program${programs.length !== 1 ? 's' : ''}</div>
     </div>
     <div class="program-grid">
-      ${cards || '<div class="empty-state text-muted">No programs found.</div>'}
+      ${cards || '<div class="lib-empty-state"><div class="lib-empty-icon">🔍</div><div class="lib-empty-title">No programs found</div><div class="lib-empty-sub">Try adjusting your filters</div></div>'}
     </div>
   `;
 }
@@ -370,11 +454,17 @@ function renderFilteredGrid(container) {
 // ── Program cards ─────────────────────────────────────────────────────────────
 
 export function renderProgramCard(program, size = 'small', showBadge = false) {
-  const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.beginner;
+  const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const dots = '●'.repeat(diff.dots) + '○'.repeat(4 - diff.dots);
   const isActive = _appState?.activeProgramId === program.id;
   const saved = isBookmarked(program.id);
   const completed = isProgramCompleted(program.id);
+  const showRating = program.rating && (size === 'large' || showBadge);
+
+  // Equipment tier label for large cards
+  const equipTierLabel = size === 'large' && program.equipmentTier
+    ? { gym: 'Full Gym', home: 'Home Gym', garage_gym: 'Garage Gym', bodyweight: 'Bodyweight', minimal: 'Minimal' }[program.equipmentTier]
+    : null;
 
   return `
     <div class="prog-card prog-card--${size} ${isActive ? 'prog-card--active' : ''} ${completed ? 'prog-card--completed' : ''}"
@@ -395,7 +485,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
                 aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
           ${saved ? '🔖' : '🤍'}
         </button>
-        ${showBadge && program.rating ? `
+        ${showRating ? `
           <div class="prog-card-rating">
             <span class="rating-star">★</span> ${program.rating}
           </div>
@@ -407,8 +497,9 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
           <span class="prog-card-category" style="color: ${program.accentColor}">${CATEGORIES[program.category]?.label || program.category}</span>
           <span class="prog-card-sep">·</span>
           <span>${program.durationWeeks}w</span>
+          ${equipTierLabel ? `<span class="prog-card-sep">·</span><span class="prog-card-equip">${equipTierLabel}</span>` : ''}
         </div>
-        <div class="prog-card-diff" style="color: ${diff.color}">${dots}</div>
+        <div class="prog-card-diff" style="color: ${diff.color}" title="${diff.label}">${dots}</div>
       </div>
     </div>
   `;
@@ -561,6 +652,15 @@ export function handleLibraryAction(action, el, event) {
       setActiveFilter(filter);
       break;
     }
+    case 'diff-filter': {
+      const diff = el.getAttribute('data-difficulty') || null;
+      setActiveDifficulty(diff || null);
+      break;
+    }
+    case 'continue-active-program': {
+      document.dispatchEvent(new CustomEvent('library:continue-training'));
+      break;
+    }
     case 'hero-dot': {
       const slide = parseInt(el.getAttribute('data-slide'), 10);
       if (!isNaN(slide)) jumpHeroSlide(slide);
@@ -582,6 +682,7 @@ export function handleLibraryAction(action, el, event) {
       if (tab && tab !== _activeTab) {
         _activeTab = tab;
         _searchQuery = '';
+        _activeDifficulty = null;
         const inp = document.getElementById('progSearchInput');
         if (inp) inp.value = '';
         renderLibrary();
@@ -593,11 +694,9 @@ export function handleLibraryAction(action, el, event) {
       const id = el.getAttribute('data-program-id');
       if (!id) break;
       const nowSaved = toggleBookmark(id);
-      // Update just the bookmark button without re-rendering the whole card
       el.className = `prog-card-bookmark ${nowSaved ? 'saved' : ''}`;
       el.setAttribute('aria-label', nowSaved ? 'Remove bookmark' : 'Save program');
       el.textContent = nowSaved ? '🔖' : '🤍';
-      // Refresh tab counts
       renderLibraryTabs();
       break;
     }
@@ -606,10 +705,18 @@ export function handleLibraryAction(action, el, event) {
 
 function setActiveFilter(filter) {
   _activeFilter = filter;
+  _activeDifficulty = null;
   _searchQuery = '';
   const inp = document.getElementById('progSearchInput');
   if (inp) inp.value = '';
   renderFilterChips();
+  renderDifficultyChips();
+  renderLibraryContent();
+}
+
+function setActiveDifficulty(difficulty) {
+  _activeDifficulty = difficulty || null;
+  renderDifficultyChips();
   renderLibraryContent();
 }
 

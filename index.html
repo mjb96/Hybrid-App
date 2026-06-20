@@ -780,8 +780,11 @@
           </div>
         </div>
 
-        <!-- Filter Chips -->
-        <div id="progFilterChips" class="filter-chips-row mb-4"></div>
+        <!-- Category Filter Chips -->
+        <div id="progFilterChips" class="filter-chips-row mb-2"></div>
+
+        <!-- Difficulty Filter Chips -->
+        <div id="progDifficultyChips" class="filter-chips-row filter-chips-row--sm mb-4"></div>
 
         <!-- Library Content (collections / browse mode) -->
         <div id="progLibraryContent"></div>
@@ -844,6 +847,11 @@
       <div id="builderViewContainer" style="display:none;"></div>
 
 
+    </section>
+
+    <!-- ═══════ ATHLETE PROFILE ═══════ -->
+    <section id="view-profile" class="view-container" aria-label="Athlete Profile">
+      <div id="profileContent"></div>
     </section>
 
   </main>
@@ -1217,7 +1225,8 @@
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
     <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" aria-hidden="true">🏋️</span><span>Workout</span></button>
-    <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" aria-hidden="true">📋</span><span>Program</span></button>
+    <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" aria-hidden="true">📋</span><span>Programs</span></button>
+    <button class="nav-item" data-target="profile" data-action="switch-tab"><span class="icon" aria-hidden="true">👤</span><span>Profile</span></button>
   </nav>
 
   <div class="modal-overlay" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">

@@ -326,12 +326,19 @@ export function getHomeCollections(recommendedIds = []) {
   return collections;
 }
 
-// Filter programs by category chip
+// Filter programs by category chip (also checks goals[] for cross-category discovery)
 export function filterByCategory(category) {
   if (!category || category === 'all') return [...PROGRAM_CATALOG];
+  if (category === 'home_gym') {
+    return PROGRAM_CATALOG.filter(p =>
+      p.equipmentTier === 'home' || p.equipmentTier === 'bodyweight' ||
+      p.tags?.includes('home-training') || p.tags?.includes('no-equipment')
+    );
+  }
   return PROGRAM_CATALOG.filter(p =>
     p.category === category ||
     p.subcategory === category ||
-    p.tags?.includes(category)
+    p.tags?.includes(category) ||
+    p.goals?.includes(category)
   );
 }
