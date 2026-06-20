@@ -17,7 +17,6 @@ import {
   mergeWeekSchema,
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
-  triggerTextSummaryExport,
   triggerCSVExport,
   setImportSuccessCallback,
   showToast,
