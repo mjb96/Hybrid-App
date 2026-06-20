@@ -3,6 +3,7 @@
 // =============================================================================
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { big3Maxes } from './metrics/metrics-strength.js';
+import { getLiftDisplayName } from './engine.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -442,7 +443,7 @@ function _recentSessions(state, days, limit = 5) {
       const liftDone = Object.keys(wkData.lifts?.[d] || {}).filter(l => {
         const sets = wkData.lifts[d][l];
         return Array.isArray(sets) && sets.some(_isSet);
-      });
+      }).map(id => getLiftDisplayName(state, id));
       const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
       if (liftDone.length === 0 && runDist === 0) continue;
 
