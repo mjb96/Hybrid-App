@@ -1718,6 +1718,121 @@
   margin-top: 12px;
 }
 
+/* HYROX Preview */
+.wpm-type-label--hyrox {
+  background: rgba(124,58,237,0.10);
+  color: #a78bfa;
+  border: 1px solid rgba(124,58,237,0.20);
+}
+
+.wpm-hyrox-meta {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 14px;
+  padding: 0 2px;
+}
+
+.wpm-hyrox-meta strong {
+  color: rgba(255,255,255,0.80);
+  font-weight: 700;
+}
+
+.wpm-hyrox-legs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wpm-hyrox-run-leg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: rgba(239,68,68,0.06);
+  border-radius: 6px;
+  border: 1px solid rgba(239,68,68,0.10);
+  margin: 1px 0;
+}
+
+.wpm-hyrox-run-icon { font-size: 0.85rem; }
+
+.wpm-hyrox-run-text {
+  font-size: 0.76rem;
+  color: #f87171;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.wpm-hyrox-station-leg {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(124,58,237,0.06);
+  border-radius: 7px;
+  border: 1px solid rgba(124,58,237,0.12);
+  margin: 1px 0;
+}
+
+.wpm-hyrox-station-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(124,58,237,0.28);
+  color: #c4b5fd;
+  font-size: 0.64rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.wpm-hyrox-station-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wpm-hyrox-station-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.90);
+}
+
+.wpm-hyrox-station-weight {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.42);
+}
+
+.wpm-hyrox-station-note {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.38);
+  font-style: italic;
+}
+
+.wpm-hyrox-notes {
+  margin-top: 14px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.42);
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  line-height: 1.55;
+}
+
+html[data-theme="light"] .wpm-hyrox-meta { color: rgba(0,0,0,0.50); }
+html[data-theme="light"] .wpm-hyrox-meta strong { color: rgba(0,0,0,0.80); }
+html[data-theme="light"] .wpm-hyrox-run-text { color: #dc2626; }
+html[data-theme="light"] .wpm-hyrox-run-leg { background: rgba(220,38,38,0.05); border-color: rgba(220,38,38,0.10); }
+html[data-theme="light"] .wpm-hyrox-station-leg { background: rgba(109,40,217,0.05); border-color: rgba(109,40,217,0.10); }
+html[data-theme="light"] .wpm-hyrox-station-name { color: rgba(0,0,0,0.85); }
+html[data-theme="light"] .wpm-hyrox-station-weight { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .wpm-hyrox-station-note { color: rgba(0,0,0,0.38); }
+html[data-theme="light"] .wpm-hyrox-notes { color: rgba(0,0,0,0.48); background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
+
 /* Light mode fallback */
 html[data-theme="light"] .wpm-fallback-run {
   color: rgba(0,0,0,0.70);

@@ -455,6 +455,8 @@ export function openDayPreviewModal(dayKey, programId) {
     bodyEl.innerHTML = renderStrengthPreview(day.workoutPreview.exercises);
   } else if (day.workoutPreview?.type === 'RUNNING') {
     bodyEl.innerHTML = renderRunningPreview(day.workoutPreview.phases);
+  } else if (day.workoutPreview?.type === 'HYROX') {
+    bodyEl.innerHTML = renderHyroxPreview(day.workoutPreview);
   } else {
     bodyEl.innerHTML = renderFallbackPreview(day);
   }
@@ -545,6 +547,38 @@ function renderStrengthPreview(exercises) {
         </div>
       `).join('')}
     </div>
+  `;
+}
+
+function renderHyroxPreview(preview) {
+  const { stations, format, totalTime, notes } = preview;
+  const formatLabels = {
+    race: '🏟️ HYROX Singles',
+    half: '🏟️ HYROX Half',
+    doubles: '👥 HYROX Doubles',
+    pro: '🏅 HYROX PRO',
+    wod: '💪 HYROX WOD',
+    circuit: '⚡ Station Circuit',
+  };
+  const formatLabel = formatLabels[format] || '🏟️ HYROX';
+
+  return `
+    <div class="wpm-type-label wpm-type-label--hyrox">${formatLabel}</div>
+    ${totalTime ? `<div class="wpm-hyrox-meta">⏱️ Est. time: <strong>${totalTime}</strong></div>` : ''}
+    <div class="wpm-hyrox-legs">
+      ${stations.map((s, i) => `
+        ${s.run ? `<div class="wpm-hyrox-run-leg"><span class="wpm-hyrox-run-icon">🏃</span><span class="wpm-hyrox-run-text">Run ${s.run}</span></div>` : ''}
+        <div class="wpm-hyrox-station-leg">
+          <span class="wpm-hyrox-station-num">${i + 1}</span>
+          <div class="wpm-hyrox-station-body">
+            <span class="wpm-hyrox-station-name">${s.station}</span>
+            ${s.weight ? `<span class="wpm-hyrox-station-weight">${s.weight}</span>` : ''}
+            ${s.notes ? `<span class="wpm-hyrox-station-note">${s.notes}</span>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    ${notes ? `<div class="wpm-hyrox-notes">💡 ${notes}</div>` : ''}
   `;
 }
 
