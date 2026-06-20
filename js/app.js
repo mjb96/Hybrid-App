@@ -717,8 +717,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'rl-rpe')          handleRunLoggerRpeClick(target);
 
   // Export & Data
-  else if (action === 'export-text') triggerTextSummaryExport();
-  else if (action === 'export-csv') triggerCSVExport();
+else if (action === 'export-csv') triggerCSVExport();
   
   // Auth
   else if (action === 'login-supabase') loginToSupabase();
