@@ -17,7 +17,6 @@ import {
   mergeWeekSchema,
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
-  triggerTextSummaryExport,
   triggerCSVExport,
   setImportSuccessCallback,
   showToast,
@@ -717,8 +716,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'rl-rpe')          handleRunLoggerRpeClick(target);
 
   // Export & Data
-  else if (action === 'export-text') triggerTextSummaryExport();
-  else if (action === 'export-csv') triggerCSVExport();
+else if (action === 'export-csv') triggerCSVExport();
   
   // Auth
   else if (action === 'login-supabase') loginToSupabase();
@@ -737,7 +735,7 @@ document.addEventListener('click', (e) => {
   }
   
   // Athlete Profile
-  else if (action === 'set-pr-goal' || action === 'confirm-pr-goal' || action === 'close-pr-goal-modal')
+  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail'].includes(action))
     handleProfileAction(action, target);
 
   // Analytics
