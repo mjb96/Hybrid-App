@@ -5,6 +5,7 @@ import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from 
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, returnToLibrary } from './library.js';
 import { PROGRAMS } from '../constants.js';
+import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted } from '../state.js';
 
 let _currentProgramId = null;
 let _appState = null;
@@ -27,6 +28,8 @@ export function renderProgramDetail(programId, appState) {
   };
 
   const isActive = appState?.activeProgramId === programId;
+  const saved = isBookmarked(programId);
+  const completed = isProgramCompleted(programId);
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const category = CATEGORIES[program.category] || { label: program.category || 'Program', icon: '📋', color: '#8b5cf6' };
 
@@ -38,7 +41,16 @@ export function renderProgramDetail(programId, appState) {
       <button class="detail-back-btn" data-action="close-program-detail">
         <span class="detail-back-icon">‹</span> Library
       </button>
-      ${isActive ? '<span class="detail-active-badge">ACTIVE</span>' : ''}
+      <div class="detail-back-actions">
+        ${isActive ? '<span class="detail-active-badge">ACTIVE</span>' : ''}
+        ${completed ? '<span class="detail-completed-badge">COMPLETED</span>' : ''}
+        <button class="detail-bookmark-btn ${saved ? 'saved' : ''}"
+                data-action="detail-toggle-bookmark"
+                data-program-id="${programId}"
+                aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
+          ${saved ? '🔖' : '🤍'}
+        </button>
+      </div>
     </div>
 
     <!-- Hero -->
@@ -86,10 +98,19 @@ export function renderProgramDetail(programId, appState) {
         ? `<button class="detail-cta-btn detail-cta-btn--active" data-action="view-active-program">
               View Active Program
            </button>`
+        : completed
+        ? `<button class="detail-cta-btn detail-cta-btn--completed" data-action="make-active-from-detail" data-program-id="${programId}">
+              Train Again
+           </button>`
         : `<button class="detail-cta-btn" data-action="make-active-from-detail" data-program-id="${programId}">
               Start This Program
            </button>`
       }
+      ${isActive && !completed ? `
+        <button class="detail-complete-btn" data-action="mark-program-complete" data-program-id="${programId}">
+          Mark as Complete
+        </button>
+      ` : ''}
       ${program.rating ? `
         <div class="detail-rating">
           <span class="detail-rating-star">★</span>
@@ -149,7 +170,7 @@ export function renderProgramDetail(programId, appState) {
           <div class="social-proof-label">Athletes</div>
         </div>
         <div class="social-proof-stat">
-          <div class="social-proof-value">${Math.round((program.completionRate || 0) * 100)}%</div>
+          <div class="social-proof-value">${Math.round(program.completionRate || 0)}%</div>
           <div class="social-proof-label">Completion Rate</div>
         </div>
         <div class="social-proof-stat">
@@ -471,5 +492,22 @@ export function handleDetailAction(action, el) {
     case 'close-day-preview':
       closeDayPreviewModal();
       break;
+    case 'detail-toggle-bookmark': {
+      const id = el.getAttribute('data-program-id');
+      if (!id) break;
+      const nowSaved = toggleBookmark(id);
+      el.className = `detail-bookmark-btn ${nowSaved ? 'saved' : ''}`;
+      el.setAttribute('aria-label', nowSaved ? 'Remove bookmark' : 'Save program');
+      el.textContent = nowSaved ? '🔖' : '🤍';
+      break;
+    }
+    case 'mark-program-complete': {
+      const id = el.getAttribute('data-program-id');
+      if (!id) break;
+      const weeks = _appState?.currentWeek ? parseInt(_appState.currentWeek, 10) : undefined;
+      markProgramCompleted(id, weeks);
+      renderProgramDetail(id, _appState);
+      break;
+    }
   }
 }
