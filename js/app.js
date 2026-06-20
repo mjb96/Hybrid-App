@@ -737,7 +737,8 @@ document.addEventListener('click', (e) => {
   }
   
   // Athlete Profile
-  else if (action === 'set-pr-goal') handleProfileAction(action, target);
+  else if (action === 'set-pr-goal' || action === 'confirm-pr-goal' || action === 'close-pr-goal-modal')
+    handleProfileAction(action, target);
 
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
@@ -789,6 +790,19 @@ document.addEventListener('blur', (e) => {
 
 document.addEventListener('input', (e) => {
   if (e.target.id === 'elSearchInput') handleExerciseSearch(e.target.value);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'prGoalInput') {
+    e.preventDefault();
+    handleProfileAction('confirm-pr-goal', e.target);
+  }
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('prGoalModal');
+    if (modal?.classList.contains('active')) {
+      modal.classList.remove('active');
+    }
+  }
 });
 
 // ==========================================

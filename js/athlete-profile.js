@@ -262,6 +262,10 @@ function _renderHeatmap(rows, days) {
 
 // ── Data computation helpers ──────────────────────────────────────────────────
 
+function _esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function _isSet(s) {
   return (s.c === true || s.c === 'on' || s.c === 1) && !s.isWarmup;
 }
@@ -272,7 +276,7 @@ function _countTotalWorkouts(state, days) {
     days.forEach(d => {
       const hasLifts = Object.keys(wkData?.lifts?.[d] || {}).some(l => {
         const sets = wkData.lifts[d][l];
-        return Array.isArray(sets) && sets.some(s => s.c === true || s.c === 'on' || s.c === 1);
+        return Array.isArray(sets) && sets.some(_isSet);
       });
       const hasRun = parseFloat(wkData?.runs?.[d]?.dist) > 0;
       if (hasLifts || hasRun) count++;
@@ -365,7 +369,7 @@ function _liftTrend(state, days, liftName) {
   const curWk = parseInt(state.currentWeek || '1', 10);
   if (curWk < 2) return null;
 
-  const recentFrom = Math.max(1, curWk - 3);
+  const recentFrom = Math.max(2, curWk - 3);
   let recentBest = 0, olderBest = 0;
 
   for (const [wKey, wkData] of Object.entries(state.weeks || {})) {
@@ -401,7 +405,7 @@ function _heatmapData(state, days, numWeeks) {
       if (!wkData) return '';
       const hasLifts = Object.keys(wkData.lifts?.[d] || {}).some(l => {
         const sets = wkData.lifts[d][l];
-        return Array.isArray(sets) && sets.some(s => s.c === true || s.c === 'on' || s.c === 1);
+        return Array.isArray(sets) && sets.some(_isSet);
       });
       const hasRun = parseFloat(wkData.runs?.[d]?.dist) > 0;
       return hasLifts && hasRun ? 'both' : hasLifts ? 'lift' : hasRun ? 'run' : '';
@@ -415,7 +419,19 @@ function _heatmapData(state, days, numWeeks) {
 function _recentSessions(state, days, limit = 5) {
   const sessions = [];
   const curWk    = parseInt(state.currentWeek || '1', 10);
-  const wkStarted = state.weekStartedAt ? new Date(state.weekStartedAt) : null;
+
+  // Normalise weekStartedAt to the start of the current logical week so that
+  // date arithmetic aligns with the days[] array regardless of which weekday
+  // the user happened to click "Next Week".
+  const DAY_JS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+  let weekAnchor = null;
+  if (state.weekStartedAt) {
+    weekAnchor = new Date(state.weekStartedAt);
+    const jsDay    = weekAnchor.getDay();
+    const firstJs  = DAY_JS[days[0]] ?? 1;
+    const diff     = (jsDay - firstJs + 7) % 7;
+    weekAnchor.setDate(weekAnchor.getDate() - diff);
+  }
 
   outer: for (let w = curWk; w >= 1; w--) {
     const wkData = (state.weeks || {})[String(w)];
@@ -425,7 +441,7 @@ function _recentSessions(state, days, limit = 5) {
       const d = days[di];
       const liftDone = Object.keys(wkData.lifts?.[d] || {}).filter(l => {
         const sets = wkData.lifts[d][l];
-        return Array.isArray(sets) && sets.some(s => s.c === true || s.c === 'on' || s.c === 1);
+        return Array.isArray(sets) && sets.some(_isSet);
       });
       const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
       if (liftDone.length === 0 && runDist === 0) continue;
@@ -433,8 +449,8 @@ function _recentSessions(state, days, limit = 5) {
       const type = liftDone.length > 0 && runDist > 0 ? 'both' : liftDone.length > 0 ? 'lift' : 'run';
 
       let dateLabel;
-      if (wkStarted) {
-        const date = new Date(wkStarted);
+      if (weekAnchor) {
+        const date = new Date(weekAnchor);
         date.setDate(date.getDate() - (curWk - w) * 7 + di);
         dateLabel = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
       } else {
@@ -464,6 +480,7 @@ function _statCard(value, label, icon, accentColor, extra = '') {
 }
 
 function _prRow(liftName, e1rm, unit, trend, goal) {
+  const safeName  = _esc(liftName);
   const trendHtml = trend
     ? `<span class="profile-pr-trend profile-pr-trend--${trend.dir}">${trend.dir === 'up' ? '↑' : '↓'} ${trend.diff}${unit}</span>`
     : '';
@@ -474,15 +491,13 @@ function _prRow(liftName, e1rm, unit, trend, goal) {
     <div class="profile-pr-goal-meta">${pct}% of ${goal}${unit} goal</div>
   ` : '';
 
-  const safeAttr = liftName.replace(/"/g, '&quot;');
-
   return `
     <div class="profile-pr-row${goal ? ' profile-pr-row--has-goal' : ''}">
       <div class="profile-pr-row-main">
-        <span class="profile-pr-lift">${liftName}</span>
+        <span class="profile-pr-lift">${safeName}</span>
         <div class="profile-pr-row-right">
           <span class="profile-pr-value">${Math.round(e1rm)}&nbsp;${unit}&nbsp;<span class="profile-pr-tag">e1RM</span>${trendHtml}</span>
-          <button class="profile-pr-set-goal-btn" data-action="set-pr-goal" data-lift="${safeAttr}" data-unit="${unit}" aria-label="Set goal for ${safeAttr}">${goal ? '✏' : '＋'}</button>
+          <button class="profile-pr-set-goal-btn" data-action="set-pr-goal" data-lift="${safeName}" data-unit="${unit}" aria-label="Set goal for ${safeName}">${goal ? '✏' : '＋'}</button>
         </div>
       </div>
       ${goalHtml}
@@ -512,7 +527,7 @@ function _recentRow(session) {
 
   let desc = '';
   if (session.liftDone.length > 0) {
-    const shown = session.liftDone.slice(0, 2).join(', ');
+    const shown = session.liftDone.slice(0, 2).map(_esc).join(', ');
     const more  = session.liftDone.length > 2 ? ` +${session.liftDone.length - 2}` : '';
     desc = shown + more;
   }
@@ -525,7 +540,7 @@ function _recentRow(session) {
     <div class="profile-recent-row">
       <div class="profile-recent-icon profile-recent-icon--${session.type}">${icon}</div>
       <div class="profile-recent-info">
-        <div class="profile-recent-date">${session.dateLabel}</div>
+        <div class="profile-recent-date">${_esc(session.dateLabel)}</div>
         ${desc ? `<div class="profile-recent-desc">${desc}</div>` : ''}
       </div>
     </div>
@@ -555,32 +570,58 @@ function _completionRow(completion) {
 // ── Action handler ────────────────────────────────────────────────────────────
 
 export function handleProfileAction(action, el) {
-  if (action !== 'set-pr-goal') return;
+  if (action === 'set-pr-goal') {
+    if (!_getState) return;
+    const liftName = el.getAttribute('data-lift');
+    const unit     = el.getAttribute('data-unit') || 'kg';
+    if (!liftName) return;
 
-  const liftName = el.getAttribute('data-lift');
-  const unit     = el.getAttribute('data-unit') || 'kg';
-  if (!liftName) return;
+    const current = (_getState().prGoals || {})[liftName];
+    const titleEl    = document.getElementById('prGoalTitle');
+    const subtitleEl = document.getElementById('prGoalSubtitle');
+    const inputEl    = document.getElementById('prGoalInput');
+    const modal      = document.getElementById('prGoalModal');
+    if (!modal || !inputEl) return;
 
-  const state   = _getState();
-  const current = (state.prGoals || {})[liftName];
-  const prompt  = current
-    ? `Update target e1RM for ${liftName} (current: ${current}${unit})\nEnter new target in ${unit}, or 0 to clear:`
-    : `Set a target e1RM for ${liftName} (${unit}):`;
-
-  const raw = window.prompt(prompt, current != null ? String(current) : '');
-  if (raw === null) return;
-
-  const val = parseFloat(raw);
-  if (!state.prGoals) state.prGoals = {};
-
-  if (!isNaN(val) && val > 0) {
-    state.prGoals[liftName] = val;
-  } else if (!isNaN(val) && val === 0) {
-    delete state.prGoals[liftName];
-  } else {
+    if (titleEl)    titleEl.textContent    = current != null ? `Update PR Goal` : `Set PR Goal`;
+    if (subtitleEl) subtitleEl.textContent = `Target e1RM for ${liftName} (${unit})`;
+    inputEl.value            = current != null ? String(current) : '';
+    inputEl.dataset.lift     = liftName;
+    inputEl.dataset.unit     = unit;
+    modal.classList.add('active');
+    requestAnimationFrame(() => inputEl.focus());
     return;
   }
 
-  if (_saveState) _saveState(true);
-  renderAthleteProfile();
+  if (action === 'confirm-pr-goal') {
+    if (!_getState) return;
+    const inputEl = document.getElementById('prGoalInput');
+    if (!inputEl) return;
+
+    const liftName = inputEl.dataset.lift;
+    const unit     = inputEl.dataset.unit || 'kg';
+    if (!liftName) return;
+
+    const val   = parseFloat(inputEl.value);
+    const state = _getState();
+    if (!state.prGoals) state.prGoals = {};
+
+    if (!isNaN(val) && val > 0) {
+      state.prGoals[liftName] = val;
+    } else if (!isNaN(val) && val === 0) {
+      delete state.prGoals[liftName];
+    } else {
+      document.getElementById('prGoalModal')?.classList.remove('active');
+      return;
+    }
+
+    document.getElementById('prGoalModal')?.classList.remove('active');
+    if (_saveState) _saveState(true);
+    renderAthleteProfile();
+    return;
+  }
+
+  if (action === 'close-pr-goal-modal') {
+    document.getElementById('prGoalModal')?.classList.remove('active');
+  }
 }

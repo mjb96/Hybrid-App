@@ -1355,6 +1355,20 @@
     </div>
   </div>
 
+  <!-- PR Goal Modal -->
+  <div id="prGoalModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="prGoalTitle">
+    <div class="modal-content">
+      <h2 id="prGoalTitle" class="text-xl font-heavy text-main mb-1">Set PR Goal</h2>
+      <p id="prGoalSubtitle" class="text-sub mb-4" style="color: var(--text-muted); font-size: 0.85rem;"></p>
+      <input type="number" id="prGoalInput" min="0" step="0.5" placeholder="e.g. 100" style="width: 100%; margin-bottom: 4px;">
+      <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 16px;">Enter 0 to clear an existing goal.</p>
+      <div class="flex gap-2">
+        <button class="btn-action-block btn-ghost mt-0" data-action="close-pr-goal-modal">Cancel</button>
+        <button class="btn-action-block btn-blue mt-0" data-action="confirm-pr-goal">Save Goal</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     if ('serviceWorker' in navigator) {
       let reloading = false;
