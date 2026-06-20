@@ -152,6 +152,9 @@ export function renderProgramDetail(programId, appState) {
       </div>
     ` : ''}
 
+    <!-- Sample Workout -->
+    ${renderSampleWorkout(program, programData)}
+
     <!-- Expected Outcomes -->
     ${program.expectedOutcomes?.length ? `
       <div class="detail-section">
@@ -255,27 +258,116 @@ function renderStars(rating) {
 }
 
 function renderFocusBars(metrics) {
+  const qualLabel = v => v >= 80 ? 'Very High' : v >= 60 ? 'High' : v >= 35 ? 'Moderate' : 'Low';
   const bars = [
     { label: 'Strength',     value: metrics.strengthEmphasis,     color: '#ef4444' },
     { label: 'Hypertrophy',  value: metrics.hypertrophyEmphasis,  color: '#3b82f6' },
     { label: 'Endurance',    value: metrics.enduranceEmphasis,    color: '#22d3ee' },
     { label: 'Conditioning', value: metrics.conditioningEmphasis, color: '#f59e0b' },
-    { label: 'Recovery Load',value: metrics.recoveryDemand,       color: '#8b5cf6' },
-  ];
+    { label: 'Recovery',     value: metrics.recoveryDemand,       color: '#8b5cf6' },
+  ].filter(b => b.value > 0);
+
+  if (!bars.length) return '';
 
   return `
     <div class="focus-bars">
-      ${bars.map(bar => `
+      ${bars.map((bar, i) => `
         <div class="focus-bar-row">
           <div class="focus-bar-label">${bar.label}</div>
           <div class="focus-bar-track">
             <div class="focus-bar-fill"
-                 style="width: ${bar.value}%; background: ${bar.color}">
+                 style="--bar-target: ${bar.value}%; background: ${bar.color}; animation-delay: ${i * 70}ms">
             </div>
           </div>
-          <div class="focus-bar-pct">${bar.value}</div>
+          <div class="focus-bar-qual">${qualLabel(bar.value)}</div>
         </div>
       `).join('')}
+    </div>
+  `;
+}
+
+function renderSampleWorkout(program, programData) {
+  const days = program.days || programData?.days;
+  if (!days) return '';
+
+  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const dayNames = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+
+  let chosenDay = null, chosenKey = null;
+  for (const key of dayOrder) {
+    const day = days[key];
+    if (!day) continue;
+    const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+    if (!isRest && day.workoutPreview) { chosenDay = day; chosenKey = key; break; }
+  }
+  // Fallback: any non-rest day without a structured preview
+  if (!chosenDay) {
+    for (const key of dayOrder) {
+      const day = days[key];
+      if (!day) continue;
+      const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
+      if (!isRest) { chosenDay = day; chosenKey = key; break; }
+    }
+  }
+  if (!chosenDay) return '';
+
+  const preview = chosenDay.workoutPreview;
+  const isRun = preview?.type === 'RUNNING' || (!preview?.type && chosenDay.runs && chosenDay.runs !== 'Rest' && !chosenDay.lifts?.length);
+  let bodyHtml = '';
+
+  if (preview?.type === 'STRENGTH' && preview.exercises?.length) {
+    const shown = preview.exercises.slice(0, 5);
+    const extra = preview.exercises.length - shown.length;
+    bodyHtml = `
+      <div class="sample-exercise-list">
+        ${shown.map(ex => `
+          <div class="sample-exercise-row">
+            <span class="sample-ex-name">${ex.exercise}</span>
+            <span class="sample-ex-prescription">${ex.sets} × ${ex.reps}</span>
+          </div>
+        `).join('')}
+        ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
+      </div>`;
+  } else if (preview?.type === 'RUNNING' && preview.phases?.length) {
+    bodyHtml = `
+      <div class="sample-run-phases">
+        ${preview.phases.map(ph => `
+          <div class="sample-run-phase">
+            <span class="sample-run-phase-name">${ph.name}</span>
+            <span class="sample-run-phase-detail">${ph.duration} · ${ph.pace}</span>
+          </div>
+        `).join('')}
+      </div>`;
+  } else if (chosenDay.lifts?.length) {
+    const shown = chosenDay.lifts.slice(0, 5);
+    const extra = chosenDay.lifts.length - shown.length;
+    bodyHtml = `
+      <div class="sample-exercise-list">
+        ${shown.map(l => `<div class="sample-exercise-row"><span class="sample-ex-name">${l}</span></div>`).join('')}
+        ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
+      </div>`;
+  } else if (chosenDay.runs && chosenDay.runs !== 'Rest') {
+    bodyHtml = `<div class="sample-run-text">${chosenDay.runs}</div>`;
+  }
+
+  if (!bodyHtml) return '';
+
+  const accentColor = chosenDay.color?.startsWith('var(') ? null : chosenDay.color;
+  const badgeStyle = accentColor
+    ? `color: ${accentColor}; border-color: ${accentColor}40`
+    : `color: var(--text-secondary); border-color: rgba(255,255,255,0.12)`;
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">Sample Session</div>
+      <div class="sample-workout-card">
+        <div class="sample-workout-header">
+          <span class="sample-workout-dayname">${dayNames[chosenKey]}</span>
+          ${chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : ''}
+        </div>
+        <div class="sample-workout-title">${isRun ? '🏃' : '🏋️'} ${chosenDay.title || 'Training Session'}</div>
+        ${bodyHtml}
+      </div>
     </div>
   `;
 }
