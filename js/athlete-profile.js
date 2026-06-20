@@ -4,6 +4,7 @@
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { big3Maxes } from './metrics/metrics-strength.js';
 import { getLiftDisplayName } from './engine.js';
+import { getProgramById } from './state.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -602,6 +603,21 @@ function openSessionDetailModal(el) {
       const sets = dayLifts[l];
       return Array.isArray(sets) && sets.some(s => s && s.c);
     });
+
+    // Sort by program blueprint order so exercises appear in the same sequence
+    // as the workout cockpit. User-added exercises (not in blueprint) go last.
+    const activeProgram   = state.activeProgramId ? getProgramById(state.activeProgramId) : null;
+    const blueprintLifts  = activeProgram?.days?.[day]?.lifts || [];
+    if (blueprintLifts.length > 0) {
+      liftNames.sort((a, b) => {
+        const ai = blueprintLifts.indexOf(a);
+        const bi = blueprintLifts.indexOf(b);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+    }
 
     if (liftNames.length > 0) {
       html += `<div class="sds-section"><div class="sds-section-title">Exercises</div>`;
