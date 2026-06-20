@@ -2826,7 +2826,7 @@ export const PROGRAM_CATALOG = [
           type: 'HYROX',
           format: 'race',
           totalTime: '~60–90 min',
-          notes: 'Men's Open: Sled 152/103kg, Farmers 2×24kg, Sandbag 20kg, Wall Ball 6kg/10ft. Women's Open: Sled 102/78kg, Farmers 2×16kg, Sandbag 10kg, Wall Ball 4kg/9ft. Start a running clock and do not stop.',
+          notes: 'Men\'s Open: Sled 152/103kg, Farmers 2×24kg, Sandbag 20kg, Wall Ball 6kg/10ft. Women\'s Open: Sled 102/78kg, Farmers 2×16kg, Sandbag 10kg, Wall Ball 4kg/9ft. Start a running clock and do not stop.',
           stations: [
             { run: '1km', station: 'SkiErg — 1,000m', weight: null, notes: 'Set a sustainable pace from rep 1' },
             { run: '1km', station: 'Sled Push — 50m', weight: '152kg (M) / 102kg (F)' },
