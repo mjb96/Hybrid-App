@@ -2242,7 +2242,7 @@ export const PROGRAM_CATALOG = [
         workoutPreview: {
           type: 'STRENGTH',
           exercises: [
-            { exercise: 'World's Greatest Stretch',  sets: 3, reps: '5 each side', rpe: 3, rest: '15 sec', notes: 'Lunge forward, elbow to floor, rotate and reach overhead. Slow and deliberate.' },
+            { exercise: "World's Greatest Stretch",  sets: 3, reps: '5 each side', rpe: 3, rest: '15 sec', notes: 'Lunge forward, elbow to floor, rotate and reach overhead. Slow and deliberate.' },
             { exercise: 'Thoracic Windmill',         sets: 3, reps: '8 each side', rpe: 3, rest: '30 sec', notes: 'Hands behind head, rotate upper body while lower stays still.' },
             { exercise: 'Lateral Lunge + Reach',     sets: 3, reps: '8 each side', rpe: 4, rest: '30 sec', notes: 'Wide lateral lunge, reach opposite arm to floor beside foot.' },
             { exercise: 'Turkish Get-Up (bodyweight)', sets: 3, reps: '3 each side', rpe: 4, rest: '60 sec', notes: 'Full movement — slow and intentional. Quality over speed.' },
