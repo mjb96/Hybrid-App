@@ -4,12 +4,17 @@
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { big3Maxes } from './metrics/metrics-strength.js';
 
-let _getState = null;
-let _getDays = null;
+let _getState  = null;
+let _getDays   = null;
+let _saveState = null;
 
-export function initAthleteProfile(getStateFn, getDaysFn) {
-  _getState = getStateFn;
-  _getDays = getDaysFn;
+const OHP_NAMES = ['Standing Barbell OHP', 'Standing OHP', 'Seated DB Shoulder Press'];
+const ROW_NAMES = ['Barbell Bent-Over Row', 'Barbell Row', 'Chest Supported Dumbbell Row', 'Chest Supported Row', 'Single-Arm DB Row', 'Single Arm DB Row'];
+
+export function initAthleteProfile(getStateFn, getDaysFn, saveStateFn) {
+  _getState  = getStateFn;
+  _getDays   = getDaysFn;
+  _saveState = saveStateFn;
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
@@ -19,29 +24,50 @@ export function renderAthleteProfile() {
   if (!container || !_getState) return;
 
   const state = _getState();
-  const days = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const days  = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
-  const name = state.settings?.name?.trim() || 'Athlete';
+  const name    = state.settings?.name?.trim() || 'Athlete';
   const initials = name !== 'Athlete'
     ? name.split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('')
     : '?';
 
   const activeCatalog = state.activeProgramId ? getCatalogEntry(state.activeProgramId) : null;
-  const streak = state.streakData?.current || 0;
+  const streak        = state.streakData?.current || 0;
   const longestStreak = state.streakData?.longest || 0;
-  const completions = state.programLibrary?.completions || [];
+  const completions   = state.programLibrary?.completions || [];
   const totalWorkouts = _countTotalWorkouts(state, days);
-  const weightUnit = state.settings?.weightUnit || 'kg';
+  const weightUnit    = state.settings?.weightUnit || 'kg';
+  const prGoals       = state.prGoals || {};
 
-  // Performance data — only computed from real logged sets
-  const maxes = big3Maxes(state);
-  const hasStrengthData = maxes.squat > 0 || maxes.bench > 0 || maxes.deadlift > 0;
-  const runningPBs = _computeRunningPBs(state, days);
+  // Strength PRs + trends
+  const maxes        = big3Maxes(state);
+  const ohpBest      = _bestLiftFromGroup(state, days, OHP_NAMES);
+  const rowBest      = _bestLiftFromGroup(state, days, ROW_NAMES);
+  const hasStrengthData = maxes.squat > 0 || maxes.bench > 0 || maxes.deadlift > 0 || !!ohpBest || !!rowBest;
+
+  const squatTrend    = _liftTrend(state, days, 'Back Squat');
+  const benchTrend    = _liftTrend(state, days, 'Bench Press');
+  const deadliftTrend = _liftTrend(state, days, 'Deadlift');
+  const ohpTrend      = ohpBest ? _liftTrend(state, days, ohpBest.name) : null;
+  const rowTrend      = rowBest ? _liftTrend(state, days, rowBest.name) : null;
+
+  // Running PBs
+  const runningPBs    = _computeRunningPBs(state, days);
   const hasRunningData = runningPBs.length > 0;
 
-  // Weekly volume (current week only)
-  const currentWeekVolume = _computeWeekVolume(state, days, state.currentWeek || '1');
-  const weeklyDistKm = _computeWeekDistance(state, days, state.currentWeek || '1');
+  // Weekly volumes + trend
+  const curWkStr      = state.currentWeek || '1';
+  const prevWkStr     = String(Math.max(1, parseInt(curWkStr, 10) - 1));
+  const currentWeekVolume = _computeWeekVolume(state, days, curWkStr);
+  const prevWeekVolume    = parseInt(curWkStr, 10) > 1 ? _computeWeekVolume(state, days, prevWkStr) : 0;
+  const weeklyDistKm  = _computeWeekDistance(state, days, curWkStr);
+  const volumeTrendPct = (prevWeekVolume > 0 && currentWeekVolume > 0)
+    ? Math.round(((currentWeekVolume - prevWeekVolume) / prevWeekVolume) * 100)
+    : null;
+
+  // Heatmap + recent sessions
+  const heatmapRows    = _heatmapData(state, days, 12);
+  const recentSessions = _recentSessions(state, days, 5);
 
   container.innerHTML = `
     <!-- Profile Hero -->
@@ -64,11 +90,19 @@ export function renderAthleteProfile() {
       <div class="profile-section-title">Athlete Summary</div>
       <div class="profile-stat-grid">
         ${_statCard(streak > 0 ? streak.toString() : '0', 'Day Streak', streak > 0 ? '🔥' : '💤', streak > 0 ? 'var(--color-amber)' : null)}
-        ${_statCard(completions.length.toString(), 'Programs Completed', '🏆', completions.length > 0 ? 'var(--color-green)' : null)}
-        ${_statCard(totalWorkouts > 0 ? totalWorkouts.toString() : '0', 'Total Workouts', '🏋️', null)}
-        ${_statCard(longestStreak > 0 ? longestStreak.toString() : '0', 'Longest Streak', '⚡', null)}
+        ${_statCard(completions.length.toString(), 'Programs', '🏆', completions.length > 0 ? 'var(--color-green)' : null)}
+        ${_statCard(totalWorkouts > 0 ? totalWorkouts.toString() : '0', 'Workouts', '🏋️', null)}
+        ${_statCard(longestStreak > 0 ? longestStreak.toString() : '0', 'Best Streak', '⚡', null)}
       </div>
     </div>
+
+    <!-- Activity Heatmap -->
+    ${heatmapRows.length > 0 ? `
+      <div class="profile-section">
+        <div class="profile-section-title">Training Activity</div>
+        ${_renderHeatmap(heatmapRows, days)}
+      </div>
+    ` : ''}
 
     <!-- Active Program -->
     ${activeCatalog ? `
@@ -109,14 +143,16 @@ export function renderAthleteProfile() {
     <!-- Performance Summary -->
     ${hasStrengthData || hasRunningData ? `
       <div class="profile-section">
-        <div class="profile-section-title">Performance Summary</div>
+        <div class="profile-section-title">Performance</div>
 
         ${hasStrengthData ? `
           <div class="profile-subsection-title">Strength PRs (e1RM)</div>
           <div class="profile-pr-list">
-            ${maxes.squat > 0 ? _prRow('Back Squat', maxes.squat, weightUnit) : ''}
-            ${maxes.bench > 0 ? _prRow('Bench Press', maxes.bench, weightUnit) : ''}
-            ${maxes.deadlift > 0 ? _prRow('Deadlift', maxes.deadlift, weightUnit) : ''}
+            ${maxes.squat    > 0 ? _prRow('Back Squat',   maxes.squat,    weightUnit, squatTrend,    prGoals['Back Squat'])    : ''}
+            ${maxes.bench    > 0 ? _prRow('Bench Press',  maxes.bench,    weightUnit, benchTrend,    prGoals['Bench Press'])   : ''}
+            ${maxes.deadlift > 0 ? _prRow('Deadlift',     maxes.deadlift, weightUnit, deadliftTrend, prGoals['Deadlift'])      : ''}
+            ${ohpBest             ? _prRow(ohpBest.name,  ohpBest.max,    weightUnit, ohpTrend,      prGoals[ohpBest.name])    : ''}
+            ${rowBest             ? _prRow(rowBest.name,  rowBest.max,    weightUnit, rowTrend,      prGoals[rowBest.name])    : ''}
           </div>
         ` : ''}
 
@@ -138,7 +174,10 @@ export function renderAthleteProfile() {
             `${Math.round(currentWeekVolume).toLocaleString()} ${weightUnit}`,
             'Lifting Volume',
             '🏋️',
-            null
+            null,
+            volumeTrendPct !== null
+              ? `<span class="profile-trend-chip profile-trend-chip--${volumeTrendPct >= 0 ? 'up' : 'down'}">${volumeTrendPct >= 0 ? '↑' : '↓'} ${Math.abs(volumeTrendPct)}% vs last wk</span>`
+              : ''
           ) : ''}
           ${weeklyDistKm > 0 ? _statCard(
             `${weeklyDistKm.toFixed(1)} ${state.settings?.distanceUnit || 'km'}`,
@@ -150,10 +189,20 @@ export function renderAthleteProfile() {
       </div>
     ` : ''}
 
-    <!-- Health Metrics (Health Connect data if available) -->
+    <!-- Health Metrics -->
     ${_renderHealthSection(state)}
 
-    <!-- Recent Program Completions -->
+    <!-- Recent Sessions -->
+    ${recentSessions.length > 0 ? `
+      <div class="profile-section">
+        <div class="profile-section-title">Recent Sessions</div>
+        <div class="profile-recent-list">
+          ${recentSessions.map(s => _recentRow(s)).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Completed Programs -->
     ${completions.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Completed Programs</div>
@@ -163,7 +212,6 @@ export function renderAthleteProfile() {
       </div>
     ` : ''}
 
-    <!-- Bottom spacer -->
     <div style="height: 80px;"></div>
   `;
 }
@@ -174,9 +222,9 @@ function _renderHealthSection(state) {
   const hc = state.healthConnect;
   if (!hc?.connected) return '';
 
-  const latestHRV = hc.hrv?.slice(-1)[0]?.value;
-  const latestRHR = hc.restingHR?.slice(-1)[0]?.value;
-  const latestVO2 = hc.vo2max?.slice(-1)[0]?.value;
+  const latestHRV   = hc.hrv?.slice(-1)[0]?.value;
+  const latestRHR   = hc.restingHR?.slice(-1)[0]?.value;
+  const latestVO2   = hc.vo2max?.slice(-1)[0]?.value;
   const latestSleep = hc.sleep?.slice(-1)[0]?.hours;
 
   if (!latestHRV && !latestRHR && !latestVO2 && !latestSleep) return '';
@@ -185,16 +233,38 @@ function _renderHealthSection(state) {
     <div class="profile-section">
       <div class="profile-section-title">Health Metrics</div>
       <div class="profile-stat-grid">
-        ${latestHRV ? _statCard(Math.round(latestHRV).toString(), 'HRV (ms)', '💙', null) : ''}
-        ${latestRHR ? _statCard(Math.round(latestRHR).toString(), 'Resting HR', '❤️', null) : ''}
-        ${latestVO2 ? _statCard(Math.round(latestVO2).toString(), 'VO₂ Max', '🫀', 'var(--color-cyan)') : ''}
-        ${latestSleep ? _statCard(latestSleep.toFixed(1) + 'h', 'Sleep', '🌙', null) : ''}
+        ${latestHRV   ? _statCard(Math.round(latestHRV).toString(),   'HRV (ms)',   '💙', null) : ''}
+        ${latestRHR   ? _statCard(Math.round(latestRHR).toString(),   'Resting HR', '❤️', null) : ''}
+        ${latestVO2   ? _statCard(Math.round(latestVO2).toString(),   'VO₂ Max',   '🫀', 'var(--color-cyan)') : ''}
+        ${latestSleep ? _statCard(latestSleep.toFixed(1) + 'h',      'Sleep',      '🌙', null) : ''}
       </div>
     </div>
   `;
 }
 
+function _renderHeatmap(rows, days) {
+  const dayLetters = days.map(d => d[0].toUpperCase());
+  const cells = rows.flatMap(row =>
+    row.cells.map(type =>
+      `<div class="profile-heatmap-cell${type ? ` profile-heatmap-cell--${type}` : ''}"></div>`
+    )
+  ).join('');
+
+  return `
+    <div class="profile-heatmap">
+      <div class="profile-heatmap-day-labels">
+        ${dayLetters.map(l => `<span class="profile-heatmap-day-label">${l}</span>`).join('')}
+      </div>
+      <div class="profile-heatmap-grid">${cells}</div>
+    </div>
+  `;
+}
+
 // ── Data computation helpers ──────────────────────────────────────────────────
+
+function _isSet(s) {
+  return (s.c === true || s.c === 'on' || s.c === 1) && !s.isWarmup;
+}
 
 function _countTotalWorkouts(state, days) {
   let count = 0;
@@ -220,10 +290,7 @@ function _computeWeekVolume(state, days, weekNum) {
     for (const lift in dayLifts) {
       if (!Array.isArray(dayLifts[lift])) continue;
       dayLifts[lift].forEach(s => {
-        const completed = s.c === true || s.c === 'on' || s.c === 1;
-        if (completed && !s.isWarmup) {
-          volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
-        }
+        if (_isSet(s)) volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
       });
     }
   });
@@ -239,15 +306,13 @@ function _computeWeekDistance(state, days, weekNum) {
 }
 
 function _computeRunningPBs(state, days) {
-  // Find the fastest pace per approximate distance bracket
   const brackets = [
-    { label: '5K', minKm: 4.5, maxKm: 5.5 },
-    { label: '10K', minKm: 9, maxKm: 11 },
-    { label: 'Half', minKm: 20, maxKm: 22 },
-    { label: 'Marathon', minKm: 41, maxKm: 43 },
+    { label: '5K',       minKm: 4.5,  maxKm: 5.5  },
+    { label: '10K',      minKm: 9,    maxKm: 11   },
+    { label: 'Half',     minKm: 20,   maxKm: 22   },
+    { label: 'Marathon', minKm: 41,   maxKm: 43   },
   ];
-
-  const bests = {}; // label → { dist, timeStr, paceSecs }
+  const bests = {};
 
   for (const wkData of Object.values(state.weeks || {})) {
     days.forEach(d => {
@@ -263,7 +328,6 @@ function _computeRunningPBs(state, days) {
       if (!totalSecs) return;
 
       const paceSecs = totalSecs / dist;
-
       for (const bracket of brackets) {
         if (dist >= bracket.minKm && dist <= bracket.maxKm) {
           if (!bests[bracket.label] || totalSecs < bests[bracket.label].totalSecs) {
@@ -277,24 +341,151 @@ function _computeRunningPBs(state, days) {
   return Object.values(bests).sort((a, b) => a.dist - b.dist);
 }
 
+// Returns best e1RM (and lift name) across a group of lift-name variants.
+function _bestLiftFromGroup(state, days, liftNames) {
+  let bestName = null, bestVal = 0;
+  for (const liftName of liftNames) {
+    for (const wkData of Object.values(state.weeks || {})) {
+      for (const d of days) {
+        const sets = wkData?.lifts?.[d]?.[liftName];
+        if (!Array.isArray(sets)) continue;
+        for (const s of sets) {
+          if (!_isSet(s)) continue;
+          const e = (parseFloat(s.w) || 0) * (1 + (parseInt(s.r, 10) || 0) / 30);
+          if (e > bestVal) { bestVal = e; bestName = liftName; }
+        }
+      }
+    }
+  }
+  return bestName ? { name: bestName, max: bestVal } : null;
+}
+
+// Compares best e1RM in last 4 weeks vs older history. Returns { diff, dir } or null.
+function _liftTrend(state, days, liftName) {
+  const curWk = parseInt(state.currentWeek || '1', 10);
+  if (curWk < 2) return null;
+
+  const recentFrom = Math.max(1, curWk - 3);
+  let recentBest = 0, olderBest = 0;
+
+  for (const [wKey, wkData] of Object.entries(state.weeks || {})) {
+    const w = parseInt(wKey, 10);
+    for (const d of days) {
+      const sets = wkData?.lifts?.[d]?.[liftName];
+      if (!Array.isArray(sets)) continue;
+      for (const s of sets) {
+        if (!_isSet(s)) continue;
+        const e = (parseFloat(s.w) || 0) * (1 + (parseInt(s.r, 10) || 0) / 30);
+        if (e === 0) continue;
+        if (w >= recentFrom) { if (e > recentBest) recentBest = e; }
+        else                  { if (e > olderBest)  olderBest  = e; }
+      }
+    }
+  }
+
+  if (recentBest === 0 || olderBest === 0) return null;
+  const diff = Math.round(recentBest - olderBest);
+  if (diff === 0) return null;
+  return { diff: Math.abs(diff), dir: diff > 0 ? 'up' : 'down' };
+}
+
+// Builds week × day activity data for heatmap (newest week last).
+function _heatmapData(state, days, numWeeks) {
+  const curWk    = parseInt(state.currentWeek || '1', 10);
+  const startWk  = Math.max(1, curWk - numWeeks + 1);
+  const rows = [];
+
+  for (let w = startWk; w <= curWk; w++) {
+    const wkData = (state.weeks || {})[String(w)];
+    const cells = days.map(d => {
+      if (!wkData) return '';
+      const hasLifts = Object.keys(wkData.lifts?.[d] || {}).some(l => {
+        const sets = wkData.lifts[d][l];
+        return Array.isArray(sets) && sets.some(s => s.c === true || s.c === 'on' || s.c === 1);
+      });
+      const hasRun = parseFloat(wkData.runs?.[d]?.dist) > 0;
+      return hasLifts && hasRun ? 'both' : hasLifts ? 'lift' : hasRun ? 'run' : '';
+    });
+    rows.push({ week: w, cells });
+  }
+  return rows;
+}
+
+// Returns last N active sessions, newest first.
+function _recentSessions(state, days, limit = 5) {
+  const sessions = [];
+  const curWk    = parseInt(state.currentWeek || '1', 10);
+  const wkStarted = state.weekStartedAt ? new Date(state.weekStartedAt) : null;
+
+  outer: for (let w = curWk; w >= 1; w--) {
+    const wkData = (state.weeks || {})[String(w)];
+    if (!wkData) continue;
+
+    for (let di = days.length - 1; di >= 0; di--) {
+      const d = days[di];
+      const liftDone = Object.keys(wkData.lifts?.[d] || {}).filter(l => {
+        const sets = wkData.lifts[d][l];
+        return Array.isArray(sets) && sets.some(s => s.c === true || s.c === 'on' || s.c === 1);
+      });
+      const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
+      if (liftDone.length === 0 && runDist === 0) continue;
+
+      const type = liftDone.length > 0 && runDist > 0 ? 'both' : liftDone.length > 0 ? 'lift' : 'run';
+
+      let dateLabel;
+      if (wkStarted) {
+        const date = new Date(wkStarted);
+        date.setDate(date.getDate() - (curWk - w) * 7 + di);
+        dateLabel = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      } else {
+        const dName = d.charAt(0).toUpperCase() + d.slice(1, 3);
+        dateLabel = `Week ${w} · ${dName}`;
+      }
+
+      sessions.push({ type, dateLabel, liftDone, runDist });
+      if (sessions.length >= limit) break outer;
+    }
+  }
+  return sessions;
+}
+
 // ── Render helpers ────────────────────────────────────────────────────────────
 
-function _statCard(value, label, icon, accentColor) {
+function _statCard(value, label, icon, accentColor, extra = '') {
   const style = accentColor ? `style="color: ${accentColor}"` : '';
   return `
     <div class="profile-stat-card">
       <div class="profile-stat-icon">${icon}</div>
       <div class="profile-stat-value" ${style}>${value}</div>
       <div class="profile-stat-label">${label}</div>
+      ${extra}
     </div>
   `;
 }
 
-function _prRow(liftName, e1rm, unit) {
+function _prRow(liftName, e1rm, unit, trend, goal) {
+  const trendHtml = trend
+    ? `<span class="profile-pr-trend profile-pr-trend--${trend.dir}">${trend.dir === 'up' ? '↑' : '↓'} ${trend.diff}${unit}</span>`
+    : '';
+
+  const pct = goal ? Math.min(100, Math.round((e1rm / goal) * 100)) : 0;
+  const goalHtml = goal ? `
+    <div class="profile-pr-goal-bar"><div class="profile-pr-goal-fill" style="width:${pct}%"></div></div>
+    <div class="profile-pr-goal-meta">${pct}% of ${goal}${unit} goal</div>
+  ` : '';
+
+  const safeAttr = liftName.replace(/"/g, '&quot;');
+
   return `
-    <div class="profile-pr-row">
-      <span class="profile-pr-lift">${liftName}</span>
-      <span class="profile-pr-value">${Math.round(e1rm)} ${unit} <span class="profile-pr-tag">e1RM</span></span>
+    <div class="profile-pr-row${goal ? ' profile-pr-row--has-goal' : ''}">
+      <div class="profile-pr-row-main">
+        <span class="profile-pr-lift">${liftName}</span>
+        <div class="profile-pr-row-right">
+          <span class="profile-pr-value">${Math.round(e1rm)}&nbsp;${unit}&nbsp;<span class="profile-pr-tag">e1RM</span>${trendHtml}</span>
+          <button class="profile-pr-set-goal-btn" data-action="set-pr-goal" data-lift="${safeAttr}" data-unit="${unit}" aria-label="Set goal for ${safeAttr}">${goal ? '✏' : '＋'}</button>
+        </div>
+      </div>
+      ${goalHtml}
     </div>
   `;
 }
@@ -311,6 +502,32 @@ function _runPBRow(pb) {
     <div class="profile-pr-row">
       <span class="profile-pr-lift">${pb.label}</span>
       <span class="profile-pr-value">${timeFormatted} <span class="profile-pr-tag">${paceFormatted}</span></span>
+    </div>
+  `;
+}
+
+function _recentRow(session) {
+  const icons  = { lift: '🏋️', run: '🏃', both: '🔥' };
+  const icon   = icons[session.type] || '🏋️';
+
+  let desc = '';
+  if (session.liftDone.length > 0) {
+    const shown = session.liftDone.slice(0, 2).join(', ');
+    const more  = session.liftDone.length > 2 ? ` +${session.liftDone.length - 2}` : '';
+    desc = shown + more;
+  }
+  if (session.runDist > 0) {
+    const runPart = `${session.runDist.toFixed(1)}km run`;
+    desc = desc ? `${desc} · ${runPart}` : runPart;
+  }
+
+  return `
+    <div class="profile-recent-row">
+      <div class="profile-recent-icon profile-recent-icon--${session.type}">${icon}</div>
+      <div class="profile-recent-info">
+        <div class="profile-recent-date">${session.dateLabel}</div>
+        ${desc ? `<div class="profile-recent-desc">${desc}</div>` : ''}
+      </div>
     </div>
   `;
 }
@@ -335,7 +552,35 @@ function _completionRow(completion) {
   `;
 }
 
+// ── Action handler ────────────────────────────────────────────────────────────
+
 export function handleProfileAction(action, el) {
-  // Profile actions are handled by the global event delegation (open-settings, switch-tab)
-  // This hook is reserved for future profile-specific interactions
+  if (action !== 'set-pr-goal') return;
+
+  const liftName = el.getAttribute('data-lift');
+  const unit     = el.getAttribute('data-unit') || 'kg';
+  if (!liftName) return;
+
+  const state   = _getState();
+  const current = (state.prGoals || {})[liftName];
+  const prompt  = current
+    ? `Update target e1RM for ${liftName} (current: ${current}${unit})\nEnter new target in ${unit}, or 0 to clear:`
+    : `Set a target e1RM for ${liftName} (${unit}):`;
+
+  const raw = window.prompt(prompt, current != null ? String(current) : '');
+  if (raw === null) return;
+
+  const val = parseFloat(raw);
+  if (!state.prGoals) state.prGoals = {};
+
+  if (!isNaN(val) && val > 0) {
+    state.prGoals[liftName] = val;
+  } else if (!isNaN(val) && val === 0) {
+    delete state.prGoals[liftName];
+  } else {
+    return;
+  }
+
+  if (_saveState) _saveState(true);
+  renderAthleteProfile();
 }
