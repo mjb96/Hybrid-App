@@ -11,7 +11,6 @@
 // ==========================================
 import { recoveryCostBalance } from './load_models.js';
 import { trainingStatus } from './briefing.js';
-import { getFastingHours } from '../fasting.js';
 
 // Collect RPE readings from the last two weeks, most recent first.
 function getRecentRpes(state, days) {
@@ -179,13 +178,5 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
 
   let advice = buildAdvice(acwr, tsb, session, highRpeStreak, hasData);
 
-  // ── Fasting note (24h+ only) ──────────────────────────────────────────────
-  // A brief, non-prescriptive heads-up — the athlete decides how to adjust.
-  // Sources: Ho et al. (1988) J Clin Invest; Aird et al. (2018) J Sports Sci.
-  const fastH = getFastingHours(state.fastingSession);
-  if (fastH >= 24 && (session.hasGym || session.hasRun)) {
-    advice += ` You're ${Math.floor(fastH)}h into a fast — listen to your body today.`;
-  }
-
-  return { severity, badge, headline, advice, sessionLabel: session.label, acwr, status, fastingHours: fastH };
+  return { severity, badge, headline, advice, sessionLabel: session.label, acwr, status };
 }
