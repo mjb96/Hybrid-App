@@ -194,6 +194,9 @@ export function renderAthleteProfile() {
     <!-- Health Metrics -->
     ${_renderHealthSection(state)}
 
+    <!-- Wellness Hub -->
+    ${_renderWellnessSection(state)}
+
     <!-- Recent Sessions -->
     ${recentSessions.length > 0 ? `
       <div class="profile-section">
@@ -214,9 +217,6 @@ export function renderAthleteProfile() {
       </div>
     ` : ''}
 
-    <!-- Wellness Hub -->
-    ${_renderWellnessSection(state)}
-
     <div style="height: 80px;"></div>
   `;
 }
@@ -224,15 +224,84 @@ export function renderAthleteProfile() {
 // ── Section helpers ───────────────────────────────────────────────────────────
 
 function _renderWellnessSection(state) {
-  const ctx = getFastingContext(state);
+  const ctx  = getFastingContext(state);
   const goal = state.fastingSession?.goal ?? 16;
+  const days = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
-  // Fasting streak bar (last 14 days)
+  // ── Recovery score ──────────────────────────────────────────────────────────
+  const todayStr    = new Date().toISOString().slice(0, 10);
+  const todayEntry  = (state.wellnessLog || []).find(e => e.date === todayStr);
+
+  const curWk   = state.currentWeek || '1';
+  const weekData = (state.weeks || {})[String(curWk)];
+  let totalRpe = 0, rpeCount = 0;
+  if (weekData) {
+    days.forEach(d => {
+      const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
+      const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
+      if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+      if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
+    });
+  }
+  const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
+  const rpeFactor = rpeCount > 0 ? Math.max(0, Math.min(100, Math.round(((10 - avgRpe) / 9) * 100))) : null;
+
+  let wellnessFactor = null;
+  if (todayEntry) {
+    const sleepScore    = Math.min(100, ((todayEntry.sleep || 0) / 8) * 100);
+    const moodScore     = ((todayEntry.mood || 3) / 5) * 100;
+    const sorenessScore = ((6 - (todayEntry.soreness || 3)) / 5) * 100;
+    wellnessFactor = Math.max(0, Math.min(100, Math.round(sleepScore * 0.4 + moodScore * 0.3 + sorenessScore * 0.3)));
+  }
+
+  let recoveryScore = null;
+  if (wellnessFactor !== null && rpeFactor !== null) {
+    recoveryScore = Math.round(rpeFactor * 0.55 + wellnessFactor * 0.45);
+  } else if (wellnessFactor !== null) {
+    recoveryScore = wellnessFactor;
+  } else if (rpeFactor !== null) {
+    recoveryScore = rpeFactor;
+  }
+
+  let recoveryLabel = '', recoveryColor = '#94a3b8';
+  if (recoveryScore !== null) {
+    if      (recoveryScore >= 80) { recoveryLabel = 'Well Recovered'; recoveryColor = '#10b981'; }
+    else if (recoveryScore >= 60) { recoveryLabel = 'Moderate';       recoveryColor = '#f59e0b'; }
+    else if (recoveryScore >= 40) { recoveryLabel = 'Fatigued';       recoveryColor = '#f97316'; }
+    else                          { recoveryLabel = 'High Load';      recoveryColor = '#ef4444'; }
+  }
+
+  // ── 7-day wellness check-in grid ────────────────────────────────────────────
+  const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const wellnessCells = Array.from({ length: 7 }, (_, i) => {
+    const d   = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const ds  = d.toISOString().slice(0, 10);
+    const ent = (state.wellnessLog || []).find(e => e.date === ds);
+    let score = null, color = null;
+    if (ent) {
+      const s  = Math.min(100, ((ent.sleep || 0) / 8) * 100);
+      const m  = ((ent.mood || 3) / 5) * 100;
+      const so = ((6 - (ent.soreness || 3)) / 5) * 100;
+      score = Math.round(s * 0.4 + m * 0.3 + so * 0.3);
+      color = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+    }
+    const cellStyle = color ? `background:${color}22;border-color:${color};` : '';
+    const title = ent ? `${ds}: score ${score}` : `${ds}: no check-in`;
+    return `<div class="ws-check-col">
+      <div class="ws-check-cell${color ? ' ws-check-cell--filled' : ''}" style="${cellStyle}" title="${title}"></div>
+      <div class="ws-check-day">${DAY_LETTERS[d.getDay()]}</div>
+    </div>`;
+  }).join('');
+
+  const hasWellnessHistory = (state.wellnessLog || []).length > 0;
+
+  // ── Fasting streak grid (last 14 days) ─────────────────────────────────────
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const streakCells = Array.from({ length: 14 }, (_, i) => {
-    const day     = new Date(today.getTime() - (13 - i) * 86_400_000);
-    const dayEnd  = new Date(day.getTime() + 86_400_000);
-    const fast    = ctx.history.find(h => {
+    const day    = new Date(today.getTime() - (13 - i) * 86_400_000);
+    const dayEnd = new Date(day.getTime() + 86_400_000);
+    const fast   = ctx.history.find(h => {
       const e = new Date(h.endTime);
       return e >= day && e < dayEnd;
     });
@@ -250,6 +319,31 @@ function _renderWellnessSection(state) {
   return `
     <div class="profile-section wellness-section">
       <div class="profile-section-title">Wellness Hub</div>
+
+      ${recoveryScore !== null ? `
+        <div class="ws-recovery-row">
+          <div class="ws-recovery-score" style="color:${recoveryColor};">${recoveryScore}<span class="ws-recovery-pct">%</span></div>
+          <div class="ws-recovery-meta">
+            <div class="ws-recovery-label" style="color:${recoveryColor};">${recoveryLabel}</div>
+            <div class="ws-recovery-sub">Recovery Score</div>
+          </div>
+        </div>
+      ` : ''}
+
+      ${hasWellnessHistory || todayEntry ? `
+        <div class="ws-subsection-title">Daily Check-In</div>
+        ${todayEntry ? `
+          <div class="ws-checkin-card">
+            ${todayEntry.sleep    ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Sleep</span><span class="ws-checkin-val">${todayEntry.sleep}h</span></div>` : ''}
+            ${todayEntry.mood     ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Mood</span><span class="ws-checkin-val ws-checkin-dots">${'●'.repeat(todayEntry.mood)}${'○'.repeat(5 - todayEntry.mood)}</span></div>` : ''}
+            ${todayEntry.soreness ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Soreness</span><span class="ws-checkin-val ws-checkin-dots">${'●'.repeat(todayEntry.soreness)}${'○'.repeat(5 - todayEntry.soreness)}</span></div>` : ''}
+          </div>
+        ` : `<p class="ws-empty ws-empty--inline">No check-in today — log one in Recovery analytics.</p>`}
+        <div class="ws-check-grid">${wellnessCells}</div>
+        <div class="ws-streak-legend"><span>7 days ago</span><span>Today</span></div>
+      ` : ''}
+
+      <div class="ws-subsection-title">Fasting</div>
 
       <div class="wellness-fast-summary">
         <div class="ws-stat"><div class="ws-stat-val">${ctx.streak}</div><div class="ws-stat-lbl">Day Streak</div></div>
