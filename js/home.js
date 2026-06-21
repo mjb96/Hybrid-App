@@ -1,5 +1,5 @@
 // ==========================================
-// FULLY REFACTORED HOME DASHBOARD (home.js)
+// HOME DASHBOARD — coordinator. UI sub-modules live in ./home/
 // ==========================================
 import { PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
 import { getProgramById } from './state.js';
@@ -9,9 +9,9 @@ import { getMapFromDB } from './db.js';
 import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
-import {
-  getFastingContext, fmtFastDuration, fmtHoursLabel, FASTING_ZONES, FAST_GOAL_OPTIONS,
-} from './fasting.js';
+import { renderTileContent } from './home/tile-renderers.js';
+import { renderActivityCalendar } from './home/activity-calendar.js';
+import { initFastingCard } from './home/fasting-card.js';
 
 let _getState;
 let _getSelectedDay;
@@ -20,13 +20,11 @@ let _getDays;
 // Private module-scoped variable to hold the map instance safely
 let activeHomeMapInstance = null;
 
-// Fasting card live ticker
-let _fastingTicker = null;
-
 export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getState = getStateFn;
   _getSelectedDay = getSelectedDayFn;
   _getDays = getDaysFn;
+  initFastingCard(getStateFn);
 }
 
 function parseTimeToMinutes(timeStr) {
@@ -43,114 +41,6 @@ function formatMinutesToHoursMins(totalMins) {
   const m = Math.floor(totalMins % 60);
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
-}
-
-// ==========================================
-// TILE RENDERERS
-// Each function returns the inner HTML for a .glance-card
-// ==========================================
-
-function renderTileLoading() {
-  return `
-    <div class="tile-skeleton-line" style="width:60%;height:12px;border-radius:4px;margin-bottom:8px;"></div>
-    <div class="tile-skeleton-line" style="width:40%;height:22px;border-radius:4px;margin-bottom:6px;"></div>
-    <div class="tile-skeleton-line" style="width:80%;height:10px;border-radius:4px;"></div>
-  `;
-}
-
-function renderTileError(label) {
-  return `
-    <div class="card-icon-title text-muted"><span>⚠️</span> ${label}</div>
-    <div class="font-heavy" style="font-size:1.1rem;color:var(--color-red);">Error</div>
-    <div class="text-muted" style="font-size:0.6rem;">Could not load data</div>
-  `;
-}
-
-function renderMetricTile(config, data) {
-  const accentColor = `var(${config.accentVar})`;
-  const tagHTML = data.tag
-    ? `<div class="tile-tag font-bold mb-1" style="font-size:0.75rem;color:${data.tagColor || accentColor};">${data.tag}</div>`
-    : '';
-  const heroColor = data.state === 'empty' ? 'var(--text-secondary)' : 'var(--text-primary)';
-  return `
-    <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
-    <div>
-      ${tagHTML}
-      <div class="font-heavy tile-hero" style="font-size:1.3rem;line-height:1.1;color:${heroColor};">${data.hero || '--'}</div>
-      <div class="text-muted tile-sub" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>
-    </div>
-  `;
-}
-
-function renderRingTile(config, data) {
-  const ringColor = data.ringColor || 'var(--color-blue)';
-  const pct = data.ringPct || 0;
-  const isLight = document.documentElement.dataset.theme === 'light';
-  const trackColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
-  const grad = `conic-gradient(${ringColor} ${pct}%, ${trackColor} 0)`;
-  return `
-    <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
-    <div class="readiness-ring-container">
-      <div class="readiness-ring green" style="background:${grad};">
-        <div class="readiness-ring-inner">
-          <span class="font-heavy text-inverse" style="font-size:0.75rem;">${data.hero || '--'}</span>
-        </div>
-      </div>
-    </div>
-    <div class="text-muted text-center" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>
-  `;
-}
-
-function renderSplit3Tile(config, data) {
-  const accentColor = `var(${config.accentVar})`;
-  const rows = (data.rows || []).map(r => `
-    <div class="flex-between mb-1" style="font-size:0.75rem;">
-      <span class="text-muted">${r.label}</span>
-      <strong class="text-inverse">${r.value}</strong>
-    </div>
-  `).join('');
-  return `
-    <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
-    <div>${rows}</div>
-  `;
-}
-
-function renderRatioBarTile(config, data) {
-  return `
-    <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
-    <div>
-      <div class="font-heavy text-inverse mb-1" style="font-size:0.95rem;">${data.label || '0% / 0%'}</div>
-      <div class="ratio-bar-track mb-1" style="height:5px;border-radius:3px;">
-        <div class="ratio-fill-blue" id="tileRatioLiftBar" style="width:${data.liftPct || 50}%;background:#3b82f6;"></div>
-        <div class="ratio-fill-pink" id="tileRatioRunBar" style="width:${data.runPct || 50}%;background:#ec4899;"></div>
-      </div>
-      <div class="text-muted" style="font-size:0.6rem;">${data.advice || 'Lift / Run bias'}</div>
-    </div>
-  `;
-}
-
-function renderProgressTile(config, data) {
-  const accentColor = `var(${config.accentVar})`;
-  return `
-    <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
-    <div>
-      <div class="font-heavy text-inverse mb-1" style="font-size:1.3rem;line-height:1.1;">
-        ${data.done || 0} <span class="text-muted" style="font-size:0.9rem;">/ ${data.total || 0}</span>
-      </div>
-      <div class="text-muted" style="font-size:0.6rem;">${data.sub || ''}</div>
-    </div>
-  `;
-}
-
-function renderTileContent(config, data) {
-  if (data.state === 'error') return renderTileError(config.label);
-  switch (config.type) {
-    case DashboardTileType.RING:      return renderRingTile(config, data);
-    case DashboardTileType.SPLIT_3:   return renderSplit3Tile(config, data);
-    case DashboardTileType.RATIO_BAR: return renderRatioBarTile(config, data);
-    case DashboardTileType.PROGRESS:  return renderProgressTile(config, data);
-    default:                          return renderMetricTile(config, data);
-  }
 }
 
 // ==========================================
@@ -182,138 +72,7 @@ function renderCoachingCard(state, days, activeProgram, selectedDay) {
   card.style.display = 'block';
 }
 
-// ==========================================
-// FASTING CARD RENDERER
-// ==========================================
-
-function _fastingTickUpdate() {
-  const state = _getState ? _getState() : null;
-  if (!state?.fastingSession?.active) { _stopFastingTicker(); return; }
-  const ctx = getFastingContext(state);
-  const sheetTimer = document.getElementById('fastingSheetTimer');
-  if (sheetTimer) sheetTimer.textContent = fmtFastDuration(ctx.hours);
-  const sheetFill = document.getElementById('fastingSheetFill');
-  if (sheetFill) sheetFill.style.width = `${ctx.progressPct.toFixed(1)}%`;
-}
-
-function _startFastingTicker() {
-  if (_fastingTicker) return;
-  _fastingTicker = setInterval(_fastingTickUpdate, 1000);
-}
-
-function _stopFastingTicker() {
-  clearInterval(_fastingTicker);
-  _fastingTicker = null;
-}
-
-export function openFastingDetail() {
-  const state = _getState ? _getState() : null;
-  if (!state) return;
-  const sheet    = document.getElementById('fastingSheet');
-  const backdrop = document.getElementById('fastingSheetBackdrop');
-  if (!sheet) return;
-
-  const ctx = getFastingContext(state);
-
-  // Zone timeline
-  const timelineHtml = FASTING_ZONES.map(z => {
-    const reached  = ctx.hours >= z.hoursStart;
-    const current  = ctx.hours >= z.hoursStart && ctx.hours < z.hoursEnd;
-    const cls = current ? 'fz-node fz-node--current' : (reached ? 'fz-node fz-node--done' : 'fz-node');
-    return `<div class="${cls}" style="--zone-color:${z.color};">
-      <div class="fz-dot">${z.icon}</div>
-      <div class="fz-label">${z.name}</div>
-      <div class="fz-time">${z.hoursStart}h</div>
-    </div>`;
-  }).join('');
-
-  // History table (last 7)
-  const historyHtml = ctx.history.length === 0
-    ? '<p class="fasting-history-empty">No completed fasts yet.</p>'
-    : ctx.history.slice().reverse().slice(0, 7).map(h => {
-        const date = new Date(h.endTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const zone = _zoneNameForHours(h.durationHours);
-        const metGoal = h.durationHours >= (h.goalHours ?? 16);
-        return `<div class="fasting-history-row">
-          <span class="fhr-date">${date}</span>
-          <span class="fhr-dur">${fmtHoursLabel(h.durationHours)}</span>
-          <span class="fhr-zone">${zone}</span>
-          <span class="fhr-check">${metGoal ? '✓' : '–'}</span>
-        </div>`;
-      }).join('');
-
-  const goalOptions = FAST_GOAL_OPTIONS.map(h =>
-    `<option value="${h}" ${h === ctx.goal ? 'selected' : ''}>${h}h</option>`
-  ).join('');
-
-  sheet.innerHTML = `
-    <div class="fasting-sheet-header">
-      <span class="fasting-sheet-title">Fasting</span>
-      <button class="fasting-sheet-close" data-action="close-fasting-detail">✕</button>
-    </div>
-
-    <div class="fasting-sheet-hero ${ctx.active ? 'fasting-sheet-hero--active' : ''}">
-      <div class="fasting-sheet-zone-icon">${ctx.zone.icon}</div>
-      <div class="fasting-sheet-timer" id="fastingSheetTimer">${fmtFastDuration(ctx.hours)}</div>
-      <div class="fasting-sheet-zone-name" style="color:${ctx.zone.color};">${ctx.zone.name}</div>
-      <div class="fasting-sheet-zone-desc">${ctx.zone.description}</div>
-    </div>
-
-    <div class="fasting-progress-track fasting-sheet-progress">
-      <div class="fasting-progress-fill" id="fastingSheetFill"
-           style="width:${ctx.progressPct.toFixed(1)}%;background:${ctx.zone.color};"></div>
-    </div>
-    <div class="fasting-sheet-progress-label">
-      ${ctx.progressPct >= 100 ? '🎉 Goal reached!' : `${fmtHoursLabel(ctx.remainingHours)} to goal`}
-    </div>
-
-    <div class="fasting-metrics-grid">
-      <div class="fasting-metric"><div class="fm-value">${ctx.goal}h</div><div class="fm-label">Goal</div></div>
-      <div class="fasting-metric"><div class="fm-value">${ctx.streak}</div><div class="fm-label">Day Streak</div></div>
-      <div class="fasting-metric"><div class="fm-value">${fmtHoursLabel(ctx.weeklyHours)}</div><div class="fm-label">This Week</div></div>
-      <div class="fasting-metric"><div class="fm-value">${ctx.history.length}</div><div class="fm-label">Total Fasts</div></div>
-    </div>
-
-    <div class="fasting-zone-timeline">${timelineHtml}</div>
-
-    <div class="fasting-sheet-controls">
-      ${ctx.active
-        ? `<button class="fasting-btn-stop fasting-btn-stop--full" data-action="fast-stop">End Fast</button>`
-        : `<div class="fasting-sheet-start-row">
-             <label class="fasting-goal-label">Goal:
-               <select class="fasting-goal-select" id="fastingSheetGoalSelect">${goalOptions}</select>
-             </label>
-             <button class="fasting-btn-start" data-action="fast-start">Start Fast</button>
-           </div>`
-      }
-    </div>
-
-    <div class="fasting-history-section">
-      <div class="fasting-history-title">Recent Fasts</div>
-      <div class="fasting-history-header">
-        <span>Date</span><span>Duration</span><span>Zone</span><span>Goal</span>
-      </div>
-      ${historyHtml}
-    </div>
-  `;
-
-  sheet.classList.add('active');
-  if (backdrop) backdrop.classList.add('active');
-  if (ctx.active) _startFastingTicker();
-}
-
-export function closeFastingDetail() {
-  _stopFastingTicker();
-  document.getElementById('fastingSheet')?.classList.remove('active');
-  document.getElementById('fastingSheetBackdrop')?.classList.remove('active');
-}
-
-function _zoneNameForHours(h) {
-  for (const z of FASTING_ZONES) {
-    if (h >= z.hoursStart && h < z.hoursEnd) return z.name;
-  }
-  return FASTING_ZONES[FASTING_ZONES.length - 1].name;
-}
+export { openFastingDetail, closeFastingDetail } from './home/fasting-card.js';
 
 // ==========================================
 // GLANCE GRID RENDERER
@@ -891,102 +650,7 @@ export function renderHome() {
 
 }
 
-// ==========================================
-// ACTIVITY CALENDAR
-// ==========================================
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const FULL_MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-const _DAY_OFFSET = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
-
-function _inferDate(wk, day, currentWeek) {
-  // Compute the Monday of the current training week, then offset by week delta
-  const now = new Date();
-  const todayDow = (now.getDay() + 6) % 7; // 0=Mon
-  const thisMonday = new Date(now);
-  thisMonday.setDate(now.getDate() - todayDow);
-  thisMonday.setHours(0, 0, 0, 0);
-
-  const weekOffset = (currentWeek || 1) - (parseInt(wk, 10) || 1);
-  const dayOffset  = _DAY_OFFSET[day] ?? 0;
-  const d = new Date(thisMonday);
-  d.setDate(thisMonday.getDate() - weekOffset * 7 + dayOffset);
-  return d.toISOString().slice(0, 10);
-}
-
-function _buildActivityMap(appState) {
-  const map = {};
-  const weeks = appState.weeks || {};
-  const currentWeek = appState.currentWeek || 1;
-
-  for (const wk in weeks) {
-    const wd = weeks[wk];
-    if (!wd) continue;
-    const dates = wd.dates || {};
-    const lifts = wd.lifts || {};
-    const runs  = wd.runs  || {};
-
-    // Collect all days that have any activity
-    const allDays = new Set([...Object.keys(lifts), ...Object.keys(runs)]);
-
-    for (const day of allDays) {
-      // Use stamped date if available, otherwise infer from week offset
-      const ds = dates[day] || _inferDate(wk, day, currentWeek);
-      if (!ds) continue;
-      if (!map[ds]) map[ds] = { gym: false, run: false };
-
-      const dayLifts = lifts[day] || {};
-      for (const ln in dayLifts) {
-        if (Array.isArray(dayLifts[ln]) && dayLifts[ln].some(s => s?.c)) {
-          map[ds].gym = true; break;
-        }
-      }
-      const run = runs[day];
-      if (run && parseFloat(run.dist) > 0) map[ds].run = true;
-    }
-  }
-  return map;
-}
-
-function _renderCalendarMonth(year, month, activityMap, today) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
-
-  let cells = '';
-  for (let i = 0; i < firstDow; i++) cells += '<div class="cal-cell"></div>';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const act = activityMap[ds] || {};
-    const isToday = ds === today;
-    const dots = [
-      act.gym ? '<span class="cal-dot cal-dot-gym"></span>' : '',
-      act.run ? '<span class="cal-dot cal-dot-run"></span>' : '',
-    ].join('');
-    cells += `<div class="cal-cell${isToday ? ' cal-today' : ''}${(act.gym||act.run) ? ' cal-has-activity' : ''}">
-      <span class="cal-num">${d}</span>${dots ? `<div class="cal-dots">${dots}</div>` : ''}
-    </div>`;
-  }
-
-  return `<div class="cal-month">
-    <div class="cal-month-name">${FULL_MONTH[month]} ${year}</div>
-    <div class="cal-grid">
-      ${['M','T','W','T','F','S','S'].map(h => `<div class="cal-hdr">${h}</div>`).join('')}
-      ${cells}
-    </div>
-  </div>`;
-}
-
-export function renderActivityCalendar(appState, containerId = 'homeCalendarContainer') {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  const map = _buildActivityMap(appState);
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const y = now.getFullYear(), m = now.getMonth();
-  const prevM = m === 0 ? 11 : m - 1;
-  const prevY = m === 0 ? y - 1 : y;
-  container.innerHTML = _renderCalendarMonth(prevY, prevM, map, today) + _renderCalendarMonth(y, m, map, today);
-}
+export { renderActivityCalendar } from './home/activity-calendar.js';
 
 // ==========================================
 // EVENT DELEGATION ROUTER

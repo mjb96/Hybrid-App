@@ -1,0 +1,103 @@
+// =============================================================================
+// AUTHENTICATION — Supabase sign-in, sign-up, session check
+// Uses an init callback to call pullEngineDataFromStorage after login
+// so we avoid a circular import with state.js.
+// =============================================================================
+import { getSupabaseClient } from './supabase.js';
+import { showToast } from '../toast.js';
+
+let _onLoginSuccess = null;
+
+export function initAuth(onLoginSuccessFn) {
+  _onLoginSuccess = onLoginSuccessFn;
+}
+
+function _setAuthLoading(btnId, isLoading) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = isLoading;
+  const textEl = btn.querySelector('.auth-submit-text');
+  if (textEl) textEl.style.opacity = isLoading ? '0.5' : '1';
+}
+
+function _showAuthError(errorElId, msg) {
+  const el = document.getElementById(errorElId);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? '' : 'none';
+}
+
+export async function loginToSupabase() {
+  const email = document.getElementById('loginEmail')?.value?.trim();
+  const pass  = document.getElementById('loginPassword')?.value;
+
+  const sb = getSupabaseClient();
+  if (!sb) { showToast('Offline mode — cannot sign in.', true); return; }
+
+  _setAuthLoading('authSigninBtn', true);
+  _showAuthError('authSigninError', '');
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  _setAuthLoading('authSigninBtn', false);
+
+  if (error) {
+    _showAuthError('authSigninError', error.message);
+  } else {
+    const authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'none';
+    showToast('Securely Logged In ✓');
+    if (_onLoginSuccess) await _onLoginSuccess();
+    window.location.reload();
+  }
+}
+if (typeof window !== 'undefined') window.loginToSupabase = loginToSupabase;
+
+export async function signUpToSupabase() {
+  const email = document.getElementById('signupEmail')?.value?.trim();
+  const pass  = document.getElementById('signupPassword')?.value;
+
+  const sb = getSupabaseClient();
+  if (!sb) { showToast('Offline mode — cannot create account.', true); return; }
+  if (!email || !pass) { _showAuthError('authSignupError', 'Please enter your email and a password.'); return; }
+  if (pass.length < 8)  { _showAuthError('authSignupError', 'Password must be at least 8 characters.'); return; }
+
+  _setAuthLoading('authSignupBtn', true);
+  _showAuthError('authSignupError', '');
+  const successEl = document.getElementById('authSignupSuccess');
+  if (successEl) successEl.style.display = 'none';
+
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+
+  _setAuthLoading('authSignupBtn', false);
+
+  if (error) {
+    _showAuthError('authSignupError', error.message);
+  } else if (data?.session) {
+    const authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'none';
+    showToast('Account created! Welcome ✓');
+    window.location.reload();
+  } else {
+    if (successEl) successEl.style.display = '';
+    const btn = document.getElementById('authSignupBtn');
+    if (btn) btn.disabled = true;
+  }
+}
+if (typeof window !== 'undefined') window.signUpToSupabase = signUpToSupabase;
+
+export async function checkActiveSession() {
+  const sb = getSupabaseClient();
+  if (!sb) return;
+  try {
+    const sessionPromise = sb.auth.getSession();
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+    const response = await Promise.race([sessionPromise, timeoutPromise]);
+    if (response?.data?.session && !response.error) {
+      const authOverlay = document.getElementById('authOverlay');
+      if (authOverlay) authOverlay.style.display = 'none';
+    }
+  } catch (err) {
+    console.warn('Session check failed or timed out. Defaulting to manual login.');
+  }
+}

@@ -624,9 +624,54 @@
   background: rgba(0,0,0,0.4);
   border-radius: 5px;
   padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .rating-star { color: #f59e0b; }
+
+.rating-count {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* Coach / author attribution */
+.prog-card-author {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.62rem;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prog-card-author-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prog-card-verified {
+  color: #3b82f6;
+  font-size: 0.55rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Social proof row (athletes + completion rate) */
+.prog-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
 
 .prog-card-sep {
   opacity: 0.3;
@@ -2006,6 +2051,15 @@ html[data-theme="light"] .prog-card--large .prog-card-name {
 html[data-theme="light"] .prog-card--small .prog-card-meta,
 html[data-theme="light"] .prog-card--large .prog-card-meta {
   color: rgba(0,0,0,0.40) !important;
+}
+html[data-theme="light"] .prog-card-author {
+  color: rgba(0,0,0,0.40) !important;
+}
+html[data-theme="light"] .prog-card-verified {
+  color: #2563eb !important;
+}
+html[data-theme="light"] .prog-card-stats {
+  color: rgba(0,0,0,0.35) !important;
 }
 html[data-theme="light"] .prog-card--active {
   border-color: rgba(99,102,241,0.35) !important;
