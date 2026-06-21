@@ -53,7 +53,7 @@ class WeeklyFitnessGraph {
     this.weekOffset   = 0;    // 0 = current week, -1 = last week, …
     this.activeMetric = type === 'strength' ? 'time' : 'distance';
     this._container   = null;
-    this._workouts    = {};   // date-string → workout object (for modal)
+    this._workouts    = {};   // workoutId → workout object (for modal)
   }
 
   // ── Mount / update ────────────────────────────────────────────────────────
@@ -114,25 +114,33 @@ class WeeklyFitnessGraph {
   _render() {
     if (!this._container) return;
 
-    const appState  = this.getState?.();
-    const dates     = this._windowDates(appState);
-    const workouts  = this._loadData(dates, appState);
+    const appState = this.getState?.();
+    const weekNum  = this._targetWeekNum(appState);
+    const dates    = this._windowDates(appState);
+    const workouts = this._loadData(dates, appState);
 
-    // Cache for modal access
+    // Cache by workoutId (always unique) for bar-click → modal lookup
     this._workouts = {};
-    workouts.forEach(w => { this._workouts[w.date] = w; });
+    workouts.forEach(w => { this._workouts[w.workoutId] = w; });
 
-    const values  = dates.map(d => (this._workouts[d] ? this._metricVal(this._workouts[d]) : 0));
-    const maxVal  = Math.max(...values, 1);
-    const yStep   = maxVal / Y_STEPS;
-    const total   = values.reduce((a, b) => a + b, 0);
-    const avg     = total / 7;
+    const prefix = this.type === 'strength' ? 'gym' : 'run';
+    const values = DAY_KEYS.map(dk => {
+      const w = this._workouts[`${prefix}-${weekNum}-${dk}`];
+      return w ? this._metricVal(w) : 0;
+    });
+    const maxVal = Math.max(...values, 1);
+    const yStep  = maxVal / Y_STEPS;
+    const total  = values.reduce((a, b) => a + b, 0);
+    const avg    = total / 7;
 
-    const tabs     = this._tabs();
-    const canBack  = this.weekOffset > -((parseInt(appState?.currentWeek, 10) || 1) - 1);
-    const canFwd   = this.weekOffset < 0;
-    const rangeStr = this._rangeLabel(dates[0], dates[6]);
-    const mLabel   = tabs.find(t => t.key === this.activeMetric)?.label || '';
+    const tabs    = this._tabs();
+    const canBack = this.weekOffset > -((parseInt(appState?.currentWeek, 10) || 1) - 1);
+    const canFwd  = this.weekOffset < 0;
+    const nonNullDates = dates.filter(Boolean).sort();
+    const rangeStr = nonNullDates.length > 0
+      ? this._rangeLabel(nonNullDates[0], nonNullDates[nonNullDates.length - 1])
+      : `Week ${weekNum}`;
+    const mLabel = tabs.find(t => t.key === this.activeMetric)?.label || '';
 
     // Y-axis labels — rendered bottom-to-top so flex-direction:column-reverse
     // displays them at 0%, 25%, 50%, 75%, 100% from the bottom.
@@ -146,14 +154,15 @@ class WeeklyFitnessGraph {
     ).join('');
 
     // Day columns (bars)
-    const barsHTML = dates.map((date, i) => {
-      const w    = this._workouts[date];
-      const val  = values[i];
+    const barsHTML = DAY_KEYS.map((dk, i) => {
+      const workoutId = `${prefix}-${weekNum}-${dk}`;
+      const w   = this._workouts[workoutId];
+      const val = values[i];
       const barH = val > 0 ? Math.max(Math.round((val / maxVal) * CHART_H), 4) : 0;
       return `<div class="wfg-dc">${w && barH > 0
         ? `<button class="wfg-bb"
                    data-wfg-action="bar-click"
-                   data-wfg-date="${date}"
+                   data-wfg-date="${workoutId}"
                    title="${this._fmtFull(val)}">
              <div class="wfg-b wfg-b--${this.type}" style="height:${barH}px"></div>
            </button>`
@@ -162,9 +171,10 @@ class WeeklyFitnessGraph {
     }).join('');
 
     // X-axis (dots + first/last date labels)
-    const xHTML = dates.map((date, i) => {
-      const active = !!this._workouts[date];
-      const lbl    = (i === 0 || i === 6) ? this._fmtDate(date) : '';
+    const xHTML = DAY_KEYS.map((dk, i) => {
+      const workoutId = `${prefix}-${weekNum}-${dk}`;
+      const active = !!this._workouts[workoutId];
+      const lbl    = (i === 0 || i === 6) ? this._fmtDate(dates[i]) : '';
       return `<div class="wfg-xd">
         <div class="wfg-dot${active ? ' wfg-dot--on' : ''}"></div>
         <span class="wfg-xl">${lbl}</span>
@@ -211,18 +221,22 @@ class WeeklyFitnessGraph {
 
   // ── Workout summary modal ─────────────────────────────────────────────────
 
-  _openModal(dateStr) {
-    const w = this._workouts[dateStr];
+  _openModal(workoutId) {
+    const w = this._workouts[workoutId];
     if (!w) return;
 
     const modal   = document.getElementById('wfgModal');
     const content = document.getElementById('wfgModalContent');
     if (!modal || !content) return;
 
-    const [y, mo, d] = dateStr.split('-').map(Number);
     const MN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const DN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const dow = DN[new Date(`${dateStr}T12:00:00`).getDay()];
+    let dateLine = '';
+    if (w.date) {
+      const [y, mo, d] = w.date.split('-').map(Number);
+      const dow = DN[new Date(`${w.date}T12:00:00`).getDay()];
+      dateLine = `<p class="wfg-mdate">${dow}, ${d} ${MN[mo]} ${y}</p>`;
+    }
 
     const icon  = this.type === 'strength' ? '🏋️' : '🏃';
     const title = this.type === 'strength' ? 'Gym Session' : 'Run Session';
@@ -237,7 +251,7 @@ class WeeklyFitnessGraph {
 
     content.innerHTML = `
       <div class="wfg-mhandle"></div>
-      <p class="wfg-mdate">${dow}, ${d} ${MN[mo]} ${y}</p>
+      ${dateLine}
       <h3 class="wfg-mtitle">${icon} ${title}</h3>
       <div class="wfg-mstats">${statsHTML || '<p class="wfg-mempty">No detailed stats recorded.</p>'}</div>
       <button class="wfg-mclose" data-wfg-action="close-modal">Done</button>
@@ -279,35 +293,15 @@ class WeeklyFitnessGraph {
   // ── Date helpers ──────────────────────────────────────────────────────────
 
   _windowDates(appState) {
-    const weekNum = this._targetWeekNum(appState);
-    const start   = this._weekStartDate(weekNum, appState);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
+    const weekNum  = this._targetWeekNum(appState);
+    const weekData = appState?.weeks?.[String(weekNum)];
+    const stored   = weekData?.dates || {};
+    return DAY_KEYS.map(dk => stored[dk] || null);
   }
 
   _targetWeekNum(appState) {
     const current = parseInt(appState?.currentWeek, 10) || 1;
     return Math.max(1, current + this.weekOffset);
-  }
-
-  _weekStartDate(weekNum, appState) {
-    const currentWeek = parseInt(appState?.currentWeek ?? '1', 10);
-    if (appState?.weekStartedAt) {
-      const base = new Date(appState.weekStartedAt);
-      const d    = new Date(base);
-      d.setDate(base.getDate() + (weekNum - currentWeek) * 7);
-      return d;
-    }
-    // Fallback: anchor to the Monday of this calendar week
-    const today   = new Date();
-    const monday  = new Date(today);
-    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-    monday.setDate(monday.getDate() + (weekNum - currentWeek) * 7);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
   }
 
   // ── Data loading ──────────────────────────────────────────────────────────
@@ -369,40 +363,7 @@ class WeeklyFitnessGraph {
       }
     });
 
-    // For past weeks with no real data, surface mock data so the chart
-    // doesn't appear completely empty (demo / first-run experience).
-    const currentWeek = parseInt(appState?.currentWeek, 10) || 1;
-    if (result.length === 0 && weekNum < currentWeek) {
-      return this._mockData(dates, weekNum);
-    }
-
     return result;
-  }
-
-  _mockData(dates, weekNum) {
-    const gymDays = [0, 1, 3, 4];   // Mon Tue Thu Fri
-    const runDays = [2, 4, 6];      // Wed Fri Sun
-    const days    = this.type === 'strength' ? gymDays : runDays;
-
-    return days.map(i => {
-      const v = 0.25 + ((i * 3 + weekNum * 7) % 100) / 100;
-      if (this.type === 'strength') {
-        return {
-          date: dates[i],
-          durationSeconds: Math.round(2400 + v * 2400),
-          calories: Math.round(280 + v * 280),
-          workoutId: `mock-gym-${weekNum}-${i}`,
-        };
-      }
-      return {
-        date: dates[i],
-        durationSeconds: Math.round(1200 + v * 2400),
-        distanceKm: parseFloat((3.5 + v * 9).toFixed(1)),
-        ascentM: Math.round(15 + v * 130),
-        calories: Math.round(180 + v * 320),
-        workoutId: `mock-run-${weekNum}-${i}`,
-      };
-    });
   }
 
   _parseTime(str) {
@@ -478,14 +439,17 @@ class WeeklyFitnessGraph {
   }
 
   _fmtDate(dateStr) {
+    if (!dateStr) return '';
     const [, mo, d] = dateStr.split('-').map(Number);
     return `${d}/${mo}`;
   }
 
   _rangeLabel(startStr, endStr) {
+    if (!startStr) return '';
     const [, m1, d1] = startStr.split('-').map(Number);
-    const [, m2, d2] = endStr.split('-').map(Number);
     const M = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    if (!endStr || startStr === endStr) return `${d1} ${M[m1]}`;
+    const [, m2, d2] = endStr.split('-').map(Number);
     return m1 === m2
       ? `${d1}–${d2} ${M[m1]}`
       : `${d1} ${M[m1]} – ${d2} ${M[m2]}`;

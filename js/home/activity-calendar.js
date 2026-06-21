@@ -4,33 +4,10 @@
 
 const FULL_MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-const _DAY_OFFSET = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
-
-function _inferDate(wk, day, currentWeek, weekStartedAt) {
-  const dayOffset = _DAY_OFFSET[day] ?? 0;
-  if (weekStartedAt) {
-    // Use weekStartedAt (= start of currentWeek) as anchor and offset to target week/day
-    const base = new Date(weekStartedAt);
-    base.setDate(base.getDate() + ((parseInt(wk, 10) || 1) - (currentWeek || 1)) * 7 + dayOffset);
-    return base.toISOString().slice(0, 10);
-  }
-  // Fallback: infer from today's calendar week
-  const now = new Date();
-  const todayDow = (now.getDay() + 6) % 7; // 0=Mon
-  const thisMonday = new Date(now);
-  thisMonday.setDate(now.getDate() - todayDow);
-  thisMonday.setHours(0, 0, 0, 0);
-  const weekOffset = (currentWeek || 1) - (parseInt(wk, 10) || 1);
-  const d = new Date(thisMonday);
-  d.setDate(thisMonday.getDate() - weekOffset * 7 + dayOffset);
-  return d.toISOString().slice(0, 10);
-}
 
 function _buildActivityMap(appState) {
   const map = {};
   const weeks = appState.weeks || {};
-  const currentWeek = parseInt(appState.currentWeek, 10) || 1;
-  const weekStartedAt = appState.weekStartedAt || null;
 
   for (const wk in weeks) {
     const wd = weeks[wk];
@@ -42,7 +19,7 @@ function _buildActivityMap(appState) {
     const allDays = new Set([...Object.keys(lifts), ...Object.keys(runs)]);
 
     for (const day of allDays) {
-      const ds = dates[day] || _inferDate(wk, day, currentWeek, weekStartedAt);
+      const ds = dates[day];
       if (!ds) continue;
       if (!map[ds]) map[ds] = { gym: false, run: false };
 

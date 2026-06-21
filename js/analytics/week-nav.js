@@ -58,10 +58,10 @@ export function updateWeekNavDisplay(getState) {
   }
 
   if (datesEl) {
-    if (appState.weekStartedAt) {
-      const { start, end } = _weekDateRange(selectedWeek, appState);
+    const range = _weekDateRange(selectedWeek, appState);
+    if (range) {
       const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      datesEl.textContent = `${fmt(start)} – ${fmt(end)}`;
+      datesEl.textContent = `${fmt(range.start)} – ${fmt(range.end)}`;
     } else {
       datesEl.textContent = isCurrent
         ? 'This week'
@@ -78,11 +78,11 @@ export function getWeekDateRange(weekNum, appState) {
 }
 
 function _weekDateRange(weekNum, appState) {
-  const currentWeek = parseInt(appState?.currentWeek ?? '1', 10);
-  const startDate = new Date(appState.weekStartedAt || Date.now());
-  const weekStart = new Date(startDate);
-  weekStart.setDate(startDate.getDate() + (weekNum - currentWeek) * 7);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  return { start: weekStart, end: weekEnd };
+  const weekData = appState?.weeks?.[String(weekNum)];
+  const stored   = Object.values(weekData?.dates || {}).filter(Boolean).sort();
+  if (stored.length === 0) return null;
+  return {
+    start: new Date(stored[0] + 'T00:00:00'),
+    end:   new Date(stored[stored.length - 1] + 'T00:00:00'),
+  };
 }

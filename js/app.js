@@ -980,6 +980,12 @@ initGarminRunImport((distance, timeStr, coordinates, stats) => {
       splits:         stats?.splits       || null,
     };
   }
+  if (appState.weeks[wk]) {
+    if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
+    if (!appState.weeks[wk].dates[sd]) {
+      appState.weeks[wk].dates[sd] = new Date().toISOString().slice(0, 10);
+    }
+  }
   if (coordinates && coordinates.length > 0) {
     saveMapToDB(wk, sd, coordinates).then(() => {
       saveStateToLocalStorage(true); hydrateCurrentView();
@@ -1003,6 +1009,10 @@ initGarminGymImport((timeStr, stats) => {
     g.trainingEffect = stats?.trainingEffect != null ? stats.trainingEffect   : '';
     g.aerobicTE   = stats?.aerobicTE   != null ? stats.aerobicTE              : '';
     g.gymSets     = stats?.gymSets     || null;
+    if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
+    if (!appState.weeks[wk].dates[sd]) {
+      appState.weeks[wk].dates[sd] = new Date().toISOString().slice(0, 10);
+    }
   }
   saveStateToLocalStorage(true);
   hydrateCurrentView();
