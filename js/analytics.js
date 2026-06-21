@@ -2,6 +2,7 @@
 // PERFORMANCE MATRIX — analytics.js (orchestrator)
 // ==========================================
 import { getProgramById, saveStateToLocalStorage } from './state.js';
+import { getLiftDisplayName } from './engine.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
 import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
@@ -118,8 +119,10 @@ function collectAnalyticsData() {
         for (const lift in dayLifts) {
           if (!Array.isArray(dayLifts[lift])) continue;
 
-          if (!data.dynamicStats[lift]) {
-            data.dynamicStats[lift] = { allTimeMax: 0, currentEstimatedMax: 0, previousWeekMax: 0 };
+          const displayName = getLiftDisplayName(appState, lift);
+
+          if (!data.dynamicStats[displayName]) {
+            data.dynamicStats[displayName] = { allTimeMax: 0, currentEstimatedMax: 0, previousWeekMax: 0 };
           }
 
           const prevWeek = (parseInt(appState.currentWeek, 10) - 1).toString();
@@ -131,9 +134,9 @@ function collectAnalyticsData() {
 
             if (completed && weight > 0 && reps > 0 && s.type !== 'W') {
               const e1rm = weight * (1 + reps / 30);
-              if (e1rm > data.dynamicStats[lift].allTimeMax)          data.dynamicStats[lift].allTimeMax = e1rm;
-              if (wKey === appState.currentWeek && e1rm > data.dynamicStats[lift].currentEstimatedMax) data.dynamicStats[lift].currentEstimatedMax = e1rm;
-              if (wKey === prevWeek && e1rm > data.dynamicStats[lift].previousWeekMax)                 data.dynamicStats[lift].previousWeekMax = e1rm;
+              if (e1rm > data.dynamicStats[displayName].allTimeMax)          data.dynamicStats[displayName].allTimeMax = e1rm;
+              if (wKey === appState.currentWeek && e1rm > data.dynamicStats[displayName].currentEstimatedMax) data.dynamicStats[displayName].currentEstimatedMax = e1rm;
+              if (wKey === prevWeek && e1rm > data.dynamicStats[displayName].previousWeekMax)                 data.dynamicStats[displayName].previousWeekMax = e1rm;
             }
           });
         }
