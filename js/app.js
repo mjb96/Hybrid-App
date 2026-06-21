@@ -25,7 +25,7 @@ import {
   signUpToSupabase
 } from './state.js';
 
-import { initEngine, shouldSuggestDeload } from './engine.js';
+import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
@@ -85,7 +85,7 @@ document.addEventListener('app:navigate', (e) => {
   else openAnalyticsView(target);
 });
 
-window.analyticsContext = 'overview';
+window.analyticsContext = 'weekly-summary';
 
 let _activePlanDisplayWeek = null;
 
@@ -531,7 +531,8 @@ export function openTodaySummaryModal() {
         liftNames.forEach(lift => {
           const completedSets = dayLifts[lift].filter(s => s && s.c);
           if (completedSets.length === 0) return;
-          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${lift}</div>`;
+          const displayLiftName = getLiftDisplayName(appState, lift);
+          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${displayLiftName}</div>`;
           completedSets.forEach((s, idx) => {
             const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;
             const labelColor = s.type === 'W' ? '#94a3b8' : s.type === 'D' ? '#f97316' : s.type === 'F' ? '#ef4444' : 'rgba(255,255,255,0.5)';

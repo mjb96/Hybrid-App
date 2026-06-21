@@ -2,6 +2,7 @@
 // PERFORMANCE MATRIX — analytics.js (orchestrator)
 // ==========================================
 import { getProgramById, saveStateToLocalStorage } from './state.js';
+import { getLiftDisplayName } from './engine.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
 import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
@@ -21,13 +22,16 @@ import { renderVdotAnalytics } from './analytics/views/view-vdot.js';
 import { renderAvgPaceAnalytics } from './analytics/views/view-avg-pace.js';
 import { renderStressBalanceAnalytics } from './analytics/views/view-stress-balance.js';
 import { renderActivityCalendar } from './home.js';
+import { initWeekNav, updateWeekNavDisplay, getSelectedWeek, resetWeekNav } from './analytics/week-nav.js';
+import { renderWeeklySummaryAnalytics } from './analytics/views/view-weekly-summary.js';
 
 let _getState;
 let _getDays;
 
 export function initAnalytics(getStateFn, getDaysFn) {
   _getState = getStateFn;
-  _getDays = getDaysFn;
+  _getDays  = getDaysFn;
+  initWeekNav(_getState, renderAnalytics);
 }
 
 // ==========================================
@@ -115,8 +119,10 @@ function collectAnalyticsData() {
         for (const lift in dayLifts) {
           if (!Array.isArray(dayLifts[lift])) continue;
 
-          if (!data.dynamicStats[lift]) {
-            data.dynamicStats[lift] = { allTimeMax: 0, currentEstimatedMax: 0, previousWeekMax: 0 };
+          const displayName = getLiftDisplayName(appState, lift);
+
+          if (!data.dynamicStats[displayName]) {
+            data.dynamicStats[displayName] = { allTimeMax: 0, currentEstimatedMax: 0, previousWeekMax: 0 };
           }
 
           const prevWeek = (parseInt(appState.currentWeek, 10) - 1).toString();
@@ -128,9 +134,9 @@ function collectAnalyticsData() {
 
             if (completed && weight > 0 && reps > 0 && s.type !== 'W') {
               const e1rm = weight * (1 + reps / 30);
-              if (e1rm > data.dynamicStats[lift].allTimeMax)          data.dynamicStats[lift].allTimeMax = e1rm;
-              if (wKey === appState.currentWeek && e1rm > data.dynamicStats[lift].currentEstimatedMax) data.dynamicStats[lift].currentEstimatedMax = e1rm;
-              if (wKey === prevWeek && e1rm > data.dynamicStats[lift].previousWeekMax)                 data.dynamicStats[lift].previousWeekMax = e1rm;
+              if (e1rm > data.dynamicStats[displayName].allTimeMax)          data.dynamicStats[displayName].allTimeMax = e1rm;
+              if (wKey === appState.currentWeek && e1rm > data.dynamicStats[displayName].currentEstimatedMax) data.dynamicStats[displayName].currentEstimatedMax = e1rm;
+              if (wKey === prevWeek && e1rm > data.dynamicStats[displayName].previousWeekMax)                 data.dynamicStats[displayName].previousWeekMax = e1rm;
             }
           });
         }
@@ -233,12 +239,20 @@ function collectAnalyticsData() {
 export function renderAnalytics() {
   if (!_getState || !_getDays) return;
 
+  updateWeekNavDisplay(_getState);
+
   const data    = collectAnalyticsData();
-  const context = window.analyticsContext || 'overview';
+  const context = window.analyticsContext || 'weekly-summary';
 
   document.querySelectorAll('.analytics-section').forEach(sec => sec.classList.remove('active'));
 
   switch (context) {
+    case 'weekly-summary': {
+      document.getElementById('analytics-weekly-summary').classList.add('active');
+      const selectedWk = getSelectedWeek(_getState().currentWeek);
+      renderWeeklySummaryAnalytics(data, _getState, _getDays, selectedWk);
+      break;
+    }
     case 'strength':
       document.getElementById('analytics-strength').classList.add('active');
       renderStrengthAnalytics(data);
@@ -309,8 +323,11 @@ export function renderAnalytics() {
       document.getElementById('analytics-activity').classList.add('active');
       renderActivityCalendar(_getState(), 'analyticsCalendarContainer');
       break;
-    default:
-      document.getElementById('analytics-strength').classList.add('active');
-      renderStrengthAnalytics(data);
+    default: {
+      document.getElementById('analytics-weekly-summary').classList.add('active');
+      const selectedWkDef = getSelectedWeek(_getState().currentWeek);
+      renderWeeklySummaryAnalytics(data, _getState, _getDays, selectedWkDef);
+      break;
+    }
   }
 }
