@@ -184,12 +184,7 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
   // Sources: Ho et al. (1988) J Clin Invest; Aird et al. (2018) J Sports Sci.
   const fastH = getFastingHours(state.fastingSession);
   if (fastH >= 24 && (session.hasGym || session.hasRun)) {
-    const fh = Math.floor(fastH);
-    if (session.hasGym) {
-      advice += ` Note: you're ${fh}h into a fast — GH is elevated and fat oxidation is high, but glycogen is low. Listen to your body and adjust intensity as needed.`;
-    } else if (session.hasRun) {
-      advice += ` Note: you're ${fh}h into a fast — fat oxidation is elevated but glycogen is low. Favour easier efforts and stay well hydrated.`;
-    }
+    advice += ` You're ${Math.floor(fastH)}h into a fast — listen to your body today.`;
   }
 
   return { severity, badge, headline, advice, sessionLabel: session.label, acwr, status, fastingHours: fastH };
