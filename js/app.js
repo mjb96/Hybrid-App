@@ -58,7 +58,7 @@ import {
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
-import { startFast, stopFast, editFastStartTime } from './fasting.js';
+import { startFast, stopFast, editFastStartTime, stopFastAtTime } from './fasting.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -733,8 +733,10 @@ document.addEventListener('click', (e) => {
     renderHome();
   }
   else if (action === 'fast-edit-start-time') {
-    const panel = document.getElementById('fastingEditStartPanel');
-    if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+    const sp = document.getElementById('fastingEditStartPanel');
+    const ep = document.getElementById('fastingEditEndPanel');
+    if (ep) ep.style.display = 'none';
+    if (sp) sp.style.display = sp.style.display === 'none' ? '' : 'none';
   }
   else if (action === 'fast-cancel-edit-start') {
     const panel = document.getElementById('fastingEditStartPanel');
@@ -745,6 +747,24 @@ document.addEventListener('click', (e) => {
     if (input?.value) {
       editFastStartTime(appState, input.value, () => saveStateToLocalStorage(true));
       openFastingDetail();
+      renderHome();
+    }
+  }
+  else if (action === 'fast-edit-end-time') {
+    const sp = document.getElementById('fastingEditStartPanel');
+    const ep = document.getElementById('fastingEditEndPanel');
+    if (sp) sp.style.display = 'none';
+    if (ep) ep.style.display = ep.style.display === 'none' ? '' : 'none';
+  }
+  else if (action === 'fast-cancel-edit-end') {
+    const panel = document.getElementById('fastingEditEndPanel');
+    if (panel) panel.style.display = 'none';
+  }
+  else if (action === 'fast-save-end-time') {
+    const input = document.getElementById('fastingEndTimeInput');
+    if (input?.value) {
+      stopFastAtTime(appState, input.value, () => saveStateToLocalStorage(true));
+      closeFastingDetail();
       renderHome();
     }
   }

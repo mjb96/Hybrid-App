@@ -5587,61 +5587,68 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
   font-size: 0.9rem;
   border-radius: 12px;
 }
-.fasting-edit-start-row {
-  text-align: center;
+.fasting-adjust-row {
+  display: flex;
+  gap: 8px;
   margin-top: 10px;
 }
-.fasting-edit-start-toggle {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.75rem;
+.fasting-btn-adjust {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text-sub);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 9px 12px;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
 }
-.fasting-edit-start-toggle:hover { color: var(--text-sub); }
-.fasting-edit-start-panel {
-  margin-top: 12px;
+.fasting-btn-adjust:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.18);
+}
+.fasting-edit-panel {
+  margin-top: 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 12px;
   padding: 14px;
 }
-.fasting-edit-start-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.78rem;
+.fasting-edit-panel-title {
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
 }
-.fasting-edit-start-input {
+.fasting-edit-input {
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 8px;
   color: var(--text-main);
   font-size: 0.85rem;
-  padding: 8px 10px;
+  padding: 9px 10px;
   width: 100%;
   box-sizing: border-box;
+  margin-bottom: 12px;
 }
-.fasting-edit-start-actions {
+.fasting-edit-panel-actions {
   display: flex;
   gap: 8px;
 }
-.fasting-edit-start-cancel {
+.fasting-edit-cancel {
   flex: 1;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px;
   color: var(--text-muted);
   font-size: 0.82rem;
-  padding: 8px;
+  padding: 9px;
   cursor: pointer;
 }
-.fasting-edit-start-save {
+.fasting-edit-save {
   flex: 1;
   background: linear-gradient(135deg, #f59e0b, #f97316);
   border: none;
@@ -5649,7 +5656,7 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
   color: #fff;
   font-size: 0.82rem;
   font-weight: 700;
-  padding: 8px;
+  padding: 9px;
   cursor: pointer;
 }
 .fasting-btn-detail {
@@ -5994,6 +6001,11 @@ html[data-theme="light"] .fasting-card { background: rgba(0,0,0,0.04); border-co
 html[data-theme="light"] .fasting-goal-select { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.12); color: #0f172a; }
 html[data-theme="light"] .fasting-progress-track { background: rgba(0,0,0,0.08); }
 html[data-theme="light"] .fasting-btn-detail { background: rgba(0,0,0,0.05); color: #374151; border-color: rgba(0,0,0,0.1); }
+html[data-theme="light"] .fasting-btn-adjust { background: rgba(0,0,0,0.05); color: #374151; border-color: rgba(0,0,0,0.1); }
+html[data-theme="light"] .fasting-btn-adjust:hover { background: rgba(0,0,0,0.09); }
+html[data-theme="light"] .fasting-edit-panel { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .fasting-edit-input { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.12); color: #0f172a; }
+html[data-theme="light"] .fasting-edit-cancel { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #6b7280; }
 html[data-theme="light"] .fasting-sheet { background: #ffffff; }
 html[data-theme="light"] .fasting-metric { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .fz-dot { background: rgba(0,0,0,0.04); }

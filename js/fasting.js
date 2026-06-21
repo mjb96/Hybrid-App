@@ -161,6 +161,27 @@ export function editFastStartTime(state, newStartTimeISO, saveStateFn) {
   saveStateFn();
 }
 
+export function stopFastAtTime(state, endTimeISO, saveStateFn) {
+  if (!state.fastingSession?.active) return;
+  const endTime  = new Date(endTimeISO);
+  const start    = new Date(state.fastingSession.startTime);
+  if (isNaN(endTime.getTime()) || endTime <= start || endTime > new Date()) return;
+  const durationHours = (endTime - start) / 3_600_000;
+  if (!state.fastingSession.history) state.fastingSession.history = [];
+  state.fastingSession.history.push({
+    startTime:     state.fastingSession.startTime,
+    endTime:       endTime.toISOString(),
+    durationHours: parseFloat(durationHours.toFixed(2)),
+    goalHours:     state.fastingSession.goal,
+  });
+  if (state.fastingSession.history.length > 30) {
+    state.fastingSession.history = state.fastingSession.history.slice(-30);
+  }
+  state.fastingSession.active    = false;
+  state.fastingSession.startTime = null;
+  saveStateFn();
+}
+
 export function stopFast(state, saveStateFn) {
   if (!state.fastingSession?.active) return;
   const hours = getFastingHours(state.fastingSession);
