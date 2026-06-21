@@ -6015,3 +6015,344 @@ html[data-theme="light"] .ws-summary-card { background: rgba(0,0,0,0.04); border
 html[data-theme="light"] .ws-recovery-row { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-checkin-card { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }
+
+/* ==========================================================================
+   WEEKLY FITNESS GRAPH — Garmin Connect-style chart for In Focus cards
+   ========================================================================== */
+
+/* Container */
+.wfg { display: flex; flex-direction: column; gap: 0; user-select: none; }
+
+/* ── Navigation row ── */
+.wfg-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.wfg-arrow {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 50%;
+  color: #60a5fa;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.15s;
+}
+.wfg-arrow:disabled { opacity: 0.22; cursor: default; background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.25); }
+.wfg-arrow:not(:disabled):active { background: rgba(59,130,246,0.28); }
+.wfg-range {
+  flex: 1;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+/* ── Metric tabs ── */
+.wfg-tabs {
+  display: flex;
+  gap: 3px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+.wfg-tab {
+  flex: 1;
+  padding: 4px 4px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.6rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.wfg-tab--on {
+  background: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 1px 6px rgba(29,78,216,0.5);
+}
+
+/* ── Chart row (y-axis + right column) ── */
+.wfg-chart-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+/* Y-axis column — flex-direction:column-reverse places first item at bottom */
+.wfg-y {
+  width: 36px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-right: 4px;
+}
+.wfg-yl {
+  font-size: 0.52rem;
+  color: rgba(255,255,255,0.35);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Right column — plot area + x-axis */
+.wfg-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.wfg-plot {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Grid lines */
+.wfg-gl {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  pointer-events: none;
+}
+
+/* Bars container */
+.wfg-bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+
+/* Individual day column */
+.wfg-dc {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Full-height clickable area (the button is the entire column height) */
+.wfg-bb {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: opacity 0.12s;
+}
+.wfg-bb:active { opacity: 0.7; }
+.wfg-bb:focus-visible { outline: 1px solid rgba(59,130,246,0.6); }
+
+/* Visual bar fill */
+.wfg-b {
+  width: 13px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s cubic-bezier(0.25,1,0.5,1);
+}
+.wfg-b--strength { background: linear-gradient(to top, #2563eb, #60a5fa); }
+.wfg-b--running  { background: linear-gradient(to top, #0891b2, #22d3ee); }
+
+/* Empty day — transparent filler so flex columns stay even */
+.wfg-empty { flex: 1; }
+
+/* ── X-axis row ── */
+.wfg-xaxis {
+  display: flex;
+  height: 22px;
+  padding-top: 5px;
+}
+.wfg-xd {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.wfg-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.wfg-dot--on {
+  background: #3b82f6;
+  box-shadow: 0 0 5px rgba(59,130,246,0.55);
+}
+/* Running card uses cyan dots */
+.home-metric-card--run .wfg-dot--on {
+  background: #22d3ee;
+  box-shadow: 0 0 5px rgba(34,211,238,0.55);
+}
+.wfg-xl {
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.35);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  height: 9px;
+  text-align: center;
+}
+
+/* ── Footer stats ── */
+.wfg-footer {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  margin-top: 6px;
+}
+.wfg-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.wfg-stat--r { align-items: flex-end; }
+.wfg-stl {
+  font-size: 0.56rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.wfg-stv {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ── Workout Summary Modal (bottom sheet) ── */
+#wfgModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 210;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s;
+}
+#wfgModal.wfg-modal--open {
+  opacity: 1;
+  pointer-events: all;
+}
+.wfg-msheet {
+  background: #0d1117;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px 20px 0 0;
+  padding: 16px 20px 36px;
+  width: 100%;
+  max-width: 480px;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.25,1,0.5,1);
+}
+#wfgModal.wfg-modal--open .wfg-msheet { transform: translateY(0); }
+.wfg-mhandle {
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+.wfg-mdate {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.45);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.wfg-mtitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f8fafc;
+  margin-bottom: 14px;
+  letter-spacing: -0.03em;
+}
+.wfg-mstats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.wfg-ms {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+/* Full-width for stat items that contain long text (e.g. Notes, Pace) */
+.wfg-ms:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.wfg-msl {
+  font-size: 0.58rem;
+  color: rgba(255,255,255,0.42);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.wfg-msv {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+}
+.wfg-mempty {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.8rem;
+  grid-column: 1 / -1;
+}
+.wfg-mclose {
+  width: 100%;
+  padding: 13px;
+  background: rgba(59,130,246,0.14);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 12px;
+  color: #60a5fa;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.wfg-mclose:active { background: rgba(59,130,246,0.25); }
+
+/* Light theme adjustments */
+html[data-theme="light"] .wfg-range { color: #0f172a; }
+html[data-theme="light"] .wfg-tabs { background: rgba(0,0,0,0.05); }
+html[data-theme="light"] .wfg-tab { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .wfg-yl  { color: rgba(0,0,0,0.4); }
+html[data-theme="light"] .wfg-xl  { color: rgba(0,0,0,0.4); }
+html[data-theme="light"] .wfg-gl  { border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .wfg-dot { background: rgba(0,0,0,0.15); }
+html[data-theme="light"] .wfg-stl { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .wfg-stv { color: #0f172a; }
+html[data-theme="light"] .wfg-footer { border-color: rgba(0,0,0,0.1); }
+html[data-theme="light"] #wfgModal { background: rgba(0,0,0,0.55); }
+html[data-theme="light"] .wfg-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
+html[data-theme="light"] .wfg-mdate { color: rgba(0,0,0,0.5); }
+html[data-theme="light"] .wfg-mtitle { color: #0f172a; }
+html[data-theme="light"] .wfg-ms { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .wfg-msl { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .wfg-msv { color: #0f172a; }
