@@ -12,10 +12,15 @@ import { generateRecommendation } from './brain/recommendations.js';
 import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
+import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
 
 let _getState;
 let _getSelectedDay;
 let _getDays;
+
+// Weekly fitness graph instances (one per In Focus card)
+let _strengthGraph = null;
+let _runGraph      = null;
 
 // Private module-scoped variable to hold the map instance safely
 let activeHomeMapInstance = null;
@@ -25,22 +30,10 @@ export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getSelectedDay = getSelectedDayFn;
   _getDays = getDaysFn;
   initFastingCard(getStateFn);
-}
 
-function parseTimeToMinutes(timeStr) {
-  if (!timeStr) return 0;
-  const parts = timeStr.split(':').map(Number);
-  if (parts.length === 3) return (parts[0] * 60) + parts[1] + (parts[2] / 60);
-  if (parts.length === 2) return parts[0] + (parts[1] / 60);
-  return parseFloat(timeStr) || 0;
-}
-
-function formatMinutesToHoursMins(totalMins) {
-  if (!totalMins || totalMins <= 0) return '0m';
-  const h = Math.floor(totalMins / 60);
-  const m = Math.floor(totalMins % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  // Initialize the Garmin-style weekly fitness graphs inside the In Focus cards
+  _strengthGraph = initWeeklyFitnessGraph('strengthBarChart', 'strength', getStateFn);
+  _runGraph      = initWeeklyFitnessGraph('runBarChart',      'running',  getStateFn);
 }
 
 // ==========================================
@@ -406,101 +399,20 @@ export function renderHome() {
     }
   }
 
-  let currentWeekGymTimeSum = 0; 
   let currentWeekRunDistSum = 0;
-
-  const dailyGymTimes = []; 
-  const dailyDists = [];
 
   DEFAULT_DAYS.forEach(dKey => {
     const rData = weekData.runs?.[dKey];
-    let dailyRunDist = 0;
-    if (rData) {
-      dailyRunDist = parseFloat(rData.dist) || 0;
-      currentWeekRunDistSum += dailyRunDist;
-    }
-    dailyDists.push(dailyRunDist);
-
-    let dailyCompletedSets = 0;
-    if (weekData.lifts?.[dKey]) {
-      for (let lift in weekData.lifts[dKey]) {
-        if (Array.isArray(weekData.lifts[dKey][lift])) {
-          weekData.lifts[dKey][lift].forEach(s => {
-            if (s) {
-              const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
-              if (isCompleted) dailyCompletedSets++;
-            }
-          });
-        }
-      }
-    }
-
-    const gStats = weekData.gymStats?.[dKey];
-    let dailyGymTime = 0;
-    if (gStats && gStats.time) dailyGymTime = parseTimeToMinutes(gStats.time);
-    if (dailyGymTime === 0 && dailyCompletedSets > 0) dailyGymTime = dailyCompletedSets * 3;
-    currentWeekGymTimeSum += dailyGymTime;
-    dailyGymTimes.push(dailyGymTime);
+    if (rData) currentWeekRunDistSum += parseFloat(rData.dist) || 0;
   });
 
-  const strengthHero = document.getElementById('focusStrengthHero');
-  const runHero = document.getElementById('focusRunHero');
-  const strengthChartContainer = document.getElementById('strengthBarChart');
-  const runChartContainer = document.getElementById('runBarChart');
-  
-  const distUnit = _getState().settings?.distanceUnit || 'km';
-  if (strengthHero) strengthHero.textContent = formatMinutesToHoursMins(currentWeekGymTimeSum);
-  if (runHero) runHero.textContent = distUnit === 'mi'
-    ? (currentWeekRunDistSum * 0.621371).toFixed(1) + ' mi'
-    : currentWeekRunDistSum.toFixed(1) + ' km';
-
-  if (strengthChartContainer && runChartContainer) {
-    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    
-    const safeGymTimes = dailyGymTimes.map(t => isNaN(t) ? 0 : t);
-    const safeDists = dailyDists.map(d => isNaN(d) ? 0 : d);
-    
-    const maxGymTime = Math.max(...safeGymTimes, 1);
-    const maxDist = Math.max(...safeDists, 1);
-    
-    const BAR_AREA_PX = 47;
-    const MIN_PX = 4;
-
-    let strengthHTML = '';
-    let runHTML = '';
-
-    DEFAULT_DAYS.forEach((_, idx) => {
-      const gTime = safeGymTimes[idx];
-      const hasGym = gTime > 0;
-      const timeH = hasGym ? Math.max(Math.round((gTime / maxGymTime) * BAR_AREA_PX), MIN_PX) : MIN_PX;
-      const timeOpacity = hasGym ? '1' : '0.15';
-
-      const rDist = safeDists[idx];
-      const hasDist = rDist > 0;
-      const distH = hasDist ? Math.max(Math.round((rDist / maxDist) * BAR_AREA_PX), MIN_PX) : MIN_PX;
-      const distOpacity = hasDist ? '1' : '0.15';
-
-      strengthHTML += `
-        <div class="bar-column">
-          <div class="bar-fill-wrap">
-            <div class="bar-fill" style="height: ${timeH}px; min-height: ${timeH}px; flex-shrink: 0; width: 14px; background-color: #3b82f6; opacity: ${timeOpacity};"></div>
-          </div>
-          <div class="bar-label">${dayLabels[idx]}</div>
-        </div>
-      `;
-
-      runHTML += `
-        <div class="bar-column">
-          <div class="bar-fill-wrap">
-            <div class="bar-fill" style="height: ${distH}px; min-height: ${distH}px; flex-shrink: 0; width: 14px; background-color: #ec4899; opacity: ${distOpacity};"></div>
-          </div>
-          <div class="bar-label">${dayLabels[idx]}</div>
-        </div>
-      `;
-    });
-
-    strengthChartContainer.innerHTML = strengthHTML;
-    runChartContainer.innerHTML = runHTML;
+  // Weekly fitness graphs handle their own rendering and data refresh.
+  // Legacy hero/sub elements are hidden by the graphs on mount.
+  if (_strengthGraph) {
+    refreshWeeklyFitnessGraph('strengthBarChart');
+  }
+  if (_runGraph) {
+    refreshWeeklyFitnessGraph('runBarChart');
   }
 
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay);

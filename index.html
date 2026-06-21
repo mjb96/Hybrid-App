@@ -343,7 +343,7 @@
         <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="strength">
           <div class="hmcard-top">
             <span class="hmcard-icon">🏋️</span>
-            <span class="hmcard-label">Gym Time · This Week</span>
+            <span class="hmcard-label">Gym Performance</span>
           </div>
           <h3 id="focusStrengthHero" class="hmcard-hero">0m</h3>
           <div class="hmcard-sub" id="focusStrengthSub">tap to view analytics</div>
@@ -353,7 +353,7 @@
         <article class="card-dark carousel-card home-metric-card home-metric-card--run" data-action="open-analytics" data-context="running">
           <div class="hmcard-top">
             <span class="hmcard-icon">🏃</span>
-            <span class="hmcard-label">Run Distance · This Week</span>
+            <span class="hmcard-label">Run Performance</span>
             <button class="log-run-fab" data-action="open-run-logger" aria-label="Log a run">+</button>
           </div>
           <h3 id="focusRunHero" class="hmcard-hero">0.0 km</h3>
@@ -1083,6 +1083,13 @@
         <button class="btn-action-block btn-ghost mt-0" data-action="close-today-summary">Close</button>
         <button class="btn-action-block btn-blue mt-0" data-action="close-today-summary-nav">Go to Workout</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Weekly Fitness Graph — Workout Summary Modal -->
+  <div id="wfgModal" role="dialog" aria-modal="true" aria-label="Workout Summary">
+    <div class="wfg-msheet">
+      <div id="wfgModalContent"></div>
     </div>
   </div>
 
