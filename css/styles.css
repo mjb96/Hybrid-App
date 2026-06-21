@@ -5764,7 +5764,24 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
 .fasting-history-empty { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 
 /* ── Wellness section in profile ─────────────────────────────────────────── */
-.wellness-section .profile-section-title { color: var(--text-main); }
+.ws-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.ws-summary-icon { font-size: 1.4rem; flex-shrink: 0; }
+.ws-summary-info { flex: 1; min-width: 0; }
+.ws-summary-title { font-size: 0.88rem; font-weight: 700; color: var(--text-main); }
+.ws-summary-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.ws-card-score { font-size: 1rem; font-weight: 800; flex-shrink: 0; }
+
+/* Sheet body padding */
+#wellnessSheetBody { padding: 0 20px; }
 .wellness-fast-summary {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -5905,6 +5922,7 @@ html[data-theme="light"] .fasting-metric { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .fz-dot { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-stat { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-streak-cell { background: rgba(0,0,0,0.06); }
+html[data-theme="light"] .ws-summary-card { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
 html[data-theme="light"] .ws-recovery-row { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-checkin-card { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }

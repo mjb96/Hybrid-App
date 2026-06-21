@@ -223,45 +223,40 @@ export function renderAthleteProfile() {
 
 // ── Section helpers ───────────────────────────────────────────────────────────
 
-function _renderWellnessSection(state) {
+function _wellnessContext(state) {
   const ctx  = getFastingContext(state);
-  const goal = state.fastingSession?.goal ?? 16;
   const days = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
-  // ── Recovery score ──────────────────────────────────────────────────────────
-  const todayStr    = new Date().toISOString().slice(0, 10);
-  const todayEntry  = (state.wellnessLog || []).find(e => e.date === todayStr);
+  const todayStr   = new Date().toISOString().slice(0, 10);
+  const todayEntry = (state.wellnessLog || []).find(e => e.date === todayStr);
 
-  const curWk   = state.currentWeek || '1';
-  const weekData = (state.weeks || {})[String(curWk)];
+  const curWk  = state.currentWeek || '1';
+  const wkData = (state.weeks || {})[String(curWk)];
   let totalRpe = 0, rpeCount = 0;
-  if (weekData) {
+  if (wkData) {
     days.forEach(d => {
-      const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
-      const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
+      const rRpe = parseInt(wkData.runs?.[d]?.rpe, 10) || 0;
+      const gRpe = parseInt(wkData.gymRpe?.[d], 10) || 0;
       if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
       if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
     });
   }
-  const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
-  const rpeFactor = rpeCount > 0 ? Math.max(0, Math.min(100, Math.round(((10 - avgRpe) / 9) * 100))) : null;
+  const rpeFactor = rpeCount > 0
+    ? Math.max(0, Math.min(100, Math.round(((10 - totalRpe / rpeCount) / 9) * 100)))
+    : null;
 
   let wellnessFactor = null;
   if (todayEntry) {
-    const sleepScore    = Math.min(100, ((todayEntry.sleep || 0) / 8) * 100);
-    const moodScore     = ((todayEntry.mood || 3) / 5) * 100;
-    const sorenessScore = ((6 - (todayEntry.soreness || 3)) / 5) * 100;
-    wellnessFactor = Math.max(0, Math.min(100, Math.round(sleepScore * 0.4 + moodScore * 0.3 + sorenessScore * 0.3)));
+    const s  = Math.min(100, ((todayEntry.sleep || 0) / 8) * 100);
+    const m  = ((todayEntry.mood || 3) / 5) * 100;
+    const so = ((6 - (todayEntry.soreness || 3)) / 5) * 100;
+    wellnessFactor = Math.max(0, Math.min(100, Math.round(s * 0.4 + m * 0.3 + so * 0.3)));
   }
 
   let recoveryScore = null;
-  if (wellnessFactor !== null && rpeFactor !== null) {
-    recoveryScore = Math.round(rpeFactor * 0.55 + wellnessFactor * 0.45);
-  } else if (wellnessFactor !== null) {
-    recoveryScore = wellnessFactor;
-  } else if (rpeFactor !== null) {
-    recoveryScore = rpeFactor;
-  }
+  if (wellnessFactor !== null && rpeFactor !== null) recoveryScore = Math.round(rpeFactor * 0.55 + wellnessFactor * 0.45);
+  else if (wellnessFactor !== null) recoveryScore = wellnessFactor;
+  else if (rpeFactor !== null)      recoveryScore = rpeFactor;
 
   let recoveryLabel = '', recoveryColor = '#94a3b8';
   if (recoveryScore !== null) {
@@ -271,40 +266,70 @@ function _renderWellnessSection(state) {
     else                          { recoveryLabel = 'High Load';      recoveryColor = '#ef4444'; }
   }
 
-  // ── 7-day wellness check-in grid ────────────────────────────────────────────
+  return { ctx, todayEntry, recoveryScore, recoveryLabel, recoveryColor };
+}
+
+function _renderWellnessSection(state) {
+  const { ctx, todayEntry, recoveryScore, recoveryLabel, recoveryColor } = _wellnessContext(state);
+
+  // Summary line: fasting streak + check-in status
+  const fastPart   = ctx.streak > 0 ? `🔥 ${ctx.streak}d fasting` : `${ctx.history.length} fasts logged`;
+  const checkinPart = todayEntry ? '· ✓ Check-in done' : '';
+
+  const scoreBadge = recoveryScore !== null
+    ? `<span class="ws-card-score" style="color:${recoveryColor};">${recoveryScore}%</span>`
+    : '';
+
+  return `
+    <div class="profile-section">
+      <div class="profile-section-title">Wellness Hub</div>
+      <div class="ws-summary-card profile-recent-row--clickable"
+           data-action="open-wellness-detail"
+           role="button" tabindex="0" aria-label="Open Wellness Hub">
+        <div class="ws-summary-icon">🌿</div>
+        <div class="ws-summary-info">
+          <div class="ws-summary-title">${recoveryScore !== null ? recoveryLabel : 'Wellness & Fasting'}</div>
+          <div class="ws-summary-sub">${fastPart} ${checkinPart}</div>
+        </div>
+        ${scoreBadge}
+        <span class="profile-recent-chevron">›</span>
+      </div>
+    </div>
+  `;
+}
+
+function _renderWellnessSheetBody(state) {
+  const { ctx, todayEntry, recoveryScore, recoveryLabel, recoveryColor } = _wellnessContext(state);
+  const goal = state.fastingSession?.goal ?? 16;
+
+  // ── 7-day wellness check-in grid ──────────────────────────────────────────
   const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const wellnessCells = Array.from({ length: 7 }, (_, i) => {
     const d   = new Date();
     d.setDate(d.getDate() - (6 - i));
     const ds  = d.toISOString().slice(0, 10);
     const ent = (state.wellnessLog || []).find(e => e.date === ds);
-    let score = null, color = null;
+    let color = null;
     if (ent) {
       const s  = Math.min(100, ((ent.sleep || 0) / 8) * 100);
       const m  = ((ent.mood || 3) / 5) * 100;
       const so = ((6 - (ent.soreness || 3)) / 5) * 100;
-      score = Math.round(s * 0.4 + m * 0.3 + so * 0.3);
-      color = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+      const sc = Math.round(s * 0.4 + m * 0.3 + so * 0.3);
+      color = sc >= 70 ? '#10b981' : sc >= 45 ? '#f59e0b' : '#ef4444';
     }
     const cellStyle = color ? `background:${color}22;border-color:${color};` : '';
-    const title = ent ? `${ds}: score ${score}` : `${ds}: no check-in`;
     return `<div class="ws-check-col">
-      <div class="ws-check-cell${color ? ' ws-check-cell--filled' : ''}" style="${cellStyle}" title="${title}"></div>
+      <div class="ws-check-cell${color ? ' ws-check-cell--filled' : ''}" style="${cellStyle}"></div>
       <div class="ws-check-day">${DAY_LETTERS[d.getDay()]}</div>
     </div>`;
   }).join('');
 
-  const hasWellnessHistory = (state.wellnessLog || []).length > 0;
-
-  // ── Fasting streak grid (last 14 days) ─────────────────────────────────────
+  // ── Fasting streak grid (last 14 days) ────────────────────────────────────
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const streakCells = Array.from({ length: 14 }, (_, i) => {
     const day    = new Date(today.getTime() - (13 - i) * 86_400_000);
     const dayEnd = new Date(day.getTime() + 86_400_000);
-    const fast   = ctx.history.find(h => {
-      const e = new Date(h.endTime);
-      return e >= day && e < dayEnd;
-    });
+    const fast   = ctx.history.find(h => { const e = new Date(h.endTime); return e >= day && e < dayEnd; });
     const isToday = i === 13;
     const filled  = fast ? (fast.durationHours >= (fast.goalHours ?? goal) ? 'full' : 'partial') : (isToday && ctx.active ? 'active' : 'empty');
     const zone    = fast ? FASTING_ZONES.find(z => fast.durationHours >= z.hoursStart && fast.durationHours < z.hoursEnd) : null;
@@ -316,61 +341,59 @@ function _renderWellnessSection(state) {
     ? ctx.history.reduce((s, h) => s + h.durationHours, 0) / ctx.history.length
     : 0;
 
+  const hasWellnessHistory = (state.wellnessLog || []).length > 0;
+
   return `
-    <div class="profile-section wellness-section">
-      <div class="profile-section-title">Wellness Hub</div>
-
-      ${recoveryScore !== null ? `
-        <div class="ws-recovery-row">
-          <div class="ws-recovery-score" style="color:${recoveryColor};">${recoveryScore}<span class="ws-recovery-pct">%</span></div>
-          <div class="ws-recovery-meta">
-            <div class="ws-recovery-label" style="color:${recoveryColor};">${recoveryLabel}</div>
-            <div class="ws-recovery-sub">Recovery Score</div>
-          </div>
+    ${recoveryScore !== null ? `
+      <div class="ws-recovery-row">
+        <div class="ws-recovery-score" style="color:${recoveryColor};">${recoveryScore}<span class="ws-recovery-pct">%</span></div>
+        <div class="ws-recovery-meta">
+          <div class="ws-recovery-label" style="color:${recoveryColor};">${recoveryLabel}</div>
+          <div class="ws-recovery-sub">Recovery Score</div>
         </div>
-      ` : ''}
-
-      ${hasWellnessHistory || todayEntry ? `
-        <div class="ws-subsection-title">Daily Check-In</div>
-        ${todayEntry ? `
-          <div class="ws-checkin-card">
-            ${todayEntry.sleep    ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Sleep</span><span class="ws-checkin-val">${todayEntry.sleep}h</span></div>` : ''}
-            ${todayEntry.mood     ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Mood</span><span class="ws-checkin-val ws-checkin-dots">${'●'.repeat(todayEntry.mood)}${'○'.repeat(5 - todayEntry.mood)}</span></div>` : ''}
-            ${todayEntry.soreness ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Soreness</span><span class="ws-checkin-val ws-checkin-dots">${'●'.repeat(todayEntry.soreness)}${'○'.repeat(5 - todayEntry.soreness)}</span></div>` : ''}
-          </div>
-        ` : `<p class="ws-empty ws-empty--inline">No check-in today — log one in Recovery analytics.</p>`}
-        <div class="ws-check-grid">${wellnessCells}</div>
-        <div class="ws-streak-legend"><span>7 days ago</span><span>Today</span></div>
-      ` : ''}
-
-      <div class="ws-subsection-title">Fasting</div>
-
-      <div class="wellness-fast-summary">
-        <div class="ws-stat"><div class="ws-stat-val">${ctx.streak}</div><div class="ws-stat-lbl">Day Streak</div></div>
-        <div class="ws-stat"><div class="ws-stat-val">${fmtHoursLabel(ctx.weeklyHours)}</div><div class="ws-stat-lbl">This Week</div></div>
-        <div class="ws-stat"><div class="ws-stat-val">${avgHours > 0 ? fmtHoursLabel(avgHours) : '—'}</div><div class="ws-stat-lbl">Avg Fast</div></div>
-        <div class="ws-stat"><div class="ws-stat-val">${ctx.history.length}</div><div class="ws-stat-lbl">Total</div></div>
       </div>
+    ` : ''}
 
-      <div class="ws-streak-grid">${streakCells}</div>
-      <div class="ws-streak-legend"><span>14 days ago</span><span>Today</span></div>
+    ${hasWellnessHistory || todayEntry ? `
+      <div class="ws-subsection-title">Daily Check-In</div>
+      ${todayEntry ? `
+        <div class="ws-checkin-card">
+          ${todayEntry.sleep    ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Sleep</span><span class="ws-checkin-val">${todayEntry.sleep}h</span></div>` : ''}
+          ${todayEntry.mood     ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Mood</span><span class="ws-checkin-val ws-checkin-dots">${'●'.repeat(todayEntry.mood)}${'○'.repeat(5 - todayEntry.mood)}</span></div>` : ''}
+          ${todayEntry.soreness ? `<div class="ws-checkin-row"><span class="ws-checkin-lbl">Soreness</span><span class="ws-checkin-val ws-checkin-dots">${'●'.repeat(todayEntry.soreness)}${'○'.repeat(5 - todayEntry.soreness)}</span></div>` : ''}
+        </div>
+      ` : `<p class="ws-empty ws-empty--inline">No check-in today — log one in Recovery analytics.</p>`}
+      <div class="ws-check-grid">${wellnessCells}</div>
+      <div class="ws-streak-legend"><span>7 days ago</span><span>Today</span></div>
+    ` : ''}
 
-      ${ctx.history.length > 0 ? `
-        <div class="ws-history-label">Recent Fasts</div>
-        ${ctx.history.slice().reverse().slice(0, 5).map(h => {
-          const date  = new Date(h.endTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-          const zone  = FASTING_ZONES.find(z => h.durationHours >= z.hoursStart && h.durationHours < z.hoursEnd)
-                        ?? FASTING_ZONES[FASTING_ZONES.length - 1];
-          const metG  = h.durationHours >= (h.goalHours ?? goal);
-          return `<div class="ws-fast-row">
-            <span class="ws-fast-date">${date}</span>
-            <span class="ws-fast-dur" style="color:${zone.color};">${zone.icon} ${fmtHoursLabel(h.durationHours)}</span>
-            <span class="ws-fast-zone">${zone.name}</span>
-            <span class="ws-fast-goal ${metG ? 'ws-fast-goal--met' : ''}">${metG ? '✓ Goal' : `/${h.goalHours ?? goal}h`}</span>
-          </div>`;
-        }).join('')}
-      ` : '<p class="ws-empty">Start your first fast from the home screen.</p>'}
+    <div class="ws-subsection-title">Fasting</div>
+
+    <div class="wellness-fast-summary">
+      <div class="ws-stat"><div class="ws-stat-val">${ctx.streak}</div><div class="ws-stat-lbl">Day Streak</div></div>
+      <div class="ws-stat"><div class="ws-stat-val">${fmtHoursLabel(ctx.weeklyHours)}</div><div class="ws-stat-lbl">This Week</div></div>
+      <div class="ws-stat"><div class="ws-stat-val">${avgHours > 0 ? fmtHoursLabel(avgHours) : '—'}</div><div class="ws-stat-lbl">Avg Fast</div></div>
+      <div class="ws-stat"><div class="ws-stat-val">${ctx.history.length}</div><div class="ws-stat-lbl">Total</div></div>
     </div>
+
+    <div class="ws-streak-grid">${streakCells}</div>
+    <div class="ws-streak-legend"><span>14 days ago</span><span>Today</span></div>
+
+    ${ctx.history.length > 0 ? `
+      <div class="ws-history-label">Recent Fasts</div>
+      ${ctx.history.slice().reverse().slice(0, 5).map(h => {
+        const date = new Date(h.endTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const zone = FASTING_ZONES.find(z => h.durationHours >= z.hoursStart && h.durationHours < z.hoursEnd)
+                     ?? FASTING_ZONES[FASTING_ZONES.length - 1];
+        const metG = h.durationHours >= (h.goalHours ?? goal);
+        return `<div class="ws-fast-row">
+          <span class="ws-fast-date">${date}</span>
+          <span class="ws-fast-dur" style="color:${zone.color};">${zone.icon} ${fmtHoursLabel(h.durationHours)}</span>
+          <span class="ws-fast-zone">${zone.name}</span>
+          <span class="ws-fast-goal ${metG ? 'ws-fast-goal--met' : ''}">${metG ? '✓ Goal' : `/${h.goalHours ?? goal}h`}</span>
+        </div>`;
+      }).join('')}
+    ` : '<p class="ws-empty">Start your first fast from the home screen.</p>'}
   `;
 }
 
@@ -941,6 +964,24 @@ export function handleProfileAction(action, el) {
 
   if (action === 'close-session-detail') {
     closeSessionDetailModal();
+    return;
+  }
+
+  if (action === 'open-wellness-detail') {
+    if (!_getState) return;
+    const body     = document.getElementById('wellnessSheetBody');
+    const sheet    = document.getElementById('wellnessSheet');
+    const backdrop = document.getElementById('wellnessSheetBackdrop');
+    if (!sheet || !body) return;
+    body.innerHTML = _renderWellnessSheetBody(_getState());
+    sheet.classList.add('active');
+    if (backdrop) backdrop.classList.add('active');
+    return;
+  }
+
+  if (action === 'close-wellness-detail') {
+    document.getElementById('wellnessSheet')?.classList.remove('active');
+    document.getElementById('wellnessSheetBackdrop')?.classList.remove('active');
     return;
   }
 }
