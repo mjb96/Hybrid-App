@@ -4,6 +4,7 @@
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { big3Maxes } from './metrics/metrics-strength.js';
 import { getLiftDisplayName } from './engine.js';
+import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -213,11 +214,71 @@ export function renderAthleteProfile() {
       </div>
     ` : ''}
 
+    <!-- Wellness Hub -->
+    ${_renderWellnessSection(state)}
+
     <div style="height: 80px;"></div>
   `;
 }
 
 // ── Section helpers ───────────────────────────────────────────────────────────
+
+function _renderWellnessSection(state) {
+  const ctx = getFastingContext(state);
+  const goal = state.fastingSession?.goal ?? 16;
+
+  // Fasting streak bar (last 14 days)
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const streakCells = Array.from({ length: 14 }, (_, i) => {
+    const day     = new Date(today.getTime() - (13 - i) * 86_400_000);
+    const dayEnd  = new Date(day.getTime() + 86_400_000);
+    const fast    = ctx.history.find(h => {
+      const e = new Date(h.endTime);
+      return e >= day && e < dayEnd;
+    });
+    const isToday = i === 13;
+    const filled  = fast ? (fast.durationHours >= (fast.goalHours ?? goal) ? 'full' : 'partial') : (isToday && ctx.active ? 'active' : 'empty');
+    const zone    = fast ? FASTING_ZONES.find(z => fast.durationHours >= z.hoursStart && fast.durationHours < z.hoursEnd) : null;
+    const color   = zone?.color ?? '#3b82f6';
+    return `<div class="ws-streak-cell ws-streak-cell--${filled}" style="${filled !== 'empty' ? `background:${color}33;border-color:${color};` : ''}" title="${fast ? fmtHoursLabel(fast.durationHours) : (isToday && ctx.active ? 'In progress' : '—')}"></div>`;
+  }).join('');
+
+  const avgHours = ctx.history.length > 0
+    ? ctx.history.reduce((s, h) => s + h.durationHours, 0) / ctx.history.length
+    : 0;
+
+  return `
+    <div class="profile-section wellness-section">
+      <div class="profile-section-title">Wellness Hub</div>
+
+      <div class="wellness-fast-summary">
+        <div class="ws-stat"><div class="ws-stat-val">${ctx.streak}</div><div class="ws-stat-lbl">Day Streak</div></div>
+        <div class="ws-stat"><div class="ws-stat-val">${fmtHoursLabel(ctx.weeklyHours)}</div><div class="ws-stat-lbl">This Week</div></div>
+        <div class="ws-stat"><div class="ws-stat-val">${avgHours > 0 ? fmtHoursLabel(avgHours) : '—'}</div><div class="ws-stat-lbl">Avg Fast</div></div>
+        <div class="ws-stat"><div class="ws-stat-val">${ctx.history.length}</div><div class="ws-stat-lbl">Total</div></div>
+      </div>
+
+      <div class="ws-streak-grid">${streakCells}</div>
+      <div class="ws-streak-legend"><span>14 days ago</span><span>Today</span></div>
+
+      ${ctx.history.length > 0 ? `
+        <div class="ws-history-label">Recent Fasts</div>
+        ${ctx.history.slice().reverse().slice(0, 5).map(h => {
+          const date  = new Date(h.endTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const zone  = FASTING_ZONES.find(z => h.durationHours >= z.hoursStart && h.durationHours < z.hoursEnd)
+                        ?? FASTING_ZONES[FASTING_ZONES.length - 1];
+          const metG  = h.durationHours >= (h.goalHours ?? goal);
+          return `<div class="ws-fast-row">
+            <span class="ws-fast-date">${date}</span>
+            <span class="ws-fast-dur" style="color:${zone.color};">${zone.icon} ${fmtHoursLabel(h.durationHours)}</span>
+            <span class="ws-fast-zone">${zone.name}</span>
+            <span class="ws-fast-goal ${metG ? 'ws-fast-goal--met' : ''}">${metG ? '✓ Goal' : `/${h.goalHours ?? goal}h`}</span>
+          </div>`;
+        }).join('')}
+      ` : '<p class="ws-empty">Start your first fast from the home screen.</p>'}
+    </div>
+  `;
+}
 
 function _renderHealthSection(state) {
   const hc = state.healthConnect;

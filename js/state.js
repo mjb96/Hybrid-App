@@ -48,6 +48,7 @@ export let appState = {
   loadMetrics: { atl: 0, ctl: 0 },
   healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
   wellnessLog: [],
+  fastingSession: { active: false, startTime: null, goal: 16, history: [] },
   programLibrary: {
     bookmarks: [],           // array of program IDs
     completions: [],         // array of { programId, completedAt, weeksCompleted }
@@ -438,6 +439,7 @@ export async function pullEngineDataFromStorage() {
     loadMetrics: { atl: 0, ctl: 0 },
     healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
     wellnessLog: [],
+    fastingSession: { active: false, startTime: null, goal: 16, history: [] },
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
     settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', restTimerDefault: 90, progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true, theme: 'dark', onboardingComplete: false },
   };
@@ -489,6 +491,7 @@ export async function pullEngineDataFromStorage() {
   if (!appState.loadMetrics) appState.loadMetrics = { atl: 0, ctl: 0 };
   if (!appState.healthConnect) appState.healthConnect = { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 };
   if (!appState.wellnessLog) appState.wellnessLog = [];
+  if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
 
   const weeksToDelete = [];
   for (const wk in appState.weeks) {

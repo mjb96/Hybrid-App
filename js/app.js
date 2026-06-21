@@ -26,7 +26,7 @@ import {
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser } from './home.js';
+import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, startFastingTicker, stopFastingTicker, openFastingDetail, closeFastingDetail } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
@@ -58,6 +58,7 @@ import {
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
+import { startFast, stopFast } from './fasting.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -716,6 +717,23 @@ document.addEventListener('click', (e) => {
   else if (action === 'gps-resume') { resumeTracking(); }
   else if (action === 'gps-stop')   { stopTracking(appState.currentWeek, selectedDay); }
 
+  // Fasting
+  else if (action === 'fast-start') {
+    const goalEl = document.getElementById('fastingGoalSelect') ?? document.getElementById('fastingSheetGoalSelect');
+    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? 16);
+    startFast(appState, goal, () => saveStateToLocalStorage(true));
+    renderHome();
+    startFastingTicker();
+  }
+  else if (action === 'fast-stop') {
+    stopFast(appState, () => saveStateToLocalStorage(true));
+    stopFastingTicker();
+    closeFastingDetail();
+    renderHome();
+  }
+  else if (action === 'open-fasting-detail')  { openFastingDetail(); }
+  else if (action === 'close-fasting-detail') { closeFastingDetail(); }
+
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();
   else if (action === 'close-run-logger') closeRunLogger();
@@ -768,6 +786,15 @@ document.addEventListener('change', (e) => {
   // ID-based handlers (No data-action required)
   if (target.id === 'analyticsThresholdPaceInput') {
     saveThresholdPace(target.value);
+    return;
+  }
+  if (target.id === 'fastingGoalSelect' || target.id === 'fastingSheetGoalSelect') {
+    const goal = parseInt(target.value, 10);
+    if (!isNaN(goal)) {
+      if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
+      appState.fastingSession.goal = goal;
+      saveStateToLocalStorage(true);
+    }
     return;
   }
   if (target.id === 'settingsImportFile') {

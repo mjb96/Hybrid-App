@@ -9,6 +9,9 @@ import { getMapFromDB } from './db.js';
 import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
+import {
+  getFastingContext, fmtFastDuration, fmtHoursLabel, FASTING_ZONES, FAST_GOAL_OPTIONS,
+} from './fasting.js';
 
 let _getState;
 let _getSelectedDay;
@@ -16,6 +19,9 @@ let _getDays;
 
 // Private module-scoped variable to hold the map instance safely
 let activeHomeMapInstance = null;
+
+// Fasting card live ticker
+let _fastingTicker = null;
 
 export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getState = getStateFn;
@@ -166,6 +172,197 @@ function renderCoachingCard(state, days, activeProgram, selectedDay) {
 
   card.className     = `brain-coach-card brain-coach--${rec.severity} mb-4`;
   card.style.display = 'block';
+}
+
+// ==========================================
+// FASTING CARD RENDERER
+// ==========================================
+
+function _fastingTickUpdate() {
+  const state = _getState ? _getState() : null;
+  if (!state?.fastingSession?.active) { stopFastingTicker(); return; }
+  const ctx = getFastingContext(state);
+  const timerEl = document.getElementById('fastingCardTimer');
+  const fillEl  = document.getElementById('fastingProgressFill');
+  if (timerEl) timerEl.textContent = fmtFastDuration(ctx.hours);
+  if (fillEl)  fillEl.style.width  = `${ctx.progressPct.toFixed(1)}%`;
+  // Also keep the detail sheet in sync if open
+  const sheetTimer = document.getElementById('fastingSheetTimer');
+  if (sheetTimer) sheetTimer.textContent = fmtFastDuration(ctx.hours);
+  const sheetFill = document.getElementById('fastingSheetFill');
+  if (sheetFill) sheetFill.style.width = `${ctx.progressPct.toFixed(1)}%`;
+}
+
+export function startFastingTicker() {
+  if (_fastingTicker) return;
+  _fastingTicker = setInterval(_fastingTickUpdate, 1000);
+}
+
+export function stopFastingTicker() {
+  clearInterval(_fastingTicker);
+  _fastingTicker = null;
+}
+
+export function openFastingDetail() {
+  const state = _getState ? _getState() : null;
+  if (!state) return;
+  const sheet    = document.getElementById('fastingSheet');
+  const backdrop = document.getElementById('fastingSheetBackdrop');
+  if (!sheet) return;
+
+  const ctx = getFastingContext(state);
+
+  // Zone timeline
+  const timelineHtml = FASTING_ZONES.map(z => {
+    const reached  = ctx.hours >= z.hoursStart;
+    const current  = ctx.hours >= z.hoursStart && ctx.hours < z.hoursEnd;
+    const cls = current ? 'fz-node fz-node--current' : (reached ? 'fz-node fz-node--done' : 'fz-node');
+    return `<div class="${cls}" style="--zone-color:${z.color};">
+      <div class="fz-dot">${z.icon}</div>
+      <div class="fz-label">${z.name}</div>
+      <div class="fz-time">${z.hoursStart}h</div>
+    </div>`;
+  }).join('');
+
+  // History table (last 7)
+  const historyHtml = ctx.history.length === 0
+    ? '<p class="fasting-history-empty">No completed fasts yet.</p>'
+    : ctx.history.slice().reverse().slice(0, 7).map(h => {
+        const date = new Date(h.endTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const zone = _zoneNameForHours(h.durationHours);
+        const metGoal = h.durationHours >= (h.goalHours ?? 16);
+        return `<div class="fasting-history-row">
+          <span class="fhr-date">${date}</span>
+          <span class="fhr-dur">${fmtHoursLabel(h.durationHours)}</span>
+          <span class="fhr-zone">${zone}</span>
+          <span class="fhr-check">${metGoal ? '✓' : '–'}</span>
+        </div>`;
+      }).join('');
+
+  const goalOptions = FAST_GOAL_OPTIONS.map(h =>
+    `<option value="${h}" ${h === ctx.goal ? 'selected' : ''}>${h}h</option>`
+  ).join('');
+
+  sheet.innerHTML = `
+    <div class="fasting-sheet-header">
+      <span class="fasting-sheet-title">Fasting</span>
+      <button class="fasting-sheet-close" data-action="close-fasting-detail">✕</button>
+    </div>
+
+    <div class="fasting-sheet-hero ${ctx.active ? 'fasting-sheet-hero--active' : ''}">
+      <div class="fasting-sheet-zone-icon">${ctx.zone.icon}</div>
+      <div class="fasting-sheet-timer" id="fastingSheetTimer">${fmtFastDuration(ctx.hours)}</div>
+      <div class="fasting-sheet-zone-name" style="color:${ctx.zone.color};">${ctx.zone.name}</div>
+      <div class="fasting-sheet-zone-desc">${ctx.zone.description}</div>
+    </div>
+
+    <div class="fasting-progress-track fasting-sheet-progress">
+      <div class="fasting-progress-fill" id="fastingSheetFill"
+           style="width:${ctx.progressPct.toFixed(1)}%;background:${ctx.zone.color};"></div>
+    </div>
+    <div class="fasting-sheet-progress-label">
+      ${ctx.progressPct >= 100 ? '🎉 Goal reached!' : `${fmtHoursLabel(ctx.remainingHours)} to goal`}
+    </div>
+
+    <div class="fasting-metrics-grid">
+      <div class="fasting-metric"><div class="fm-value">${ctx.goal}h</div><div class="fm-label">Goal</div></div>
+      <div class="fasting-metric"><div class="fm-value">${ctx.streak}</div><div class="fm-label">Day Streak</div></div>
+      <div class="fasting-metric"><div class="fm-value">${fmtHoursLabel(ctx.weeklyHours)}</div><div class="fm-label">This Week</div></div>
+      <div class="fasting-metric"><div class="fm-value">${ctx.history.length}</div><div class="fm-label">Total Fasts</div></div>
+    </div>
+
+    <div class="fasting-zone-timeline">${timelineHtml}</div>
+
+    <div class="fasting-sheet-controls">
+      ${ctx.active
+        ? `<button class="fasting-btn-stop fasting-btn-stop--full" data-action="fast-stop">End Fast</button>`
+        : `<div class="fasting-sheet-start-row">
+             <label class="fasting-goal-label">Goal:
+               <select class="fasting-goal-select" id="fastingSheetGoalSelect">${goalOptions}</select>
+             </label>
+             <button class="fasting-btn-start" data-action="fast-start">Start Fast</button>
+           </div>`
+      }
+    </div>
+
+    <div class="fasting-history-section">
+      <div class="fasting-history-title">Recent Fasts</div>
+      <div class="fasting-history-header">
+        <span>Date</span><span>Duration</span><span>Zone</span><span>Goal</span>
+      </div>
+      ${historyHtml}
+    </div>
+  `;
+
+  sheet.classList.add('active');
+  if (backdrop) backdrop.classList.add('active');
+}
+
+export function closeFastingDetail() {
+  document.getElementById('fastingSheet')?.classList.remove('active');
+  document.getElementById('fastingSheetBackdrop')?.classList.remove('active');
+}
+
+function renderFastingCard(state) {
+  const card = document.getElementById('fastingCard');
+  if (!card) return;
+
+  const ctx = getFastingContext(state);
+  card.style.display = 'block';
+
+  if (ctx.active) {
+    card.innerHTML = `
+      <div class="fasting-card-inner fasting-card-inner--active">
+        <div class="fasting-card-header">
+          <span class="fasting-card-icon">${ctx.zone.icon}</span>
+          <span class="fasting-card-title">Fasting</span>
+          <span class="fasting-card-zone-badge" style="background:${ctx.zone.color}20;color:${ctx.zone.color};">${ctx.zone.name}</span>
+        </div>
+        <div class="fasting-card-timer" id="fastingCardTimer">${fmtFastDuration(ctx.hours)}</div>
+        <div class="fasting-progress-track">
+          <div class="fasting-progress-fill" id="fastingProgressFill" style="width:${ctx.progressPct.toFixed(1)}%;background:${ctx.zone.color};"></div>
+        </div>
+        <div class="fasting-card-meta">
+          Goal ${ctx.goal}h · ${ctx.progressPct >= 100 ? '🎉 Goal reached!' : `${fmtHoursLabel(ctx.remainingHours)} remaining`}
+        </div>
+        <div class="fasting-card-actions">
+          <button class="fasting-btn-detail" data-action="open-fasting-detail">Details</button>
+          <button class="fasting-btn-stop" data-action="fast-stop">End Fast</button>
+        </div>
+      </div>`;
+    startFastingTicker();
+  } else {
+    const lastFast = ctx.history.length > 0 ? ctx.history[ctx.history.length - 1] : null;
+    const lastLine = lastFast
+      ? `<div class="fasting-card-last">Last: ${fmtHoursLabel(lastFast.durationHours)} — ${_zoneNameForHours(lastFast.durationHours)}</div>`
+      : '<div class="fasting-card-last">No fasts logged yet</div>';
+    const goalOptions = FAST_GOAL_OPTIONS.map(h =>
+      `<option value="${h}" ${h === ctx.goal ? 'selected' : ''}>${h}h</option>`
+    ).join('');
+    card.innerHTML = `
+      <div class="fasting-card-inner">
+        <div class="fasting-card-header">
+          <span class="fasting-card-icon">⏱</span>
+          <span class="fasting-card-title">Intermittent Fasting</span>
+        </div>
+        ${lastLine}
+        <div class="fasting-card-start-row">
+          <label class="fasting-goal-label">Goal:
+            <select class="fasting-goal-select" id="fastingGoalSelect">${goalOptions}</select>
+          </label>
+          <button class="fasting-btn-start" data-action="fast-start">Start Fast</button>
+        </div>
+        ${ctx.history.length > 0 ? `<button class="fasting-btn-detail fasting-btn-detail--ghost" data-action="open-fasting-detail">View history</button>` : ''}
+      </div>`;
+    stopFastingTicker();
+  }
+}
+
+function _zoneNameForHours(h) {
+  for (const z of FASTING_ZONES) {
+    if (h >= z.hoursStart && h < z.hoursEnd) return z.name;
+  }
+  return FASTING_ZONES[FASTING_ZONES.length - 1].name;
 }
 
 // ==========================================
@@ -599,6 +796,7 @@ export function renderHome() {
 
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay);
   renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
+  renderFastingCard(appState);
 
   const progressPercentage = (() => {
     let total = 0, done = 0;

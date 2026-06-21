@@ -281,6 +281,9 @@
         </div>
       </article>
 
+      <!-- Fasting Card — rendered dynamically by home.js -->
+      <article id="fastingCard" class="fasting-card mb-4" style="display:none;" aria-label="Fasting tracker"></article>
+
       <div class="app-section-heading" style="margin-top: 20px;">
         <div class="app-section-heading__title">At a Glance</div>
         <div class="app-section-heading__sub">Key metrics snapshot</div>
@@ -1403,6 +1406,12 @@
       <button class="btn-action-block btn-ghost mt-0" data-action="reset-tile-customiser">Reset to Default</button>
       <button class="btn-action-block btn-blue mt-0" data-action="close-tile-customiser" data-apply="true">Done</button>
     </div>
+  </div>
+
+  <!-- Fasting Detail Sheet -->
+  <div id="fastingSheetBackdrop" class="fasting-sheet-backdrop" data-action="close-fasting-detail"></div>
+  <div id="fastingSheet" class="fasting-sheet" role="dialog" aria-modal="true" aria-label="Fasting details">
+    <!-- content injected by home.js openFastingDetail() -->
   </div>
 
   <!-- PR Goal Modal -->
