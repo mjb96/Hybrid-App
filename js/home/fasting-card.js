@@ -5,6 +5,13 @@ import {
   getFastingContext, fmtFastDuration, fmtHoursLabel, FASTING_ZONES, FAST_GOAL_OPTIONS,
 } from '../fasting.js';
 
+function _isoToDatetimeLocal(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 let _getState = null;
 let _fastingTicker = null;
 
@@ -109,7 +116,21 @@ export function openFastingDetail() {
 
     <div class="fasting-sheet-controls">
       ${ctx.active
-        ? `<button class="fasting-btn-stop fasting-btn-stop--full" data-action="fast-stop">End Fast</button>`
+        ? `<button class="fasting-btn-stop fasting-btn-stop--full" data-action="fast-stop">End Fast</button>
+           <div class="fasting-edit-start-row">
+             <button class="fasting-edit-start-toggle" data-action="fast-edit-start-time">Adjust start time</button>
+           </div>
+           <div class="fasting-edit-start-panel" id="fastingEditStartPanel" style="display:none;">
+             <label class="fasting-edit-start-label">Started at
+               <input type="datetime-local" id="fastingStartTimeInput" class="fasting-edit-start-input"
+                 value="${_isoToDatetimeLocal(state.fastingSession.startTime)}"
+                 max="${_isoToDatetimeLocal(new Date().toISOString())}">
+             </label>
+             <div class="fasting-edit-start-actions">
+               <button class="fasting-edit-start-cancel" data-action="fast-cancel-edit-start">Cancel</button>
+               <button class="fasting-edit-start-save" data-action="fast-save-start-time">Save</button>
+             </div>
+           </div>`
         : `<div class="fasting-sheet-start-row">
              <label class="fasting-goal-label">Goal:
                <select class="fasting-goal-select" id="fastingSheetGoalSelect">${goalOptions}</select>

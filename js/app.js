@@ -58,7 +58,7 @@ import {
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
-import { startFast, stopFast } from './fasting.js';
+import { startFast, stopFast, editFastStartTime } from './fasting.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -731,6 +731,22 @@ document.addEventListener('click', (e) => {
     stopFast(appState, () => saveStateToLocalStorage(true));
     closeFastingDetail();
     renderHome();
+  }
+  else if (action === 'fast-edit-start-time') {
+    const panel = document.getElementById('fastingEditStartPanel');
+    if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+  }
+  else if (action === 'fast-cancel-edit-start') {
+    const panel = document.getElementById('fastingEditStartPanel');
+    if (panel) panel.style.display = 'none';
+  }
+  else if (action === 'fast-save-start-time') {
+    const input = document.getElementById('fastingStartTimeInput');
+    if (input?.value) {
+      editFastStartTime(appState, input.value, () => saveStateToLocalStorage(true));
+      openFastingDetail();
+      renderHome();
+    }
   }
   else if (action === 'open-fasting-detail')  { openFastingDetail(); }
   else if (action === 'close-fasting-detail') { closeFastingDetail(); }
