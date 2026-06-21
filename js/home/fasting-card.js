@@ -117,18 +117,29 @@ export function openFastingDetail() {
     <div class="fasting-sheet-controls">
       ${ctx.active
         ? `<button class="fasting-btn-stop fasting-btn-stop--full" data-action="fast-stop">End Fast</button>
-           <div class="fasting-edit-start-row">
-             <button class="fasting-edit-start-toggle" data-action="fast-edit-start-time">Adjust start time</button>
+           <div class="fasting-adjust-row">
+             <button class="fasting-btn-adjust" data-action="fast-edit-start-time">Adjust start</button>
+             <button class="fasting-btn-adjust" data-action="fast-edit-end-time">Adjust end</button>
            </div>
-           <div class="fasting-edit-start-panel" id="fastingEditStartPanel" style="display:none;">
-             <label class="fasting-edit-start-label">Started at
-               <input type="datetime-local" id="fastingStartTimeInput" class="fasting-edit-start-input"
-                 value="${_isoToDatetimeLocal(state.fastingSession.startTime)}"
-                 max="${_isoToDatetimeLocal(new Date().toISOString())}">
-             </label>
-             <div class="fasting-edit-start-actions">
-               <button class="fasting-edit-start-cancel" data-action="fast-cancel-edit-start">Cancel</button>
-               <button class="fasting-edit-start-save" data-action="fast-save-start-time">Save</button>
+           <div class="fasting-edit-panel" id="fastingEditStartPanel" style="display:none;">
+             <div class="fasting-edit-panel-title">Start time</div>
+             <input type="datetime-local" id="fastingStartTimeInput" class="fasting-edit-input"
+               value="${_isoToDatetimeLocal(state.fastingSession.startTime)}"
+               max="${_isoToDatetimeLocal(new Date().toISOString())}">
+             <div class="fasting-edit-panel-actions">
+               <button class="fasting-edit-cancel" data-action="fast-cancel-edit-start">Cancel</button>
+               <button class="fasting-edit-save" data-action="fast-save-start-time">Save</button>
+             </div>
+           </div>
+           <div class="fasting-edit-panel" id="fastingEditEndPanel" style="display:none;">
+             <div class="fasting-edit-panel-title">End time</div>
+             <input type="datetime-local" id="fastingEndTimeInput" class="fasting-edit-input"
+               value="${_isoToDatetimeLocal(new Date().toISOString())}"
+               min="${_isoToDatetimeLocal(state.fastingSession.startTime)}"
+               max="${_isoToDatetimeLocal(new Date().toISOString())}">
+             <div class="fasting-edit-panel-actions">
+               <button class="fasting-edit-cancel" data-action="fast-cancel-edit-end">Cancel</button>
+               <button class="fasting-edit-save" data-action="fast-save-end-time">Save</button>
              </div>
            </div>`
         : `<div class="fasting-sheet-start-row">
