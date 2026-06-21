@@ -5824,6 +5824,76 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
 .ws-fast-goal  { font-size: 0.72rem; color: var(--text-muted); }
 .ws-fast-goal--met { color: #10b981; font-weight: 600; }
 .ws-empty { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+.ws-empty--inline { margin: 4px 0 12px; }
+.ws-subsection-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 16px 0 10px;
+}
+.ws-recovery-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+.ws-recovery-score {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ws-recovery-pct { font-size: 1rem; font-weight: 700; }
+.ws-recovery-meta { flex: 1; }
+.ws-recovery-label { font-size: 0.85rem; font-weight: 700; }
+.ws-recovery-sub { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+.ws-checkin-card {
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.ws-checkin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.82rem;
+}
+.ws-checkin-lbl { color: var(--text-muted); }
+.ws-checkin-val { font-weight: 700; color: var(--text-main); }
+.ws-checkin-dots { letter-spacing: 2px; }
+.ws-check-grid {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.ws-check-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.ws-check-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid transparent;
+}
+.ws-check-cell--filled { opacity: 0.9; }
+.ws-check-day {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
 
 /* ── Light mode overrides ─────────────────────────────────────────────────── */
 html[data-theme="light"] .fasting-card { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
@@ -5835,3 +5905,6 @@ html[data-theme="light"] .fasting-metric { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .fz-dot { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-stat { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .ws-streak-cell { background: rgba(0,0,0,0.06); }
+html[data-theme="light"] .ws-recovery-row { background: rgba(0,0,0,0.04); }
+html[data-theme="light"] .ws-checkin-card { background: rgba(0,0,0,0.04); }
+html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }
