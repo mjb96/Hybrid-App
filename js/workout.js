@@ -200,7 +200,8 @@ export function renderWorkout() {
   }
 
   const hasRunExtra = runContext.avgHR || runContext.maxHR || runContext.elev || runContext.cals ||
-                      runContext.avgCadence || runContext.descent || runContext.trainingEffect;
+                      runContext.avgCadence || runContext.descent || runContext.trainingEffect ||
+                      weekData.runs[selectedDay]?.splits?.length > 0;
   if (runExtraStatsRow) runExtraStatsRow.style.display = hasRunExtra ? 'block' : 'none';
 
   // HR Zones strip
@@ -268,14 +269,25 @@ export function renderWorkout() {
   const splitsTable = document.getElementById('runSplitsTable');
   if (splitsContainer && splitsTable) {
       if (rStats.splits && rStats.splits.length > 0) {
+          const threshold = appState.thresholdPaceSeconds;
+          const zoneColour = (secPerKm) => {
+            if (!threshold) return '#f43f5e';
+            const d = secPerKm - threshold;
+            if (d >  90) return '#22d3ee';
+            if (d >  30) return '#10b981';
+            if (d > -30) return '#f59e0b';
+            if (d > -60) return '#f97316';
+            return '#ef4444';
+          };
           let html = '<div style="font-size: 0.75rem; color: #fff;">';
           rStats.splits.forEach(s => {
               const min = Math.floor(s.time / 60);
               const sec = Math.floor(s.time % 60).toString().padStart(2, '0');
+              const colour = zoneColour(s.time / (s.dist || 1));
               html += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
                           <span>Lap ${s.lap}</span>
                           <span>${s.dist.toFixed(2)} km</span>
-                          <span>${min}:${sec}</span>
+                          <span style="color:${colour};">${min}:${sec}/km</span>
                           <span style="color:var(--accent-pink);">❤️ ${s.avgHR || '--'}</span>
                        </div>`;
           });
@@ -312,7 +324,10 @@ export function renderWorkout() {
   }
 
   // === RENDER MAP FROM IndexedDB ===
-  renderRunMap(wk, selectedDay, runContext.dist);
+  renderRunMap(wk, selectedDay, runContext.dist, {
+    splits: rStats.splits,
+    thresholdSec: appState.thresholdPaceSeconds,
+  });
 
   const notesEl = document.getElementById('sessionNotesInput');
   const gymRpeEl = document.getElementById('sessionGymRpeCockpit');

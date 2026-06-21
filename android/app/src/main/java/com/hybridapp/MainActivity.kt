@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.content.pm.PackageManager
+import android.webkit.GeolocationPermissions
 import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -16,6 +18,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -38,6 +41,20 @@ class MainActivity : AppCompatActivity() {
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
+
+    // Pending geolocation permission callback — held while the OS permission dialog is shown.
+    private var pendingGeoCallback: GeolocationPermissions.Callback? = null
+    private var pendingGeoOrigin: String? = null
+
+    private val requestLocationPermLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val cb     = pendingGeoCallback
+        val origin = pendingGeoOrigin
+        pendingGeoCallback = null
+        pendingGeoOrigin   = null
+        cb?.invoke(origin, granted, false)
+    }
 
     // Must be registered before onStart(); PermissionController contract is static.
     private val requestPermissions = registerForActivityResult(
@@ -111,6 +128,7 @@ class MainActivity : AppCompatActivity() {
         webView.apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            settings.setGeolocationEnabled(true)
             // allowFileAccess flags are no longer needed: assets are served over
             // https://appassets.androidplatform.net via WebViewAssetLoader.
             settings.allowFileAccessFromFileURLs = false
@@ -227,6 +245,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inner class AppWebChromeClient : WebChromeClient() {
+        override fun onGeolocationPermissionsShowPrompt(
+            origin: String,
+            callback: GeolocationPermissions.Callback,
+        ) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                this@MainActivity,
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (hasPermission) {
+                callback.invoke(origin, true, false)
+            } else {
+                pendingGeoCallback = callback
+                pendingGeoOrigin   = origin
+                requestLocationPermLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
+
         override fun onShowFileChooser(
             webView: WebView,
             filePathCallback: ValueCallback<Array<Uri>>,

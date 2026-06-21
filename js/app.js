@@ -26,7 +26,7 @@ import {
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser } from './home.js';
+import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, startFastingTicker, stopFastingTicker, openFastingDetail, closeFastingDetail } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
@@ -56,6 +56,9 @@ import {
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
+import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
+import { renderRunMap } from './workout-map.js';
+import { startFast, stopFast } from './fasting.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -189,7 +192,7 @@ export function hydrateCurrentView() {
   verifyWeekStorageSchema(appState.currentWeek);
 
   if (activeTab === 'home') safeRenderExecution(renderHome, "Home Dashboard Render");
-  else if (activeTab === 'workout') safeRenderExecution(renderWorkout, "Workout Cockpit Render");
+  else if (activeTab === 'workout') { safeRenderExecution(renderWorkout, "Workout Cockpit Render"); onWorkoutTabActivated(); }
   else if (activeTab === 'analytics') safeRenderExecution(renderAnalytics, "Performance Matrix Render");
   else if (activeTab === 'profile') safeRenderExecution(renderAthleteProfile, "Athlete Profile Render");
   else if (activeTab === 'program') {
@@ -708,6 +711,29 @@ document.addEventListener('click', (e) => {
     handleOnboardingAction(action, target);
   }
 
+  // GPS Tracker
+  else if (action === 'gps-start')  { startTracking(); }
+  else if (action === 'gps-pause')  { pauseTracking(); }
+  else if (action === 'gps-resume') { resumeTracking(); }
+  else if (action === 'gps-stop')   { stopTracking(appState.currentWeek, selectedDay); }
+
+  // Fasting
+  else if (action === 'fast-start') {
+    const goalEl = document.getElementById('fastingGoalSelect') ?? document.getElementById('fastingSheetGoalSelect');
+    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? 16);
+    startFast(appState, goal, () => saveStateToLocalStorage(true));
+    renderHome();
+    startFastingTicker();
+  }
+  else if (action === 'fast-stop') {
+    stopFast(appState, () => saveStateToLocalStorage(true));
+    stopFastingTicker();
+    closeFastingDetail();
+    renderHome();
+  }
+  else if (action === 'open-fasting-detail')  { openFastingDetail(); }
+  else if (action === 'close-fasting-detail') { closeFastingDetail(); }
+
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();
   else if (action === 'close-run-logger') closeRunLogger();
@@ -760,6 +786,15 @@ document.addEventListener('change', (e) => {
   // ID-based handlers (No data-action required)
   if (target.id === 'analyticsThresholdPaceInput') {
     saveThresholdPace(target.value);
+    return;
+  }
+  if (target.id === 'fastingGoalSelect' || target.id === 'fastingSheetGoalSelect') {
+    const goal = parseInt(target.value, 10);
+    if (!isNaN(goal)) {
+      if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
+      appState.fastingSession.goal = goal;
+      saveStateToLocalStorage(true);
+    }
     return;
   }
   if (target.id === 'settingsImportFile') {
@@ -863,6 +898,27 @@ initRunLogger(getState);
 initOnboarding(getState);
 initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
+initGpsTracker();
+
+// Save auto-filled inputs, persist km splits, and render the pace-zone map after GPS tracking finishes.
+document.addEventListener('gps:route-saved', (e) => {
+  const { week, day, distKm, splits, coords } = e.detail;
+
+  // Write splits into state before commitWorkoutUIState spreads existing data.
+  if (splits && splits.length > 0 && appState.weeks[week]) {
+    const existing = appState.weeks[week].runs?.[day] || {};
+    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
+    appState.weeks[week].runs[day] = { ...existing, splits };
+  }
+
+  try { commitWorkoutUIState(); } catch (_) {}
+  try {
+    renderRunMap(week, day, distKm, {
+      splits,
+      thresholdSec: appState.thresholdPaceSeconds,
+    });
+  } catch (_) {}
+});
 
 // === DEVICE IMPORT WIRING ===
 

@@ -269,6 +269,21 @@
 
       </div>
 
+      <article id="brainCoachCard" class="brain-coach-card brain-coach--neutral mb-4" style="display:none;" aria-label="Today's coaching recommendation">
+        <div class="brain-coach-inner">
+          <div class="brain-coach-header">
+            <span class="brain-coach-icon">🧠</span>
+            <span class="brain-coach-title">Today's Coaching</span>
+            <span id="brainCoachBadge" class="brain-coach-badge"></span>
+          </div>
+          <div id="brainCoachHeadline" class="brain-coach-headline"></div>
+          <div id="brainCoachAdvice" class="brain-coach-advice"></div>
+        </div>
+      </article>
+
+      <!-- Fasting Card — rendered dynamically by home.js -->
+      <article id="fastingCard" class="fasting-card mb-4" style="display:none;" aria-label="Fasting tracker"></article>
+
       <div class="app-section-heading" style="margin-top: 20px;">
         <div class="app-section-heading__title">At a Glance</div>
         <div class="app-section-heading__sub">Key metrics snapshot</div>
@@ -336,6 +351,45 @@
         </div>
 
         <div id="runMapContainer" style="height: 180px; width: 100%; border-radius: 8px; display: none; margin-bottom: 12px; z-index: 1;"></div>
+
+        <!-- GPS: Idle — invite to track -->
+        <div id="gpsStartPanel" class="gps-start-panel">
+          <span class="gps-start-icon">📍</span>
+          <div class="gps-start-body">
+            <div class="gps-start-title">Track This Run</div>
+            <div class="gps-start-sub">Live map · Auto-fills distance &amp; time</div>
+          </div>
+          <button class="gps-start-btn" data-action="gps-start">Start →</button>
+        </div>
+
+        <!-- GPS: Waiting for first fix -->
+        <div id="gpsWaitPanel" class="gps-wait-panel" style="display:none;">
+          <div class="gps-wait-spinner"></div>
+          <span class="gps-wait-text">Getting GPS signal…</span>
+        </div>
+
+        <!-- GPS: Live tracking -->
+        <div id="gpsLivePanel" style="display:none;">
+          <div id="gpsLiveMap" class="gps-live-map"></div>
+          <div class="gps-stats-row">
+            <div class="gps-stat">
+              <span class="gps-stat-label">TIME</span>
+              <span class="gps-stat-value" id="gpsStatTime">00:00</span>
+            </div>
+            <div class="gps-stat">
+              <span class="gps-stat-label">DIST (KM)</span>
+              <span class="gps-stat-value" id="gpsStatDist">0.00</span>
+            </div>
+            <div class="gps-stat">
+              <span class="gps-stat-label">PACE</span>
+              <span class="gps-stat-value" id="gpsStatPace">—:——</span>
+            </div>
+          </div>
+          <div class="gps-action-row">
+            <button class="gps-btn-secondary" id="gpsPauseBtn" data-action="gps-pause">⏸ Pause</button>
+            <button class="gps-btn-stop" data-action="gps-stop">■ Stop &amp; Save</button>
+          </div>
+        </div>
 
         <p class="workout-run-desc" id="cockpitRunSpecs">Loading target distance parameters...</p>
 
@@ -1352,6 +1406,12 @@
       <button class="btn-action-block btn-ghost mt-0" data-action="reset-tile-customiser">Reset to Default</button>
       <button class="btn-action-block btn-blue mt-0" data-action="close-tile-customiser" data-apply="true">Done</button>
     </div>
+  </div>
+
+  <!-- Fasting Detail Sheet -->
+  <div id="fastingSheetBackdrop" class="fasting-sheet-backdrop" data-action="close-fasting-detail"></div>
+  <div id="fastingSheet" class="fasting-sheet" role="dialog" aria-modal="true" aria-label="Fasting details">
+    <!-- content injected by home.js openFastingDetail() -->
   </div>
 
   <!-- PR Goal Modal -->
