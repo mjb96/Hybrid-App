@@ -179,31 +179,16 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
 
   let advice = buildAdvice(acwr, tsb, session, highRpeStreak, hasData);
 
-  // ── Fasting overlay ───────────────────────────────────────────────────────
-  // Modify advice and severity when the user is mid-fast, using research:
-  //   Aird et al. (2018) J Sports Sci — strength preserved up to ~24h fasted
-  //   Ho et al. (1988) J Clin Invest  — GH elevates 5× at 24–48h (muscle-protective)
-  //   Trabelsi et al. (2013)          — Ramadan resistance training: mass maintained with adequate protein
+  // ── Fasting note (24h+ only) ──────────────────────────────────────────────
+  // A brief, non-prescriptive heads-up — the athlete decides how to adjust.
+  // Sources: Ho et al. (1988) J Clin Invest; Aird et al. (2018) J Sports Sci.
   const fastH = getFastingHours(state.fastingSession);
-  if (fastH >= 16 && (session.hasGym || session.hasRun)) {
+  if (fastH >= 24 && (session.hasGym || session.hasRun)) {
     const fh = Math.floor(fastH);
-    if (fastH >= 36 && session.hasGym) {
-      severity = 'warning';
-      headline = `Extended fast (${fh}h) — train with caution`;
-      advice   = `You're ${fh}h into a fast. At this stage cortisol is significantly elevated and hypoglycaemia during heavy compound lifts is a real risk. Strongly recommended: break your fast before this session. If training fasted, cap intensity at 50% of planned load and stop immediately if you feel dizzy or lightheaded.`;
-    } else if (fastH >= 24 && session.hasGym) {
-      if (severity === 'positive' || severity === 'neutral') severity = 'caution';
-      headline = `${fh}h fasted — reduce load today`;
-      advice  += ` You're ${fh}h into a fast. Growth hormone elevation offers some muscle protection (Ho et al., 1988), but cortisol is high and anabolic signalling reduced. Reduce working sets to ~70% of planned load and avoid max-effort attempts.`;
-    } else if (fastH >= 16 && session.hasGym) {
-      advice += ` You're ${fh}h into a fast — glycogen is depleted. Research shows strength is largely maintained at this stage (Aird et al., 2018), but drop working sets by ~15% and prioritise protein immediately post-session.`;
-    }
-
-    if (fastH >= 24 && session.hasRun) {
-      if (severity === 'positive' || severity === 'neutral') severity = 'caution';
-      advice += ` At ${fh}h fasted, prolonged running risks muscle catabolism. Keep any run under 30 min at very easy pace, or refeed first.`;
-    } else if (fastH >= 16 && session.hasRun) {
-      advice += ` Fasted running (~${fh}h) increases fat oxidation — ideal for easy aerobic work. Avoid tempo or interval efforts; keep effort in Zone 1–2.`;
+    if (session.hasGym) {
+      advice += ` Note: you're ${fh}h into a fast — GH is elevated and fat oxidation is high, but glycogen is low. Listen to your body and adjust intensity as needed.`;
+    } else if (session.hasRun) {
+      advice += ` Note: you're ${fh}h into a fast — fat oxidation is elevated but glycogen is low. Favour easier efforts and stay well hydrated.`;
     }
   }
 
