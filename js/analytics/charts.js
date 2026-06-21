@@ -4,61 +4,110 @@
 import { rpeColour } from './utils.js';
 import { formatDayMonth } from '../dates.js';
 
-export function renderVolumeChart(container, weekLabels, volData, runData) {
+// Shared helper: smooth cubic-bezier path through an array of [x,y] points
+function _smoothBezierPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p0 = pts[i - 1];
+    const p1 = pts[i];
+    const tension = 0.38;
+    const cp1x = p0[0] + (p1[0] - p0[0]) * tension;
+    const cp2x = p1[0] - (p1[0] - p0[0]) * tension;
+    d += ` C ${cp1x.toFixed(1)},${p0[1].toFixed(1)} ${cp2x.toFixed(1)},${p1[1].toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+// Unique id helper for SVG gradients (avoids collisions when chart re-renders)
+let _gid = 0;
+function _uid() { return 'g' + (++_gid); }
+
+export function renderVolumeChart(container, weekLabels, volData, runData, highlightIdx = -1) {
   if (!container || weekLabels.length < 1) {
     if (container) container.innerHTML = '<p style="color:rgba(255,255,255,0.6);font-size:0.9rem;padding:12px 0;">Log workouts to see volume trends.</p>';
     return;
   }
 
-  const W = 400, H = 180, PAD_L = 50, PAD_B = 30, PAD_T = 15, PAD_R = 15;
+  const W = 400, H = 200, PAD_L = 50, PAD_B = 30, PAD_T = 20, PAD_R = 15;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_B - PAD_T;
 
   const maxVol = Math.max(...volData, 1);
   const maxRun = Math.max(...runData, 1);
-  const n = weekLabels.length;
-  const barW = Math.max(8, Math.floor(chartW / n) - 6);
+  const n      = weekLabels.length;
+  const barW   = Math.max(8, Math.floor(chartW / n) - 6);
+
+  const vGrad = _uid(), rGrad = _uid();
+  const defs = `<defs>
+    <linearGradient id="${vGrad}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#3b82f6" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="${rGrad}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#ec4899" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
+    </linearGradient>
+  </defs>`;
 
   let bars = '';
-  let runPoints = '';
-  let runPath = '';
+  const runXY = [];
 
   weekLabels.forEach((label, i) => {
-    const x = PAD_L + (i / n) * chartW + (chartW / n - barW) / 2;
-    const barH = (volData[i] / maxVol) * chartH;
-    const y = PAD_T + chartH - barH;
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}" fill="#3b82f6" opacity="0.85" rx="3"/>`;
+    const x    = PAD_L + (i / n) * chartW + (chartW / n - barW) / 2;
+    const barH = volData[i] > 0 ? Math.max(3, (volData[i] / maxVol) * chartH) : 0;
+    const y    = PAD_T + chartH - barH;
+    const isHL = i === highlightIdx;
+
+    if (barH > 0) {
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="${barH.toFixed(1)}"
+        fill="${isHL ? '#60a5fa' : `url(#${vGrad})`}"
+        opacity="${isHL ? 1 : 0.8}" rx="4"/>`;
+      if (isHL) {
+        // Bright top-cap accent on highlighted bar
+        bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW}" height="3" fill="#93c5fd" rx="2" opacity="0.9"/>`;
+      }
+    }
 
     const rx = PAD_L + (i / n) * chartW + chartW / n / 2;
-    const ry = PAD_T + chartH - (runData[i] / maxRun) * chartH;
-    runPoints += `${rx.toFixed(1)},${ry.toFixed(1)} `;
+    if (runData[i] > 0) {
+      runXY.push([rx, PAD_T + chartH - (runData[i] / maxRun) * chartH, i]);
+    }
   });
 
-  if (n >= 2) {
-    runPath = `<polyline fill="none" stroke="#ec4899" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="${runPoints.trim()}"/>`;
-    weekLabels.forEach((label, i) => {
-      const rx = PAD_L + (i / n) * chartW + chartW / n / 2;
-      const ry = PAD_T + chartH - (runData[i] / maxRun) * chartH;
-      runPath += `<circle cx="${rx.toFixed(1)}" cy="${ry.toFixed(1)}" r="4.5" fill="#ec4899"/>`;
+  // Smooth bezier run line + gradient area fill
+  let runSvg = '';
+  if (runXY.length >= 2) {
+    const pts    = runXY.map(p => [p[0], p[1]]);
+    const smooth = _smoothBezierPath(pts);
+    const areaD  = smooth + ` L ${pts[pts.length-1][0].toFixed(1)},${(PAD_T+chartH).toFixed(1)} L ${pts[0][0].toFixed(1)},${(PAD_T+chartH).toFixed(1)} Z`;
+    runSvg = `<path d="${areaD}" fill="url(#${rGrad})"/>`;
+    runSvg += `<path d="${smooth}" fill="none" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round"/>`;
+    runXY.forEach(([cx, cy, i]) => {
+      const isHL = i === highlightIdx;
+      runSvg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${isHL ? 5.5 : 4}" fill="#ec4899" stroke="#0d1117" stroke-width="${isHL ? 2 : 1.5}"/>`;
     });
   }
 
   let yAxis = '';
   for (let t = 0; t <= 2; t++) {
     const val = Math.round((maxVol / 2) * t);
-    const vy = PAD_T + chartH - (t / 2) * chartH;
-    const labelTxt = val > 999 ? (val / 1000).toFixed(1) + 'k' : val;
-    yAxis += `<text x="${PAD_L - 8}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="12" font-weight="600" fill="rgba(255,255,255,0.9)">${labelTxt}</text>`;
-    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>`;
+    const vy  = PAD_T + chartH - (t / 2) * chartH;
+    const lbl = val > 999 ? (val / 1000).toFixed(1) + 'k' : val;
+    yAxis += `<text x="${PAD_L - 8}" y="${(vy + 4).toFixed(1)}" text-anchor="end" font-size="11" font-weight="600" fill="rgba(255,255,255,0.5)">${lbl}</text>`;
+    yAxis += `<line x1="${PAD_L}" y1="${vy.toFixed(1)}" x2="${W - PAD_R}" y2="${vy.toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>`;
   }
 
   let xAxis = '';
   weekLabels.forEach((label, i) => {
-    const lx = PAD_L + (i / n) * chartW + chartW / n / 2;
-    xAxis += `<text x="${lx.toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="12" font-weight="600" fill="rgba(255,255,255,0.9)">${label}</text>`;
+    const lx   = PAD_L + (i / n) * chartW + chartW / n / 2;
+    const isHL = i === highlightIdx;
+    xAxis += `<text x="${lx.toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="11"
+      font-weight="${isHL ? 800 : 600}"
+      fill="${isHL ? '#60a5fa' : 'rgba(255,255,255,0.55)'}">${label}</text>`;
   });
 
-  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${yAxis}${bars}${runPath}${xAxis}</svg>`;
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${defs}${yAxis}${bars}${runSvg}${xAxis}</svg>`;
 }
 
 export function renderRpeChart(container, weekLabels, rpeData) {
@@ -90,8 +139,14 @@ export function renderRpeChart(container, weekLabels, rpeData) {
     }
   });
 
-  const line = points.trim().split(' ').length >= 2
-    ? `<polyline fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-dasharray="4,4" stroke-linejoin="round" points="${points.trim()}"/>`
+  // Smooth bezier curve instead of polyline
+  const nonZeroPts = weekLabels.map((_, i) => {
+    if (rpeData[i] <= 0) return null;
+    return [PAD_L + (i / n) * chartW + chartW / n / 2, PAD_T + chartH - (rpeData[i] / 10) * chartH];
+  }).filter(Boolean);
+
+  const line = nonZeroPts.length >= 2
+    ? `<path d="${_smoothBezierPath(nonZeroPts)}" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-linecap="round"/>`
     : '';
 
   let xAxis = '';
@@ -527,28 +582,34 @@ export function renderPaceLineChart(container, weekLabels, paceData, thresholdSe
     thresholdSvg += `<text x="${W - PAD_R}" y="${(ty - 4).toFixed(1)}" text-anchor="end" font-size="9" fill="#f59e0b">Threshold</text>`;
   }
 
-  // Dots and line
-  let dots = '';
-  let linePts = '';
-  weekLabels.forEach((label, i) => {
-    const s = paceData[i];
-    if (s <= 0) return;
-    const x = toX(i), y = toY(s);
-    linePts += `${x.toFixed(1)},${y.toFixed(1)} `;
+  // Smooth bezier pace line + gradient fill + coloured dots
+  const paceNonZero = weekLabels.map((_, i) => {
+    if (paceData[i] <= 0) return null;
+    return [toX(i), toY(paceData[i]), i];
+  }).filter(Boolean);
 
+  let dots = '';
+  let line  = '';
+  if (paceNonZero.length >= 2) {
+    const paceGrad = _uid();
+    const pts    = paceNonZero.map(p => [p[0], p[1]]);
+    const smooth = _smoothBezierPath(pts);
+    const areaD  = smooth + ` L ${pts[pts.length-1][0].toFixed(1)},${(PAD_T+chartH).toFixed(1)} L ${pts[0][0].toFixed(1)},${(PAD_T+chartH).toFixed(1)} Z`;
+    line = `<defs><linearGradient id="${paceGrad}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${areaD}" fill="url(#${paceGrad})"/>
+    <path d="${smooth}" fill="none" stroke="rgba(236,72,153,0.8)" stroke-width="2.5" stroke-linecap="round"/>`;
+  }
+  paceNonZero.forEach(([x, y, i]) => {
+    const s = paceData[i];
     let dotColor = '#ec4899';
     if (thresholdSecs > 0) {
-      if (s > thresholdSecs * 1.15)      dotColor = '#10b981'; // easy
-      else if (s > thresholdSecs)         dotColor = '#f59e0b'; // tempo
-      else                                dotColor = '#ef4444'; // threshold+
+      dotColor = s > thresholdSecs * 1.15 ? '#10b981' : s > thresholdSecs ? '#f59e0b' : '#ef4444';
     }
-    dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${dotColor}" stroke="#111827" stroke-width="1.5"/>`;
+    dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${dotColor}" stroke="#0d1117" stroke-width="1.5"/>`;
   });
-
-  const ptArr = linePts.trim().split(' ').filter(Boolean);
-  const line = ptArr.length >= 2
-    ? `<polyline fill="none" stroke="rgba(236,72,153,0.65)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${linePts.trim()}"/>`
-    : '';
 
   // X axis
   let xAxis = '';
@@ -592,26 +653,34 @@ export function renderACWRChart(container, weekLabels, atlSeries, ctlSeries) {
     bandSvg = `<polygon points="${allPts}" fill="#10b981" opacity="0.08"/>`;
   }
 
-  // CTL line (blue, dashed)
-  let ctlPts = '';
-  ctlSeries.forEach((v, i) => { if (v > 0) ctlPts += `${toX(i).toFixed(1)},${toY(v).toFixed(1)} `; });
-  const ctlLine = ctlPts.trim()
-    ? `<polyline fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,3" stroke-linejoin="round" points="${ctlPts.trim()}"/>`
+  // CTL line (blue, dashed) — smooth bezier
+  const ctlNonZero = ctlSeries.map((v, i) => v > 0 ? [toX(i), toY(v)] : null).filter(Boolean);
+  const ctlLine = ctlNonZero.length >= 2
+    ? `<path d="${_smoothBezierPath(ctlNonZero)}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6,3" stroke-linecap="round"/>`
     : '';
 
-  // ATL line (amber, solid)
-  let atlPts = '', atlDots = '';
-  atlSeries.forEach((v, i) => {
-    if (v <= 0) return;
-    atlPts  += `${toX(i).toFixed(1)},${toY(v).toFixed(1)} `;
-    // colour dot by ACWR zone
-    const acwr = ctlSeries[i] > 0 ? v / ctlSeries[i] : 0;
-    const dc = acwr === 0 ? '#94a3b8' : acwr <= 1.0 ? '#10b981' : acwr <= 1.3 ? '#f59e0b' : '#ef4444';
-    atlDots += `<circle cx="${toX(i).toFixed(1)}" cy="${toY(v).toFixed(1)}" r="4" fill="${dc}" stroke="#111827" stroke-width="1.5"/>`;
+  // ATL line (amber, solid) — smooth bezier + gradient area fill
+  const atlNonZero = atlSeries.map((v, i) => v > 0 ? [toX(i), toY(v), i] : null).filter(Boolean);
+  let atlLine = '', atlDots = '';
+  if (atlNonZero.length >= 2) {
+    const atlPts  = atlNonZero.map(p => [p[0], p[1]]);
+    const smooth  = _smoothBezierPath(atlPts);
+    const atlGrad = _uid();
+    const areaD   = smooth + ` L ${atlPts[atlPts.length-1][0].toFixed(1)},${(PAD_T+chartH).toFixed(1)} L ${atlPts[0][0].toFixed(1)},${(PAD_T+chartH).toFixed(1)} Z`;
+    atlLine = `<defs><linearGradient id="${atlGrad}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${areaD}" fill="url(#${atlGrad})"/>
+    <path d="${smooth}" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"/>`;
+  } else if (atlNonZero.length === 1) {
+    atlLine = '';
+  }
+  atlNonZero.forEach(([cx, cy, i]) => {
+    const acwr = ctlSeries[i] > 0 ? atlSeries[i] / ctlSeries[i] : 0;
+    const dc   = acwr === 0 ? '#94a3b8' : acwr <= 1.0 ? '#10b981' : acwr <= 1.3 ? '#f59e0b' : '#ef4444';
+    atlDots += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4.5" fill="${dc}" stroke="#0d1117" stroke-width="1.5"/>`;
   });
-  const atlLine = atlPts.trim()
-    ? `<polyline fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${atlPts.trim()}"/>`
-    : '';
 
   // Y axis gridlines
   let yAxis = '';

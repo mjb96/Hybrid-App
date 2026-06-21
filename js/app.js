@@ -85,7 +85,7 @@ document.addEventListener('app:navigate', (e) => {
   else openAnalyticsView(target);
 });
 
-window.analyticsContext = 'overview';
+window.analyticsContext = 'weekly-summary';
 
 let _activePlanDisplayWeek = null;
 
