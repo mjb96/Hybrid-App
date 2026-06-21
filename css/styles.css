@@ -5213,3 +5213,98 @@ html[data-theme="light"] .profile-pr-goal-bar { background: rgba(0,0,0,0.06); }
 html[data-theme="light"] .profile-pr-goal-meta { color: #94a3b8; }
 html[data-theme="light"] .profile-pr-trend--up   { color: #059669; }
 html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
+
+/* ==========================================
+   HYBRID BRAIN — COACHING CARD
+   ========================================== */
+.brain-coach-card {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
+.brain-coach-inner {
+  padding: 14px 16px;
+}
+.brain-coach-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.brain-coach-icon {
+  font-size: 0.9rem;
+}
+.brain-coach-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  flex: 1;
+}
+.brain-coach-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(255,255,255,0.1);
+  color: var(--text-muted);
+}
+.brain-coach-headline {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-inverse);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.brain-coach-advice {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* Severity: positive (green) */
+.brain-coach--positive {
+  background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.04) 100%);
+  border-color: rgba(16,185,129,0.3);
+}
+.brain-coach--positive .brain-coach-badge {
+  background: rgba(16,185,129,0.2);
+  color: #10b981;
+}
+
+/* Severity: neutral */
+.brain-coach--neutral {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* Severity: caution (amber) */
+.brain-coach--caution {
+  background: linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.04) 100%);
+  border-color: rgba(245,158,11,0.3);
+}
+.brain-coach--caution .brain-coach-badge {
+  background: rgba(245,158,11,0.2);
+  color: #f59e0b;
+}
+
+/* Severity: warning (red) */
+.brain-coach--warning {
+  background: linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.04) 100%);
+  border-color: rgba(239,68,68,0.3);
+}
+.brain-coach--warning .brain-coach-badge {
+  background: rgba(239,68,68,0.2);
+  color: #ef4444;
+}
+
+/* Light mode overrides */
+html[data-theme="light"] .brain-coach-card  { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.03); }
+html[data-theme="light"] .brain-coach-advice { color: #475569; }
+html[data-theme="light"] .brain-coach--positive { background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.02) 100%); border-color: rgba(16,185,129,0.25); }
+html[data-theme="light"] .brain-coach--caution  { background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%); border-color: rgba(245,158,11,0.25); }
+html[data-theme="light"] .brain-coach--warning  { background: linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(239,68,68,0.02) 100%);  border-color: rgba(239,68,68,0.25); }

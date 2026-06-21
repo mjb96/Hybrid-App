@@ -8,6 +8,7 @@ import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload, ge
 import { getMapFromDB } from './db.js';
 import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
+import { generateRecommendation } from './brain/recommendations.js';
 
 let _getState;
 let _getSelectedDay;
@@ -144,6 +145,27 @@ function renderTileContent(config, data) {
     case DashboardTileType.PROGRESS:  return renderProgressTile(config, data);
     default:                          return renderMetricTile(config, data);
   }
+}
+
+// ==========================================
+// COACHING CARD RENDERER
+// ==========================================
+function renderCoachingCard(state, days, activeProgram, selectedDay) {
+  const card = document.getElementById('brainCoachCard');
+  if (!card) return;
+
+  const rec = generateRecommendation(state, days, activeProgram, selectedDay);
+
+  const badge    = document.getElementById('brainCoachBadge');
+  const headline = document.getElementById('brainCoachHeadline');
+  const advice   = document.getElementById('brainCoachAdvice');
+
+  if (badge)    badge.textContent    = rec.badge;
+  if (headline) headline.textContent = rec.headline;
+  if (advice)   advice.textContent   = rec.advice;
+
+  card.className     = `brain-coach-card brain-coach--${rec.severity} mb-4`;
+  card.style.display = 'block';
 }
 
 // ==========================================
@@ -576,6 +598,7 @@ export function renderHome() {
   }
 
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay);
+  renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
   const progressPercentage = (() => {
     let total = 0, done = 0;
