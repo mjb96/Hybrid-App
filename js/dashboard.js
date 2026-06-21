@@ -28,6 +28,7 @@
 // }
 
 import { dateKey } from './dates.js';
+import { getFastingContext, fmtFastDuration, fmtHoursLabel } from './fasting.js';
 
 // ==========================================
 // TILE TYPE ENUM
@@ -855,6 +856,44 @@ export const TILE_REGISTRY = [
         };
       } catch {
         return { hero: '--', sub: 'Unavailable', state: 'error' };
+      }
+    },
+  },
+
+  // ---- FASTING -----------------------------------------------------
+  {
+    id:        'fasting',
+    type:      DashboardTileType.METRIC,
+    icon:      '⏱️',
+    label:     'Fasting',
+    accentVar: '--color-amber',
+    navTarget: 'custom:fasting',
+    order:     17,
+    renderData(appState) {
+      try {
+        const ctx = getFastingContext(appState);
+        if (ctx.active) {
+          return {
+            hero:     fmtFastDuration(ctx.hours),
+            sub:      ctx.zone.name,
+            tag:      `${Math.round(ctx.progressPct)}% of ${ctx.goal}h`,
+            tagColor: ctx.zone.color,
+            state:    'loaded',
+          };
+        }
+        if (ctx.history.length > 0) {
+          const last = ctx.history[ctx.history.length - 1];
+          return {
+            hero:  fmtHoursLabel(last.durationHours),
+            sub:   'Last fast',
+            tag:   `${ctx.streak}d streak`,
+            tagColor: ctx.streak > 0 ? 'var(--color-amber)' : 'var(--text-secondary)',
+            state: 'loaded',
+          };
+        }
+        return { hero: '—', sub: 'Tap to start a fast', state: 'empty' };
+      } catch {
+        return { hero: '—', sub: 'Unavailable', state: 'error' };
       }
     },
   },

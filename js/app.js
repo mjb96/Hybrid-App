@@ -26,7 +26,7 @@ import {
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, startFastingTicker, stopFastingTicker, openFastingDetail, closeFastingDetail } from './home.js';
+import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
@@ -81,6 +81,7 @@ document.addEventListener('app:navigate', (e) => {
   const target = e.detail?.target;
   if (!target) { devWarn('app:navigate fired with no detail.target — ignoring.', e.detail); return; }
   if (target === 'custom:today-summary') openTodaySummaryModal();
+  else if (target === 'custom:fasting') openFastingDetail();
   else openAnalyticsView(target);
 });
 
@@ -723,11 +724,10 @@ document.addEventListener('click', (e) => {
     const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? 16);
     startFast(appState, goal, () => saveStateToLocalStorage(true));
     renderHome();
-    startFastingTicker();
+    openFastingDetail();
   }
   else if (action === 'fast-stop') {
     stopFast(appState, () => saveStateToLocalStorage(true));
-    stopFastingTicker();
     closeFastingDetail();
     renderHome();
   }
