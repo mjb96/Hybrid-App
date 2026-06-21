@@ -1,5 +1,7 @@
 // ==========================================
-// CLOUD-CONNECTED STATE MANAGER (state.js)
+// STATE MANAGER — core state + sub-module wiring.
+// Auth lives in ./state/auth.js
+// Import/Export lives in ./state/import-export.js
 // ==========================================
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
@@ -9,21 +11,12 @@ import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
 import { recomputeLoadMetrics } from './brain/load_models.js';
+import { getSupabaseClient } from './state/supabase.js';
+import { initAuth, loginToSupabase, signUpToSupabase, checkActiveSession } from './state/auth.js';
+import { initImportExport, triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback } from './state/import-export.js';
 
-const supabaseUrl = 'https://uzxvufzlaipdwuffxqyo.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6eHZ1ZnpsYWlwZHd1ZmZ4cXlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MDE1MTYsImV4cCI6MjA5NjE3NzUxNn0.G26YRJzt4ndScofQvp4fi-G8MP-Fs2Ovn0e6Y9t4Dxg';
-
-let supabaseClient = null;
-
-try {
-  if (window.supabase && supabaseUrl.startsWith('http')) {
-    supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-  } else {
-    console.warn("Supabase global not found. App will run in offline mode.");
-  }
-} catch (e) {
-  console.error("Critical Supabase initialization failure:", e);
-}
+export { loginToSupabase, signUpToSupabase, checkActiveSession };
+export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
 
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 
@@ -219,113 +212,6 @@ export function deleteCustomProgram(id) {
 }
 
 // ==========================================
-// AUTHENTICATION
-// ==========================================
-function _setAuthLoading(btnId, spinnerId, isLoading) {
-  const btn = document.getElementById(btnId);
-  const spinner = document.getElementById(spinnerId);
-  if (!btn) return;
-  btn.disabled = isLoading;
-  const textEl = btn.querySelector('.auth-submit-text');
-  if (textEl) textEl.style.opacity = isLoading ? '0.5' : '1';
-  if (spinner) spinner.style.display = isLoading ? '' : 'none';
-}
-
-function _showAuthError(errorElId, msg) {
-  const el = document.getElementById(errorElId);
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = msg ? '' : 'none';
-}
-
-export async function loginToSupabase() {
-  const email = document.getElementById('loginEmail')?.value?.trim();
-  const pass = document.getElementById('loginPassword')?.value;
-
-  if (!supabaseClient) {
-    showToast("Offline mode — cannot sign in.", true);
-    return;
-  }
-
-  _setAuthLoading('authSigninBtn', null, true);
-  _showAuthError('authSigninError', '');
-
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-
-  _setAuthLoading('authSigninBtn', null, false);
-
-  if (error) {
-    _showAuthError('authSigninError', error.message);
-  } else {
-    const authOverlay = document.getElementById('authOverlay');
-    if (authOverlay) authOverlay.style.display = 'none';
-    showToast('Securely Logged In ✓');
-    await pullEngineDataFromStorage();
-    window.location.reload();
-  }
-}
-window.loginToSupabase = loginToSupabase;
-
-export async function signUpToSupabase() {
-  const email = document.getElementById('signupEmail')?.value?.trim();
-  const pass = document.getElementById('signupPassword')?.value;
-
-  if (!supabaseClient) {
-    showToast("Offline mode — cannot create account.", true);
-    return;
-  }
-  if (!email || !pass) {
-    _showAuthError('authSignupError', 'Please enter your email and a password.');
-    return;
-  }
-  if (pass.length < 8) {
-    _showAuthError('authSignupError', 'Password must be at least 8 characters.');
-    return;
-  }
-
-  _setAuthLoading('authSignupBtn', null, true);
-  _showAuthError('authSignupError', '');
-  const successEl = document.getElementById('authSignupSuccess');
-  if (successEl) successEl.style.display = 'none';
-
-  const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
-
-  _setAuthLoading('authSignupBtn', null, false);
-
-  if (error) {
-    _showAuthError('authSignupError', error.message);
-  } else if (data?.session) {
-    // Auto-confirmed (email confirmation disabled in Supabase)
-    const authOverlay = document.getElementById('authOverlay');
-    if (authOverlay) authOverlay.style.display = 'none';
-    showToast('Account created! Welcome ✓');
-    window.location.reload();
-  } else {
-    // Email confirmation required
-    if (successEl) successEl.style.display = '';
-    const btn = document.getElementById('authSignupBtn');
-    if (btn) btn.disabled = true;
-  }
-}
-window.signUpToSupabase = signUpToSupabase;
-
-export async function checkActiveSession() {
-  if (!supabaseClient) return; 
-  try {
-    const sessionPromise = supabaseClient.auth.getSession();
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000));
-    const response = await Promise.race([sessionPromise, timeoutPromise]);
-    
-    if (response && response.data && response.data.session && !response.error) {
-      const authOverlay = document.getElementById('authOverlay');
-      if (authOverlay) authOverlay.style.display = 'none';
-    }
-  } catch (err) {
-    console.warn("Session check failed or timed out. Defaulting to manual login.");
-  }
-}
-
-// ==========================================
 // INIT & SCHEMA
 // ==========================================
 export function determineDefaultCalendarDay() {
@@ -396,14 +282,15 @@ export async function saveStateToLocalStorage(suppressToast = false) {
     console.error('Failed to save state locally:', e);
   }
 
-  if (supabaseClient) {
+  const _sb = getSupabaseClient();
+  if (_sb) {
     try {
-      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const { data: sessionData } = await _sb.auth.getSession();
       if (!sessionData?.session) {
         if (!suppressToast) showToast('Session Saved Locally ✓');
         return;
       }
-      const { error } = await supabaseClient
+      const { error } = await _sb
         .from('user_data')
         .upsert({ user_id: sessionData.session.user.id, state_data: appState }, { onConflict: 'user_id' });
 
@@ -448,12 +335,13 @@ export async function pullEngineDataFromStorage() {
     appState = { ...baseDefaults, ...localData };
   }
 
-  if (supabaseClient) {
+  const _sb2 = getSupabaseClient();
+  if (_sb2) {
     try {
       const fetchCloud = async () => {
-        const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+        const { data: userData, error: authError } = await _sb2.auth.getUser();
         if (!authError && userData?.user) {
-            const { data, error } = await supabaseClient
+            const { data, error } = await _sb2
               .from('user_data')
               .select('state_data')
               .eq('user_id', userData.user.id)
@@ -505,99 +393,21 @@ export async function pullEngineDataFromStorage() {
   verifyWeekStorageSchema(appState.currentWeek);
   appState.loadMetrics = recomputeLoadMetrics(appState);
 
+  // Wire up sub-modules now that state is live
+  initAuth(pullEngineDataFromStorage);
+  initImportExport({
+    getState:    () => appState,
+    setState:    (s) => { appState = s; },
+    saveState:   saveStateToLocalStorage,
+    defaultDays: DEFAULT_DAYS,
+  });
+
   try {
     emitStorageLoadedEvent();
   } catch (err) {
     console.warn('Storage loaded event dispatch failed.', err);
   }
 }
-
-// ==========================================
-// DATA EXPORT / IMPORT
-// ==========================================
-export function triggerEngineExport() {
-  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appState));
-  const anchorNode = document.createElement('a');
-  anchorNode.setAttribute('href', dataStr);
-  anchorNode.setAttribute('download', 'hybrid_v2_meso_snapshot_wk' + appState.currentWeek + '.json');
-  document.body.appendChild(anchorNode);
-  anchorNode.click();
-  anchorNode.remove();
-}
-
-export function triggerCSVExport() {
-  let csv = 'Week,Day,Exercise,Set,Weight,Reps,Completed,RunDist,RunTime,RunRPE,AvgHR,MaxHR,ElevGain,Calories,BodyWeight,GymRPE,Notes\n';
-  const loggedWeeks = Object.keys(appState.weeks).map(Number).sort((a, b) => a - b);
-  loggedWeeks.forEach(w => {
-    if (!appState.weeks[w]) return;
-    DEFAULT_DAYS.forEach(d => {
-      const dayNotes = (appState.weeks[w].notes?.[d] || '').replace(/,/g, ' ').replace(/\n/g, ' ');
-      const run = appState.weeks[w].runs?.[d] || {};
-      const bw = appState.weeks[w].bodyWeight?.[d] || '';
-      const gymRpe = appState.weeks[w].gymRpe?.[d] || '';
-
-      const runDist = run.dist || '';
-      const runTime = run.time || '';
-      const runRpe = run.rpe || '';
-      const runAvgHR = run.avgHR || '';
-      const runMaxHR = run.maxHR || '';
-      const runElev = run.elev || '';
-      const runCals = run.cals || '';
-
-      const lifts = appState.weeks[w].lifts?.[d] || {};
-      const liftKeys = Object.keys(lifts);
-
-      if (liftKeys.length === 0) {
-        if (runDist || runTime) {
-          csv += `${w},${d},,,,,,${runDist},${runTime},${runRpe},${runAvgHR},${runMaxHR},${runElev},${runCals},${bw},${gymRpe},${dayNotes}\n`;
-        }
-      } else {
-        liftKeys.forEach((lift, liftIdx) => {
-          lifts[lift].forEach((s, idx) => {
-            const isFirstRow = liftIdx === 0 && idx === 0;
-            const runCols = isFirstRow
-              ? `${runDist},${runTime},${runRpe},${runAvgHR},${runMaxHR},${runElev},${runCals}`
-              : ',,,,,,,';
-            csv += `${w},${d},${lift},${idx + 1},${s.w},${s.r},${s.c},${runCols},${bw},${gymRpe},${dayNotes}\n`;
-          });
-        });
-      }
-    });
-  });
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'hybrid_data_export.csv';
-  a.click();
-}
-
-let _onImportSuccess = null;
-export function setImportSuccessCallback(fn) { _onImportSuccess = fn; }
-
-export function triggerEngineImport(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const parsedData = JSON.parse(e.target.result);
-      if (parsedData.currentWeek && parsedData.weeks && Object.keys(parsedData.weeks).length > 0) {
-        appState = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [], ...parsedData };
-        if (!appState.customExercises) appState.customExercises = [];
-        if (!appState.customPrograms) appState.customPrograms = [];
-        saveStateToLocalStorage(true);
-        if (_onImportSuccess) _onImportSuccess();
-        showToast('Data snapshot mounted successfully.');
-      } else {
-        showToast('File structure failed validation.', true);
-      }
-    } catch(err) {
-      showToast('Error parsing storage file.', true);
-    }
-  };
-  reader.readAsText(file);
-}
-
 
 export function saveNewCustomExerciseToLibrary(exerciseName) {
   const cleanedName = exerciseName.trim();
