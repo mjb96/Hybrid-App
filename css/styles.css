@@ -2541,6 +2541,109 @@ html[data-theme="light"] .cockpit-set-row.is-pr {
 .cal-dot-gym { background: var(--color-indigo); }
 .cal-dot-run { background: var(--color-green); }
 
+/* Calendar cells are now buttons — reset defaults */
+button.cal-cell {
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button.cal-cell:active { opacity: 0.7; }
+
+/* ==========================================================================
+   CALENDAR DAY MODAL
+   ========================================================================== */
+#calModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s;
+}
+#calModal.cal-modal--open {
+  opacity: 1;
+  pointer-events: all;
+}
+.cal-msheet {
+  background: #0d1117;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 12px 20px 32px;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.25,1,0.5,1);
+}
+#calModal.cal-modal--open .cal-msheet { transform: translateY(0); }
+.cal-mhandle {
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 2px;
+  margin: 0 auto 14px;
+}
+.cal-mdate {
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.45);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+}
+.cal-m-section { margin-bottom: 16px; }
+.cal-m-section:last-of-type { margin-bottom: 0; }
+.cal-m-type {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.cal-m-stats { display: flex; flex-direction: column; gap: 5px; }
+.cal-m-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--overlay-sm);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+}
+.cal-m-sl { font-size: 0.72rem; color: var(--text-secondary); }
+.cal-m-sv { font-size: 0.72rem; font-weight: 600; color: var(--text-primary); }
+.cal-m-empty {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px 0;
+}
+.cal-mclose {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px;
+  background: var(--overlay-sm);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  font: inherit;
+}
+html[data-theme="light"] #calModal { background: rgba(0,0,0,0.5); }
+html[data-theme="light"] .cal-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
+html[data-theme="light"] .cal-mdate { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .cal-m-stat { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .cal-m-sl { color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .cal-m-sv { color: #0f172a; }
+html[data-theme="light"] .cal-mclose { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); color: rgba(0,0,0,0.5); }
+
 /* ==========================================================================
    RUN LOGGER MODAL
    ========================================================================== */
