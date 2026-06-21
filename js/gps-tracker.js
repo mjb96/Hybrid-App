@@ -35,6 +35,12 @@ let _liveMap   = null;   // Leaflet instance for the live tracking map
 let _liveLine  = null;   // Leaflet Polyline
 let _liveMarker = null;  // Leaflet CircleMarker (current position dot)
 
+// Km split tracking
+let _splits      = [];  // [{ lap, dist, time, avgHR, coordsStartIdx, coordsEndIdx }]
+let _nextKmMark  = 1;   // next km boundary to detect
+let _lapStartMs  = 0;   // elapsedMs() at the start of the current lap
+let _lapStartIdx = 0;   // index into _coords at the start of the current lap
+
 // ── Math helpers ──────────────────────────────────────────────────────────
 
 function haversineKm([lat1, lng1], [lat2, lng2]) {
@@ -171,6 +177,22 @@ function onPosition(pos) {
     const segM = haversineKm(_coords[_coords.length - 1], point) * 1000;
     if (segM < MIN_POINT_DIST_M) return;
     _distKm += segM / 1000;
+
+    // Detect km boundary crossings (may cross multiple in one jump)
+    while (_distKm >= _nextKmMark) {
+      const nowMs = elapsedMs();
+      _splits.push({
+        lap: _nextKmMark,
+        dist: 1.0,
+        time: Math.round((nowMs - _lapStartMs) / 1000),
+        avgHR: '--',
+        coordsStartIdx: _lapStartIdx,
+        coordsEndIdx: _coords.length,  // index of point about to be pushed
+      });
+      _lapStartMs  = nowMs;
+      _lapStartIdx = _coords.length;
+      _nextKmMark++;
+    }
   }
   _coords.push(point);
   pushToLiveMap(lat, lng);
@@ -209,11 +231,15 @@ export async function startTracking() {
     return false;
   }
 
-  _status   = 'waiting';
-  _coords   = [];
-  _distKm   = 0;
-  _pausedMs = 0;
-  _startTime = null;
+  _status      = 'waiting';
+  _coords      = [];
+  _distKm      = 0;
+  _pausedMs    = 0;
+  _startTime   = null;
+  _splits      = [];
+  _nextKmMark  = 1;
+  _lapStartMs  = 0;
+  _lapStartIdx = 0;
   showPanel('wait');
 
   _wakeLock = await acquireWakeLock();
@@ -255,13 +281,18 @@ export async function stopTracking(week, day) {
   clearInterval(_tickTimer); _tickTimer = null;
   await releaseWakeLock();
 
-  const finalMs    = elapsedMs();
-  const finalDist  = _distKm;
+  const finalMs     = elapsedMs();
+  const finalDist   = _distKm;
   const finalCoords = [..._coords];
+  const finalSplits = [..._splits];
 
-  _status    = 'idle';
-  _startTime = null;
-  _pausedMs  = 0;
+  _status      = 'idle';
+  _startTime   = null;
+  _pausedMs    = 0;
+  _splits      = [];
+  _nextKmMark  = 1;
+  _lapStartMs  = 0;
+  _lapStartIdx = 0;
 
   destroyLiveMap();
   showPanel('start');
@@ -284,7 +315,9 @@ export async function stopTracking(week, day) {
   }
 
   document.dispatchEvent(
-    new CustomEvent('gps:route-saved', { detail: { week, day, distKm: finalDist } })
+    new CustomEvent('gps:route-saved', {
+      detail: { week, day, distKm: finalDist, splits: finalSplits, coords: finalCoords },
+    })
   );
 
   showToast('Run tracked ✓ — add your RPE below');

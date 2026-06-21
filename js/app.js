@@ -873,11 +873,24 @@ initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
 initGpsTracker();
 
-// Save auto-filled inputs and render the route map after GPS tracking finishes.
+// Save auto-filled inputs, persist km splits, and render the pace-zone map after GPS tracking finishes.
 document.addEventListener('gps:route-saved', (e) => {
-  const { week, day, distKm } = e.detail;
+  const { week, day, distKm, splits, coords } = e.detail;
+
+  // Write splits into state before commitWorkoutUIState spreads existing data.
+  if (splits && splits.length > 0 && appState.weeks[week]) {
+    const existing = appState.weeks[week].runs?.[day] || {};
+    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
+    appState.weeks[week].runs[day] = { ...existing, splits };
+  }
+
   try { commitWorkoutUIState(); } catch (_) {}
-  try { renderRunMap(week, day, distKm); } catch (_) {}
+  try {
+    renderRunMap(week, day, distKm, {
+      splits,
+      thresholdSec: appState.thresholdPaceSeconds,
+    });
+  } catch (_) {}
 });
 
 // === DEVICE IMPORT WIRING ===
