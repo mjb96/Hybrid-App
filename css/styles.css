@@ -6021,7 +6021,7 @@ html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }
    ========================================================================== */
 
 /* Container */
-.wfg { display: flex; flex-direction: column; gap: 0; user-select: none; }
+.wfg { display: flex; flex-direction: column; gap: 0; user-select: none; width: 100%; }
 
 /* ── Navigation row ── */
 .wfg-nav {

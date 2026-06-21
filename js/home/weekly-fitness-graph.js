@@ -62,8 +62,9 @@ class WeeklyFitnessGraph {
     this._container = document.getElementById(this.containerId);
     if (!this._container) return;
 
-    // Expand the container (overrides the 65px .bar-chart-container rule)
-    this._container.style.cssText = 'height:auto;min-height:0;overflow:visible;';
+    // Expand the container and switch to block layout so the .wfg child fills
+    // the full card width (the default flex row context would shrink it).
+    this._container.style.cssText = 'display:block;height:auto;min-height:0;overflow:visible;';
 
     // Hide the legacy large-number hero / sub-text elements
     const heroId = this.type === 'strength' ? 'focusStrengthHero' : 'focusRunHero';
