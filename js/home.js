@@ -164,11 +164,19 @@ function renderCoachingCard(state, days, activeProgram, selectedDay) {
 
   const badge    = document.getElementById('brainCoachBadge');
   const headline = document.getElementById('brainCoachHeadline');
+  const meta     = document.getElementById('brainCoachMeta');
   const advice   = document.getElementById('brainCoachAdvice');
 
   if (badge)    badge.textContent    = rec.badge;
   if (headline) headline.textContent = rec.headline;
   if (advice)   advice.textContent   = rec.advice;
+
+  if (meta) {
+    const parts = [];
+    if (rec.sessionLabel) parts.push(rec.sessionLabel);
+    if (rec.acwr > 0)     parts.push(`ACWR ${rec.acwr.toFixed(2)}`);
+    meta.textContent = parts.join(' · ');
+  }
 
   card.className     = `brain-coach-card brain-coach--${rec.severity} mb-4`;
   card.style.display = 'block';

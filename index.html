@@ -269,14 +269,19 @@
 
       </div>
 
-      <article id="brainCoachCard" class="brain-coach-card brain-coach--neutral mb-4" style="display:none;" aria-label="Today's coaching recommendation">
+      <article id="brainCoachCard" class="brain-coach-card brain-coach--neutral mb-4"
+               style="display:none;"
+               data-action="open-analytics" data-context="recovery-score"
+               role="button" tabindex="0" aria-label="Today's coaching recommendation — tap for detail">
         <div class="brain-coach-inner">
           <div class="brain-coach-header">
             <span class="brain-coach-icon">🧠</span>
             <span class="brain-coach-title">Today's Coaching</span>
             <span id="brainCoachBadge" class="brain-coach-badge"></span>
+            <span class="brain-coach-chevron">›</span>
           </div>
           <div id="brainCoachHeadline" class="brain-coach-headline"></div>
+          <div id="brainCoachMeta" class="brain-coach-meta"></div>
           <div id="brainCoachAdvice" class="brain-coach-advice"></div>
         </div>
       </article>

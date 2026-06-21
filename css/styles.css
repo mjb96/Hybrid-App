@@ -5220,6 +5220,7 @@ html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
 .brain-coach-card {
   border-radius: 14px;
   overflow: hidden;
+  cursor: pointer;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
 }
@@ -5252,6 +5253,17 @@ html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
   letter-spacing: 0.3px;
   background: rgba(255,255,255,0.1);
   color: var(--text-muted);
+}
+.brain-coach-chevron {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.brain-coach-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
 }
 .brain-coach-headline {
   font-size: 1rem;
