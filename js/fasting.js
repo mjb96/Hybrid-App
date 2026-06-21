@@ -152,6 +152,15 @@ export function startFast(state, goalHours, saveStateFn) {
   saveStateFn();
 }
 
+export function editFastStartTime(state, newStartTimeISO, saveStateFn) {
+  if (!state.fastingSession?.active) return;
+  const newStart = new Date(newStartTimeISO);
+  if (isNaN(newStart.getTime())) return;
+  if (newStart > new Date()) return; // can't set a future start time
+  state.fastingSession.startTime = newStart.toISOString();
+  saveStateFn();
+}
+
 export function stopFast(state, saveStateFn) {
   if (!state.fastingSession?.active) return;
   const hours = getFastingHours(state.fastingSession);
