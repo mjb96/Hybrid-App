@@ -56,6 +56,8 @@ import {
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
+import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
+import { renderRunMap } from './workout-map.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -189,7 +191,7 @@ export function hydrateCurrentView() {
   verifyWeekStorageSchema(appState.currentWeek);
 
   if (activeTab === 'home') safeRenderExecution(renderHome, "Home Dashboard Render");
-  else if (activeTab === 'workout') safeRenderExecution(renderWorkout, "Workout Cockpit Render");
+  else if (activeTab === 'workout') { safeRenderExecution(renderWorkout, "Workout Cockpit Render"); onWorkoutTabActivated(); }
   else if (activeTab === 'analytics') safeRenderExecution(renderAnalytics, "Performance Matrix Render");
   else if (activeTab === 'profile') safeRenderExecution(renderAthleteProfile, "Athlete Profile Render");
   else if (activeTab === 'program') {
@@ -708,6 +710,12 @@ document.addEventListener('click', (e) => {
     handleOnboardingAction(action, target);
   }
 
+  // GPS Tracker
+  else if (action === 'gps-start')  { startTracking(); }
+  else if (action === 'gps-pause')  { pauseTracking(); }
+  else if (action === 'gps-resume') { resumeTracking(); }
+  else if (action === 'gps-stop')   { stopTracking(appState.currentWeek, selectedDay); }
+
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();
   else if (action === 'close-run-logger') closeRunLogger();
@@ -863,6 +871,14 @@ initRunLogger(getState);
 initOnboarding(getState);
 initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
+initGpsTracker();
+
+// Save auto-filled inputs and render the route map after GPS tracking finishes.
+document.addEventListener('gps:route-saved', (e) => {
+  const { week, day, distKm } = e.detail;
+  try { commitWorkoutUIState(); } catch (_) {}
+  try { renderRunMap(week, day, distKm); } catch (_) {}
+});
 
 // === DEVICE IMPORT WIRING ===
 

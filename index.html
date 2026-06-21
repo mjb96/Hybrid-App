@@ -349,6 +349,45 @@
 
         <div id="runMapContainer" style="height: 180px; width: 100%; border-radius: 8px; display: none; margin-bottom: 12px; z-index: 1;"></div>
 
+        <!-- GPS: Idle — invite to track -->
+        <div id="gpsStartPanel" class="gps-start-panel">
+          <span class="gps-start-icon">📍</span>
+          <div class="gps-start-body">
+            <div class="gps-start-title">Track This Run</div>
+            <div class="gps-start-sub">Live map · Auto-fills distance &amp; time</div>
+          </div>
+          <button class="gps-start-btn" data-action="gps-start">Start →</button>
+        </div>
+
+        <!-- GPS: Waiting for first fix -->
+        <div id="gpsWaitPanel" class="gps-wait-panel" style="display:none;">
+          <div class="gps-wait-spinner"></div>
+          <span class="gps-wait-text">Getting GPS signal…</span>
+        </div>
+
+        <!-- GPS: Live tracking -->
+        <div id="gpsLivePanel" style="display:none;">
+          <div id="gpsLiveMap" class="gps-live-map"></div>
+          <div class="gps-stats-row">
+            <div class="gps-stat">
+              <span class="gps-stat-label">TIME</span>
+              <span class="gps-stat-value" id="gpsStatTime">00:00</span>
+            </div>
+            <div class="gps-stat">
+              <span class="gps-stat-label">DIST (KM)</span>
+              <span class="gps-stat-value" id="gpsStatDist">0.00</span>
+            </div>
+            <div class="gps-stat">
+              <span class="gps-stat-label">PACE</span>
+              <span class="gps-stat-value" id="gpsStatPace">—:——</span>
+            </div>
+          </div>
+          <div class="gps-action-row">
+            <button class="gps-btn-secondary" id="gpsPauseBtn" data-action="gps-pause">⏸ Pause</button>
+            <button class="gps-btn-stop" data-action="gps-stop">■ Stop &amp; Save</button>
+          </div>
+        </div>
+
         <p class="workout-run-desc" id="cockpitRunSpecs">Loading target distance parameters...</p>
 
         <div class="run-grid-inputs mb-2">
