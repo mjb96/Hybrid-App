@@ -78,9 +78,10 @@ export function getWeekDateRange(weekNum, appState) {
 }
 
 function _weekDateRange(weekNum, appState) {
+  const currentWeek = parseInt(appState?.currentWeek ?? '1', 10);
   const startDate = new Date(appState.weekStartedAt || Date.now());
   const weekStart = new Date(startDate);
-  weekStart.setDate(startDate.getDate() + (weekNum - 1) * 7);
+  weekStart.setDate(startDate.getDate() + (weekNum - currentWeek) * 7);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
   return { start: weekStart, end: weekEnd };

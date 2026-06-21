@@ -294,17 +294,18 @@ class WeeklyFitnessGraph {
   }
 
   _weekStartDate(weekNum, appState) {
+    const currentWeek = parseInt(appState?.currentWeek ?? '1', 10);
     if (appState?.weekStartedAt) {
       const base = new Date(appState.weekStartedAt);
       const d    = new Date(base);
-      d.setDate(base.getDate() + (weekNum - 1) * 7);
+      d.setDate(base.getDate() + (weekNum - currentWeek) * 7);
       return d;
     }
     // Fallback: anchor to the Monday of this calendar week
     const today   = new Date();
     const monday  = new Date(today);
     monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-    monday.setDate(monday.getDate() + (weekNum - 1) * 7);
+    monday.setDate(monday.getDate() + (weekNum - currentWeek) * 7);
     monday.setHours(0, 0, 0, 0);
     return monday;
   }
