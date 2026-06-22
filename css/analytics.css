@@ -606,23 +606,161 @@
 }
 
 /* --------------------------------------------------------------------------
-   21. LIGHT MODE OVERRIDES
+   21. LIGHT MODE OVERRIDES — Comprehensive
    -------------------------------------------------------------------------- */
 
-html[data-theme="light"] .an-insights {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.08);
+/* -- Section header chip -------------------------------------------------- */
+html[data-theme="light"] .analytics-section h2.section-header {
+  color: rgba(15, 23, 42, 0.40) !important;
 }
 
-html[data-theme="light"] .an-insight--alert { background: rgba(239, 68, 68, 0.06); }
-html[data-theme="light"] .an-insight--good  { background: rgba(16, 185, 129, 0.06); }
-html[data-theme="light"] .an-insight--info  { background: rgba(59, 130, 246, 0.06); }
+/* -- an-stat cards --------------------------------------------------------
+   The global light-mode rule in styles.css applies:
+     html[data-theme="light"] .card-dark { border: 1px solid rgba(0,0,0,0.07) !important }
+   That !important strips our inline border-top accent. Restore it here using
+   higher-specificity (two classes vs one class) so our !important wins.
+   Top accent falls back to --an-domain which cascades from the section wrapper.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .card-dark.an-stat {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-top: 2px solid var(--an-domain, #3b82f6) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.055), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
 
-html[data-theme="light"] .analytics-section h2.section-header {
-  color: rgba(15, 23, 42, 0.42) !important;
+html[data-theme="light"] .an-stat::after {
+  background: linear-gradient(180deg, rgba(0,0,0,0.01) 0%, transparent 60%);
 }
 
 html[data-theme="light"] .an-stat__label { color: rgba(15, 23, 42, 0.42); }
 html[data-theme="light"] .an-stat__value { color: rgba(15, 23, 42, 0.92); }
 html[data-theme="light"] .an-stat__unit  { color: rgba(15, 23, 42, 0.40); }
+
+/* -- Insights panel ------------------------------------------------------- */
+html[data-theme="light"] .an-insights {
+  background: rgba(0, 0, 0, 0.025);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+html[data-theme="light"] .an-insights__title { color: rgba(15, 23, 42, 0.36); }
+html[data-theme="light"] .an-insight          { color: rgba(15, 23, 42, 0.80); }
+html[data-theme="light"] .an-insight--alert   { background: rgba(239,  68,  68, 0.06); }
+html[data-theme="light"] .an-insight--good    { background: rgba( 16, 185, 129, 0.06); }
+html[data-theme="light"] .an-insight--info    { background: rgba( 59, 130, 246, 0.06); }
+
+html[data-theme="light"] .an-insight--alert .an-insight__icon { background: rgba(239, 68, 68, 0.12); }
+html[data-theme="light"] .an-insight--good  .an-insight__icon { background: rgba(16, 185, 129, 0.12); }
+html[data-theme="light"] .an-insight--info  .an-insight__icon { background: rgba(59, 130, 246, 0.12); }
+
+/* -- Chart chrome --------------------------------------------------------- */
+html[data-theme="light"] .an-chart {
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+html[data-theme="light"] .an-chart__title     { color: rgba(15, 23, 42, 0.50); }
+html[data-theme="light"] .an-chart__subtitle  { color: rgba(15, 23, 42, 0.35); }
+html[data-theme="light"] .an-chart__legend-item { color: rgba(15, 23, 42, 0.45); }
+
+/* -- ACWR zone bar -------------------------------------------------------- */
 html[data-theme="light"] .an-zone-labels { color: rgba(15, 23, 42, 0.30); }
+
+html[data-theme="light"] .an-zone-bar__marker {
+  background: #1e293b;
+  border-color: rgba(255,255,255,0.8);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.25);
+}
+
+/* -- Metric rows ---------------------------------------------------------- */
+html[data-theme="light"] .an-metric-row   { border-bottom-color: rgba(0, 0, 0, 0.05); }
+html[data-theme="light"] .an-metric-label { color: rgba(15, 23, 42, 0.50); }
+html[data-theme="light"] .an-metric-value { color: rgba(15, 23, 42, 0.90); }
+
+/* -- Pace rows ------------------------------------------------------------ */
+html[data-theme="light"] .an-pace-row { border-bottom-color: rgba(0, 0, 0, 0.05); }
+
+/* -- Readiness rows ------------------------------------------------------- */
+html[data-theme="light"] .an-readiness-row        { border-bottom-color: rgba(0, 0, 0, 0.05); }
+html[data-theme="light"] .an-readiness-row__label { color: rgba(15, 23, 42, 0.45); }
+html[data-theme="light"] .an-readiness-row__value { color: rgba(15, 23, 42, 0.88); }
+
+/* -- Week nav bar --------------------------------------------------------- */
+html[data-theme="light"] #analyticsWeekNav.week-nav-bar,
+html[data-theme="light"] .week-nav-bar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* -- Trend track bar ----------------------------------------------------- */
+html[data-theme="light"] .trend-track-bg { background: rgba(0, 0, 0, 0.09); }
+
+/* -- Section divider ----------------------------------------------------- */
+html[data-theme="light"] .an-divider {
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.07), transparent);
+}
+
+/* -- KPI hero display ---------------------------------------------------- */
+html[data-theme="light"] .an-kpi__label { color: rgba(15, 23, 42, 0.36); }
+html[data-theme="light"] .an-kpi__value { color: rgba(15, 23, 42, 0.94); }
+html[data-theme="light"] .an-kpi__unit  { color: rgba(15, 23, 42, 0.48); }
+html[data-theme="light"] .an-kpi__sub   { color: rgba(15, 23, 42, 0.36); }
+
+/* -- Lift progression card ----------------------------------------------- */
+html[data-theme="light"] .an-lift-card { border-color: rgba(59, 130, 246, 0.14); }
+
+html[data-theme="light"] .an-pr-badge {
+  background: rgba(16, 185, 129, 0.09);
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+/* -- Muscle group badges -------------------------------------------------- */
+html[data-theme="light"] .an-muscle-badge--optimal      { background: rgba( 16, 185, 129, 0.10); }
+html[data-theme="light"] .an-muscle-badge--undertrained { background: rgba(239,  68,  68, 0.10); }
+html[data-theme="light"] .an-muscle-badge--overtrained  { background: rgba(249, 115,  22, 0.10); }
+html[data-theme="light"] .an-muscle-badge--no_data      { background: rgba(0,0,0,0.05); color: rgba(15,23,42,0.35); }
+
+/* -- Wellness form ------------------------------------------------------- */
+html[data-theme="light"] .wellness-checkin-form input[type="number"],
+html[data-theme="light"] .wellness-checkin-form input[type="text"] {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.07) !important;
+}
+
+html[data-theme="light"] .wellness-checkin-form input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.14), inset 0 1px 2px rgba(0,0,0,0.05) !important;
+}
+
+/* -- SVG chart cards: keep dark background in light mode ------------------
+   SVG chart text/grid colours are hard-coded rgba(255,255,255,...) — they
+   must render on a dark background. Use :has(svg) to target only chart cards.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .analytics-section .card-dark:has(svg) {
+  background: linear-gradient(160deg, #0e1525 0%, #090e1a 100%) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* -- Inline white-border row fix ------------------------------------------
+   Muscle group rows and pace list rows use inline
+   "border-bottom:1px solid rgba(255,255,255,0.06)" which becomes invisible
+   on white card backgrounds. !important overrides inline styles.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .analytics-section .flex-between[style*="rgba(255,255,255"] {
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* -- Empty state text colour fix ------------------------------------------ */
+html[data-theme="light"] .analytics-section p[style*="rgba(255,255,255"] {
+  color: rgba(15, 23, 42, 0.52) !important;
+}
+
+/* -- deltaBadge tick arrow stroke (SVG dot halo) --------------------------
+   This selector only fires when the SVG is NOT inside a dark chart card,
+   which after the :has(svg) rule above means it's essentially unused in
+   light mode — left here as a safety net.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg circle[stroke="#0d1117"] {
+  stroke: rgba(255, 255, 255, 0.55);
+}
