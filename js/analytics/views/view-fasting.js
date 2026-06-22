@@ -23,7 +23,7 @@ const BLUE   = '#3b82f6';
 const PURPLE = '#8b5cf6';
 const RED    = '#ef4444';
 
-let _calendarMonth = null; // { year, month } — null = current month
+let _calendarMonth = null; // { year, month } — null = current month; set by prev/next nav
 let _eduState = { category: 'articles', articleId: null };
 
 function qs(id) { return document.getElementById(id); }
@@ -123,11 +123,18 @@ function _renderTrends(el, calcs) {
 // ── Calendar ──────────────────────────────────────────────────────────────────
 
 function _renderCalendar(el, calcs, appState) {
-  const { calendarData } = calcs;
-  const { days, firstDayOfWeek, year, month } = calendarData;
+  const history   = appState.fastingSession?.history ?? [];
+  const startTime = appState.fastingSession?.startTime;
 
+  const now = new Date();
+  const viewYear  = _calendarMonth?.year  ?? now.getFullYear();
+  const viewMonth = _calendarMonth?.month ?? now.getMonth();
+
+  const { days, firstDayOfWeek, year, month } = buildCalendarData(history, calcs.active, startTime, viewYear, viewMonth);
+
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
   const monthName = new Date(year, month, 1).toLocaleDateString('en', { month: 'long', year: 'numeric' });
-  const dayHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const dayHeaders = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
   const statusStyles = {
     completed: { bg: '#f59e0b22', border: '#f59e0b', text: '#f59e0b', dot: '#f59e0b' },
@@ -139,10 +146,7 @@ function _renderCalendar(el, calcs, appState) {
   };
 
   const cells = [];
-  // blank cells before first day
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    cells.push(`<div></div>`);
-  }
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push(`<div></div>`);
 
   days.forEach(d => {
     const s = statusStyles[d.status] || statusStyles.none;
@@ -156,7 +160,6 @@ function _renderCalendar(el, calcs, appState) {
 
   const headerCells = dayHeaders.map(h => `<div style="text-align:center;font-size:0.62rem;font-weight:700;letter-spacing:0.07em;color:rgba(255,255,255,0.3);padding-bottom:4px;">${h}</div>`).join('');
 
-  // Legend
   const legend = `<div class="fa-cal-legend">
     <span class="fa-cal-legend-item"><span class="fa-cal-legend-dot" style="background:${AMBER};"></span> Goal met</span>
     <span class="fa-cal-legend-item"><span class="fa-cal-legend-dot" style="background:${BLUE};"></span> Partial</span>
@@ -164,17 +167,22 @@ function _renderCalendar(el, calcs, appState) {
     ${calcs.active ? `<span class="fa-cal-legend-item"><span class="fa-cal-legend-dot" style="background:${GREEN};"></span> Active</span>` : ''}
   </div>`;
 
-  // Monthly summary stats
   const completed = days.filter(d => d.status === 'completed').length;
   const partial   = days.filter(d => d.status === 'partial').length;
   const missed    = days.filter(d => d.status === 'missed').length;
   const pastDays  = days.filter(d => d.status !== 'future').length;
   const adherence = pastDays > 0 ? Math.round(((completed + partial) / pastDays) * 100) : 0;
 
+  const navBtnStyle = 'background:none;border:none;color:rgba(255,255,255,0.45);font-size:1.1rem;cursor:pointer;padding:0 6px;line-height:1;';
+
   el.innerHTML = `
     <article class="card-dark p-3 mb-3">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div class="an-chart__title" style="margin-bottom:0;">${monthName}</div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <button data-action="fa-cal-prev" style="${navBtnStyle}" aria-label="Previous month">‹</button>
+          <div class="an-chart__title" style="margin-bottom:0;">${monthName}</div>
+          <button data-action="fa-cal-next" style="${navBtnStyle}${isCurrentMonth ? 'opacity:0.2;cursor:default;pointer-events:none;' : ''}" aria-label="Next month">›</button>
+        </div>
         <div style="font-size:0.75rem;font-weight:700;color:${AMBER};">${adherence}% adherence</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;">
@@ -203,7 +211,7 @@ function _renderPerformance(el, calcs) {
     { label: 'Average Fast',        value: `${_fmt(avgDuration)}h` },
     { label: 'Longest Fast',        value: `${_fmt(longestFast)}h` },
     { label: 'Shortest Fast',       value: `${_fmt(shortestFast)}h` },
-    { label: 'Most Common Schedule',value: mostCommonSchedule ?? '—' },
+    { label: 'Most Common Schedule', value: mostCommonSchedule ? `${mostCommonSchedule} (${mostCommonSchedule.split(':')[0]}h fast)` : '—' },
     { label: 'Weekday Adherence',   value: weekdayAdherence.weekdayRate > 0 ? `${weekdayAdherence.weekdayRate.toFixed(0)}%` : '—' },
     { label: 'Weekend Adherence',   value: weekdayAdherence.weekendRate > 0 ? `${weekdayAdherence.weekendRate.toFixed(0)}%` : '—' },
   ].map(r => `<div class="an-metric-row">
@@ -223,8 +231,8 @@ function _renderDistribution(el, calcs) {
       <div id="fa-zone-dist"></div>
     </article>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekday Fasts', value: calcs.weekdayAdherence.weekdayCount.toString(), sub: 'fasts on Mon–Fri', color: AMBER })}
-      ${statCard({ label: 'Weekend Fasts', value: calcs.weekdayAdherence.weekendCount.toString(), sub: 'fasts on Sat–Sun', color: ORANGE })}
+      ${statCard({ label: 'Weekday Rate', value: calcs.weekdayAdherence.weekdayRate > 0 ? `${calcs.weekdayAdherence.weekdayRate.toFixed(0)}` : '0', unit: '%', sub: `${calcs.weekdayAdherence.weekdayCount} fasts Mon–Fri`, color: AMBER })}
+      ${statCard({ label: 'Weekend Rate', value: calcs.weekdayAdherence.weekendRate > 0 ? `${calcs.weekdayAdherence.weekendRate.toFixed(0)}` : '0', unit: '%', sub: `${calcs.weekdayAdherence.weekendCount} fasts Sat–Sun`, color: ORANGE })}
     </div>
   `;
   renderZoneDistributionChart(qs('fa-zone-dist'), calcs.zoneDistribution);
@@ -240,9 +248,10 @@ function _renderAchievements(el, achievements) {
     const c = tierColors[a.tier] || AMBER;
     const bg = a.unlocked ? (tierBg[a.tier] || '') : 'transparent';
     const opacity = a.unlocked ? 1 : 0.3;
-    return `<div class="fa-achievement" style="opacity:${opacity};background:${bg};border:1px solid ${a.unlocked ? c + '30' : 'rgba(255,255,255,0.06)'};" title="${a.description}">
+    return `<div class="fa-achievement" style="opacity:${opacity};background:${bg};border:1px solid ${a.unlocked ? c + '30' : 'rgba(255,255,255,0.06)'};">
       <div class="fa-achievement__icon">${a.icon}</div>
       <div class="fa-achievement__label">${a.label}</div>
+      <div class="fa-achievement__desc">${a.description}</div>
       ${a.unlocked ? `<div class="fa-achievement__tier" style="color:${c};">${a.tier}</div>` : '<div class="fa-achievement__tier" style="color:rgba(255,255,255,0.2);">locked</div>'}
     </div>`;
   }).join('');
@@ -409,6 +418,9 @@ let _analyticsLiveTicker = null;
 function _startAnalyticsTicker(getState) {
   if (_analyticsLiveTicker) return;
   _analyticsLiveTicker = setInterval(() => {
+    // Stop if fasting section is no longer visible (user navigated to another analytics tab)
+    const section = qs('analytics-fasting');
+    if (!section?.classList.contains('active')) { _stopAnalyticsTicker(); return; }
     const state = getState();
     if (!state?.fastingSession?.active) { _stopAnalyticsTicker(); return; }
     const hours = (Date.now() - new Date(state.fastingSession.startTime).getTime()) / 3_600_000;
@@ -456,6 +468,32 @@ export function handleFastingEduAction(action, target, getState) {
     _eduState.articleId = null;
     _renderEduList(eduEl);
   }
+}
+
+// ── Calendar navigation (called from app.js) ──────────────────────────────────
+
+export function handleFastingCalAction(action, getState) {
+  const calEl = qs('fa-calendar');
+  if (!calEl) return;
+  const now = new Date();
+  const cur = _calendarMonth ?? { year: now.getFullYear(), month: now.getMonth() };
+
+  if (action === 'fa-cal-prev') {
+    const d = new Date(cur.year, cur.month - 1, 1);
+    _calendarMonth = { year: d.getFullYear(), month: d.getMonth() };
+  } else if (action === 'fa-cal-next') {
+    const next = new Date(cur.year, cur.month + 1, 1);
+    // Don't navigate past the current month
+    if (next <= new Date(now.getFullYear(), now.getMonth(), 1)) {
+      _calendarMonth = { year: next.getFullYear(), month: next.getMonth() };
+    } else {
+      return;
+    }
+  }
+
+  const appState = getState();
+  const calcs = computeFastingAnalytics(appState);
+  _renderCalendar(calEl, calcs, appState);
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────

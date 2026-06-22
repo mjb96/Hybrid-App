@@ -3307,8 +3307,13 @@ body {
 /* --- App-wide section heading component --- */
 .app-section-heading {
   margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  row-gap: 3px;
 }
 .app-section-heading__title {
+  grid-column: 1;
   font-size: 1.1rem;
   font-weight: 800;
   color: #ffffff;
@@ -3316,11 +3321,17 @@ body {
   line-height: 1.1;
 }
 .app-section-heading__sub {
+  grid-column: 1;
   font-size: 0.68rem;
   color: rgba(255,255,255,0.38);
   font-weight: 500;
-  margin-top: 3px;
   letter-spacing: 0.01em;
+}
+.tile-customise-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin-left: 12px;
 }
 
 /* Override the old section-header: give it the same feel */
@@ -5925,10 +5936,14 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
 /* ── History ─────────────────────────────────────────────────────────────── */
 .fasting-history-section { border-top: 1px solid rgba(255,255,255,0.07); padding-top: 20px; }
 .fasting-history-title { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
-.fasting-history-header {
+.fasting-history-header,
+.fasting-history-row {
   display: grid;
-  grid-template-columns: 60px 1fr 1fr 50px;
+  grid-template-columns: 60px 1fr 1fr 36px 28px;
   gap: 8px;
+  align-items: center;
+}
+.fasting-history-header {
   font-size: 0.68rem;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -5936,18 +5951,38 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
   margin-bottom: 6px;
 }
 .fasting-history-row {
-  display: grid;
-  grid-template-columns: 60px 1fr 1fr 50px;
-  gap: 8px;
-  align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   font-size: 0.8rem;
+}
+.fasting-history-row.fhr--editing {
+  background: rgba(245,158,11,0.06);
+  border-radius: 6px;
+  padding: 8px 6px;
 }
 .fhr-date  { color: var(--text-muted); }
 .fhr-dur   { font-weight: 700; color: var(--text-main); }
 .fhr-zone  { color: var(--text-sub); }
 .fhr-check { font-size: 0.75rem; color: var(--text-muted); }
+.fhr-edit-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.fhr-edit-btn:hover { color: rgba(245,158,11,0.8); }
+.fhr-edit-panel {
+  margin: 0 0 8px 0;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px;
+}
 .fasting-history-empty { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 
 /* ── Wellness section in profile ─────────────────────────────────────────── */
@@ -6107,8 +6142,12 @@ html[data-theme="light"] .fasting-btn-detail { background: rgba(0,0,0,0.05); col
 html[data-theme="light"] .fasting-btn-adjust { background: rgba(0,0,0,0.05); color: #374151; border-color: rgba(0,0,0,0.1); }
 html[data-theme="light"] .fasting-btn-adjust:hover { background: rgba(0,0,0,0.09); }
 html[data-theme="light"] .fasting-edit-panel { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
-html[data-theme="light"] .fasting-edit-input { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.12); color: #0f172a; }
+html[data-theme="light"] .fhr-edit-panel      { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] .fasting-edit-input  { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.12); color: #0f172a; }
 html[data-theme="light"] .fasting-edit-cancel { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #6b7280; }
+html[data-theme="light"] .fhr-edit-btn        { color: rgba(0,0,0,0.2); }
+html[data-theme="light"] .fhr-edit-btn:hover  { color: #f59e0b; }
+html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(245,158,11,0.05); }
 html[data-theme="light"] .fasting-sheet { background: #ffffff; }
 html[data-theme="light"] .fasting-metric { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .fz-dot { background: rgba(0,0,0,0.04); }

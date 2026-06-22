@@ -81,17 +81,20 @@ export function openFastingDetail() {
       </div>`
     : '';
 
-  const historyHtml = ctx.history.length === 0
+  const totalHistory = ctx.history.length;
+  const historyHtml = totalHistory === 0
     ? '<p class="fasting-history-empty">No completed fasts yet.</p>'
-    : ctx.history.slice().reverse().slice(0, 7).map(h => {
+    : ctx.history.slice().reverse().slice(0, 7).map((h, displayIdx) => {
+        const actualIdx = totalHistory - 1 - displayIdx;
         const date = new Date(h.endTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         const zone = _zoneNameForHours(h.durationHours);
         const metGoal = h.durationHours >= (h.goalHours ?? 16);
-        return `<div class="fasting-history-row">
+        return `<div class="fasting-history-row" data-fhr-index="${actualIdx}">
           <span class="fhr-date">${date}</span>
           <span class="fhr-dur">${fmtHoursLabel(h.durationHours)}</span>
           <span class="fhr-zone">${zone}</span>
           <span class="fhr-check">${metGoal ? '✓' : '–'}</span>
+          <button class="fhr-edit-btn" data-action="fast-edit-history" data-index="${actualIdx}" aria-label="Edit this fast">✏</button>
         </div>`;
       }).join('');
 
@@ -171,7 +174,7 @@ export function openFastingDetail() {
     <div class="fasting-history-section">
       <div class="fasting-history-title">Recent Fasts</div>
       <div class="fasting-history-header">
-        <span>Date</span><span>Duration</span><span>Zone</span><span>Goal</span>
+        <span>Date</span><span>Duration</span><span>Zone</span><span>Goal</span><span></span>
       </div>
       ${historyHtml}
     </div>
@@ -184,6 +187,45 @@ export function openFastingDetail() {
 
 export function closeFastingDetail() {
   _stopFastingTicker();
+  closeHistoryEditPanel();
   document.getElementById('fastingSheet')?.classList.remove('active');
   document.getElementById('fastingSheetBackdrop')?.classList.remove('active');
+}
+
+export function openHistoryEditPanel(idx, appState) {
+  closeHistoryEditPanel();
+  const history = appState?.fastingSession?.history ?? [];
+  const entry = history[idx];
+  if (!entry) return;
+
+  const row = document.querySelector(`.fasting-history-row[data-fhr-index="${idx}"]`);
+  if (!row) return;
+
+  row.classList.add('fhr--editing');
+
+  const panel = document.createElement('div');
+  panel.id = 'fhrEditPanel';
+  panel.className = 'fhr-edit-panel';
+  panel.innerHTML = `
+    <div class="fasting-edit-panel-title">Edit Fast</div>
+    <label class="fasting-edit-panel-title" style="font-size:0.7rem;margin-bottom:4px;display:block;">Start time</label>
+    <input type="datetime-local" id="fhrEditStart" class="fasting-edit-input"
+      value="${_isoToDatetimeLocal(entry.startTime)}"
+      max="${_isoToDatetimeLocal(new Date().toISOString())}">
+    <label class="fasting-edit-panel-title" style="font-size:0.7rem;margin-bottom:4px;display:block;">End time</label>
+    <input type="datetime-local" id="fhrEditEnd" class="fasting-edit-input"
+      value="${_isoToDatetimeLocal(entry.endTime)}"
+      min="${_isoToDatetimeLocal(entry.startTime)}"
+      max="${_isoToDatetimeLocal(new Date().toISOString())}">
+    <div class="fasting-edit-panel-actions">
+      <button class="fasting-edit-cancel" data-action="fast-cancel-history-edit">Cancel</button>
+      <button class="fasting-edit-save" data-action="fast-save-history" data-index="${idx}">Save</button>
+    </div>
+  `;
+  row.after(panel);
+}
+
+export function closeHistoryEditPanel() {
+  document.getElementById('fhrEditPanel')?.remove();
+  document.querySelector('.fhr--editing')?.classList.remove('fhr--editing');
 }
