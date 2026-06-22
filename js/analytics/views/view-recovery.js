@@ -3,7 +3,33 @@
 // ==========================================
 import { renderRpeChart } from '../charts.js';
 import { saveStateToLocalStorage } from '../../state.js';
+import {
+  renderSleepTrendChart,
+  renderHRVTrendChart,
+  renderRestingHRTrendChart,
+  renderRecoveryScoreTrendChart,
+  renderMoodTrendChart,
+  renderSorenessTrendChart,
+  renderReadinessRingLarge,
+} from '../charts/recovery-charts.js';
+import { statCard } from '../charts/chart-primitives.js';
+import { computeRecoveryAnalytics } from '../calculations/recovery-calcs.js';
+import { computeLoadAnalytics } from '../calculations/load-calcs.js';
+import {
+  computeReadiness,
+  readinessStatus,
+  readinessColor,
+} from '../scoring/readiness-scoring.js';
+import {
+  generateRecoveryInsights,
+  generateLoadInsights,
+  rankInsights,
+  renderInsightsHTML,
+} from '../insights/insight-engine.js';
 
+function qs(id) { return document.getElementById(id); }
+
+// ---- RPE-based recovery (existing view) --------------------------------
 export function renderRecoveryAnalytics(data, getState, getDays) {
   const appState    = getState();
   const defaultDays = getDays();
@@ -23,22 +49,12 @@ export function renderRecoveryAnalytics(data, getState, getDays) {
   const avgRpe = rpeCount > 0 ? (totalRpe / rpeCount) : 0;
   let statusLabel = '--', statusColor = 'var(--text-muted)', interpretation = 'Log workouts to see recovery status.';
   if (rpeCount > 0) {
-    if (avgRpe < 6) {
-      statusLabel    = 'Fresh';
-      statusColor    = '#10b981';
-      interpretation = 'Low fatigue this week. Good time to push intensity.';
-    } else if (avgRpe < 8) {
-      statusLabel    = 'Accumulating';
-      statusColor    = '#f59e0b';
-      interpretation = 'Moderate fatigue. Stick to planned volume and prioritise sleep.';
-    } else {
-      statusLabel    = 'High Load';
-      statusColor    = '#ef4444';
-      interpretation = 'High fatigue this week. Consider reducing volume or taking a rest day.';
-    }
+    if (avgRpe < 6)      { statusLabel = 'Fresh';       statusColor = '#10b981'; interpretation = 'Low fatigue this week. Good time to push intensity.'; }
+    else if (avgRpe < 8) { statusLabel = 'Accumulating'; statusColor = '#f59e0b'; interpretation = 'Moderate fatigue. Stick to planned volume and prioritise sleep.'; }
+    else                  { statusLabel = 'High Load';   statusColor = '#ef4444'; interpretation = 'High fatigue this week. Consider reducing volume or taking a rest day.'; }
   }
 
-  const section = document.getElementById('analytics-recovery');
+  const section = qs('analytics-recovery');
   if (!section) return;
 
   let summaryEl = section.querySelector('.recovery-summary-cards');
@@ -59,8 +75,7 @@ export function renderRecoveryAnalytics(data, getState, getDays) {
       <div class="text-xs text-muted mb-1">Sessions Logged</div>
       <div class="text-lg font-heavy text-inverse">${rpeCount}</div>
       <div class="text-xs text-muted mt-1">this week</div>
-    </article>
-  `;
+    </article>`;
 
   let interpEl = section.querySelector('.recovery-interpretation');
   if (!interpEl) {
@@ -72,17 +87,36 @@ export function renderRecoveryAnalytics(data, getState, getDays) {
   }
   interpEl.innerHTML = `<div class="text-sm text-muted" style="line-height:1.5;">${interpretation}</div>`;
 
-  renderRpeChart(document.getElementById('rpeTrendContainer'), data.weekLabels, data.rpeData);
+  renderRpeChart(qs('rpeTrendContainer'), data.weekLabels, data.rpeData);
 }
 
+// ---- Full Recovery Score Detail ----------------------------------------
 export function renderRecoveryScoreDetail(data, getState, getDays) {
   const appState    = getState();
   const defaultDays = getDays();
-  const wk          = appState.currentWeek || '1';
-  const weekData    = appState.weeks?.[wk];
+  const section     = qs('analytics-recovery-score');
+  if (!section) return;
 
-  // Component 1: RPE fatigue factor
-  let totalRpe = 0, rpeCount = 0;
+  // Compute all recovery analytics
+  const recov    = computeRecoveryAnalytics(appState);
+  const la       = computeLoadAnalytics(appState, defaultDays, data.weekLabels.length);
+
+  // Compute Garmin-style readiness
+  const lastSleep  = recov.sleepData.length > 0 ? recov.sleepData[recov.sleepData.length - 1]?.value : null;
+  const readiness  = computeReadiness({
+    hrvStat:       recov.hrvStat,
+    sleepHours:    lastSleep,
+    atl:           la.currentATL,
+    ctl:           la.currentCTL,
+    todayWellness: recov.todayWellness,
+  });
+
+  const readColor = readinessColor(readiness.score);
+
+  // Generate insights
+  const wk       = appState.currentWeek || '1';
+  const weekData = appState.weeks?.[wk];
+  let rpeCount = 0, totalRpe = 0;
   if (weekData) {
     defaultDays.forEach(d => {
       const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
@@ -91,148 +125,215 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
       if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
     });
   }
+
+  const recovInsights = generateRecoveryInsights({
+    recovDecline:  recov.recovDecline,
+    sleep7d:       recov.sleep7d,
+    hrvStat:       recov.hrvStat,
+    loadStatus:    la.loadStatus,
+    todayWellness: recov.todayWellness,
+  });
+  const loadInsights = generateLoadInsights({
+    atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
+    loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus,
+  });
+  const allInsights  = rankInsights([...recovInsights, ...loadInsights]);
+
+  // ---- Build full section HTML
+  let insightsEl = section.querySelector('.recovery-insights-panel');
+  if (!insightsEl) {
+    insightsEl = document.createElement('div');
+    insightsEl.className = 'recovery-insights-panel';
+    section.prepend(insightsEl);
+  }
+  insightsEl.innerHTML = renderInsightsHTML(allInsights, 4);
+
+  // Readiness ring
+  _ensureDiv(section, 'readinessDashboard');
+  const readDash = qs('readinessDashboard');
+  readDash.innerHTML = `
+    <h2 class="section-header mt-2">Readiness</h2>
+    <article class="card-dark p-4 mb-3 flex-col flex-center" style="border:1px solid ${readColor}33;">
+      <div id="readinessRingContainer"></div>
+      <div class="text-sm text-muted mt-3 text-center" style="max-width:280px;line-height:1.5;">${readiness.recommendation}</div>
+      ${_readinessComponentsHTML(readiness.components)}
+    </article>`;
+
+  const ringEl = qs('readinessRingContainer');
+  if (ringEl) renderReadinessRingLarge(ringEl, readiness.score, readiness.status, readColor);
+
+  // Summary metric cards
+  _ensureDiv(section, 'recoverySummaryCards');
   const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
   const rpeFactor = rpeCount > 0 ? Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100))) : null;
 
-  // Component 2: ACWR load balance factor
-  const { atl = 0, ctl = 0 } = appState.loadMetrics || {};
-  const hasLoad = ctl > 0;
-  let acwrFactor = null, acwrRounded = 0;
-  if (hasLoad) {
-    const acwr = atl / ctl;
-    acwrRounded = Math.round(acwr * 100) / 100;
-    if      (acwr <= 0.8) acwrFactor = 80;
-    else if (acwr <= 1.0) acwrFactor = 100;
-    else if (acwr <= 1.3) acwrFactor = Math.round(100 - ((acwr - 1.0) / 0.3) * 60);
-    else if (acwr <= 1.5) acwrFactor = Math.round(40  - ((acwr - 1.3) / 0.2) * 35);
-    else                  acwrFactor = 5;
-    acwrFactor = Math.max(0, Math.min(100, acwrFactor));
-  }
+  qs('recoverySummaryCards').innerHTML = `
+    <h2 class="section-header mt-2">Recovery Metrics</h2>
+    <div class="grid-2-col gap-2 mb-3">
+      ${statCard({ label: 'Avg RPE', value: rpeCount > 0 ? avgRpe.toFixed(1) : '--', sub: 'This week', color: rpeFactor > 70 ? '#10b981' : rpeFactor > 40 ? '#f59e0b' : '#ef4444' })}
+      ${statCard({ label: 'RPE Factor', value: rpeFactor !== null ? rpeFactor + '%' : '--', sub: 'Recovery from RPE', color: '#3b82f6' })}
+      ${statCard({ label: 'Load Balance', value: la.currentCTL > 0 ? la.currentRatio.toFixed(2) : '--', sub: 'ATL/CTL ratio', color: la.currentRatio < 1.3 ? '#f59e0b' : '#ef4444', status: la.loadStatus.status })}
+      ${statCard({ label: 'Form (TSB)', value: la.currentCTL > 0 ? (la.currentTSB >= 0 ? '+' : '') + Math.round(la.currentTSB) : '--', sub: 'CTL − ATL', color: la.currentTSB >= 0 ? '#10b981' : '#ef4444' })}
+    </div>`;
 
-  // Component 3: Wellness factor from today's check-in
-  const today = new Date().toISOString().slice(0, 10);
-  const todayWellness = (appState.wellnessLog || []).find(e => e.date === today);
-  let wellnessFactor = null;
-  if (todayWellness) {
-    const sleepScore    = Math.min(100, ((todayWellness.sleep || 0) / 8) * 100);
-    const moodScore     = ((todayWellness.mood || 3) / 5) * 100;
-    const sorenessScore = ((6 - (todayWellness.soreness || 3)) / 5) * 100;
-    wellnessFactor = Math.round(sleepScore * 0.4 + moodScore * 0.3 + sorenessScore * 0.3);
-    wellnessFactor = Math.max(0, Math.min(100, wellnessFactor));
-  }
+  // Sleep trend
+  _ensureDiv(section, 'sleepTrendSection');
+  qs('sleepTrendSection').innerHTML = `
+    <h2 class="section-header mt-2">Sleep Trend (28 days)</h2>
+    <article class="card-dark p-3 mb-3">
+      <div id="sleepTrendChart"></div>
+    </article>`;
+  renderSleepTrendChart(qs('sleepTrendChart'), recov.sleepData);
 
-  // Composite score — 3-component when all available
-  let score = 0;
-  const hasData = rpeFactor !== null || acwrFactor !== null || wellnessFactor !== null;
-  if (wellnessFactor !== null && rpeFactor !== null && acwrFactor !== null) {
-    score = Math.round(rpeFactor * 0.35 + acwrFactor * 0.25 + wellnessFactor * 0.40);
-  } else if (wellnessFactor !== null && rpeFactor !== null) {
-    score = Math.round(rpeFactor * 0.55 + wellnessFactor * 0.45);
-  } else if (wellnessFactor !== null && acwrFactor !== null) {
-    score = Math.round(acwrFactor * 0.45 + wellnessFactor * 0.55);
-  } else if (wellnessFactor !== null) {
-    score = wellnessFactor;
-  } else if (rpeFactor !== null && acwrFactor !== null) {
-    score = Math.round(rpeFactor * 0.6 + acwrFactor * 0.4);
-  } else if (rpeFactor !== null) {
-    score = rpeFactor;
-  } else if (acwrFactor !== null) {
-    score = acwrFactor;
-  }
-
-  let recommendation = 'Log workouts to generate recovery insights.';
-  if (hasData) {
-    if      (score >= 80) recommendation = 'Well recovered. You can push intensity today.';
-    else if (score >= 60) recommendation = 'Moderately recovered. Stick to planned volume.';
-    else if (score >= 40) recommendation = 'Fatigue accumulating. Prioritise sleep tonight.';
-    else                  recommendation = 'High fatigue load. Consider a deload or rest day.';
-  }
-
-  const heroEl  = document.getElementById('recoveryScoreHero');
-  const rpeEl   = document.getElementById('recoveryAvgRpe');
-  const sleepEl = document.getElementById('recoverySleepContrib');  // shows ACWR load balance
-  const fatEl   = document.getElementById('recoveryFatigueContrib'); // shows RPE fatigue
-  const recEl   = document.getElementById('recoveryRecommendation');
-
-  if (heroEl)  heroEl.textContent  = hasData ? `${score}%` : '--';
-  if (rpeEl)   rpeEl.textContent   = rpeCount > 0 ? avgRpe.toFixed(1) : '--';
-  if (sleepEl) sleepEl.textContent = acwrFactor !== null ? `${acwrFactor}% (ACWR ${acwrRounded})` : 'Log session duration';
-  if (fatEl)   fatEl.textContent   = rpeFactor  !== null ? `${rpeFactor}%` : 'Log RPE';
-  if (recEl)   recEl.textContent   = recommendation;
-
-  // Wellness check-in form
-  _renderWellnessForm(getState, getDays, data);
-
-  const trendEl = document.getElementById('rpeTrendContainerDetail');
-  if (trendEl) _renderRpeTrendChart(trendEl, data, getState, getDays);
-
-  // ATL/CTL-derived load balance
-  const windowEl = document.getElementById('recoveryWindowCard');
-  if (windowEl) {
-    const { atl = 0, ctl = 0 } = appState.loadMetrics || {};
-    const hasLoad = ctl > 0;
-    const tsb     = ctl - atl;
-    const acwr    = hasLoad ? Math.round((atl / ctl) * 100) / 100 : 0;
-
-    let loadStatus, loadColor, loadNote;
-    if (!hasLoad) {
-      loadStatus = '—';
-      loadColor  = 'rgba(255,255,255,0.5)';
-      loadNote   = 'Log sessions with RPE and duration to unlock load balance.';
-    } else if (tsb > 0) {
-      loadStatus = 'Fresh';
-      loadColor  = '#10b981';
-      loadNote   = `Acute load is below your 28-day baseline. ACWR: ${acwr}.`;
-    } else if (acwr < 1.15) {
-      loadStatus = 'Balanced';
-      loadColor  = '#94a3b8';
-      loadNote   = `Load is tracking your fitness baseline. ACWR: ${acwr}.`;
-    } else {
-      loadStatus = 'Fatigued';
-      loadColor  = '#ef4444';
-      loadNote   = `Recent load exceeds baseline by ${Math.round((acwr - 1) * 100)}%. ACWR: ${acwr}. Prioritise recovery.`;
-    }
-
-    windowEl.innerHTML = `
-      <h2 class="section-header mt-2">Load Balance</h2>
-      <article class="card-dark p-4 mb-4">
-        <div class="flex-between mb-3">
-          <span class="text-sm text-muted">ATL (7-day load)</span>
-          <span class="font-heavy text-inverse">${hasLoad ? Math.round(atl) : '—'}</span>
-        </div>
-        <div class="flex-between mb-3">
-          <span class="text-sm text-muted">CTL (28-day baseline)</span>
-          <span class="font-heavy text-inverse">${hasLoad ? Math.round(ctl) : '—'}</span>
-        </div>
-        <div class="flex-between mb-3">
-          <span class="text-sm text-muted">Form (TSB)</span>
-          <span class="font-heavy" style="color:${loadColor};">${hasLoad ? (tsb >= 0 ? '+' : '') + Math.round(tsb) : '—'}</span>
-        </div>
-        <div class="flex-between">
-          <span class="text-sm text-muted">Status</span>
-          <span class="font-heavy" style="color:${loadColor};">${loadStatus}</span>
-        </div>
-        <div class="text-xs text-muted mt-3" style="line-height:1.5;">${loadNote}</div>
+  // HRV + RHR (if Health Connect)
+  _ensureDiv(section, 'hcTrendSection');
+  if (recov.hasHC) {
+    qs('hcTrendSection').innerHTML = `
+      <h2 class="section-header mt-2">HRV & Resting HR Trends (28 days)</h2>
+      <article class="card-dark p-3 mb-3">
+        <div class="text-xs text-muted mb-2">HRV — RMSSD (ms)</div>
+        <div id="hrvTrendChart"></div>
+      </article>
+      <article class="card-dark p-3 mb-3">
+        <div class="text-xs text-muted mb-2">Resting Heart Rate (bpm)</div>
+        <div id="rhrTrendChart"></div>
       </article>`;
+    renderHRVTrendChart(qs('hrvTrendChart'), recov.hrvData);
+    renderRestingHRTrendChart(qs('rhrTrendChart'), recov.rhrData);
+  } else {
+    qs('hcTrendSection').innerHTML = `
+      <article class="card-dark p-3 mb-3" style="border:1px solid rgba(255,255,255,0.08);">
+        <div class="text-sm text-muted">Connect Health Connect (Android) to unlock HRV and Resting HR trends.</div>
+      </article>`;
+  }
+
+  // Recovery score trend
+  _ensureDiv(section, 'recoveryScoreTrendSection');
+  if (recov.recovScores.length >= 3) {
+    qs('recoveryScoreTrendSection').innerHTML = `
+      <h2 class="section-header mt-2">Recovery Score Trend (28 days)</h2>
+      <article class="card-dark p-3 mb-3">
+        <div id="recoveryScoreTrendChart"></div>
+      </article>`;
+    renderRecoveryScoreTrendChart(qs('recoveryScoreTrendChart'), recov.recovScores);
+  }
+
+  // Mood & Soreness trend
+  _ensureDiv(section, 'moodSorenessTrendSection');
+  if (recov.moodData.length >= 3 || recov.sorenessData.length >= 3) {
+    qs('moodSorenessTrendSection').innerHTML = `
+      <h2 class="section-header mt-2">Stress Signals (28 days)</h2>
+      <div class="grid-2-col gap-2 mb-3">
+        <article class="card-dark p-3">
+          <div class="text-xs text-muted mb-2">Mood (1–5)</div>
+          <div id="moodTrendChart"></div>
+        </article>
+        <article class="card-dark p-3">
+          <div class="text-xs text-muted mb-2">Soreness (1–5, lower better)</div>
+          <div id="sorenessTrendChart"></div>
+        </article>
+      </div>`;
+    renderMoodTrendChart(qs('moodTrendChart'), recov.moodData);
+    renderSorenessTrendChart(qs('sorenessTrendChart'), recov.sorenessData);
+  }
+
+  // RPE trend chart
+  _ensureDiv(section, 'rpeTrendDetailSection');
+  qs('rpeTrendDetailSection').innerHTML = `
+    <h2 class="section-header mt-2">Weekly RPE Trend</h2>
+    <article class="card-dark p-3 mb-3">
+      <div id="rpeTrendContainer"></div>
+    </article>`;
+  renderRpeChart(qs('rpeTrendContainer'), data.weekLabels, data.rpeData);
+
+  // Wellness form
+  _ensureDiv(section, 'wellnessFormSection');
+  _renderWellnessForm(qs('wellnessFormSection'), getState, getDays, data);
+
+  // Load balance card
+  _ensureDiv(section, 'recoveryWindowCard');
+  _renderLoadBalanceCard(qs('recoveryWindowCard'), la);
+
+  // Legacy DOM IDs for tile compatibility
+  _syncLegacyIds(readiness, rpeFactor, avgRpe, la);
+}
+
+function _readinessComponentsHTML(components) {
+  if (!components || Object.keys(components).length === 0) return '';
+  const labels = { hrv: 'HRV', sleep: 'Sleep', load: 'Load Balance', wellness: 'Wellness' };
+  const items = Object.entries(components)
+    .map(([k, v]) => `<div class="flex-between text-xs mb-1"><span class="text-muted">${labels[k] || k}</span><span class="font-bold text-inverse">${v}%</span></div>`)
+    .join('');
+  return `<div class="mt-3 w-full" style="max-width:200px;">${items}</div>`;
+}
+
+function _renderLoadBalanceCard(el, la) {
+  if (!el) return;
+  const { currentATL: atl, currentCTL: ctl, currentTSB: tsb, currentRatio: acwr, loadStatus } = la;
+  const hasLoad  = ctl > 0;
+  const loadColor = loadStatus.tone === 'warning' ? '#ef4444' : loadStatus.tone === 'caution' ? '#f59e0b' : loadStatus.tone === 'progress' ? '#10b981' : '#94a3b8';
+
+  el.innerHTML = `
+    <h2 class="section-header mt-2">Load Balance</h2>
+    <article class="card-dark p-4 mb-4">
+      <div class="flex-between mb-3">
+        <span class="text-sm text-muted">ATL (7-day load)</span>
+        <span class="font-heavy text-inverse">${hasLoad ? Math.round(atl) : '—'}</span>
+      </div>
+      <div class="flex-between mb-3">
+        <span class="text-sm text-muted">CTL (28-day baseline)</span>
+        <span class="font-heavy text-inverse">${hasLoad ? Math.round(ctl) : '—'}</span>
+      </div>
+      <div class="flex-between mb-3">
+        <span class="text-sm text-muted">Form (TSB)</span>
+        <span class="font-heavy" style="color:${tsb >= 0 ? '#10b981' : '#ef4444'};">${hasLoad ? (tsb >= 0 ? '+' : '') + Math.round(tsb) : '—'}</span>
+      </div>
+      <div class="flex-between mb-3">
+        <span class="text-sm text-muted">ACWR</span>
+        <span class="font-heavy" style="color:${loadColor};">${hasLoad ? acwr.toFixed(2) : '—'}</span>
+      </div>
+      <div class="flex-between">
+        <span class="text-sm text-muted">Status</span>
+        <span class="font-heavy" style="color:${loadColor};">${loadStatus.status}</span>
+      </div>
+    </article>`;
+}
+
+function _syncLegacyIds(readiness, rpeFactor, avgRpe, la) {
+  const setText = (id, val) => { const el = qs(id); if (el) el.textContent = val; };
+  setText('recoveryScoreHero', readiness.score !== null ? `${readiness.score}%` : '--');
+  setText('recoveryAvgRpe', rpeFactor !== null ? avgRpe.toFixed(1) : '--');
+  setText('recoveryFatigueContrib', rpeFactor !== null ? `${rpeFactor}%` : 'Log RPE');
+  setText('recoveryRecommendation', readiness.recommendation);
+
+  const sleepEl = qs('recoverySleepContrib');
+  if (sleepEl) {
+    sleepEl.textContent = la.currentCTL > 0
+      ? `${Math.round(la.currentRatio * 100) - 100 >= 0 ? '+' : ''}${Math.round((la.currentRatio - 1) * 100)}% load factor`
+      : 'Log session duration';
   }
 }
 
-function _renderWellnessForm(getState, getDays, data) {
-  const section = document.getElementById('analytics-recovery-score');
-  if (!section) return;
+function _ensureDiv(parent, id) {
+  if (!document.getElementById(id)) {
+    const div = document.createElement('div');
+    div.id = id;
+    parent.appendChild(div);
+  }
+}
 
-  let formEl = section.querySelector('.wellness-checkin-form');
+function _renderWellnessForm(formParent, getState, getDays, data) {
+  if (!formParent) return;
+
+  let formEl = formParent.querySelector('.wellness-checkin-form');
   if (!formEl) {
     formEl = document.createElement('div');
-    formEl.className = 'wellness-checkin-form mb-4';
-    // Insert before the load-balance card (windowEl), or append
-    const windowEl = document.getElementById('recoveryWindowCard');
-    if (windowEl) section.insertBefore(formEl, windowEl);
-    else section.appendChild(formEl);
+    formEl.className = 'wellness-checkin-form';
+    formParent.appendChild(formEl);
   }
 
   const appState = getState();
-  const today = new Date().toISOString().slice(0, 10);
+  const today    = new Date().toISOString().slice(0, 10);
   const existing = (appState.wellnessLog || []).find(e => e.date === today) || {};
 
   const ratingBtns = (name, current, max) => {
@@ -265,7 +366,6 @@ function _renderWellnessForm(getState, getDays, data) {
       ${existing.sleep || existing.mood || existing.soreness ? '<div class="text-xs text-muted mt-2 text-center">✓ Check-in saved for today</div>' : ''}
     </article>`;
 
-  // Rating button clicks — highlight selection
   formEl.querySelectorAll('[data-wellness]').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.wellness;
@@ -276,39 +376,17 @@ function _renderWellnessForm(getState, getDays, data) {
     });
   });
 
-  // Save button
-  document.getElementById('wellnessSaveBtn')?.addEventListener('click', () => {
-    const appState = getState();
-    const sleepVal = parseFloat(document.getElementById('wellnessSleepInput')?.value) || 0;
+  qs('wellnessSaveBtn')?.addEventListener('click', () => {
+    const state    = getState();
+    const sleepVal = parseFloat(qs('wellnessSleepInput')?.value) || 0;
     const moodVal  = parseInt(formEl.querySelector('[data-wellness="mood"][style*="#3b82f6"]')?.dataset.val || existing.mood || 0, 10);
     const soreVal  = parseInt(formEl.querySelector('[data-wellness="soreness"][style*="#3b82f6"]')?.dataset.val || existing.soreness || 0, 10);
-
-    if (!appState.wellnessLog) appState.wellnessLog = [];
-    const idx = appState.wellnessLog.findIndex(e => e.date === today);
+    if (!state.wellnessLog) state.wellnessLog = [];
+    const idx   = state.wellnessLog.findIndex(e => e.date === today);
     const entry = { date: today, sleep: sleepVal, mood: moodVal, soreness: soreVal };
-    if (idx >= 0) appState.wellnessLog[idx] = entry;
-    else appState.wellnessLog.push(entry);
-
+    if (idx >= 0) state.wellnessLog[idx] = entry;
+    else state.wellnessLog.push(entry);
     saveStateToLocalStorage(true);
-    // Re-render this section by re-invoking with same data args
     renderRecoveryScoreDetail(data, getState, getDays);
   });
-}
-
-function _renderRpeTrendChart(container, data, getState, getDays) {
-  if (!container) return;
-  const existingContainer = document.getElementById('rpeTrendContainer');
-  const savedContent = existingContainer ? existingContainer.innerHTML : '';
-
-  if (existingContainer) existingContainer.id = '_rpeTrendContainer_swap';
-  container.id = 'rpeTrendContainer';
-  try {
-    renderRecoveryAnalytics(data, getState, getDays);
-  } finally {
-    container.id = 'rpeTrendContainerDetail';
-    if (existingContainer) {
-      existingContainer.id = 'rpeTrendContainer';
-      existingContainer.innerHTML = savedContent;
-    }
-  }
 }
