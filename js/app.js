@@ -768,8 +768,12 @@ document.addEventListener('click', (e) => {
       renderHome();
     }
   }
-  else if (action === 'open-fasting-detail')  { openFastingDetail(); }
-  else if (action === 'close-fasting-detail') { closeFastingDetail(); }
+  else if (action === 'open-fasting-detail')   { openFastingDetail(); }
+  else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
+  else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
+  else if (action === 'fa-edu-cat' || action === 'fa-edu-article' || action === 'fa-edu-back') {
+    import('./analytics/views/view-fasting.js').then(m => m.handleFastingEduAction(action, target, () => appState));
+  }
 
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();
