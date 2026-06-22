@@ -25,12 +25,15 @@ function _isoWeekKey(date) {
 function _currentStreak(history, active) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // 36-hour grace: if no fast has completed today yet, check if one ended within 36h
+  const cutoff36h = Date.now() - 36 * 3_600_000;
+  const hasRecentFast = history.some(h => new Date(h.endTime).getTime() >= cutoff36h);
   let streak = 0;
   for (let i = 0; i < 365; i++) {
     const dayStart = new Date(today.getTime() - i * 86_400_000);
     const dayEnd   = new Date(dayStart.getTime() + 86_400_000);
     const had = history.some(h => { const e = new Date(h.endTime); return e >= dayStart && e < dayEnd; });
-    if (had || (i === 0 && active)) streak++;
+    if (had || (i === 0 && (active || hasRecentFast))) streak++;
     else break;
   }
   return streak;
@@ -126,7 +129,8 @@ function _weekdayAdherence(history) {
   if (!history.length) return { weekdayRate: 0, weekendRate: 0, weekdayCount: 0, weekendCount: 0 };
   let wdCount = 0, weCount = 0;
   history.forEach(h => { const day = new Date(h.endTime).getDay(); (day === 0 || day === 6) ? weCount++ : wdCount++; });
-  const periodDays = Math.max(1, Math.ceil((new Date(history[history.length - 1].endTime) - new Date(history[0].endTime)) / 86_400_000) + 1);
+  // Use today as period end so rates don't inflate when fasting has been inactive recently
+  const periodDays = Math.max(1, Math.ceil((Date.now() - new Date(history[0].endTime).getTime()) / 86_400_000) + 1);
   return {
     weekdayCount: wdCount,
     weekendCount: weCount,
@@ -139,10 +143,13 @@ function _mostCommonSchedule(history) {
   if (!history.length) return null;
   const buckets = {};
   history.forEach(h => {
-    const goal = h.goalHours ?? Math.round(h.durationHours / 2) * 2;
-    const key = `${goal}:${24 - goal}`;
+    if (h.durationHours >= 24) return; // extended fasts don't fit a daily schedule pattern
+    const goal = Math.min(23, h.goalHours ?? Math.round(h.durationHours / 2) * 2);
+    const eating = Math.max(1, 24 - goal);
+    const key = `${goal}:${eating}`;
     buckets[key] = (buckets[key] || 0) + 1;
   });
+  if (!Object.keys(buckets).length) return null;
   const best = Object.entries(buckets).sort(([, a], [, b]) => b - a)[0];
   return best ? best[0] : null;
 }
@@ -154,7 +161,7 @@ export function buildCalendarData(history, active, startTime, year, month) {
   const yr = year ?? now.getFullYear();
   const mo = month ?? now.getMonth();
   const daysInMonth = new Date(yr, mo + 1, 0).getDate();
-  const firstDayOfWeek = new Date(yr, mo, 1).getDay();
+  const firstDayOfWeek = (new Date(yr, mo, 1).getDay() + 6) % 7; // Monday = 0
 
   const dateMap = {};
   history.forEach(h => {
@@ -276,8 +283,10 @@ export function computeFastingAnalytics(appState) {
   const active  = fs?.active ?? false;
   const n       = history.length;
 
+  const currentHours = active ? getFastingHours(fs) : 0;
+
   const totalFasts     = n;
-  const totalHours     = history.reduce((s, h) => s + h.durationHours, 0);
+  const totalHours     = history.reduce((s, h) => s + h.durationHours, 0) + (active ? currentHours : 0);
   const avgDuration    = n > 0 ? totalHours / n : 0;
   const longestFast    = n > 0 ? Math.max(...history.map(h => h.durationHours)) : 0;
   const shortestFast   = n > 0 ? Math.min(...history.map(h => h.durationHours)) : 0;
@@ -303,7 +312,6 @@ export function computeFastingAnalytics(appState) {
   const calendarData = buildCalendarData(history, active, fs?.startTime);
 
   const now = new Date();
-  const currentHours = active ? getFastingHours(fs) : 0;
 
   const weeklyHours = history
     .filter(h => new Date(h.endTime).getTime() >= Date.now() - 7 * 86_400_000)

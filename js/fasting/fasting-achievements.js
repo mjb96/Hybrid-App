@@ -47,7 +47,7 @@ export const FASTING_ACHIEVEMENTS = [
     id: 'streak_7',
     label: '7 Day Streak',
     description: 'Fasted on 7 consecutive days.',
-    icon: '🔥',
+    icon: '💎',
     tier: 'silver',
     check: c => c.longestStreak >= 7,
   },
@@ -90,6 +90,14 @@ export const FASTING_ACHIEVEMENTS = [
     icon: '⏱️',
     tier: 'bronze',
     check: c => c.totalHours >= 100,
+  },
+  {
+    id: 'hours_250',
+    label: '250 Hours Fasted',
+    description: 'Accumulated 250 total hours of fasting.',
+    icon: '⏳',
+    tier: 'silver',
+    check: c => c.totalHours >= 250,
   },
   {
     id: 'hours_500',

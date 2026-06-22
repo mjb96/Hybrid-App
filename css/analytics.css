@@ -874,6 +874,13 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   margin-bottom: 3px;
 }
 
+.fa-achievement__desc {
+  font-size: 0.58rem;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
 .fa-achievement__tier {
   font-size: 0.58rem;
   font-weight: 800;
@@ -1208,6 +1215,7 @@ html[data-theme="light"] .fa-edu-tab--active {
 }
 
 html[data-theme="light"] .fa-achievement__label { color: rgba(15, 23, 42, 0.78); }
+html[data-theme="light"] .fa-achievement__desc  { color: rgba(15, 23, 42, 0.40); }
 
 html[data-theme="light"] .fz-phase-info {
   background: rgba(0, 0, 0, 0.025);

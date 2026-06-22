@@ -13,13 +13,13 @@ export function generateFastingInsights(calcs) {
   const insights = [];
   const { weeklyTrend, monthlyTrend, weekdayAdherence } = calcs;
 
-  // ── Weekly hours trend
-  const recentWeeks = weeklyTrend.slice(-2).filter(w => w.hours > 0);
+  // ── Weekly hours trend (compare last two completed weeks, not current partial week)
+  const recentWeeks = weeklyTrend.slice(-3, -1).filter(w => w.hours > 0);
   if (recentWeeks.length === 2) {
     const pct = ((recentWeeks[1].hours - recentWeeks[0].hours) / recentWeeks[0].hours) * 100;
     if (Math.abs(pct) >= 10) {
       insights.push({
-        text: `Fasting hours ${pct > 0 ? 'up' : 'down'} ${Math.abs(pct).toFixed(0)}% this week vs last week.`,
+        text: `Fasting hours ${pct > 0 ? 'up' : 'down'} ${Math.abs(pct).toFixed(0)}% last week vs the week before.`,
         priority: pct > 0 ? 'good' : 'info',
         category: 'fasting',
       });
@@ -37,9 +37,9 @@ export function generateFastingInsights(calcs) {
   }
 
   // ── Streak
-  if (calcs.currentStreak >= 4) {
+  if (calcs.currentStreak >= 3) {
     insights.push({
-      text: `Consistency improved for ${calcs.currentStreak} consecutive days.`,
+      text: `${calcs.currentStreak}-day fasting streak — keep it going.`,
       priority: 'good',
       category: 'fasting',
     });
@@ -55,8 +55,14 @@ export function generateFastingInsights(calcs) {
   }
 
   // ── Weekday vs weekend gap
-  const { weekdayRate, weekendRate } = weekdayAdherence;
-  if (weekdayRate > 10 && weekendRate > 0) {
+  const { weekdayRate, weekendRate, weekdayCount, weekendCount } = weekdayAdherence;
+  if (weekdayCount >= 5 && weekendCount === 0) {
+    insights.push({
+      text: `You've never fasted on a weekend. Extending to weekends could significantly improve your consistency score.`,
+      priority: 'alert',
+      category: 'fasting',
+    });
+  } else if (weekdayRate > 10) {
     if (weekendRate < weekdayRate * 0.75) {
       insights.push({
         text: `Weekend adherence (${weekendRate.toFixed(0)}%) is lower than weekday adherence (${weekdayRate.toFixed(0)}%).`,

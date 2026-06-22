@@ -774,6 +774,9 @@ document.addEventListener('click', (e) => {
   else if (action === 'fa-edu-cat' || action === 'fa-edu-article' || action === 'fa-edu-back') {
     import('./analytics/views/view-fasting.js').then(m => m.handleFastingEduAction(action, target, () => appState));
   }
+  else if (action === 'fa-cal-prev' || action === 'fa-cal-next') {
+    import('./analytics/views/view-fasting.js').then(m => m.handleFastingCalAction(action, () => appState));
+  }
 
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();
@@ -807,6 +810,15 @@ else if (action === 'export-csv') triggerCSVExport();
 
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
+});
+
+// Keyboard accessibility for role="button" elements with data-action
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const target = e.target.closest('[role="button"][data-action]');
+  if (!target) return;
+  e.preventDefault();
+  target.click();
 });
 
 // Auth tab switching
