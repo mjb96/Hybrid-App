@@ -1,0 +1,766 @@
+/* ==========================================================================
+   ANALYTICS — Premium analytics stylesheet
+   Target: Garmin Connect / COROS / TrainingPeaks / Strava Premium / Whoop depth.
+   Dark-first. Augments analytics context only — does not override global styles.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CRITICAL: LAYOUT GRID
+   -------------------------------------------------------------------------- */
+
+.grid-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.grid-3-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* --------------------------------------------------------------------------
+   2. DOMAIN COLOR SYSTEM
+   Each analytics section cascades its accent colour for themed components.
+   -------------------------------------------------------------------------- */
+
+#analytics-strength,
+#analytics-strength_pr     { --an-domain: #3b82f6; --an-domain-r: 59;  --an-domain-g: 130; --an-domain-b: 246; }
+
+#analytics-running,
+#analytics-avg-pace,
+#analytics-vdot,
+#analytics-run-crossref    { --an-domain: #ec4899; --an-domain-r: 236; --an-domain-g: 72;  --an-domain-b: 153; }
+
+#analytics-recovery,
+#analytics-recovery-score  { --an-domain: #10b981; --an-domain-r: 16;  --an-domain-g: 185; --an-domain-b: 129; }
+
+#analytics-training-status,
+#analytics-load-focus,
+#analytics-stress-balance  { --an-domain: #f59e0b; --an-domain-r: 245; --an-domain-g: 158; --an-domain-b: 11; }
+
+#analytics-bodyweight      { --an-domain: #a78bfa; --an-domain-r: 167; --an-domain-g: 139; --an-domain-b: 250; }
+
+#analytics-weekly-summary,
+#analytics-weekly-volume,
+#analytics-progress,
+#analytics-streak,
+#analytics-activity        { --an-domain: #22d3ee; --an-domain-r: 34;  --an-domain-g: 211; --an-domain-b: 238; }
+
+/* --------------------------------------------------------------------------
+   3. SECTION HEADERS — Domain chip system
+   -------------------------------------------------------------------------- */
+
+.analytics-section h2.section-header {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.67rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.11em !important;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.40) !important;
+  margin: 20px 0 12px !important;
+  padding: 0 !important;
+}
+
+.analytics-section h2.section-header::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 13px;
+  background: var(--an-domain, #3b82f6);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.analytics-section h2.section-header::after {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. STAT CARDS — .an-stat premium treatment
+   -------------------------------------------------------------------------- */
+
+.an-stat {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px !important;
+  font-variant-numeric: tabular-nums;
+  /* padding override: slightly more generous than the p-3 default */
+  padding: 14px 13px 12px !important;
+}
+
+/* Top-edge ambient fade from accent color */
+.an-stat::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 60%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.an-stat__label {
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+  margin-bottom: 7px;
+  line-height: 1;
+}
+
+.an-stat__value {
+  font-size: 1.38rem;
+  font-weight: 800;
+  line-height: 1.05;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.an-stat__unit {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.42);
+  margin-left: 3px;
+  letter-spacing: 0;
+}
+
+.an-stat__status {
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 5px;
+}
+
+/* Fallback: keep all analytics cards consistently rounded */
+.analytics-section .card-dark {
+  border-radius: 12px !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. INSIGHTS PANEL
+   -------------------------------------------------------------------------- */
+
+.an-insights {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  animation: an-fade-up 0.22s ease both;
+}
+
+.an-insights__title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  margin-bottom: 10px;
+}
+
+.an-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  border-left: 2.5px solid transparent;
+  font-size: 0.81rem;
+  line-height: 1.52;
+  color: rgba(255, 255, 255, 0.80);
+}
+
+.an-insight:last-child {
+  margin-bottom: 0;
+}
+
+.an-insight--alert {
+  background: rgba(239, 68, 68, 0.065);
+  border-left-color: #ef4444;
+}
+
+.an-insight--good {
+  background: rgba(16, 185, 129, 0.065);
+  border-left-color: #10b981;
+}
+
+.an-insight--info {
+  background: rgba(59, 130, 246, 0.065);
+  border-left-color: #3b82f6;
+}
+
+.an-insight__icon {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 900;
+  margin-top: 1px;
+}
+
+.an-insight--alert .an-insight__icon { background: rgba(239,  68,  68, 0.15); color: #ef4444; }
+.an-insight--good  .an-insight__icon { background: rgba( 16, 185, 129, 0.15); color: #10b981; }
+.an-insight--info  .an-insight__icon { background: rgba( 59, 130, 246, 0.15); color: #3b82f6; }
+
+/* --------------------------------------------------------------------------
+   6. CHART CONTAINER CHROME
+   -------------------------------------------------------------------------- */
+
+.an-chart {
+  background: var(--bg-card, #090e1a);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 14px;
+  padding: 15px 14px 12px;
+  margin-bottom: 10px;
+}
+
+.an-chart__title {
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+  margin-bottom: 3px;
+}
+
+.an-chart__subtitle {
+  font-size: 0.70rem;
+  color: rgba(255, 255, 255, 0.26);
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+
+.an-chart__legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 9px;
+  flex-wrap: wrap;
+}
+
+.an-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.67rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.an-chart__legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.an-chart__legend-line {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.an-chart__legend-dash {
+  width: 14px;
+  border-top: 1.5px dashed;
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
+/* --------------------------------------------------------------------------
+   7. ACWR ZONE INDICATOR BAR
+   -------------------------------------------------------------------------- */
+
+.an-zone-bar-wrap {
+  margin: 10px 0 4px;
+}
+
+.an-zone-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(239,  68,  68, 0.30)  0%,
+    rgba(245, 158,  11, 0.45) 18%,
+    rgba( 16, 185, 129, 0.65) 32%,
+    rgba( 16, 185, 129, 0.65) 52%,
+    rgba(245, 158,  11, 0.55) 68%,
+    rgba(239,  68,  68, 0.65) 84%,
+    rgba(239,  68,  68, 0.80) 100%
+  );
+  position: relative;
+}
+
+.an-zone-bar__marker {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #000;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.25), 0 2px 6px rgba(0,0,0,0.6);
+  transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.an-zone-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.59rem;
+  color: rgba(255, 255, 255, 0.25);
+  padding: 4px 1px 0;
+}
+
+/* --------------------------------------------------------------------------
+   8. KPI HERO DISPLAY
+   -------------------------------------------------------------------------- */
+
+.an-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 16px 14px;
+  text-align: center;
+}
+
+.an-kpi__label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.33);
+  margin-bottom: 8px;
+}
+
+.an-kpi__value {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.96);
+  font-variant-numeric: tabular-nums;
+}
+
+.an-kpi__unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.48);
+  margin-left: 4px;
+  letter-spacing: 0;
+}
+
+.an-kpi__status {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 7px;
+}
+
+.an-kpi__sub {
+  font-size: 0.70rem;
+  color: rgba(255, 255, 255, 0.33);
+  margin-top: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   9. READINESS RING WRAPPER
+   -------------------------------------------------------------------------- */
+
+.an-readiness-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 16px;
+}
+
+.an-readiness-components {
+  width: 100%;
+  max-width: 200px;
+  margin-top: 16px;
+}
+
+.an-readiness-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.76rem;
+}
+
+.an-readiness-row:last-child { border-bottom: none; }
+
+.an-readiness-row__label { color: rgba(255,255,255,0.45); }
+.an-readiness-row__value { font-weight: 700; color: rgba(255,255,255,0.88); font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   10. ANALYTICS WEEK NAV BAR
+   -------------------------------------------------------------------------- */
+
+#analyticsWeekNav.week-nav-bar,
+.week-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.018) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065) !important;
+  padding: 10px 16px !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* --------------------------------------------------------------------------
+   11. LIFT PROGRESSION CARDS
+   -------------------------------------------------------------------------- */
+
+.an-lift-card {
+  background: var(--bg-card, #090e1a);
+  border: 1px solid rgba(59, 130, 246, 0.11);
+  border-left: 3px solid #3b82f6;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.an-pr-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.60rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  background: rgba(16, 185, 129, 0.11);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------------------------
+   12. MUSCLE GROUP STATUS BADGES
+   -------------------------------------------------------------------------- */
+
+.an-muscle-badge {
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.an-muscle-badge--optimal      { background: rgba( 16, 185, 129, 0.12); color: #10b981; }
+.an-muscle-badge--undertrained { background: rgba(239,  68,  68, 0.12); color: #ef4444; }
+.an-muscle-badge--overtrained  { background: rgba(249, 115,  22, 0.12); color: #f97316; }
+.an-muscle-badge--no_data      { background: rgba(255, 255, 255, 0.05); color: rgba(255,255,255,0.28); }
+
+/* --------------------------------------------------------------------------
+   13. METRIC ROW (structured data rows in cards)
+   -------------------------------------------------------------------------- */
+
+.an-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-variant-numeric: tabular-nums;
+}
+
+.an-metric-row:last-child { border-bottom: none; }
+
+.an-metric-label {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.an-metric-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.90);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   14. PACE ROW
+   -------------------------------------------------------------------------- */
+
+.an-pace-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.an-pace-row:last-child { border-bottom: none; }
+
+.an-pace-value {
+  font-size: 0.90rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   15. WELLNESS FORM
+   -------------------------------------------------------------------------- */
+
+.wellness-checkin-form input[type="number"],
+.wellness-checkin-form input[type="text"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  font-size: 0.88rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.wellness-checkin-form input:focus {
+  outline: none !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+}
+
+/* --------------------------------------------------------------------------
+   16. SECTION DIVIDER
+   -------------------------------------------------------------------------- */
+
+.an-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+  margin: 18px 0;
+}
+
+/* --------------------------------------------------------------------------
+   17. TREND TRACK (horizontal fill bar used in legacy 1RM list)
+   -------------------------------------------------------------------------- */
+
+.trend-track-bg {
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.trend-track-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* --------------------------------------------------------------------------
+   18. ENTRY ANIMATIONS
+   -------------------------------------------------------------------------- */
+
+@keyframes an-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.an-stat {
+  animation: an-fade-up 0.24s ease both;
+}
+
+/* Stagger grid children */
+.grid-2-col > .an-stat:nth-child(1) { animation-delay: 0.03s; }
+.grid-2-col > .an-stat:nth-child(2) { animation-delay: 0.07s; }
+.grid-2-col > .an-stat:nth-child(3) { animation-delay: 0.11s; }
+.grid-2-col > .an-stat:nth-child(4) { animation-delay: 0.15s; }
+
+/* --------------------------------------------------------------------------
+   19. TABULAR NUMBERS ACROSS ALL ANALYTICS METRICS
+   -------------------------------------------------------------------------- */
+
+.analytics-section .font-heavy,
+.analytics-section .font-bold,
+.analytics-section [style*="font-size"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   20. RESPONSIVE
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 360px) {
+  .an-stat__value { font-size: 1.18rem; }
+  .an-kpi__value  { font-size: 2.5rem; }
+}
+
+/* --------------------------------------------------------------------------
+   21. LIGHT MODE OVERRIDES — Comprehensive
+   -------------------------------------------------------------------------- */
+
+/* -- Section header chip -------------------------------------------------- */
+html[data-theme="light"] .analytics-section h2.section-header {
+  color: rgba(15, 23, 42, 0.40) !important;
+}
+
+/* -- an-stat cards --------------------------------------------------------
+   The global light-mode rule in styles.css applies:
+     html[data-theme="light"] .card-dark { border: 1px solid rgba(0,0,0,0.07) !important }
+   That !important strips our inline border-top accent. Restore it here using
+   higher-specificity (two classes vs one class) so our !important wins.
+   Top accent falls back to --an-domain which cascades from the section wrapper.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .card-dark.an-stat {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-top: 2px solid var(--an-domain, #3b82f6) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.055), inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+
+html[data-theme="light"] .an-stat::after {
+  background: linear-gradient(180deg, rgba(0,0,0,0.01) 0%, transparent 60%);
+}
+
+html[data-theme="light"] .an-stat__label { color: rgba(15, 23, 42, 0.42); }
+html[data-theme="light"] .an-stat__value { color: rgba(15, 23, 42, 0.92); }
+html[data-theme="light"] .an-stat__unit  { color: rgba(15, 23, 42, 0.40); }
+
+/* -- Insights panel ------------------------------------------------------- */
+html[data-theme="light"] .an-insights {
+  background: rgba(0, 0, 0, 0.025);
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+html[data-theme="light"] .an-insights__title { color: rgba(15, 23, 42, 0.36); }
+html[data-theme="light"] .an-insight          { color: rgba(15, 23, 42, 0.80); }
+html[data-theme="light"] .an-insight--alert   { background: rgba(239,  68,  68, 0.06); }
+html[data-theme="light"] .an-insight--good    { background: rgba( 16, 185, 129, 0.06); }
+html[data-theme="light"] .an-insight--info    { background: rgba( 59, 130, 246, 0.06); }
+
+html[data-theme="light"] .an-insight--alert .an-insight__icon { background: rgba(239, 68, 68, 0.12); }
+html[data-theme="light"] .an-insight--good  .an-insight__icon { background: rgba(16, 185, 129, 0.12); }
+html[data-theme="light"] .an-insight--info  .an-insight__icon { background: rgba(59, 130, 246, 0.12); }
+
+/* -- Chart chrome --------------------------------------------------------- */
+html[data-theme="light"] .an-chart {
+  border-color: rgba(0, 0, 0, 0.07);
+}
+
+html[data-theme="light"] .an-chart__title     { color: rgba(15, 23, 42, 0.50); }
+html[data-theme="light"] .an-chart__subtitle  { color: rgba(15, 23, 42, 0.35); }
+html[data-theme="light"] .an-chart__legend-item { color: rgba(15, 23, 42, 0.45); }
+
+/* -- ACWR zone bar -------------------------------------------------------- */
+html[data-theme="light"] .an-zone-labels { color: rgba(15, 23, 42, 0.30); }
+
+html[data-theme="light"] .an-zone-bar__marker {
+  background: #1e293b;
+  border-color: rgba(255,255,255,0.8);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.25);
+}
+
+/* -- Metric rows ---------------------------------------------------------- */
+html[data-theme="light"] .an-metric-row   { border-bottom-color: rgba(0, 0, 0, 0.05); }
+html[data-theme="light"] .an-metric-label { color: rgba(15, 23, 42, 0.50); }
+html[data-theme="light"] .an-metric-value { color: rgba(15, 23, 42, 0.90); }
+
+/* -- Pace rows ------------------------------------------------------------ */
+html[data-theme="light"] .an-pace-row { border-bottom-color: rgba(0, 0, 0, 0.05); }
+
+/* -- Readiness rows ------------------------------------------------------- */
+html[data-theme="light"] .an-readiness-row        { border-bottom-color: rgba(0, 0, 0, 0.05); }
+html[data-theme="light"] .an-readiness-row__label { color: rgba(15, 23, 42, 0.45); }
+html[data-theme="light"] .an-readiness-row__value { color: rgba(15, 23, 42, 0.88); }
+
+/* -- Week nav bar --------------------------------------------------------- */
+html[data-theme="light"] #analyticsWeekNav.week-nav-bar,
+html[data-theme="light"] .week-nav-bar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* -- Trend track bar ----------------------------------------------------- */
+html[data-theme="light"] .trend-track-bg { background: rgba(0, 0, 0, 0.09); }
+
+/* -- Section divider ----------------------------------------------------- */
+html[data-theme="light"] .an-divider {
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.07), transparent);
+}
+
+/* -- KPI hero display ---------------------------------------------------- */
+html[data-theme="light"] .an-kpi__label { color: rgba(15, 23, 42, 0.36); }
+html[data-theme="light"] .an-kpi__value { color: rgba(15, 23, 42, 0.94); }
+html[data-theme="light"] .an-kpi__unit  { color: rgba(15, 23, 42, 0.48); }
+html[data-theme="light"] .an-kpi__sub   { color: rgba(15, 23, 42, 0.36); }
+
+/* -- Lift progression card ----------------------------------------------- */
+html[data-theme="light"] .an-lift-card { border-color: rgba(59, 130, 246, 0.14); }
+
+html[data-theme="light"] .an-pr-badge {
+  background: rgba(16, 185, 129, 0.09);
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+/* -- Muscle group badges -------------------------------------------------- */
+html[data-theme="light"] .an-muscle-badge--optimal      { background: rgba( 16, 185, 129, 0.10); }
+html[data-theme="light"] .an-muscle-badge--undertrained { background: rgba(239,  68,  68, 0.10); }
+html[data-theme="light"] .an-muscle-badge--overtrained  { background: rgba(249, 115,  22, 0.10); }
+html[data-theme="light"] .an-muscle-badge--no_data      { background: rgba(0,0,0,0.05); color: rgba(15,23,42,0.35); }
+
+/* -- Wellness form ------------------------------------------------------- */
+html[data-theme="light"] .wellness-checkin-form input[type="number"],
+html[data-theme="light"] .wellness-checkin-form input[type="text"] {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.07) !important;
+}
+
+html[data-theme="light"] .wellness-checkin-form input:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.14), inset 0 1px 2px rgba(0,0,0,0.05) !important;
+}
+
+/* -- SVG chart cards: keep dark background in light mode ------------------
+   SVG chart text/grid colours are hard-coded rgba(255,255,255,...) — they
+   must render on a dark background. Use :has(svg) to target only chart cards.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .analytics-section .card-dark:has(svg) {
+  background: linear-gradient(160deg, #0e1525 0%, #090e1a 100%) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* -- Inline white-border row fix ------------------------------------------
+   Muscle group rows and pace list rows use inline
+   "border-bottom:1px solid rgba(255,255,255,0.06)" which becomes invisible
+   on white card backgrounds. !important overrides inline styles.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .analytics-section .flex-between[style*="rgba(255,255,255"] {
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* -- Empty state text colour fix ------------------------------------------ */
+html[data-theme="light"] .analytics-section p[style*="rgba(255,255,255"] {
+  color: rgba(15, 23, 42, 0.52) !important;
+}
+
+/* -- deltaBadge tick arrow stroke (SVG dot halo) --------------------------
+   This selector only fires when the SVG is NOT inside a dark chart card,
+   which after the :has(svg) rule above means it's essentially unused in
+   light mode — left here as a safety net.
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg circle[stroke="#0d1117"] {
+  stroke: rgba(255, 255, 255, 0.55);
+}

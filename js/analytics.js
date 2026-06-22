@@ -230,6 +230,27 @@ function collectAnalyticsData() {
   const validGymHr = data.gymHrData.filter(h => h > 0);
   data.globalAvgGymHr = validGymHr.length ? validGymHr.reduce((a, b) => a + b, 0) / validGymHr.length : 0;
 
+  const trainingDays = [];
+  Object.keys(appState.weeks || {}).forEach(wk => {
+    const wkData = appState.weeks[wk];
+    DEFAULT_DAYS.forEach((d, dayIdx) => {
+      const dayLifts = wkData?.lifts?.[d] || {};
+      let completedSets = 0;
+      for (const lift in dayLifts) {
+        if (!Array.isArray(dayLifts[lift])) continue;
+        dayLifts[lift].forEach(s => {
+          if (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1) completedSets++;
+        });
+      }
+      const gymHasData = completedSets > 0;
+      const runHasData = parseFloat(wkData?.runs?.[d]?.dist) > 0;
+      if (gymHasData || runHasData) {
+        trainingDays.push({ week: parseInt(wk, 10), dayIdx, gym: gymHasData, run: runHasData });
+      }
+    });
+  });
+  data._trainingDays = trainingDays;
+
   return data;
 }
 
@@ -255,7 +276,7 @@ export function renderAnalytics() {
     }
     case 'strength':
       document.getElementById('analytics-strength').classList.add('active');
-      renderStrengthAnalytics(data);
+      renderStrengthAnalytics(data, _getState, _getDays);
       break;
     case 'strength_pr':
       document.getElementById('analytics-strength_pr').classList.add('active');
@@ -264,7 +285,7 @@ export function renderAnalytics() {
       break;
     case 'running':
       document.getElementById('analytics-running').classList.add('active');
-      renderRunningAnalytics(data);
+      renderRunningAnalytics(data, _getState, _getDays);
       break;
     case 'recovery':
       document.getElementById('analytics-recovery').classList.add('active');
