@@ -55,6 +55,11 @@ export function openFastingDetail() {
 
   const ctx = getFastingContext(state);
 
+  const nextZone = FASTING_ZONES.find(z => z.hoursStart > ctx.hours);
+  const phaseProgress = ctx.zone && ctx.zone.hoursEnd !== Infinity
+    ? Math.min(100, ((ctx.hours - ctx.zone.hoursStart) / (ctx.zone.hoursEnd - ctx.zone.hoursStart)) * 100)
+    : 100;
+
   const timelineHtml = FASTING_ZONES.map(z => {
     const reached  = ctx.hours >= z.hoursStart;
     const current  = ctx.hours >= z.hoursStart && ctx.hours < z.hoursEnd;
@@ -65,6 +70,16 @@ export function openFastingDetail() {
       <div class="fz-time">${z.hoursStart}h</div>
     </div>`;
   }).join('');
+
+  const phaseInfoHtml = ctx.active && nextZone
+    ? `<div class="fz-phase-info">
+        <div class="fz-phase-label">Next: <strong style="color:${nextZone.color};">${nextZone.icon} ${nextZone.name}</strong></div>
+        <div class="fz-phase-time">in ${fmtHoursLabel(nextZone.hoursStart - ctx.hours)}</div>
+        <div class="fz-phase-track">
+          <div class="fz-phase-fill" style="width:${phaseProgress.toFixed(1)}%;background:${ctx.zone.color};"></div>
+        </div>
+      </div>`
+    : '';
 
   const historyHtml = ctx.history.length === 0
     ? '<p class="fasting-history-empty">No completed fasts yet.</p>'
@@ -87,6 +102,7 @@ export function openFastingDetail() {
   sheet.innerHTML = `
     <div class="fasting-sheet-header">
       <span class="fasting-sheet-title">Fasting</span>
+      <button class="fasting-btn-analytics" data-action="open-fasting-analytics">Analytics</button>
       <button class="fasting-sheet-close" data-action="close-fasting-detail">✕</button>
     </div>
 
@@ -113,6 +129,7 @@ export function openFastingDetail() {
     </div>
 
     <div class="fasting-zone-timeline">${timelineHtml}</div>
+    ${phaseInfoHtml}
 
     <div class="fasting-sheet-controls">
       ${ctx.active

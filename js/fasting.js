@@ -174,8 +174,8 @@ export function stopFastAtTime(state, endTimeISO, saveStateFn) {
     durationHours: parseFloat(durationHours.toFixed(2)),
     goalHours:     state.fastingSession.goal,
   });
-  if (state.fastingSession.history.length > 30) {
-    state.fastingSession.history = state.fastingSession.history.slice(-30);
+  if (state.fastingSession.history.length > 365) {
+    state.fastingSession.history = state.fastingSession.history.slice(-365);
   }
   state.fastingSession.active    = false;
   state.fastingSession.startTime = null;
@@ -193,8 +193,8 @@ export function stopFast(state, saveStateFn) {
     goalHours:     state.fastingSession.goal,
   });
   // Keep last 30 sessions
-  if (state.fastingSession.history.length > 30) {
-    state.fastingSession.history = state.fastingSession.history.slice(-30);
+  if (state.fastingSession.history.length > 365) {
+    state.fastingSession.history = state.fastingSession.history.slice(-365);
   }
   state.fastingSession.active    = false;
   state.fastingSession.startTime = null;

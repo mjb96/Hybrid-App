@@ -24,6 +24,7 @@ import { renderStressBalanceAnalytics } from './analytics/views/view-stress-bala
 import { renderActivityCalendar } from './home.js';
 import { initWeekNav, updateWeekNavDisplay, getSelectedWeek, resetWeekNav } from './analytics/week-nav.js';
 import { renderWeeklySummaryAnalytics } from './analytics/views/view-weekly-summary.js';
+import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
 
 let _getState;
 let _getDays;
@@ -343,6 +344,10 @@ export function renderAnalytics() {
     case 'activity':
       document.getElementById('analytics-activity').classList.add('active');
       renderActivityCalendar(_getState(), 'analyticsCalendarContainer');
+      break;
+    case 'fasting':
+      document.getElementById('analytics-fasting').classList.add('active');
+      renderFastingAnalytics(_getState);
       break;
     default: {
       document.getElementById('analytics-weekly-summary').classList.add('active');
