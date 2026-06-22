@@ -15,7 +15,7 @@ export function bezierPath(pts) {
     const t  = 0.38;
     const cp1x = p0[0] + (p1[0] - p0[0]) * t;
     const cp2x = p1[0] - (p1[0] - p0[0]) * t;
-    d += ` C ${cp1x.toFixed(1)},${p0[1].toFixed(1)} ${cp2x.toFixed(1)},${p1[1].toFixed(1)} ${p1[1] === p1[1] ? p1[0].toFixed(1) : p1[0]},${p1[1].toFixed(1)}`;
+    d += ` C ${cp1x.toFixed(1)},${p0[1].toFixed(1)} ${cp2x.toFixed(1)},${p1[1].toFixed(1)} ${p1[0].toFixed(1)},${p1[1].toFixed(1)}`;
   }
   return d;
 }

@@ -245,7 +245,7 @@ export function rankInsights(allInsights) {
 }
 
 // Generate all insights from the full analytics payload.
-export function generateAllInsights({ loadAnalytics, strengthAnalytics, runningAnalytics, recoveryAnalytics }) {
+export function generateAllInsights({ loadAnalytics, strengthAnalytics, runningAnalytics, recoveryAnalytics, thresholdSecs = null }) {
   const all = [
     ...generateLoadInsights({
       atl:        loadAnalytics.currentATL,
@@ -260,7 +260,7 @@ export function generateAllInsights({ loadAnalytics, strengthAnalytics, runningA
       volProgPct:      strengthAnalytics.volProgPct,
       liftProgression: strengthAnalytics.liftProgression,
       muscleStatus:    strengthAnalytics.muscleStatus,
-      acwr:            strengthAnalytics.acwr,
+      acwr:            strengthAnalytics.tonnageACWR,
     }),
     ...generateRunningInsights({
       paceSeries:  runningAnalytics.paceSeries,
@@ -271,7 +271,7 @@ export function generateAllInsights({ loadAnalytics, strengthAnalytics, runningA
       bestPace:    runningAnalytics.bestPace,
       decoupling:  runningAnalytics.decoupling,
       vdot:        runningAnalytics.vdot,
-      thresholdSecs: null,
+      thresholdSecs,
     }),
     ...generateRecoveryInsights({
       recovDecline:  recoveryAnalytics.recovDecline,

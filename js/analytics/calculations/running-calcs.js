@@ -162,8 +162,9 @@ export function computeRunningAnalytics(state, days, maxWeek, thresholdSecs) {
   const paceHrCorr     = paceHrCorrelation(paceSeries, avgHrSeries);
   const decoupling     = weeklyAerobicDecoupling(paceSeries, avgHrSeries);
 
-  const distProgPct    = pctChange(
-    distSeries.slice(-5, -1).filter(v => v > 0).reduce((a, b) => a + b, 0) / 4 || 0,
+  const _priorDist = distSeries.slice(-5, -1).filter(v => v > 0);
+  const distProgPct = pctChange(
+    _priorDist.length > 0 ? _priorDist.reduce((a, b) => a + b, 0) / _priorDist.length : 0,
     distSeries[distSeries.length - 1],
   );
 

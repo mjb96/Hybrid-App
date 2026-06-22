@@ -41,9 +41,9 @@ function renderTrainingLoadDashboard(sa, la, weekLabels) {
   const prevMon = monthly[monthly.length - 2]?.volume || 0;
   const monPct  = prevMon > 0 ? ((curMon - prevMon) / prevMon) * 100 : null;
 
-  const acwrVal   = sa.acwr !== null ? sa.acwr.toFixed(2) : '--';
-  const acwrColor = sa.acwr === null ? 'rgba(255,255,255,0.4)'
-    : sa.acwr < 0.8 ? '#10b981' : sa.acwr < 1.3 ? '#f59e0b' : '#ef4444';
+  const acwrVal   = la.currentRatio > 0 ? la.currentRatio.toFixed(2) : '--';
+  const acwrColor = la.currentRatio === 0 ? 'rgba(255,255,255,0.4)'
+    : la.currentRatio < 0.8 ? '#10b981' : la.currentRatio < 1.3 ? '#f59e0b' : '#ef4444';
 
   const volProgStatus = sa.volProgPct === null ? ''
     : sa.volProgPct > 5 ? 'Building' : sa.volProgPct < -5 ? 'Declining' : 'Stable';
@@ -202,7 +202,7 @@ function renderVolumeSection(sa, data) {
 
   const chartEl = qs('strengthVolProgressChart');
   if (chartEl) {
-    renderVolumeProgressionChart(chartEl, data.weekLabels, sa.volSeries, sa.weeklyRolling, sa.volSeries);
+    renderVolumeProgressionChart(chartEl, data.weekLabels, sa.volSeries, sa.weeklyRolling, sa.volTrendLine);
   }
 }
 
@@ -234,7 +234,7 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 
   const strengthInsights = generateStrengthInsights({
     volSeries: sa.volSeries, volProgPct: sa.volProgPct,
-    liftProgression: sa.liftProgression, muscleStatus: sa.muscleStatus, acwr: sa.acwr,
+    liftProgression: sa.liftProgression, muscleStatus: sa.muscleStatus, acwr: sa.tonnageACWR,
   });
   const loadInsights = generateLoadInsights({
     atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,

@@ -121,23 +121,26 @@ export function dailyRecoveryScoreSeries(wellnessLog, days = 28) {
   mood.forEach(e     => { byDate[e.date] = { ...byDate[e.date], mood: e.value }; });
   soreness.forEach(e => { byDate[e.date] = { ...byDate[e.date], soreness: e.value }; });
 
+  const SIGNAL_WEIGHTS = { sleep: 0.40, mood: 0.35, soreness: 0.25 };
+
   return Object.entries(byDate)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, vals]) => {
-      let score = 0, components = 0;
-      if (vals.sleep !== undefined) {
-        score += clamp((vals.sleep / 8) * 100, 0, 100) * 0.4;
-        components++;
-      }
-      if (vals.mood !== undefined) {
-        score += (vals.mood / 5) * 100 * 0.35;
-        components++;
-      }
-      if (vals.soreness !== undefined) {
-        score += ((6 - vals.soreness) / 5) * 100 * 0.25;
-        components++;
-      }
-      return { date, value: components > 0 ? Math.round(score) : 0, ...vals };
+      const available = [
+        vals.sleep     !== undefined ? 'sleep'    : null,
+        vals.mood      !== undefined ? 'mood'     : null,
+        vals.soreness  !== undefined ? 'soreness' : null,
+      ].filter(Boolean);
+
+      if (available.length === 0) return { date, value: 0, ...vals };
+
+      const totalW = available.reduce((s, k) => s + SIGNAL_WEIGHTS[k], 0);
+      let score = 0;
+      if (vals.sleep    !== undefined) score += clamp((vals.sleep / 8) * 100, 0, 100) * (SIGNAL_WEIGHTS.sleep    / totalW);
+      if (vals.mood     !== undefined) score += (vals.mood / 5) * 100                 * (SIGNAL_WEIGHTS.mood     / totalW);
+      if (vals.soreness !== undefined) score += ((6 - vals.soreness) / 5) * 100       * (SIGNAL_WEIGHTS.soreness / totalW);
+
+      return { date, value: Math.round(clamp(score, 0, 100)), ...vals };
     });
 }
 

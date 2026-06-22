@@ -147,7 +147,8 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
     const roi        = rateOfImprovement(series);
     const projection = projectedPR(series, 4);
     const rolling4   = rollingAverage(series, 4);
-    const trend      = trendLine(series);
+    // Extend trend 4 weeks so the chart can render the projection extension line.
+    const trend      = trendLine(series, 4);
 
     liftProgression[lift] = {
       series, trend, rolling4,
@@ -164,9 +165,11 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
   const monthlyVol = monthlyVolumeBuckets(volSeries);
 
   // Training load metrics
-  const acwr          = strengthACWR(volSeries);
+  // tonnageACWR is the naive rolling tonnage ratio (distinct from EWMA-based la.currentRatio).
+  const tonnageACWR   = strengthACWR(volSeries);
   const volProgPct    = volumeProgressionPct(volSeries, 4);
   const weeklyRolling = rollingAverage(volSeries, 4);
+  const volTrendLine  = trendLine(volSeries);
 
   // Muscle analysis
   const muscleBalance = muscleBalanceRelative(currentSets);
@@ -175,6 +178,7 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
   return {
     volSeries,
     weeklyRolling,
+    volTrendLine,
     monthlyVol,
     liftProgression,
     muscleGroups,
@@ -182,7 +186,7 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
     currentSets,
     muscleBalance,
     muscleStatus,
-    acwr,
+    tonnageACWR,
     volProgPct,
     currentWeek,
   };

@@ -2,7 +2,7 @@
 // LOAD CALCULATIONS — analytics/calculations/load-calcs.js
 // Pure functions. No DOM, no side effects.
 // ==========================================
-import { rollingAverage, trendLine, pctChange, clamp } from './math-utils.js';
+import { rollingAverage, rollingSum, trendLine, pctChange, clamp } from './math-utils.js';
 import { weeklyLoadMetricsSeries } from '../../brain/load_models.js';
 import { weeklyLoadSeries } from '../../metrics/metrics-load.js';
 
@@ -21,10 +21,10 @@ export function loadRatioSeries(atlSeries, ctlSeries) {
 }
 
 // Training stress trend: 4-week rolling sum of total sRPE load.
-// Reflects recent load accumulation independent of EWMA smoothing.
+// Shows accumulated stress in the rolling window — not averaged, so spikes remain visible.
 export function trainingStressTrend(liftLoadSeries, runLoadSeries, window = 4) {
-  const total  = liftLoadSeries.map((l, i) => l + (runLoadSeries[i] || 0));
-  return rollingAverage(total, window);
+  const total = liftLoadSeries.map((l, i) => l + (runLoadSeries[i] || 0));
+  return rollingSum(total, window);
 }
 
 // Recovery impact: TSB divided by CTL (normalized recovery indicator).
