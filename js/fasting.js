@@ -182,6 +182,20 @@ export function stopFastAtTime(state, endTimeISO, saveStateFn) {
   saveStateFn();
 }
 
+export function editHistoryFast(state, historyIndex, newStartISO, newEndISO, saveStateFn) {
+  const entry = state.fastingSession?.history?.[historyIndex];
+  if (!entry) return false;
+  const start = new Date(newStartISO);
+  const end   = new Date(newEndISO);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+  if (end <= start || end > new Date()) return false;
+  entry.startTime     = start.toISOString();
+  entry.endTime       = end.toISOString();
+  entry.durationHours = parseFloat(((end - start) / 3_600_000).toFixed(2));
+  saveStateFn();
+  return true;
+}
+
 export function stopFast(state, saveStateFn) {
   if (!state.fastingSession?.active) return;
   const hours = getFastingHours(state.fastingSession);

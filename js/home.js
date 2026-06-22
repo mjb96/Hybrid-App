@@ -65,7 +65,7 @@ function renderCoachingCard(state, days, activeProgram, selectedDay) {
   card.style.display = 'block';
 }
 
-export { openFastingDetail, closeFastingDetail } from './home/fasting-card.js';
+export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
 
 // ==========================================
 // GLANCE GRID RENDERER

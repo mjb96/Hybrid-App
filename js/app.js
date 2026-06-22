@@ -26,7 +26,7 @@ import {
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
-import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail } from './home.js';
+import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
@@ -58,7 +58,7 @@ import {
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
-import { startFast, stopFast, editFastStartTime, stopFastAtTime } from './fasting.js';
+import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -771,6 +771,20 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-fasting-detail')   { openFastingDetail(); }
   else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
   else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
+  else if (action === 'fast-edit-history') {
+    const idx = parseInt(target.dataset.index, 10);
+    openHistoryEditPanel(idx, appState);
+  }
+  else if (action === 'fast-save-history') {
+    const idx = parseInt(target.dataset.index, 10);
+    const startInput = document.getElementById('fhrEditStart');
+    const endInput   = document.getElementById('fhrEditEnd');
+    if (startInput && endInput) {
+      const ok = editHistoryFast(appState, idx, startInput.value, endInput.value, () => saveStateToLocalStorage(true));
+      if (ok) { closeHistoryEditPanel(); openFastingDetail(); }
+    }
+  }
+  else if (action === 'fast-cancel-history-edit') { closeHistoryEditPanel(); }
   else if (action === 'fa-edu-cat' || action === 'fa-edu-article' || action === 'fa-edu-back') {
     import('./analytics/views/view-fasting.js').then(m => m.handleFastingEduAction(action, target, () => appState));
   }
