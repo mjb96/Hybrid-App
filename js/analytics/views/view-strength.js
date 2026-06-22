@@ -8,7 +8,7 @@ import {
   renderMuscleGroupBalanceChart,
   renderVolumeCalendarHeatmap,
 } from '../charts/strength-charts.js';
-import { statCard, deltaBadge, renderInsightsHTML as primInsightsHTML } from '../charts/chart-primitives.js';
+import { statCard } from '../charts/chart-primitives.js';
 import { computeStrengthAnalytics } from '../calculations/strength-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import {
