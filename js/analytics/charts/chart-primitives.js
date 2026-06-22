@@ -109,11 +109,13 @@ export function deltaBadge(pct, inverse = false) {
 
 // Stat card HTML: primary value + optional delta + sub-label + status.
 export function statCard({ label, value, unit = '', delta = null, sub = '', color = '#3b82f6', status = '', inverseDelta = false }) {
-  const deltaHtml = delta !== null ? `<div class="mt-1">${deltaBadge(delta, inverseDelta)}<span class="text-xs text-muted ml-1">${sub}</span></div>` : (sub ? `<div class="text-xs text-muted mt-1">${sub}</div>` : '');
-  const statusHtml = status ? `<div class="text-xs font-bold mt-1" style="color:${color};">${status}</div>` : '';
-  return `<article class="card-dark p-3 flex-col" style="border:1px solid ${color}22;">
-    <div class="text-xs text-muted mb-1">${label}</div>
-    <div class="font-heavy text-inverse" style="font-size:1.3rem;line-height:1.1;">${value}<span class="text-xs text-muted ml-1">${unit}</span></div>
+  const deltaHtml = delta !== null
+    ? `<div class="mt-1">${deltaBadge(delta, inverseDelta)}<span class="text-xs text-muted ml-1">${sub}</span></div>`
+    : (sub ? `<div class="text-xs text-muted mt-1">${sub}</div>` : '');
+  const statusHtml = status ? `<div class="an-stat__status" style="color:${color};">${status}</div>` : '';
+  return `<article class="card-dark flex-col an-stat" style="border:1px solid ${color}18;border-top:2px solid ${color};">
+    <div class="an-stat__label">${label}</div>
+    <div class="an-stat__value">${value}<span class="an-stat__unit">${unit}</span></div>
     ${deltaHtml}
     ${statusHtml}
   </article>`;
@@ -121,9 +123,7 @@ export function statCard({ label, value, unit = '', delta = null, sub = '', colo
 
 // Insight banner HTML (for view-level important note).
 export function sectionInsightBanner(text, type = 'info') {
-  const colorMap = { alert: '#ef4444', good: '#10b981', info: '#3b82f6' };
-  const c = colorMap[type] || '#3b82f6';
-  return `<div class="p-3 mb-3" style="border-left:3px solid ${c};background:${c}11;border-radius:0 6px 6px 0;">
-    <span class="text-sm" style="color:rgba(255,255,255,0.85);line-height:1.5;">${text}</span>
+  return `<div class="an-insight an-insight--${type}" style="margin-bottom:12px;border-radius:8px;">
+    <span>${text}</span>
   </div>`;
 }

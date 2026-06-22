@@ -289,20 +289,18 @@ export function renderInsightsHTML(insights, maxShow = 5) {
   if (!insights || insights.length === 0) return '';
   const shown = insights.slice(0, maxShow);
 
-  const colorMap = { alert: '#ef4444', good: '#10b981', info: '#3b82f6' };
-  const iconMap  = { alert: '⚠', good: '↑', info: '→' };
+  const iconMap = { alert: '!', good: '↑', info: 'i' };
 
   const items = shown.map(i => {
-    const color = colorMap[i.priority] || 'rgba(255,255,255,0.6)';
-    const icon  = iconMap[i.priority]  || '•';
-    return `<div class="insight-item mb-2 flex gap-2" style="align-items:flex-start;">
-      <span style="color:${color};font-size:0.9rem;flex-shrink:0;margin-top:1px;">${icon}</span>
-      <span class="text-sm" style="line-height:1.5;color:rgba(255,255,255,0.88);">${i.text}</span>
+    const icon = iconMap[i.priority] || '·';
+    return `<div class="an-insight an-insight--${i.priority}">
+      <div class="an-insight__icon">${icon}</div>
+      <span>${i.text}</span>
     </div>`;
   }).join('');
 
-  return `<div class="insights-panel card-dark p-3 mb-4" style="border:1px solid rgba(255,255,255,0.1);">
-    <div class="text-xs font-bold mb-3" style="color:rgba(255,255,255,0.5);letter-spacing:0.08em;text-transform:uppercase;">Insights</div>
+  return `<div class="an-insights">
+    <div class="an-insights__title">Insights</div>
     ${items}
   </div>`;
 }

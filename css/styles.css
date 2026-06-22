@@ -3621,15 +3621,15 @@ h2.section-header::after { display: none; }
   border-color: rgba(99,102,241,0.28) !important;
 }
 
-/* --- Analytics stat cards upgrade --- */
-#analytics-strength .card-dark,
-#analytics-running .card-dark,
-#analytics-recovery .card-dark,
-#analytics-bodyweight .card-dark,
-#analytics-streak .card-dark,
-#analytics-recovery-score .card-dark,
-#analytics-weekly-volume .card-dark,
-#analytics-training-status .card-dark {
+/* --- Analytics stat cards upgrade: normalize non-an-stat cards only --- */
+#analytics-strength .card-dark:not(.an-stat),
+#analytics-running .card-dark:not(.an-stat),
+#analytics-recovery .card-dark:not(.an-stat),
+#analytics-bodyweight .card-dark:not(.an-stat),
+#analytics-streak .card-dark:not(.an-stat),
+#analytics-recovery-score .card-dark:not(.an-stat),
+#analytics-weekly-volume .card-dark:not(.an-stat),
+#analytics-training-status .card-dark:not(.an-stat) {
   border: 1px solid rgba(255,255,255,0.055) !important;
 }
 .card-dark .text-lg.font-heavy.text-inverse {
