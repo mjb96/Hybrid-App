@@ -3,12 +3,13 @@
 // All pure SVG string builders. No DOM state.
 // Follows the same pattern as recovery-charts.js
 // ==========================================
-import { uid, bezierPath, linearGradientV, gridLines, xAxisLabels, areaFill, dotSeries } from './chart-primitives.js';
+import { uid, bezierPath, linearGradientV, areaFill, dotSeries, refLine } from './chart-primitives.js';
 
 const AMBER  = '#f59e0b';
 const ORANGE = '#f97316';
 const BLUE   = '#3b82f6';
 const GREEN  = '#10b981';
+const PURPLE = '#8b5cf6';
 const MUTED  = 'rgba(255,255,255,0.45)';
 
 // ── Bar chart: weekly fasting hours ──────────────────────────────────────────
@@ -54,6 +55,13 @@ export function renderFastingHoursBarChart(container, weeklyTrend) {
       fill="url(#${gId})" rx="3"/>`;
   }).join('');
 
+  // Baseline: 12-week personal average (excluding current partial week)
+  const completedWeeks = weeklyTrend.slice(0, -1).filter(w => w.hours > 0);
+  const baseline = completedWeeks.length >= 3
+    ? completedWeeks.reduce((s, w) => s + w.hours, 0) / completedWeeks.length : null;
+  const baselineSvg = baseline !== null && baseline <= maxV
+    ? refLine(toY(baseline), PL, W, PR, `avg ${baseline.toFixed(0)}h`, AMBER, true) : '';
+
   // X-axis labels (show every 2nd or 3rd to avoid crowding)
   const step = n > 8 ? Math.ceil(n / 6) : 1;
   const xLabels = weeklyTrend.map((w, i) => {
@@ -65,6 +73,7 @@ export function renderFastingHoursBarChart(container, weeklyTrend) {
     ${defs}
     ${yLines}
     ${bars}
+    ${baselineSvg}
     ${xLabels}
   </svg>`;
 }
@@ -208,6 +217,93 @@ export function renderZoneDistributionChart(container, zoneDistribution) {
   }).join('');
 
   container.innerHTML = rows;
+}
+
+// ── Weekly fasting frequency line chart (count per week) ─────────────────────
+
+export function renderFastingFrequencyChart(container, weeklyTrend) {
+  if (!container) return;
+  const withData = weeklyTrend?.filter(w => w.count > 0) ?? [];
+  if (withData.length < 2) {
+    container.innerHTML = `<p style="color:${MUTED};font-size:0.85rem;padding:8px 0;">Complete more fasts to see frequency trends.</p>`;
+    return;
+  }
+
+  const W = 400, H = 130, PL = 36, PR = 14, PT = 12, PB = 26;
+  const chartW = W - PL - PR, chartH = H - PB - PT;
+  const n = weeklyTrend.length;
+
+  const maxV = Math.max(...weeklyTrend.map(w => w.count), 1);
+  const toX  = i => PL + (i / (n - 1)) * chartW;
+  const toY  = v => PT + chartH - (v / maxV) * chartH;
+
+  const ticks = [0, Math.ceil(maxV / 2), maxV];
+  const yLines = ticks.map(val => {
+    const y = toY(val);
+    return `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W - PR}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <text x="${PL - 5}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="${MUTED}">${val}</text>`;
+  }).join('');
+
+  const gId = uid();
+  const gradDef = linearGradientV(gId, PURPLE, 0.22, PURPLE, 0);
+
+  const pts = weeklyTrend
+    .map((w, i) => w.count > 0 ? [toX(i), toY(w.count)] : null)
+    .filter(Boolean);
+
+  const smooth = pts.length >= 2 ? bezierPath(pts) : '';
+  const area   = smooth ? areaFill(smooth, pts, PT + chartH, gId) : '';
+  const line   = smooth ? `<path d="${smooth}" fill="none" stroke="${PURPLE}" stroke-width="2.5" stroke-linecap="round"/>` : '';
+  const dots   = dotSeries(pts, PURPLE, 3.5);
+
+  // Target line: 5 fasts/week
+  const targetY = toY(Math.min(5, maxV));
+  const targetLine = maxV >= 4
+    ? `<line x1="${PL}" y1="${targetY.toFixed(1)}" x2="${W - PR}" y2="${targetY.toFixed(1)}" stroke="rgba(139,92,246,0.35)" stroke-width="1.5" stroke-dasharray="5,3"/>
+       <text x="${W - PR}" y="${(targetY - 4).toFixed(1)}" text-anchor="end" font-size="8.5" fill="rgba(139,92,246,0.55)">target</text>`
+    : '';
+
+  const step = n > 8 ? Math.ceil(n / 6) : 1;
+  const xLabels = weeklyTrend.map((w, i) => {
+    if (i % step !== 0 && i !== n - 1) return '';
+    return `<text x="${toX(i).toFixed(1)}" y="${H - 7}" text-anchor="middle" font-size="8.5" fill="${MUTED}">${w.label}</text>`;
+  }).join('');
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="overflow:visible;display:block;">
+    <defs>${gradDef}</defs>
+    ${yLines}
+    ${targetLine}
+    ${area}
+    ${line}
+    ${dots}
+    ${xLabels}
+  </svg>`;
+}
+
+// ── Fasting score SVG ring (matches readiness ring pattern) ──────────────────
+
+export function renderFastingScoreRing(container, score, label, color) {
+  if (!container) return;
+  if (score === null) {
+    container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;padding:16px;"><div style="color:rgba(255,255,255,0.35);font-size:0.78rem;">Log 2+ fasts to unlock your Fasting Score</div></div>`;
+    return;
+  }
+  const r  = 54, cx = 70, cy = 70;
+  const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  const gap  = circ - dash;
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <svg viewBox="0 0 140 140" style="width:140px;height:140px;">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="12"/>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="12"
+          stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
+          stroke-linecap="round"
+          transform="rotate(-90 ${cx} ${cy})"/>
+        <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="30" font-weight="900" fill="${color}">${score}</text>
+        <text x="${cx}" y="${cy + 13}" text-anchor="middle" font-size="9.5" font-weight="700" letter-spacing="0.07em" fill="rgba(255,255,255,0.50)">${label.toUpperCase()}</text>
+      </svg>
+    </div>`;
 }
 
 // ── Monthly adherence bar chart ───────────────────────────────────────────────

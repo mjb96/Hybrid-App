@@ -275,6 +275,176 @@ function _recoveryCorrelation(history, wellnessLog) {
   };
 }
 
+// ── Average timing ─────────────────────────────────────────────────────────────
+
+function _fmt12h(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = Math.round(totalMinutes % 60);
+  const suffix = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+function _avgStartTime(history) {
+  const mins = history.filter(h => h.startTime).map(h => {
+    const d = new Date(h.startTime);
+    return d.getHours() * 60 + d.getMinutes();
+  });
+  if (!mins.length) return null;
+  return _fmt12h(mins.reduce((a, b) => a + b, 0) / mins.length);
+}
+
+function _avgEndTime(history) {
+  const mins = history.filter(h => h.endTime).map(h => {
+    const d = new Date(h.endTime);
+    return d.getHours() * 60 + d.getMinutes();
+  });
+  if (!mins.length) return null;
+  return _fmt12h(mins.reduce((a, b) => a + b, 0) / mins.length);
+}
+
+// ── Routine Stability: std-dev of fast start time → 100 = perfect routine ─────
+
+function _routineStabilityScore(history) {
+  const mins = history.filter(h => h.startTime).map(h => {
+    const d = new Date(h.startTime);
+    return d.getHours() * 60 + d.getMinutes();
+  });
+  if (mins.length < 3) return 0;
+  const mean     = mins.reduce((a, b) => a + b, 0) / mins.length;
+  const variance = mins.reduce((s, m) => s + Math.pow(m - mean, 2), 0) / mins.length;
+  const stdDev   = Math.sqrt(variance);
+  // stdDev 0 = 100, stdDev ≥120 min (2h scatter) = 0
+  return Math.max(0, Math.min(100, Math.round(100 - (stdDev / 120) * 100)));
+}
+
+// ── Fasting Score 0–100 ────────────────────────────────────────────────────────
+
+function _fastingScore(totalFasts, consistencyScore, adherenceScore, goalCompletionPct, weeklyTrend) {
+  if (totalFasts < 2) return null;
+  const consistency = consistencyScore * 0.30;
+  const adherence   = adherenceScore * 0.25;
+  const completion  = goalCompletionPct * 0.25;
+  const recentWeeks  = weeklyTrend.slice(-4).filter(w => w.count > 0);
+  const avgCount     = recentWeeks.length > 0
+    ? recentWeeks.reduce((s, w) => s + w.count, 0) / recentWeeks.length : 0;
+  const frequency   = Math.min(100, (avgCount / 5) * 100) * 0.20;
+  return Math.min(100, Math.round(consistency + adherence + completion + frequency));
+}
+
+function _fastingScoreLabel(score) {
+  if (score === null) return null;
+  if (score >= 85) return 'Excellent';
+  if (score >= 70) return 'Good';
+  if (score >= 50) return 'Improving';
+  return 'Needs Attention';
+}
+
+function _fastingScoreColor(score) {
+  if (score === null) return '#6b7280';
+  if (score >= 85) return '#10b981';
+  if (score >= 70) return '#3b82f6';
+  if (score >= 50) return '#f59e0b';
+  return '#ef4444';
+}
+
+// ── Momentum ───────────────────────────────────────────────────────────────────
+
+function _weeklyMomentum(weeklyTrend) {
+  const active = weeklyTrend.filter(w => w.hours > 0);
+  if (active.length < 2) return 0;
+  const recent = active.slice(-2);
+  const older  = active.slice(Math.max(0, active.length - 4), active.length - 2);
+  if (!older.length) return 0;
+  const recentAvg = recent.reduce((s, w) => s + w.hours, 0) / recent.length;
+  const olderAvg  = older.reduce((s, w) => s + w.hours, 0) / older.length;
+  if (!olderAvg) return 0;
+  return parseFloat(((recentAvg - olderAvg) / olderAvg * 100).toFixed(1));
+}
+
+function _monthlyMomentum(monthlyTrend) {
+  const active = monthlyTrend.filter(m => m.hours > 0);
+  if (active.length < 2) return 0;
+  const last = active[active.length - 1];
+  const prev = active[active.length - 2];
+  if (!prev.hours) return 0;
+  return parseFloat(((last.hours - prev.hours) / prev.hours * 100).toFixed(1));
+}
+
+// ── Habit Strength ─────────────────────────────────────────────────────────────
+
+function _habitStrengthScore(history, consistencyScore, currentStreak) {
+  if (!history.length) return 0;
+  const streakPoints = Math.min(30, currentStreak * 3);
+  const depthPoints  = Math.min(20, (history.length / 60) * 20);
+  const habitPoints  = consistencyScore * 0.50;
+  return Math.min(100, Math.round(streakPoints + depthPoints + habitPoints));
+}
+
+// ── Fasting Load ───────────────────────────────────────────────────────────────
+
+function _fastingLoad(weeklyTrend) {
+  const last4   = weeklyTrend.slice(-4);
+  const current = last4[last4.length - 1]?.hours ?? 0;
+  const prev3   = last4.slice(0, -1).filter(w => w.hours > 0);
+  const avg     = prev3.length > 0
+    ? prev3.reduce((s, w) => s + w.hours, 0) / prev3.length : current;
+  const ratio   = avg > 0 ? current / avg : 1;
+  let status = 'Balanced';
+  if (ratio > 1.3)  status = 'High';
+  else if (ratio > 1.1) status = 'Elevated';
+  else if (ratio < 0.7) status = 'Low';
+  return {
+    currentLoad: parseFloat(current.toFixed(1)),
+    avgLoad:     parseFloat(avg.toFixed(1)),
+    ratio:       parseFloat(ratio.toFixed(2)),
+    status,
+  };
+}
+
+// ── Sleep correlation (detailed) ───────────────────────────────────────────────
+
+function _sleepCorrelation(history, wellnessLog) {
+  if (!wellnessLog?.length || wellnessLog.length < 5 || history.length < 5)
+    return { hasData: false };
+  const fastDaySet = new Set(history.map(h => _dayKey(new Date(h.endTime))));
+  const onFast  = wellnessLog.filter(e => fastDaySet.has(e.date) && e.sleep > 0);
+  const offFast = wellnessLog.filter(e => !fastDaySet.has(e.date) && e.sleep > 0);
+  if (onFast.length < 2 || offFast.length < 2) return { hasData: false };
+  const fastSleep    = onFast.reduce((s, e) => s + e.sleep, 0) / onFast.length;
+  const nonFastSleep = offFast.reduce((s, e) => s + e.sleep, 0) / offFast.length;
+  const diff = fastSleep - nonFastSleep;
+  return {
+    hasData:       true,
+    fastSleep:     parseFloat(fastSleep.toFixed(2)),
+    nonFastSleep:  parseFloat(nonFastSleep.toFixed(2)),
+    diff:          parseFloat(diff.toFixed(2)),
+    direction:     diff > 0.2 ? 'better' : diff < -0.2 ? 'worse' : 'neutral',
+  };
+}
+
+// ── HRV correlation ────────────────────────────────────────────────────────────
+
+function _hrvCorrelation(history, healthConnect) {
+  const hrv = healthConnect?.hrv;
+  if (!hrv?.length || hrv.length < 5 || history.length < 5) return { hasData: false };
+  const fastDaySet = new Set(history.map(h => _dayKey(new Date(h.endTime))));
+  const val = e => e.rmssd ?? e.value ?? 0;
+  const onFast  = hrv.filter(e => fastDaySet.has(e.date) && val(e) > 0);
+  const offFast = hrv.filter(e => !fastDaySet.has(e.date) && val(e) > 0);
+  if (onFast.length < 2 || offFast.length < 2) return { hasData: false };
+  const fastHrv    = onFast.reduce((s, e) => s + val(e), 0) / onFast.length;
+  const nonFastHrv = offFast.reduce((s, e) => s + val(e), 0) / offFast.length;
+  const diffPct = nonFastHrv > 0 ? ((fastHrv - nonFastHrv) / nonFastHrv) * 100 : 0;
+  return {
+    hasData:     true,
+    fastHrv:     parseFloat(fastHrv.toFixed(1)),
+    nonFastHrv:  parseFloat(nonFastHrv.toFixed(1)),
+    diffPct:     parseFloat(diffPct.toFixed(1)),
+    direction:   diffPct > 3 ? 'better' : diffPct < -3 ? 'worse' : 'neutral',
+  };
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function computeFastingAnalytics(appState) {
@@ -308,6 +478,8 @@ export function computeFastingAnalytics(appState) {
 
   const bwCorrelation       = _bodyWeightCorrelation(history, appState.bodyWeightLog || []);
   const recoveryCorrelation = _recoveryCorrelation(history, appState.wellnessLog || []);
+  const sleepCorrelation    = _sleepCorrelation(history, appState.wellnessLog || []);
+  const hrvCorrelation      = _hrvCorrelation(history, appState.healthConnect);
 
   const calendarData = buildCalendarData(history, active, fs?.startTime);
 
@@ -321,6 +493,18 @@ export function computeFastingAnalytics(appState) {
     .filter(h => { const d = new Date(h.endTime); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); })
     .reduce((s, h) => s + h.durationHours, 0) + (active ? currentHours : 0);
 
+  // Advanced analytics
+  const avgStartTime       = _avgStartTime(history);
+  const avgEndTime         = _avgEndTime(history);
+  const routineStabilityScore = _routineStabilityScore(history);
+  const fastingScore       = _fastingScore(n, consistencyScore, adherenceScore, goalCompletionPct, weeklyTrend);
+  const fastingScoreLabel  = _fastingScoreLabel(fastingScore);
+  const fastingScoreColor  = _fastingScoreColor(fastingScore);
+  const weeklyMomentum     = _weeklyMomentum(weeklyTrend);
+  const monthlyMomentum    = _monthlyMomentum(monthlyTrend);
+  const habitStrengthScore = _habitStrengthScore(history, consistencyScore, currentStreak);
+  const fastingLoad        = _fastingLoad(weeklyTrend);
+
   return {
     active, currentHours, currentZone: active ? getCurrentZone(currentHours) : null, goal: fs?.goal ?? 16,
     totalFasts, totalHours, avgDuration, longestFast, shortestFast, goalsCompleted, goalCompletionPct,
@@ -328,7 +512,14 @@ export function computeFastingAnalytics(appState) {
     weeklyTrend, monthlyTrend,
     consistencyScore, adherenceScore,
     zoneDistribution, weekdayAdherence, mostCommonSchedule,
-    bwCorrelation, recoveryCorrelation,
+    bwCorrelation, recoveryCorrelation, sleepCorrelation, hrvCorrelation,
     calendarData,
+    // Advanced
+    avgStartTime, avgEndTime,
+    routineStabilityScore,
+    fastingScore, fastingScoreLabel, fastingScoreColor,
+    weeklyMomentum, monthlyMomentum,
+    habitStrengthScore,
+    fastingLoad,
   };
 }
