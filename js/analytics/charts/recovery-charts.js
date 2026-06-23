@@ -1,7 +1,7 @@
 // ==========================================
 // RECOVERY CHARTS — analytics/charts/recovery-charts.js
 // ==========================================
-import { uid, bezierPath, linearGradientV, gridLines, xAxisLabels, areaFill, dotSeries, refLine } from './chart-primitives.js';
+import { uid, bezierPath, linearGradientV, gridLines, xAxisLabels, areaFill, dotSeries, refLine, shadedBand } from './chart-primitives.js';
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -11,7 +11,9 @@ function formatDate(dateStr) {
 
 // Generic time-series trend chart for recovery metrics.
 // series: [{ date, value, ma7? }]
-function renderTrendChart({ container, series, label, color, valueLabel, yMin, yMax, goodIsHigh = true, refValue = null, refLabel = '' }) {
+// optimalBand: { min, max, color? } — shaded "good zone" band
+// baselineValue / baselineLabel — secondary dashed reference line (personal avg)
+function renderTrendChart({ container, series, label, color, valueLabel, yMin, yMax, goodIsHigh = true, refValue = null, refLabel = '', baselineValue = null, baselineLabel = '', optimalBand = null }) {
   if (!container) return;
   if (!series || series.length < 2) {
     container.innerHTML = `<p style="color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 0;">Log ${label.toLowerCase()} data to see trends.</p>`;
@@ -28,7 +30,7 @@ function renderTrendChart({ container, series, label, color, valueLabel, yMin, y
   const range  = Math.max(maxV - minV, 1);
 
   const toX = i => PL + (i / (n - 1)) * chartW;
-  const toY = v => PT + chartH - ((v - minV) / range) * chartH;
+  const toY = v => PT + chartH - ((Math.min(Math.max(v, minV), maxV) - minV) / range) * chartH;
 
   const gId = uid();
   const defs = `<defs>${linearGradientV(gId, color, 0.25, color, 0)}</defs>`;
@@ -38,6 +40,15 @@ function renderTrendChart({ container, series, label, color, valueLabel, yMin, y
   const area   = smooth ? areaFill(smooth, pts, PT + chartH, gId) : '';
   const line   = smooth ? `<path d="${smooth}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>` : '';
   const dots   = dotSeries(pts, color, 3.5);
+
+  // Optimal zone shading (drawn before data lines)
+  let optBandSvg = '';
+  if (optimalBand && optimalBand.max > minV && optimalBand.min < maxV) {
+    const bandColor = optimalBand.color || '#10b981';
+    const y1 = toY(Math.min(optimalBand.max, maxV));
+    const y2 = toY(Math.max(optimalBand.min, minV));
+    optBandSvg = shadedBand(y1, y2, PL, W, PR, bandColor, 0.08);
+  }
 
   // 7-day MA line
   let maLine = '';
@@ -50,17 +61,24 @@ function renderTrendChart({ container, series, label, color, valueLabel, yMin, y
       : '';
   }
 
-  // Reference line
-  const refSvg = (refValue !== null && refValue > 0) ? refLine(toY(refValue), PL, W, PR, refLabel || refValue.toString(), 'rgba(255,255,255,0.4)', true) : '';
+  // Reference line (target — solid)
+  const refSvg = (refValue !== null && refValue >= minV && refValue <= maxV * 1.1)
+    ? refLine(toY(refValue), PL, W, PR, refLabel || refValue.toString(), 'rgba(255,255,255,0.4)', true)
+    : '';
+
+  // Baseline line (personal average — lighter dashed)
+  let baselineSvg = '';
+  if (baselineValue !== null && baselineValue > minV && baselineValue < maxV * 1.1) {
+    baselineSvg = refLine(toY(baselineValue), PL, W, PR, baselineLabel || `avg ${Math.round(baselineValue * 10) / 10}`, color, true);
+  }
 
   // X labels (dates)
   const labels  = series.map(e => formatDate(e.date));
   const step    = n > 10 ? Math.ceil(n / 6) : 1;
-  const toXLabel = i => toX(i);
   let xLbl = '';
   labels.forEach((lbl, i) => {
     if (i % step !== 0) return;
-    xLbl += `<text x="${toXLabel(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.55)">${lbl}</text>`;
+    xLbl += `<text x="${toX(i).toFixed(1)}" y="${H - 5}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.55)">${lbl}</text>`;
   });
 
   const ticks = [0.25, 0.5, 0.75, 1].map(p => minV + p * range);
@@ -69,46 +87,53 @@ function renderTrendChart({ container, series, label, color, valueLabel, yMin, y
   const legend = `<text x="${PL}" y="11" font-size="9" fill="${color}">${valueLabel || label}</text>
     ${maSeries.length >= 2 ? `<text x="${PL + 120}" y="11" font-size="9" fill="rgba(255,255,255,0.55)">- - 7d avg</text>` : ''}`;
 
-  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${defs}${grid}${refSvg}${area}${line}${maLine}${dots}${xLbl}${legend}</svg>`;
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${defs}${grid}${optBandSvg}${refSvg}${baselineSvg}${area}${line}${maLine}${dots}${xLbl}${legend}</svg>`;
 }
 
-// Sleep trend (hours per night).
-export function renderSleepTrendChart(container, sleepData) {
+// Sleep trend (hours per night). baseline = personal 28d avg.
+export function renderSleepTrendChart(container, sleepData, baseline = null) {
   renderTrendChart({
     container,
-    series: sleepData,
-    label: 'Sleep',
-    color: '#818cf8',
-    valueLabel: 'Sleep (hours)',
-    yMin: 0,
-    yMax: 12,
-    refValue: 8,
-    refLabel: '8h target',
-    goodIsHigh: true,
+    series:        sleepData,
+    label:         'Sleep',
+    color:         '#818cf8',
+    valueLabel:    'Sleep (hours)',
+    yMin:          0,
+    yMax:          12,
+    refValue:      8,
+    refLabel:      '8h target',
+    goodIsHigh:    true,
+    baselineValue: baseline,
+    baselineLabel: baseline ? `28d avg ${baseline.toFixed(1)}h` : '',
+    optimalBand:   { min: 7, max: 9, color: '#818cf8' },
   });
 }
 
-// HRV trend (RMSSD ms).
-export function renderHRVTrendChart(container, hrvData) {
+// HRV trend (RMSSD ms). baseline = 30d average.
+export function renderHRVTrendChart(container, hrvData, baseline = null) {
   renderTrendChart({
     container,
-    series: hrvData,
-    label: 'HRV (RMSSD)',
-    color: '#10b981',
-    valueLabel: 'HRV — RMSSD (ms)',
-    goodIsHigh: true,
+    series:        hrvData,
+    label:         'HRV (RMSSD)',
+    color:         '#10b981',
+    valueLabel:    'HRV — RMSSD (ms)',
+    goodIsHigh:    true,
+    baselineValue: baseline,
+    baselineLabel: baseline ? `30d avg ${Math.round(baseline)}ms` : '',
   });
 }
 
-// Resting HR trend.
-export function renderRestingHRTrendChart(container, rhrData) {
+// Resting HR trend. baseline = 28d average.
+export function renderRestingHRTrendChart(container, rhrData, baseline = null) {
   renderTrendChart({
     container,
-    series: rhrData,
-    label: 'Resting HR',
-    color: '#ef4444',
-    valueLabel: 'Resting HR (bpm)',
-    goodIsHigh: false,
+    series:        rhrData,
+    label:         'Resting HR',
+    color:         '#ef4444',
+    valueLabel:    'Resting HR (bpm)',
+    goodIsHigh:    false,
+    baselineValue: baseline,
+    baselineLabel: baseline ? `28d avg ${Math.round(baseline)} bpm` : '',
   });
 }
 
@@ -119,14 +144,15 @@ export function renderRecoveryScoreTrendChart(container, recovScores) {
   renderTrendChart({
     container,
     series,
-    label: 'Recovery Score',
-    color: '#3b82f6',
-    valueLabel: 'Daily Recovery Score (0–100)',
-    yMin: 0,
-    yMax: 100,
-    refValue: 70,
-    refLabel: '70 Threshold',
-    goodIsHigh: true,
+    label:       'Recovery Score',
+    color:       '#3b82f6',
+    valueLabel:  'Daily Recovery Score (0–100)',
+    yMin:        0,
+    yMax:        100,
+    refValue:    70,
+    refLabel:    '70 Threshold',
+    goodIsHigh:  true,
+    optimalBand: { min: 70, max: 100, color: '#10b981' },
   });
 }
 
