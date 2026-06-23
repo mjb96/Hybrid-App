@@ -2915,3 +2915,95 @@ html[data-theme="light"] .detail-bookmark-btn.saved {
   border-color: rgba(139,92,246,0.3);
 }
 
+
+/* ==========================================================================
+   PROGRAMS — Design System Polish & Light Mode Completions
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Active program card — consistent with card-dark system
+   -------------------------------------------------------------------------- */
+
+.active-prog-card {
+  transition:
+    box-shadow var(--duration-base, 0.22s) ease,
+    transform var(--duration-base, 0.22s) ease,
+    border-color var(--duration-base, 0.22s) ease;
+}
+
+.active-prog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+}
+
+
+/* --------------------------------------------------------------------------
+   Program card hover — unified lift system
+   -------------------------------------------------------------------------- */
+
+.prog-card {
+  transition:
+    transform var(--duration-base, 0.22s) ease,
+    box-shadow var(--duration-base, 0.22s) ease;
+}
+
+.prog-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(0,0,0,0.50);
+}
+
+.prog-card:active {
+  transform: scale(0.98);
+}
+
+
+/* --------------------------------------------------------------------------
+   Filter chip — premium active state
+   -------------------------------------------------------------------------- */
+
+.filter-chip.active {
+  box-shadow: 0 3px 12px rgba(99,102,241,0.25);
+}
+
+html[data-theme="light"] .filter-chip.active {
+  box-shadow: 0 2px 8px rgba(99,102,241,0.18);
+}
+
+
+/* --------------------------------------------------------------------------
+   Search bar — consistent focus ring
+   -------------------------------------------------------------------------- */
+
+.prog-search-input-wrap:focus-within {
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
+}
+
+html[data-theme="light"] .prog-search-input-wrap:focus-within {
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.12);
+}
+
+
+/* --------------------------------------------------------------------------
+   Light mode — detail view
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] .detail-complete-btn {
+  background: rgba(16,185,129,0.07) !important;
+  border-color: rgba(16,185,129,0.25) !important;
+}
+
+html[data-theme="light"] .detail-complete-btn:active {
+  background: rgba(16,185,129,0.14) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   Program library tabs — consistent with global tab style
+   -------------------------------------------------------------------------- */
+
+.prog-tab {
+  transition:
+    color var(--duration-base, 0.22s) ease,
+    border-color var(--duration-base, 0.22s) ease;
+}
+

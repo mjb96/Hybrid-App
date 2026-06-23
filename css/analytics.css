@@ -1325,3 +1325,141 @@ html[data-theme="light"] #analytics-fasting .card-dark:has(svg) {
   border-color: rgba(255, 255, 255, 0.07) !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28) !important;
 }
+
+/* ==========================================================================
+   ANALYTICS — Light Mode Completions
+   Fixes all hardcoded rgba(255,255,255,…) values for light theme
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Stat cards
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] .an-stat {
+  background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(0,0,0,0.07) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07) !important;
+}
+
+html[data-theme="light"] .an-stat::after {
+  background: linear-gradient(180deg, rgba(0,0,0,0.015) 0%, transparent 60%) !important;
+}
+
+html[data-theme="light"] .an-stat__label {
+  color: rgba(0, 0, 0, 0.42) !important;
+}
+
+html[data-theme="light"] .an-stat__value {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+html[data-theme="light"] .an-stat__unit {
+  color: rgba(0, 0, 0, 0.40) !important;
+}
+
+html[data-theme="light"] .an-stat__status {
+  /* accent colours remain vibrant; only adjust muted state */
+}
+
+
+/* --------------------------------------------------------------------------
+   Insights panel
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] .an-insights {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-color: rgba(0, 0, 0, 0.07) !important;
+}
+
+html[data-theme="light"] .an-insights__title {
+  color: rgba(0, 0, 0, 0.30) !important;
+}
+
+html[data-theme="light"] .an-insight {
+  color: rgba(0, 0, 0, 0.72) !important;
+}
+
+html[data-theme="light"] .an-insight--alert {
+  background: rgba(239, 68, 68, 0.055) !important;
+}
+
+html[data-theme="light"] .an-insight--good {
+  background: rgba(16, 185, 129, 0.055) !important;
+}
+
+html[data-theme="light"] .an-insight--info {
+  background: rgba(59, 130, 246, 0.055) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   Section headers
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] .analytics-section h2.section-header {
+  color: rgba(0, 0, 0, 0.38) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   Analytics grid layout cards
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] .analytics-section .metric-mini-box {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+html[data-theme="light"] .analytics-section .metric-mini-box .lbl {
+  color: rgba(0,0,0,0.42) !important;
+}
+
+html[data-theme="light"] .analytics-section .metric-mini-box .val {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .analytics-section .metric-mini-box .sub {
+  color: rgba(0,0,0,0.48) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   Fasting analytics — domain colours (section-level override)
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] #analytics-fasting { --an-domain: #f59e0b; }
+
+html[data-theme="light"] .fa-comp-section-label { color: rgba(0, 0, 0, 0.32) !important; }
+html[data-theme="light"] .fa-comp-label         { color: rgba(0, 0, 0, 0.48) !important; }
+html[data-theme="light"] .fa-comp-value         { color: rgba(0, 0, 0, 0.72) !important; }
+
+
+/* --------------------------------------------------------------------------
+   SVG chart elements — additional overrides
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] #view-analytics svg text {
+  fill: rgba(0, 0, 0, 0.50) !important;
+}
+
+html[data-theme="light"] #view-analytics svg .chart-grid-line {
+  stroke: rgba(0, 0, 0, 0.08) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   Analytics charts — chart wrapper polish
+   -------------------------------------------------------------------------- */
+
+.analytics-chart-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+html[data-theme="light"] .analytics-chart-wrap {
+  background: rgba(0,0,0,0.015);
+  border-radius: var(--radius-lg, 12px);
+}
+
