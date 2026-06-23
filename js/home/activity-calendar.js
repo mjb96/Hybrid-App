@@ -203,7 +203,7 @@ export function renderActivityCalendar(appState, containerId = 'homeCalendarCont
   if (!container) return;
   const map = _buildActivityMap(appState);
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const y = now.getFullYear(), m = now.getMonth();
   const prevM = m === 0 ? 11 : m - 1;
   const prevY = m === 0 ? y - 1 : y;
