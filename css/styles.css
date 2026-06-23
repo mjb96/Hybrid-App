@@ -2582,8 +2582,12 @@ html[data-theme="light"] .cockpit-set-row.is-pr {
 /* Calendar cells are now buttons — reset defaults */
 button.cal-cell {
   border: none;
+  background: transparent;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
   font: inherit;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
