@@ -1233,3 +1233,95 @@ html[data-theme="light"] .fasting-btn-analytics {
 }
 
 html[data-theme="light"] .fa-cal-legend-item { color: rgba(15, 23, 42, 0.42); }
+
+/* ==========================================================================
+   FASTING ANALYTICS — New Phase 2 Components
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Fasting Score Card
+   -------------------------------------------------------------------------- */
+
+.fa-score-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.fa-comp-section-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.30);
+  margin-bottom: 10px;
+}
+
+.fa-comp-label {
+  font-size: 0.70rem;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.fa-comp-value {
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Active Fast Card
+   -------------------------------------------------------------------------- */
+
+.fa-active-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Inline Educational Tips — small contextual callouts within analytics flow
+   -------------------------------------------------------------------------- */
+
+.fa-edu-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.14);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.60);
+  line-height: 1.55;
+}
+
+.fa-edu-tip__icon {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  margin-top: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   Light-mode overrides — new components
+   -------------------------------------------------------------------------- */
+
+html[data-theme="light"] .fa-comp-section-label { color: rgba(15, 23, 42, 0.35); }
+html[data-theme="light"] .fa-comp-label         { color: rgba(15, 23, 42, 0.50); }
+html[data-theme="light"] .fa-comp-value         { color: rgba(15, 23, 42, 0.72); }
+
+html[data-theme="light"] .fa-edu-tip {
+  background: rgba(245, 158, 11, 0.05);
+  border-color: rgba(245, 158, 11, 0.14);
+  color: rgba(15, 23, 42, 0.60);
+}
+
+html[data-theme="light"] .fa-score-card {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+/* SVG ring cards in light mode — keep dark background so SVG text is readable */
+html[data-theme="light"] #analytics-fasting .card-dark:has(svg) {
+  background: linear-gradient(160deg, #0e1525 0%, #090e1a 100%) !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28) !important;
+}

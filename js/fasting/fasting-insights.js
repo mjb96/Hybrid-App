@@ -140,7 +140,74 @@ export function generateFastingInsights(calcs) {
   // ── Longest fast milestone
   if (calcs.longestFast >= 24) {
     insights.push({
-      text: `Longest fast: ${calcs.longestFast.toFixed(1)}h — reached the ketosis zone.`,
+      text: `Longest fast: ${calcs.longestFast.toFixed(1)}h — reached the Ketosis Progression phase.`,
+      priority: 'good',
+      category: 'fasting',
+    });
+  }
+
+  // ── Routine stability
+  if (calcs.routineStabilityScore !== undefined) {
+    if (calcs.routineStabilityScore >= 75) {
+      insights.push({
+        text: `High routine stability (${calcs.routineStabilityScore.toFixed(0)}%) — your fasting start times are very consistent, which helps entraining your circadian rhythm.`,
+        priority: 'good',
+        category: 'fasting',
+      });
+    } else if (calcs.routineStabilityScore < 35 && calcs.totalFasts >= 5) {
+      insights.push({
+        text: `Routine stability is ${calcs.routineStabilityScore.toFixed(0)}%. Starting fasts at a consistent time each day may strengthen metabolic signalling.`,
+        priority: 'info',
+        category: 'fasting',
+      });
+    }
+  }
+
+  // ── Weekly momentum
+  if (calcs.weeklyMomentum !== undefined && Math.abs(calcs.weeklyMomentum) >= 15) {
+    insights.push({
+      text: calcs.weeklyMomentum > 0
+        ? `Fasting hours up ${calcs.weeklyMomentum.toFixed(0)}% over recent weeks — positive momentum.`
+        : `Fasting hours down ${Math.abs(calcs.weeklyMomentum).toFixed(0)}% recently. Consider re-anchoring your fasting routine.`,
+      priority: calcs.weeklyMomentum > 0 ? 'good' : 'info',
+      category: 'fasting',
+    });
+  }
+
+  // ── HRV correlation
+  if (calcs.hrvCorrelation?.hasData) {
+    const { diffPct, direction } = calcs.hrvCorrelation;
+    if (direction === 'better' && diffPct >= 5) {
+      insights.push({
+        text: `HRV averages ${diffPct.toFixed(0)}% higher on fasting days — a positive autonomic recovery signal.`,
+        priority: 'good',
+        category: 'fasting',
+      });
+    } else if (direction === 'worse' && diffPct <= -5) {
+      insights.push({
+        text: `HRV trends lower on fasting days. Monitor whether extended fasts are adding physiological stress.`,
+        priority: 'alert',
+        category: 'fasting',
+      });
+    }
+  }
+
+  // ── Sleep correlation
+  if (calcs.sleepCorrelation?.hasData && !calcs.recoveryCorrelation?.hasData) {
+    const { diff, direction } = calcs.sleepCorrelation;
+    if (direction === 'better' && diff >= 0.3) {
+      insights.push({
+        text: `Sleep duration averages ${diff.toFixed(1)}h longer on fasting days — closing your eating window earlier may improve sleep quality.`,
+        priority: 'good',
+        category: 'fasting',
+      });
+    }
+  }
+
+  // ── Fasting score tier change
+  if (calcs.fastingScore !== null && calcs.fastingScore >= 85) {
+    insights.push({
+      text: `Fasting Score: ${calcs.fastingScore} — Excellent. Maintaining this consistency builds long-term metabolic health.`,
       priority: 'good',
       category: 'fasting',
     });
