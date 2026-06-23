@@ -88,6 +88,49 @@ export function runZoneDistribution(weeklyPaceSeries, thresholdSecs) {
   return zones;
 }
 
+// Training Monotony: mean / stdDev of recent weekly loads (Foster's method).
+// High monotony (>2) = repetitive, increases injury risk.
+export function trainingMonotony(weeklyTotalSeries, lookback = 7) {
+  const recent = weeklyTotalSeries.slice(-lookback).filter(v => v > 0);
+  if (recent.length < 2) return null;
+  const mean     = recent.reduce((s, v) => s + v, 0) / recent.length;
+  const variance = recent.reduce((s, v) => s + (v - mean) ** 2, 0) / recent.length;
+  const stdDev   = Math.sqrt(variance);
+  if (stdDev === 0) return null;
+  return Math.round((mean / stdDev) * 10) / 10;
+}
+
+// Strain Score: current week load × training monotony.
+// High strain requires careful recovery.
+export function strainScore(weeklyTotalSeries, lookback = 7) {
+  const monotony = trainingMonotony(weeklyTotalSeries, lookback);
+  if (monotony === null) return null;
+  const weeklyLoad = weeklyTotalSeries[weeklyTotalSeries.length - 1] || 0;
+  return Math.round(weeklyLoad * monotony);
+}
+
+// Consistency Score: % of last N weeks with meaningful training load.
+export function consistencyScore(weeklyTotalSeries, lookback = 12) {
+  const recent = weeklyTotalSeries.slice(-lookback);
+  if (recent.length === 0) return null;
+  const active = recent.filter(v => v > 0).length;
+  return Math.round((active / recent.length) * 100);
+}
+
+// Load Distribution: strength vs endurance split over all tracked weeks.
+export function loadDistribution(liftLoad, runLoad) {
+  const totalLift = liftLoad.reduce((s, v) => s + v, 0);
+  const totalRun  = runLoad.reduce((s, v) => s + v, 0);
+  const total     = totalLift + totalRun;
+  if (total === 0) return null;
+  return {
+    strength:   Math.round((totalLift / total) * 100),
+    endurance:  Math.round((totalRun  / total) * 100),
+    totalLift,
+    totalRun,
+  };
+}
+
 // Full load analytics payload.
 export function computeLoadAnalytics(state, days, maxWeek) {
   const { atl: atlSeries, ctl: ctlSeries } = weeklyLoadMetricsSeries(state, days, maxWeek);
@@ -111,6 +154,12 @@ export function computeLoadAnalytics(state, days, maxWeek) {
   const weeklyTotal   = liftLoad.map((l, i) => l + (runLoad[i] || 0));
   const loadProgPct   = loadProgressionPct(weeklyTotal);
 
+  // New advanced metrics
+  const monotony      = trainingMonotony(weeklyTotal, 7);
+  const strain        = strainScore(weeklyTotal, 7);
+  const consistency   = consistencyScore(weeklyTotal, 12);
+  const distribution  = loadDistribution(liftLoad, runLoad);
+
   return {
     atlSeries,
     ctlSeries,
@@ -128,5 +177,9 @@ export function computeLoadAnalytics(state, days, maxWeek) {
     currentCTL,
     currentTSB,
     currentRatio,
+    monotony,
+    strain,
+    consistency,
+    distribution,
   };
 }

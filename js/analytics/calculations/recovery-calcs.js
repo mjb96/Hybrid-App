@@ -144,6 +144,94 @@ export function dailyRecoveryScoreSeries(wellnessLog, days = 28) {
     });
 }
 
+// Sleep 28-day average baseline.
+export function sleepBaseline28d(wellnessLog) {
+  const series = sleepSeries(wellnessLog, 28);
+  if (series.length === 0) return null;
+  return series.reduce((s, e) => s + e.value, 0) / series.length;
+}
+
+// Sleep debt: total hours below 8h target over last 7 days.
+export function sleepDebt7d(wellnessLog) {
+  const series = sleepSeries(wellnessLog, 7);
+  if (series.length === 0) return null;
+  const deficit = series.reduce((s, e) => s + Math.max(0, 8 - e.value), 0);
+  return Math.round(deficit * 10) / 10;
+}
+
+// Recovery momentum: 3-day average vs 7-day average recovery score.
+// Returns { direction, pct, avg3d, avg7d } or null.
+export function recoveryMomentum(recovScores) {
+  if (recovScores.length < 4) return null;
+  const last3 = recovScores.slice(-3).map(e => e.value);
+  const last7 = recovScores.slice(-7).map(e => e.value);
+  const avg3  = last3.reduce((s, v) => s + v, 0) / last3.length;
+  const avg7  = last7.reduce((s, v) => s + v, 0) / last7.length;
+  if (avg7 === 0) return null;
+  const pct = ((avg3 - avg7) / avg7) * 100;
+  return {
+    direction: pct > 5 ? 'improving' : pct < -5 ? 'declining' : 'stable',
+    pct: Math.round(pct),
+    avg3d: Math.round(avg3),
+    avg7d: Math.round(avg7),
+  };
+}
+
+// Resting HR baseline (28-day average).
+export function rhrBaseline28d(healthConnect) {
+  const series = restingHrSeries(healthConnect, 28);
+  if (series.length === 0) return null;
+  return Math.round(series.reduce((s, e) => s + e.value, 0) / series.length);
+}
+
+// Resting HR deviation vs 28-day baseline.
+export function rhrDeviation(healthConnect) {
+  const series = restingHrSeries(healthConnect, 28);
+  if (series.length < 3) return null;
+  const latest   = series[series.length - 1]?.value || 0;
+  const baseline = Math.round(series.slice(0, -1).reduce((s, e) => s + e.value, 0) / (series.length - 1));
+  const delta    = latest - baseline;
+  const pct      = baseline > 0 ? Math.round((delta / baseline) * 100) : 0;
+  return { current: latest, baseline, delta, pct };
+}
+
+// Nervous system status from HRV + RHR composite.
+// Returns { status: 'Primed'|'Balanced'|'Suppressed'|'Fatigued', tone } or null.
+export function nervousSystemStatus(healthConnect) {
+  const hrvStat  = hrvStatus(healthConnect);
+  const rhrDev   = rhrDeviation(healthConnect);
+
+  if (hrvStat) {
+    switch (hrvStat.status) {
+      case 'elevated':   return { status: 'Primed',    tone: 'progress' };
+      case 'baseline':   return { status: 'Balanced',  tone: 'neutral'  };
+      case 'suppressed': return { status: 'Suppressed', tone: 'caution'  };
+      case 'low':        return { status: 'Fatigued',  tone: 'warning'  };
+    }
+  }
+
+  // Fallback to RHR deviation if HRV unavailable
+  if (rhrDev) {
+    if (rhrDev.pct < -5) return { status: 'Primed',    tone: 'progress' };
+    if (rhrDev.pct <  5) return { status: 'Balanced',  tone: 'neutral'  };
+    if (rhrDev.pct < 10) return { status: 'Suppressed', tone: 'caution'  };
+    return                        { status: 'Fatigued',  tone: 'warning'  };
+  }
+
+  return null;
+}
+
+// Recovery debt: number of consecutive days with recovery score below threshold.
+export function recoveryDebt(recovScores, threshold = 60) {
+  if (recovScores.length === 0) return 0;
+  let count = 0;
+  for (let i = recovScores.length - 1; i >= 0; i--) {
+    if (recovScores[i].value < threshold) count++;
+    else break;
+  }
+  return count;
+}
+
 // Full recovery analytics payload.
 export function computeRecoveryAnalytics(appState) {
   const wellnessLog  = appState.wellnessLog || [];
@@ -160,6 +248,20 @@ export function computeRecoveryAnalytics(appState) {
   const hrv30d       = avgHrv30d(hc);
   const hrvStat      = hrvStatus(hc);
 
+  // New: baseline-relative metrics
+  const sleep28dBaseline = sleepBaseline28d(wellnessLog);
+  const sleepDebt        = sleepDebt7d(wellnessLog);
+  const momentum         = recoveryMomentum(recovScores);
+  const nsStatus         = nervousSystemStatus(hc);
+  const rhrBase28d       = rhrBaseline28d(hc);
+  const rhrDev           = rhrDeviation(hc);
+  const debtDays         = recoveryDebt(recovScores, 60);
+
+  // Sleep deviation vs 28d baseline
+  const sleepDev = (sleep7d !== null && sleep28dBaseline !== null)
+    ? { current: sleep7d, baseline: sleep28dBaseline, pct: Math.round(((sleep7d - sleep28dBaseline) / sleep28dBaseline) * 100) }
+    : null;
+
   const today = new Date().toISOString().slice(0, 10);
   const todayWellness = wellnessLog.find(e => e.date === today) || {};
 
@@ -175,6 +277,14 @@ export function computeRecoveryAnalytics(appState) {
     hrv30d,
     hrvStat,
     todayWellness,
+    sleep28dBaseline,
+    sleepDebt,
+    momentum,
+    nsStatus,
+    rhrBase28d,
+    rhrDev,
+    debtDays,
+    sleepDev,
     hasHC: hc.connected === true || hrvData.length > 0 || rhrData.length > 0,
   };
 }

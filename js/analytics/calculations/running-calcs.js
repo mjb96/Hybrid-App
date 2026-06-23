@@ -135,6 +135,50 @@ export function weeklyAerobicDecoupling(paceSeries, hrSeries) {
   return Math.round(decoupling * 10) / 10;
 }
 
+// Race predictors from threshold pace using %VO2max scaling.
+// T-pace = 88% VO2max. Scales other distances by intensity percentage.
+export function racePredictors(thresholdSecs) {
+  if (!thresholdSecs || thresholdSecs <= 0) return null;
+
+  // Pace at each distance = T-pace × (88 / %VO2max_at_distance)
+  const fiveK_seckm  = thresholdSecs * (88 / 100);  // faster
+  const tenK_seckm   = thresholdSecs * (88 / 97);
+  const hm_seckm     = thresholdSecs * (88 / 92);
+  const mar_seckm    = thresholdSecs * (88 / 85);   // slower
+
+  const toPaceStr = secs => {
+    const s = Math.round(secs);
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')} /km`;
+  };
+
+  const toTimeStr = (secKm, distKm) => {
+    const total = Math.round(secKm * distKm);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return h > 0
+      ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      : `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return {
+    fiveK:    { dist: '5K',       pace: toPaceStr(fiveK_seckm),  time: toTimeStr(fiveK_seckm, 5)       },
+    tenK:     { dist: '10K',      pace: toPaceStr(tenK_seckm),   time: toTimeStr(tenK_seckm, 10)       },
+    halfMar:  { dist: 'Half Mar', pace: toPaceStr(hm_seckm),     time: toTimeStr(hm_seckm, 21.0975)    },
+    marathon: { dist: 'Marathon', pace: toPaceStr(mar_seckm),    time: toTimeStr(mar_seckm, 42.195)    },
+  };
+}
+
+// Endurance Score: composite from VDOT + consistency + distance volume.
+// Returns 0–100.
+export function enduranceScore(vdot, consistencyPct, weeklyDistAvg) {
+  if (!vdot) return null;
+  const vdotComponent       = clamp((vdot - 20) / 60 * 80 + 20, 20, 100);
+  const consistencyComponent = consistencyPct !== null ? consistencyPct : 50;
+  const distComponent        = clamp((weeklyDistAvg / 50) * 100, 0, 100);
+  return clamp(Math.round(vdotComponent * 0.50 + consistencyComponent * 0.30 + distComponent * 0.20), 0, 100);
+}
+
 // Full running analytics payload.
 export function computeRunningAnalytics(state, days, maxWeek, thresholdSecs) {
   const distSeries    = weeklyDistanceSeries(state, days, maxWeek);
@@ -168,6 +212,12 @@ export function computeRunningAnalytics(state, days, maxWeek, thresholdSecs) {
     distSeries[distSeries.length - 1],
   );
 
+  // New: race predictors and endurance score
+  const racePredict      = racePredictors(thresholdSecs);
+  const weeklyDistAvg    = distSeries.filter(v => v > 0).reduce((s, v, _, a) => s + v / a.length, 0);
+  const consistencyPct   = distSeries.filter(v => v > 0).length / Math.max(distSeries.length, 1) * 100;
+  const endScore         = enduranceScore(vdot, consistencyPct, weeklyDistAvg);
+
   return {
     distSeries,
     paceSeries,
@@ -190,5 +240,8 @@ export function computeRunningAnalytics(state, days, maxWeek, thresholdSecs) {
     paceHrCorr,
     decoupling,
     distProgPct,
+    racePredict,
+    endScore,
+    weeklyDistAvg,
   };
 }

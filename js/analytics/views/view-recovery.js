@@ -113,6 +113,13 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
 
   const readColor = readinessColor(readiness.score);
 
+  // Map readiness to athlete-friendly primary status
+  const primaryStatus = recov.nsStatus?.status
+    || (readiness.score >= 75 ? 'Primed' : readiness.score >= 50 ? 'Balanced' : 'Suppressed');
+  const primaryTone   = recov.nsStatus?.tone
+    || (readiness.score >= 75 ? 'progress' : readiness.score >= 50 ? 'neutral' : 'caution');
+  const statusColor   = primaryTone === 'progress' ? '#10b981' : primaryTone === 'caution' ? '#f59e0b' : primaryTone === 'warning' ? '#ef4444' : '#94a3b8';
+
   // Generate insights
   const wk       = appState.currentWeek || '1';
   const weekData = appState.weeks?.[wk];
@@ -148,12 +155,15 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
   }
   insightsEl.innerHTML = renderInsightsHTML(allInsights, 4);
 
-  // Readiness ring
+  // Hero Status + Readiness Ring
   _ensureDiv(section, 'readinessDashboard');
   const readDash = qs('readinessDashboard');
   readDash.innerHTML = `
-    <h2 class="section-header mt-2">Readiness</h2>
-    <article class="card-dark p-4 mb-3 flex-col flex-center" style="border:1px solid ${readColor}33;">
+    <h2 class="section-header mt-2">Recovery Status</h2>
+    <article class="card-dark p-4 mb-3 flex-col flex-center" style="border:1px solid ${statusColor}33;">
+      <div class="an-kpi__label" style="margin-bottom:4px;">Today's Status</div>
+      <div style="font-size:1.6rem;font-weight:900;color:${statusColor};letter-spacing:-0.02em;margin-bottom:2px;">${primaryStatus}</div>
+      <div class="text-xs text-muted mb-4">${_recoveryStatusWhy(primaryStatus, recov, la)}</div>
       <div id="readinessRingContainer"></div>
       <div class="text-sm text-muted mt-3 text-center" style="max-width:280px;line-height:1.5;">${readiness.recommendation}</div>
       ${_readinessComponentsHTML(readiness.components)}
@@ -162,18 +172,53 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
   const ringEl = qs('readinessRingContainer');
   if (ringEl) renderReadinessRingLarge(ringEl, readiness.score, readiness.status, readColor);
 
+  // Nervous System + Baseline Cards
+  _ensureDiv(section, 'recoveryBaselineCards');
+  qs('recoveryBaselineCards').innerHTML = `
+    <h2 class="section-header mt-2">Recovery Signals</h2>
+    <div class="grid-2-col gap-2 mb-3">
+      ${_nsStatusCard(recov)}
+      ${_recoveryMomentumCard(recov)}
+      ${_sleepBaselineCard(recov)}
+      ${_sleepDebtCard(recov)}
+    </div>
+    ${recov.debtDays > 0 ? `<div class="an-insight an-insight--alert mb-3" style="border-radius:10px;">
+      <div class="an-insight__icon">!</div>
+      <div>Recovery has been below optimal for <strong>${recov.debtDays} consecutive day${recov.debtDays > 1 ? 's' : ''}</strong>. Prioritise sleep, nutrition and a lighter session today.</div>
+    </div>` : ''}`;
+
+  // HRV Baseline Card (if available)
+  if (recov.hasHC && recov.hrvStat) {
+    _ensureDiv(section, 'hrvBaselineSection');
+    qs('hrvBaselineSection').innerHTML = `
+      <h2 class="section-header mt-2">HRV Status</h2>
+      <article class="card-dark p-4 mb-3" style="border:1px solid rgba(16,185,129,0.25);">
+        ${_hrvBaselineHTML(recov.hrvStat)}
+      </article>`;
+  }
+
+  // RHR Baseline Card (if available)
+  if (recov.hasHC && recov.rhrDev) {
+    _ensureDiv(section, 'rhrBaselineSection');
+    qs('rhrBaselineSection').innerHTML = `
+      <h2 class="section-header mt-2">Resting HR Status</h2>
+      <article class="card-dark p-4 mb-3" style="border:1px solid rgba(239,68,68,0.2);">
+        ${_rhrBaselineHTML(recov.rhrDev)}
+      </article>`;
+  }
+
   // Summary metric cards
   _ensureDiv(section, 'recoverySummaryCards');
   const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
   const rpeFactor = rpeCount > 0 ? Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100))) : null;
 
   qs('recoverySummaryCards').innerHTML = `
-    <h2 class="section-header mt-2">Recovery Metrics</h2>
+    <h2 class="section-header mt-2">Session Load</h2>
     <div class="grid-2-col gap-2 mb-3">
       ${statCard({ label: 'Avg RPE', value: rpeCount > 0 ? avgRpe.toFixed(1) : '--', sub: 'This week', color: rpeFactor > 70 ? '#10b981' : rpeFactor > 40 ? '#f59e0b' : '#ef4444' })}
-      ${statCard({ label: 'RPE Factor', value: rpeFactor !== null ? rpeFactor + '%' : '--', sub: 'Recovery from RPE', color: '#3b82f6' })}
-      ${statCard({ label: 'Load Balance', value: la.currentCTL > 0 ? la.currentRatio.toFixed(2) : '--', sub: 'ATL/CTL ratio', color: la.currentRatio < 1.3 ? '#f59e0b' : '#ef4444', status: la.loadStatus.status })}
-      ${statCard({ label: 'Form (TSB)', value: la.currentCTL > 0 ? (la.currentTSB >= 0 ? '+' : '') + Math.round(la.currentTSB) : '--', sub: 'CTL − ATL', color: la.currentTSB >= 0 ? '#10b981' : '#ef4444' })}
+      ${statCard({ label: 'Recovery Capacity', value: rpeFactor !== null ? rpeFactor + '%' : '--', sub: 'From session RPE', color: '#3b82f6' })}
+      ${statCard({ label: 'Form (TSB)', value: la.currentCTL > 0 ? (la.currentTSB >= 0 ? '+' : '') + Math.round(la.currentTSB) : '--', sub: la.currentTSB >= 0 ? 'Positive — ready to train' : 'Negative — fatigue present', color: la.currentTSB >= 0 ? '#10b981' : '#ef4444' })}
+      ${statCard({ label: 'Load Ratio', value: la.currentCTL > 0 ? la.currentRatio.toFixed(2) : '--', sub: la.loadStatus.status, color: la.currentRatio < 1.3 ? '#f59e0b' : '#ef4444' })}
     </div>`;
 
   // Sleep trend
@@ -181,9 +226,10 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
   qs('sleepTrendSection').innerHTML = `
     <h2 class="section-header mt-2">Sleep Trend (28 days)</h2>
     <article class="card-dark p-3 mb-3">
+      ${recov.sleep28dBaseline ? `<div class="flex-between mb-2"><span class="text-xs text-muted">28-day avg</span><span class="font-bold" style="color:#818cf8;">${recov.sleep28dBaseline.toFixed(1)}h</span></div>` : ''}
       <div id="sleepTrendChart"></div>
     </article>`;
-  renderSleepTrendChart(qs('sleepTrendChart'), recov.sleepData);
+  renderSleepTrendChart(qs('sleepTrendChart'), recov.sleepData, recov.sleep28dBaseline);
 
   // HRV + RHR (if Health Connect)
   _ensureDiv(section, 'hcTrendSection');
@@ -191,15 +237,21 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
     qs('hcTrendSection').innerHTML = `
       <h2 class="section-header mt-2">HRV & Resting HR Trends (28 days)</h2>
       <article class="card-dark p-3 mb-3">
-        <div class="text-xs text-muted mb-2">HRV — RMSSD (ms)</div>
+        <div class="flex-between mb-2">
+          <div class="text-xs text-muted">HRV — RMSSD (ms)</div>
+          ${recov.hrvStat ? `<div class="text-xs font-bold" style="color:${recov.hrvStat.pct >= 0 ? '#10b981' : '#ef4444'};">${recov.hrvStat.pct >= 0 ? '+' : ''}${recov.hrvStat.pct}% vs baseline</div>` : ''}
+        </div>
         <div id="hrvTrendChart"></div>
       </article>
       <article class="card-dark p-3 mb-3">
-        <div class="text-xs text-muted mb-2">Resting Heart Rate (bpm)</div>
+        <div class="flex-between mb-2">
+          <div class="text-xs text-muted">Resting Heart Rate (bpm)</div>
+          ${recov.rhrDev ? `<div class="text-xs font-bold" style="color:${recov.rhrDev.pct <= 0 ? '#10b981' : '#ef4444'};">${recov.rhrDev.pct >= 0 ? '+' : ''}${recov.rhrDev.pct}% vs baseline</div>` : ''}
+        </div>
         <div id="rhrTrendChart"></div>
       </article>`;
-    renderHRVTrendChart(qs('hrvTrendChart'), recov.hrvData);
-    renderRestingHRTrendChart(qs('rhrTrendChart'), recov.rhrData);
+    renderHRVTrendChart(qs('hrvTrendChart'), recov.hrvData, recov.hrv30d);
+    renderRestingHRTrendChart(qs('rhrTrendChart'), recov.rhrData, recov.rhrBase28d);
   } else {
     qs('hcTrendSection').innerHTML = `
       <article class="card-dark p-3 mb-3" style="border:1px solid rgba(255,255,255,0.08);">
@@ -256,6 +308,123 @@ export function renderRecoveryScoreDetail(data, getState, getDays) {
 
   // Legacy DOM IDs for tile compatibility
   _syncLegacyIds(readiness, rpeFactor, avgRpe, la);
+}
+
+function _recoveryStatusWhy(status, recov, la) {
+  if (status === 'Primed') {
+    return recov.nsStatus ? 'HRV elevated above baseline — nervous system recovered' : 'Readiness signals are positive';
+  }
+  if (status === 'Balanced') {
+    return 'All recovery signals within normal range';
+  }
+  if (status === 'Suppressed') {
+    const reasons = [];
+    if (recov.hrvStat?.status === 'suppressed') reasons.push('HRV below baseline');
+    if (recov.sleepDev?.pct < -10) reasons.push('sleep below average');
+    if (la.currentRatio > 1.3) reasons.push('high training load');
+    return reasons.length > 0 ? reasons.join(' · ') : 'Recovery signals below normal';
+  }
+  return 'Multiple signals below optimal range';
+}
+
+function _nsStatusCard(recov) {
+  const ns = recov.nsStatus;
+  if (!ns) {
+    return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid rgba(16,185,129,0.4);">
+      <div class="an-stat__label">Nervous System</div>
+      <div class="an-stat__value" style="font-size:1rem;color:rgba(255,255,255,0.4);">No HRV Data</div>
+      <div class="an-stat__status text-muted">Connect Health Connect</div>
+    </article>`;
+  }
+  const color = ns.tone === 'progress' ? '#10b981' : ns.tone === 'caution' ? '#f59e0b' : ns.tone === 'warning' ? '#ef4444' : '#94a3b8';
+  return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid ${color};">
+    <div class="an-stat__label">Nervous System</div>
+    <div class="an-stat__value" style="font-size:1.15rem;color:${color};">${ns.status}</div>
+    <div class="an-stat__status" style="color:${color};">${ns.tone === 'progress' ? 'Ready to perform' : ns.tone === 'caution' ? 'Moderate recovery' : ns.tone === 'warning' ? 'Needs rest' : 'Within range'}</div>
+  </article>`;
+}
+
+function _recoveryMomentumCard(recov) {
+  const m = recov.momentum;
+  if (!m) {
+    return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid rgba(59,130,246,0.4);">
+      <div class="an-stat__label">Momentum</div>
+      <div class="an-stat__value" style="font-size:1rem;color:rgba(255,255,255,0.4);">—</div>
+      <div class="an-stat__status text-muted">Log 4+ days</div>
+    </article>`;
+  }
+  const arrow    = m.direction === 'improving' ? '↑' : m.direction === 'declining' ? '↓' : '→';
+  const color    = m.direction === 'improving' ? '#10b981' : m.direction === 'declining' ? '#ef4444' : '#f59e0b';
+  const pctLabel = m.pct >= 0 ? `+${m.pct}%` : `${m.pct}%`;
+  return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid ${color};">
+    <div class="an-stat__label">Recovery Momentum</div>
+    <div class="an-stat__value" style="font-size:1.3rem;color:${color};">${arrow} ${pctLabel}</div>
+    <div class="an-stat__status" style="color:${color};">${m.direction === 'improving' ? 'Trending up' : m.direction === 'declining' ? 'Trending down' : 'Stable'}</div>
+  </article>`;
+}
+
+function _sleepBaselineCard(recov) {
+  const sleep7d = recov.sleep7d;
+  const base28d = recov.sleep28dBaseline;
+  if (!sleep7d) {
+    return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid rgba(129,140,248,0.4);">
+      <div class="an-stat__label">Sleep (7-day avg)</div>
+      <div class="an-stat__value" style="font-size:1rem;color:rgba(255,255,255,0.4);">—</div>
+      <div class="an-stat__status text-muted">Log sleep data</div>
+    </article>`;
+  }
+  const pct   = base28d ? Math.round(((sleep7d - base28d) / base28d) * 100) : null;
+  const color = sleep7d >= 7.5 ? '#10b981' : sleep7d >= 6.5 ? '#f59e0b' : '#ef4444';
+  const delta = pct !== null ? (pct >= 0 ? `+${pct}%` : `${pct}%`) + ' vs 28d avg' : `vs 8h target`;
+  return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid ${color};">
+    <div class="an-stat__label">Sleep (7-day avg)</div>
+    <div class="an-stat__value" style="color:${color};">${sleep7d.toFixed(1)}<span class="an-stat__unit">h</span></div>
+    <div class="an-stat__status" style="color:${color};">${delta}</div>
+  </article>`;
+}
+
+function _sleepDebtCard(recov) {
+  const debt = recov.sleepDebt;
+  if (debt === null) {
+    return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid rgba(239,68,68,0.3);">
+      <div class="an-stat__label">Sleep Debt (7d)</div>
+      <div class="an-stat__value" style="font-size:1rem;color:rgba(255,255,255,0.4);">—</div>
+      <div class="an-stat__status text-muted">Log sleep data</div>
+    </article>`;
+  }
+  const color = debt <= 1 ? '#10b981' : debt <= 4 ? '#f59e0b' : '#ef4444';
+  const status = debt <= 1 ? 'Well rested' : debt <= 4 ? 'Mild deficit' : 'Significant deficit';
+  return `<article class="card-dark an-stat p-3 flex-col" style="border-top:2px solid ${color};">
+    <div class="an-stat__label">Sleep Debt (7d)</div>
+    <div class="an-stat__value" style="color:${color};">${debt}<span class="an-stat__unit">h</span></div>
+    <div class="an-stat__status" style="color:${color};">${status}</div>
+  </article>`;
+}
+
+function _hrvBaselineHTML(stat) {
+  const color   = stat.pct >= 5 ? '#10b981' : stat.pct >= -5 ? '#94a3b8' : stat.pct >= -15 ? '#f59e0b' : '#ef4444';
+  const label   = stat.status === 'elevated' ? 'Above baseline — well recovered' : stat.status === 'baseline' ? 'Within normal range' : stat.status === 'suppressed' ? 'Below baseline — moderate fatigue' : 'Well below baseline — rest needed';
+  const pctStr  = stat.pct >= 0 ? `+${stat.pct}%` : `${stat.pct}%`;
+  return `<div class="flex-between mb-2">
+    <div><div class="text-xs text-muted mb-1">HRV Today</div><div style="font-size:1.6rem;font-weight:900;color:${color};font-variant-numeric:tabular-nums;">${stat.current}<span style="font-size:0.8rem;font-weight:500;color:rgba(255,255,255,0.4);margin-left:3px;">ms</span></div></div>
+    <div style="text-align:right;"><div class="text-xs text-muted mb-1">28d Baseline</div><div style="font-size:1.6rem;font-weight:700;color:rgba(255,255,255,0.5);font-variant-numeric:tabular-nums;">${stat.baseline}<span style="font-size:0.8rem;font-weight:500;color:rgba(255,255,255,0.3);margin-left:3px;">ms</span></div></div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px 12px;">
+    <div class="flex-between"><span style="font-size:0.8rem;font-weight:700;color:${color};">${pctStr} vs baseline</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">${label}</span></div>
+  </div>`;
+}
+
+function _rhrBaselineHTML(rhrDev) {
+  const color   = rhrDev.pct <= -5 ? '#10b981' : rhrDev.pct <= 5 ? '#94a3b8' : rhrDev.pct <= 10 ? '#f59e0b' : '#ef4444';
+  const label   = rhrDev.pct <= -5 ? 'Below baseline — well recovered' : rhrDev.pct <= 5 ? 'Within normal range' : rhrDev.pct <= 10 ? 'Slightly elevated — mild fatigue' : 'Elevated — increased fatigue';
+  const pctStr  = rhrDev.pct >= 0 ? `+${rhrDev.pct}%` : `${rhrDev.pct}%`;
+  return `<div class="flex-between mb-2">
+    <div><div class="text-xs text-muted mb-1">RHR Today</div><div style="font-size:1.6rem;font-weight:900;color:${color};font-variant-numeric:tabular-nums;">${rhrDev.current}<span style="font-size:0.8rem;font-weight:500;color:rgba(255,255,255,0.4);margin-left:3px;">bpm</span></div></div>
+    <div style="text-align:right;"><div class="text-xs text-muted mb-1">28d Baseline</div><div style="font-size:1.6rem;font-weight:700;color:rgba(255,255,255,0.5);font-variant-numeric:tabular-nums;">${rhrDev.baseline}<span style="font-size:0.8rem;font-weight:500;color:rgba(255,255,255,0.3);margin-left:3px;">bpm</span></div></div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px 12px;">
+    <div class="flex-between"><span style="font-size:0.8rem;font-weight:700;color:${color};">${pctStr} vs baseline</span><span style="font-size:0.75rem;color:rgba(255,255,255,0.5);">${label}</span></div>
+  </div>`;
 }
 
 function _readinessComponentsHTML(components) {
