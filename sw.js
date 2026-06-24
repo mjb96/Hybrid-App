@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v37';
+const CACHE_NAME = 'hybrid-training-v38';
 
 const LOCAL_ASSETS = [
   './',
@@ -38,6 +38,7 @@ const LOCAL_ASSETS = [
   './js/athlete-profile.js',
   './js/gps-tracker.js',
   './js/fasting.js',
+  './js/notifications.js',
   // State sub-modules
   './js/state/auth.js',
   './js/state/import-export.js',

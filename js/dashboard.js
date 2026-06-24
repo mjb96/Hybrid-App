@@ -58,6 +58,36 @@ function parseTimeToMinutes(timeStr) {
 // ==========================================
 export const TILE_REGISTRY = [
 
+  // ---- PROGRAM HERO -------------------------------------------
+  {
+    id:        'program-hero',
+    type:      DashboardTileType.METRIC,
+    icon:      '📋',
+    label:     'Active Program',
+    accentVar: '--color-blue',
+    navTarget: 'goal-progress',
+    order:     -1,
+    renderData(appState, defaultDays, activeProgram) {
+      try {
+        if (!activeProgram) return { hero: 'No Program', sub: 'Select a program to begin.', state: 'empty' };
+        const wk    = parseInt(appState.currentWeek, 10) || 1;
+        const total = activeProgram.totalWeeks || 12;
+        const pct   = Math.round((wk / total) * 100);
+        const phaseWk = wk % 4 === 0 ? 'Deload' : wk <= Math.ceil(total / 3) ? 'Foundation' : wk <= Math.ceil(total * 2 / 3) ? 'Build' : 'Peak';
+        const phase = activeProgram.weeks?.[String(wk)]?.phase || phaseWk;
+        return {
+          hero:     activeProgram.name || 'Program',
+          sub:      `Week ${wk} of ${total} · ${phase}`,
+          tag:      `${pct}% complete`,
+          tagColor: pct >= 75 ? 'var(--color-green)' : pct >= 40 ? 'var(--color-amber)' : 'var(--color-blue)',
+          state:    'loaded',
+        };
+      } catch {
+        return { hero: '--', sub: 'Unavailable', state: 'error' };
+      }
+    },
+  },
+
   // ---- TODAY --------------------------------------------------
   {
     id:        'today',
@@ -286,11 +316,13 @@ export const TILE_REGISTRY = [
           for (const day in lifts) {
             for (const lift in lifts[day]) {
               if (Array.isArray(lifts[day][lift])) {
+                // Resolve opaque ID → display name so keyword matching works
+                const displayName = appState.liftNames?.[lift] || lift;
                 lifts[day][lift].forEach(s => {
-                  if (s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)) {
+                  if (s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1) && s.type !== 'W' && !s.isWarmup) {
                     const w = parseFloat(s.w) || 0;
                     const r = parseInt(s.r, 10) || 0;
-                    if (w > 0 && r > 0) check(lift, w, r);
+                    if (w > 0 && r > 0) check(displayName, w, r);
                   }
                 });
               }

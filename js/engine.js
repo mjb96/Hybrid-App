@@ -174,11 +174,12 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
   const cWk = parseInt(currentWeekString, 10);
   if (isNaN(cWk) || cWk <= 1 || !appState.weeks) return result;
 
+  const liftKey = resolveLiftKey(appState, liftName);
   const history = [];
   for (let w = cWk - 1; w >= 1; w--) {
     const wData = appState.weeks[w.toString()];
-    if (wData && wData.lifts && wData.lifts[dayKey]?.[liftName]) {
-      const finishedSets = wData.lifts[dayKey][liftName].filter(s => s && s.c && s.w && s.r);
+    if (wData && wData.lifts && wData.lifts[dayKey]?.[liftKey]) {
+      const finishedSets = wData.lifts[dayKey][liftKey].filter(s => s && s.c && s.w && s.r);
       if (finishedSets.length > 0) {
         let bestE1rm = 0, bestWeight = 0, bestReps = 0;
         finishedSets.forEach(s => {

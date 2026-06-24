@@ -56,6 +56,8 @@ let _selectedGoal    = 'hybrid';
 let _selectedProgram = 'hybrid_engine';
 let _weightUnit      = 'kg';
 let _distUnit        = 'km';
+let _fitnessLevel    = 'intermediate';
+let _equipmentTier   = 'gym';
 
 function _showStep(n) {
   document.querySelectorAll('.ob-step').forEach((el, i) => {
@@ -93,11 +95,19 @@ export function handleOnboardingAction(action, target) {
     _selectedProgram = GOAL_PROGRAMS[_selectedGoal]?.[0] || 'hybrid_engine';
     _renderProgramList();
     setTimeout(() => _showStep(3), 120);
+  } else if (action === 'ob-level') {
+    _fitnessLevel = target.dataset.level;
+    document.querySelectorAll('[data-action="ob-level"]').forEach(b => b.classList.remove('active'));
+    target.classList.add('active');
+  } else if (action === 'ob-equipment') {
+    _equipmentTier = target.dataset.tier;
+    document.querySelectorAll('[data-action="ob-equipment"]').forEach(b => b.classList.remove('active'));
+    target.classList.add('active');
   } else if (action === 'ob-program') {
     _selectedProgram = target.dataset.program;
     document.querySelectorAll('[data-action="ob-program"]').forEach(b => b.classList.remove('active'));
     target.classList.add('active');
-    setTimeout(() => _showStep(4), 180);
+    setTimeout(() => _showStep(5), 180);
   } else if (action === 'ob-unit') {
     _weightUnit = target.dataset.unit;
     document.querySelectorAll('[data-action="ob-unit"]').forEach(b => b.classList.remove('active'));
@@ -118,10 +128,12 @@ function _finish() {
   const name = document.getElementById('obName')?.value?.trim();
   if (name) appState.settings.name = name;
 
-  appState.activeProgramId         = _selectedProgram;
-  appState.settings.weightUnit     = _weightUnit;
-  appState.settings.distanceUnit   = _distUnit;
-  appState.settings.onboardingComplete = true;
+  appState.activeProgramId              = _selectedProgram;
+  appState.settings.weightUnit          = _weightUnit;
+  appState.settings.distanceUnit        = _distUnit;
+  appState.settings.fitnessLevel        = _fitnessLevel;
+  appState.settings.equipmentTier       = _equipmentTier;
+  appState.settings.onboardingComplete  = true;
   document.documentElement.dataset.theme = appState.settings.theme || 'dark';
 
   const bw = parseFloat(document.getElementById('obBodyWeight')?.value);
