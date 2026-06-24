@@ -7469,6 +7469,29 @@ html[data-theme="light"] .nav-item.active { color: #4f46e5 !important; }
   }
 }
 
+/* --- 1b. Stop the WebView from auto-inflating font sizes -----------------
+   Android/iOS WebViews scale up text in tall blocks, making typography
+   inconsistent vs a native app. Lock it to the authored size. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* --- 1c. Remove the 300ms tap delay / double-tap zoom on controls -------- */
+.card-dark,
+.tile-interactive,
+.nav-item,
+.btn-action-block,
+.btn-ghost,
+.btn-green-ghost,
+.btn-danger-ghost,
+.btn-dashed,
+button,
+[role="button"],
+[data-action] {
+  touch-action: manipulation;
+}
+
 /* --- 2. Suppress long-press text selection & callout on UI chrome --------
    Native apps don't let you text-select buttons, labels or cards. Inputs and
    genuinely-selectable content opt back in below. */
