@@ -8,10 +8,11 @@ import { clamp } from '../calculations/math-utils.js';
 // Component weights for composite readiness score.
 // When fewer signals available, weights are redistributed.
 const WEIGHTS = {
-  hrv:      0.30,
-  sleep:    0.30,
-  load:     0.25,
-  wellness: 0.15,
+  hrv:       0.27,
+  sleep:     0.27,
+  load:      0.23,
+  restingHr: 0.10,
+  wellness:  0.13,
 };
 
 // HRV component: 0–100.
@@ -52,6 +53,22 @@ function loadComponent(atl, ctl) {
   return 15;                                 // danger zone
 }
 
+// Resting HR component: 0–100 based on deviation from 7-day baseline.
+// Elevated resting HR relative to baseline signals poor recovery.
+function restingHrComponent(restingHrValues) {
+  if (!restingHrValues || restingHrValues.length < 2) return null;
+  const sorted   = [...restingHrValues].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const today    = sorted[0].bpm;
+  const window7  = sorted.slice(0, Math.min(7, sorted.length));
+  const baseline = window7.reduce((s, e) => s + e.bpm, 0) / window7.length;
+  const deviation = today - baseline;
+  if (deviation >= 10) return 15;
+  if (deviation >= 6)  return 35;
+  if (deviation >= 3)  return 60;
+  if (deviation >= 0)  return 80;
+  return 100; // below baseline = excellent recovery
+}
+
 // Wellness component: 0–100 from today's check-in.
 function wellnessComponent(todayWellness) {
   if (!todayWellness || (!todayWellness.mood && !todayWellness.soreness)) return null;
@@ -69,12 +86,13 @@ function wellnessComponent(todayWellness) {
 
 // Compute composite readiness from all available components.
 // Returns { score (0-100), components, status, recommendation, available }.
-export function computeReadiness({ hrvStat, sleepHours, atl, ctl, todayWellness }) {
+export function computeReadiness({ hrvStat, sleepHours, atl, ctl, todayWellness, restingHrValues }) {
   const raw = {
-    hrv:      hrvComponent(hrvStat),
-    sleep:    sleepComponent(sleepHours),
-    load:     loadComponent(atl, ctl),
-    wellness: wellnessComponent(todayWellness),
+    hrv:       hrvComponent(hrvStat),
+    sleep:     sleepComponent(sleepHours),
+    load:      loadComponent(atl, ctl),
+    restingHr: restingHrComponent(restingHrValues),
+    wellness:  wellnessComponent(todayWellness),
   };
 
   // Only include available signals

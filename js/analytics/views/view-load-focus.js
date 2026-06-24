@@ -3,6 +3,70 @@
 // ==========================================
 import { recoveryCostBreakdown } from '../../brain/load_models.js';
 
+// ── Performance Management Chart (ATL / CTL / TSB) ──────────────────────────
+
+function computePMC(weeklyLoads) {
+  const n    = weeklyLoads.length;
+  const atl  = new Array(n).fill(0);
+  const ctl  = new Array(n).fill(0);
+  const tsb  = new Array(n).fill(0);
+  const aAtl = 1 - Math.exp(-1);      // ~0.632 — 7-day time constant
+  const aCtl = 1 - Math.exp(-1 / 6);  // ~0.154 — 42-day time constant
+  for (let i = 0; i < n; i++) {
+    const load = weeklyLoads[i] || 0;
+    atl[i] = aAtl * load + (1 - aAtl) * (i > 0 ? atl[i - 1] : 0);
+    ctl[i] = aCtl * load + (1 - aCtl) * (i > 0 ? ctl[i - 1] : 0);
+    tsb[i] = ctl[i] - atl[i];
+  }
+  return { atl, ctl, tsb };
+}
+
+function renderPMCChart(container, weekLabels, atl, ctl, tsb) {
+  if (!container || !weekLabels.length) return;
+  const W = 400, H = 160, PL = 38, PR = 12, PT = 12, PB = 28;
+  const innerW = W - PL - PR;
+  const innerH = H - PT - PB;
+
+  const allVals = [...atl, ...ctl, ...tsb.filter(v => v >= 0)];
+  const minVal  = Math.min(0, ...tsb);
+  const maxVal  = Math.max(1, ...allVals);
+  const range   = maxVal - minVal || 1;
+
+  const xOf = i => PL + (i / (weekLabels.length - 1 || 1)) * innerW;
+  const yOf = v => PT + innerH - ((v - minVal) / range) * innerH;
+
+  const line = (arr, color, dashed = false) => {
+    if (arr.every(v => v === 0)) return '';
+    const d = arr.map((v, i) => `${i === 0 ? 'M' : 'L'}${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" ${dashed ? 'stroke-dasharray="4,3"' : ''} opacity="0.85"/>`;
+  };
+
+  const zeroY = yOf(0).toFixed(1);
+  let labels = '';
+  weekLabels.forEach((lbl, i) => {
+    if (weekLabels.length <= 12 || i % 2 === 0 || i === weekLabels.length - 1) {
+      labels += `<text x="${xOf(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">${lbl}</text>`;
+    }
+  });
+
+  // Y-axis ticks
+  const tick = v => {
+    const y = yOf(v).toFixed(1);
+    return `<text x="${PL - 4}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="rgba(255,255,255,0.35)" font-size="8">${Math.round(v)}</text>
+            <line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>`;
+  };
+  const tickVals = [minVal, 0, maxVal * 0.5, maxVal].filter((v, i, a) => a.indexOf(v) === i);
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+    ${tickVals.map(tick).join('')}
+    <line x1="${PL}" y1="${zeroY}" x2="${W - PR}" y2="${zeroY}" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+    ${line(ctl, '#10b981')}
+    ${line(atl, '#f59e0b')}
+    ${line(tsb, '#3b82f6', true)}
+    ${labels}
+  </svg>`;
+}
+
 const COLORS = {
   strength:  '#3b82f6',
   base:      '#10b981',
@@ -114,5 +178,29 @@ export function renderLoadFocusAnalytics(data, getState, getDays) {
     noteEl.innerHTML = missingHrData
       ? '<p style="color:rgba(255,255,255,0.4);font-size:0.75rem;margin-top:0.5rem;">Import FIT files with HR zone data to split run intensity by zone.</p>'
       : '';
+  }
+
+  // Performance Management Chart — ATL / CTL / TSB
+  const pmcEl = document.getElementById('lfPMCChart');
+  if (pmcEl) {
+    // Weekly load = estimated sRPE: gym (vol / 100 * avgRpe) + run (dist * avgRpe * 8)
+    const weeklyLoads = data.weekLabels.map((_, i) => {
+      const vol  = data.volData[i]  || 0;
+      const dist = data.runData[i]  || 0;
+      const rpe  = data.rpeData[i]  || 6;
+      return (vol / 200) * rpe + dist * rpe * 1.5;
+    });
+    const { atl, ctl, tsb } = computePMC(weeklyLoads);
+    renderPMCChart(pmcEl, data.weekLabels, atl, ctl, tsb);
+
+    const pmcLegendEl = document.getElementById('lfPMCLegend');
+    if (pmcLegendEl) {
+      const dot = (c, dash) => `<span style="display:inline-block;width:18px;height:2px;background:${dash ? 'none' : c};${dash ? `border-top:2px dashed ${c};` : ''}vertical-align:middle;margin-right:4px;"></span>`;
+      pmcLegendEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:0.72rem;color:rgba(255,255,255,0.65);margin-top:6px;">
+        <span>${dot('#10b981')}CTL (Fitness)</span>
+        <span>${dot('#f59e0b')}ATL (Fatigue)</span>
+        <span>${dot('#3b82f6', true)}TSB (Form)</span>
+      </div>`;
+    }
   }
 }

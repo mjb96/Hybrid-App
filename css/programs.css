@@ -2300,6 +2300,26 @@ html[data-theme="light"] .detail-social-proof {
   font-weight: 600;
 }
 
+.aplan-rate-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  color: rgba(255,215,0,0.75);
+  font-size: 1.1rem;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  z-index: 2;
+}
+.aplan-rate-btn:active { background: rgba(255,255,255,0.18); }
+
 /* Week Navigator */
 .aplan-week-nav {
   display: flex;

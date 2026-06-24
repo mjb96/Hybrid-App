@@ -94,7 +94,7 @@ export function findLastPerformance(state, name, { excludeWeek, days = [] } = {}
     for (const d of days) {
       const setsArr = wkData?.lifts?.[d]?.[key];
       if (!Array.isArray(setsArr) || setsArr.length === 0) continue;
-      const workingSets = setsArr.filter(s => isCompletedSet(s) && !s.isWarmup);
+      const workingSets = setsArr.filter(s => isCompletedSet(s) && s.type !== 'W' && !s.isWarmup);
       if (workingSets.length > 0) return { weekKey: wKey, day: d, workingSets };
     }
   }
@@ -174,11 +174,12 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
   const cWk = parseInt(currentWeekString, 10);
   if (isNaN(cWk) || cWk <= 1 || !appState.weeks) return result;
 
+  const liftKey = resolveLiftKey(appState, liftName);
   const history = [];
   for (let w = cWk - 1; w >= 1; w--) {
     const wData = appState.weeks[w.toString()];
-    if (wData && wData.lifts && wData.lifts[dayKey]?.[liftName]) {
-      const finishedSets = wData.lifts[dayKey][liftName].filter(s => s && s.c && s.w && s.r);
+    if (wData && wData.lifts && wData.lifts[dayKey]?.[liftKey]) {
+      const finishedSets = wData.lifts[dayKey][liftKey].filter(s => s && s.c && s.w && s.r);
       if (finishedSets.length > 0) {
         let bestE1rm = 0, bestWeight = 0, bestReps = 0;
         finishedSets.forEach(s => {
@@ -306,21 +307,25 @@ export function computeEstimated1RMs() {
       for (let lKey in dayLifts) {
         const setsArr = dayLifts[lKey];
         if (!Array.isArray(setsArr)) continue;
-        
+
+        // Resolve opaque lift ID → display name so comparisons work regardless
+        // of whether old data uses plain strings or the lift identity map.
+        const lName = getLiftDisplayName(appState, lKey);
+
         setsArr.forEach(s => {
-          if (s && s.c) {
+          if (s && s.c && s.type !== 'W' && !s.isWarmup) {
             const weight = parseFloat(s.w) || 0;
             const reps = parseInt(s.r, 10) || 0;
             const e1rm = weight * (1 + reps / 30);
-            
+
             if (wKey === wk) {
-              if (lKey === 'Back Squat' && e1rm > result.currentSq) result.currentSq = e1rm;
-              if (lKey === 'Bench Press' && e1rm > result.currentBp) result.currentBp = e1rm;
-              if (lKey === 'Deadlift' && e1rm > result.currentDl) result.currentDl = e1rm;
+              if (lName === 'Back Squat' && e1rm > result.currentSq) result.currentSq = e1rm;
+              if (lName === 'Bench Press' && e1rm > result.currentBp) result.currentBp = e1rm;
+              if (lName === 'Deadlift' && e1rm > result.currentDl) result.currentDl = e1rm;
             }
-            if (lKey === 'Back Squat' && e1rm > result.globalMaxSq) result.globalMaxSq = e1rm;
-            if (lKey === 'Bench Press' && e1rm > result.globalMaxBp) result.globalMaxBp = e1rm;
-            if (lKey === 'Deadlift' && e1rm > result.globalMaxDl) result.globalMaxDl = e1rm;
+            if (lName === 'Back Squat' && e1rm > result.globalMaxSq) result.globalMaxSq = e1rm;
+            if (lName === 'Bench Press' && e1rm > result.globalMaxBp) result.globalMaxBp = e1rm;
+            if (lName === 'Deadlift' && e1rm > result.globalMaxDl) result.globalMaxDl = e1rm;
           }
         });
       }
@@ -351,7 +356,7 @@ export function computeExercisePRs(state, stats = {}) {
         if (!Array.isArray(setsArr)) continue;
 
         setsArr.forEach(set => {
-          if (set && set.c && set.w && set.r) {
+          if (set && set.c && set.w && set.r && set.type !== 'W' && !set.isWarmup) {
             const weight = parseFloat(set.w);
             const reps = parseInt(set.r);
             const e1RM = weight * (1 + (reps / 30));
@@ -379,9 +384,27 @@ export function computeExercisePRs(state, stats = {}) {
 }
 
 // ==========================================
-// DELOAD SUGGESTION MATCH STUB
+// DELOAD SUGGESTION
+// Triggers on high ACWR, or every 4th week as a scheduled deload.
 // ==========================================
 export function shouldSuggestDeload() {
+  if (!_getState) return { suggest: false, reason: '' };
+  const state = _getState();
+  if (!state) return { suggest: false, reason: '' };
+
+  const { atl = 0, ctl = 0 } = state.loadMetrics || {};
+  const week = parseInt(state.currentWeek, 10) || 1;
+
+  // ACWR > 1.3 → injury-risk zone
+  if (ctl > 0 && atl / ctl > 1.3) {
+    return { suggest: true, reason: `Acute:Chronic ratio is elevated (${(atl / ctl).toFixed(2)}). A deload week will protect against overuse injury.` };
+  }
+
+  // Every 4th week is a scheduled deload (classic 3:1 block structure)
+  if (week > 3 && week % 4 === 0) {
+    return { suggest: true, reason: `Week ${week} is a scheduled deload in your current training block.` };
+  }
+
   return { suggest: false, reason: '' };
 }
 

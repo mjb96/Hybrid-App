@@ -877,6 +877,12 @@
         </article>
         <div id="lfLegend" class="mb-3"></div>
         <div id="lfNote"></div>
+
+        <h2 class="section-header mt-4">Performance Management (ATL / CTL)</h2>
+        <article class="card-dark p-3 mb-4">
+          <div id="lfPMCChart"></div>
+          <div id="lfPMCLegend"></div>
+        </article>
       </div>
 
       <div id="analytics-run-crossref" class="analytics-section">
@@ -1207,18 +1213,55 @@
       </div>
     </div>
 
-    <!-- Step 3: Program -->
+    <!-- Step 3: Fitness Level & Equipment -->
     <div class="ob-step" id="ob-step-3">
       <div class="ob-card">
-        <h1 class="ob-heading">Pick your program</h1>
-        <p class="ob-sub">You can switch anytime in the Program tab.</p>
-        <div class="ob-prog-list" id="obProgramList"></div>
+        <h1 class="ob-heading">Tell us about<br>yourself</h1>
+        <p class="ob-sub">Helps tailor intensity recommendations.</p>
+        <div class="ob-field">
+          <label class="ob-label">Experience level</label>
+          <div class="ob-goal-grid">
+            <button class="ob-goal-btn" data-action="ob-level" data-level="beginner">
+              <span class="ob-goal-icon">🌱</span>
+              <span class="ob-goal-name">Beginner</span>
+              <span class="ob-goal-desc">&lt; 1 year training</span>
+            </button>
+            <button class="ob-goal-btn active" data-action="ob-level" data-level="intermediate">
+              <span class="ob-goal-icon">⚡</span>
+              <span class="ob-goal-name">Intermediate</span>
+              <span class="ob-goal-desc">1–4 years</span>
+            </button>
+            <button class="ob-goal-btn" data-action="ob-level" data-level="advanced">
+              <span class="ob-goal-icon">🏆</span>
+              <span class="ob-goal-name">Advanced</span>
+              <span class="ob-goal-desc">4+ years</span>
+            </button>
+          </div>
+        </div>
+        <div class="ob-field" style="margin-top:20px;">
+          <label class="ob-label">Equipment access</label>
+          <div class="ob-toggle-group">
+            <button class="ob-toggle-btn" data-action="ob-equipment" data-tier="home">Home</button>
+            <button class="ob-toggle-btn active" data-action="ob-equipment" data-tier="gym">Full Gym</button>
+          </div>
+        </div>
+        <button class="ob-cta" data-action="ob-next" data-to="4" style="margin-top:24px;">Continue →</button>
         <button class="ob-back-link" data-action="ob-back" data-to="2">← Back</button>
       </div>
     </div>
 
-    <!-- Step 4: Quick Setup -->
+    <!-- Step 4: Program -->
     <div class="ob-step" id="ob-step-4">
+      <div class="ob-card">
+        <h1 class="ob-heading">Pick your program</h1>
+        <p class="ob-sub">You can switch anytime in the Program tab.</p>
+        <div class="ob-prog-list" id="obProgramList"></div>
+        <button class="ob-back-link" data-action="ob-back" data-to="3">← Back</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Quick Setup -->
+    <div class="ob-step" id="ob-step-5">
       <div class="ob-card">
         <div class="ob-emoji">🎯</div>
         <h1 class="ob-heading">Quick Setup</h1>
@@ -1343,6 +1386,19 @@
           </div>
         </div>
 
+        <!-- Notifications -->
+        <div class="settings-section">
+          <div class="settings-section-label">Notifications</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Daily Training Reminder</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsNotifications">
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+          <div class="text-xs text-muted" style="padding: 0 4px 8px;" id="settingsNotifStatus">Reminds you to train at 07:30 each morning.</div>
+        </div>
+
         <!-- Data -->
         <div class="settings-section">
           <div class="settings-section-label">Data &amp; Backups</div>
@@ -1413,6 +1469,24 @@
     <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" aria-hidden="true">📋</span><span>Programs</span></button>
     <button class="nav-item" data-target="profile" data-action="switch-tab"><span class="icon" aria-hidden="true">👤</span><span>Profile</span></button>
   </nav>
+
+  <!-- Program Rating Modal -->
+  <div class="modal-overlay" id="programRatingModal" role="dialog" aria-modal="true" aria-labelledby="ratingModalTitle">
+    <div class="modal-content">
+      <h2 id="ratingModalTitle" class="text-2xl font-heavy text-inverse mb-1">Rate This Program</h2>
+      <p class="text-lg text-muted mb-4" id="ratingModalProgramName"></p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;" id="ratingStars">
+        <button class="rating-star" data-action="rating-star" data-rating="1" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="2" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="3" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="4" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="5" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+      </div>
+      <textarea id="ratingReviewText" placeholder="Optional: write a short review…" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:inherit;font-family:inherit;font-size:0.9rem;padding:10px 12px;resize:vertical;min-height:80px;box-sizing:border-box;margin-bottom:16px;"></textarea>
+      <button class="btn-action-block btn-blue" data-action="submit-program-rating">Save Rating</button>
+      <button class="btn-action-block" style="margin-top:8px;background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);" data-action="close-rating-modal">Cancel</button>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
     <div class="modal-content">

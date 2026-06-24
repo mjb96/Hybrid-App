@@ -323,6 +323,8 @@ export async function pullEngineDataFromStorage() {
     streakData: { current: 0, longest: 0, lastActivityDate: null },
     goalData: { milestones: [], completedCount: 0 },
     prGoals: {},
+    liftNames: {},
+    liftIdMap: {},
     loadMetrics: { atl: 0, ctl: 0 },
     healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
     wellnessLog: [],
@@ -380,6 +382,9 @@ export async function pullEngineDataFromStorage() {
   if (!appState.healthConnect) appState.healthConnect = { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 };
   if (!appState.wellnessLog) appState.wellnessLog = [];
   if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
+  if (!appState.liftNames) appState.liftNames = {};
+  if (!appState.liftIdMap) appState.liftIdMap = {};
+  if (!appState.prGoals) appState.prGoals = {};
 
   const weeksToDelete = [];
   for (const wk in appState.weeks) {

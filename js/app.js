@@ -22,12 +22,14 @@ import {
   showToast,
   checkActiveSession,
   loginToSupabase,
-  signUpToSupabase
+  signUpToSupabase,
+  savePersonalRating,
+  getPersonalRating,
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
-import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
+import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
@@ -59,6 +61,7 @@ import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from '.
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
+import { initNotifications, requestNotificationPermission, cancelReminders } from './notifications.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -85,12 +88,10 @@ document.addEventListener('app:navigate', (e) => {
   else openAnalyticsView(target);
 });
 
-window.analyticsContext = 'weekly-summary';
-
 let _activePlanDisplayWeek = null;
 
 export function openAnalyticsView(context) {
-  window.analyticsContext = context;
+  setAnalyticsContext(context);
   switchGlobalAppTab('analytics');
 }
 
@@ -271,6 +272,7 @@ function _renderActivePlanHero() {
         </div>
         <div class="aplan-hero-weeks">${actualWk} of ${totalWeeks} weeks</div>
       </div>
+      <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${appState.activeProgramId || ''}" title="Rate this program">★</button>
     </div>
   `;
 }
@@ -824,6 +826,20 @@ else if (action === 'export-csv') triggerCSVExport();
 
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
+
+  // Program Rating Modal
+  else if (action === 'rate-program') _openRatingModal(target.dataset.programId || appState.activeProgramId);
+  else if (action === 'close-rating-modal') _closeRatingModal();
+  else if (action === 'submit-program-rating') _submitProgramRating();
+  else if (action === 'rating-star') _highlightStars(parseInt(target.dataset.rating, 10));
+
+  // Notifications
+  else if (action === 'request-notifications') {
+    requestNotificationPermission().then(({ granted }) => {
+      const el = document.getElementById('settingsNotifStatus');
+      if (el) el.textContent = granted ? 'Reminders active — you\'ll be notified at 07:30.' : 'Permission denied in browser settings.';
+    });
+  }
 });
 
 // Keyboard accessibility for role="button" elements with data-action
@@ -871,6 +887,24 @@ document.addEventListener('change', (e) => {
   const hcField = target.getAttribute?.('data-hc-field');
   if (hcField) { hcToggleSyncField(hcField, target.checked); return; }
   if (target.id === 'settingsAutoAdvance') { setAutoAdvanceWeek(target.checked); return; }
+  if (target.id === 'settingsNotifications') {
+    if (target.checked) {
+      requestNotificationPermission().then(({ granted }) => {
+        const el = document.getElementById('settingsNotifStatus');
+        if (!granted) {
+          target.checked = false;
+          if (el) el.textContent = 'Permission denied. Enable in your browser settings.';
+        } else {
+          if (el) el.textContent = "Reminders active — you'll be notified at 07:30 each morning.";
+        }
+      });
+    } else {
+      cancelReminders();
+      const el = document.getElementById('settingsNotifStatus');
+      if (el) el.textContent = 'Reminders are off.';
+    }
+    return;
+  }
 
   // Data-action based handlers
   const actionTarget = target.closest('[data-action]');
@@ -1085,6 +1119,52 @@ function checkForAutomaticWeekAdvance() {
   }
 }
 
+// ── Program Rating Modal ──────────────────────────────────────────────────
+
+let _ratingProgramId  = null;
+let _ratingSelected   = 0;
+
+function _openRatingModal(programId) {
+  _ratingProgramId = programId;
+  _ratingSelected  = 0;
+  const modal = document.getElementById('programRatingModal');
+  if (!modal) return;
+  const nameEl = document.getElementById('ratingModalProgramName');
+  if (nameEl) {
+    const prog = getProgramById(programId);
+    nameEl.textContent = prog?.name || programId || 'Current Program';
+  }
+  const existing = getPersonalRating(programId);
+  _highlightStars(existing?.rating || 0);
+  const ta = document.getElementById('ratingReviewText');
+  if (ta) ta.value = existing?.review || '';
+  modal.classList.add('active');
+}
+
+function _closeRatingModal() {
+  document.getElementById('programRatingModal')?.classList.remove('active');
+}
+
+function _highlightStars(n) {
+  _ratingSelected = n;
+  document.querySelectorAll('.rating-star').forEach(s => {
+    const r = parseInt(s.dataset.rating, 10);
+    s.style.opacity = r <= n ? '1' : '0.35';
+    s.style.color   = r <= n ? '#f59e0b' : '';
+  });
+}
+
+function _submitProgramRating() {
+  if (!_ratingProgramId || _ratingSelected === 0) {
+    showToast('Please select a rating (1–5 stars).');
+    return;
+  }
+  const review = document.getElementById('ratingReviewText')?.value?.trim() || '';
+  savePersonalRating(_ratingProgramId, _ratingSelected, review);
+  showToast('Rating saved!');
+  _closeRatingModal();
+}
+
 async function bootstrapApp() {
   try {
     determineDefaultCalendarDay();
@@ -1101,6 +1181,7 @@ async function bootstrapApp() {
     window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
+    initNotifications();
     if (shouldShowOnboarding()) setTimeout(() => startOnboarding(), 300);
 
   } catch (fatalLifecycleError) {

@@ -208,18 +208,18 @@ export const PROGRAMS = {
       sun: { title: "Rest", badge: "System Rest", color: "var(--text-muted)", desc: "Rest and recover.", runs: "Rest", lifts: [] }
     },
     weeklyVolModifiers: {
-      "1": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "2": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "3": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "4": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "5": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "6": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "7": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "8": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "9": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "10": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "11": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" },
-      "12": { sets: 4, reps: 8, intensityLabel: "Linear Progression Block" }
+      "1":  { sets: 3, reps: 12, intensityLabel: "Block 1: Volume Accumulation" },
+      "2":  { sets: 4, reps: 10, intensityLabel: "Block 1: Volume Accumulation" },
+      "3":  { sets: 4, reps: 10, intensityLabel: "Block 1: Volume Accumulation" },
+      "4":  { sets: 3, reps: 10, intensityLabel: "Block 1: Deload" },
+      "5":  { sets: 4, reps: 8,  intensityLabel: "Block 2: Hypertrophy" },
+      "6":  { sets: 4, reps: 8,  intensityLabel: "Block 2: Hypertrophy" },
+      "7":  { sets: 5, reps: 6,  intensityLabel: "Block 2: Strength-Hypertrophy" },
+      "8":  { sets: 3, reps: 8,  intensityLabel: "Block 2: Deload" },
+      "9":  { sets: 5, reps: 5,  intensityLabel: "Block 3: Strength Focus" },
+      "10": { sets: 5, reps: 5,  intensityLabel: "Block 3: Strength Focus" },
+      "11": { sets: 4, reps: 4,  intensityLabel: "Block 3: Intensification" },
+      "12": { sets: 3, reps: 3,  intensityLabel: "Block 3: Peak / Test Week" }
     }
   },
   "nsuns_531": {
@@ -240,18 +240,18 @@ export const PROGRAMS = {
       sun: { title: "Rest", badge: "Rest", color: "var(--text-muted)", desc: "Active recovery.", runs: "Rest", lifts: [] }
     },
     weeklyVolModifiers: {
-      "1": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "2": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "3": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "4": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "5": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "6": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "7": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "8": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "9": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "10": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "11": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" },
-      "12": { sets: 9, reps: 3, intensityLabel: "Heavy 9-Set Scheme" }
+      "1":  { sets: 9, reps: 5, intensityLabel: "Cycle 1 — 5s Week (75/85/95%)" },
+      "2":  { sets: 9, reps: 3, intensityLabel: "Cycle 1 — 3s Week (80/90/95%)" },
+      "3":  { sets: 9, reps: 1, intensityLabel: "Cycle 1 — 1+ Peak (75/85/95%+)" },
+      "4":  { sets: 9, reps: 5, intensityLabel: "Cycle 2 — 5s Week (75/85/95%)" },
+      "5":  { sets: 9, reps: 3, intensityLabel: "Cycle 2 — 3s Week (80/90/95%)" },
+      "6":  { sets: 9, reps: 1, intensityLabel: "Cycle 2 — 1+ Peak (75/85/95%+)" },
+      "7":  { sets: 9, reps: 5, intensityLabel: "Cycle 3 — 5s Week (75/85/95%)" },
+      "8":  { sets: 9, reps: 3, intensityLabel: "Cycle 3 — 3s Week (80/90/95%)" },
+      "9":  { sets: 9, reps: 1, intensityLabel: "Cycle 3 — 1+ Peak (75/85/95%+)" },
+      "10": { sets: 9, reps: 5, intensityLabel: "Cycle 4 — 5s Week (77.5/87.5/97.5%)" },
+      "11": { sets: 9, reps: 3, intensityLabel: "Cycle 4 — 3s Week (82.5/92.5/97.5%)" },
+      "12": { sets: 9, reps: 1, intensityLabel: "Cycle 4 — 1+ Peak / Max Test" }
     }
   },
   "kong_savage_size": {

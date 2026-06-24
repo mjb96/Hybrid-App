@@ -37,6 +37,23 @@ export function renderWeeklySummaryAnalytics(data, getState, getDays, selectedWe
   const runSessions = dayItems.filter(d => d.hasRun).length;
   const hasAnyData  = gymSessions > 0 || runSessions > 0;
 
+  // Previous-week deltas
+  const prevIdx  = wkIdx > 0 ? wkIdx - 1 : -1;
+  const prevVol  = prevIdx >= 0 ? (data.volData[prevIdx]  || 0) : null;
+  const prevDist = prevIdx >= 0 ? (data.runData[prevIdx]  || 0) : null;
+  const prevRpe  = prevIdx >= 0 ? (data.rpeData[prevIdx]  || 0) : null;
+  const prevPace = prevIdx >= 0 ? (data.paceData[prevIdx] || 0) : null;
+
+  function wkDelta(curr, prev, higherIsBetter) {
+    if (prev === null || prev === 0 || curr === 0) return '';
+    const pct = Math.round(((curr - prev) / prev) * 100);
+    if (pct === 0) return '';
+    const up    = pct > 0;
+    const good  = up === higherIsBetter;
+    const color = good ? '#10b981' : '#ef4444';
+    return `<div class="ws-stat-delta" style="color:${color};">${up ? '+' : ''}${pct}% vs W${selectedWeek - 1}</div>`;
+  }
+
   // ── Activity strip ──────────────────────────────────────────────────
   const activityStrip = dayItems.map(item => {
     let color, bg, typeLabel;
@@ -74,18 +91,22 @@ export function renderWeeklySummaryAnalytics(data, getState, getDays, selectedWe
       <div class="ws-stat">
         <div class="ws-stat-value" style="color:#3b82f6;">${volStr}</div>
         <div class="ws-stat-label">Gym Volume</div>
+        ${wkDelta(weekVol, prevVol, true)}
       </div>
       <div class="ws-stat">
         <div class="ws-stat-value" style="color:#ec4899;">${distStr}</div>
         <div class="ws-stat-label">Run Distance</div>
+        ${wkDelta(weekDist, prevDist, true)}
       </div>
       <div class="ws-stat">
         <div class="ws-stat-value" style="color:${weekRpe > 0 ? rpeColour(weekRpe) : 'rgba(255,255,255,0.4)'};">${rpeStr}</div>
         <div class="ws-stat-label">Avg RPE</div>
+        ${wkDelta(weekRpe, prevRpe, false)}
       </div>
       <div class="ws-stat">
         <div class="ws-stat-value" style="color:#22d3ee;">${paceStr}</div>
         <div class="ws-stat-label">Avg Pace</div>
+        ${wkDelta(weekPace, prevPace, false)}
       </div>
       <div class="ws-stat">
         <div class="ws-stat-value" style="color:#3b82f6;">${gymSessions > 0 ? gymSessions : '—'}</div>

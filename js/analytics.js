@@ -28,6 +28,9 @@ import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
 
 let _getState;
 let _getDays;
+let _analyticsContext = 'weekly-summary';
+
+export function setAnalyticsContext(ctx) { _analyticsContext = ctx || 'weekly-summary'; }
 
 export function initAnalytics(getStateFn, getDaysFn) {
   _getState = getStateFn;
@@ -185,14 +188,12 @@ function collectAnalyticsData() {
         run.hrZones.forEach((z, i) => { if (i < 5) weekHrZones[i] += parseFloat(z) || 0; });
       }
 
-      const gymRpe = parseFloat(wkData.gymRpe?.[d]) || 0;
-      if (gymRpe > 0) { weekRpeSum += gymRpe; weekRpeCount++; }
-
       const gym = wkData.gymStats?.[d] || {};
       if (gym.avgHR) { weekGymHrSum += parseFloat(gym.avgHR); weekGymHrCount++; }
       if (gym.cals)  { weekGymCals += parseFloat(gym.cals); weekCals += parseFloat(gym.cals); }
 
       const dayLifts = wkData.lifts?.[d] || {};
+      let daySetRpeSum = 0, daySetRpeCount = 0;
       for (const lift in dayLifts) {
         if (!Array.isArray(dayLifts[lift])) continue;
         dayLifts[lift].forEach(s => {
@@ -201,12 +202,19 @@ function collectAnalyticsData() {
             weekVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
             data.globalTotalSets++;
           }
-          // Collect per-set RPE if available
           if (completed && s.rpe && s.type !== 'W') {
-            weekRpeSum += s.rpe;
-            weekRpeCount++;
+            daySetRpeSum += parseFloat(s.rpe) || 0;
+            daySetRpeCount++;
           }
         });
+      }
+      // Per-set RPEs take priority; fall back to session-level gymRpe when absent.
+      if (daySetRpeCount > 0) {
+        weekRpeSum += daySetRpeSum / daySetRpeCount;
+        weekRpeCount++;
+      } else {
+        const gymRpe = parseFloat(wkData.gymRpe?.[d]) || 0;
+        if (gymRpe > 0) { weekRpeSum += gymRpe; weekRpeCount++; }
       }
     });
 
@@ -264,7 +272,7 @@ export function renderAnalytics() {
   updateWeekNavDisplay(_getState);
 
   const data    = collectAnalyticsData();
-  const context = window.analyticsContext || 'weekly-summary';
+  const context = _analyticsContext;
 
   document.querySelectorAll('.analytics-section').forEach(sec => sec.classList.remove('active'));
 
