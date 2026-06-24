@@ -145,7 +145,7 @@
    -------------------------------------------------------------------------- */
 
 .an-insights {
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--overlay-xs);
   border: 1px solid rgba(255, 255, 255, 0.065);
   border-radius: 14px;
   padding: 14px 16px;
@@ -414,7 +414,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.018) !important;
+  background: var(--overlay-xs) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.065) !important;
   padding: 10px 16px !important;
   backdrop-filter: blur(14px);
@@ -470,7 +470,7 @@
 .an-muscle-badge--optimal      { background: rgba( 16, 185, 129, 0.12); color: var(--color-green); }
 .an-muscle-badge--undertrained { background: rgba(239,  68,  68, 0.12); color: var(--color-red); }
 .an-muscle-badge--overtrained  { background: rgba(249, 115,  22, 0.12); color: #f97316; }
-.an-muscle-badge--no_data      { background: rgba(255, 255, 255, 0.05); color: var(--text-faint); }
+.an-muscle-badge--no_data      { background: var(--overlay-md); color: var(--text-faint); }
 
 /* --------------------------------------------------------------------------
    13. METRIC ROW (structured data rows in cards)
@@ -525,7 +525,7 @@
 
 .wellness-checkin-form input[type="number"],
 .wellness-checkin-form input[type="text"] {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: var(--overlay-md) !important;
   border: 1px solid rgba(255, 255, 255, 0.10) !important;
   color: var(--text-primary) !important;
   border-radius: 8px !important;
@@ -556,7 +556,7 @@
    -------------------------------------------------------------------------- */
 
 .trend-track-bg {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--overlay-lg);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -885,7 +885,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   padding: 6px 12px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--overlay-sm);
   color: var(--text-sub);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -905,7 +905,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 }
 
 .fa-edu-card {
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--overlay-sm);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 12px;
   padding: 14px 16px;
@@ -972,7 +972,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 .fa-edu-back:hover { background: rgba(245, 158, 11, 0.14); }
 
 .fa-edu-article {
-  background: rgba(255, 255, 255, 0.018);
+  background: var(--overlay-xs);
   border: 1px solid rgba(255, 255, 255, 0.065);
   border-radius: 14px;
   padding: 20px;
@@ -1098,7 +1098,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 .fasting-btn-analytics:hover { background: rgba(245, 158, 11, 0.18); }
 
 .fz-phase-info {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--overlay-sm);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
   padding: 10px 14px;
@@ -1126,7 +1126,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 .fz-phase-track {
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--overlay-lg);
   border-radius: 2px;
   overflow: hidden;
 }
