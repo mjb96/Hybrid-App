@@ -1895,11 +1895,8 @@ html[data-theme="light"] .wpm-exercise-item {
 }
 
 /* Light mode */
-html[data-theme="light"] .day-split-row--interactive:active { background: rgba(0,0,0,0.05); }
 html[data-theme="light"] .wpm-grid-header { background: rgba(0,0,0,0.03); color: rgba(0,0,0,0.35); }
 html[data-theme="light"] .wpm-grid-row { background: rgba(0,0,0,0.01); border-color: rgba(0,0,0,0.05); }
-html[data-theme="light"] .wpm-phase-line { background: rgba(0,0,0,0.09); }
-html[data-theme="light"] .wpm-phase-dot { background: rgba(0,0,0,0.03); }
 html[data-theme="light"] .wpm-strength-grid { border-color: rgba(0,0,0,0.07); }
 
 /* Author Card */
@@ -2012,9 +2009,6 @@ html[data-theme="light"] .active-prog-badge {
   background: rgba(139,92,246,0.10) !important;
   border-color: rgba(139,92,246,0.30) !important;
 }
-html[data-theme="light"] .active-prog-progress-bar {
-  background: rgba(0,0,0,0.08) !important;
-}
 html[data-theme="light"] .active-prog-continue-btn {
   color: #6d28d9 !important;
   background: rgba(139,92,246,0.10) !important;
@@ -2089,9 +2083,6 @@ html[data-theme="light"] .detail-stats-row {
 html[data-theme="light"] .detail-stat-value {
   color: #0f172a !important;
 }
-html[data-theme="light"] .detail-stat-divider {
-  background: rgba(0,0,0,0.07) !important;
-}
 
 /* Detail "active program" variant CTA button */
 html[data-theme="light"] .detail-cta-btn--active {
@@ -2113,9 +2104,6 @@ html[data-theme="light"] .detail-outcome-chip {
 }
 
 /* Training focus bars */
-html[data-theme="light"] .focus-bar-track {
-  background: rgba(0,0,0,0.09) !important;
-}
 html[data-theme="light"] .focus-bar-pct {
   color: rgba(0,0,0,0.35) !important;
 }
@@ -2532,9 +2520,6 @@ html[data-theme="light"] .aplan-day-card--today {
   background: rgba(99,102,241,0.06);
   border-color: rgba(99,102,241,0.28);
 }
-html[data-theme="light"] .aplan-day-card[data-action="open-day-preview"]:active {
-  background: rgba(0,0,0,0.05);
-}
 html[data-theme="light"] .aplan-day-card--today .aplan-day-label { color: #4f46e5; }
 html[data-theme="light"] .aplan-day-card--today .aplan-day-title { color: #0f172a; }
 html[data-theme="light"] .aplan-today-pip { background: #4f46e5; }
@@ -2582,7 +2567,6 @@ html[data-theme="light"] .detail-author-card {
   background: rgba(0,0,0,0.02);
   border-color: rgba(0,0,0,0.07);
 }
-html[data-theme="light"] .detail-author-icon { background: rgba(0,0,0,0.05); }
 
 /* Social proof values */
 html[data-theme="light"] .social-proof-value { color: #0f172a; }

@@ -674,7 +674,6 @@ html[data-theme="light"] .week-nav-bar {
 }
 
 /* -- Trend track bar ----------------------------------------------------- */
-html[data-theme="light"] .trend-track-bg { background: rgba(0, 0, 0, 0.09); }
 
 /* -- Section divider ----------------------------------------------------- */
 html[data-theme="light"] .an-divider {
@@ -1191,7 +1190,6 @@ html[data-theme="light"] .fz-phase-info {
   border-color: rgba(0, 0, 0, 0.08);
 }
 
-html[data-theme="light"] .fz-phase-track { background: rgba(0, 0, 0, 0.08); }
 
 html[data-theme="light"] .fasting-btn-analytics {
   background: rgba(245, 158, 11, 0.08);

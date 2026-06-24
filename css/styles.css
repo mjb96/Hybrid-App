@@ -2507,9 +2507,6 @@ html[data-theme="light"] .hc-status-card {
   background: rgba(0,0,0,0.03);
   border-color: rgba(0,0,0,0.08);
 }
-html[data-theme="light"] .hc-status-indicator.hc-disconnected {
-  background: rgba(0,0,0,0.18);
-}
 html[data-theme="light"] .hc-data-toggle {
   border-bottom-color: rgba(0,0,0,0.05);
 }
@@ -2519,9 +2516,6 @@ html[data-theme="light"] .week-stepper-btn {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.12);
   color: #0f172a;
-}
-html[data-theme="light"] .week-stepper-btn:hover {
-  background: rgba(0,0,0,0.1);
 }
 
 /* --- Settings switch track --- */
@@ -3934,9 +3928,6 @@ html[data-theme="light"] .cockpit-exercise:not(.collapsed) {
 html[data-theme="light"] .cockpit-exercise.completed {
   border-color: rgba(16,185,129,0.18) !important;
 }
-html[data-theme="light"] .cockpit-exercise:not(.collapsed) .cockpit-header {
-  background: rgba(99,102,241,0.03) !important;
-}
 
 /* --- Session timer bar --- */
 html[data-theme="light"] .session-timer-bar {
@@ -4104,9 +4095,6 @@ html[data-theme="light"] .rest-adj-btn {
   border-color: rgba(0, 0, 0, 0.14);
   color: rgba(0, 0, 0, 0.55);
 }
-html[data-theme="light"] .rest-adj-btn:active {
-  background: rgba(0, 0, 0, 0.10);
-}
 html[data-theme="light"] .rest-skip-btn {
   background: rgba(59, 130, 246, 0.10);
   border-color: rgba(59, 130, 246, 0.35);
@@ -4122,9 +4110,6 @@ html[data-theme="light"] #cockpitTimerClock {
 }
 
 /* Rest progress track (was rgba(255,255,255,0.08) — invisible) */
-html[data-theme="light"] .rest-progress-track {
-  background: rgba(0, 0, 0, 0.10);
-}
 
 /* Start Workout button keeps the green gradient — already looks good in light */
 
@@ -4369,17 +4354,8 @@ html[data-theme="light"] .bar-chart-container::before {
 }
 
 /* Progress tracks (rgba(255,255,255,0.03) — invisible on light) */
-html[data-theme="light"] .progress-track {
-  background: rgba(0,0,0,0.10) !important;
-}
-html[data-theme="light"] .trend-track-bg {
-  background: rgba(0,0,0,0.10) !important;
-}
 
 /* Ratio bar track in the At-a-Glance ratio tile */
-html[data-theme="light"] .tile-interactive .ratio-bar-track {
-  background: rgba(0,0,0,0.10) !important;
-}
 /* The full-size ratio bar (was rgba(0,0,0,0.35) — works but can be lighter) */
 html[data-theme="light"] .ratio-bar-track {
   background: rgba(0,0,0,0.08) !important;
@@ -4387,9 +4363,6 @@ html[data-theme="light"] .ratio-bar-track {
 }
 
 /* Glance tile skeleton loading lines */
-html[data-theme="light"] .tile-skeleton-line {
-  background: rgba(0,0,0,0.08) !important;
-}
 
 /* Settings: section divider (rgba white 4% — invisible) */
 html[data-theme="light"] .settings-section {
@@ -4498,9 +4471,6 @@ html[data-theme="light"] .metric-mini-box .val {
   background: var(--overlay-lg);
   animation: shimmer 1.4s infinite linear;
 }
-html[data-theme="light"] .tile-skeleton-line {
-  background: rgba(0,0,0,0.08);
-}
 @keyframes shimmer {
   0%   { opacity: 0.5; }
   50%  { opacity: 1.0; }
@@ -4585,9 +4555,6 @@ html[data-theme="light"] .auth-card {
   padding: 3px;
   margin-bottom: 20px;
   gap: 2px;
-}
-html[data-theme="light"] .auth-tabs {
-  background: rgba(0,0,0,0.05);
 }
 .auth-tab {
   flex: 1;
@@ -5092,7 +5059,6 @@ html[data-theme="light"] .profile-settings-btn:hover {
   border-color: rgba(0,0,0,0.18);
   color: rgba(0,0,0,0.8);
 }
-html[data-theme="light"] .profile-active-prog-bar { background: rgba(0,0,0,0.06); }
 html[data-theme="light"] .profile-pr-row { border-bottom-color: rgba(0,0,0,0.06); }
 
 /* ── PR row enhancements ─────────────────────────────────────────── */
@@ -5262,7 +5228,6 @@ html[data-theme="light"] .profile-recent-row { background: #fff; border-color: r
 .profile-recent-row--clickable { cursor: pointer; user-select: none; }
 .profile-recent-row--clickable:hover { background: var(--overlay-lg); }
 .profile-recent-row--clickable:active { background: var(--overlay-sm); }
-html[data-theme="light"] .profile-recent-row--clickable:hover { background: rgba(0,0,0,0.04); }
 
 .profile-recent-chevron {
   font-size: 1.15rem;
@@ -5394,9 +5359,7 @@ html[data-theme="light"] .sds-stat-row { border-bottom-color: rgba(0,0,0,0.05); 
   max-width: 65%;
 }
 html[data-theme="light"] .sds-notes-value { color: #334155; }
-html[data-theme="light"] .profile-heatmap-cell { background: rgba(0,0,0,0.05); }
 html[data-theme="light"] .profile-pr-set-goal-btn { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.03); color: var(--text-tertiary); }
-html[data-theme="light"] .profile-pr-goal-bar { background: rgba(0,0,0,0.06); }
 html[data-theme="light"] .profile-pr-trend--up   { color: #059669; }
 html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
 
@@ -5651,7 +5614,6 @@ html[data-theme="light"] .brain-coach--warning  { background: linear-gradient(13
 
 /* Light mode */
 html[data-theme="light"] .gps-start-panel { background: rgba(244,63,94,0.06); border-color: rgba(244,63,94,0.2); }
-html[data-theme="light"] .gps-stat { background: rgba(0,0,0,0.04); }
 html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); color: #0f172a; border-color: rgba(0,0,0,0.1); }
 
 /* ==========================================
@@ -6208,10 +6170,8 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
 /* ── Light mode overrides ─────────────────────────────────────────────────── */
 html[data-theme="light"] .fasting-card { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
 html[data-theme="light"] .fasting-goal-select { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.12); color: #0f172a; }
-html[data-theme="light"] .fasting-progress-track { background: rgba(0,0,0,0.08); }
 html[data-theme="light"] .fasting-btn-detail { background: rgba(0,0,0,0.05); color: #374151; border-color: rgba(0,0,0,0.1); }
 html[data-theme="light"] .fasting-btn-adjust { background: rgba(0,0,0,0.05); color: #374151; border-color: rgba(0,0,0,0.1); }
-html[data-theme="light"] .fasting-btn-adjust:hover { background: rgba(0,0,0,0.09); }
 html[data-theme="light"] .fasting-edit-panel { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
 html[data-theme="light"] .fhr-edit-panel      { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
 html[data-theme="light"] .fasting-edit-input  { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.12); color: #0f172a; }
@@ -6219,14 +6179,7 @@ html[data-theme="light"] .fasting-edit-cancel { background: rgba(0,0,0,0.05); bo
 html[data-theme="light"] .fhr-edit-btn        { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.35); color: #d97706; }
 html[data-theme="light"] .fhr-edit-btn:hover  { background: rgba(245,158,11,0.16); }
 html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(245,158,11,0.05); }
-html[data-theme="light"] .fasting-metric { background: rgba(0,0,0,0.04); }
-html[data-theme="light"] .fz-dot { background: rgba(0,0,0,0.04); }
-html[data-theme="light"] .ws-stat { background: rgba(0,0,0,0.04); }
-html[data-theme="light"] .ws-streak-cell { background: rgba(0,0,0,0.06); }
 html[data-theme="light"] .ws-summary-card { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
-html[data-theme="light"] .ws-recovery-row { background: rgba(0,0,0,0.04); }
-html[data-theme="light"] .ws-checkin-card { background: rgba(0,0,0,0.04); }
-html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }
 
 /* ==========================================================================
    WEEKLY FITNESS GRAPH — Garmin Connect-style chart for In Focus cards
@@ -6551,9 +6504,7 @@ html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }
 .wfg-mclose:active { background: rgba(59,130,246,0.25); }
 
 /* Light theme adjustments */
-html[data-theme="light"] .wfg-tabs { background: rgba(0,0,0,0.05); }
 html[data-theme="light"] .wfg-gl  { border-color: rgba(0,0,0,0.08); }
-html[data-theme="light"] .wfg-dot { background: rgba(0,0,0,0.15); }
 html[data-theme="light"] .wfg-footer { border-color: rgba(0,0,0,0.1); }
 html[data-theme="light"] #wfgModal { background: rgba(0,0,0,0.55); }
 html[data-theme="light"] .wfg-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
@@ -7045,7 +6996,6 @@ html[data-theme="light"] .rest-skip-btn {
   border-color: rgba(59,130,246,0.28) !important;
   color: #2563eb !important;
 }
-html[data-theme="light"] .rest-progress-track { background: rgba(0,0,0,0.08) !important; }
 html[data-theme="light"] .rest-progress-fill  { background: var(--color-blue) !important; }
 
 
@@ -7087,9 +7037,6 @@ html[data-theme="light"] .fit-import-tile--gym:hover {
 
 html[data-theme="light"] .cockpit-body {
   background: rgba(0,0,0,0.02) !important;
-}
-html[data-theme="light"] .cockpit-header {
-  background: rgba(0,0,0,0.01) !important;
 }
 html[data-theme="light"] .cockpit-exercise:not(.collapsed) .cockpit-header {
   background: rgba(99,102,241,0.03) !important;
