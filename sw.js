@@ -1,14 +1,17 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v35';
+const CACHE_NAME = 'hybrid-training-v37';
 
 const LOCAL_ASSETS = [
   './',
   './index.html',
   './css/styles.css',
+  './css/analytics.css',
+  './css/programs.css',
   './manifest.json',
   './icon-512.png',
+  // Core app
   './js/app.js',
   './js/constants.js',
   './js/analytics.js',
@@ -29,25 +32,77 @@ const LOCAL_ASSETS = [
   './js/util.js',
   './js/dates.js',
   './js/schema.js',
+  './js/onboarding.js',
+  './js/settings.js',
+  './js/run-logger.js',
+  './js/athlete-profile.js',
+  './js/gps-tracker.js',
+  './js/fasting.js',
+  // State sub-modules
+  './js/state/auth.js',
+  './js/state/import-export.js',
+  './js/state/supabase.js',
+  // Metrics
   './js/metrics/metrics-strength.js',
   './js/metrics/metrics-running.js',
   './js/metrics/metrics-load.js',
+  // Brain / AI
   './js/brain/load_models.js',
   './js/brain/briefing.js',
   './js/brain/recommendations.js',
-  './js/gps-tracker.js',
-  './js/fasting.js',
+  // Fasting sub-modules
+  './js/fasting/fasting-achievements.js',
+  './js/fasting/fasting-calcs.js',
+  './js/fasting/fasting-education.js',
+  './js/fasting/fasting-insights.js',
+  // Programs
+  './js/programs/catalog.js',
+  './js/programs/catalog/fitness.js',
+  './js/programs/catalog/hybrid.js',
+  './js/programs/catalog/hypertrophy.js',
+  './js/programs/catalog/hyrox.js',
+  './js/programs/catalog/running.js',
+  './js/programs/catalog/strength.js',
+  './js/programs/collections.js',
+  './js/programs/detail.js',
+  './js/programs/library.js',
+  './js/programs/recommendations.js',
+  './js/programs/search.js',
+  // Home sub-modules
+  './js/home/activity-calendar.js',
+  './js/home/fasting-card.js',
+  './js/home/tile-renderers.js',
+  './js/home/weekly-fitness-graph.js',
+  // Analytics
   './js/analytics/utils.js',
   './js/analytics/charts.js',
+  './js/analytics/week-nav.js',
+  './js/analytics/calculations/load-calcs.js',
+  './js/analytics/calculations/math-utils.js',
+  './js/analytics/calculations/recovery-calcs.js',
+  './js/analytics/calculations/running-calcs.js',
+  './js/analytics/calculations/strength-calcs.js',
+  './js/analytics/charts/chart-primitives.js',
+  './js/analytics/charts/fasting-charts.js',
+  './js/analytics/charts/load-charts.js',
+  './js/analytics/charts/recovery-charts.js',
+  './js/analytics/charts/running-charts.js',
+  './js/analytics/charts/strength-charts.js',
+  './js/analytics/insights/insight-engine.js',
+  './js/analytics/scoring/readiness-scoring.js',
   './js/analytics/views/view-strength.js',
   './js/analytics/views/view-running.js',
   './js/analytics/views/view-recovery.js',
   './js/analytics/views/view-bodyweight.js',
-  './js/analytics/views/view-progress.js',
-  './js/analytics/views/view-training-status.js',
+  './js/analytics/views/view-fasting.js',
   './js/analytics/views/view-load-focus.js',
+  './js/analytics/views/view-progress.js',
   './js/analytics/views/view-run-crossref.js',
+  './js/analytics/views/view-training-status.js',
   './js/analytics/views/view-vdot.js',
+  './js/analytics/views/view-avg-pace.js',
+  './js/analytics/views/view-stress-balance.js',
+  './js/analytics/views/view-weekly-summary.js',
 ];
 
 const CDN_ASSETS = [

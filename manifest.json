@@ -1,18 +1,27 @@
 {
-  "short_name": "HybridTraining",
-  "name": "Hybrid Training",
+  "short_name": "Hybrid Engine",
+  "name": "Hybrid Engine — Train Smarter",
+  "description": "Hybrid strength and running training platform. Track lifts, runs, recovery and fasting.",
   "icons": [
     {
       "src": "./icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": "./index.html",
   "scope": "./",
-  "background_color": "#070a12",
-  "theme_color": "#070a12",
+  "background_color": "#020408",
+  "theme_color": "#020408",
   "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "categories": ["health", "fitness", "sports"],
+  "prefer_related_applications": false
 }

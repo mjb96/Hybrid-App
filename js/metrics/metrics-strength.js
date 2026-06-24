@@ -16,7 +16,7 @@ function isCompleted(s) {
 }
 
 function isWorkingSet(s) {
-  return isCompleted(s) && !s.isWarmup;
+  return isCompleted(s) && s.type !== 'W' && !s.isWarmup;
 }
 
 // ---- muscle map (primary weight 1.0, secondary weight 0.5) ----------------

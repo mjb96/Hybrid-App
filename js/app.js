@@ -27,7 +27,7 @@ import {
 
 import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
-import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight } from './analytics.js';
+import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
@@ -85,12 +85,10 @@ document.addEventListener('app:navigate', (e) => {
   else openAnalyticsView(target);
 });
 
-window.analyticsContext = 'weekly-summary';
-
 let _activePlanDisplayWeek = null;
 
 export function openAnalyticsView(context) {
-  window.analyticsContext = context;
+  setAnalyticsContext(context);
   switchGlobalAppTab('analytics');
 }
 
