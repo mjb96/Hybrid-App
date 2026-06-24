@@ -2233,7 +2233,6 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   padding: 0 0 8px;
   line-height: 1.4;
 }
-html[data-theme="light"] .settings-hint { color: rgba(0,0,0,0.4); }
 .hc-note {
   font-size: 0.7rem;
   color: var(--text-faint);
@@ -2419,8 +2418,6 @@ html[data-theme="light"] .cockpit-exercise {
   border-color: rgba(0, 0, 0, 0.08);
 }
 html[data-theme="light"] .cockpit-ex-name   { color: #0f172a; }
-html[data-theme="light"] .cockpit-ex-target { color: #475569; }
-html[data-theme="light"] .cockpit-ex-status { color: rgba(0,0,0,0.45); }
 html[data-theme="light"] .cockpit-history-line { color: rgba(0,0,0,0.35); border-bottom-color: rgba(0,0,0,0.05); }
 html[data-theme="light"] .cockpit-set-row {
   border-bottom-color: rgba(0,0,0,0.06);
@@ -2466,14 +2463,8 @@ html[data-theme="light"] .settings-close-btn:hover {
 html[data-theme="light"] .settings-section {
   border-bottom-color: rgba(0,0,0,0.06);
 }
-html[data-theme="light"] .settings-section-label {
-  color: rgba(0,0,0,0.38);
-}
 html[data-theme="light"] .settings-row {
   border-bottom-color: rgba(0,0,0,0.05);
-}
-html[data-theme="light"] .settings-row-label {
-  color: rgba(0,0,0,0.72);
 }
 html[data-theme="light"] .settings-input {
   background: rgba(0,0,0,0.05);
@@ -2482,9 +2473,6 @@ html[data-theme="light"] .settings-input {
 }
 html[data-theme="light"] .settings-input:focus {
   border-color: rgba(99,102,241,0.55);
-}
-html[data-theme="light"] .settings-unit-badge {
-  color: rgba(0,0,0,0.38);
 }
 html[data-theme="light"] .settings-toggle-btn {
   background: rgba(0,0,0,0.05);
@@ -2516,14 +2504,8 @@ html[data-theme="light"] .hc-status-card {
 html[data-theme="light"] .hc-status-indicator.hc-disconnected {
   background: rgba(0,0,0,0.18);
 }
-html[data-theme="light"] .hc-data-toggle span {
-  color: rgba(0,0,0,0.65);
-}
 html[data-theme="light"] .hc-data-toggle {
   border-bottom-color: rgba(0,0,0,0.05);
-}
-html[data-theme="light"] .hc-note {
-  color: rgba(0,0,0,0.35);
 }
 
 /* --- Week stepper --- */
@@ -2779,9 +2761,7 @@ button.cal-cell:active { opacity: 0.7; }
 }
 html[data-theme="light"] #calModal { background: rgba(0,0,0,0.5); }
 html[data-theme="light"] .cal-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
-html[data-theme="light"] .cal-mdate { color: rgba(0,0,0,0.45); }
 html[data-theme="light"] .cal-m-stat { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
-html[data-theme="light"] .cal-m-sl { color: rgba(0,0,0,0.45); }
 html[data-theme="light"] .cal-mclose { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); color: rgba(0,0,0,0.5); }
 
 /* ==========================================================================
@@ -2964,13 +2944,11 @@ html[data-theme="light"] .rl-day-btn.active {
   color: var(--color-indigo);
 }
 html[data-theme="light"] .rl-field-row { border-bottom-color: rgba(0,0,0,0.05); }
-html[data-theme="light"] .rl-label { color: rgba(0,0,0,0.65); }
 html[data-theme="light"] .rl-input {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.12);
   color: #0f172a;
 }
-html[data-theme="light"] .rl-unit-badge { color: rgba(0,0,0,0.35); }
 html[data-theme="light"] .rl-rpe-btn {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.12);
@@ -3372,7 +3350,6 @@ html[data-theme="light"] .el-search {
   border-color: rgba(0,0,0,0.12);
   color: #0f172a;
 }
-html[data-theme="light"] .el-cat-label { color: rgba(0,0,0,0.32); }
 html[data-theme="light"] .el-chip {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.10);
@@ -3858,22 +3835,13 @@ html[data-theme="light"] .card-dark:hover {
 }
 
 /* --- Section header text --- */
-html[data-theme="light"] h2.section-header {
-  color: rgba(15,23,42,0.75) !important;
-}
 
 /* --- App-wide section heading --- */
 html[data-theme="light"] .app-section-heading__title {
   color: #0f172a !important;
 }
-html[data-theme="light"] .app-section-heading__sub {
-  color: rgba(0,0,0,0.42) !important;
-}
 
 /* --- Home header --- */
-html[data-theme="light"] .home-app-label {
-  color: rgba(0,0,0,0.30) !important;
-}
 html[data-theme="light"] .home-week-label {
   color: #0f172a !important;
 }
@@ -3902,9 +3870,6 @@ html[data-theme="light"] .home-metric-card--gym .hmcard-label { color: #4338ca !
 html[data-theme="light"] .home-metric-card--run .hmcard-label { color: #0891b2 !important; }
 html[data-theme="light"] .hmcard-hero {
   color: #0f172a !important;
-}
-html[data-theme="light"] .hmcard-sub {
-  color: rgba(0,0,0,0.38) !important;
 }
 
 /* Log run FAB in light mode */
@@ -4193,7 +4158,6 @@ html[data-theme="light"] .run-notes-input {
   border-color: rgba(0,0,0,0.08);
   color: #0f172a;
 }
-html[data-theme="light"] .run-notes-input::placeholder { color: rgba(0,0,0,0.25); }
 html[data-theme="light"] .run-notes-input:focus {
   border-color: rgba(8,145,178,0.30);
   background: rgba(8,145,178,0.02);
@@ -4211,8 +4175,6 @@ html[data-theme="light"] .fit-import-tile--gym {
   border-color: rgba(59,130,246,0.18);
 }
 html[data-theme="light"] .fit-import-tile--gym .fit-import-tile__title { color: #2563eb; }
-html[data-theme="light"] .fit-import-tile__sub { color: rgba(0,0,0,0.35); }
-html[data-theme="light"] .fit-import-tile__arrow { color: rgba(0,0,0,0.18); }
 
 /* Run card extra stats divider */
 html[data-theme="light"] #runExtraStats {
@@ -4226,9 +4188,6 @@ html[data-theme="light"] .set-num-lbl {
 }
 
 /* Cockpit exercise drag handle */
-html[data-theme="light"] .drag-handle-grip {
-  color: rgba(0, 0, 0, 0.30);
-}
 html[data-theme="light"] .drag-handle-grip:hover {
   color: var(--color-indigo);
 }
@@ -4355,9 +4314,6 @@ html[data-theme="light"] .btn-danger-ghost:hover {
 }
 
 /* Light mode overrides for workout header */
-html[data-theme="light"] .wch-label {
-  color: rgba(0,0,0,0.30);
-}
 html[data-theme="light"] .wch-title {
   color: #0f172a;
 }
@@ -4648,7 +4604,6 @@ html[data-theme="light"] .auth-tab--active {
   color: #0f172a;
   box-shadow: 0 1px 4px rgba(0,0,0,0.10);
 }
-html[data-theme="light"] .auth-tab { color: var(--text-secondary); }
 
 .auth-field { margin-bottom: 14px; }
 .auth-label {
@@ -4679,7 +4634,6 @@ html[data-theme="light"] .auth-input {
   border-color: rgba(0,0,0,0.10);
   color: #0f172a;
 }
-html[data-theme="light"] .auth-input::placeholder { color: rgba(0,0,0,0.25); }
 html[data-theme="light"] .auth-input:focus { border-color: var(--color-blue); }
 
 .auth-error {
@@ -5104,7 +5058,6 @@ html[data-theme="light"] .auth-offline-btn:hover {
 }
 
 /* ── Light theme overrides ─── */
-html[data-theme="light"] .profile-hero-sub { color: var(--text-tertiary); }
 html[data-theme="light"] .profile-stat-card,
 html[data-theme="light"] .profile-active-program,
 html[data-theme="light"] .profile-empty-card,
@@ -5133,13 +5086,8 @@ html[data-theme="light"] .profile-settings-btn:hover {
   border-color: rgba(0,0,0,0.18);
   color: rgba(0,0,0,0.8);
 }
-html[data-theme="light"] .profile-active-prog-meta { color: var(--text-tertiary); }
 html[data-theme="light"] .profile-active-prog-bar { background: rgba(0,0,0,0.06); }
-html[data-theme="light"] .profile-active-prog-arrow { color: rgba(0,0,0,0.25); }
-html[data-theme="light"] .profile-empty-text { color: var(--text-tertiary); }
 html[data-theme="light"] .profile-pr-row { border-bottom-color: rgba(0,0,0,0.06); }
-html[data-theme="light"] .profile-pr-tag { color: var(--text-tertiary); }
-html[data-theme="light"] .profile-completion-meta { color: var(--text-tertiary); }
 
 /* ── PR row enhancements ─────────────────────────────────────────── */
 
@@ -5303,7 +5251,6 @@ html[data-theme="light"] .profile-completion-meta { color: var(--text-tertiary);
 /* ── Light theme overrides ───────────────────────────────────────── */
 
 html[data-theme="light"] .profile-recent-row { background: #fff; border-color: rgba(0,0,0,0.07); }
-html[data-theme="light"] .profile-recent-desc { color: var(--text-tertiary); }
 
 /* ── Clickable recent session rows ───────────────────────────────── */
 .profile-recent-row--clickable { cursor: pointer; user-select: none; }
@@ -5318,7 +5265,6 @@ html[data-theme="light"] .profile-recent-row--clickable:hover { background: rgba
   margin-left: 4px;
   line-height: 1;
 }
-html[data-theme="light"] .profile-recent-chevron { color: rgba(0,0,0,0.2); }
 
 /* ── Session Detail Modal ────────────────────────────────────────── */
 .sds-modal-content { max-height: 88vh; display: flex; flex-direction: column; }
@@ -5336,7 +5282,6 @@ html[data-theme="light"] .profile-recent-chevron { color: rgba(0,0,0,0.2); }
   color: var(--text-muted);
   margin: 2px 0 12px;
 }
-html[data-theme="light"] .sds-date-label { color: var(--text-tertiary); }
 
 .sds-body {
   overflow-y: auto;
@@ -5357,7 +5302,6 @@ html[data-theme="light"] .sds-date-label { color: var(--text-tertiary); }
   color: var(--text-faint);
   margin-bottom: 8px;
 }
-html[data-theme="light"] .sds-section-title { color: var(--text-tertiary); }
 
 .sds-lift {
   background: rgba(255,255,255,0.04);
@@ -5391,10 +5335,8 @@ html[data-theme="light"] .sds-set-row { border-bottom-color: rgba(0,0,0,0.04); }
   font-weight: 600;
   font-size: 0.72rem;
 }
-html[data-theme="light"] .sds-set-label { color: var(--text-tertiary); }
 
 .sds-set-row--warmup .sds-set-label { color: var(--text-faint); }
-html[data-theme="light"] .sds-set-row--warmup .sds-set-label { color: #cbd5e1; }
 
 .sds-set-detail {
   color: var(--text-primary, #f8fafc);
@@ -5429,7 +5371,6 @@ html[data-theme="light"] .sds-stat-row { border-bottom-color: rgba(0,0,0,0.05); 
   color: var(--text-muted);
   font-weight: 600;
 }
-html[data-theme="light"] .sds-stat-label { color: var(--text-tertiary); }
 
 .sds-stat-value {
   color: var(--text-primary, #f8fafc);
@@ -5448,10 +5389,8 @@ html[data-theme="light"] .sds-stat-label { color: var(--text-tertiary); }
 }
 html[data-theme="light"] .sds-notes-value { color: #334155; }
 html[data-theme="light"] .profile-heatmap-cell { background: rgba(0,0,0,0.05); }
-html[data-theme="light"] .profile-heatmap-day-label { color: var(--text-tertiary); }
 html[data-theme="light"] .profile-pr-set-goal-btn { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.03); color: var(--text-tertiary); }
 html[data-theme="light"] .profile-pr-goal-bar { background: rgba(0,0,0,0.06); }
-html[data-theme="light"] .profile-pr-goal-meta { color: var(--text-tertiary); }
 html[data-theme="light"] .profile-pr-trend--up   { color: #059669; }
 html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
 
@@ -5557,7 +5496,6 @@ html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
 
 /* Light mode overrides */
 html[data-theme="light"] .brain-coach-card  { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.03); }
-html[data-theme="light"] .brain-coach-advice { color: #475569; }
 html[data-theme="light"] .brain-coach--positive { background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.02) 100%); border-color: rgba(16,185,129,0.25); }
 html[data-theme="light"] .brain-coach--caution  { background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%); border-color: rgba(245,158,11,0.25); }
 html[data-theme="light"] .brain-coach--warning  { background: linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(239,68,68,0.02) 100%);  border-color: rgba(239,68,68,0.25); }
@@ -5707,9 +5645,7 @@ html[data-theme="light"] .brain-coach--warning  { background: linear-gradient(13
 
 /* Light mode */
 html[data-theme="light"] .gps-start-panel { background: rgba(244,63,94,0.06); border-color: rgba(244,63,94,0.2); }
-html[data-theme="light"] .gps-start-title { color: #0f172a; }
 html[data-theme="light"] .gps-stat { background: rgba(0,0,0,0.04); }
-html[data-theme="light"] .gps-stat-value { color: #0f172a; }
 html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); color: #0f172a; border-color: rgba(0,0,0,0.1); }
 
 /* ==========================================
@@ -6610,18 +6546,12 @@ html[data-theme="light"] .ws-check-cell { background: rgba(0,0,0,0.06); }
 
 /* Light theme adjustments */
 html[data-theme="light"] .wfg-tabs { background: rgba(0,0,0,0.05); }
-html[data-theme="light"] .wfg-tab { color: rgba(0,0,0,0.45); }
-html[data-theme="light"] .wfg-yl  { color: rgba(0,0,0,0.4); }
-html[data-theme="light"] .wfg-xl  { color: rgba(0,0,0,0.4); }
 html[data-theme="light"] .wfg-gl  { border-color: rgba(0,0,0,0.08); }
 html[data-theme="light"] .wfg-dot { background: rgba(0,0,0,0.15); }
-html[data-theme="light"] .wfg-stl { color: rgba(0,0,0,0.45); }
 html[data-theme="light"] .wfg-footer { border-color: rgba(0,0,0,0.1); }
 html[data-theme="light"] #wfgModal { background: rgba(0,0,0,0.55); }
 html[data-theme="light"] .wfg-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
-html[data-theme="light"] .wfg-mdate { color: rgba(0,0,0,0.5); }
 html[data-theme="light"] .wfg-ms { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
-html[data-theme="light"] .wfg-msl { color: rgba(0,0,0,0.45); }
 
 /* ==========================================================================
    DESIGN SYSTEM REFINEMENT — Phase 2 Polish
@@ -6778,7 +6708,6 @@ html[data-theme="light"] .ws-stat {
 }
 
 html[data-theme="light"] .ws-stat-value { color: #0f172a !important; }
-html[data-theme="light"] .ws-stat-label { color: var(--text-secondary) !important; }
 html[data-theme="light"] .ws-stat-delta { color: inherit !important; }
 
 .ws-stat-value { font-size: 1.1rem; font-weight: 800; }
@@ -6937,7 +6866,6 @@ html[data-theme="light"] .el-sheet {
   background: #ffffff !important;
   border-top-color: rgba(0,0,0,0.08) !important;
 }
-html[data-theme="light"] .el-empty { color: rgba(0,0,0,0.35) !important; }
 html[data-theme="light"] .el-custom-row { background: #f8fafc !important; }
 html[data-theme="light"] .el-custom-add-btn {
   background: rgba(99,102,241,0.12) !important;
@@ -7076,7 +7004,6 @@ html[data-theme="light"] .run-notes-input {
   border-color: rgba(0,0,0,0.08) !important;
   color: #0f172a !important;
 }
-html[data-theme="light"] .run-notes-input::placeholder { color: rgba(0,0,0,0.28) !important; }
 html[data-theme="light"] .run-notes-input:focus {
   border-color: rgba(6,182,212,0.35) !important;
   background: rgba(6,182,212,0.03) !important;
@@ -7146,8 +7073,6 @@ html[data-theme="light"] .fit-import-tile--gym {
 html[data-theme="light"] .fit-import-tile--gym:hover {
   background: rgba(59,130,246,0.09) !important;
 }
-html[data-theme="light"] .fit-import-tile__sub { color: rgba(0,0,0,0.35) !important; }
-html[data-theme="light"] .fit-import-tile__arrow { color: rgba(0,0,0,0.18) !important; }
 
 
 /* --------------------------------------------------------------------------
@@ -7164,7 +7089,6 @@ html[data-theme="light"] .cockpit-exercise:not(.collapsed) .cockpit-header {
   background: rgba(99,102,241,0.03) !important;
   border-bottom-color: rgba(0,0,0,0.06) !important;
 }
-html[data-theme="light"] .drag-handle-grip { color: rgba(0,0,0,0.3) !important; }
 html[data-theme="light"] .drag-handle-grip:hover { color: var(--color-indigo) !important; }
 
 html[data-theme="light"] .cockpit-history-line {
@@ -7319,7 +7243,6 @@ html[data-theme="light"] .profile-customise-btn:hover {
   margin-bottom: 16px;
   line-height: 1.4;
 }
-html[data-theme="light"] .pcs-hint { color: rgba(0,0,0,0.4); }
 
 .profile-customiser-list { padding-bottom: 4px; }
 
@@ -7347,7 +7270,6 @@ html[data-theme="light"] .pcs-item { background: rgba(0,0,0,0.03); border-color:
   flex-shrink: 0;
   touch-action: none;
 }
-html[data-theme="light"] .pcs-handle { color: rgba(0,0,0,0.25); }
 .pcs-icon { font-size: 1.05rem; flex-shrink: 0; }
 .pcs-label { flex: 1; font-size: 0.87rem; font-weight: 600; color: var(--text-primary); }
 .pcs-toggle { flex-shrink: 0; }
