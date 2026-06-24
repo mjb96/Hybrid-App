@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // STRENGTH CALCULATIONS — analytics/calculations/strength-calcs.js
 // Pure functions. No DOM, no side effects.

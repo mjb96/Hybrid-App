@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // STATE MANAGER — core state + sub-module wiring.
 // Auth lives in ./state/auth.js
@@ -21,6 +22,7 @@ export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSu
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 
 // Base state configuration
+/** @type {import('./types').AppState} */
 export let appState = {
   currentWeek: "1",
   activeProgramId: "hybrid_engine",
@@ -440,7 +442,7 @@ export function logActivityForStreak() {
     last.setHours(0, 0, 0, 0);
     current.setHours(0, 0, 0, 0);
     
-    const diffTime = current - last;
+    const diffTime = current.getTime() - last.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 1) appState.streakData.current += 1;

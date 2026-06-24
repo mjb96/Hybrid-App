@@ -1,0 +1,22 @@
+{
+  // Lenient base so existing JS isn't flooded with implicit-any errors.
+  // Files opt into checking with `// @ts-check`; richer checking comes from the
+  // JSDoc types in js/types.d.ts (e.g. AppState). Tighten over time.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noImplicitThis": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["js/**/*.js"]
+}
