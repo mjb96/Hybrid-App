@@ -138,10 +138,10 @@ html, body {
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
 }
 
 body {
+  overflow-x: hidden;
   overscroll-behavior: none;
   padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   background-image:
