@@ -192,6 +192,9 @@
   height: 44px;
 }
 
+.active-prog-ring-track { stroke: rgba(255,255,255,0.08); }
+html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
+
 .active-prog-pct {
   position: absolute;
   inset: 0;
@@ -2033,6 +2036,33 @@ html[data-theme="light"] .active-prog-pct {
 }
 html[data-theme="light"] .active-prog-arrow {
   color: rgba(0,0,0,0.25) !important;
+}
+/* These used white-alpha colours with no light override, so they were
+   invisible (white-on-white) on the light card. */
+html[data-theme="light"] .active-prog-badge {
+  color: #6d28d9 !important;
+  background: rgba(139,92,246,0.10) !important;
+  border-color: rgba(139,92,246,0.30) !important;
+}
+html[data-theme="light"] .active-prog-next-label {
+  color: rgba(0,0,0,0.50) !important;
+}
+html[data-theme="light"] .active-prog-meta-sep {
+  color: rgba(0,0,0,0.25) !important;
+}
+html[data-theme="light"] .active-prog-complete-text {
+  color: rgba(0,0,0,0.45) !important;
+}
+html[data-theme="light"] .active-prog-progress-bar {
+  background: rgba(0,0,0,0.08) !important;
+}
+html[data-theme="light"] .active-prog-continue-btn {
+  color: #6d28d9 !important;
+  background: rgba(139,92,246,0.10) !important;
+  border-color: rgba(139,92,246,0.40) !important;
+}
+html[data-theme="light"] .active-prog-continue-btn:active {
+  background: rgba(139,92,246,0.18) !important;
 }
 
 /* Program cards */

@@ -130,7 +130,11 @@ function _syncSettingsUI() {
 
 function _setToggleActive(groupSelector, activeSelector) {
   document.querySelectorAll(groupSelector).forEach(b => b.classList.remove('active'));
-  document.querySelector(activeSelector)?.classList.add('active');
+  // Scope the value match to the group: several data-* values (data-day, data-goal,
+  // data-level, data-unit) also exist in the cockpit/onboarding, which appear earlier
+  // in the DOM, so an unscoped querySelector would highlight the wrong element (or
+  // nothing in this group). Compound the selectors so we always hit this group's button.
+  document.querySelector(groupSelector + activeSelector)?.classList.add('active');
 }
 
 // ==========================================
