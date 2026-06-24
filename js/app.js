@@ -57,13 +57,13 @@ import {
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
-  saveReminderTime, setNotifToggle,
+  saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, signOut,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
-import { initNotifications, requestNotificationPermission, cancelReminders } from './notifications.js';
+import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -715,6 +715,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'set-fitness-level')    setFitnessLevel(target.getAttribute('data-level'));
   else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
   else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));
+  else if (action === 'sign-out')             signOut();
 
   // Onboarding
   else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
@@ -895,6 +896,9 @@ document.addEventListener('change', (e) => {
   if (target.id === 'settingsAutoAdvance')          { setAutoAdvanceWeek(target.checked); return; }
   if (target.id === 'settingsNotifWeeklySummary')   { setNotifToggle('weeklySummary', target.checked); return; }
   if (target.id === 'settingsNotifStreak')          { setNotifToggle('streak', target.checked); return; }
+  if (target.id === 'settingsNotifMissedWorkout')   { setNotifToggle('missed', target.checked); return; }
+  const eqKey = target.getAttribute?.('data-equipment');
+  if (eqKey) { toggleEquipment(eqKey, target.checked); return; }
   if (target.id === 'settingsNotifications') {
     if (target.checked) {
       requestNotificationPermission().then(({ granted }) => {
@@ -928,7 +932,8 @@ document.addEventListener('blur', (e) => {
   else if (id === 'settingsBodyWeight') saveBodyWeight();
   else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
   else if (id === 'settingsStepGoal') saveStepGoal();
-  else if (id === 'settingsReminderTime') saveReminderTime();
+  else if (id === 'settingsReminderTime')    saveReminderTime();
+  else if (id === 'settingsStreakAlertTime') saveStreakAlertTime();
 }, true);
 
 document.addEventListener('input', (e) => {
@@ -1191,6 +1196,7 @@ async function bootstrapApp() {
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
     initNotifications(() => appState);
+    checkMissedWorkout();
     if (shouldShowOnboarding()) setTimeout(() => startOnboarding(), 300);
 
   } catch (fatalLifecycleError) {

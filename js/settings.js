@@ -5,6 +5,7 @@ import { saveStateToLocalStorage } from './state.js';
 import { setRestDuration } from './timers.js';
 import { showToast } from './state.js';
 import { rearmReminder } from './notifications.js';
+import { getCloudUser, signOutSupabase } from './state/auth.js';
 
 let _getState;
 
@@ -76,14 +77,23 @@ function _syncSettingsUI() {
     threshEl.value = Math.floor(total / 60) + ':' + (total % 60).toString().padStart(2, '0');
   }
 
+  // Equipment checkboxes
+  const eq = s.equipment || {};
+  ['barbell','rack','dumbbells','cables','pullupBar','bands','kettlebells','treadmill'].forEach(key => {
+    const el = document.querySelector(`[data-equipment="${key}"]`);
+    if (el) el.checked = eq[key] !== false && (eq[key] === true || ['barbell','rack','dumbbells','cables','pullupBar'].includes(key));
+  });
+
   // Notification toggles
   const notifCheckbox = document.getElementById('settingsNotifications');
   if (notifCheckbox) notifCheckbox.checked = ('Notification' in window) && Notification.permission === 'granted';
 
-  const notifWeekly  = document.getElementById('settingsNotifWeeklySummary');
-  const notifStreak  = document.getElementById('settingsNotifStreak');
+  const notifWeekly   = document.getElementById('settingsNotifWeeklySummary');
+  const notifStreak   = document.getElementById('settingsNotifStreak');
+  const notifMissed   = document.getElementById('settingsNotifMissedWorkout');
   if (notifWeekly) notifWeekly.checked = !!s.notifWeeklySummary;
   if (notifStreak)  notifStreak.checked  = !!s.notifStreak;
+  if (notifMissed)  notifMissed.checked  = !!s.notifMissedWorkout;
 
   // Reminder time picker
   const rtEl = document.getElementById('settingsReminderTime');
@@ -91,6 +101,16 @@ function _syncSettingsUI() {
     const rt = s.reminderTime || { hour: 7, minute: 30 };
     rtEl.value = `${String(rt.hour).padStart(2, '0')}:${String(rt.minute).padStart(2, '0')}`;
   }
+
+  // Streak alert time picker
+  const satEl = document.getElementById('settingsStreakAlertTime');
+  if (satEl) {
+    const sat = s.streakAlertTime || { hour: 20, minute: 0 };
+    satEl.value = `${String(sat.hour).padStart(2, '0')}:${String(sat.minute).padStart(2, '0')}`;
+  }
+
+  // Account / cloud sync status
+  _syncAccountUI();
 
   // Notification status text
   const notifStatusEl = document.getElementById('settingsNotifStatus');
@@ -294,10 +314,52 @@ export function saveReminderTime() {
 
 export function setNotifToggle(type, enabled) {
   const appState = _ensureSettings();
-  if (type === 'weeklySummary') appState.settings.notifWeeklySummary = enabled;
-  else if (type === 'streak')   appState.settings.notifStreak = enabled;
+  if (type === 'weeklySummary')   appState.settings.notifWeeklySummary = enabled;
+  else if (type === 'streak')     appState.settings.notifStreak = enabled;
+  else if (type === 'missed')     appState.settings.notifMissedWorkout = enabled;
   saveStateToLocalStorage(true);
   rearmReminder();
+}
+
+export function saveStreakAlertTime() {
+  const val = document.getElementById('settingsStreakAlertTime')?.value;
+  if (!val) return;
+  const [hourStr, minuteStr] = val.split(':');
+  const hour   = parseInt(hourStr,   10);
+  const minute = parseInt(minuteStr, 10);
+  if (isNaN(hour) || isNaN(minute)) return;
+  const appState = _ensureSettings();
+  appState.settings.streakAlertTime = { hour, minute };
+  saveStateToLocalStorage(true);
+  rearmReminder();
+  showToast(`Streak alert set for ${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`);
+}
+
+export function toggleEquipment(key, enabled) {
+  const appState = _ensureSettings();
+  if (!appState.settings.equipment) appState.settings.equipment = {};
+  appState.settings.equipment[key] = enabled;
+  saveStateToLocalStorage(true);
+}
+
+export function signOut() {
+  signOutSupabase();
+}
+
+// ── Account / cloud status UI ─────────────────────────────────────────────────
+async function _syncAccountUI() {
+  const emailEl   = document.getElementById('settingsAccountEmail');
+  const signOutBtn = document.getElementById('settingsSignOutBtn');
+  if (!emailEl) return;
+
+  const user = await getCloudUser();
+  if (user?.email) {
+    emailEl.textContent = user.email;
+    if (signOutBtn) signOutBtn.style.display = 'block';
+  } else {
+    emailEl.textContent = 'Local only — not signed in';
+    if (signOutBtn) signOutBtn.style.display = 'none';
+  }
 }
 
 export function saveThresholdPace() {

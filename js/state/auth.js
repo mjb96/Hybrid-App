@@ -101,3 +101,25 @@ export async function checkActiveSession() {
     console.warn('Session check failed or timed out. Defaulting to manual login.');
   }
 }
+
+export async function getCloudUser() {
+  const sb = getSupabaseClient();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb.auth.getUser();
+    if (error || !data?.user) return null;
+    return data.user;
+  } catch { return null; }
+}
+
+export async function signOutSupabase() {
+  const sb = getSupabaseClient();
+  if (!sb) { showToast('Not signed in.'); return; }
+  try {
+    await sb.auth.signOut();
+    showToast('Signed out.');
+    window.location.reload();
+  } catch (err) {
+    showToast('Sign out failed: ' + (err.message || 'Unknown error'));
+  }
+}

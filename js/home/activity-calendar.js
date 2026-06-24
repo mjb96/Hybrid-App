@@ -59,9 +59,14 @@ function _buildActivityMap(appState) {
   return map;
 }
 
-function _renderCalendarMonth(year, month, activityMap, today) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
+function _renderCalendarMonth(year, month, activityMap, today, weekStartDay = 'mon') {
+  const daysInMonth  = new Date(year, month + 1, 0).getDate();
+  const sunStart     = weekStartDay === 'sun';
+  // JS getDay(): 0=Sun … 6=Sat. For Mon-start offset by 1 so Mon=0; for Sun-start Sun=0.
+  const firstDow     = sunStart
+    ? new Date(year, month, 1).getDay()
+    : (new Date(year, month, 1).getDay() + 6) % 7;
+  const headers      = sunStart ? ['S','M','T','W','T','F','S'] : ['M','T','W','T','F','S','S'];
 
   let cells = '';
   for (let i = 0; i < firstDow; i++) cells += '<div class="cal-cell"></div>';
@@ -81,7 +86,7 @@ function _renderCalendarMonth(year, month, activityMap, today) {
   return `<div class="cal-month">
     <div class="cal-month-name">${FULL_MONTH[month]} ${year}</div>
     <div class="cal-grid">
-      ${['M','T','W','T','F','S','S'].map(h => `<div class="cal-hdr">${h}</div>`).join('')}
+      ${headers.map(h => `<div class="cal-hdr">${h}</div>`).join('')}
       ${cells}
     </div>
   </div>`;
@@ -201,13 +206,14 @@ function _openCalModal(dateStr, activityMap) {
 export function renderActivityCalendar(appState, containerId = 'homeCalendarContainer') {
   const container = document.getElementById(containerId);
   if (!container) return;
-  const map = _buildActivityMap(appState);
-  const now = new Date();
+  const map          = _buildActivityMap(appState);
+  const weekStartDay = appState.settings?.weekStartDay || 'mon';
+  const now   = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const y = now.getFullYear(), m = now.getMonth();
   const prevM = m === 0 ? 11 : m - 1;
   const prevY = m === 0 ? y - 1 : y;
-  container.innerHTML = _renderCalendarMonth(prevY, prevM, map, today) + _renderCalendarMonth(y, m, map, today);
+  container.innerHTML = _renderCalendarMonth(prevY, prevM, map, today, weekStartDay) + _renderCalendarMonth(y, m, map, today, weekStartDay);
 
   container.onclick = e => {
     const cell = e.target.closest('[data-cal-date]');

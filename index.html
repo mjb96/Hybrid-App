@@ -1409,6 +1409,20 @@
           </div>
         </div>
 
+        <!-- Equipment -->
+        <div class="settings-section">
+          <div class="settings-section-label">Equipment</div>
+          <div class="settings-hint">Select everything available to you. Used for program recommendations.</div>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="barbell" checked><span>Barbell &amp; Plates</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="rack" checked><span>Power Rack / Squat Rack</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="dumbbells" checked><span>Dumbbells</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="cables" checked><span>Cable Machine</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="pullupBar" checked><span>Pull-Up Bar</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="bands"><span>Resistance Bands</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="kettlebells"><span>Kettlebells</span></label>
+          <label class="hc-data-toggle"><input type="checkbox" data-equipment="treadmill"><span>Treadmill</span></label>
+        </div>
+
         <!-- Fasting -->
         <div class="settings-section">
           <div class="settings-section-label">Fasting</div>
@@ -1438,6 +1452,17 @@
             <input type="time" class="settings-input settings-input-short" id="settingsReminderTime" value="07:30">
           </div>
           <div class="settings-row">
+            <label class="settings-row-label">Rest Day Message</label>
+            <div class="text-xs text-muted" style="text-align:right;max-width:160px;line-height:1.3;">Sends a recovery prompt instead of a training nudge on rest days</div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Missed Session Alert</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsNotifMissedWorkout">
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+          <div class="settings-row">
             <label class="settings-row-label">Weekly Summary</label>
             <label class="settings-switch">
               <input type="checkbox" id="settingsNotifWeeklySummary">
@@ -1445,11 +1470,15 @@
             </label>
           </div>
           <div class="settings-row">
-            <label class="settings-row-label">Streak Alerts</label>
+            <label class="settings-row-label">Streak Alert</label>
             <label class="settings-switch">
               <input type="checkbox" id="settingsNotifStreak">
               <span class="settings-switch-track"></span>
             </label>
+          </div>
+          <div class="settings-row" id="streakAlertTimeRow">
+            <label class="settings-row-label">Alert Time</label>
+            <input type="time" class="settings-input settings-input-short" id="settingsStreakAlertTime" value="20:00">
           </div>
           <div class="text-xs text-muted" style="padding: 0 4px 8px;" id="settingsNotifStatus">Enable to receive daily training reminders.</div>
         </div>
@@ -1509,6 +1538,16 @@
 
           <button class="settings-action-btn" id="hcSyncNowBtn" data-action="hc-sync-now" style="display:none;">Sync Now</button>
           <p class="hc-note" id="hcNote">Requires Hybrid Engine Android app with Health Connect permission granted.</p>
+        </div>
+
+        <!-- Account -->
+        <div class="settings-section">
+          <div class="settings-section-label">Account</div>
+          <div class="settings-row settings-row-info">
+            <span class="settings-row-label">Cloud Sync</span>
+            <span class="text-xs text-muted" id="settingsAccountEmail">Checking…</span>
+          </div>
+          <button class="settings-action-btn settings-action-btn-danger" id="settingsSignOutBtn" data-action="sign-out" style="display:none;">Sign Out</button>
         </div>
 
         <!-- App Info -->

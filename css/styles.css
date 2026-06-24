@@ -2161,6 +2161,13 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
 .hc-data-toggle:last-child { border-bottom: none; }
 .hc-data-toggle input[type="checkbox"] { accent-color: var(--color-green); width: 16px; height: 16px; }
 .hc-data-toggle span { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.7); }
+.settings-hint {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  padding: 0 0 8px;
+  line-height: 1.4;
+}
+html[data-theme="light"] .settings-hint { color: rgba(0,0,0,0.4); }
 .hc-note {
   font-size: 0.7rem;
   color: rgba(255,255,255,0.3);
