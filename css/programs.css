@@ -629,7 +629,7 @@
   gap: 3px;
 }
 
-.rating-star { color: #f59e0b; }
+.rating-star { color: var(--color-amber); }
 
 .rating-count {
   font-weight: 500;
@@ -655,7 +655,7 @@
 }
 
 .prog-card-verified {
-  color: #3b82f6;
+  color: var(--color-blue);
   font-size: 0.55rem;
   font-weight: 700;
   flex-shrink: 0;
@@ -960,7 +960,7 @@
 
 .detail-verified {
   display: inline-block;
-  color: #10b981;
+  color: var(--color-green);
   font-size: 0.65rem;
   margin-left: 2px;
 }
@@ -1049,7 +1049,7 @@
 
 /* Stars */
 .detail-stars {
-  color: #f59e0b;
+  color: var(--color-amber);
   font-size: 0.85rem;
   letter-spacing: 1px;
 }
@@ -1112,7 +1112,7 @@
   flex-shrink: 0;
 }
 
-.detail-rating-star { color: #f59e0b; font-size: 1rem; }
+.detail-rating-star { color: var(--color-amber); font-size: 1rem; }
 .detail-rating-value { font-size: 0.88rem; font-weight: 800; color: #f1f5f9; }
 .detail-rating-count { font-size: 0.65rem; color: rgba(255,255,255,0.3); font-weight: 600; }
 
@@ -1155,7 +1155,7 @@
 
 .detail-highlight-check {
   font-size: 0.7rem;
-  color: #10b981;
+  color: var(--color-green);
   font-weight: 800;
   width: 18px;
   height: 18px;
@@ -1548,7 +1548,7 @@
 
 .wpm-type-label--running {
   background: rgba(34,211,238,0.08);
-  color: #22d3ee;
+  color: var(--color-cyan);
   border: 1px solid rgba(34,211,238,0.15);
 }
 
@@ -1618,10 +1618,10 @@
 .wpm-rpe[data-rpe="9"] { color: #f97316; }
 
 .wpm-rpe[data-rpe="7"],
-.wpm-rpe[data-rpe="7.5"] { color: #f59e0b; }
+.wpm-rpe[data-rpe="7.5"] { color: var(--color-amber); }
 
 .wpm-rpe[data-rpe="6"],
-.wpm-rpe[data-rpe="6.5"] { color: #10b981; }
+.wpm-rpe[data-rpe="6.5"] { color: var(--color-green); }
 
 .wpm-rest {
   font-size: 0.68rem;
@@ -1954,7 +1954,7 @@ html[data-theme="light"] .wpm-strength-grid { border-color: rgba(0,0,0,0.07); }
 .detail-author-verified {
   font-size: 0.62rem;
   font-weight: 800;
-  color: #10b981;
+  color: var(--color-green);
   background: rgba(16,185,129,0.1);
   border: 1px solid rgba(16,185,129,0.2);
   border-radius: 5px;
@@ -2751,11 +2751,11 @@ html[data-theme="light"] .hero-badge {
 
 .lib-tab.active {
   background: rgba(139,92,246,0.15);
-  color: var(--accent-purple, #8b5cf6);
+  color: var(--accent-purple, var(--color-violet));
 }
 
 .lib-tab-count {
-  background: var(--accent-purple, #8b5cf6);
+  background: var(--accent-purple, var(--color-violet));
   color: #fff;
   font-size: 0.68rem;
   font-weight: 700;
@@ -2806,7 +2806,7 @@ html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); co
   padding: 10px 24px;
   border-radius: 20px;
   border: none;
-  background: var(--accent-purple, #8b5cf6);
+  background: var(--accent-purple, var(--color-violet));
   color: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -2858,7 +2858,7 @@ html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); co
 
 .prog-badge--completed {
   background: rgba(16,185,129,0.25);
-  color: #10b981;
+  color: var(--color-green);
   border-color: rgba(16,185,129,0.4);
 }
 
@@ -2897,7 +2897,7 @@ html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); co
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: #10b981;
+  color: var(--color-green);
   background: rgba(16,185,129,0.15);
   border: 1px solid rgba(16,185,129,0.3);
   padding: 3px 8px;
@@ -2912,7 +2912,7 @@ html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); co
   border-radius: 12px;
   border: 1.5px solid rgba(16,185,129,0.3);
   background: rgba(16,185,129,0.08);
-  color: #10b981;
+  color: var(--color-green);
   font-size: 0.88rem;
   font-weight: 700;
   text-align: center;
@@ -2922,7 +2922,7 @@ html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); co
 .detail-complete-btn:active { background: rgba(16,185,129,0.15); }
 
 .detail-cta-btn--completed {
-  background: linear-gradient(135deg, #10b981, #059669) !important;
+  background: linear-gradient(135deg, var(--color-green), #059669) !important;
 }
 
 html[data-theme="light"] .detail-bookmark-btn {
