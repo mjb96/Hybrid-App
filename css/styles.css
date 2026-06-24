@@ -91,6 +91,14 @@
   /* --- Extended text hierarchy --- */
   --text-tertiary: #94a3b8;
 
+  /* Semantic text scale. --text-main / --text-inverse alias --text-primary so
+     they flip with the theme automatically. --text-sub / --text-muted were
+     used in ~60 places but never defined (text was falling back to inherit). */
+  --text-main:    var(--text-primary);
+  --text-inverse: var(--text-primary);
+  --text-sub:     rgba(255,255,255,0.60);
+  --text-muted:   rgba(255,255,255,0.40);
+
   /* --- Domain colours (analytics sections) --- */
   --color-pink:   #ec4899;
   --color-violet: #8b5cf6;
@@ -2325,6 +2333,8 @@ html[data-theme="light"] {
   --text-secondary: #64748b;
   --text-tertiary:  #94a3b8;
   --text-white:     #1e293b;
+  --text-sub:       rgba(15,23,42,0.55);
+  --text-muted:     rgba(15,23,42,0.48);
 
   /* Glass/overlay — flip to dark-on-light */
   --glass-border:   rgba(0, 0, 0, 0.08);
