@@ -58,7 +58,7 @@
   font-weight: 800 !important;
   letter-spacing: 0.11em !important;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.40) !important;
+  color: var(--text-muted) !important;
   margin: 20px 0 12px !important;
   padding: 0 !important;
 }
@@ -105,7 +105,7 @@
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--text-muted);
   margin-bottom: 7px;
   line-height: 1;
 }
@@ -114,7 +114,7 @@
   font-size: 1.38rem;
   font-weight: 800;
   line-height: 1.05;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
 }
@@ -122,7 +122,7 @@
 .an-stat__unit {
   font-size: 0.7rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--text-muted);
   margin-left: 3px;
   letter-spacing: 0;
 }
@@ -158,7 +158,7 @@
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.28);
+  color: var(--text-faint);
   margin-bottom: 10px;
 }
 
@@ -172,7 +172,7 @@
   border-left: 2.5px solid transparent;
   font-size: 0.81rem;
   line-height: 1.52;
-  color: rgba(255, 255, 255, 0.80);
+  color: var(--text-strong);
 }
 
 .an-insight:last-child {
@@ -228,13 +228,13 @@
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--text-sub);
   margin-bottom: 3px;
 }
 
 .an-chart__subtitle {
   font-size: 0.70rem;
-  color: rgba(255, 255, 255, 0.26);
+  color: var(--text-faint);
   margin-bottom: 10px;
   line-height: 1.35;
 }
@@ -252,7 +252,7 @@
   align-items: center;
   gap: 5px;
   font-size: 0.67rem;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--text-muted);
 }
 
 .an-chart__legend-dot {
@@ -317,7 +317,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.59rem;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-faint);
   padding: 4px 1px 0;
 }
 
@@ -338,7 +338,7 @@
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.33);
+  color: var(--text-faint);
   margin-bottom: 8px;
 }
 
@@ -347,14 +347,14 @@
   font-weight: 900;
   letter-spacing: -0.045em;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .an-kpi__unit {
   font-size: 1rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--text-sub);
   margin-left: 4px;
   letter-spacing: 0;
 }
@@ -369,7 +369,7 @@
 
 .an-kpi__sub {
   font-size: 0.70rem;
-  color: rgba(255, 255, 255, 0.33);
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -401,8 +401,8 @@
 
 .an-readiness-row:last-child { border-bottom: none; }
 
-.an-readiness-row__label { color: rgba(255,255,255,0.45); }
-.an-readiness-row__value { font-weight: 700; color: rgba(255,255,255,0.88); font-variant-numeric: tabular-nums; }
+.an-readiness-row__label { color: var(--text-muted); }
+.an-readiness-row__value { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 /* --------------------------------------------------------------------------
    10. ANALYTICS WEEK NAV BAR
@@ -470,7 +470,7 @@
 .an-muscle-badge--optimal      { background: rgba( 16, 185, 129, 0.12); color: var(--color-green); }
 .an-muscle-badge--undertrained { background: rgba(239,  68,  68, 0.12); color: var(--color-red); }
 .an-muscle-badge--overtrained  { background: rgba(249, 115,  22, 0.12); color: #f97316; }
-.an-muscle-badge--no_data      { background: rgba(255, 255, 255, 0.05); color: rgba(255,255,255,0.28); }
+.an-muscle-badge--no_data      { background: rgba(255, 255, 255, 0.05); color: var(--text-faint); }
 
 /* --------------------------------------------------------------------------
    13. METRIC ROW (structured data rows in cards)
@@ -489,13 +489,13 @@
 
 .an-metric-label {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--text-sub);
 }
 
 .an-metric-value {
   font-size: 0.88rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.90);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -527,7 +527,7 @@
 .wellness-checkin-form input[type="text"] {
   background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.10) !important;
-  color: rgba(255, 255, 255, 0.92) !important;
+  color: var(--text-primary) !important;
   border-radius: 8px !important;
   padding: 10px 14px !important;
   font-size: 0.88rem !important;
@@ -829,7 +829,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   align-items: center;
   gap: 5px;
   font-size: 0.67rem;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--text-muted);
 }
 
 .fa-cal-legend-dot {
@@ -869,14 +869,14 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 .fa-achievement__label {
   font-size: 0.67rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-strong);
   line-height: 1.25;
   margin-bottom: 3px;
 }
 
 .fa-achievement__desc {
   font-size: 0.58rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-faint);
   line-height: 1.35;
   margin-bottom: 4px;
 }
@@ -906,7 +906,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-sub);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   white-space: nowrap;
@@ -914,7 +914,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-tab:hover {
   background: rgba(245, 158, 11, 0.10);
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-strong);
   border-color: rgba(245, 158, 11, 0.3);
 }
 
@@ -945,21 +945,21 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.30);
+  color: var(--text-faint);
   margin-bottom: 5px;
 }
 
 .fa-edu-card__title {
   font-size: 0.88rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--text-primary);
   margin-bottom: 4px;
   line-height: 1.3;
 }
 
 .fa-edu-card__tagline {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--text-muted);
   line-height: 1.4;
 }
 
@@ -968,7 +968,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.20);
+  color: var(--text-ghost);
   font-size: 0.85rem;
 }
 
@@ -1011,14 +1011,14 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 .fa-edu-article__title {
   font-size: 1.05rem;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
   margin: 0 0 14px;
   line-height: 1.3;
 }
 
 .fa-edu-article__meta {
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--text-muted);
   line-height: 1.6;
   margin-bottom: 14px;
   padding-bottom: 12px;
@@ -1027,7 +1027,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-article__p {
   font-size: 0.83rem;
-  color: rgba(255, 255, 255, 0.70);
+  color: var(--text-strong);
   line-height: 1.7;
   margin: 0 0 12px;
 }
@@ -1037,7 +1037,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--text-muted);
   margin: 16px 0 8px;
 }
 
@@ -1048,7 +1048,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-article__list li {
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--text-strong);
   line-height: 1.65;
   margin-bottom: 5px;
 }
@@ -1059,14 +1059,14 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   border-radius: 0 8px 8px 0;
   padding: 10px 14px;
   font-size: 0.81rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-strong);
   line-height: 1.55;
   margin: 12px 0;
 }
 
 .fa-edu-disclaimer {
   font-size: 0.70rem;
-  color: rgba(255, 255, 255, 0.28);
+  color: var(--text-faint);
   line-height: 1.55;
   margin-top: 14px;
   padding-top: 10px;
@@ -1093,7 +1093,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-gterm__def {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--text-sub);
   line-height: 1.6;
 }
 
@@ -1131,7 +1131,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fz-phase-label {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-sub);
   flex: 1;
   min-width: 120px;
 }
@@ -1139,7 +1139,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 .fz-phase-time {
   font-size: 0.72rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.40);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -1252,19 +1252,19 @@ html[data-theme="light"] .fa-cal-legend-item { color: rgba(15, 23, 42, 0.42); }
   font-weight: 700;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.30);
+  color: var(--text-faint);
   margin-bottom: 10px;
 }
 
 .fa-comp-label {
   font-size: 0.70rem;
-  color: rgba(255, 255, 255, 0.48);
+  color: var(--text-sub);
 }
 
 .fa-comp-value {
   font-size: 0.70rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1291,7 +1291,7 @@ html[data-theme="light"] .fa-cal-legend-item { color: rgba(15, 23, 42, 0.42); }
   padding: 10px 14px;
   margin-bottom: 12px;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.60);
+  color: var(--text-sub);
   line-height: 1.55;
 }
 
