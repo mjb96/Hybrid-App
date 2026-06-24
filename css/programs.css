@@ -1993,9 +1993,6 @@ html[data-theme="light"] .prog-search-input-wrap:focus-within {
 html[data-theme="light"] .search-icon-svg {
   color: rgba(0,0,0,0.30) !important;
 }
-html[data-theme="light"] #progSearchInput {
-  color: #0f172a !important;
-}
 html[data-theme="light"] #progSearchInput::placeholder {
   color: rgba(0,0,0,0.32) !important;
 }
