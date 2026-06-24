@@ -3856,9 +3856,9 @@ html[data-theme="light"] .home-metric-card--gym {
   box-shadow: 0 6px 24px rgba(99,102,241,0.10), 0 2px 8px rgba(0,0,0,0.06) !important;
 }
 html[data-theme="light"] .home-metric-card--run {
-  background: linear-gradient(145deg, #ecfeff 0%, #e0f9ff 100%) !important;
-  border: 1px solid rgba(6,182,212,0.20) !important;
-  box-shadow: 0 6px 24px rgba(6,182,212,0.08), 0 2px 8px rgba(0,0,0,0.06) !important;
+  background: linear-gradient(145deg, #e3f8fc 0%, #d2f1fa 100%) !important;
+  border: 1px solid rgba(8,145,178,0.26) !important;
+  box-shadow: 0 6px 24px rgba(8,145,178,0.10), 0 2px 8px rgba(0,0,0,0.06) !important;
 }
 
 /* Card glow orb: subtle in light mode */
@@ -3867,7 +3867,7 @@ html[data-theme="light"] .home-metric-card--run::after  { opacity: 0.06 !importa
 
 /* Metric card text */
 html[data-theme="light"] .home-metric-card--gym .hmcard-label { color: #4338ca !important; }
-html[data-theme="light"] .home-metric-card--run .hmcard-label { color: #0891b2 !important; }
+html[data-theme="light"] .home-metric-card--run .hmcard-label { color: #0e7490 !important; }
 html[data-theme="light"] .hmcard-hero {
   color: #0f172a !important;
 }
