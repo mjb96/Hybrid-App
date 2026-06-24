@@ -442,6 +442,18 @@
       </div>
 
       <article class="card-dark workout-run-card" id="cockpitRunPanel">
+        <!-- Slimline strip: visible only when collapsed (non-running day) -->
+        <div class="run-add-strip" data-action="expand-run">
+          <span class="run-add-icon">🏃</span>
+          <div class="run-add-text">
+            <span class="run-add-label">Log an unscheduled run</span>
+            <span class="run-add-sub">Not in today's program · tap to expand</span>
+          </div>
+          <span class="run-add-chevron">›</span>
+        </div>
+
+        <!-- Full card body: hidden in collapsed state -->
+        <div class="run-body-content">
         <div class="flex-between mb-3">
           <h2 class="workout-run-title m-0" id="cockpitRunHeader">🏃 Aerobic Session</h2>
           <span id="runTypeBadge" class="run-type-badge" style="display:none"></span>
@@ -536,6 +548,7 @@
           <div class="fit-import-tile__arrow">›</div>
           <input type="file" id="fitUpload" accept=".fit" class="hidden-input">
         </label>
+        </div><!-- /.run-body-content -->
 
       </article>
 
