@@ -1,3 +1,11 @@
 node_modules/
 package-lock.json
 .claude/
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+android/local.properties
+android/app/src/main/assets/www/

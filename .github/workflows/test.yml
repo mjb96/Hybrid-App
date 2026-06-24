@@ -1,0 +1,31 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No runtime deps; devDeps are only for the optional Playwright smoke.
+      # The unit suite and module-graph smoke run on stock Node.
+      - name: Syntax-check every JS module
+        run: |
+          find js scripts sw.js -name '*.js' -print0 \
+            | xargs -0 -n1 node --check
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Module-graph smoke test
+        run: npm run smoke
