@@ -5,10 +5,23 @@ import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { big3Maxes } from './metrics/metrics-strength.js';
 import { getLiftDisplayName } from './engine.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
+import { showToast } from './state.js';
 
 let _getState  = null;
 let _getDays   = null;
 let _saveState = null;
+
+export const PROFILE_SECTIONS = [
+  { id: 'summary',     label: 'Athlete Summary',    icon: '📊' },
+  { id: 'heatmap',    label: 'Training Activity',   icon: '🔥' },
+  { id: 'program',    label: 'Current Program',     icon: '📋' },
+  { id: 'performance',label: 'Performance',         icon: '💪' },
+  { id: 'thisweek',   label: 'This Week',           icon: '📅' },
+  { id: 'health',     label: 'Health Metrics',      icon: '❤️' },
+  { id: 'wellness',   label: 'Wellness Hub',        icon: '🌿' },
+  { id: 'sessions',   label: 'Recent Sessions',     icon: '📝' },
+  { id: 'completed',  label: 'Completed Programs',  icon: '🏆' },
+];
 
 const OHP_NAMES = ['Standing Barbell OHP', 'Standing OHP', 'Seated DB Shoulder Press'];
 const ROW_NAMES = ['Barbell Bent-Over Row', 'Barbell Row', 'Chest Supported Dumbbell Row', 'Chest Supported Row', 'Single-Arm DB Row', 'Single Arm DB Row'];
@@ -71,14 +84,23 @@ export function renderAthleteProfile() {
   const heatmapRows    = _heatmapData(state, days, 12);
   const recentSessions = _recentSessions(state, days, 5);
 
-  container.innerHTML = `
-    <!-- Profile Hero -->
+  // Profile hero — always shown
+  const avatarUrl  = state.settings?.avatarDataUrl || null;
+  const avatarInner = avatarUrl
+    ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : initials;
+
+  const heroHTML = `
     <div class="profile-hero">
-      <div class="profile-hero-avatar">${initials}</div>
+      <div class="profile-hero-avatar" id="profileHeroAvatar">${avatarInner}</div>
       <div class="profile-hero-info">
         <h1 class="profile-hero-name">${name}</h1>
         <div class="profile-hero-sub">Hybrid Athlete</div>
       </div>
+      <button class="profile-customise-btn" data-action="open-profile-customiser" aria-label="Customise dashboard">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
+        Edit
+      </button>
       <button class="profile-settings-btn" data-action="open-settings" aria-label="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/>
@@ -86,28 +108,28 @@ export function renderAthleteProfile() {
         </svg>
       </button>
     </div>
+  `;
 
-    <!-- Athlete Summary -->
-    <div class="profile-section">
-      <div class="profile-section-title">Athlete Summary</div>
-      <div class="profile-stat-grid">
-        ${_statCard(streak > 0 ? streak.toString() : '0', 'Day Streak', streak > 0 ? '🔥' : '💤', streak > 0 ? 'var(--color-amber)' : null)}
-        ${_statCard(completions.length.toString(), 'Programs', '🏆', completions.length > 0 ? 'var(--color-green)' : null)}
-        ${_statCard(totalWorkouts > 0 ? totalWorkouts.toString() : '0', 'Workouts', '🏋️', null)}
-        ${_statCard(longestStreak > 0 ? longestStreak.toString() : '0', 'Best Streak', '⚡', null)}
+  // Build section HTML map
+  const sectionHTML = {
+    summary: `
+      <div class="profile-section">
+        <div class="profile-section-title">Athlete Summary</div>
+        <div class="profile-stat-grid">
+          ${_statCard(streak > 0 ? streak.toString() : '0', 'Day Streak', streak > 0 ? '🔥' : '💤', streak > 0 ? 'var(--color-amber)' : null)}
+          ${_statCard(completions.length.toString(), 'Programs', '🏆', completions.length > 0 ? 'var(--color-green)' : null)}
+          ${_statCard(totalWorkouts > 0 ? totalWorkouts.toString() : '0', 'Workouts', '🏋️', null)}
+          ${_statCard(longestStreak > 0 ? longestStreak.toString() : '0', 'Best Streak', '⚡', null)}
+        </div>
       </div>
-    </div>
-
-    <!-- Activity Heatmap -->
-    ${heatmapRows.length > 0 ? `
+    `,
+    heatmap: heatmapRows.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Training Activity</div>
         ${_renderHeatmap(heatmapRows, days)}
       </div>
-    ` : ''}
-
-    <!-- Active Program -->
-    ${activeCatalog ? `
+    ` : '',
+    program: activeCatalog ? `
       <div class="profile-section">
         <div class="profile-section-title">Current Program</div>
         <div class="profile-active-program" data-action="switch-tab" data-target="program">
@@ -140,13 +162,10 @@ export function renderAthleteProfile() {
           <button class="profile-empty-cta" data-action="switch-tab" data-target="program">Browse Programs</button>
         </div>
       </div>
-    `}
-
-    <!-- Performance Summary -->
-    ${hasStrengthData || hasRunningData ? `
+    `,
+    performance: (hasStrengthData || hasRunningData) ? `
       <div class="profile-section">
         <div class="profile-section-title">Performance</div>
-
         ${hasStrengthData ? `
           <div class="profile-subsection-title">Strength PRs (e1RM)</div>
           <div class="profile-pr-list">
@@ -157,7 +176,6 @@ export function renderAthleteProfile() {
             ${rowBest             ? _prRow(rowBest.name,  rowBest.max,    weightUnit, rowTrend,      prGoals[rowBest.name])    : ''}
           </div>
         ` : ''}
-
         ${hasRunningData ? `
           <div class="profile-subsection-title" style="margin-top: 16px;">Running PBs</div>
           <div class="profile-pr-list">
@@ -165,10 +183,8 @@ export function renderAthleteProfile() {
           </div>
         ` : ''}
       </div>
-    ` : ''}
-
-    <!-- Training Overview (current week) -->
-    ${(currentWeekVolume > 0 || weeklyDistKm > 0) ? `
+    ` : '',
+    thisweek: (currentWeekVolume > 0 || weeklyDistKm > 0) ? `
       <div class="profile-section">
         <div class="profile-section-title">This Week</div>
         <div class="profile-stat-grid profile-stat-grid--2">
@@ -189,36 +205,158 @@ export function renderAthleteProfile() {
           ) : ''}
         </div>
       </div>
-    ` : ''}
-
-    <!-- Health Metrics -->
-    ${_renderHealthSection(state)}
-
-    <!-- Wellness Hub -->
-    ${_renderWellnessSection(state)}
-
-    <!-- Recent Sessions -->
-    ${recentSessions.length > 0 ? `
+    ` : '',
+    health:    _renderHealthSection(state),
+    wellness:  _renderWellnessSection(state),
+    sessions: recentSessions.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Recent Sessions</div>
         <div class="profile-recent-list">
           ${recentSessions.map(s => _recentRow(s)).join('')}
         </div>
       </div>
-    ` : ''}
-
-    <!-- Completed Programs -->
-    ${completions.length > 0 ? `
+    ` : '',
+    completed: completions.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Completed Programs</div>
         <div class="profile-completions-list">
           ${completions.slice().reverse().slice(0, 5).map(c => _completionRow(c)).join('')}
         </div>
       </div>
-    ` : ''}
+    ` : '',
+  };
 
-    <div style="height: 80px;"></div>
-  `;
+  // Apply stored order + hidden preferences
+  const profileSections = state.profileSections || { order: null, hidden: [] };
+  const order  = profileSections.order || PROFILE_SECTIONS.map(s => s.id);
+  const hidden = new Set(profileSections.hidden || []);
+
+  const body = order
+    .filter(id => !hidden.has(id) && sectionHTML[id])
+    .map(id => sectionHTML[id])
+    .join('');
+
+  container.innerHTML = heroHTML + body + `<div style="height: 80px;"></div>`;
+}
+
+// ── Profile Customiser ────────────────────────────────────────────────────────
+
+export function openProfileCustomiser() {
+  if (!_getState) return;
+  const state = _getState();
+  const psSt  = state.profileSections || { order: null, hidden: [] };
+  const order  = psSt.order  || PROFILE_SECTIONS.map(s => s.id);
+  const hidden = new Set(psSt.hidden || []);
+
+  const list = document.getElementById('profileCustomiserList');
+  if (list) {
+    list.innerHTML = order.map(id => {
+      const sec = PROFILE_SECTIONS.find(s => s.id === id);
+      if (!sec) return '';
+      return `
+        <div class="pcs-item" data-section-id="${id}" draggable="true">
+          <span class="pcs-handle" aria-hidden="true">⠿</span>
+          <span class="pcs-icon" aria-hidden="true">${sec.icon}</span>
+          <span class="pcs-label">${sec.label}</span>
+          <label class="settings-switch pcs-toggle" aria-label="Show ${sec.label}">
+            <input type="checkbox" class="pcs-visibility-toggle" data-section-id="${id}" ${hidden.has(id) ? '' : 'checked'}>
+            <span class="settings-switch-track"></span>
+          </label>
+        </div>
+      `;
+    }).join('');
+    _mountCustomiserDragDrop(list);
+  }
+
+  const overlay = document.getElementById('profileCustomiserOverlay');
+  const sheet   = document.getElementById('profileCustomiserSheet');
+  if (overlay) { overlay.classList.add('active'); overlay.removeAttribute('aria-hidden'); }
+  if (sheet)   sheet.classList.add('active');
+}
+
+export function closeProfileCustomiser() {
+  const list = document.getElementById('profileCustomiserList');
+  if (list && _getState && _saveState) {
+    const state = _getState();
+    if (!state.profileSections) state.profileSections = { order: null, hidden: [] };
+    const items  = list.querySelectorAll('.pcs-item[data-section-id]');
+    const newOrder = Array.from(items).map(el => el.dataset.sectionId);
+    const newHidden = Array.from(list.querySelectorAll('.pcs-visibility-toggle:not(:checked)')).map(el => el.dataset.sectionId);
+    state.profileSections.order  = newOrder;
+    state.profileSections.hidden = newHidden;
+    _saveState(true);
+    renderAthleteProfile();
+  }
+  document.getElementById('profileCustomiserOverlay')?.classList.remove('active');
+  document.getElementById('profileCustomiserOverlay')?.setAttribute('aria-hidden', 'true');
+  document.getElementById('profileCustomiserSheet')?.classList.remove('active');
+}
+
+export function resetProfileCustomiser() {
+  if (!_getState || !_saveState) return;
+  const state = _getState();
+  state.profileSections = { order: null, hidden: [] };
+  _saveState(true);
+  showToast('Dashboard reset to default');
+  openProfileCustomiser();
+  renderAthleteProfile();
+}
+
+function _mountCustomiserDragDrop(list) {
+  let dragEl = null;
+
+  list.addEventListener('dragstart', e => {
+    dragEl = e.target.closest('.pcs-item');
+    if (dragEl) { requestAnimationFrame(() => dragEl.classList.add('pcs-dragging')); }
+  });
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    const over = e.target.closest('.pcs-item');
+    if (over && dragEl && over !== dragEl) {
+      const rect = over.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) list.insertBefore(dragEl, over);
+      else over.insertAdjacentElement('afterend', dragEl);
+    }
+  });
+  list.addEventListener('dragend', () => {
+    dragEl?.classList.remove('pcs-dragging');
+    dragEl = null;
+  });
+
+  // Touch drag-to-reorder
+  let touchDragEl = null, touchClone = null, touchOffsetY = 0;
+  list.addEventListener('touchstart', e => {
+    const item = e.target.closest('.pcs-item');
+    if (!item) return;
+    const handle = e.target.closest('.pcs-handle');
+    if (!handle) return;
+    touchDragEl = item;
+    const rect = item.getBoundingClientRect();
+    touchOffsetY = e.touches[0].clientY - rect.top;
+    touchClone = item.cloneNode(true);
+    touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;z-index:9999;pointer-events:none;border-radius:10px;`;
+    document.body.appendChild(touchClone);
+    item.style.opacity = '0.3';
+    e.preventDefault();
+  }, { passive: false });
+  list.addEventListener('touchmove', e => {
+    if (!touchDragEl || !touchClone) return;
+    const y = e.touches[0].clientY;
+    touchClone.style.top = (y - touchOffsetY) + 'px';
+    const over = document.elementFromPoint(e.touches[0].clientX, y)?.closest('.pcs-item');
+    if (over && over !== touchDragEl) {
+      const rect = over.getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) list.insertBefore(touchDragEl, over);
+      else over.insertAdjacentElement('afterend', touchDragEl);
+    }
+    e.preventDefault();
+  }, { passive: false });
+  list.addEventListener('touchend', () => {
+    if (touchDragEl) touchDragEl.style.opacity = '';
+    touchClone?.remove();
+    touchDragEl = null;
+    touchClone  = null;
+  });
 }
 
 // ── Section helpers ───────────────────────────────────────────────────────────

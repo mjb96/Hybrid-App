@@ -55,13 +55,16 @@ import {
   saveThresholdPace as saveSettingsThresholdPace,
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
-  hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
+  hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
+  setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
+  saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, signOut,
+  openAvatarPicker, handleAvatarFile,
 } from './settings.js';
-import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
+import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
-import { initNotifications, requestNotificationPermission, cancelReminders } from './notifications.js';
+import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -709,6 +712,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'reset-all-data') confirmResetAllData();
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
+  else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));
+  else if (action === 'set-fitness-level')    setFitnessLevel(target.getAttribute('data-level'));
+  else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
+  else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));
+  else if (action === 'sign-out')             signOut();
 
   // Onboarding
   else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
@@ -724,7 +732,7 @@ document.addEventListener('click', (e) => {
   // Fasting
   else if (action === 'fast-start') {
     const goalEl = document.getElementById('fastingGoalSelect') ?? document.getElementById('fastingSheetGoalSelect');
-    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? 16);
+    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? appState.settings?.fastingDefault ?? 16);
     startFast(appState, goal, () => saveStateToLocalStorage(true));
     renderHome();
     openFastingDetail();
@@ -823,6 +831,11 @@ else if (action === 'export-csv') triggerCSVExport();
   // Athlete Profile
   else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'open-wellness-detail', 'close-wellness-detail'].includes(action))
     handleProfileAction(action, target);
+  else if (action === 'open-profile-customiser')  openProfileCustomiser();
+  else if (action === 'close-profile-customiser') closeProfileCustomiser();
+  else if (action === 'reset-profile-customiser') resetProfileCustomiser();
+  else if (e.target.id === 'profileCustomiserOverlay') closeProfileCustomiser();
+  else if (action === 'pick-avatar')              openAvatarPicker();
 
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
@@ -884,9 +897,19 @@ document.addEventListener('change', (e) => {
     handleImportFile(target.files?.[0]);
     return;
   }
+  if (target.id === 'avatarFilePicker') {
+    handleAvatarFile(target.files?.[0]);
+    target.value = '';
+    return;
+  }
   const hcField = target.getAttribute?.('data-hc-field');
   if (hcField) { hcToggleSyncField(hcField, target.checked); return; }
-  if (target.id === 'settingsAutoAdvance') { setAutoAdvanceWeek(target.checked); return; }
+  if (target.id === 'settingsAutoAdvance')          { setAutoAdvanceWeek(target.checked); return; }
+  if (target.id === 'settingsNotifWeeklySummary')   { setNotifToggle('weeklySummary', target.checked); return; }
+  if (target.id === 'settingsNotifStreak')          { setNotifToggle('streak', target.checked); return; }
+  if (target.id === 'settingsNotifMissedWorkout')   { setNotifToggle('missed', target.checked); return; }
+  const eqKey = target.getAttribute?.('data-equipment');
+  if (eqKey) { toggleEquipment(eqKey, target.checked); return; }
   if (target.id === 'settingsNotifications') {
     if (target.checked) {
       requestNotificationPermission().then(({ granted }) => {
@@ -920,6 +943,8 @@ document.addEventListener('blur', (e) => {
   else if (id === 'settingsBodyWeight') saveBodyWeight();
   else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
   else if (id === 'settingsStepGoal') saveStepGoal();
+  else if (id === 'settingsReminderTime')    saveReminderTime();
+  else if (id === 'settingsStreakAlertTime') saveStreakAlertTime();
 }, true);
 
 document.addEventListener('input', (e) => {
@@ -1181,7 +1206,8 @@ async function bootstrapApp() {
     window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
-    initNotifications();
+    initNotifications(() => appState);
+    checkMissedWorkout();
     if (shouldShowOnboarding()) setTimeout(() => startOnboarding(), 300);
 
   } catch (fatalLifecycleError) {
