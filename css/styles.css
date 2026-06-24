@@ -7428,3 +7428,83 @@ html[data-theme="light"] .nav-item {
 html[data-theme="light"] .nav-item span.icon { opacity: 0.6 !important; }
 html[data-theme="light"] .nav-item:hover { color: rgba(15,23,42,0.78) !important; }
 html[data-theme="light"] .nav-item.active { color: #4f46e5 !important; }
+
+
+/* ==========================================================================
+   NATIVE-FEEL POLISH LAYER
+   Purely additive. No markup or JS behaviour changes. Targets the two biggest
+   "this is a web app" tells (sticky hover after tap, long-press text selection)
+   plus scroll/numeral polish. See docs/SENIOR_REVIEW.md §8.
+   ========================================================================== */
+
+/* --- 1. Kill sticky hover states on touch devices ------------------------
+   On a touchscreen, :hover fires on tap and persists until the next tap
+   elsewhere, leaving cards/buttons stuck in their "lifted" hover state. We
+   neutralise the transform/elevation hover effects where there is no real
+   pointer; :active press feedback is untouched and still fires. */
+@media (hover: none) {
+  .card-dark:hover,
+  .tile-interactive:hover,
+  .btn-action-block:hover,
+  .btn-ghost:hover,
+  .btn-green-ghost:hover,
+  .btn-danger-ghost:hover,
+  .btn-dashed:hover {
+    transform: none;
+    border-color: var(--glass-border);
+    box-shadow: var(--shadow-md);
+    opacity: 1;
+    background: inherit;
+  }
+  .card-dark:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+  }
+  .nav-item:hover span.icon {
+    transform: none;
+    opacity: 0.65;
+  }
+  .nav-item.active:hover span.icon {
+    transform: translateY(-5px) scale(1.15);
+    opacity: 1;
+  }
+}
+
+/* --- 2. Suppress long-press text selection & callout on UI chrome --------
+   Native apps don't let you text-select buttons, labels or cards. Inputs and
+   genuinely-selectable content opt back in below. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+select,
+[contenteditable="true"],
+.selectable-text {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* --- 3. Consistent momentum scrolling on scroll surfaces ----------------- */
+.view-container,
+.in-focus-carousel,
+.workout-day-selector,
+.modal-content {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* --- 4. Tabular numerals so live data stops jittering -------------------- */
+input[type="number"],
+input[type="text"],
+.stat-value,
+.metric-value,
+.tile-hero,
+.readiness-score,
+.timer-display,
+.workout-run-specs {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
