@@ -105,7 +105,7 @@ function renderActiveProgramBanner() {
         <div class="active-prog-right">
           <div class="active-prog-progress-ring">
             <svg width="44" height="44" viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+              <circle cx="22" cy="22" r="18" fill="none" class="active-prog-ring-track" stroke-width="3"/>
               <circle cx="22" cy="22" r="18" fill="none"
                 stroke="${accent}" stroke-width="3"
                 stroke-dasharray="${dashArray} ${circumference}"
