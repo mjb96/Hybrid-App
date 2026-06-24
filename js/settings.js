@@ -138,18 +138,51 @@ function _setToggleActive(groupSelector, activeSelector) {
 // ==========================================
 function _refreshAvatar() {
   if (!_getState) return;
-  const name = _getState().settings?.name || '';
+  const s    = _getState().settings || {};
+  const name = s.name || '';
   const initials = name.trim()
     ? name.trim().split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('')
     : '?';
+  const avatarUrl = s.avatarDataUrl || null;
+
+  const imgTag      = avatarUrl ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">` : null;
+  const imgTagRound = avatarUrl ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : null;
 
   const btnEl   = document.getElementById('profileAvatarInitials');
   const largeEl = document.getElementById('settingsAvatarLarge');
   const nameEl  = document.getElementById('settingsNameDisplay');
 
-  if (btnEl)   btnEl.textContent   = initials;
-  if (largeEl) largeEl.textContent = initials;
-  if (nameEl)  nameEl.textContent  = name.trim() || 'Athlete';
+  if (btnEl)   btnEl.innerHTML  = imgTagRound || initials;
+  if (largeEl) largeEl.innerHTML = (imgTag || initials) + '<div class="settings-avatar-camera-overlay">📷</div>';
+  if (nameEl)  nameEl.textContent = name.trim() || 'Athlete';
+}
+
+export function openAvatarPicker() {
+  document.getElementById('avatarFilePicker')?.click();
+}
+
+export function handleAvatarFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 320;
+      const scale  = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const appState = _ensureSettings();
+      appState.settings.avatarDataUrl = dataUrl;
+      saveStateToLocalStorage(true);
+      _refreshAvatar();
+      showToast('Profile photo updated ✓');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 // ==========================================

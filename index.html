@@ -1296,14 +1296,15 @@
 
       <div class="settings-header">
         <div class="settings-profile-hero">
-          <div class="settings-avatar-large" id="settingsAvatarLarge">?</div>
+          <div class="settings-avatar-large settings-avatar-clickable" id="settingsAvatarLarge" data-action="pick-avatar" role="button" aria-label="Change profile photo" tabindex="0">?<div class="settings-avatar-camera-overlay">📷</div></div>
           <div>
             <div class="settings-name-display" id="settingsNameDisplay">Athlete</div>
-            <div class="text-xs text-muted mt-1">Personal Profile</div>
+            <div class="text-xs text-muted mt-1">Tap avatar to change photo</div>
           </div>
         </div>
         <button class="settings-close-btn" data-action="close-settings" aria-label="Close settings">✕</button>
       </div>
+      <input type="file" id="avatarFilePicker" accept="image/*" style="display:none" aria-hidden="true">
 
       <div class="settings-body">
 
@@ -1733,6 +1734,22 @@
     </div>
     <div id="wellnessSheetBody" class="wpm-body"></div>
     <div style="height: 24px;"></div>
+  </div>
+
+  <!-- Profile Dashboard Customiser -->
+  <div id="profileCustomiserOverlay" class="profile-customiser-overlay" aria-hidden="true">
+    <div id="profileCustomiserSheet" class="profile-customiser-sheet" role="dialog" aria-label="Customise Dashboard" aria-modal="true">
+      <div class="pcs-header">
+        <span class="pcs-title">Customise Dashboard</span>
+        <button class="pcs-close" data-action="close-profile-customiser" aria-label="Close customiser">✕</button>
+      </div>
+      <p class="pcs-hint">Drag to reorder. Toggle to show or hide each section.</p>
+      <div class="profile-customiser-list" id="profileCustomiserList"></div>
+      <div class="pcs-actions">
+        <button class="pcs-reset" data-action="reset-profile-customiser">Reset to default</button>
+        <button class="pcs-done" data-action="close-profile-customiser">Done</button>
+      </div>
+    </div>
   </div>
 
   <!-- PR Goal Modal -->

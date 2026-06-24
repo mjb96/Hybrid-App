@@ -7141,3 +7141,197 @@ html[data-theme="light"] .pr-badge {
 /* Light mode colours for section headings are handled in the earlier
    html[data-theme="light"] block. No base override needed here. */
 
+
+/* --------------------------------------------------------------------------
+   30. AVATAR PHOTO UPLOAD
+   -------------------------------------------------------------------------- */
+
+.settings-avatar-large { overflow: hidden; }
+
+.settings-avatar-clickable {
+  cursor: pointer;
+  position: relative;
+}
+.settings-avatar-clickable:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+.settings-avatar-camera-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.6);
+  text-align: center;
+  font-size: 0.72rem;
+  line-height: 1.8;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.settings-avatar-clickable:hover .settings-avatar-camera-overlay,
+.settings-avatar-clickable:focus .settings-avatar-camera-overlay { opacity: 1; }
+
+.profile-hero-avatar { overflow: hidden; }
+.profile-hero-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+/* --------------------------------------------------------------------------
+   31. PROFILE CUSTOMISE BUTTON
+   -------------------------------------------------------------------------- */
+
+.profile-customise-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  margin-right: 6px;
+}
+.profile-customise-btn:hover {
+  background: rgba(99,102,241,0.15);
+  border-color: rgba(99,102,241,0.4);
+  color: #a5b4fc;
+}
+html[data-theme="light"] .profile-customise-btn {
+  border-color: rgba(0,0,0,0.1);
+  background: rgba(0,0,0,0.03);
+  color: rgba(0,0,0,0.45);
+}
+html[data-theme="light"] .profile-customise-btn:hover {
+  background: rgba(99,102,241,0.08);
+  border-color: rgba(99,102,241,0.3);
+  color: #4f46e5;
+}
+
+/* --------------------------------------------------------------------------
+   32. PROFILE DASHBOARD CUSTOMISER SHEET
+   -------------------------------------------------------------------------- */
+
+.profile-customiser-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(0,0,0,0.55);
+  display: none;
+  align-items: flex-end;
+}
+.profile-customiser-overlay.active { display: flex; }
+
+.profile-customiser-sheet {
+  width: 100%;
+  background: var(--bg-card, #1e1e2e);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px 44px;
+  max-height: 75vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.profile-customiser-sheet.active { transform: translateY(0); }
+
+.pcs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.pcs-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.pcs-close {
+  background: rgba(255,255,255,0.07);
+  border: none;
+  color: var(--text-primary);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pcs-hint {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+html[data-theme="light"] .pcs-hint { color: rgba(0,0,0,0.4); }
+
+.profile-customiser-list { padding-bottom: 4px; }
+
+.pcs-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 10px;
+  border-radius: 10px;
+  margin-bottom: 5px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  cursor: grab;
+  user-select: none;
+  transition: background 0.15s, opacity 0.15s;
+}
+.pcs-item:active { cursor: grabbing; }
+.pcs-item.pcs-dragging { opacity: 0.35; }
+html[data-theme="light"] .pcs-item { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+
+.pcs-handle {
+  color: rgba(255,255,255,0.25);
+  font-size: 1.1rem;
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+html[data-theme="light"] .pcs-handle { color: rgba(0,0,0,0.25); }
+.pcs-icon { font-size: 1.05rem; flex-shrink: 0; }
+.pcs-label { flex: 1; font-size: 0.87rem; font-weight: 600; color: var(--text-primary); }
+.pcs-toggle { flex-shrink: 0; }
+
+.pcs-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  gap: 10px;
+}
+.pcs-reset {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.4);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.pcs-reset:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.65); }
+html[data-theme="light"] .pcs-reset { border-color: rgba(0,0,0,0.12); color: rgba(0,0,0,0.45); }
+html[data-theme="light"] .pcs-reset:hover { border-color: rgba(0,0,0,0.22); color: rgba(0,0,0,0.65); }
+
+.pcs-done {
+  flex: 1;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  border: none;
+  padding: 11px 24px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pcs-done:hover { opacity: 0.9; }
+

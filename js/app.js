@@ -58,8 +58,9 @@ import {
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
   saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, signOut,
+  openAvatarPicker, handleAvatarFile,
 } from './settings.js';
-import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
+import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
@@ -830,6 +831,11 @@ else if (action === 'export-csv') triggerCSVExport();
   // Athlete Profile
   else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'open-wellness-detail', 'close-wellness-detail'].includes(action))
     handleProfileAction(action, target);
+  else if (action === 'open-profile-customiser')  openProfileCustomiser();
+  else if (action === 'close-profile-customiser') closeProfileCustomiser();
+  else if (action === 'reset-profile-customiser') resetProfileCustomiser();
+  else if (e.target.id === 'profileCustomiserOverlay') closeProfileCustomiser();
+  else if (action === 'pick-avatar')              openAvatarPicker();
 
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();
@@ -889,6 +895,11 @@ document.addEventListener('change', (e) => {
   }
   if (target.id === 'settingsImportFile') {
     handleImportFile(target.files?.[0]);
+    return;
+  }
+  if (target.id === 'avatarFilePicker') {
+    handleAvatarFile(target.files?.[0]);
+    target.value = '';
     return;
   }
   const hcField = target.getAttribute?.('data-hc-field');
