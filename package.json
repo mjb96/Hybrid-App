@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "playwright": "^1.60.0"
+    "typescript": "^6.0.3"
   }
 }

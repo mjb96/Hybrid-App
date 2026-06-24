@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // DATE HELPERS (dates.js)
 // ==========================================
@@ -82,7 +83,7 @@ export function daysBetween(a, b) {
   const da = new Date(a + 'T00:00:00Z');
   const db = new Date(b + 'T00:00:00Z');
   if (isNaN(da.getTime()) || isNaN(db.getTime())) return null;
-  return Math.round((db - da) / 86400000);
+  return Math.round((db.getTime() - da.getTime()) / 86400000);
 }
 
 // Returns a human-readable week range like 'Jun 8–14' from a UTC week-start ISO string.

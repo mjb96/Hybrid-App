@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // LOAD CALCULATIONS — analytics/calculations/load-calcs.js
 // Pure functions. No DOM, no side effects.

@@ -17,12 +17,16 @@ jobs:
         with:
           node-version: '20'
 
-      # No runtime deps; devDeps are only for the optional Playwright smoke.
-      # The unit suite and module-graph smoke run on stock Node.
+      - name: Install dev dependencies
+        run: npm install
+
       - name: Syntax-check every JS module
         run: |
           find js scripts sw.js -name '*.js' -print0 \
             | xargs -0 -n1 node --check
+
+      - name: Type-check (tsc on // @ts-check files)
+        run: npm run typecheck
 
       - name: Unit tests
         run: npm test

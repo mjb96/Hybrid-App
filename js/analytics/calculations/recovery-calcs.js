@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // RECOVERY CALCULATIONS — analytics/calculations/recovery-calcs.js
 // Pure functions. No DOM, no side effects.

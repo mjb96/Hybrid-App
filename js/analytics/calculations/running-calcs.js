@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // RUNNING CALCULATIONS — analytics/calculations/running-calcs.js
 // Pure functions. No DOM, no side effects.

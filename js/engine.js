@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // ENGINE: DIAGNOSTICS, 1RM, PARSER
 // ==========================================
@@ -85,6 +86,11 @@ export function resolveLiftKey(state, name) {
 // Returns { weekKey, day, workingSets } or null.
 // ==========================================
 
+/**
+ * @param {any} state
+ * @param {string} name
+ * @param {{ excludeWeek?: string|number, days?: string[] }} [opts]
+ */
 export function findLastPerformance(state, name, { excludeWeek, days = [] } = {}) {
   const key = resolveLiftKey(state, name);
   const weeks = Object.keys(state.weeks || {}).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
@@ -162,6 +168,7 @@ export function parseTargetFromDescription(descString, liftName) {
 // DIAGNOSTIC ENGINE
 // ==========================================
 export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
+  /** @type {{ suggestedWeight: string|number, suggestedReps: string|number, isStalled: boolean, isFatigueOverload: boolean, message: string }} */
   let result = { suggestedWeight: '', suggestedReps: '', isStalled: false, isFatigueOverload: false, message: '' };
   
   if (!_getState || !_getDays) {

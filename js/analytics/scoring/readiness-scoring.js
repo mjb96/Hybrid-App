@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // READINESS SCORING — analytics/scoring/readiness-scoring.js
 // Pure functions. No DOM, no side effects.
@@ -57,7 +58,7 @@ function loadComponent(atl, ctl) {
 // Elevated resting HR relative to baseline signals poor recovery.
 function restingHrComponent(restingHrValues) {
   if (!restingHrValues || restingHrValues.length < 2) return null;
-  const sorted   = [...restingHrValues].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted   = [...restingHrValues].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const today    = sorted[0].bpm;
   const window7  = sorted.slice(0, Math.min(7, sorted.length));
   const baseline = window7.reduce((s, e) => s + e.bpm, 0) / window7.length;

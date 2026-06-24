@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // MATH UTILITIES — analytics/calculations/math-utils.js
 // Pure functions. No DOM, no side effects.
