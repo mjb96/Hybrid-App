@@ -146,7 +146,7 @@
 
 .an-insights {
   background: var(--overlay-xs);
-  border: 1px solid rgba(255, 255, 255, 0.065);
+  border: 1px solid var(--border-default);
   border-radius: 14px;
   padding: 14px 16px;
   margin-bottom: 16px;
@@ -217,7 +217,7 @@
 
 .an-chart {
   background: var(--bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--border-default);
   border-radius: 14px;
   padding: 15px 14px 12px;
   margin-bottom: 10px;
@@ -395,7 +395,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 7px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border-subtle);
   font-size: 0.76rem;
 }
 
@@ -415,7 +415,7 @@
   justify-content: space-between;
   gap: 8px;
   background: var(--overlay-xs) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.065) !important;
+  border-bottom: 1px solid var(--border-default) !important;
   padding: 10px 16px !important;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -481,7 +481,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
   font-variant-numeric: tabular-nums;
 }
 
@@ -508,7 +508,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 9px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .an-pace-row:last-child { border-bottom: none; }
@@ -526,7 +526,7 @@
 .wellness-checkin-form input[type="number"],
 .wellness-checkin-form input[type="text"] {
   background: var(--overlay-md) !important;
-  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border: 1px solid var(--border-medium) !important;
   color: var(--text-primary) !important;
   border-radius: 8px !important;
   padding: 10px 14px !important;
@@ -644,9 +644,6 @@ html[data-theme="light"] .an-insight--good  .an-insight__icon { background: rgba
 html[data-theme="light"] .an-insight--info  .an-insight__icon { background: rgba(59, 130, 246, 0.12); }
 
 /* -- Chart chrome --------------------------------------------------------- */
-html[data-theme="light"] .an-chart {
-  border-color: rgba(0, 0, 0, 0.07);
-}
 
 
 /* -- ACWR zone bar -------------------------------------------------------- */
@@ -658,13 +655,10 @@ html[data-theme="light"] .an-zone-bar__marker {
 }
 
 /* -- Metric rows ---------------------------------------------------------- */
-html[data-theme="light"] .an-metric-row   { border-bottom-color: rgba(0, 0, 0, 0.05); }
 
 /* -- Pace rows ------------------------------------------------------------ */
-html[data-theme="light"] .an-pace-row { border-bottom-color: rgba(0, 0, 0, 0.05); }
 
 /* -- Readiness rows ------------------------------------------------------- */
-html[data-theme="light"] .an-readiness-row        { border-bottom-color: rgba(0, 0, 0, 0.05); }
 
 /* -- Week nav bar --------------------------------------------------------- */
 html[data-theme="light"] #analyticsWeekNav.week-nav-bar,
@@ -757,7 +751,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 /* Non-an-stat card border normalisation */
 #analytics-fasting .card-dark:not(.an-stat) {
-  border: 1px solid rgba(255, 255, 255, 0.055) !important;
+  border: 1px solid var(--border-default) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -883,7 +877,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   font-weight: 700;
   padding: 6px 12px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-medium);
   background: var(--overlay-sm);
   color: var(--text-sub);
   cursor: pointer;
@@ -905,7 +899,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-card {
   background: var(--overlay-sm);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 8px;
@@ -972,7 +966,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-article {
   background: var(--overlay-xs);
-  border: 1px solid rgba(255, 255, 255, 0.065);
+  border: 1px solid var(--border-default);
   border-radius: 14px;
   padding: 20px;
   margin-bottom: 16px;
@@ -1001,7 +995,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   line-height: 1.6;
   margin-bottom: 14px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .fa-edu-article__p {
@@ -1049,7 +1043,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
   line-height: 1.55;
   margin-top: 14px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border-default);
   font-style: italic;
 }
 
@@ -1058,7 +1052,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fa-edu-gterm {
   padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .fa-edu-gterm:last-child { border-bottom: none; }
@@ -1098,7 +1092,7 @@ html[data-theme="light"] .analytics-section:not(:has(.card-dark:has(svg))) svg c
 
 .fz-phase-info {
   background: var(--overlay-sm);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-default);
   border-radius: 10px;
   padding: 10px 14px;
   margin: 8px 0 12px;
@@ -1164,7 +1158,6 @@ html[data-theme="light"] .fa-edu-callout {
 }
 
 html[data-theme="light"] .fa-edu-disclaimer { color: rgba(15, 23, 42, 0.35); border-top-color: rgba(0,0,0,0.06); }
-html[data-theme="light"] .fa-edu-gterm      { border-bottom-color: rgba(0,0,0,0.05); }
 
 html[data-theme="light"] .fa-edu-tab {
   border-color: rgba(0, 0, 0, 0.10);
