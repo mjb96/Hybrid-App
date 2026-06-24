@@ -216,7 +216,7 @@
    -------------------------------------------------------------------------- */
 
 .an-chart {
-  background: var(--bg-card, #090e1a);
+  background: var(--bg-card);
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 14px;
   padding: 15px 14px 12px;
@@ -429,7 +429,7 @@
    -------------------------------------------------------------------------- */
 
 .an-lift-card {
-  background: var(--bg-card, #090e1a);
+  background: var(--bg-card);
   border: 1px solid rgba(59, 130, 246, 0.11);
   border-left: 3px solid var(--color-blue);
   border-radius: 12px;
