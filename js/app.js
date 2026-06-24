@@ -55,7 +55,9 @@ import {
   saveThresholdPace as saveSettingsThresholdPace,
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
-  hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField
+  hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
+  setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
+  saveReminderTime, setNotifToggle,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
@@ -709,6 +711,10 @@ document.addEventListener('click', (e) => {
   else if (action === 'reset-all-data') confirmResetAllData();
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
+  else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));
+  else if (action === 'set-fitness-level')    setFitnessLevel(target.getAttribute('data-level'));
+  else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
+  else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));
 
   // Onboarding
   else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
@@ -724,7 +730,7 @@ document.addEventListener('click', (e) => {
   // Fasting
   else if (action === 'fast-start') {
     const goalEl = document.getElementById('fastingGoalSelect') ?? document.getElementById('fastingSheetGoalSelect');
-    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? 16);
+    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? appState.settings?.fastingDefault ?? 16);
     startFast(appState, goal, () => saveStateToLocalStorage(true));
     renderHome();
     openFastingDetail();
@@ -886,7 +892,9 @@ document.addEventListener('change', (e) => {
   }
   const hcField = target.getAttribute?.('data-hc-field');
   if (hcField) { hcToggleSyncField(hcField, target.checked); return; }
-  if (target.id === 'settingsAutoAdvance') { setAutoAdvanceWeek(target.checked); return; }
+  if (target.id === 'settingsAutoAdvance')          { setAutoAdvanceWeek(target.checked); return; }
+  if (target.id === 'settingsNotifWeeklySummary')   { setNotifToggle('weeklySummary', target.checked); return; }
+  if (target.id === 'settingsNotifStreak')          { setNotifToggle('streak', target.checked); return; }
   if (target.id === 'settingsNotifications') {
     if (target.checked) {
       requestNotificationPermission().then(({ granted }) => {
@@ -920,6 +928,7 @@ document.addEventListener('blur', (e) => {
   else if (id === 'settingsBodyWeight') saveBodyWeight();
   else if (id === 'settingsThresholdPace') saveSettingsThresholdPace();
   else if (id === 'settingsStepGoal') saveStepGoal();
+  else if (id === 'settingsReminderTime') saveReminderTime();
 }, true);
 
 document.addEventListener('input', (e) => {
@@ -1181,7 +1190,7 @@ async function bootstrapApp() {
     window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();
-    initNotifications();
+    initNotifications(() => appState);
     if (shouldShowOnboarding()) setTimeout(() => startOnboarding(), 300);
 
   } catch (fatalLifecycleError) {

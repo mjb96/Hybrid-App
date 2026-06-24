@@ -2031,6 +2031,8 @@ td {
 }
 .settings-input:focus { border-color: rgba(99,102,241,0.6); }
 .settings-input-short { width: 80px; }
+input[type="time"].settings-input { width: 110px; color-scheme: dark; }
+html[data-theme="light"] input[type="time"].settings-input { color-scheme: light; }
 .settings-input-unit-row {
   display: flex;
   align-items: center;

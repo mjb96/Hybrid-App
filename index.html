@@ -1321,29 +1321,25 @@
               <span class="settings-unit-badge" id="settingsBodyWeightUnit">kg</span>
             </div>
           </div>
-        </div>
-
-        <!-- Training -->
-        <!-- Week Management -->
-        <div class="settings-section">
-          <div class="settings-section-label">Program Week</div>
           <div class="settings-row">
-            <label class="settings-row-label">Current Week</label>
-            <div class="week-stepper">
-              <button class="week-stepper-btn" data-action="week-step" data-delta="-1">−</button>
-              <span class="week-stepper-val" id="settingsCurrentWeek">1</span>
-              <button class="week-stepper-btn" data-action="week-step" data-delta="1">+</button>
+            <label class="settings-row-label">Fitness Goal</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-fitness-goal" data-goal="strength">Strength</button>
+              <button class="settings-toggle-btn active" data-action="set-fitness-goal" data-goal="hybrid">Hybrid</button>
+              <button class="settings-toggle-btn" data-action="set-fitness-goal" data-goal="endurance">Endurance</button>
             </div>
           </div>
           <div class="settings-row">
-            <label class="settings-row-label">Auto-advance week</label>
-            <label class="settings-switch">
-              <input type="checkbox" id="settingsAutoAdvance" checked>
-              <span class="settings-switch-track"></span>
-            </label>
+            <label class="settings-row-label">Experience</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-fitness-level" data-level="beginner">Beginner</button>
+              <button class="settings-toggle-btn active" data-action="set-fitness-level" data-level="intermediate">Intermediate</button>
+              <button class="settings-toggle-btn" data-action="set-fitness-level" data-level="advanced">Advanced</button>
+            </div>
           </div>
         </div>
 
+        <!-- Training -->
         <div class="settings-section">
           <div class="settings-section-label">Training</div>
           <div class="settings-row">
@@ -1384,19 +1380,91 @@
               <span class="settings-unit-badge">min/km</span>
             </div>
           </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Week Starts On</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" data-action="set-week-start" data-day="mon">Monday</button>
+              <button class="settings-toggle-btn" data-action="set-week-start" data-day="sun">Sunday</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Program Week -->
+        <div class="settings-section">
+          <div class="settings-section-label">Program Week</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Current Week</label>
+            <div class="week-stepper">
+              <button class="week-stepper-btn" data-action="week-step" data-delta="-1">−</button>
+              <span class="week-stepper-val" id="settingsCurrentWeek">1</span>
+              <button class="week-stepper-btn" data-action="week-step" data-delta="1">+</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Auto-advance week</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsAutoAdvance" checked>
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Fasting -->
+        <div class="settings-section">
+          <div class="settings-section-label">Fasting</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Default Protocol</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn" data-action="set-fasting-default" data-hours="12">12h</button>
+              <button class="settings-toggle-btn active" data-action="set-fasting-default" data-hours="16">16h</button>
+              <button class="settings-toggle-btn" data-action="set-fasting-default" data-hours="18">18h</button>
+              <button class="settings-toggle-btn" data-action="set-fasting-default" data-hours="20">20h</button>
+            </div>
+          </div>
         </div>
 
         <!-- Notifications -->
         <div class="settings-section">
           <div class="settings-section-label">Notifications</div>
           <div class="settings-row">
-            <label class="settings-row-label">Daily Training Reminder</label>
+            <label class="settings-row-label">Workout Reminder</label>
             <label class="settings-switch">
               <input type="checkbox" id="settingsNotifications">
               <span class="settings-switch-track"></span>
             </label>
           </div>
-          <div class="text-xs text-muted" style="padding: 0 4px 8px;" id="settingsNotifStatus">Reminds you to train at 07:30 each morning.</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Reminder Time</label>
+            <input type="time" class="settings-input settings-input-short" id="settingsReminderTime" value="07:30">
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Weekly Summary</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsNotifWeeklySummary">
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <label class="settings-row-label">Streak Alerts</label>
+            <label class="settings-switch">
+              <input type="checkbox" id="settingsNotifStreak">
+              <span class="settings-switch-track"></span>
+            </label>
+          </div>
+          <div class="text-xs text-muted" style="padding: 0 4px 8px;" id="settingsNotifStatus">Enable to receive daily training reminders.</div>
+        </div>
+
+        <!-- Appearance -->
+        <div class="settings-section">
+          <div class="settings-section-label">Appearance</div>
+          <div class="settings-row">
+            <label class="settings-row-label">Theme</label>
+            <div class="settings-toggle-group">
+              <button class="settings-toggle-btn active" data-action="set-theme" data-theme-val="dark">Dark</button>
+              <button class="settings-toggle-btn" data-action="set-theme" data-theme-val="light">Light</button>
+              <button class="settings-toggle-btn" data-action="set-theme" data-theme-val="system">System</button>
+            </div>
+          </div>
         </div>
 
         <!-- Data -->
@@ -1404,7 +1472,7 @@
           <div class="settings-section-label">Data &amp; Backups</div>
           <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
           <button class="settings-action-btn" data-action="export-csv">Export Spreadsheet (CSV)</button>
-<button class="settings-action-btn" data-action="import-data">Import Backup File</button>
+          <button class="settings-action-btn" data-action="import-data">Import Backup File</button>
           <input type="file" id="settingsImportFile" accept=".json" class="hidden-input">
           <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
         </div>
@@ -1443,19 +1511,12 @@
           <p class="hc-note" id="hcNote">Requires Hybrid Engine Android app with Health Connect permission granted.</p>
         </div>
 
-        <!-- App -->
+        <!-- App Info -->
         <div class="settings-section">
           <div class="settings-section-label">App</div>
-          <div class="settings-row">
-            <label class="settings-row-label">Appearance</label>
-            <div class="settings-toggle-group">
-              <button class="settings-toggle-btn active" data-action="set-theme" data-theme-val="dark">Dark</button>
-              <button class="settings-toggle-btn" data-action="set-theme" data-theme-val="light">Light</button>
-            </div>
-          </div>
           <div class="settings-row settings-row-info">
             <span class="settings-row-label">Version</span>
-            <span class="text-xs text-muted">Hybrid Engine v1.0</span>
+            <span class="text-xs text-muted">Hybrid Engine v1.1</span>
           </div>
         </div>
 

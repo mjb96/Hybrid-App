@@ -4,6 +4,7 @@
 import { saveStateToLocalStorage } from './state.js';
 import { setRestDuration } from './timers.js';
 import { showToast } from './state.js';
+import { rearmReminder } from './notifications.js';
 
 let _getState;
 
@@ -53,11 +54,15 @@ function _syncSettingsUI() {
   const bwUnit = document.getElementById('settingsBodyWeightUnit');
   if (bwUnit) bwUnit.textContent = s.weightUnit || 'kg';
 
-  _setToggleActive('[data-action="set-unit"]', `[data-unit="${s.weightUnit || 'kg'}"]`);
-  _setToggleActive('[data-action="set-dist-unit"]', `[data-unit="${s.distanceUnit || 'km'}"]`);
-  _setToggleActive('[data-action="set-rest-default"]', `[data-secs="${s.restTimerDefault || 90}"]`);
+  _setToggleActive('[data-action="set-unit"]',        `[data-unit="${s.weightUnit || 'kg'}"]`);
+  _setToggleActive('[data-action="set-dist-unit"]',   `[data-unit="${s.distanceUnit || 'km'}"]`);
+  _setToggleActive('[data-action="set-rest-default"]',`[data-secs="${s.restTimerDefault || 90}"]`);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${s.progressionIncrement || 2.5}"]`);
-  _setToggleActive('[data-action="set-theme"]', `[data-theme-val="${s.theme || 'dark'}"]`);
+  _setToggleActive('[data-action="set-theme"]',       `[data-theme-val="${s.theme || 'dark'}"]`);
+  _setToggleActive('[data-action="set-fitness-goal"]',`[data-goal="${s.fitnessGoal || 'hybrid'}"]`);
+  _setToggleActive('[data-action="set-fitness-level"]',`[data-level="${s.fitnessLevel || 'intermediate'}"]`);
+  _setToggleActive('[data-action="set-week-start"]',  `[data-day="${s.weekStartDay || 'mon'}"]`);
+  _setToggleActive('[data-action="set-fasting-default"]',`[data-hours="${s.fastingDefault || 16}"]`);
 
   const weekEl = document.getElementById('settingsCurrentWeek');
   if (weekEl) weekEl.textContent = _getState().currentWeek || '1';
@@ -69,6 +74,34 @@ function _syncSettingsUI() {
   if (threshEl && appState.thresholdPaceSeconds) {
     const total = appState.thresholdPaceSeconds;
     threshEl.value = Math.floor(total / 60) + ':' + (total % 60).toString().padStart(2, '0');
+  }
+
+  // Notification toggles
+  const notifCheckbox = document.getElementById('settingsNotifications');
+  if (notifCheckbox) notifCheckbox.checked = ('Notification' in window) && Notification.permission === 'granted';
+
+  const notifWeekly  = document.getElementById('settingsNotifWeeklySummary');
+  const notifStreak  = document.getElementById('settingsNotifStreak');
+  if (notifWeekly) notifWeekly.checked = !!s.notifWeeklySummary;
+  if (notifStreak)  notifStreak.checked  = !!s.notifStreak;
+
+  // Reminder time picker
+  const rtEl = document.getElementById('settingsReminderTime');
+  if (rtEl) {
+    const rt = s.reminderTime || { hour: 7, minute: 30 };
+    rtEl.value = `${String(rt.hour).padStart(2, '0')}:${String(rt.minute).padStart(2, '0')}`;
+  }
+
+  // Notification status text
+  const notifStatusEl = document.getElementById('settingsNotifStatus');
+  if (notifStatusEl) {
+    if (('Notification' in window) && Notification.permission === 'granted') {
+      const rt = s.reminderTime || { hour: 7, minute: 30 };
+      const display = `${String(rt.hour).padStart(2, '0')}:${String(rt.minute).padStart(2, '0')}`;
+      notifStatusEl.textContent = `Reminders active — you'll be notified at ${display}.`;
+    } else {
+      notifStatusEl.textContent = 'Enable to receive daily training reminders.';
+    }
   }
 
   _refreshAvatar();
@@ -161,9 +194,19 @@ export function setTheme(mode) {
   const appState = _ensureSettings();
   appState.settings.theme = mode;
   saveStateToLocalStorage(true);
-  document.documentElement.dataset.theme = mode;
+  _applyTheme(mode);
   _setToggleActive('[data-action="set-theme"]', `[data-theme-val="${mode}"]`);
-  showToast(`${mode === 'light' ? 'Light' : 'Dark'} mode`);
+  const label = mode === 'light' ? 'Light' : mode === 'system' ? 'System' : 'Dark';
+  showToast(`${label} mode`);
+}
+
+function _applyTheme(mode) {
+  if (mode === 'system') {
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+  } else {
+    document.documentElement.dataset.theme = mode;
+  }
 }
 
 export function setDistanceUnit(unit) {
@@ -195,6 +238,66 @@ export function setAutoAdvanceWeek(enabled) {
   const appState = _ensureSettings();
   appState.settings.autoAdvanceWeek = enabled;
   saveStateToLocalStorage(true);
+}
+
+export function setFitnessGoal(goal) {
+  const appState = _ensureSettings();
+  appState.settings.fitnessGoal = goal;
+  saveStateToLocalStorage(true);
+  _setToggleActive('[data-action="set-fitness-goal"]', `[data-goal="${goal}"]`);
+  const labels = { strength: 'Strength First', hybrid: 'True Hybrid', endurance: 'Run-Focused' };
+  showToast(`Goal: ${labels[goal] || goal}`);
+}
+
+export function setFitnessLevel(level) {
+  const appState = _ensureSettings();
+  appState.settings.fitnessLevel = level;
+  saveStateToLocalStorage(true);
+  _setToggleActive('[data-action="set-fitness-level"]', `[data-level="${level}"]`);
+  const labels = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
+  showToast(`Level: ${labels[level] || level}`);
+}
+
+export function setWeekStartDay(day) {
+  const appState = _ensureSettings();
+  appState.settings.weekStartDay = day;
+  saveStateToLocalStorage(true);
+  _setToggleActive('[data-action="set-week-start"]', `[data-day="${day}"]`);
+  showToast(`Week starts on ${day === 'mon' ? 'Monday' : 'Sunday'}`);
+}
+
+export function setFastingDefault(hours) {
+  const appState = _ensureSettings();
+  appState.settings.fastingDefault = hours;
+  saveStateToLocalStorage(true);
+  _setToggleActive('[data-action="set-fasting-default"]', `[data-hours="${hours}"]`);
+  showToast(`Default fast: ${hours}h`);
+  document.dispatchEvent(new Event('app:storage-loaded'));
+}
+
+export function saveReminderTime() {
+  const val = document.getElementById('settingsReminderTime')?.value;
+  if (!val) return;
+  const [hourStr, minuteStr] = val.split(':');
+  const hour   = parseInt(hourStr,   10);
+  const minute = parseInt(minuteStr, 10);
+  if (isNaN(hour) || isNaN(minute)) return;
+  const appState = _ensureSettings();
+  appState.settings.reminderTime = { hour, minute };
+  saveStateToLocalStorage(true);
+  rearmReminder();
+  const display = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  showToast(`Reminder set for ${display}`);
+  const statusEl = document.getElementById('settingsNotifStatus');
+  if (statusEl) statusEl.textContent = `Reminders active — you'll be notified at ${display}.`;
+}
+
+export function setNotifToggle(type, enabled) {
+  const appState = _ensureSettings();
+  if (type === 'weeklySummary') appState.settings.notifWeeklySummary = enabled;
+  else if (type === 'streak')   appState.settings.notifStreak = enabled;
+  saveStateToLocalStorage(true);
+  rearmReminder();
 }
 
 export function saveThresholdPace() {
@@ -380,8 +483,17 @@ window.onHealthConnectData = function(payload) {
 export function applySettingsOnBoot(appState) {
   const s = appState.settings || {};
   if (s.restTimerDefault) setRestDuration(s.restTimerDefault);
-  document.documentElement.dataset.theme = s.theme || 'dark';
+  _applyTheme(s.theme || 'dark');
+
+  // Re-apply system theme if OS preference changes at runtime
+  if (s.theme === 'system') {
+    window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (_getState?.()?.settings?.theme === 'system') {
+        document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+      }
+    });
+  }
+
   _refreshAvatar();
-  // Expose getters for native bridge + week stepper
   window._hybridGetState = _getState;
 }
