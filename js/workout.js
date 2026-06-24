@@ -358,7 +358,7 @@ export function renderWorkout() {
   }
 
   if (runPanel) {
-    runPanel.classList.toggle('dimmed', !isRunScheduled);
+    runPanel.classList.toggle('run-collapsed', !isRunScheduled);
   }
 
   if (runPanel && exercisesContainer) {
@@ -1218,6 +1218,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'execute-reset') executeResetActiveDayMetrics();
   else if (action === 'open-finish-modal') openFinishSessionModal();
   else if (action === 'close-finish-modal') closeFinishSessionModal();
+  else if (action === 'expand-run') document.getElementById('cockpitRunPanel')?.classList.remove('run-collapsed');
 });
 
 document.addEventListener('change', (e) => {
