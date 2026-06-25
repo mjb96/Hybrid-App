@@ -85,3 +85,29 @@ export interface AppState {
   profileSections?: { order: string[] | null; hidden: string[] };
   settings?: AppSettings;
 }
+
+// Globals injected by the native Android WebView host (HybridHealthBridge.kt /
+// MainActivity.kt) and a few app-defined window hooks. Declared so `// @ts-check`
+// modules that talk to the bridge type-check cleanly.
+declare global {
+  interface Window {
+    /** Native Health Connect bridge (Android only; undefined on web/PWA). */
+    HybridHealthBridge?: {
+      getAvailabilityStatus(): string;
+      requestPermissions(typesJson: string, callbackId: string): void;
+      readHealthData(startIso: string, endIso: string, callbackId: string): void;
+      readHealthDataByDay(startIso: string, endIso: string, callbackId: string): void;
+      notifyRestComplete(title: string, body: string): void;
+      saveTextFile(filename: string, content: string, mime: string): void;
+    };
+    /** Pending native→JS callbacks keyed by callbackId. */
+    __hcCB?: Record<string, (json: string) => void>;
+    /** Hardware/gesture back handler; returns 'handled' or 'exit'. */
+    __onAndroidBack?: () => string;
+    _hybridGetState?: () => any;
+    _hybridGetProgram?: () => any;
+    supabase?: any;
+  }
+}
+
+export {};
