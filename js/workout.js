@@ -10,6 +10,7 @@ import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
+import { hapticTick, hapticSuccess } from './haptics.js';
 
 let _getState;
 let _getSelectedDay;
@@ -534,6 +535,7 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   _ensureWorkoutDateStamp(appState, wk, selectedDay);
 
   parentRow.classList.add('is-complete');
+  hapticTick();
 
   try {
     const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
@@ -667,6 +669,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
   
   if (checkboxNode.checked) {
     if (parentRow) parentRow.classList.add('is-complete');
+    hapticTick();
     
     const wInput = parentRow ? parentRow.querySelector('.input-weight-node') : null;
     const rInput = parentRow ? parentRow.querySelector('.input-reps-node') : null;
@@ -717,6 +720,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
           const prevMax = _appState.exerciseStats?.[liftName]?.allTimeMax || 0;
           if (e1rm > prevMax + 0.01) {
             parentRow.classList.add('is-pr');
+            hapticSuccess();
             if (!parentRow.querySelector('.pr-badge')) {
               const badge = document.createElement('span');
               badge.className = 'pr-badge';
