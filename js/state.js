@@ -15,6 +15,7 @@ import { recomputeLoadMetrics } from './brain/load_models.js';
 import { getSupabaseClient } from './state/supabase.js';
 import { initAuth, loginToSupabase, signUpToSupabase, checkActiveSession } from './state/auth.js';
 import { initImportExport, triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback } from './state/import-export.js';
+import { migrateState, CURRENT_SCHEMA_VERSION } from './state/migrations.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -428,6 +429,7 @@ export async function pullEngineDataFromStorage() {
   }
 
   const baseDefaults = {
+    schemaVersion: 0, // 0 = legacy/unstamped; migrateState() upgrades + stamps on load
     currentWeek: '1', activeProgramId: 'hybrid_engine', weekStartedAt: null,
     weeks: {}, exerciseStats: {}, customExercises: [], customPrograms: [], bodyWeightLog: [],
     thresholdPaceSeconds: null, deloadApplied: null, _deloadDismissedWeek: null,
@@ -510,14 +512,9 @@ export async function pullEngineDataFromStorage() {
   if (!appState.profileSections) appState.profileSections = { order: null, hidden: [] };
   if (!appState.settings.avatarDataUrl && appState.settings.avatarDataUrl !== null) appState.settings.avatarDataUrl = null;
 
-  const weeksToDelete = [];
-  for (const wk in appState.weeks) {
-    const wkData = appState.weeks[wk];
-    if (!wkData || !wkData.lifts) continue;
-    const hasLegacySchema = DEFAULT_DAYS.some(d => Array.isArray(wkData.lifts[d]));
-    if (hasLegacySchema) weeksToDelete.push(wk);
-  }
-  weeksToDelete.forEach(wk => { delete appState.weeks[wk]; });
+  // Run versioned schema migrations (legacy-week cleanup lives here now) and
+  // stamp the current schema version.
+  migrateState(appState);
 
   verifyWeekStorageSchema(appState.currentWeek);
   appState.loadMetrics = recomputeLoadMetrics(appState);
@@ -529,6 +526,8 @@ export async function pullEngineDataFromStorage() {
     setState:    (s) => { appState = s; },
     saveState:   saveStateToLocalStorage,
     defaultDays: DEFAULT_DAYS,
+    migrate:     migrateState,
+    storageKey:  STORAGE_KEY,
   });
 
   try {

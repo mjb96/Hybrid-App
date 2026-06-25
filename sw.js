@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v63';
+const CACHE_NAME = 'hybrid-training-v64';
 
 const LOCAL_ASSETS = [
   './',
@@ -47,6 +47,7 @@ const LOCAL_ASSETS = [
   './js/state/auth.js',
   './js/state/import-export.js',
   './js/state/supabase.js',
+  './js/state/migrations.js',
   // Metrics
   './js/metrics/metrics-strength.js',
   './js/metrics/metrics-running.js',
