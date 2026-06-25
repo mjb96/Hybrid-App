@@ -322,7 +322,14 @@
         <span id="homeBlockTypeLabel"></span>
         <span id="homeWeeklyProgressTasks"></span>
         <article id="homeEngineAlertCard"><h2 id="homeEngineAlertTitle"></h2><p id="homeEngineAlertDesc"></p></article>
-        <article id="homeDeloadSuggestionCard"><p id="homeDeloadReason"></p></article>
+        <article id="homeDeloadSuggestionCard" class="card-dark" style="display:none;border-left:3px solid var(--color-amber);">
+          <div class="card-icon-title" style="color:var(--color-amber);"><span>🔄</span> Deload Suggested</div>
+          <p id="homeDeloadReason" class="text-muted" style="font-size:0.74rem;line-height:1.4;margin:8px 0 14px;"></p>
+          <div class="flex gap-2">
+            <button class="btn-action-block btn-ghost mt-0" data-action="close-deload-modal" style="flex:1;">Dismiss</button>
+            <button class="btn-action-block btn-amber mt-0" data-action="execute-deload-week" style="flex:1;">Apply Deload</button>
+          </div>
+        </article>
         <article id="homeWeekCompareCard"><div id="homeWeekCompareGrid"></div></article>
       </div>
 
@@ -1689,17 +1696,6 @@
     </div>
   </div>
 
-  <div id="deloadConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deloadModalTitle">
-    <div class="modal-content">
-      <h2 id="deloadModalTitle" class="text-2xl font-heavy text-accent-amber mb-1">Apply Deload Week?</h2>
-      <p class="text-lg text-muted mb-3">This will generate a new week with 60% of your normal volume. Your existing data is untouched.</p>
-      <p id="deloadModalReason" class="text-sm text-muted mb-5" style="color:var(--accent-amber);"></p>
-      <div class="flex gap-2">
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-deload-modal">Cancel</button>
-        <button class="btn-action-block btn-amber mt-0" data-action="execute-deload-week">Apply Deload</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Workout Preview Modal (day detail bottom-sheet) -->
   <div id="wpmBackdrop" class="sheet-backdrop" data-action="close-day-preview"></div>

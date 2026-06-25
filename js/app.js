@@ -25,6 +25,8 @@ import {
   signUpToSupabase,
   savePersonalRating,
   getPersonalRating,
+  dismissDeloadSuggestion,
+  applyDeloadToCurrentWeek,
 } from './state.js';
 
 import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
@@ -836,6 +838,18 @@ else if (action === 'export-csv') triggerCSVExport();
   else if (action === 'reset-profile-customiser') resetProfileCustomiser();
   else if (e.target.id === 'profileCustomiserOverlay') closeProfileCustomiser();
   else if (action === 'pick-avatar')              openAvatarPicker();
+
+  // Deload week
+  else if (action === 'close-deload-modal') {
+    dismissDeloadSuggestion();
+    renderHome();
+  }
+  else if (action === 'execute-deload-week') {
+    applyDeloadToCurrentWeek();
+    renderHome();
+    try { renderWorkout(); } catch (err) { console.warn(err); }
+    showToast('Deload applied — working sets reduced for this week.');
+  }
 
   // Analytics
   else if (action === 'log-body-weight') logBodyWeight();

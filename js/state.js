@@ -214,6 +214,43 @@ export function deleteCustomProgram(id) {
 }
 
 // ==========================================
+// DELOAD WEEK
+// ==========================================
+
+// Dismiss the deload suggestion for the current week (won't show again this week).
+export function dismissDeloadSuggestion() {
+  appState._deloadDismissedWeek = appState.currentWeek;
+  saveStateToLocalStorage(true);
+}
+
+// Apply a deload to the current week: halve the *incomplete* working sets of
+// each lift (keeping at least one). Completed sets and warm-ups are never
+// touched, so no logged work is lost. Marks the week as deloaded.
+export function applyDeloadToCurrentWeek() {
+  const wk   = appState.currentWeek;
+  const week = appState.weeks?.[wk];
+  if (week && week.lifts) {
+    for (const day in week.lifts) {
+      const dayLifts = week.lifts[day];
+      for (const lift in dayLifts) {
+        const sets = dayLifts[lift];
+        if (!Array.isArray(sets)) continue;
+        const incompleteCount = sets.filter(s => !(s?.c || s?.type === 'W')).length;
+        const keepN = Math.max(1, Math.ceil(incompleteCount / 2));
+        let seen = 0;
+        dayLifts[lift] = sets.filter(s => {
+          if (s?.c || s?.type === 'W') return true; // keep all logged sets + warm-ups
+          seen++;
+          return seen <= keepN;                      // keep the first N incomplete, drop the rest
+        });
+      }
+    }
+  }
+  appState.deloadApplied = wk;
+  saveStateToLocalStorage(true);
+}
+
+// ==========================================
 // INIT & SCHEMA
 // ==========================================
 export function determineDefaultCalendarDay() {
