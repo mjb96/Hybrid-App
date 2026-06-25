@@ -7,6 +7,7 @@ import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, returnToLibrary } from './library.js';
 import { PROGRAMS } from '../constants.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted } from '../state.js';
+import { escapeHtml } from '../util.js';
 
 let _currentProgramId = null;
 let _appState = null;
@@ -63,9 +64,9 @@ export function renderProgramDetail(programId, appState) {
         <span class="detail-category-badge" style="background: ${program.accentColor || category.color}22; color: ${program.accentColor || category.color}; border-color: ${program.accentColor || category.color}40">
           ${category.icon} ${category.label}
         </span>
-        <h1 class="detail-title">${program.name}</h1>
-        <p class="detail-tagline">${program.tagline || program.dossier?.philosophy?.slice(0, 100) || ''}</p>
-        <div class="detail-author">by ${program.author?.name || program.dossier?.creator || 'Unknown'}
+        <h1 class="detail-title">${escapeHtml(program.name)}</h1>
+        <p class="detail-tagline">${escapeHtml(program.tagline || program.dossier?.philosophy?.slice(0, 100) || '')}</p>
+        <div class="detail-author">by ${escapeHtml(program.author?.name || program.dossier?.creator || 'Unknown')}
           ${program.author?.verified ? ' <span class="detail-verified">✓</span>' : ''}
         </div>
       </div>
@@ -158,7 +159,7 @@ export function renderProgramDetail(programId, appState) {
 
     <!-- Description -->
     <div class="detail-section">
-      <p class="detail-description">${program.description || program.dossier?.philosophy || ''}</p>
+      <p class="detail-description">${escapeHtml(program.description || program.dossier?.philosophy || '')}</p>
     </div>
 
     <!-- Highlights -->
@@ -250,7 +251,7 @@ export function renderProgramDetail(programId, appState) {
       <div class="detail-author-card">
         <div class="detail-author-icon">${category.icon}</div>
         <div class="detail-author-info">
-          <div class="detail-author-name">${program.author?.name || program.dossier?.creator || 'Unknown'}</div>
+          <div class="detail-author-name">${escapeHtml(program.author?.name || program.dossier?.creator || 'Unknown')}</div>
           <div class="detail-author-type">${getAuthorTypeLabel(program.author?.type)}</div>
         </div>
         ${program.author?.verified ? '<span class="detail-author-verified">✓ Verified</span>' : ''}

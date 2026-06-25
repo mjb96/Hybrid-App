@@ -114,7 +114,11 @@ export function recoveryCostBreakdown(state, days, maxWeek) {
 }
 
 // Acute/chronic ACWR on the recovery-cost series.
-// Acute = current week sRPE total; chronic = previous week's total.
+// Acute   = current week sRPE total.
+// Chronic = mean of the prior weeks with load, over a rolling window of up to 4
+//           (uncoupled ACWR, ~28-day chronic). Using a single prior week — as
+//           this did before — let one easy week swing the ratio into the danger
+//           band; a 4-week mean is the standard Gabbett/TrainingPeaks chronic.
 // ACWR rounded to 2 decimal places.
 export function recoveryCostBalance(state, days, currentWeek, maxWeek) {
   const wkNum = parseInt(currentWeek, 10) || 1;
@@ -124,8 +128,11 @@ export function recoveryCostBalance(state, days, currentWeek, maxWeek) {
   const idx = wkNum - 1;
   if (idx >= costs.length) return { hasData: false, acwr: 0, acute: 0, chronic: 0 };
 
-  const acute   = costs[idx];
-  const chronic = costs[idx - 1];
+  const acute = costs[idx];
+  const priorWindow = costs.slice(Math.max(0, idx - 4), idx).filter(c => c > 0);
+  const chronic = priorWindow.length > 0
+    ? priorWindow.reduce((s, c) => s + c, 0) / priorWindow.length
+    : 0;
   if (acute === 0 && chronic === 0) return { hasData: false, acwr: 0, acute, chronic };
 
   const acwr = chronic > 0 ? Math.round((acute / chronic) * 100) / 100 : 0;

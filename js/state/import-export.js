@@ -9,12 +9,27 @@ let _setState       = null;
 let _saveState      = null;
 let _DEFAULT_DAYS   = null;
 let _onImportSuccess = null;
+let _migrate        = (s) => s;
+let _storageKey     = 'hybrid_engine_v2_state';
 
-export function initImportExport({ getState, setState, saveState, defaultDays }) {
+export function initImportExport({ getState, setState, saveState, defaultDays, migrate, storageKey }) {
   _getState     = getState;
   _setState     = setState;
   _saveState    = saveState;
   _DEFAULT_DAYS = defaultDays;
+  if (typeof migrate === 'function') _migrate = migrate;
+  if (storageKey) _storageKey = storageKey;
+}
+
+// Snapshot the current persisted state before a destructive import/restore so a
+// bad file can be undone. Keeps a single rolling backup.
+function _backupCurrentState() {
+  try {
+    const current = localStorage.getItem(_storageKey);
+    if (current) localStorage.setItem(_storageKey + '_backup', current);
+  } catch (e) {
+    console.warn('Pre-import backup failed:', e);
+  }
 }
 
 export function setImportSuccessCallback(fn) {
@@ -87,10 +102,14 @@ export function triggerEngineImport(event) {
     try {
       const parsedData = JSON.parse(e.target.result);
       if (parsedData.currentWeek && parsedData.weeks && Object.keys(parsedData.weeks).length > 0) {
+        _backupCurrentState(); // undo point before we overwrite live data
         const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
-        _setState({ ...base, ...parsedData });
-        if (!_getState().customExercises) { const s = _getState(); s.customExercises = []; }
-        if (!_getState().customPrograms)  { const s = _getState(); s.customPrograms  = []; }
+        // Run the same versioned migrations the load path uses so an older
+        // export is upgraded (and stamped) instead of silently half-broken.
+        const merged = _migrate({ ...base, ...parsedData });
+        if (!merged.customExercises) merged.customExercises = [];
+        if (!merged.customPrograms)  merged.customPrograms  = [];
+        _setState(merged);
         _saveState(true);
         if (_onImportSuccess) _onImportSuccess();
         showToast('Data snapshot mounted successfully.');

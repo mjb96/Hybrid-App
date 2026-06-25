@@ -6,7 +6,8 @@ import { CONFIG, EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, getLiftDisplayName } from './engine.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
-import { showToast, saveNewCustomExerciseToLibrary } from './state.js'; 
+import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
+import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
@@ -120,7 +121,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     if (pastWkData?.lifts?.[selectedDay]?.[liftName]) {
       const doneSets = pastWkData.lifts[selectedDay][liftName].filter(s => s?.c && s.w && s.r);
       if (doneSets.length > 0) {
-        historicalLineText = 'Last Session: [ ' + doneSets.map(s => s.w + 'kg × ' + s.r).join(', ') + ' ]';
+        historicalLineText = 'Last Session: [ ' + doneSets.map(s => escapeHtml(String(s.w)) + 'kg × ' + escapeHtml(String(s.r))).join(', ') + ' ]';
       }
     }
   }
@@ -907,7 +908,7 @@ export function showSupersetLinkPanel(exCard) {
   if (myGroupId) {
     const partners = Object.keys(dayMeta).filter(n => n !== liftName && dayMeta[n]?.groupId === myGroupId);
     panel.innerHTML = `
-      <div class="ss-panel-title">Superset ${myGroupId} — paired with: ${partners.map(n => getLiftDisplayName(appState, n)).join(', ') || 'none'}</div>
+      <div class="ss-panel-title">Superset ${escapeHtml(String(myGroupId))} — paired with: ${partners.map(n => escapeHtml(getLiftDisplayName(appState, n))).join(', ') || 'none'}</div>
       <button class="btn-pad" style="color:#ef4444;border-color:rgba(239,68,68,0.3);" data-action="unlink-superset" data-liftname="${liftName}">Unlink superset</button>`;
   } else if (others.length === 0) {
     panel.innerHTML = `<div class="ss-panel-title" style="color:#94a3b8;">Add more exercises to pair as a superset.</div>`;
@@ -916,7 +917,7 @@ export function showSupersetLinkPanel(exCard) {
     others.forEach(name => {
       const safe    = name.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
       const display = getLiftDisplayName(appState, name);
-      html += `<button class="btn-pad" data-action="link-superset" data-liftname="${liftName}" data-partner="${safe}">${display}</button>`;
+      html += `<button class="btn-pad" data-action="link-superset" data-liftname="${liftName}" data-partner="${safe}">${escapeHtml(display)}</button>`;
     });
     panel.innerHTML = html;
   }
@@ -1002,7 +1003,7 @@ export function toggleAccordionManual(elementNode) {
 function _exChip(name, appState) {
   const pr = appState.exerciseStats?.[name]?.allTimeMax;
   const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
-  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${name.replace(/"/g, '&quot;')}">${name}${prStr}</button>`;
+  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${name.replace(/"/g, '&quot;')}">${escapeHtml(name)}${prStr}</button>`;
 }
 
 function _renderExerciseLibraryList(query) {

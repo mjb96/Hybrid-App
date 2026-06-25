@@ -102,6 +102,13 @@ function _startRestCountdown() {
       restTimerInt = null;
       playRestDoneBeep();
       hapticRestDone();
+      // When the screen is off / app backgrounded, Web Audio + haptics are
+      // suspended — fire a native Android notification instead (no-op on web).
+      if (typeof document !== 'undefined' && document.hidden) {
+        try {
+          window.HybridHealthBridge?.notifyRestComplete?.('Rest complete', 'Time for your next set 💪');
+        } catch (_) { /* bridge absent */ }
+      }
       const timerBar = document.getElementById('cockpitTimerBar');
       if (timerBar) {
         timerBar.classList.remove('rest-warning');

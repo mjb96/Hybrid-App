@@ -8,10 +8,19 @@
 //   SCHEDULE helpers (slotDate, slotDateISO, estimateWeekStart, daysBetween,
 //     weekRangeLabel) — UTC-based so week slot maths is timezone-independent
 // ==========================================
-// All functions default to Australia/Sydney so date keys match the user's
-// local calendar day rather than UTC (which can be a day behind for AEST/AEDT).
+// DISPLAY helpers default to the *device* timezone so date keys match whatever
+// calendar day the user is actually on, anywhere in the world. Previously this
+// was hardcoded to Australia/Sydney, which mis-dated "today", streaks and the
+// activity calendar for every user outside AEST/AEDT.
 // ==========================================
-export const DEFAULT_TZ = 'Australia/Sydney';
+function resolveDeviceTz() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) return tz;
+  } catch (_) { /* Intl unavailable (very old WebView / test shim) */ }
+  return 'Australia/Sydney';
+}
+export const DEFAULT_TZ = resolveDeviceTz();
 
 // Returns YYYY-MM-DD for today in the given timezone.
 export function todayKey(tz = DEFAULT_TZ) {

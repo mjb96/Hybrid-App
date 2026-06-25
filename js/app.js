@@ -7,6 +7,7 @@ import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 import { getCatalogEntry } from './programs/catalog.js';
+import { escapeHtml } from './util.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -267,8 +268,8 @@ function _renderActivePlanHero() {
       <div class="aplan-hero-icon">${icon}</div>
       <div class="aplan-hero-content">
         <div class="aplan-hero-eyebrow">ACTIVE PROGRAM</div>
-        <div class="aplan-hero-name">${name}</div>
-        ${phaseName ? `<div class="aplan-hero-phase">${phaseName}</div>` : ''}
+        <div class="aplan-hero-name">${escapeHtml(name)}</div>
+        ${phaseName ? `<div class="aplan-hero-phase">${escapeHtml(phaseName)}</div>` : ''}
         <div class="aplan-hero-progress-row">
           <div class="aplan-hero-bar">
             <div class="aplan-hero-fill" style="width: ${progress}%; background: ${accentColor}"></div>
@@ -539,7 +540,7 @@ export function openTodaySummaryModal() {
           const completedSets = dayLifts[lift].filter(s => s && s.c);
           if (completedSets.length === 0) return;
           const displayLiftName = getLiftDisplayName(appState, lift);
-          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${displayLiftName}</div>`;
+          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${escapeHtml(displayLiftName)}</div>`;
           completedSets.forEach((s, idx) => {
             const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;
             const labelColor = s.type === 'W' ? '#94a3b8' : s.type === 'D' ? '#f97316' : s.type === 'F' ? '#ef4444' : 'rgba(255,255,255,0.5)';
@@ -1202,6 +1203,47 @@ function _submitProgramRating() {
   savePersonalRating(_ratingProgramId, _ratingSelected, review);
   showToast('Rating saved!');
   _closeRatingModal();
+}
+
+// ==========================================
+// ANDROID HARDWARE / GESTURE BACK
+// Native MainActivity calls window.__onAndroidBack() and only exits the app
+// when we return anything other than 'handled'. Close the topmost open surface
+// first (modal → settings → detail/builder), then fall back to the Home tab,
+// then let the OS exit.
+// ==========================================
+if (typeof window !== 'undefined') {
+  window.__onAndroidBack = function () {
+    // 1) Generic modals using the .active convention (today-summary, rating,
+    //    pr-goal, create-program, week-advance, deload, etc.)
+    const activeModal = document.querySelector('.modal.active, [data-modal].active');
+    if (activeModal) { activeModal.classList.remove('active'); return 'handled'; }
+
+    // 2) Modals/sheets toggled via inline display (fasting, today-summary fallback)
+    const displayModal = [...document.querySelectorAll('.modal, .bottom-sheet, .detail-overlay')]
+      .find(el => el.style && (el.style.display === 'flex' || el.style.display === 'block'));
+    if (displayModal) { displayModal.style.display = 'none'; return 'handled'; }
+
+    // 3) Settings overlay
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    if (settingsOverlay && settingsOverlay.classList.contains('active')) { closeSettings(); return 'handled'; }
+
+    // 4) Program detail / builder / active-plan stack → back to library
+    const detailScreen = document.getElementById('programDetailScreen');
+    const builder      = document.getElementById('builderViewContainer');
+    const activePlan   = document.getElementById('progActivePlanView');
+    if ([detailScreen, builder, activePlan].some(el => el && el.style.display !== 'none' && getComputedStyle(el).display !== 'none')) {
+      try { returnToLibrary(); } catch (_) {}
+      switchProgramMode('library');
+      return 'handled';
+    }
+
+    // 5) Not on Home → go Home rather than exit
+    if (activeTab !== 'home') { switchGlobalAppTab('home'); return 'handled'; }
+
+    // 6) Nothing to close — let the native layer handle exit
+    return 'exit';
+  };
 }
 
 async function bootstrapApp() {

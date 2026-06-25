@@ -69,8 +69,21 @@ test('recoveryCostBalance yields ACWR on the recovery-cost series', () => {
   const r = recoveryCostBalance(fixture(), DAYS, '2', 2);
   assert.equal(r.hasData, true);
   assert.equal(r.acute, 730);
-  assert.equal(r.chronic, 630);   // prior week only (excludes the acute week)
+  assert.equal(r.chronic, 630);   // only one prior week of data → mean is that week
   assert.equal(r.acwr, 1.16);     // 730 / 630
+});
+
+test('recoveryCostBalance chronic = mean of prior weeks (rolling window ≤4)', () => {
+  // 4 prior weeks (600, 800, 400, 600) then an acute week of 900.
+  const mk = (cost) => ({ gymRpe: { mon: '10' }, gymStats: { mon: { time: String(cost / 10) } } });
+  const state = {
+    currentWeek: '5',
+    weeks: { '1': mk(600), '2': mk(800), '3': mk(400), '4': mk(600), '5': mk(900) },
+  };
+  const r = recoveryCostBalance(state, DAYS, '5', 5);
+  assert.equal(r.acute, 900);
+  assert.equal(r.chronic, 600);   // mean(600,800,400,600)
+  assert.equal(r.acwr, 1.5);      // 900 / 600
 });
 
 test('loadProfile bundles all three concepts + balance', () => {

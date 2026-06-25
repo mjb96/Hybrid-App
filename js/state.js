@@ -7,7 +7,7 @@
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { prescribeSetsForLift } from './engine.js';
-import { todayKey } from './dates.js';
+import { todayKey, daysBetween } from './dates.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
@@ -15,6 +15,7 @@ import { recomputeLoadMetrics } from './brain/load_models.js';
 import { getSupabaseClient } from './state/supabase.js';
 import { initAuth, loginToSupabase, signUpToSupabase, checkActiveSession } from './state/auth.js';
 import { initImportExport, triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback } from './state/import-export.js';
+import { migrateState, CURRENT_SCHEMA_VERSION } from './state/migrations.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -313,35 +314,107 @@ export function mergeWeekSchema(wk) {
 // ==========================================
 // CLOUD PERSISTENCE
 // ==========================================
+//
+// recomputeLoadMetrics() rebuilds the full daily CTL/ATL timeline (Date math +
+// sort over every logged day) — far too heavy to run on every keystroke-save.
+// It only depends on per-day RPE/duration, so we memoise on a cheap signature
+// of exactly those fields and skip the rebuild when nothing relevant changed.
+let _loadSig = null;
+let _loadCache = { atl: 0, ctl: 0 };
+
+function loadMetricsSignature(state) {
+  if (!state.weekStartedAt || !state.currentWeek) return 'none';
+  const parts = [state.weekStartedAt, state.currentWeek];
+  const weeks = state.weeks || {};
+  for (const wk of Object.keys(weeks)) {
+    const wd = weeks[wk];
+    if (!wd) continue;
+    for (const d of DEFAULT_DAYS) {
+      const gr = wd.gymRpe?.[d];
+      const gt = wd.gymStats?.[d]?.time;
+      const rr = wd.runs?.[d]?.rpe;
+      const rt = wd.runs?.[d]?.time;
+      if (gr || gt || rr || rt) parts.push(`${wk}${d}:${gr || ''}/${gt || ''}/${rr || ''}/${rt || ''}`);
+    }
+  }
+  return parts.join('|');
+}
+
+function memoizedLoadMetrics(state) {
+  const sig = loadMetricsSignature(state);
+  if (sig === _loadSig) return _loadCache;
+  _loadSig = sig;
+  _loadCache = recomputeLoadMetrics(state);
+  return _loadCache;
+}
+
+// Cloud upserts the whole state blob over the network. Debounce the autosave
+// path (suppressToast === true: typing, toggles) so rapid edits coalesce into a
+// single round-trip; explicit user saves flush immediately for their toast.
+let _cloudTimer = null;
+let _cloudPending = false;
+const CLOUD_DEBOUNCE_MS = 1500;
+
+async function cloudSave(suppressToast) {
+  const _sb = getSupabaseClient();
+  if (!_sb) {
+    if (!suppressToast) showToast('Session Saved Locally ✓');
+    return;
+  }
+  try {
+    const { data: sessionData } = await _sb.auth.getSession();
+    if (!sessionData?.session) {
+      if (!suppressToast) showToast('Session Saved Locally ✓');
+      return;
+    }
+    const { error } = await _sb
+      .from('user_data')
+      .upsert({ user_id: sessionData.session.user.id, state_data: appState }, { onConflict: 'user_id' });
+
+    if (error) throw error;
+    if (!suppressToast) showToast('Session Saved to Cloud ✓');
+  } catch (err) {
+    console.error('Supabase Save Error:', err);
+    if (!suppressToast) showToast('DB Reject: ' + (err.message || 'Unknown error').substring(0, 40), true);
+  }
+}
+
+// Force any pending debounced cloud save to run now (e.g. before unload/login).
+export function flushCloudSave() {
+  if (_cloudTimer) { clearTimeout(_cloudTimer); _cloudTimer = null; }
+  if (_cloudPending) { _cloudPending = false; return cloudSave(true); }
+}
+
+if (typeof window !== 'undefined') {
+  // Don't lose the last debounced sync if the app is backgrounded or killed.
+  window.addEventListener('pagehide', () => { flushCloudSave(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flushCloudSave(); });
+}
+
 export async function saveStateToLocalStorage(suppressToast = false) {
-  appState.loadMetrics = recomputeLoadMetrics(appState);
+  appState.loadMetrics = memoizedLoadMetrics(appState);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   } catch (e) {
     console.error('Failed to save state locally:', e);
   }
 
-  const _sb = getSupabaseClient();
-  if (_sb) {
-    try {
-      const { data: sessionData } = await _sb.auth.getSession();
-      if (!sessionData?.session) {
-        if (!suppressToast) showToast('Session Saved Locally ✓');
-        return;
-      }
-      const { error } = await _sb
-        .from('user_data')
-        .upsert({ user_id: sessionData.session.user.id, state_data: appState }, { onConflict: 'user_id' });
-
-      if (error) throw error;
-      if (!suppressToast) showToast('Session Saved to Cloud ✓');
-    } catch (err) {
-      console.error('Supabase Save Error:', err);
-      if (!suppressToast) showToast('DB Reject: ' + (err.message || 'Unknown error').substring(0, 40), true);
+  if (suppressToast) {
+    // Autosave: coalesce network writes. localStorage already holds the latest.
+    _cloudPending = true;
+    if (!_cloudTimer) {
+      _cloudTimer = setTimeout(() => {
+        _cloudTimer = null;
+        if (_cloudPending) { _cloudPending = false; cloudSave(true); }
+      }, CLOUD_DEBOUNCE_MS);
     }
-  } else {
-     if (!suppressToast) showToast('Session Saved Locally ✓');
+    return;
   }
+
+  // Explicit save: cancel any pending debounce and flush now so the toast is truthful.
+  if (_cloudTimer) { clearTimeout(_cloudTimer); _cloudTimer = null; }
+  _cloudPending = false;
+  await cloudSave(false);
 }
 
 export async function pullEngineDataFromStorage() {
@@ -356,6 +429,7 @@ export async function pullEngineDataFromStorage() {
   }
 
   const baseDefaults = {
+    schemaVersion: 0, // 0 = legacy/unstamped; migrateState() upgrades + stamps on load
     currentWeek: '1', activeProgramId: 'hybrid_engine', weekStartedAt: null,
     weeks: {}, exerciseStats: {}, customExercises: [], customPrograms: [], bodyWeightLog: [],
     thresholdPaceSeconds: null, deloadApplied: null, _deloadDismissedWeek: null,
@@ -373,9 +447,15 @@ export async function pullEngineDataFromStorage() {
     profileSections: { order: null, hidden: [] },
   };
 
-  if (localData) {
-    appState = { ...baseDefaults, ...localData };
-  }
+  // Always seed defaults so a brand-new install (no localData, no cloud) still
+  // has every top-level key — notably `settings`, which the schema-patch block
+  // below dereferences. Settings is deep-merged so keys added in later versions
+  // reach returning users instead of being shadowed by their stored object.
+  appState = {
+    ...baseDefaults,
+    ...(localData || {}),
+    settings: { ...baseDefaults.settings, ...(localData && localData.settings) },
+  };
 
   const _sb2 = getSupabaseClient();
   if (_sb2) {
@@ -400,7 +480,11 @@ export async function pullEngineDataFromStorage() {
       ]);
 
       if (cloudData) {
-        appState = { ...baseDefaults, ...cloudData };
+        appState = {
+          ...baseDefaults,
+          ...cloudData,
+          settings: { ...baseDefaults.settings, ...(cloudData && cloudData.settings) },
+        };
       }
     } catch (cloudErr) {
       console.warn('Cloud sync timeout/failure, relying on local backup.');
@@ -428,14 +512,9 @@ export async function pullEngineDataFromStorage() {
   if (!appState.profileSections) appState.profileSections = { order: null, hidden: [] };
   if (!appState.settings.avatarDataUrl && appState.settings.avatarDataUrl !== null) appState.settings.avatarDataUrl = null;
 
-  const weeksToDelete = [];
-  for (const wk in appState.weeks) {
-    const wkData = appState.weeks[wk];
-    if (!wkData || !wkData.lifts) continue;
-    const hasLegacySchema = DEFAULT_DAYS.some(d => Array.isArray(wkData.lifts[d]));
-    if (hasLegacySchema) weeksToDelete.push(wk);
-  }
-  weeksToDelete.forEach(wk => { delete appState.weeks[wk]; });
+  // Run versioned schema migrations (legacy-week cleanup lives here now) and
+  // stamp the current schema version.
+  migrateState(appState);
 
   verifyWeekStorageSchema(appState.currentWeek);
   appState.loadMetrics = recomputeLoadMetrics(appState);
@@ -447,6 +526,8 @@ export async function pullEngineDataFromStorage() {
     setState:    (s) => { appState = s; },
     saveState:   saveStateToLocalStorage,
     defaultDays: DEFAULT_DAYS,
+    migrate:     migrateState,
+    storageKey:  STORAGE_KEY,
   });
 
   try {
@@ -474,16 +555,13 @@ export function logActivityForStreak() {
   if (lastDate === today) return; 
 
   if (lastDate) {
-    const last = new Date(lastDate);
-    const current = new Date(today);
-    last.setHours(0, 0, 0, 0);
-    current.setHours(0, 0, 0, 0);
-    
-    const diffTime = current.getTime() - last.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
+    // Compare calendar-day keys with the UTC-based helper so the diff never
+    // mixes timezones (the old new Date()+setHours approach parsed the key as
+    // UTC then shifted to local, causing off-by-one streaks near midnight).
+    const diffDays = daysBetween(lastDate, today);
     if (diffDays === 1) appState.streakData.current += 1;
-    else if (diffDays > 1) appState.streakData.current = 1;
+    else if (diffDays !== null && diffDays > 1) appState.streakData.current = 1;
+    // diffDays === 0 handled by the early return above; negative = clock skew → no change
   } else {
     appState.streakData.current = 1;
   }
