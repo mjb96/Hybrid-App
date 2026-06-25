@@ -1,8 +1,31 @@
-import { Buffer } from 'https://esm.sh/buffer'; 
-import FitParser from 'https://esm.sh/fit-file-parser';
 import { showToast } from './state.js';
 
-window.Buffer = Buffer; 
+// The FIT parser and its Buffer polyfill are heavy third-party ES modules loaded
+// from a CDN (esm.sh). They are imported LAZILY — only when the user actually
+// picks a .FIT file — for two reasons:
+//   1. Resilience: a static top-level CDN import here used to be part of the
+//      app.js module graph, so if esm.sh was offline or blocked the WHOLE app
+//      failed to boot (blank screen). Lazy loading isolates that failure to the
+//      import action.
+//   2. Startup cost: nothing is fetched/parsed until the feature is used.
+let _fitDepsPromise = null;
+function loadFitDeps() {
+  if (!_fitDepsPromise) {
+    _fitDepsPromise = Promise.all([
+      import('https://esm.sh/buffer'),
+      import('https://esm.sh/fit-file-parser'),
+    ]).then(([bufMod, fitMod]) => {
+      const Buffer = bufMod.Buffer || bufMod.default;
+      const FitParser = fitMod.default || fitMod;
+      if (typeof window !== 'undefined' && !window.Buffer) window.Buffer = Buffer;
+      return { Buffer, FitParser };
+    }).catch((err) => {
+      _fitDepsPromise = null; // let the next attempt retry
+      throw err;
+    });
+  }
+  return _fitDepsPromise;
+}
 
 export function initGarminRunImport(onDataExtracted) {
   setupUploader('fitUpload', true, onDataExtracted);
@@ -25,8 +48,15 @@ function setupUploader(inputId, isRun, onDataExtracted) {
     showToast('Parsing Garmin file...');
 
     const reader = new FileReader();
-    
-    reader.onload = (e) => {
+
+    reader.onload = async (e) => {
+      let Buffer, FitParser;
+      try {
+        ({ Buffer, FitParser } = await loadFitDeps());
+      } catch (depErr) {
+        showToast('Could not load the FIT parser — check your connection and try again.', true);
+        return;
+      }
       try {
         const arrayBuffer = e.target.result;
         const nodeBuffer = Buffer.from(arrayBuffer);
