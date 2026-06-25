@@ -1,6 +1,7 @@
 // ==========================================
 // TIMERS: REST TIMER + SESSION DURATION
 // ==========================================
+import { hapticRestDone } from './haptics.js';
 
 // Session duration timer
 let workoutStartTime = null;
@@ -100,6 +101,7 @@ function _startRestCountdown() {
       clearInterval(restTimerInt);
       restTimerInt = null;
       playRestDoneBeep();
+      hapticRestDone();
       const timerBar = document.getElementById('cockpitTimerBar');
       if (timerBar) {
         timerBar.classList.remove('rest-warning');
