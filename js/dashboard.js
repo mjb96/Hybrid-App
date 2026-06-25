@@ -52,6 +52,30 @@ function parseTimeToMinutes(timeStr) {
   return parseFloat(timeStr) || 0;
 }
 
+// Collect logged day records (run + gym stats) from the last `windowDays`
+// calendar days using the per-day date stamps. This decouples time-based tiles
+// (calories, pace, …) from the program-week pointer so they reflect what you
+// actually did recently, not which program week you're browsing.
+function collectRecentDays(appState, windowDays = 7) {
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - (windowDays - 1));
+  const out = [];
+  const weeks = appState.weeks || {};
+  for (const wk in weeks) {
+    const wd = weeks[wk];
+    if (!wd || !wd.dates) continue;
+    for (const day in wd.dates) {
+      const ds = wd.dates[day];
+      if (!ds) continue;
+      const d = new Date(ds + 'T00:00:00');
+      if (isNaN(d.getTime()) || d < cutoff) continue;
+      out.push({ date: ds, run: wd.runs?.[day], gymStats: wd.gymStats?.[day] });
+    }
+  }
+  return out;
+}
+
 // ==========================================
 // TILE REGISTRY
 // To add a tile: push a new config object into this array.
@@ -354,20 +378,16 @@ export const TILE_REGISTRY = [
     accentVar: '--color-amber',
     navTarget: 'running',
     order:     5,
-    renderData(appState, defaultDays) {
+    renderData(appState) {
       try {
-        const wk = appState.currentWeek || '1';
-        const weekData = appState.weeks?.[wk];
         let cals = 0;
-        if (weekData) {
-          defaultDays.forEach(d => {
-            cals += parseInt(weekData.runs?.[d]?.cals, 10) || 0;
-            cals += parseInt(weekData.gymStats?.[d]?.cals, 10) || 0;
-          });
-        }
-        return { hero: cals.toLocaleString(), sub: 'kcal burned this week', state: cals > 0 ? 'loaded' : 'empty' };
+        collectRecentDays(appState, 7).forEach(rec => {
+          cals += parseInt(rec.run?.cals, 10) || 0;
+          cals += parseInt(rec.gymStats?.cals, 10) || 0;
+        });
+        return { hero: cals.toLocaleString(), sub: 'kcal · last 7 days', state: cals > 0 ? 'loaded' : 'empty' };
       } catch {
-        return { hero: '0', sub: 'kcal burned this week', state: 'error' };
+        return { hero: '0', sub: 'kcal · last 7 days', state: 'error' };
       }
     },
   },
@@ -381,31 +401,27 @@ export const TILE_REGISTRY = [
     accentVar: '--color-pink',
     navTarget: 'avg-pace',
     order:     6,
-    renderData(appState, defaultDays) {
+    renderData(appState) {
       try {
-        const wk = appState.currentWeek || '1';
-        const weekData = appState.weeks?.[wk];
+        const distUnit = appState.settings?.distanceUnit || 'km';
         let totalDist = 0, totalMins = 0;
-        if (weekData) {
-          defaultDays.forEach(d => {
-            const r = weekData.runs?.[d];
-            if (!r) return;
-            const dist = parseFloat(r.dist) || 0;
-            const mins = parseTimeToMinutes(r.time);
-            if (dist > 0 && mins > 0) { totalDist += dist; totalMins += mins; }
-          });
-        }
+        collectRecentDays(appState, 7).forEach(rec => {
+          const r = rec.run;
+          if (!r) return;
+          const dist = parseFloat(r.dist) || 0;
+          const mins = parseTimeToMinutes(r.time);
+          if (dist > 0 && mins > 0) { totalDist += dist; totalMins += mins; }
+        });
         if (totalDist > 0 && totalMins > 0) {
-          const distUnit = appState.settings?.distanceUnit || 'km';
           const displayDist = distUnit === 'mi' ? totalDist * 0.621371 : totalDist;
           const paceMin = totalMins / displayDist;
           const pm = Math.floor(paceMin);
           const ps = Math.round((paceMin - pm) * 60).toString().padStart(2, '0');
-          return { hero: `${pm}:${ps}`, sub: `min/${distUnit} this week`, state: 'loaded' };
+          return { hero: `${pm}:${ps}`, sub: `min/${distUnit} · last 7 days`, state: 'loaded' };
         }
-        return { hero: '--:--', sub: `min/${appState.settings?.distanceUnit || 'km'} this week`, state: 'empty' };
+        return { hero: '--:--', sub: `min/${distUnit} · last 7 days`, state: 'empty' };
       } catch {
-        return { hero: '--:--', sub: 'min/km this week', state: 'error' };
+        return { hero: '--:--', sub: 'min/km · last 7 days', state: 'error' };
       }
     },
   },
