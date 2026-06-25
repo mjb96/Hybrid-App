@@ -7,6 +7,7 @@ import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 import { getCatalogEntry } from './programs/catalog.js';
+import { escapeHtml } from './util.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -267,8 +268,8 @@ function _renderActivePlanHero() {
       <div class="aplan-hero-icon">${icon}</div>
       <div class="aplan-hero-content">
         <div class="aplan-hero-eyebrow">ACTIVE PROGRAM</div>
-        <div class="aplan-hero-name">${name}</div>
-        ${phaseName ? `<div class="aplan-hero-phase">${phaseName}</div>` : ''}
+        <div class="aplan-hero-name">${escapeHtml(name)}</div>
+        ${phaseName ? `<div class="aplan-hero-phase">${escapeHtml(phaseName)}</div>` : ''}
         <div class="aplan-hero-progress-row">
           <div class="aplan-hero-bar">
             <div class="aplan-hero-fill" style="width: ${progress}%; background: ${accentColor}"></div>
@@ -539,7 +540,7 @@ export function openTodaySummaryModal() {
           const completedSets = dayLifts[lift].filter(s => s && s.c);
           if (completedSets.length === 0) return;
           const displayLiftName = getLiftDisplayName(appState, lift);
-          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${displayLiftName}</div>`;
+          html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${escapeHtml(displayLiftName)}</div>`;
           completedSets.forEach((s, idx) => {
             const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;
             const labelColor = s.type === 'W' ? '#94a3b8' : s.type === 'D' ? '#f97316' : s.type === 'F' ? '#ef4444' : 'rgba(255,255,255,0.5)';

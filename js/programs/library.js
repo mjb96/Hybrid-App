@@ -7,6 +7,7 @@ import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, recordRecentlyViewed, getProgramById } from '../state.js';
+import { escapeHtml } from '../util.js';
 
 let _appState = null;
 let _activeFilter = 'all';
@@ -532,7 +533,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   // Author / coach attribution — large cards only, skip generic WOD entries
   const authorHTML = isLarge && program.author && program.author.name && !wod
     ? `<div class="prog-card-author">
-         <span class="prog-card-author-name">by ${program.author.name}</span>
+         <span class="prog-card-author-name">by ${escapeHtml(program.author.name)}</span>
          ${program.author.verified ? '<span class="prog-card-verified" title="Verified creator">✓</span>' : ''}
        </div>`
     : '';
@@ -560,7 +561,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
         ${ratingHTML}
       </div>
       <div class="prog-card-info">
-        <div class="prog-card-name">${program.name}</div>
+        <div class="prog-card-name">${escapeHtml(program.name)}</div>
         ${authorHTML}
         <div class="prog-card-meta">
           <span class="prog-card-category" style="color: ${program.accentColor}">${categoryLabel}</span>

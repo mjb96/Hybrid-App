@@ -7,7 +7,7 @@
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { prescribeSetsForLift } from './engine.js';
-import { todayKey } from './dates.js';
+import { todayKey, daysBetween } from './dates.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
@@ -373,9 +373,15 @@ export async function pullEngineDataFromStorage() {
     profileSections: { order: null, hidden: [] },
   };
 
-  if (localData) {
-    appState = { ...baseDefaults, ...localData };
-  }
+  // Always seed defaults so a brand-new install (no localData, no cloud) still
+  // has every top-level key — notably `settings`, which the schema-patch block
+  // below dereferences. Settings is deep-merged so keys added in later versions
+  // reach returning users instead of being shadowed by their stored object.
+  appState = {
+    ...baseDefaults,
+    ...(localData || {}),
+    settings: { ...baseDefaults.settings, ...(localData && localData.settings) },
+  };
 
   const _sb2 = getSupabaseClient();
   if (_sb2) {
@@ -400,7 +406,11 @@ export async function pullEngineDataFromStorage() {
       ]);
 
       if (cloudData) {
-        appState = { ...baseDefaults, ...cloudData };
+        appState = {
+          ...baseDefaults,
+          ...cloudData,
+          settings: { ...baseDefaults.settings, ...(cloudData && cloudData.settings) },
+        };
       }
     } catch (cloudErr) {
       console.warn('Cloud sync timeout/failure, relying on local backup.');
@@ -474,16 +484,13 @@ export function logActivityForStreak() {
   if (lastDate === today) return; 
 
   if (lastDate) {
-    const last = new Date(lastDate);
-    const current = new Date(today);
-    last.setHours(0, 0, 0, 0);
-    current.setHours(0, 0, 0, 0);
-    
-    const diffTime = current.getTime() - last.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
+    // Compare calendar-day keys with the UTC-based helper so the diff never
+    // mixes timezones (the old new Date()+setHours approach parsed the key as
+    // UTC then shifted to local, causing off-by-one streaks near midnight).
+    const diffDays = daysBetween(lastDate, today);
     if (diffDays === 1) appState.streakData.current += 1;
-    else if (diffDays > 1) appState.streakData.current = 1;
+    else if (diffDays !== null && diffDays > 1) appState.streakData.current = 1;
+    // diffDays === 0 handled by the early return above; negative = clock skew → no change
   } else {
     appState.streakData.current = 1;
   }
