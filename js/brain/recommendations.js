@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // HYBRID BRAIN — DAILY RECOMMENDATIONS (js/brain/recommendations.js)
 //

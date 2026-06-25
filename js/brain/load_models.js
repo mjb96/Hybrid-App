@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // HYBRID BRAIN — LOAD MODELS (js/brain/load_models.js)
 //

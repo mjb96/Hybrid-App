@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // FASTING CHARTS — analytics/charts/fasting-charts.js
 // All pure SVG string builders. No DOM state.

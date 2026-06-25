@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // WEEKLY SUMMARY VIEW (analytics/views/view-weekly-summary.js)
 // ==========================================

@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // DEV-MODE LOUD FAILURE (debug.js)
 // Surfaces silent-failure paths (swallowed catches, optional-chaining

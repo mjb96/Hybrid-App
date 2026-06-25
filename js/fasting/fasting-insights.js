@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // FASTING INSIGHTS — js/fasting/fasting-insights.js
 // Pure functions. Generates ranked text insights from analytics data.

@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // CHART PRIMITIVES — analytics/charts/chart-primitives.js
 // Shared SVG building blocks. No DOM writes — return SVG strings only.

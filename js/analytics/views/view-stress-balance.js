@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // STRESS BALANCE VIEW (analytics/views/view-stress-balance.js)
 // ==========================================

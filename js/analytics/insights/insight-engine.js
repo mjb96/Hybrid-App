@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // INSIGHTS ENGINE — analytics/insights/insight-engine.js
 // Pure functions. Generates ranked athlete-facing text insights.

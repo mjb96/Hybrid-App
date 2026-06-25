@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // FASTING KNOWLEDGE — js/fasting/fasting-education.js
 // Offline-first local content library.

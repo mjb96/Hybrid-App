@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // RUN CROSS-REFERENCE VIEW (analytics/views/view-run-crossref.js)
 // ==========================================
