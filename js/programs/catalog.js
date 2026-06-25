@@ -1,3 +1,4 @@
+// @ts-check
 // =============================================================================
 // PROGRAM CATALOG — aggregator. Individual programs live in ./catalog/*.js
 // Add a new program by creating/editing the relevant category file below.

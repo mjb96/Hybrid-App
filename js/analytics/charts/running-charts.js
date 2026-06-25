@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // RUNNING CHARTS — analytics/charts/running-charts.js
 // ==========================================

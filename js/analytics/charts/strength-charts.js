@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // STRENGTH CHARTS — analytics/charts/strength-charts.js
 // All return SVG or inject into container.

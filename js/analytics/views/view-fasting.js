@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // FASTING ANALYTICS VIEW — analytics/views/view-fasting.js
 // Renders into #analytics-fasting (.analytics-section)

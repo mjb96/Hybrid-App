@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // FASTING ACHIEVEMENTS — js/fasting/fasting-achievements.js
 // ==========================================

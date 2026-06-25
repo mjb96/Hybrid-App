@@ -1,3 +1,4 @@
+// @ts-check
 // ==========================================
 // TRAINING STATUS VIEW (analytics/views/view-training-status.js)
 // ==========================================
