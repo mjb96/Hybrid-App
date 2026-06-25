@@ -6,6 +6,7 @@ import { setRestDuration } from './timers.js';
 import { showToast } from './state.js';
 import { rearmReminder } from './notifications.js';
 import { getCloudUser, signOutSupabase } from './state/auth.js';
+import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect } from './health/health-bridge.js';
 
 let _getState;
 
@@ -497,46 +498,59 @@ function _syncHealthConnectUI() {
   }
 }
 
-export function hcToggleConnect() {
+export async function hcToggleConnect() {
   if (!_getState) return;
   const appState = _getState();
   const hc = appState.healthConnect;
+
   if (hc.connected) {
     hc.connected = false;
     hc.lastSync  = null;
     saveStateToLocalStorage(true);
     _syncHealthConnectUI();
     showToast('Health Connect disconnected');
-  } else {
-    // On a real Android app, this would call the native bridge.
-    // For now, simulate a successful connection with demo data.
-    _requestHealthConnectOrDemo(appState);
-  }
-}
-
-function _requestHealthConnectOrDemo(appState) {
-  // Try native Android bridge first
-  if (window.HybridAndroidBridge?.requestHealthConnect) {
-    window.HybridAndroidBridge.requestHealthConnect();
-    showToast('Opening Health Connect…');
     return;
   }
-  // No bridge — mark connected with placeholder data so tiles activate
-  const hc = appState.healthConnect;
-  hc.connected = true;
-  hc.lastSync  = Date.now();
+
+  // Real native bridge only — no phantom "connected" state on the web/PWA.
+  if (!isHealthBridgeAvailable()) {
+    showToast('Health Connect is only available in the Android app.', true);
+    return;
+  }
+  const status = getHealthAvailability();
+  if (status === 'NOT_INSTALLED') {
+    showToast('Install/update Health Connect to continue.', true);
+    return;
+  }
+  if (status !== 'AVAILABLE') {
+    showToast('Health Connect is not supported on this device.', true);
+    return;
+  }
+
   if (!hc.syncFields) hc.syncFields = { hrv: true, restingHR: true, sleep: true, steps: true, vo2max: true };
-  saveStateToLocalStorage(true);
-  _syncHealthConnectUI();
-  showToast('Health Connect ready — sync via Android app');
+  showToast('Opening Health Connect…');
+  try {
+    const { dayCount } = await connectAndSync(appState, saveStateToLocalStorage, { days: 90 });
+    _syncHealthConnectUI();
+    showToast(dayCount > 0 ? `Health Connect synced (${dayCount} days) ✓` : 'Connected — no recent data found.');
+  } catch (err) {
+    if (err?.message !== 'bridge-timeout') console.warn('Health Connect connect failed:', err);
+    showToast('Could not connect to Health Connect.', true);
+  }
 }
 
-export function hcSyncNow() {
-  if (window.HybridAndroidBridge?.syncHealthConnect) {
-    window.HybridAndroidBridge.syncHealthConnect();
-    showToast('Syncing…');
-  } else {
-    showToast('Sync requires the Android app');
+export async function hcSyncNow() {
+  if (!_getState) return;
+  if (!isHealthBridgeAvailable()) { showToast('Sync requires the Android app.', true); return; }
+  const appState = _getState();
+  showToast('Syncing…');
+  try {
+    const { dayCount } = await syncHealthConnect(appState, saveStateToLocalStorage, { days: 90 });
+    _syncHealthConnectUI();
+    showToast(dayCount > 0 ? `Synced ${dayCount} days ✓` : 'No new data to sync.');
+  } catch (err) {
+    if (err?.message !== 'bridge-timeout') console.warn('Health Connect sync failed:', err);
+    showToast('Sync failed.', true);
   }
 }
 

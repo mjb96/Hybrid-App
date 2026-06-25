@@ -1205,6 +1205,47 @@ function _submitProgramRating() {
   _closeRatingModal();
 }
 
+// ==========================================
+// ANDROID HARDWARE / GESTURE BACK
+// Native MainActivity calls window.__onAndroidBack() and only exits the app
+// when we return anything other than 'handled'. Close the topmost open surface
+// first (modal → settings → detail/builder), then fall back to the Home tab,
+// then let the OS exit.
+// ==========================================
+if (typeof window !== 'undefined') {
+  window.__onAndroidBack = function () {
+    // 1) Generic modals using the .active convention (today-summary, rating,
+    //    pr-goal, create-program, week-advance, deload, etc.)
+    const activeModal = document.querySelector('.modal.active, [data-modal].active');
+    if (activeModal) { activeModal.classList.remove('active'); return 'handled'; }
+
+    // 2) Modals/sheets toggled via inline display (fasting, today-summary fallback)
+    const displayModal = [...document.querySelectorAll('.modal, .bottom-sheet, .detail-overlay')]
+      .find(el => el.style && (el.style.display === 'flex' || el.style.display === 'block'));
+    if (displayModal) { displayModal.style.display = 'none'; return 'handled'; }
+
+    // 3) Settings overlay
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    if (settingsOverlay && settingsOverlay.classList.contains('active')) { closeSettings(); return 'handled'; }
+
+    // 4) Program detail / builder / active-plan stack → back to library
+    const detailScreen = document.getElementById('programDetailScreen');
+    const builder      = document.getElementById('builderViewContainer');
+    const activePlan   = document.getElementById('progActivePlanView');
+    if ([detailScreen, builder, activePlan].some(el => el && el.style.display !== 'none' && getComputedStyle(el).display !== 'none')) {
+      try { returnToLibrary(); } catch (_) {}
+      switchProgramMode('library');
+      return 'handled';
+    }
+
+    // 5) Not on Home → go Home rather than exit
+    if (activeTab !== 'home') { switchGlobalAppTab('home'); return 'handled'; }
+
+    // 6) Nothing to close — let the native layer handle exit
+    return 'exit';
+  };
+}
+
 async function bootstrapApp() {
   try {
     determineDefaultCalendarDay();
