@@ -118,6 +118,7 @@ export function switchGlobalAppTab(targetViewID) {
   if (navItem) navItem.classList.add('active');
   
   hydrateCurrentView();
+  window.scrollTo(0, 0);
 }
 
 export function setCockpitActiveDay(dayKey) {
@@ -134,7 +135,6 @@ export function setCockpitActiveDay(dayKey) {
 export function launchActiveWorkoutCockpit() {
   switchGlobalAppTab('workout');
   setCockpitActiveDay(selectedDay);
-  window.scrollTo(0, 0);
 }
 
 // ==========================================
