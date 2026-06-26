@@ -13,6 +13,7 @@ import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
+import { setHTML, reconcileKeyed } from './ui/render.js';
 
 let _getState;
 let _getSelectedDay;
@@ -97,23 +98,22 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
     return a.order - b.order;
   });
 
-  sorted.forEach(config => {
-    const tileId = `glance-tile-${config.id}`;
-    let article = document.getElementById(tileId);
+  const visible = sorted.filter(config => !hiddenTiles.has(config.id));
 
-    if (hiddenTiles.has(config.id)) {
-      if (article) article.remove();
-      return;
-    }
-
-    if (!article) {
-      article = document.createElement('article');
-      article.id        = tileId;
+  // Keyed reconciliation: tile nodes persist across renders (identity, one-time
+  // listeners and order preserved); only new tiles are created, hidden/removed
+  // tiles are dropped, and each tile's inner HTML is rewritten only when it
+  // actually changed (setHTML). Replaces the previous full innerHTML-per-tile
+  // rebuild on every hydrate.
+  reconcileKeyed(grid, visible, {
+    key: (config) => config.id,
+    create: (config) => {
+      const article = document.createElement('article');
+      article.id        = `glance-tile-${config.id}`;
       article.className = 'card-dark glance-card tile-interactive';
       article.setAttribute('role', 'button');
       article.setAttribute('tabindex', '0');
       article.setAttribute('aria-label', `${config.label} — tap for details`);
-      grid.appendChild(article);
 
       const nav = resolveTileNavigation(config.navTarget);
       if (nav) {
@@ -121,22 +121,17 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
         article.addEventListener('click', nav);
         article.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') nav(); });
       }
-    }
-
-    let data;
-    try {
-      data = config.renderData(appState, defaultDays, activeProgram, selectedDay);
-    } catch (e) {
-      data = { state: 'error' };
-    }
-
-    article.innerHTML = renderTileContent(config, data);
-  });
-
-  sorted.forEach(config => {
-    if (hiddenTiles.has(config.id)) return;
-    const el = document.getElementById(`glance-tile-${config.id}`);
-    if (el) grid.appendChild(el);
+      return article;
+    },
+    update: (article, config) => {
+      let data;
+      try {
+        data = config.renderData(appState, defaultDays, activeProgram, selectedDay);
+      } catch (e) {
+        data = { state: 'error' };
+      }
+      setHTML(article, renderTileContent(config, data));
+    },
   });
 
   mountTileDragAndDrop();
