@@ -1396,3 +1396,112 @@ html[data-theme="light"] .analytics-chart-wrap {
   border-radius: var(--radius-lg, 12px);
 }
 
+
+/* ==========================================================================
+   INSIGHTS HUB — the index screen that surfaces every analytics section.
+   Reached from the Home "Insights & Analytics" entry. Leaf sections route
+   "back" here so the user can browse without returning to the dashboard.
+   ========================================================================== */
+
+/* Prominent Home entry point (a louder variant of .btn-history-link). */
+.btn-history-link--feature {
+  padding: 16px 18px;
+  font-size: 0.98rem;
+  background: linear-gradient(135deg, rgba(99,102,241,0.20), rgba(6,182,212,0.12));
+  border-color: rgba(99,102,241,0.38);
+  color: #c7d2fe;
+}
+@media (hover: hover) {
+  .btn-history-link--feature:hover {
+    background: linear-gradient(135deg, rgba(99,102,241,0.28), rgba(6,182,212,0.18));
+  }
+}
+
+.hub-head { margin: 4px 0 18px; }
+.hub-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #f8fafc);
+  margin: 0;
+}
+.hub-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 4px 0 0;
+}
+
+.hub-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.hub-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 14px;
+  text-align: left;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  border-radius: var(--radius-lg, 12px);
+  color: var(--text-primary, #f8fafc);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+@media (hover: hover) {
+  .hub-link:hover {
+    background: var(--surface-3, rgba(255,255,255,0.07));
+    border-color: rgba(99,102,241,0.35);
+  }
+}
+.hub-link:active { transform: scale(0.985); }
+
+.hub-link__icon {
+  flex: 0 0 auto;
+  font-size: 1.35rem;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99,102,241,0.10);
+  border-radius: 10px;
+}
+.hub-link__label {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hub-link__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.hub-link__desc {
+  font-size: 0.76rem;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-link__arrow {
+  flex: 0 0 auto;
+  font-size: 1.05rem;
+  opacity: 0.45;
+}
+
+html[data-theme="light"] .hub-link {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .hub-link__icon {
+  background: rgba(99,102,241,0.10);
+}

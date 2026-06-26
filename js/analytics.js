@@ -276,7 +276,28 @@ export function renderAnalytics() {
 
   document.querySelectorAll('.analytics-section').forEach(sec => sec.classList.remove('active'));
 
+  // The hub is an index screen: hide the week navigator (it has no meaning there)
+  // and send "back" to the dashboard. Every leaf section instead routes "back" to
+  // the hub, so you can browse multiple sections without bouncing home each time.
+  const weekNav = document.getElementById('analyticsWeekNav');
+  if (weekNav) weekNav.style.display = context === 'hub' ? 'none' : '';
+  const backBtn = document.querySelector('#view-analytics .subview-back-btn');
+  if (backBtn) {
+    if (context === 'hub') {
+      backBtn.setAttribute('data-action', 'switch-tab');
+      backBtn.setAttribute('data-target', 'home');
+      backBtn.textContent = '← Back to Dashboard';
+    } else {
+      backBtn.setAttribute('data-action', 'open-analytics');
+      backBtn.setAttribute('data-context', 'hub');
+      backBtn.textContent = '← Back to Insights';
+    }
+  }
+
   switch (context) {
+    case 'hub':
+      document.getElementById('analytics-hub').classList.add('active');
+      break;
     case 'weekly-summary': {
       document.getElementById('analytics-weekly-summary').classList.add('active');
       const selectedWk = getSelectedWeek(_getState().currentWeek);
