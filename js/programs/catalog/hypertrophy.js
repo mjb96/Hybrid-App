@@ -179,7 +179,7 @@ export default [
     name: '5-Day Bodybuilding Split',
     tagline: 'Classic bro split reimagined for modern science',
     description: 'A 5-day body-part split that brings the best of classic bodybuilding together with modern evidence-based principles. Each muscle group gets dedicated volume once per week but with enough intensity techniques — drop sets, supersets, forced reps — to maximise growth stimulus.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hypertrophy',
     subcategory: 'split-training',
     tags: ['bodybuilding', '5-day', 'bro-split', 'hypertrophy', 'muscle', 'advanced', 'physique', 'volume'],
@@ -220,7 +220,7 @@ export default [
       '11': { sets: 4, reps: 10, intensityLabel: 'Finisher week' },
       '12': { sets: 2, reps: 10, intensityLabel: 'Deload + assess' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Bodybuilding Hypertrophy', philosophy: 'The bro split works — dedicate full sessions to each muscle group, apply modern loading strategies, and watch the physique change.' },
+    dossier: { creator: 'Helyx', focus: 'Bodybuilding Hypertrophy', philosophy: 'The bro split works — dedicate full sessions to each muscle group, apply modern loading strategies, and watch the physique change.' },
   },
   // ── BODYBUILDING ──────────────────────────────────────────────────────────────
 
@@ -367,7 +367,7 @@ export default [
     name: 'Beginner Bodybuilding Foundation',
     tagline: 'Your first 12 weeks of serious muscle building',
     description: 'A 3-day full body programme built specifically for beginners entering bodybuilding. Introduces fundamental compound movements, builds the mind-muscle connection, and delivers rapid early gains through consistent progressive overload. No fluff — just the exercises that actually work.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'bodybuilding',
     subcategory: 'beginner',
@@ -451,7 +451,7 @@ export default [
       '11': { sets: 4, reps: 8, intensityLabel: 'Final push — give everything' },
       '12': { sets: 3, reps: 10, intensityLabel: 'Assessment week — test your 3-rep maxes' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Beginner Bodybuilding', philosophy: 'The fastest gains happen at the start. Master the fundamentals, add weight consistently, and the muscle follows.' },
+    dossier: { creator: 'Helyx', focus: 'Beginner Bodybuilding', philosophy: 'The fastest gains happen at the start. Master the fundamentals, add weight consistently, and the muscle follows.' },
   },
 
 ];

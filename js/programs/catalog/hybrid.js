@@ -8,10 +8,10 @@ export default [
 
   {
     id: 'hybridhq_foundations',
-    name: 'HybridHQ Foundations',
+    name: 'Helyx Foundations',
     tagline: 'The definitive starting point for hybrid athletes',
     description: 'A 12-week program designed specifically for athletes who want to build a serious base of strength, muscle, and aerobic capacity simultaneously. Progressive overload drives strength gains while structured running blocks develop your aerobic engine.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hybrid',
     subcategory: 'strength-endurance',
     tags: ['hybrid', 'strength', 'running', 'concurrent', 'beginner-hybrid', 'barbell', 'zone2'],
@@ -128,7 +128,7 @@ export default [
       '9': { sets: 4, reps: 4, intensityLabel: 'Peak Block' }, '10': { sets: 4, reps: 4, intensityLabel: 'Peak Block' },
       '11': { sets: 4, reps: 3, intensityLabel: 'Peak Block' }, '12': { sets: 2, reps: 5, intensityLabel: 'Taper' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Strength & Endurance', philosophy: 'Build strength and aerobic capacity concurrently using evidence-based concurrent training principles.' },
+    dossier: { creator: 'Helyx', focus: 'Strength & Endurance', philosophy: 'Build strength and aerobic capacity concurrently using evidence-based concurrent training principles.' },
   },
 
   {
@@ -136,7 +136,7 @@ export default [
     name: 'Sub-20 5K Hybrid Engine',
     tagline: 'Break 20 minutes while building serious strength',
     description: 'A 9-week racing protocol that pushes your 5K pace below 20 minutes while maintaining maximal strength. Combines base accumulation, lactate threshold intervals, and heavy compound lifting.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hybrid',
     subcategory: 'running-strength',
     tags: ['hybrid', '5k', 'running', 'strength', 'sub20', 'intervals', 'tempo', 'zone2'],
@@ -161,7 +161,7 @@ export default [
     name: 'Hybrid Strength & 5K Builder',
     tagline: 'Build muscle and run faster — no compromise',
     description: 'A 12-week strength-first hybrid program that builds real muscle while systematically improving your 5K performance. Prioritises compound strength movements with progressive overload across every training block.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hybrid',
     subcategory: 'strength-running',
     tags: ['hybrid', 'strength', '5k', 'running', 'concurrent', 'muscle', 'push-pull-legs'],
@@ -211,7 +211,7 @@ export default [
     name: 'Hyrox Foundations',
     tagline: 'Your first step toward Hyrox race day',
     description: 'A 12-week entry-level Hyrox preparation program. Builds the strength and conditioning base needed to complete a Hyrox race while developing familiarity with all 8 Hyrox stations.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'race-prep',
     tags: ['hyrox', 'hybrid', 'conditioning', 'strength', 'running', 'race-prep', 'beginner-hyrox'],
@@ -246,7 +246,7 @@ export default [
       '9': { sets: 4, reps: 5, intensityLabel: 'Race Prep Block' }, '10': { sets: 4, reps: 5, intensityLabel: 'Race Prep Block' },
       '11': { sets: 3, reps: 5, intensityLabel: 'Taper' }, '12': { sets: 2, reps: 5, intensityLabel: 'Race Week Taper' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Hyrox Race Preparation', philosophy: 'Systematic preparation for Hyrox through concurrent strength and conditioning development.' },
+    dossier: { creator: 'Helyx', focus: 'Hyrox Race Preparation', philosophy: 'Systematic preparation for Hyrox through concurrent strength and conditioning development.' },
   },
 
   {
@@ -254,7 +254,7 @@ export default [
     name: 'Hyrox Intermediate Prep',
     tagline: 'Chase your Hyrox PB with structured periodisation',
     description: 'A 16-week intermediate Hyrox program for athletes who have completed a race and want to significantly improve their time. Features race-specific conditioning blocks, strength cycles, and a structured taper.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'race-prep',
     tags: ['hyrox', 'pb', 'race-prep', 'intermediate', 'conditioning', 'strength', 'intervals'],
@@ -291,7 +291,7 @@ export default [
       '13': { sets: 3, reps: 5, intensityLabel: 'Taper Start' }, '14': { sets: 3, reps: 5, intensityLabel: 'Taper' },
       '15': { sets: 2, reps: 6, intensityLabel: 'Taper' }, '16': { sets: 1, reps: 5, intensityLabel: 'Race Week' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Hyrox Performance', philosophy: 'Periodised 16-week preparation designed to significantly improve Hyrox race time through concurrent strength and conditioning.' },
+    dossier: { creator: 'Helyx', focus: 'Hyrox Performance', philosophy: 'Periodised 16-week preparation designed to significantly improve Hyrox race time through concurrent strength and conditioning.' },
   },
   // ── HYBRID — ADDITIONAL ────────────────────────────────────────────────────
 
@@ -300,7 +300,7 @@ export default [
     name: 'Hybrid Athlete 12-Week',
     tagline: 'Run fast. Lift heavy. Do both at once.',
     description: 'Inspired by the Nick Bare methodology, this 12-week concurrent training program builds serious aerobic capacity alongside genuine strength. Four lifting days and three running days per week, structured so the two qualities coexist and reinforce each other rather than compete.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hybrid',
     subcategory: 'concurrent-training',
     tags: ['hybrid', 'concurrent', 'strength', 'running', 'endurance', 'nick-bare', '5-day', 'advanced', 'lifestyle'],
@@ -341,7 +341,7 @@ export default [
       '11': { sets: 4, reps: 5, intensityLabel: 'Hold strength, taper running' },
       '12': { sets: 2, reps: 5, intensityLabel: 'Test week — new 1RM + run time trial' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Concurrent Hybrid Training', philosophy: 'The hybrid athlete exists in the space where iron discipline meets aerobic freedom. Train strength and endurance not as opposites but as complements.' },
+    dossier: { creator: 'Helyx', focus: 'Concurrent Hybrid Training', philosophy: 'The hybrid athlete exists in the space where iron discipline meets aerobic freedom. Train strength and endurance not as opposites but as complements.' },
   },
 
   {
@@ -349,7 +349,7 @@ export default [
     name: 'Aerobic Capacity Builder',
     tagline: 'Build an unstoppable aerobic engine in 8 weeks',
     description: 'An 8-week program dedicated to developing aerobic capacity from the ground up. Primarily Zone 2 work with strategic Zone 4 intervals to develop VO2 max. Designed to complement any strength program or serve as a standalone base-building phase before race season.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hybrid',
     subcategory: 'aerobic-development',
     tags: ['aerobic', 'cardio', 'zone2', 'vo2max', 'endurance', 'base-building', 'running', 'conditioning'],
@@ -386,7 +386,7 @@ export default [
       '7': { sets: 1, reps: 1, intensityLabel: 'Week 7: Peak total volume' },
       '8': { sets: 1, reps: 1, intensityLabel: 'Week 8: Taper + assess gains' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Aerobic Base Development', philosophy: 'Without an aerobic base, every other quality rests on sand. Build the engine first.' },
+    dossier: { creator: 'Helyx', focus: 'Aerobic Base Development', philosophy: 'Without an aerobic base, every other quality rests on sand. Build the engine first.' },
   },
 
 ];

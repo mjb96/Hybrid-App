@@ -57,7 +57,7 @@ export default [
     name: 'Half Marathon Foundation',
     tagline: 'Build to 21.1km from a solid running base',
     description: 'A 16-week program for runners with a 5K base who want to complete their first half marathon. Builds weekly mileage progressively with easy runs, tempo work, and long run development. Safe, structured, and proven.',
-    author: { name: 'HybridHQ Running', type: 'official', verified: true },
+    author: { name: 'Helyx Running', type: 'official', verified: true },
     category: 'running',
     subcategory: 'race-prep',
     tags: ['half-marathon', 'running', 'race-prep', 'endurance', 'long-run', 'tempo', 'intermediate'],
@@ -102,7 +102,7 @@ export default [
       '15': { sets: 0, reps: 0, intensityLabel: 'Long run: 15km | Taper' },
       '16': { sets: 0, reps: 0, intensityLabel: 'RACE WEEK: 21.1km race day' },
     },
-    dossier: { creator: 'HybridHQ Running', focus: 'Half Marathon Preparation', philosophy: 'Gradual mileage build with strategic cutback weeks for safe adaptation and race day success.' },
+    dossier: { creator: 'Helyx Running', focus: 'Half Marathon Preparation', philosophy: 'Gradual mileage build with strategic cutback weeks for safe adaptation and race day success.' },
   },
 
   {
@@ -110,7 +110,7 @@ export default [
     name: 'Marathon Base Builder',
     tagline: 'Build the aerobic engine for 42.2km',
     description: 'An 18-week first marathon program for runners who can comfortably run 10K. Progressive mileage build with strategic cutback weeks, multiple long runs over 30km, and a structured 3-week taper into race day.',
-    author: { name: 'HybridHQ Running', type: 'official', verified: true },
+    author: { name: 'Helyx Running', type: 'official', verified: true },
     category: 'running',
     subcategory: 'marathon',
     tags: ['marathon', 'running', 'race-prep', 'endurance', 'long-run', 'aerobic', 'advanced'],
@@ -157,7 +157,7 @@ export default [
       '17': { sets: 0, reps: 0, intensityLabel: 'TAPER: Long: 16km | Weekly: ~35km' },
       '18': { sets: 0, reps: 0, intensityLabel: 'RACE WEEK: 42.2km race day' },
     },
-    dossier: { creator: 'HybridHQ Running', focus: 'Marathon Preparation', philosophy: 'Safe aerobic mileage build with strategic cutback weeks and evidence-based taper for first marathon success.' },
+    dossier: { creator: 'Helyx Running', focus: 'Marathon Preparation', philosophy: 'Safe aerobic mileage build with strategic cutback weeks and evidence-based taper for first marathon success.' },
   },
   // ── ENDURANCE ─────────────────────────────────────────────────────────────
 
@@ -166,7 +166,7 @@ export default [
     name: 'Zone 2 Aerobic Foundation',
     tagline: 'Build your aerobic engine from the ground up',
     description: 'A 12-week program built entirely around Zone 2 heart rate training. Develop your mitochondrial density, fat oxidation, and aerobic efficiency through consistent easy effort work. The foundation all other training is built on.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'endurance',
     subcategory: 'zone2',
     tags: ['zone2', 'aerobic', 'endurance', 'heart-rate', 'easy', 'mitochondria', 'foundation', 'beginner'],
@@ -207,7 +207,7 @@ export default [
       '11': { sets: 0, reps: 0, intensityLabel: 'Long: 75min | 3 sessions × 45min' },
       '12': { sets: 0, reps: 0, intensityLabel: 'Peak week — assess improvement' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Aerobic Foundation', philosophy: 'Consistent Zone 2 training builds the mitochondrial base that powers all athletic performance.' },
+    dossier: { creator: 'Helyx', focus: 'Aerobic Foundation', philosophy: 'Consistent Zone 2 training builds the mitochondrial base that powers all athletic performance.' },
   },
   // ── RUNNING — ADDITIONAL ──────────────────────────────────────────────────
 
@@ -216,7 +216,7 @@ export default [
     name: '10K Builder',
     tagline: 'From casual runner to 10K finisher in 12 weeks',
     description: 'A structured 12-week plan that takes you from comfortable 5K running to completing — and eventually racing — a 10K. Three runs per week with a mix of easy aerobic miles, tempo efforts, and a weekly long run that peaks at 12K before race week.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'running',
     subcategory: '10k',
     tags: ['running', '10k', 'endurance', 'aerobic', 'beginner', 'race-prep', '10km', 'cardio'],
@@ -257,7 +257,7 @@ export default [
       '11': { sets: 1, reps: 1, intensityLabel: 'Taper — reduce mileage 30%' },
       '12': { sets: 1, reps: 1, intensityLabel: 'Race week — short shakeout runs' },
     },
-    dossier: { creator: 'HybridHQ', focus: '10K Training', philosophy: 'Consistent aerobic mileage with structured tempo efforts builds the engine needed to run 10K comfortably and confidently.' },
+    dossier: { creator: 'Helyx', focus: '10K Training', philosophy: 'Consistent aerobic mileage with structured tempo efforts builds the engine needed to run 10K comfortably and confidently.' },
   },
 
   {
@@ -265,7 +265,7 @@ export default [
     name: 'Sub-20 5K Plan',
     tagline: 'Break the 20-minute barrier with structured speed training',
     description: 'An 8-week speed-focused plan to crack sub-20 minutes for 5K. This plan assumes you can already run sub-25 minutes and focuses on VO2 max intervals, tempo runs at 4:00/km pace, and race-specific preparation. One of the most satisfying running milestones.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'running',
     subcategory: '5k',
     tags: ['running', '5k', 'speed', 'sub-20', 'intervals', 'vo2max', 'race-prep', 'advanced-running', 'parkrun'],
@@ -302,7 +302,7 @@ export default [
       '7': { sets: 1, reps: 1, intensityLabel: 'Taper — reduce volume, keep intensity' },
       '8': { sets: 1, reps: 1, intensityLabel: 'Race week — sub-20 attempt' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Sub-20 5K', philosophy: 'Breaking 20 minutes requires training at and above race pace. Intervals push your ceiling; tempo runs lower your floor.' },
+    dossier: { creator: 'Helyx', focus: 'Sub-20 5K', philosophy: 'Breaking 20 minutes requires training at and above race pace. Intervals push your ceiling; tempo runs lower your floor.' },
   },
   // ── RUNNING ───────────────────────────────────────────────────────────────────
 
@@ -394,7 +394,7 @@ export default [
     name: 'Half Marathon Builder',
     tagline: '12 weeks to your best half marathon',
     description: 'A 12-week half marathon training plan for runners with an existing 5K base. Builds your weekly mileage systematically through zone 2 long runs, tempo efforts, and structured interval sessions. Includes two deload weeks and a race-week taper protocol.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'running',
     subcategory: 'half-marathon',
@@ -477,7 +477,7 @@ export default [
       '9': { sets: 1, reps: 19, intensityLabel: 'Peak — 19km long run' }, '10': { sets: 1, reps: 18, intensityLabel: 'Peak — 18km long run' },
       '11': { sets: 1, reps: 13, intensityLabel: 'Taper — 13km long run' }, '12': { sets: 1, reps: 21, intensityLabel: 'RACE DAY — 21.1km' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Half Marathon', philosophy: 'The long run is king. Build it slowly, respect the recovery, and show up on race day with miles in the legs and confidence in the mind.' },
+    dossier: { creator: 'Helyx', focus: 'Half Marathon', philosophy: 'The long run is king. Build it slowly, respect the recovery, and show up on race day with miles in the legs and confidence in the mind.' },
   },
 
 ];

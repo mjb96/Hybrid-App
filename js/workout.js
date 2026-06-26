@@ -9,6 +9,7 @@ import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
+import { orderedLiftNames } from './workout-order.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
@@ -166,6 +167,7 @@ export function renderWorkout() {
   if (!appState.weeks[wk].gymRpe) appState.weeks[wk].gymRpe = {};
   if (!appState.weeks[wk].bodyWeight) appState.weeks[wk].bodyWeight = {};
   if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
+  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
 
   const weekData = appState.weeks[wk];
 
@@ -422,7 +424,9 @@ export function renderWorkout() {
   const renderedLifts = new Set();
   let isFirstAccordionField = true;
 
-  for (let liftName in loggedLiftsData) {
+  const orderedNames = orderedLiftNames(weekData, selectedDay, homeBlueprint);
+
+  for (const liftName of orderedNames) {
     if (renderedLifts.has(liftName)) continue;
     const setsArr = loggedLiftsData[liftName];
     if (!Array.isArray(setsArr)) continue;
@@ -850,6 +854,11 @@ export function removeCustomSetRow(liftName, setIndex) {
     appState.weeks[wk].lifts[selectedDay][liftName].splice(setIndex, 1);
     if (appState.weeks[wk].lifts[selectedDay][liftName].length === 0) {
       delete appState.weeks[wk].lifts[selectedDay][liftName];
+      // Drop the now-empty exercise from the explicit display order too.
+      const order = appState.weeks[wk].liftOrder?.[selectedDay];
+      if (Array.isArray(order)) {
+        appState.weeks[wk].liftOrder[selectedDay] = order.filter(n => n !== liftName);
+      }
     }
     _saveState(true);
     renderWorkout();
@@ -1052,6 +1061,12 @@ export function addExerciseToDayFromLibrary(name) {
   if (!appState.weeks[wk].lifts[selectedDay][name]) {
     appState.weeks[wk].lifts[selectedDay][name] = [{ w: '', r: '10', c: false }];
   }
+  // Append to the explicit display order so the new exercise lands at the bottom.
+  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
+  if (!Array.isArray(appState.weeks[wk].liftOrder[selectedDay])) appState.weeks[wk].liftOrder[selectedDay] = [];
+  if (!appState.weeks[wk].liftOrder[selectedDay].includes(name)) {
+    appState.weeks[wk].liftOrder[selectedDay].push(name);
+  }
   _saveState(true);
   closeAddExerciseModal();
   renderWorkout();
@@ -1111,6 +1126,8 @@ export function executeResetActiveDayMetrics() {
   appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
   appState.weeks[wk].lifts[selectedDay] = {};
   appState.weeks[wk].notes[selectedDay] = '';
+  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
+  appState.weeks[wk].liftOrder[selectedDay] = [];
 
   const activeProgram = getProgramById(appState.activeProgramId);
   const blueprint = activeProgram.days?.[selectedDay];
@@ -1123,6 +1140,8 @@ export function executeResetActiveDayMetrics() {
           prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier);
       } catch(e) { console.warn(e); }
     });
+    // Reset restores the prescribed program order.
+    appState.weeks[wk].liftOrder[selectedDay] = [...blueprint.lifts];
   }
   try {
     stopAndResetWorkoutTimer();

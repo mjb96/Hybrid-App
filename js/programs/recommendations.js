@@ -38,7 +38,7 @@ function scoreForUser(program, appState) {
   // Featured bonus
   if (program.featured) score += 10;
 
-  // HybridHQ official bonus (we trust our own programs)
+  // Helyx official bonus (we trust our own programs)
   if (program.author.type === 'official') score += 8;
 
   // If no state, just return popularity-based score
@@ -55,7 +55,7 @@ function scoreForUser(program, appState) {
     if (activeProg.includes('run') || activeProg.includes('marathon') || activeProg === 'couch_to_5k') {
       if (program.category === 'hybrid' || program.category === 'strength') score += 20;
     }
-    // If user is on HybridHQ program, recommend other official programs
+    // If user is on Helyx program, recommend other official programs
     if (activeProg === 'hybridhq_foundations') {
       if (program.id === 'hybrid_engine' || program.id === 'hybrid_strength_5k') score += 25;
     }
@@ -76,7 +76,7 @@ function getRecommendationReason(program, appState) {
   const activeProg = appState?.activeProgramId;
 
   if (program.featured) return 'Staff Pick';
-  if (program.author.type === 'official') return 'HybridHQ Certified';
+  if (program.author.type === 'official') return 'Helyx Certified';
   if (program.completionRate > 0.65) return `${Math.round(program.completionRate * 100)}% completion rate`;
   if (program.rating >= 4.7) return `★ ${program.rating} rated`;
   if (program.popularity >= 90) return `${program.enrolledCount.toLocaleString()} athletes`;

@@ -11,7 +11,7 @@ export default [
     name: 'Hyrox Advanced Competitor',
     tagline: 'Train for a podium finish at Hyrox',
     description: 'A 20-week elite Hyrox preparation program for experienced athletes targeting sub-60min male or sub-70min female performance. High volume, high intensity, race-specific simulation weeks, and advanced sled/ski work. This program demands everything.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'elite-prep',
     tags: ['hyrox', 'race', 'hyrox-collection', 'competition', 'advanced', 'sled', 'ski-erg', 'elite', 'sub-60', 'functional'],
@@ -60,7 +60,7 @@ export default [
       '19': { sets: 2, reps: 3, intensityLabel: 'Taper begins' },
       '20': { sets: 1, reps: 2, intensityLabel: 'Race week — rest, visualise, execute' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Elite Hyrox', philosophy: 'A podium Hyrox time demands concurrent excellence across running, ski erg, sled, and functional stations. This program develops all simultaneously.' },
+    dossier: { creator: 'Helyx', focus: 'Elite Hyrox', philosophy: 'A podium Hyrox time demands concurrent excellence across running, ski erg, sled, and functional stations. This program develops all simultaneously.' },
   },
   // ── HOME GYM ─────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export default [
     name: 'Dumbbell Home Programme',
     tagline: 'A complete strength programme — no gym required',
     description: 'A 10-week full-body programme requiring nothing but a pair of adjustable dumbbells. Covers every major muscle group with intelligent exercise selection, progressive overload built through rep ranges and tempo, and time-efficient sessions that deliver real results from home.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'strength',
     subcategory: 'home-gym',
@@ -165,7 +165,7 @@ export default [
       '9': { sets: 5, reps: 10, intensityLabel: 'Peak — high effort across all sets' },
       '10': { sets: 4, reps: 10, intensityLabel: 'Completion — test final rep maxes' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Home Gym Strength', philosophy: 'You do not need a full gym to get strong. A pair of adjustable dumbbells and consistency beats the most expensive equipment used inconsistently.' },
+    dossier: { creator: 'Helyx', focus: 'Home Gym Strength', philosophy: 'You do not need a full gym to get strong. A pair of adjustable dumbbells and consistency beats the most expensive equipment used inconsistently.' },
   },
   // ── HYROX ────────────────────────────────────────────────────────────────────
 
@@ -174,7 +174,7 @@ export default [
     name: 'Hyrox First Timer',
     tagline: 'Cross your first Hyrox finish line with confidence',
     description: 'A 12-week programme purpose-built for first-time Hyrox competitors. Introduces all 8 Hyrox stations, builds the running base needed to cover 8km across the event, and develops the strength-endurance capacity to complete every station without stopping. No prior Hyrox experience required.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'hyrox',
     subcategory: 'first-timer',
@@ -269,7 +269,7 @@ export default [
       '11': { sets: 3, reps: 6, intensityLabel: 'Pre-race taper — reduce volume 20%' },
       '12': { sets: 2, reps: 6, intensityLabel: 'Race week — HYROX DAY' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Hyrox Race Preparation', philosophy: 'The athletes who suffer most in Hyrox are those who never practised the stations at race pace. Train the transitions. Train the suffering. Race day becomes easy.' },
+    dossier: { creator: 'Helyx', focus: 'Hyrox Race Preparation', philosophy: 'The athletes who suffer most in Hyrox are those who never practised the stations at race pace. Train the transitions. Train the suffering. Race day becomes easy.' },
   },
   // ── HYROX WODs ───────────────────────────────────────────────────────────────
 
@@ -278,7 +278,7 @@ export default [
     name: 'HYROX Race Simulation',
     tagline: 'The full HYROX race — 8km run + 8 stations',
     description: 'The standard HYROX competition format in full. Eight 1km runs, each followed by one of the iconic HYROX functional stations. The total distance is 8km of running plus all eight stations completed in sequence. This is the benchmark — know exactly what race day feels like before you get there.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'race-simulation',
     tags: ['hyrox', 'hyrox-wod', 'race-sim', 'singles', 'functional', 'running', 'conditioning', 'benchmark'],
@@ -327,7 +327,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'Race simulation — full effort' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Race Simulation', philosophy: 'You cannot prepare for a HYROX race without experiencing the suffering of the full format. This WOD gives you exactly that — before race day.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Race Simulation', philosophy: 'You cannot prepare for a HYROX race without experiencing the suffering of the full format. This WOD gives you exactly that — before race day.' },
   },
 
   {
@@ -335,7 +335,7 @@ export default [
     name: 'HYROX Doubles Simulation',
     tagline: 'Partner race format — split the work, share the pain',
     description: 'The official HYROX Doubles format with a partner. Each athlete runs every 1km section independently, but stations are split 50/50. Both athletes must work simultaneously during station blocks. A great way to introduce the HYROX format with a training partner or as a step toward singles.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'race-simulation',
     tags: ['hyrox', 'hyrox-wod', 'doubles', 'partner', 'race-sim', 'functional', 'conditioning'],
@@ -384,7 +384,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'Race simulation — full effort' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Doubles', philosophy: 'The Doubles format is how thousands of athletes first experience HYROX. Sharing the station work means you can push harder on each effort — and accountability to a partner is powerful.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Doubles', philosophy: 'The Doubles format is how thousands of athletes first experience HYROX. Sharing the station work means you can push harder on each effort — and accountability to a partner is powerful.' },
   },
 
   {
@@ -392,7 +392,7 @@ export default [
     name: 'HYROX PRO Simulation',
     tagline: 'Elite competition weights — for serious competitors only',
     description: 'The HYROX PRO division format runs the exact same race structure as the standard race but with significantly heavier station loads. This simulation is reserved for experienced HYROX athletes preparing for the elite competition category. Do not attempt without a strong singles base.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'race-simulation',
     tags: ['hyrox', 'hyrox-wod', 'pro', 'elite', 'race-sim', 'advanced', 'competition', 'heavy'],
@@ -441,7 +441,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'PRO simulation — maximum effort' } },
-    dossier: { creator: 'HybridHQ', focus: 'Elite HYROX', philosophy: 'The PRO division separates the serious competitors from the recreational racers. If you are chasing a podium, this is where you train.' },
+    dossier: { creator: 'Helyx', focus: 'Elite HYROX', philosophy: 'The PRO division separates the serious competitors from the recreational racers. If you are chasing a podium, this is where you train.' },
   },
 
   {
@@ -449,7 +449,7 @@ export default [
     name: 'HYROX Half Simulation',
     tagline: 'First 4 stations — perfect race prep for beginners',
     description: 'A half-length HYROX simulation covering the first four stations with 4km of running. An ideal race preview for new athletes still building their base, or as a high-intensity training session for experienced competitors looking for a shorter stimulus. All race weights apply.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'race-simulation',
     tags: ['hyrox', 'hyrox-wod', 'half', 'race-sim', 'beginner-hyrox', 'conditioning', 'functional'],
@@ -494,7 +494,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'Half race — race pace effort' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Race Preparation', philosophy: 'The half simulation lets you experience race pressure without the full volume. It is the ideal format for first-timers building confidence.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Race Preparation', philosophy: 'The half simulation lets you experience race pressure without the full volume. It is the ideal format for first-timers building confidence.' },
   },
 
   {
@@ -502,7 +502,7 @@ export default [
     name: 'SkiErg Blitz',
     tagline: 'Destroy your aerobic ceiling with ski erg intervals',
     description: 'A dedicated SkiErg conditioning session built around the demands of HYROX station one. Alternating long intervals and short bursts develop both the aerobic base and the neuromuscular power needed to handle 1,000m of skiing after a hard 1km run. The SkiErg is the most underrated HYROX weapon.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'station-specific',
     tags: ['hyrox', 'hyrox-wod', 'ski-erg', 'cardio', 'intervals', 'station-specific', 'conditioning'],
@@ -545,7 +545,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'SkiErg intervals — hard effort' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX SkiErg Conditioning', philosophy: 'Most HYROX athletes neglect the ski erg in training. The ones who drill it specifically always gain time here — it is a completely trainable station.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX SkiErg Conditioning', philosophy: 'Most HYROX athletes neglect the ski erg in training. The ones who drill it specifically always gain time here — it is a completely trainable station.' },
   },
 
   {
@@ -553,7 +553,7 @@ export default [
     name: 'Sled Push & Pull Complex',
     tagline: 'Master HYROX stations 2 and 3 — the make-or-break sleds',
     description: 'Dedicated sled training targeting HYROX stations two (push) and three (pull). The sled stations are where most athletes break — either pacing too hard and grinding to a halt, or saving too much and leaving time on the table. This session teaches you exactly where the line is.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'station-specific',
     tags: ['hyrox', 'hyrox-wod', 'sled', 'sled-push', 'sled-pull', 'station-specific', 'strength', 'conditioning'],
@@ -594,7 +594,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'Sled complex — race weight' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Sled Stations', philosophy: 'The sled stations destroy athletes who have not trained with race weight. Load the sled to race spec and learn what your legs can actually sustain.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Sled Stations', philosophy: 'The sled stations destroy athletes who have not trained with race weight. Load the sled to race spec and learn what your legs can actually sustain.' },
   },
 
   {
@@ -602,7 +602,7 @@ export default [
     name: 'Wall Ball Century',
     tagline: '100 wall balls for time — station 8 mastery',
     description: 'One hundred wall ball shots for time — the final HYROX station done in isolation. After 7km of running and 7 stations, this is where races are won and lost. Training the wall ball fresh teaches you the movement pattern. Training it fatigued teaches you race day reality. Do both.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'station-specific',
     tags: ['hyrox', 'hyrox-wod', 'wall-ball', 'station-specific', 'conditioning', 'benchmark', 'functional'],
@@ -643,7 +643,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 100, intensityLabel: 'For time — benchmark' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Wall Ball Station', philosophy: 'The wall ball is the last station for a reason — it rewards athletes who paced the first seven. Your ability to sustain the squat-throw rhythm when exhausted is entirely trainable.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Wall Ball Station', philosophy: 'The wall ball is the last station for a reason — it rewards athletes who paced the first seven. Your ability to sustain the squat-throw rhythm when exhausted is entirely trainable.' },
   },
 
   {
@@ -651,7 +651,7 @@ export default [
     name: 'Burpee Broad Jump 80',
     tagline: '80m of burpee broad jumps — station 4 benchmark',
     description: 'Eighty metres of burpee broad jumps for time — the most dreaded HYROX station. Each rep is a full chest-to-floor burpee followed by an explosive broad jump. Unlike conventional burpees, these demand lower body explosiveness alongside cardiovascular capacity. This WOD isolates and trains the skill completely.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'station-specific',
     tags: ['hyrox', 'hyrox-wod', 'burpee-broad-jump', 'bbj', 'station-specific', 'conditioning', 'bodyweight', 'benchmark'],
@@ -693,7 +693,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'BBJ benchmark — for time' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX BBJ Station', philosophy: 'The burpee broad jump station trips up athletes who have only trained regular burpees. The explosive jump is a separate skill — train it specifically and watch your time drop.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX BBJ Station', philosophy: 'The burpee broad jump station trips up athletes who have only trained regular burpees. The explosive jump is a separate skill — train it specifically and watch your time drop.' },
   },
 
   {
@@ -701,7 +701,7 @@ export default [
     name: 'Row & Run',
     tagline: 'Rowing station + running intervals — HYROX engine work',
     description: 'A classic HYROX-specific conditioning workout pairing 500m rowing intervals with 1km runs. This combo directly trains the transition from running to the rowing station (station 5) and back to running. Develops the aerobic base and lactate tolerance needed for a fast race.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'conditioning',
     tags: ['hyrox', 'hyrox-wod', 'rowing', 'running', 'intervals', 'conditioning', 'cardio', 'station-specific'],
@@ -742,7 +742,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'Row & run intervals' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Rowing + Running', philosophy: 'The run-to-row transition is one of the most underestimated challenges in HYROX. Your breathing pattern from running disrupts your rowing rhythm. Training them back-to-back solves this.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Rowing + Running', philosophy: 'The run-to-row transition is one of the most underestimated challenges in HYROX. Your breathing pattern from running disrupts your rowing rhythm. Training them back-to-back solves this.' },
   },
 
   {
@@ -750,7 +750,7 @@ export default [
     name: 'Station Gauntlet',
     tagline: 'All 8 HYROX stations back-to-back — no running, maximum suffering',
     description: 'All eight HYROX stations completed in sequence without any running between them. This WOD isolates the station work and compresses the total conditioning demand into a shorter window. Great for athletes with limited time, those building station-specific fitness, or anyone who wants a brutal upper and lower body conditioning circuit.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'hyrox',
     subcategory: 'conditioning',
     tags: ['hyrox', 'hyrox-wod', 'stations', 'circuit', 'conditioning', 'functional', 'benchmark', 'no-running'],
@@ -799,7 +799,7 @@ export default [
       sun: { title: 'Rest', badge: 'Recovery', color: 'var(--text-muted)', desc: 'Rest.', runs: 'Rest', lifts: [] },
     },
     weeklyVolModifiers: { '1': { sets: 1, reps: 1, intensityLabel: 'All stations — for time' } },
-    dossier: { creator: 'HybridHQ', focus: 'HYROX Station Conditioning', philosophy: 'The gauntlet reveals exactly which stations are limiting your race time. Track your split at each transition and you will know exactly where to focus in training.' },
+    dossier: { creator: 'Helyx', focus: 'HYROX Station Conditioning', philosophy: 'The gauntlet reveals exactly which stations are limiting your race time. Track your split at each transition and you will know exactly where to focus in training.' },
   },
 
 
