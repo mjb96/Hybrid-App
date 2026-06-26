@@ -45,7 +45,7 @@ export const EDUCATION_CONTENT = {
         },
         {
           type: 'callout',
-          text: 'HybridHQ tracks your metabolic phase in real time — from Anabolic through Fat Adaptation, Ketosis, and beyond.',
+          text: 'Helyx tracks your metabolic phase in real time — from Anabolic through Fat Adaptation, Ketosis, and beyond.',
         },
       ],
     },

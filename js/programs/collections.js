@@ -8,7 +8,7 @@ import { PROGRAM_CATALOG } from './catalog.js';
 export const COLLECTION_DEFINITIONS = [
   {
     id: 'hybridhq-picks',
-    label: "HybridHQ Picks",
+    label: "Helyx Picks",
     subtitle: "Curated by our coaching team",
     icon: '⚡',
     filter: p => p.author.type === 'official',

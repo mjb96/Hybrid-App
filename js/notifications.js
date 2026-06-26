@@ -130,7 +130,7 @@ function _fireWorkoutReminder() {
   ];
   const body = messages[Math.floor(Math.random() * messages.length)];
   try {
-    new Notification('Hybrid Training', { body, icon: './icon-512.png', badge: './icon-512.png', tag: 'training-reminder' });
+    new Notification('Helyx', { body, icon: './icon-512.png', badge: './icon-512.png', tag: 'training-reminder' });
   } catch (_) {}
 }
 

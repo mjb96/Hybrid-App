@@ -444,7 +444,7 @@ function formatEquipment(eq) {
 
 function getAuthorTypeLabel(type) {
   const labels = {
-    'official': 'HybridHQ Official', 'coach': 'Certified Coach',
+    'official': 'Helyx Official', 'coach': 'Certified Coach',
     'community': 'Community Program', 'imported': 'Imported Program',
   };
   return labels[type] || type || 'Program Author';

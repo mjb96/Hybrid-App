@@ -11,7 +11,7 @@ export default [
     name: 'Cut Phase — Fat Loss Protocol',
     tagline: 'Preserve muscle while shedding body fat',
     description: 'An 8-week fat loss program designed to preserve maximum muscle mass during a caloric deficit. Higher frequency lifting, strategic cardio, and progressive overload combine to maintain strength while body composition transforms.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'body_composition',
     subcategory: 'fat-loss',
     tags: ['fat-loss', 'cutting', 'body-composition', 'cardio', 'muscle-preservation', 'deficit', 'intermediate'],
@@ -48,7 +48,7 @@ export default [
       '7': { sets: 4, reps: 6, intensityLabel: 'Heavy strength phase' },
       '8': { sets: 3, reps: 8, intensityLabel: 'Final week — assessment' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Fat Loss & Muscle Preservation', philosophy: 'Strategic fat loss through higher frequency training, progressive overload, and structured cardio.' },
+    dossier: { creator: 'Helyx', focus: 'Fat Loss & Muscle Preservation', philosophy: 'Strategic fat loss through higher frequency training, progressive overload, and structured cardio.' },
   },
 
   {
@@ -56,7 +56,7 @@ export default [
     name: 'Body Recomposition Protocol',
     tagline: 'Lose fat and gain muscle simultaneously',
     description: 'A 16-week program targeting body recomposition — the simultaneous loss of fat and gain of muscle. Achievable for beginners and those returning to training. Combines progressive overload with moderate cardio at maintenance calories.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'body_composition',
     subcategory: 'recomposition',
     tags: ['recomposition', 'fat-loss', 'muscle-gain', 'beginner', 'intermediate', 'body-composition', 'cardio'],
@@ -101,7 +101,7 @@ export default [
       '15': { sets: 4, reps: 6, intensityLabel: 'Final strength block' },
       '16': { sets: 2, reps: 10, intensityLabel: 'Final assessment week' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Body Recomposition', philosophy: 'Progressive overload combined with cardio at maintenance calories achieves simultaneous fat loss and muscle gain.' },
+    dossier: { creator: 'Helyx', focus: 'Body Recomposition', philosophy: 'Progressive overload combined with cardio at maintenance calories achieves simultaneous fat loss and muscle gain.' },
   },
   // ── GENERAL FITNESS ───────────────────────────────────────────────────────
 
@@ -110,7 +110,7 @@ export default [
     name: 'Beginner Full Body',
     tagline: 'The perfect starting point for complete beginners',
     description: 'An 8-week introduction to structured training. Three full-body sessions per week teaching fundamental movement patterns while building initial strength and conditioning. Designed for those brand new to the gym.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'general_fitness',
     subcategory: 'beginner',
     tags: ['beginner', 'full-body', 'fundamentals', '3-day', 'gym-newbie', 'foundation', 'simple'],
@@ -147,7 +147,7 @@ export default [
       '7': { sets: 4, reps: 6, intensityLabel: 'Heavier focus' },
       '8': { sets: 3, reps: 8, intensityLabel: 'Final week — celebrate progress' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Beginner Fundamentals', philosophy: 'Master the six fundamental movement patterns through progressive overload across an 8-week foundation.' },
+    dossier: { creator: 'Helyx', focus: 'Beginner Fundamentals', philosophy: 'Master the six fundamental movement patterns through progressive overload across an 8-week foundation.' },
   },
 
   {
@@ -155,7 +155,7 @@ export default [
     name: 'Athletic Base Builder',
     tagline: 'All-around athleticism for the everyday athlete',
     description: 'A 12-week general athletic development program. Combines strength, power, conditioning, and mobility work into a balanced program that improves performance across all physical domains. Suitable for anyone who wants to be genuinely fit.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'general_fitness',
     subcategory: 'athletic',
     tags: ['athletic', 'general-fitness', 'strength', 'conditioning', 'cardio', 'balanced', 'intermediate'],
@@ -190,7 +190,7 @@ export default [
       '9': { sets: 4, reps: 5, intensityLabel: 'Peak strength' }, '10': { sets: 4, reps: 5, intensityLabel: 'Peak strength' },
       '11': { sets: 4, reps: 5, intensityLabel: 'Peak strength' }, '12': { sets: 2, reps: 6, intensityLabel: 'Final assessment' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Athletic Development', philosophy: 'Balanced athletic development through concurrent strength and conditioning across a 12-week cycle.' },
+    dossier: { creator: 'Helyx', focus: 'Athletic Development', philosophy: 'Balanced athletic development through concurrent strength and conditioning across a 12-week cycle.' },
   },
   // ── BODY COMPOSITION — ADDITIONAL ─────────────────────────────────────────
 
@@ -199,7 +199,7 @@ export default [
     name: 'Lean Bulk Protocol',
     tagline: 'Build maximum muscle with minimum fat — the smart way',
     description: 'A 16-week lean bulking program designed to maximise muscle gain while keeping fat gain to an absolute minimum. Higher-volume hypertrophy training, strategic calorie surplus guidance, and built-in cardio to maintain conditioning. The anti-bulk bulk.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'body_composition',
     subcategory: 'lean-bulk',
     tags: ['lean-bulk', 'muscle', 'hypertrophy', 'body-composition', 'bulk', 'mass', 'nutrition', 'recomp'],
@@ -244,7 +244,7 @@ export default [
       '15': { sets: 4, reps: 6, intensityLabel: 'Phase 4: Final push' },
       '16': { sets: 2, reps: 8, intensityLabel: 'Deload — assess, photograph, plan next cycle' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Lean Bulk', philosophy: 'Muscle gain without the blubber. A modest surplus, high protein, strategic cardio, and progressive overload builds the lean physique you actually want.' },
+    dossier: { creator: 'Helyx', focus: 'Lean Bulk', philosophy: 'Muscle gain without the blubber. A modest surplus, high protein, strategic cardio, and progressive overload builds the lean physique you actually want.' },
   },
   // ── GENERAL FITNESS — ADDITIONAL ──────────────────────────────────────────
 
@@ -253,7 +253,7 @@ export default [
     name: 'Kettlebell Minimalist',
     tagline: 'One bell. Full body. Anywhere.',
     description: 'A 10-week kettlebell-only program requiring just one bell and minimal space. Based on hardstyle kettlebell principles: the swing, the press, the goblet squat, the get-up. Develops strength, conditioning, and mobility simultaneously. The perfect home or travel program.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'general_fitness',
     subcategory: 'kettlebell',
     tags: ['kettlebell', 'home', 'minimal-equipment', 'conditioning', 'strength', 'swing', 'minimalist', 'time-efficient'],
@@ -292,7 +292,7 @@ export default [
       '9': { sets: 4, reps: 15, intensityLabel: 'Consolidation' },
       '10': { sets: 3, reps: 10, intensityLabel: 'Final week — max KB weight throughout' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Kettlebell Training', philosophy: 'The kettlebell swing is the king of exercises. Everything else supports it. Master the fundamentals, build the machine.' },
+    dossier: { creator: 'Helyx', focus: 'Kettlebell Training', philosophy: 'The kettlebell swing is the king of exercises. Everything else supports it. Master the fundamentals, build the machine.' },
   },
 
   {
@@ -300,7 +300,7 @@ export default [
     name: 'Home Athlete Program',
     tagline: 'No gym. No excuses. Real results.',
     description: 'A 10-week bodyweight and minimal-equipment program for training at home. Three days of structured bodyweight strength work using progressions that make push-ups, pull-ups, and squats genuinely challenging. No equipment required beyond a pull-up bar for some sessions.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'general_fitness',
     subcategory: 'home-training',
     tags: ['home', 'bodyweight', 'no-equipment', 'calisthenics', 'beginner', 'push-ups', 'pull-ups', 'minimal'],
@@ -339,7 +339,7 @@ export default [
       '9': { sets: 4, reps: 8, intensityLabel: 'Advanced progressions' },
       '10': { sets: 3, reps: 5, intensityLabel: 'Hardest progressions — test your ceiling' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Home Training', philosophy: 'Your body is the best training tool available. Master bodyweight movement before loading it.' },
+    dossier: { creator: 'Helyx', focus: 'Home Training', philosophy: 'Your body is the best training tool available. Master bodyweight movement before loading it.' },
   },
   // ── TACTICAL ──────────────────────────────────────────────────────────────
 
@@ -348,7 +348,7 @@ export default [
     name: 'Tactical Athlete Program',
     tagline: 'Military & first responder performance standard',
     description: 'A 12-week program built around tactical fitness standards. Combines heavy strength work, high-rep calisthenics, loaded carries, and sustained running capacity. Designed for military, police, firefighters, and those who want to meet that standard.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     category: 'tactical',
     subcategory: 'military-fitness',
     tags: ['tactical', 'military', 'fitness-test', 'strength', 'running', 'calisthenics', 'advanced', 'first-responder'],
@@ -389,7 +389,7 @@ export default [
       '11': { sets: 3, reps: 5, intensityLabel: 'Taper strength' },
       '12': { sets: 2, reps: 5, intensityLabel: 'Test week' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Tactical Fitness', philosophy: 'Develop the full tactical fitness profile: strength, endurance, calisthenics, and loaded movement.' },
+    dossier: { creator: 'Helyx', focus: 'Tactical Fitness', philosophy: 'Develop the full tactical fitness profile: strength, endurance, calisthenics, and loaded movement.' },
   },
   // ── TRIATHLON ─────────────────────────────────────────────────────────────────
 
@@ -398,7 +398,7 @@ export default [
     name: 'Sprint Triathlon Prep',
     tagline: '8 weeks to your first sprint triathlon finish line',
     description: 'An 8-week programme preparing you for a 750m swim / 20km bike / 5km run sprint triathlon. Builds swim technique, cycling power, and run fitness simultaneously through carefully structured multi-sport sessions and brick workouts that simulate race-day transitions.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'triathlon',
     subcategory: 'sprint',
@@ -501,7 +501,7 @@ export default [
       '7': { sets: 3, reps: 8, intensityLabel: 'Pre-race — taper volume begins' },
       '8': { sets: 2, reps: 8, intensityLabel: 'Race week — full taper. Trust your training.' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Sprint Triathlon', philosophy: 'Every brick session closes the gap between training and race day. The transition from bike to run separates those who trained it from those who did not.' },
+    dossier: { creator: 'Helyx', focus: 'Sprint Triathlon', philosophy: 'Every brick session closes the gap between training and race day. The transition from bike to run separates those who trained it from those who did not.' },
   },
   // ── MOBILITY ──────────────────────────────────────────────────────────────────
 
@@ -510,7 +510,7 @@ export default [
     name: 'Athletic Mobility Foundation',
     tagline: 'Move better. Lift more. Run faster. Recover quicker.',
     description: 'An 8-week mobility programme designed specifically for strength athletes and runners who want to move better. Combines deep tissue mobility work, active stretching, and movement patterning to eliminate restrictions, reduce injury risk, and improve performance in the gym and on the road.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'mobility',
     subcategory: 'athletic-mobility',
@@ -618,7 +618,7 @@ export default [
       '7': { sets: 4, reps: 90, intensityLabel: 'Loaded mobility — bodyweight loading at end range' },
       '8': { sets: 3, reps: 90, intensityLabel: 'Consolidation — test new ranges under control' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Athletic Mobility', philosophy: 'Mobility is not just stretching — it is building strength and control at your end ranges. Own the range you train.' },
+    dossier: { creator: 'Helyx', focus: 'Athletic Mobility', philosophy: 'Mobility is not just stretching — it is building strength and control at your end ranges. Own the range you train.' },
   },
   // ── FUNCTIONAL FITNESS ────────────────────────────────────────────────────────
 
@@ -627,7 +627,7 @@ export default [
     name: 'GPP Foundation',
     tagline: 'General Physical Preparedness — be ready for anything',
     description: 'A 12-week General Physical Preparedness programme that builds a complete athletic base: strength, conditioning, aerobic capacity, and movement efficiency. Structured around functional compound movements, EMOMs, AMRAPs, and aerobic work. The ideal programme for athletes who want to be genuinely fit — not just gym-fit.',
-    author: { name: 'HybridHQ', type: 'official', verified: true },
+    author: { name: 'Helyx', type: 'official', verified: true },
     source: 'internal',
     category: 'functional',
     subcategory: 'gpp',
@@ -722,7 +722,7 @@ export default [
       '9': { sets: 4, reps: 3, intensityLabel: 'Strength peak block' }, '10': { sets: 4, reps: 3, intensityLabel: 'Near max efforts' },
       '11': { sets: 4, reps: 3, intensityLabel: 'Final push' }, '12': { sets: 3, reps: 5, intensityLabel: 'Completion — test all benchmarks' },
     },
-    dossier: { creator: 'HybridHQ', focus: 'Functional Fitness', philosophy: 'GPP is about being prepared for everything. Strength without endurance has limits. Build the whole engine.' },
+    dossier: { creator: 'Helyx', focus: 'Functional Fitness', philosophy: 'GPP is about being prepared for everything. Strength without endurance has limits. Build the whole engine.' },
   },
 
 ];

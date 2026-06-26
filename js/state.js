@@ -91,7 +91,7 @@ export function getProgramById(id) {
       totalWeeks: catalogEntry.durationWeeks || 12,
       weeklyVolModifiers: catalogEntry.weeklyVolModifiers || {},
       dossier: catalogEntry.dossier || {
-        creator: catalogEntry.author?.name || 'HybridHQ',
+        creator: catalogEntry.author?.name || 'Helyx',
         focus:   catalogEntry.tagline || '',
         philosophy: catalogEntry.description || '',
       },

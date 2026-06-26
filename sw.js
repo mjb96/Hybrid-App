@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'hybrid-training-v65';
+const CACHE_NAME = 'helyx-v66';
 
 const LOCAL_ASSETS = [
   './',
