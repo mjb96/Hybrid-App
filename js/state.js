@@ -264,7 +264,7 @@ export function verifyWeekStorageSchema(wk) {
   if (!appState.weeks) appState.weeks = {};
   
   if (!appState.weeks[wk]) {
-    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, dates: {} };
+    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, liftOrder: {}, dates: {} };
     DEFAULT_DAYS.forEach(d => {
       appState.weeks[wk].runs[d] = { dist: '', time: '', rpe: '' };
       appState.weeks[wk].notes[d] = '';
@@ -285,6 +285,10 @@ export function verifyWeekStorageSchema(wk) {
           appState.weeks[wk].lifts[d][liftName] =
             prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
         });
+        // Stamp the explicit display order (blueprint order). Render reads this
+        // instead of object-key enumeration, which would otherwise float any
+        // integer-like keys to the top and scramble the prescribed sequence.
+        appState.weeks[wk].liftOrder[d] = [...dayBlueprint.lifts];
       }
     });
   }
@@ -302,10 +306,15 @@ export function mergeWeekSchema(wk) {
     const dayBlueprint = activeProgram.days[d];
     if (!dayBlueprint?.lifts?.length) return;
     if (!appState.weeks[wk].lifts[d]) appState.weeks[wk].lifts[d] = {};
+    if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
+    if (!Array.isArray(appState.weeks[wk].liftOrder[d])) appState.weeks[wk].liftOrder[d] = [];
     dayBlueprint.lifts.forEach(liftName => {
       if (!appState.weeks[wk].lifts[d][liftName]) {
         appState.weeks[wk].lifts[d][liftName] =
           prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
+      }
+      if (!appState.weeks[wk].liftOrder[d].includes(liftName)) {
+        appState.weeks[wk].liftOrder[d].push(liftName);
       }
     });
   });

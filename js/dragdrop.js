@@ -88,24 +88,31 @@ export function commitReorderedDOMStateToStorage() {
   const selectedDay = _getSelectedDay();
   const container = document.getElementById('cockpitExercisesContainer');
   const wk = appState.currentWeek;
-  const newOrderedLiftsMap = {};
-  // Read direct children in DOM order: superset groups expand to their inner exercises
+  const dayLifts = appState.weeks?.[wk]?.lifts?.[selectedDay] || {};
+
+  // Persist the new sequence as an explicit `liftOrder` array. We deliberately
+  // do NOT rebuild the lifts object: JS re-sorts integer-like keys to the front
+  // on enumeration, which silently reverts the user's reorder. The order array
+  // is the single source of truth the renderer reads.
+  const newOrder = [];
+  // Read direct children in DOM order; superset groups expand to inner exercises.
   Array.from(container.children).forEach(child => {
     if (child.classList.contains('superset-group')) {
       child.querySelectorAll('.cockpit-exercise').forEach(card => {
         const liftName = card.getAttribute('data-liftname');
-        if (liftName && appState.weeks[wk].lifts[selectedDay][liftName]) {
-          newOrderedLiftsMap[liftName] = appState.weeks[wk].lifts[selectedDay][liftName];
-        }
+        if (liftName && dayLifts[liftName] && !newOrder.includes(liftName)) newOrder.push(liftName);
       });
     } else if (child.classList.contains('cockpit-exercise')) {
       const liftName = child.getAttribute('data-liftname');
-      if (liftName && appState.weeks[wk].lifts[selectedDay][liftName]) {
-        newOrderedLiftsMap[liftName] = appState.weeks[wk].lifts[selectedDay][liftName];
-      }
+      if (liftName && dayLifts[liftName] && !newOrder.includes(liftName)) newOrder.push(liftName);
     }
   });
-  appState.weeks[wk].lifts[selectedDay] = newOrderedLiftsMap;
+
+  // Append any lifts that weren't represented in the DOM (defensive).
+  Object.keys(dayLifts).forEach(n => { if (!newOrder.includes(n)) newOrder.push(n); });
+
+  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
+  appState.weeks[wk].liftOrder[selectedDay] = newOrder;
   _saveState(true);
   showToast('Order Updated ✓');
 }
