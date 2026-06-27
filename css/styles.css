@@ -1681,9 +1681,9 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 .tile-skeleton-line {
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0.05) 25%,
-    rgba(255,255,255,0.10) 50%,
-    rgba(255,255,255,0.05) 75%
+    rgba(245,158,11,0.10) 25%,
+    rgba(245,158,11,0.22) 50%,
+    rgba(245,158,11,0.10) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
@@ -4450,7 +4450,7 @@ html[data-theme="light"] .metric-mini-box .val {
 
 /* Tile skeleton loading lines (background moved from inline to CSS) */
 .tile-skeleton-line {
-  background: var(--overlay-lg);
+  background: rgba(245,158,11,0.20);
   animation: shimmer 1.4s infinite linear;
 }
 @keyframes shimmer {
