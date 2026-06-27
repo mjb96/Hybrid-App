@@ -13,9 +13,17 @@
   <meta name="apple-mobile-web-app-title" content="Helyx">
   <link rel="apple-touch-icon" href="./icon-512.png">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-  
+  <!-- Leaflet is loaded on demand (js/ui/leaflet-loader.js) only on map screens,
+       so a slow/unreachable CDN can never block app boot. -->
+
+  <!-- Web font, loaded non-render-blocking (print media → swapped to all on load)
+       so a slow Google Fonts CDN never delays first paint. sans-serif renders
+       immediately as the fallback. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
   <link rel="stylesheet" href="./css/styles.css">

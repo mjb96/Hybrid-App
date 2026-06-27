@@ -14,7 +14,9 @@
    1. DESIGN TOKENS
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* Web font is loaded non-render-blocking from index.html (<link media=print
+   onload swap>). 'Plus Jakarta Sans' falls back to sans-serif until it arrives,
+   so first paint never waits on the Google Fonts CDN. */
 
 :root {
   /* --- Surfaces --- */

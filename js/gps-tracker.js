@@ -16,6 +16,7 @@
 // ==========================================
 import { saveMapToDB } from './db.js';
 import { showToast }   from './state.js';
+import { ensureLeaflet } from './ui/leaflet-loader.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
 const MAX_ACCURACY_M   = 50;   // discard readings worse than 50 m accuracy
@@ -105,9 +106,11 @@ document.addEventListener('visibilitychange', async () => {
 
 // ── Leaflet live map ──────────────────────────────────────────────────────
 
-function buildLiveMap() {
+async function buildLiveMap() {
   const el = document.getElementById('gpsLiveMap');
-  if (!el || typeof L === 'undefined') return;
+  if (!el) return;
+  try { await ensureLeaflet(); } catch { return; }
+  if (typeof L === 'undefined') return;
   if (_liveMap) { _liveMap.remove(); }
   _liveMap    = L.map('gpsLiveMap', { zoomControl: true, dragging: true, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: true });
   _liveLine   = L.polyline([], { color: '#f43f5e', weight: 4, opacity: 0.9 }).addTo(_liveMap);
