@@ -58,8 +58,11 @@ export function renderAthleteProfile() {
   const lifetime      = _lifetimeTotals(state, days);
   const relStrength   = _relativeStrength(state, bodyWeight);
 
-  // Strength PRs — data-driven: rank every tracked lift by all-time e1RM.
-  const topLifts        = _topLiftsByE1rm(state, days, 6);
+  // Strength PRs — the big three only, in canonical order.
+  const BIG3_PR = ['Back Squat', 'Bench Press', 'Deadlift'];
+  const topLifts = _topLiftsByE1rm(state, days, 50)
+    .filter(l => BIG3_PR.includes(l.name))
+    .sort((a, b) => BIG3_PR.indexOf(a.name) - BIG3_PR.indexOf(b.name));
   const hasStrengthData = topLifts.length > 0;
 
   // Running: generic stats (always shown when any run exists) + exact-bracket PBs
@@ -138,7 +141,7 @@ export function renderAthleteProfile() {
       <div class="profile-section">
         <div class="profile-section-title">Lifetime</div>
         <div class="profile-stat-grid">
-          ${_statCard(streak > 0 ? streak.toString() : '0', 'Day Streak', streak > 0 ? '🔥' : '💤', streak > 0 ? 'var(--color-amber)' : null)}
+          ${_statCard(longestStreak > 0 ? longestStreak.toString() : '0', 'Best Streak', longestStreak > 0 ? '🔥' : '💤', longestStreak > 0 ? 'var(--color-amber)' : null)}
           ${_statCard((lifetime.sessions || totalWorkouts).toString(), 'Sessions', '🏋️', null)}
           ${_statCard(lifetime.volume > 0 ? `${_compactNum(lifetime.volume)}` : '0', `Volume (${weightUnit})`, '📊', lifetime.volume > 0 ? 'var(--color-violet)' : null)}
           ${_statCard(lifetime.distanceKm > 0 ? lifetime.distanceKm.toFixed(0) : '0', `${state.settings?.distanceUnit || 'km'} Run`, '🏃', lifetime.distanceKm > 0 ? 'var(--color-cyan)' : null)}
