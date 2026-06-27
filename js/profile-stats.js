@@ -7,6 +7,7 @@
 import { getCatalogEntry } from './programs/catalog.js';
 import { getLiftDisplayName } from './engine.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
+import { allLiftsStats, big3Maxes } from './metrics/metrics-strength.js';
 
 // ── Section helpers ───────────────────────────────────────────────────────────
 
@@ -311,6 +312,108 @@ export function _computeRunningPBs(state, days) {
   return Object.values(bests).sort((a, b) => a.dist - b.dist);
 }
 
+// Latest logged body weight (canonical bodyWeightLog, newest entry). Returns
+// number or null. Falls back to the most recent per-session bodyWeight entry.
+export function _latestBodyWeight(state) {
+  const log = (state.bodyWeightLog || []).filter(e => e && e.date && parseFloat(e.weight) > 0);
+  if (log.length) {
+    const latest = log.reduce((a, b) => (new Date(a.date) > new Date(b.date) ? a : b));
+    return parseFloat(latest.weight);
+  }
+  // Fallback: scan per-session body weights (no reliable date, so just take any).
+  for (const wkData of Object.values(state.weeks || {})) {
+    for (const v of Object.values(wkData?.bodyWeight || {})) {
+      const w = parseFloat(v);
+      if (w > 0) return w;
+    }
+  }
+  return null;
+}
+
+// All-time totals across every logged week: lifting volume, run distance (km),
+// and number of distinct training sessions.
+export function _lifetimeTotals(state, days) {
+  let volume = 0, distanceKm = 0, sessions = 0;
+  for (const wkData of Object.values(state.weeks || {})) {
+    days.forEach(d => {
+      let dayVol = 0, dayHasLift = false;
+      const dayLifts = wkData?.lifts?.[d] || {};
+      for (const lift in dayLifts) {
+        if (!Array.isArray(dayLifts[lift])) continue;
+        dayLifts[lift].forEach(s => {
+          if (_isSet(s)) { dayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); dayHasLift = true; }
+        });
+      }
+      const runDist = parseFloat(wkData?.runs?.[d]?.dist) || 0;
+      volume += dayVol;
+      distanceKm += runDist;
+      if (dayHasLift || runDist > 0) sessions++;
+    });
+  }
+  return { volume, distanceKm, sessions };
+}
+
+// Top lifts ranked by all-time e1RM (data-driven — every tracked lift, not a
+// hardcoded list). Returns [{ name, displayName, e1rm }].
+export function _topLiftsByE1rm(state, days, limit = 6) {
+  const stats = allLiftsStats(state, days);
+  return Object.entries(stats)
+    .map(([name, s]) => ({ name, displayName: getLiftDisplayName(state, name), e1rm: s.allTimeMax }))
+    .filter(l => l.e1rm > 0)
+    .sort((a, b) => b.e1rm - a.e1rm)
+    .slice(0, limit);
+}
+
+// Strength-to-bodyweight ratios for the big lifts. Returns [{ label, e1rm, ratio }].
+export function _relativeStrength(state, bodyWeight) {
+  if (!bodyWeight || bodyWeight <= 0) return [];
+  const maxes = big3Maxes(state);
+  return [
+    { label: 'Squat',    e1rm: maxes.squat },
+    { label: 'Bench',    e1rm: maxes.bench },
+    { label: 'Deadlift', e1rm: maxes.deadlift },
+  ].filter(i => i.e1rm > 0).map(i => ({ ...i, ratio: i.e1rm / bodyWeight }));
+}
+
+// Generic running stats so runners always see something (not just exact-bracket
+// PBs). best pace is over runs ≥ 1km. Returns null fields when no data.
+export function _runningStats(state, days) {
+  let totalKm = 0, longestKm = 0, runCount = 0, bestPaceSecs = Infinity;
+  for (const wkData of Object.values(state.weeks || {})) {
+    days.forEach(d => {
+      const run  = wkData?.runs?.[d];
+      const dist = parseFloat(run?.dist) || 0;
+      if (dist <= 0) return;
+      totalKm += dist;
+      runCount++;
+      if (dist > longestKm) longestKm = dist;
+      if (run.time) {
+        const parts = run.time.split(':').map(Number);
+        let secs = 0;
+        if (parts.length === 2)      secs = parts[0] * 60 + parts[1];
+        else if (parts.length === 3) secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (secs > 0 && dist >= 1) { const pace = secs / dist; if (pace < bestPaceSecs) bestPaceSecs = pace; }
+      }
+    });
+  }
+  return { totalKm, longestKm, runCount, bestPaceSecs: bestPaceSecs === Infinity ? null : bestPaceSecs };
+}
+
+// Compact number formatter for big stat values (124500 → "124.5k").
+export function _compactNum(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 10_000)    return Math.round(n / 1000) + 'k';
+  if (n >= 1000)      return (n / 1000).toFixed(1) + 'k';
+  return Math.round(n).toString();
+}
+
+// mm:ss pace formatter (seconds per km).
+export function _fmtPace(secsPerKm) {
+  const m = Math.floor(secsPerKm / 60);
+  const s = Math.round(secsPerKm % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 // Returns best e1RM (and lift name) across a group of lift-name variants.
 export function _bestLiftFromGroup(state, days, liftNames) {
   let bestName = null, bestVal = 0;
@@ -441,6 +544,22 @@ export function _statCard(value, label, icon, accentColor, extra = '') {
       <div class="profile-stat-value" ${style}>${value}</div>
       <div class="profile-stat-label">${label}</div>
       ${extra}
+    </div>
+  `;
+}
+
+// Relative-strength tiles for the hero band (strength ÷ bodyweight).
+export function _relStrengthBand(items, unit) {
+  if (!items.length) return '';
+  return `
+    <div class="profile-rs-band">
+      ${items.map(i => `
+        <div class="profile-rs-tile">
+          <div class="profile-rs-ratio">${i.ratio.toFixed(2)}<span class="profile-rs-x">×BW</span></div>
+          <div class="profile-rs-label">${_esc(i.label)}</div>
+          <div class="profile-rs-sub">${Math.round(i.e1rm)}&nbsp;${unit}</div>
+        </div>
+      `).join('')}
     </div>
   `;
 }

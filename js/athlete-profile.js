@@ -3,7 +3,6 @@
 // ATHLETE PROFILE — Personal training identity and performance summary
 // =============================================================================
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
-import { big3Maxes } from './metrics/metrics-strength.js';
 import { getLiftDisplayName } from './engine.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 import { showToast } from './state.js';
@@ -24,9 +23,6 @@ export const PROFILE_SECTIONS = [
   { id: 'sessions',   label: 'Recent Sessions',     icon: '📝' },
   { id: 'completed',  label: 'Completed Programs',  icon: '🏆' },
 ];
-
-const OHP_NAMES = ['Standing Barbell OHP', 'Standing OHP', 'Seated DB Shoulder Press'];
-const ROW_NAMES = ['Barbell Bent-Over Row', 'Barbell Row', 'Chest Supported Dumbbell Row', 'Chest Supported Row', 'Single-Arm DB Row', 'Single Arm DB Row'];
 
 export function initAthleteProfile(getStateFn, getDaysFn, saveStateFn) {
   _getState  = getStateFn;
@@ -56,21 +52,23 @@ export function renderAthleteProfile() {
   const weightUnit    = state.settings?.weightUnit || 'kg';
   const prGoals       = state.prGoals || {};
 
-  // Strength PRs + trends
-  const maxes        = big3Maxes(state);
-  const ohpBest      = _bestLiftFromGroup(state, days, OHP_NAMES);
-  const rowBest      = _bestLiftFromGroup(state, days, ROW_NAMES);
-  const hasStrengthData = maxes.squat > 0 || maxes.bench > 0 || maxes.deadlift > 0 || !!ohpBest || !!rowBest;
+  // Body weight + lifetime totals (drive the hero band and headline stats)
+  const bodyWeight    = _latestBodyWeight(state);
+  const lifetime      = _lifetimeTotals(state, days);
+  const relStrength   = _relativeStrength(state, bodyWeight);
 
-  const squatTrend    = _liftTrend(state, days, 'Back Squat');
-  const benchTrend    = _liftTrend(state, days, 'Bench Press');
-  const deadliftTrend = _liftTrend(state, days, 'Deadlift');
-  const ohpTrend      = ohpBest ? _liftTrend(state, days, ohpBest.name) : null;
-  const rowTrend      = rowBest ? _liftTrend(state, days, rowBest.name) : null;
+  // Strength PRs — data-driven: rank every tracked lift by all-time e1RM.
+  const topLifts        = _topLiftsByE1rm(state, days, 6);
+  const hasStrengthData = topLifts.length > 0;
 
-  // Running PBs
+  // Running: generic stats (always shown when any run exists) + exact-bracket PBs
+  const runStats      = _runningStats(state, days);
   const runningPBs    = _computeRunningPBs(state, days);
-  const hasRunningData = runningPBs.length > 0;
+  const hasRunningData = runStats.runCount > 0;
+
+  // New athlete: nothing logged yet → show a focused onboarding card instead of
+  // a stack of empty sections.
+  const isNewAthlete  = lifetime.sessions === 0 && !activeCatalog && completions.length === 0;
 
   // Weekly volumes + trend
   const curWkStr      = state.currentWeek || '1';
@@ -92,12 +90,18 @@ export function renderAthleteProfile() {
     ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
     : initials;
 
+  // Dynamic subtitle: identity + key live facts (bodyweight, current streak).
+  const subParts = ['Hybrid Athlete'];
+  if (bodyWeight)  subParts.push(`${bodyWeight} ${weightUnit}`);
+  if (streak > 0)  subParts.push(`🔥 ${streak}-day streak`);
+  const heroSub = subParts.join('  ·  ');
+
   const heroHTML = `
     <div class="profile-hero">
       <div class="profile-hero-avatar" id="profileHeroAvatar">${avatarInner}</div>
       <div class="profile-hero-info">
         <h1 class="profile-hero-name">${name}</h1>
-        <div class="profile-hero-sub">Hybrid Athlete</div>
+        <div class="profile-hero-sub">${heroSub}</div>
       </div>
       <button class="profile-customise-btn" data-action="open-profile-customiser" aria-label="Customise dashboard">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
@@ -110,18 +114,19 @@ export function renderAthleteProfile() {
         </svg>
       </button>
     </div>
+    ${_relStrengthBand(relStrength, weightUnit)}
   `;
 
   // Build section HTML map
   const sectionHTML = {
     summary: `
       <div class="profile-section">
-        <div class="profile-section-title">Athlete Summary</div>
+        <div class="profile-section-title">Lifetime</div>
         <div class="profile-stat-grid">
           ${_statCard(streak > 0 ? streak.toString() : '0', 'Day Streak', streak > 0 ? '🔥' : '💤', streak > 0 ? 'var(--color-amber)' : null)}
-          ${_statCard(completions.length.toString(), 'Programs', '🏆', completions.length > 0 ? 'var(--color-green)' : null)}
-          ${_statCard(totalWorkouts > 0 ? totalWorkouts.toString() : '0', 'Workouts', '🏋️', null)}
-          ${_statCard(longestStreak > 0 ? longestStreak.toString() : '0', 'Best Streak', '⚡', null)}
+          ${_statCard((lifetime.sessions || totalWorkouts).toString(), 'Sessions', '🏋️', null)}
+          ${_statCard(lifetime.volume > 0 ? `${_compactNum(lifetime.volume)}` : '0', `Volume (${weightUnit})`, '📊', lifetime.volume > 0 ? 'var(--color-violet)' : null)}
+          ${_statCard(lifetime.distanceKm > 0 ? lifetime.distanceKm.toFixed(0) : '0', `${state.settings?.distanceUnit || 'km'} Run`, '🏃', lifetime.distanceKm > 0 ? 'var(--color-cyan)' : null)}
         </div>
       </div>
     `,
@@ -171,18 +176,29 @@ export function renderAthleteProfile() {
         ${hasStrengthData ? `
           <div class="profile-subsection-title">Strength PRs (e1RM)</div>
           <div class="profile-pr-list">
-            ${maxes.squat    > 0 ? _prRow('Back Squat',   maxes.squat,    weightUnit, squatTrend,    prGoals['Back Squat'])    : ''}
-            ${maxes.bench    > 0 ? _prRow('Bench Press',  maxes.bench,    weightUnit, benchTrend,    prGoals['Bench Press'])   : ''}
-            ${maxes.deadlift > 0 ? _prRow('Deadlift',     maxes.deadlift, weightUnit, deadliftTrend, prGoals['Deadlift'])      : ''}
-            ${ohpBest             ? _prRow(ohpBest.name,  ohpBest.max,    weightUnit, ohpTrend,      prGoals[ohpBest.name])    : ''}
-            ${rowBest             ? _prRow(rowBest.name,  rowBest.max,    weightUnit, rowTrend,      prGoals[rowBest.name])    : ''}
+            ${topLifts.map(l => _prRow(
+              l.displayName,
+              l.e1rm,
+              weightUnit,
+              _liftTrend(state, days, l.name),
+              prGoals[l.displayName]
+            )).join('')}
           </div>
         ` : ''}
         ${hasRunningData ? `
-          <div class="profile-subsection-title" style="margin-top: 16px;">Running PBs</div>
-          <div class="profile-pr-list">
-            ${runningPBs.map(pb => _runPBRow(pb)).join('')}
+          <div class="profile-subsection-title" style="margin-top: 16px;">Running</div>
+          <div class="profile-stat-grid">
+            ${_statCard(`${runStats.longestKm.toFixed(1)}`, `Longest (${state.settings?.distanceUnit || 'km'})`, '🏁', null)}
+            ${runStats.bestPaceSecs ? _statCard(_fmtPace(runStats.bestPaceSecs), 'Best Pace /km', '⚡', 'var(--color-cyan)') : ''}
+            ${_statCard(`${runStats.totalKm.toFixed(0)}`, `Total ${state.settings?.distanceUnit || 'km'}`, '🏃', null)}
+            ${_statCard(runStats.runCount.toString(), 'Runs', '👟', null)}
           </div>
+          ${runningPBs.length > 0 ? `
+            <div class="profile-subsection-title" style="margin-top: 16px;">Distance PBs</div>
+            <div class="profile-pr-list">
+              ${runningPBs.map(pb => _runPBRow(pb)).join('')}
+            </div>
+          ` : ''}
         ` : ''}
       </div>
     ` : '',
@@ -228,15 +244,34 @@ export function renderAthleteProfile() {
     ` : '',
   };
 
-  // Apply stored order + hidden preferences
-  const profileSections = state.profileSections || { order: null, hidden: [] };
-  const order  = profileSections.order || PROFILE_SECTIONS.map(s => s.id);
-  const hidden = new Set(profileSections.hidden || []);
+  // New athlete: skip the section stack (it would be mostly empty) and show a
+  // focused onboarding card with the two highest-value next actions.
+  let body;
+  if (isNewAthlete) {
+    body = `
+      <div class="profile-section">
+        <div class="profile-onboard-card">
+          <div class="profile-onboard-icon">🏋️</div>
+          <div class="profile-onboard-title">Build your athlete profile</div>
+          <div class="profile-onboard-text">Log your first session or start a program — your PRs, strength-to-bodyweight ratios and training history will appear here.</div>
+          <div class="profile-onboard-actions">
+            <button class="profile-empty-cta" data-action="switch-tab" data-target="program">Browse Programs</button>
+            <button class="profile-empty-cta profile-empty-cta--ghost" data-action="switch-tab" data-target="workout">Log a Workout</button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // Apply stored order + hidden preferences
+    const profileSections = state.profileSections || { order: null, hidden: [] };
+    const order  = profileSections.order || PROFILE_SECTIONS.map(s => s.id);
+    const hidden = new Set(profileSections.hidden || []);
 
-  const body = order
-    .filter(id => !hidden.has(id) && sectionHTML[id])
-    .map(id => sectionHTML[id])
-    .join('');
+    body = order
+      .filter(id => !hidden.has(id) && sectionHTML[id])
+      .map(id => sectionHTML[id])
+      .join('');
+  }
 
   container.innerHTML = heroHTML + body + `<div style="height: 80px;"></div>`;
 }
@@ -336,6 +371,14 @@ import {
   _runPBRow,
   _recentRow,
   _completionRow,
+  _latestBodyWeight,
+  _lifetimeTotals,
+  _topLiftsByE1rm,
+  _relativeStrength,
+  _relStrengthBand,
+  _runningStats,
+  _compactNum,
+  _fmtPace,
 } from './profile-stats.js';
 
 // ── Session detail modal ──────────────────────────────────────────────────────
