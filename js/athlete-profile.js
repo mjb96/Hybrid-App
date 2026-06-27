@@ -56,13 +56,11 @@ export function renderAthleteProfile() {
   // Body weight + lifetime totals (drive the hero band and headline stats)
   const bodyWeight    = _latestBodyWeight(state);
   const lifetime      = _lifetimeTotals(state, days);
-  const relStrength   = _relativeStrength(state, bodyWeight);
+  const relStrength   = _relativeStrength(state, days, bodyWeight);
 
-  // Strength PRs — the big three only, in canonical order.
-  const BIG3_PR = ['Back Squat', 'Bench Press', 'Deadlift'];
-  const topLifts = _topLiftsByE1rm(state, days, 50)
-    .filter(l => BIG3_PR.includes(l.name))
-    .sort((a, b) => BIG3_PR.indexOf(a.name) - BIG3_PR.indexOf(b.name));
+  // Strength PRs — the big three only (Squat / Bench / Deadlift), best e1RM per
+  // movement and robust to variant naming.
+  const topLifts = _big3PRs(state, days);
   const hasStrengthData = topLifts.length > 0;
 
   // Running: generic stats (always shown when any run exists) + exact-bracket PBs
@@ -393,7 +391,7 @@ function shareProfileCard() {
   const distUnit = state.settings?.distanceUnit || 'km';
   const bodyWeight = _latestBodyWeight(state);
   const lifetime   = _lifetimeTotals(state, days);
-  const rel        = _relativeStrength(state, bodyWeight);
+  const rel        = _relativeStrength(state, days, bodyWeight);
   const prog       = _athleteProgression(
     lifetime,
     (state.programLibrary?.completions || []).length,
@@ -543,7 +541,7 @@ import {
   _completionRow,
   _latestBodyWeight,
   _lifetimeTotals,
-  _topLiftsByE1rm,
+  _big3PRs,
   _relativeStrength,
   _relStrengthBand,
   _runningStats,
