@@ -209,20 +209,88 @@ export function _renderHealthSection(state) {
   `;
 }
 
+const HEATMAP_ALPHA = [0, 0.32, 0.52, 0.72, 0.95];
+
+function _heatmapCellStyle(type, level) {
+  const a = HEATMAP_ALPHA[level] || 0;
+  if (!type || level === 0) return '';
+  if (type === 'lift') return `background:rgba(139,92,246,${a});`;
+  if (type === 'run')  return `background:rgba(6,182,212,${a});`;
+  // both
+  return `background:linear-gradient(90deg,rgba(139,92,246,${a}),rgba(6,182,212,${a}));`;
+}
+
+// Body-weight trend section with an SVG sparkline (no chart lib needed).
+export function _renderBodyWeightSection(state) {
+  const bw = _bodyWeightTrend(state);
+  if (!bw.hasData) return '';
+  const unit = state.settings?.weightUnit || 'kg';
+
+  const W = 300, H = 64, pad = 6;
+  const pts = bw.points;
+  const span = Math.max(1, bw.max - bw.min);
+  const n = pts.length;
+  const x = i => pad + (i / (n - 1)) * (W - pad * 2);
+  const y = w => H - pad - ((w - bw.min) / span) * (H - pad * 2);
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.weight).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(n - 1).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`;
+
+  const up = bw.delta > 0;
+  const deltaHtml = bw.delta !== 0
+    ? `<span class="profile-bw-delta profile-bw-delta--${up ? 'up' : 'down'}">${up ? '↑' : '↓'} ${Math.abs(bw.delta)} ${unit}</span>`
+    : `<span class="profile-bw-delta">– stable</span>`;
+
+  return `
+    <div class="profile-section">
+      <div class="profile-section-title">Body Weight</div>
+      <div class="profile-bw-card">
+        <div class="profile-bw-head">
+          <div class="profile-bw-latest">${bw.latest}<span class="profile-bw-unit">${unit}</span></div>
+          <div class="profile-bw-meta">${deltaHtml}<span class="profile-bw-sub">last 30 days</span></div>
+        </div>
+        <svg class="profile-bw-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="bwFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(34,211,238,0.30)"/>
+              <stop offset="100%" stop-color="rgba(34,211,238,0)"/>
+            </linearGradient>
+          </defs>
+          <path d="${area}" fill="url(#bwFill)"/>
+          <path d="${line}" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  `;
+}
+
 export function _renderHeatmap(rows, days) {
   const dayLetters = days.map(d => d[0].toUpperCase());
-  const cells = rows.flatMap(row =>
-    row.cells.map(type =>
-      `<div class="profile-heatmap-cell${type ? ` profile-heatmap-cell--${type}` : ''}"></div>`
-    )
+  const cols = `grid-template-columns:30px repeat(${days.length},1fr);`;
+
+  const headCells = `<span class="profile-heatmap-rowlabel"></span>` +
+    dayLetters.map(l => `<span class="profile-heatmap-day-label">${l}</span>`).join('');
+
+  const bodyCells = rows.map(row =>
+    `<span class="profile-heatmap-rowlabel">${row.label || ''}</span>` +
+    row.cells.map(c => {
+      const type = c.type, level = c.level;
+      const cls = type && level ? ` profile-heatmap-cell--${type}` : '';
+      return `<div class="profile-heatmap-cell${cls}" style="${_heatmapCellStyle(type, level)}"></div>`;
+    }).join('')
   ).join('');
 
   return `
     <div class="profile-heatmap">
-      <div class="profile-heatmap-day-labels">
-        ${dayLetters.map(l => `<span class="profile-heatmap-day-label">${l}</span>`).join('')}
+      <div class="profile-heatmap-day-labels" style="${cols}">${headCells}</div>
+      <div class="profile-heatmap-grid" style="${cols}">${bodyCells}</div>
+      <div class="profile-heatmap-legend">
+        <span class="phm-legend-label">Less</span>
+        ${[1,2,3,4].map(l => `<span class="profile-heatmap-cell phm-legend-cell" style="background:rgba(148,163,184,${HEATMAP_ALPHA[l]});"></span>`).join('')}
+        <span class="phm-legend-label">More</span>
+        <span class="phm-legend-sep"></span>
+        <span class="phm-legend-key"><span class="phm-legend-dot" style="background:rgba(139,92,246,0.8)"></span>Lift</span>
+        <span class="phm-legend-key"><span class="phm-legend-dot" style="background:rgba(6,182,212,0.8)"></span>Run</span>
       </div>
-      <div class="profile-heatmap-grid">${cells}</div>
     </div>
   `;
 }
@@ -330,6 +398,31 @@ export function _latestBodyWeight(state) {
   return null;
 }
 
+// Body-weight history for the trend chart. Returns the chronologically sorted
+// points plus latest value and recent delta (vs ~30 days ago, or first point).
+export function _bodyWeightTrend(state) {
+  const log = (state.bodyWeightLog || [])
+    .filter(e => e && e.date && parseFloat(e.weight) > 0)
+    .map(e => ({ date: e.date, weight: parseFloat(e.weight) }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  if (log.length < 2) return { hasData: false, points: log };
+
+  const latest = log[log.length - 1];
+  const target = new Date(latest.date); target.setDate(target.getDate() - 30);
+  let ref = [...log].reverse().find(e => new Date(e.date) <= target) || log[0];
+  const delta = Math.round((latest.weight - ref.weight) * 10) / 10;
+
+  const weights = log.map(p => p.weight);
+  return {
+    hasData: true,
+    points: log,
+    latest: latest.weight,
+    delta,
+    min: Math.min(...weights),
+    max: Math.max(...weights),
+  };
+}
+
 // All-time totals across every logged week: lifting volume, run distance (km),
 // and number of distinct training sessions.
 export function _lifetimeTotals(state, days) {
@@ -353,6 +446,81 @@ export function _lifetimeTotals(state, days) {
   return { volume, distanceKm, sessions };
 }
 
+// ── Athlete progression / level system ────────────────────────────────────────
+// XP is earned from accumulated training. Levels follow a triangular curve so
+// early levels come quickly and later ones require sustained work.
+const XP_BASE = 300;
+
+function _levelTitle(level) {
+  if (level < 5)  return 'Newcomer';
+  if (level < 10) return 'Rising';
+  if (level < 20) return 'Committed';
+  if (level < 35) return 'Seasoned';
+  if (level < 50) return 'Elite';
+  return 'Legend';
+}
+
+export function _athleteProgression(lifetime, completions, longestStreak, prCount) {
+  const xp = Math.round(
+    (lifetime.sessions || 0) * 50 +
+    (lifetime.volume || 0) / 100 +
+    (lifetime.distanceKm || 0) * 10 +
+    (longestStreak || 0) * 20 +
+    (completions || 0) * 200 +
+    (prCount || 0) * 25
+  );
+
+  // Total XP to reach level L = XP_BASE * L*(L-1)/2  → invert for current level.
+  const level = Math.max(1, Math.floor((1 + Math.sqrt(1 + (8 * xp) / XP_BASE)) / 2));
+  const xpAtLevel = XP_BASE * (level * (level - 1)) / 2;
+  const xpForNext = XP_BASE * level; // span from this level to the next
+  const xpIntoLevel = xp - xpAtLevel;
+  const pct = Math.max(0, Math.min(100, Math.round((xpIntoLevel / xpForNext) * 100)));
+
+  const milestones = [
+    { icon: '🏁', label: 'First Session',   earned: (lifetime.sessions || 0) >= 1 },
+    { icon: '📅', label: '50 Sessions',     earned: (lifetime.sessions || 0) >= 50 },
+    { icon: '💯', label: '100 Sessions',    earned: (lifetime.sessions || 0) >= 100 },
+    { icon: '🏋️', label: '100k Volume',     earned: (lifetime.volume || 0) >= 100000 },
+    { icon: '🏃', label: '100km Club',      earned: (lifetime.distanceKm || 0) >= 100 },
+    { icon: '🔥', label: '7-Day Streak',    earned: (longestStreak || 0) >= 7 },
+    { icon: '⚡', label: '30-Day Streak',   earned: (longestStreak || 0) >= 30 },
+    { icon: '🏆', label: 'Program Finisher', earned: (completions || 0) >= 1 },
+  ];
+
+  return { xp, level, title: _levelTitle(level), pct, xpIntoLevel: Math.round(xpIntoLevel), xpForNext, milestones };
+}
+
+export function _renderProgressionSection(prog) {
+  const earned = prog.milestones.filter(m => m.earned).length;
+  const badges = prog.milestones.map(m => `
+    <div class="profile-badge${m.earned ? '' : ' profile-badge--locked'}" title="${_esc(m.label)}">
+      <span class="profile-badge-icon">${m.icon}</span>
+      <span class="profile-badge-label">${_esc(m.label)}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="profile-section">
+      <div class="profile-section-title">Athlete Level</div>
+      <div class="profile-level-card">
+        <div class="profile-level-top">
+          <div class="profile-level-ring">
+            <span class="profile-level-num">${prog.level}</span>
+          </div>
+          <div class="profile-level-info">
+            <div class="profile-level-title">${prog.title}</div>
+            <div class="profile-level-xp">${prog.xp.toLocaleString()} XP · ${prog.xpIntoLevel}/${prog.xpForNext} to Lv ${prog.level + 1}</div>
+            <div class="profile-level-bar"><div class="profile-level-fill" style="width:${prog.pct}%"></div></div>
+          </div>
+        </div>
+        <div class="profile-badges-head">Milestones <span class="profile-badges-count">${earned}/${prog.milestones.length}</span></div>
+        <div class="profile-badge-grid">${badges}</div>
+      </div>
+    </div>
+  `;
+}
+
 // Top lifts ranked by all-time e1RM (data-driven — every tracked lift, not a
 // hardcoded list). Returns [{ name, displayName, e1rm }].
 export function _topLiftsByE1rm(state, days, limit = 6) {
@@ -364,7 +532,31 @@ export function _topLiftsByE1rm(state, days, limit = 6) {
     .slice(0, limit);
 }
 
-// Strength-to-bodyweight ratios for the big lifts. Returns [{ label, e1rm, ratio }].
+// Bodyweight-ratio standards per lift (ascending tier thresholds). Common
+// rule-of-thumb breakpoints for Novice / Intermediate / Advanced / Elite.
+const STRENGTH_STANDARDS = {
+  Squat:    [1.0, 1.5, 2.0, 2.5],
+  Bench:    [0.75, 1.0, 1.5, 2.0],
+  Deadlift: [1.25, 1.75, 2.5, 3.0],
+};
+const STRENGTH_TIERS = [
+  { name: 'Beginner',     color: '#94a3b8' },
+  { name: 'Novice',       color: '#22d3ee' },
+  { name: 'Intermediate', color: '#10b981' },
+  { name: 'Advanced',     color: '#f59e0b' },
+  { name: 'Elite',        color: '#ef4444' },
+];
+
+export function _strengthTier(label, ratio) {
+  const thresholds = STRENGTH_STANDARDS[label];
+  if (!thresholds) return STRENGTH_TIERS[0];
+  let idx = 0;
+  for (const t of thresholds) { if (ratio >= t) idx++; }
+  return STRENGTH_TIERS[idx];
+}
+
+// Strength-to-bodyweight ratios for the big lifts, each classified into a
+// strength-standard tier. Returns [{ label, e1rm, ratio, tier }].
 export function _relativeStrength(state, bodyWeight) {
   if (!bodyWeight || bodyWeight <= 0) return [];
   const maxes = big3Maxes(state);
@@ -372,7 +564,10 @@ export function _relativeStrength(state, bodyWeight) {
     { label: 'Squat',    e1rm: maxes.squat },
     { label: 'Bench',    e1rm: maxes.bench },
     { label: 'Deadlift', e1rm: maxes.deadlift },
-  ].filter(i => i.e1rm > 0).map(i => ({ ...i, ratio: i.e1rm / bodyWeight }));
+  ].filter(i => i.e1rm > 0).map(i => {
+    const ratio = i.e1rm / bodyWeight;
+    return { ...i, ratio, tier: _strengthTier(i.label, ratio) };
+  });
 }
 
 // Generic running stats so runners always see something (not just exact-bracket
@@ -462,26 +657,101 @@ export function _liftTrend(state, days, liftName) {
   return { diff: Math.abs(diff), dir: diff > 0 ? 'up' : 'down' };
 }
 
-// Builds week × day activity data for heatmap (newest week last).
+// Builds week × day activity data for the heatmap (newest week last). Each cell
+// is { type: ''|'lift'|'run'|'both', level: 0-4 } where level grades training
+// load (volume for lifts, distance for runs) relative to the period max. Rows
+// carry a month label (GitHub-style: shown only when the month changes).
 export function _heatmapData(state, days, numWeeks) {
   const curWk    = parseInt(state.currentWeek || '1', 10);
   const startWk  = Math.max(1, curWk - numWeeks + 1);
-  const rows = [];
 
+  // Week → representative start date (for month labels), mirroring _recentSessions.
+  const DAY_JS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+  let weekAnchor = null;
+  if (state.weekStartedAt) {
+    weekAnchor = new Date(state.weekStartedAt);
+    const diff = (weekAnchor.getDay() - (DAY_JS[days[0]] ?? 1) + 7) % 7;
+    weekAnchor.setDate(weekAnchor.getDate() - diff);
+  }
+
+  // First pass: raw per-day volume & distance to derive normalisation maxes.
+  const raw = [];
+  let maxVol = 0, maxDist = 0;
   for (let w = startWk; w <= curWk; w++) {
     const wkData = (state.weeks || {})[String(w)];
     const cells = days.map(d => {
-      if (!wkData) return '';
-      const hasLifts = Object.keys(wkData.lifts?.[d] || {}).some(l => {
-        const sets = wkData.lifts[d][l];
-        return Array.isArray(sets) && sets.some(_isSet);
-      });
-      const hasRun = parseFloat(wkData.runs?.[d]?.dist) > 0;
-      return hasLifts && hasRun ? 'both' : hasLifts ? 'lift' : hasRun ? 'run' : '';
+      let vol = 0, dist = 0;
+      if (wkData) {
+        const dayLifts = wkData.lifts?.[d] || {};
+        for (const l in dayLifts) {
+          if (!Array.isArray(dayLifts[l])) continue;
+          dayLifts[l].forEach(s => { if (_isSet(s)) vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); });
+        }
+        dist = parseFloat(wkData.runs?.[d]?.dist) || 0;
+      }
+      if (vol > maxVol)   maxVol = vol;
+      if (dist > maxDist) maxDist = dist;
+      return { vol, dist };
     });
-    rows.push({ week: w, cells });
+    raw.push({ week: w, cells });
   }
-  return rows;
+
+  const grade = (cell) => {
+    const hasLift = cell.vol > 0, hasRun = cell.dist > 0;
+    if (!hasLift && !hasRun) return { type: '', level: 0 };
+    const type = hasLift && hasRun ? 'both' : hasLift ? 'lift' : 'run';
+    const load = (maxVol > 0 ? cell.vol / maxVol : 0) + (maxDist > 0 ? cell.dist / maxDist : 0);
+    const level = load >= 1.2 ? 4 : load >= 0.8 ? 3 : load >= 0.4 ? 2 : 1;
+    return { type, level };
+  };
+
+  let prevMonth = null;
+  return raw.map(row => {
+    let label = '';
+    if (weekAnchor) {
+      const date = new Date(weekAnchor);
+      date.setDate(date.getDate() - (curWk - row.week) * 7);
+      const month = date.toLocaleDateString(undefined, { month: 'short' });
+      if (month !== prevMonth) { label = month; prevMonth = month; }
+    } else {
+      label = `W${row.week}`;
+    }
+    return { week: row.week, label, cells: row.cells.map(grade) };
+  });
+}
+
+// Per-week training summary: volume, distance, session count, training minutes.
+export function _weekSummary(state, days, weekNum) {
+  const wkData = (state.weeks || {})[String(weekNum)];
+  let volume = 0, distanceKm = 0, sessions = 0, minutes = 0;
+  if (!wkData) return { volume, distanceKm, sessions, minutes };
+  days.forEach(d => {
+    let dayVol = 0, dayHasLift = false;
+    const dayLifts = wkData.lifts?.[d] || {};
+    for (const l in dayLifts) {
+      if (!Array.isArray(dayLifts[l])) continue;
+      dayLifts[l].forEach(s => { if (_isSet(s)) { dayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); dayHasLift = true; } });
+    }
+    const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
+    volume += dayVol;
+    distanceKm += runDist;
+    if (dayHasLift || runDist > 0) sessions++;
+    minutes += _parseDurationMin(wkData.runs?.[d]?.time) + _parseDurationMin(wkData.gymStats?.[d]?.time);
+  });
+  return { volume, distanceKm, sessions, minutes };
+}
+
+// Lenient duration parser → minutes. Accepts "mm:ss", "h:mm:ss", or a plain
+// number of minutes. Returns 0 for anything it can't confidently parse.
+export function _parseDurationMin(str) {
+  if (!str) return 0;
+  const s = String(str).trim();
+  if (/^\d+$/.test(s)) return parseInt(s, 10);          // plain minutes
+  const parts = s.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 2) return parts[0] + parts[1] / 60;            // mm:ss
+  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60; // h:mm:ss
+  return 0;
 }
 
 // Returns last N active sessions, newest first.
@@ -548,18 +818,22 @@ export function _statCard(value, label, icon, accentColor, extra = '') {
   `;
 }
 
-// Relative-strength tiles for the hero band (strength ÷ bodyweight).
+// Relative-strength tiles for the hero band (strength ÷ bodyweight), coloured
+// and labelled by strength-standard tier.
 export function _relStrengthBand(items, unit) {
   if (!items.length) return '';
   return `
     <div class="profile-rs-band">
-      ${items.map(i => `
-        <div class="profile-rs-tile">
-          <div class="profile-rs-ratio">${i.ratio.toFixed(2)}<span class="profile-rs-x">×BW</span></div>
+      ${items.map(i => {
+        const color = i.tier?.color || '#c4b5fd';
+        return `
+        <div class="profile-rs-tile" style="border-color:${color}38;background:linear-gradient(160deg, ${color}22, ${color}07);">
+          <div class="profile-rs-ratio" style="color:${color};">${i.ratio.toFixed(2)}<span class="profile-rs-x">×BW</span></div>
           <div class="profile-rs-label">${_esc(i.label)}</div>
-          <div class="profile-rs-sub">${Math.round(i.e1rm)}&nbsp;${unit}</div>
-        </div>
-      `).join('')}
+          <div class="profile-rs-sub" style="color:${color};">${i.tier?.name || ''}</div>
+          <div class="profile-rs-e1rm">${Math.round(i.e1rm)}&nbsp;${unit}</div>
+        </div>`;
+      }).join('')}
     </div>
   `;
 }

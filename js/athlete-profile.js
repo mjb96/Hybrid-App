@@ -14,10 +14,12 @@ let _saveState = null;
 
 export const PROFILE_SECTIONS = [
   { id: 'summary',     label: 'Athlete Summary',    icon: '📊' },
+  { id: 'progression', label: 'Athlete Level',      icon: '🎖️' },
   { id: 'heatmap',    label: 'Training Activity',   icon: '🔥' },
   { id: 'program',    label: 'Current Program',     icon: '📋' },
   { id: 'performance',label: 'Performance',         icon: '💪' },
   { id: 'thisweek',   label: 'This Week',           icon: '📅' },
+  { id: 'bodyweight', label: 'Body Weight',         icon: '⚖️' },
   { id: 'health',     label: 'Health Metrics',      icon: '❤️' },
   { id: 'wellness',   label: 'Wellness Hub',        icon: '🌿' },
   { id: 'sessions',   label: 'Recent Sessions',     icon: '📝' },
@@ -70,14 +72,22 @@ export function renderAthleteProfile() {
   // a stack of empty sections.
   const isNewAthlete  = lifetime.sessions === 0 && !activeCatalog && completions.length === 0;
 
-  // Weekly volumes + trend
+  // Athlete progression / level (XP from accumulated training + milestones)
+  const prCount       = Object.keys(prGoals).length; // goals set ≈ tracked PRs of interest
+  const progression   = _athleteProgression(lifetime, completions.length, longestStreak, prCount);
+
+  // Weekly summaries (this vs last) — volume, distance, sessions, time + trends
   const curWkStr      = state.currentWeek || '1';
   const prevWkStr     = String(Math.max(1, parseInt(curWkStr, 10) - 1));
-  const currentWeekVolume = _computeWeekVolume(state, days, curWkStr);
-  const prevWeekVolume    = parseInt(curWkStr, 10) > 1 ? _computeWeekVolume(state, days, prevWkStr) : 0;
-  const weeklyDistKm  = _computeWeekDistance(state, days, curWkStr);
-  const volumeTrendPct = (prevWeekVolume > 0 && currentWeekVolume > 0)
-    ? Math.round(((currentWeekVolume - prevWeekVolume) / prevWeekVolume) * 100)
+  const thisWk        = _weekSummary(state, days, curWkStr);
+  const prevWk        = parseInt(curWkStr, 10) > 1 ? _weekSummary(state, days, prevWkStr) : { volume: 0, distanceKm: 0, sessions: 0, minutes: 0 };
+  const currentWeekVolume = thisWk.volume;
+  const weeklyDistKm  = thisWk.distanceKm;
+  const volumeTrendPct = (prevWk.volume > 0 && currentWeekVolume > 0)
+    ? Math.round(((currentWeekVolume - prevWk.volume) / prevWk.volume) * 100)
+    : null;
+  const distTrendPct  = (prevWk.distanceKm > 0 && weeklyDistKm > 0)
+    ? Math.round(((weeklyDistKm - prevWk.distanceKm) / prevWk.distanceKm) * 100)
     : null;
 
   // Heatmap + recent sessions
@@ -107,6 +117,12 @@ export function renderAthleteProfile() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
         Edit
       </button>
+      <button class="profile-settings-btn" data-action="share-profile" aria-label="Share profile card">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>
+        </svg>
+      </button>
       <button class="profile-settings-btn" data-action="open-settings" aria-label="Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"/>
@@ -130,6 +146,7 @@ export function renderAthleteProfile() {
         </div>
       </div>
     `,
+    progression: lifetime.sessions > 0 ? _renderProgressionSection(progression) : '',
     heatmap: heatmapRows.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Training Activity</div>
@@ -202,28 +219,39 @@ export function renderAthleteProfile() {
         ` : ''}
       </div>
     ` : '',
-    thisweek: (currentWeekVolume > 0 || weeklyDistKm > 0) ? `
+    thisweek: (thisWk.sessions > 0) ? `
       <div class="profile-section">
         <div class="profile-section-title">This Week</div>
-        <div class="profile-stat-grid profile-stat-grid--2">
-          ${currentWeekVolume > 0 ? _statCard(
-            `${Math.round(currentWeekVolume).toLocaleString()} ${weightUnit}`,
-            'Lifting Volume',
+        <div class="profile-stat-grid">
+          ${_statCard(thisWk.sessions.toString(), 'Sessions', '📅', null)}
+          ${_statCard(
+            currentWeekVolume > 0 ? `${_compactNum(currentWeekVolume)}` : '0',
+            `Vol (${weightUnit})`,
             '🏋️',
             null,
             volumeTrendPct !== null
-              ? `<span class="profile-trend-chip profile-trend-chip--${volumeTrendPct >= 0 ? 'up' : 'down'}">${volumeTrendPct >= 0 ? '↑' : '↓'} ${Math.abs(volumeTrendPct)}% vs last wk</span>`
+              ? `<span class="profile-trend-chip profile-trend-chip--${volumeTrendPct >= 0 ? 'up' : 'down'}">${volumeTrendPct >= 0 ? '↑' : '↓'} ${Math.abs(volumeTrendPct)}%</span>`
               : ''
-          ) : ''}
-          ${weeklyDistKm > 0 ? _statCard(
-            `${weeklyDistKm.toFixed(1)} ${state.settings?.distanceUnit || 'km'}`,
-            'Distance Run',
+          )}
+          ${_statCard(
+            `${weeklyDistKm.toFixed(1)}`,
+            `${state.settings?.distanceUnit || 'km'} Run`,
             '🏃',
+            null,
+            distTrendPct !== null
+              ? `<span class="profile-trend-chip profile-trend-chip--${distTrendPct >= 0 ? 'up' : 'down'}">${distTrendPct >= 0 ? '↑' : '↓'} ${Math.abs(distTrendPct)}%</span>`
+              : ''
+          )}
+          ${_statCard(
+            thisWk.minutes > 0 ? (thisWk.minutes >= 60 ? `${Math.floor(thisWk.minutes / 60)}h${Math.round(thisWk.minutes % 60).toString().padStart(2, '0')}` : `${Math.round(thisWk.minutes)}m`) : '—',
+            'Time',
+            '⏱️',
             null
-          ) : ''}
+          )}
         </div>
       </div>
     ` : '',
+    bodyweight: _renderBodyWeightSection(state),
     health:    _renderHealthSection(state),
     wellness:  _renderWellnessSection(state, days),
     sessions: recentSessions.length > 0 ? `
@@ -262,9 +290,13 @@ export function renderAthleteProfile() {
       </div>
     `;
   } else {
-    // Apply stored order + hidden preferences
+    // Apply stored order + hidden preferences. Newly-added sections that aren't
+    // in a user's saved order are appended in their default position so existing
+    // customisations keep working without losing new features.
     const profileSections = state.profileSections || { order: null, hidden: [] };
-    const order  = profileSections.order || PROFILE_SECTIONS.map(s => s.id);
+    const defaultOrder = PROFILE_SECTIONS.map(s => s.id);
+    const stored = profileSections.order || defaultOrder;
+    const order  = stored.concat(defaultOrder.filter(id => !stored.includes(id)));
     const hidden = new Set(profileSections.hidden || []);
 
     body = order
@@ -282,7 +314,9 @@ export function openProfileCustomiser() {
   if (!_getState) return;
   const state = _getState();
   const psSt  = state.profileSections || { order: null, hidden: [] };
-  const order  = psSt.order  || PROFILE_SECTIONS.map(s => s.id);
+  const defaultOrder = PROFILE_SECTIONS.map(s => s.id);
+  const stored = psSt.order || defaultOrder;
+  const order  = stored.concat(defaultOrder.filter(id => !stored.includes(id)));
   const hidden = new Set(psSt.hidden || []);
 
   const list = document.getElementById('profileCustomiserList');
@@ -339,6 +373,147 @@ export function resetProfileCustomiser() {
   renderAthleteProfile();
 }
 
+// ── Shareable profile card ────────────────────────────────────────────────────
+// Renders a 1080×1350 summary card to an offscreen canvas, then shares it via
+// the Web Share API (files) or falls back to a PNG download.
+function shareProfileCard() {
+  if (!_getState) return;
+  const state = _getState();
+  const days  = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+  const canvas = document.createElement('canvas');
+  const W = 1080, H = 1350;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { showToast('Sharing not supported on this device'); return; }
+
+  const name = state.settings?.name?.trim() || 'Athlete';
+  const unit = state.settings?.weightUnit || 'kg';
+  const distUnit = state.settings?.distanceUnit || 'km';
+  const bodyWeight = _latestBodyWeight(state);
+  const lifetime   = _lifetimeTotals(state, days);
+  const rel        = _relativeStrength(state, bodyWeight);
+  const prog       = _athleteProgression(
+    lifetime,
+    (state.programLibrary?.completions || []).length,
+    state.streakData?.longest || 0,
+    Object.keys(state.prGoals || {}).length
+  );
+
+  // Background + accent glow
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#0a0612'); bg.addColorStop(0.5, '#140a2c'); bg.addColorStop(1, '#05060f');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const glow = ctx.createRadialGradient(W / 2, 280, 0, W / 2, 280, 620);
+  glow.addColorStop(0, 'rgba(139,92,246,0.32)'); glow.addColorStop(1, 'rgba(139,92,246,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+  const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  ctx.textAlign = 'center';
+
+  // Brand
+  ctx.fillStyle = 'rgba(196,181,253,0.92)';
+  ctx.font = `700 36px ${FONT}`;
+  ctx.fillText('⚡ HELYX', W / 2, 116);
+
+  // Avatar
+  ctx.beginPath(); ctx.arc(W / 2, 262, 82, 0, Math.PI * 2);
+  const ag = ctx.createLinearGradient(W / 2 - 82, 180, W / 2 + 82, 344);
+  ag.addColorStop(0, '#4f46e5'); ag.addColorStop(1, '#7c3aed');
+  ctx.fillStyle = ag; ctx.fill();
+  const initials = name !== 'Athlete'
+    ? name.split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('')
+    : '?';
+  ctx.fillStyle = '#fff'; ctx.font = `800 66px ${FONT}`;
+  ctx.textBaseline = 'middle'; ctx.fillText(initials, W / 2, 268); ctx.textBaseline = 'alphabetic';
+
+  // Name + level
+  ctx.fillStyle = '#f8fafc'; ctx.font = `800 62px ${FONT}`;
+  ctx.fillText(name, W / 2, 430);
+  ctx.fillStyle = '#f59e0b'; ctx.font = `700 30px ${FONT}`;
+  ctx.fillText(`LEVEL ${prog.level} · ${prog.title.toUpperCase()}`, W / 2, 480);
+
+  // Relative-strength tiles
+  const drawTile = (cx, cy, big, small, sub, color) => {
+    const tw = 280, th = 200;
+    const x = cx - tw / 2, y = cy;
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    _roundRect(ctx, x, y, tw, th, 24); ctx.fill();
+    ctx.strokeStyle = color + '55'; ctx.lineWidth = 2;
+    _roundRect(ctx, x, y, tw, th, 24); ctx.stroke();
+    ctx.fillStyle = color; ctx.font = `800 64px ${FONT}`;
+    ctx.fillText(big, cx, y + 92);
+    ctx.fillStyle = '#f8fafc'; ctx.font = `800 26px ${FONT}`;
+    ctx.fillText(small, cx, y + 134);
+    ctx.fillStyle = color; ctx.font = `700 22px ${FONT}`;
+    ctx.fillText(sub, cx, y + 168);
+  };
+
+  if (rel.length) {
+    const yT = 560;
+    const cols = rel.length;
+    const gap = 24, tw = 280;
+    const totalW = cols * tw + (cols - 1) * gap;
+    let sx = W / 2 - totalW / 2 + tw / 2;
+    rel.forEach(r => {
+      drawTile(sx, yT, `${r.ratio.toFixed(2)}×`, r.label, r.tier?.name || '', r.tier?.color || '#c4b5fd');
+      sx += tw + gap;
+    });
+  } else {
+    ctx.fillStyle = '#94a3b8'; ctx.font = `600 30px ${FONT}`;
+    ctx.fillText('Building strength…', W / 2, 660);
+  }
+
+  // Lifetime stat row
+  const stats = [
+    [prog.xp >= 1000 ? `${(prog.xp / 1000).toFixed(1)}k` : String(prog.xp), 'XP'],
+    [String(lifetime.sessions), 'SESSIONS'],
+    [_compactNum(lifetime.volume), `VOLUME ${unit.toUpperCase()}`],
+    [lifetime.distanceKm.toFixed(0), `${distUnit.toUpperCase()} RUN`],
+  ];
+  const sy = 880;
+  const colW = W / stats.length;
+  stats.forEach((s, i) => {
+    const cx = colW * i + colW / 2;
+    ctx.fillStyle = '#f8fafc'; ctx.font = `800 52px ${FONT}`;
+    ctx.fillText(s[0], cx, sy);
+    ctx.fillStyle = '#7c8aa0'; ctx.font = `700 22px ${FONT}`;
+    ctx.fillText(s[1], cx, sy + 40);
+  });
+
+  // Divider + footer
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(120, 1180); ctx.lineTo(W - 120, 1180); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = `600 26px ${FONT}`;
+  ctx.fillText(bodyWeight ? `${bodyWeight} ${unit} · Hybrid Athlete` : 'Hybrid Athlete', W / 2, 1250);
+
+  const finish = (blob) => {
+    const file = blob && typeof File !== 'undefined' ? new File([blob], 'helyx-profile.png', { type: 'image/png' }) : null;
+    if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'My Helyx Profile', text: `${name} · Level ${prog.level} ${prog.title}` })
+        .catch(() => {});
+    } else {
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'helyx-profile.png';
+      a.click();
+      showToast('Profile card saved');
+    }
+  };
+  if (canvas.toBlob) canvas.toBlob(finish, 'image/png'); else finish(null);
+}
+
+// Canvas rounded-rect path helper (no fill/stroke — caller decides).
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 function _mountCustomiserDragDrop(list) {
   // Grab the ⠿ handle to reorder. The shared engine reorders the DOM in place;
   // closeProfileCustomiser() reads the resulting order on apply.
@@ -359,10 +534,7 @@ import {
   _esc,
   _isSet,
   _countTotalWorkouts,
-  _computeWeekVolume,
-  _computeWeekDistance,
   _computeRunningPBs,
-  _bestLiftFromGroup,
   _liftTrend,
   _heatmapData,
   _recentSessions,
@@ -379,6 +551,10 @@ import {
   _runningStats,
   _compactNum,
   _fmtPace,
+  _weekSummary,
+  _renderBodyWeightSection,
+  _athleteProgression,
+  _renderProgressionSection,
 } from './profile-stats.js';
 
 // ── Session detail modal ──────────────────────────────────────────────────────
@@ -530,6 +706,11 @@ function closeSessionDetailModal() {
 // ── Action handler ────────────────────────────────────────────────────────────
 
 export function handleProfileAction(action, el) {
+  if (action === 'share-profile') {
+    shareProfileCard();
+    return;
+  }
+
   if (action === 'set-pr-goal') {
     if (!_getState) return;
     const liftName = el.getAttribute('data-lift');
