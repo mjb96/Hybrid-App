@@ -5290,7 +5290,11 @@ html[data-theme="light"] .profile-settings-btn:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
 }
+.profile-pr-lift { min-width: 0; }
 
 .profile-pr-row--has-goal {
   flex-direction: column;
