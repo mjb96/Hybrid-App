@@ -532,7 +532,7 @@ select.native-select {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: 66px;
   z-index: var(--z-nav);
   border-radius: var(--radius-2xl);

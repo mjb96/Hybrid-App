@@ -284,10 +284,11 @@ export function renderAnalytics() {
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
     if (context === 'hub') {
-      backBtn.setAttribute('data-action', 'switch-tab');
-      backBtn.setAttribute('data-target', 'home');
-      backBtn.textContent = '← Back to Dashboard';
+      // The hub is now a top-level nav destination — the bottom nav is the way
+      // out, so no back button is needed on the index itself.
+      backBtn.style.display = 'none';
     } else {
+      backBtn.style.display = '';
       backBtn.setAttribute('data-action', 'open-analytics');
       backBtn.setAttribute('data-context', 'hub');
       backBtn.textContent = '← Back to Insights';

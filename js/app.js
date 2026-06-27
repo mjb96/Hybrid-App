@@ -91,6 +91,7 @@ document.addEventListener('app:navigate', (e) => {
   if (!target) { devWarn('app:navigate fired with no detail.target — ignoring.', e.detail); return; }
   if (target === 'custom:today-summary') openTodaySummaryModal();
   else if (target === 'custom:fasting') openFastingDetail();
+  else if (target === 'custom:settings') openSettings();
   else openAnalyticsView(target);
 });
 
@@ -641,8 +642,14 @@ document.addEventListener('click', (e) => {
   const progId = target.getAttribute('data-program-id');
 
   // Tab & Navigation
-  if (action === 'switch-tab') switchGlobalAppTab(target.getAttribute('data-target'));
+  if (action === 'switch-tab') {
+    const tgt = target.getAttribute('data-target');
+    // Entering Insights via the nav tab always lands on the hub index.
+    if (tgt === 'analytics') setAnalyticsContext('hub');
+    switchGlobalAppTab(tgt);
+  }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
+  else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
