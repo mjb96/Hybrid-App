@@ -7,9 +7,10 @@ import { buildRunPreviewRow, buildLiftPreviewRow, buildRestDayPreview } from './
 import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
 import { orderedLiftNames } from './workout-order.js';
 import { getMapFromDB } from './db.js';
-import { TILE_REGISTRY, DashboardTileType, resolveTileNavigation } from './dashboard.js';
+import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
+import { computeDashboardModel } from './home/dashboard-model.js';
 import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
@@ -87,8 +88,14 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
     header.appendChild(btn);
   }
 
+  // One shared brain pass for the whole dashboard — every tile reads the same model.
+  const model = computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
+  renderDashboardInsight(model);
+  updateQuickActions(model);
+
   const savedOrder  = loadTileOrder();
   const hiddenTiles = loadHiddenTiles();
+  const healthLinked = !!appState.healthConnect?.connected;
 
   const sorted = [...TILE_REGISTRY].sort((a, b) => {
     if (savedOrder) {
@@ -99,19 +106,26 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
     return a.order - b.order;
   });
 
-  const visible = sorted.filter(config => !hiddenTiles.has(config.id));
+  // Hide manually-hidden tiles. When the Health app isn't linked, fold the five
+  // Health-Connect tiles into a single "Connect" tile rather than showing five
+  // dead "Setup" placeholders.
+  let visible = sorted.filter(config => !hiddenTiles.has(config.id));
+  if (!healthLinked) {
+    visible = visible.filter(config => !config.requiresHealth);
+    visible.push(CONNECT_HEALTH_TILE);
+  }
 
   // Keyed reconciliation: tile nodes persist across renders (identity, one-time
   // listeners and order preserved); only new tiles are created, hidden/removed
   // tiles are dropped, and each tile's inner HTML is rewritten only when it
-  // actually changed (setHTML). Replaces the previous full innerHTML-per-tile
-  // rebuild on every hydrate.
+  // actually changed (setHTML).
   reconcileKeyed(grid, visible, {
     key: (config) => config.id,
     create: (config) => {
       const article = document.createElement('article');
       article.id        = `glance-tile-${config.id}`;
-      article.className = 'card-dark glance-card tile-interactive';
+      article.className = 'card-dark glance-card tile-interactive'
+        + (config.type === DashboardTileType.CONNECT ? ' glance-card--full glance-card--connect' : '');
       article.setAttribute('role', 'button');
       article.setAttribute('tabindex', '0');
       article.setAttribute('aria-label', `${config.label} — tap for details`);
@@ -127,7 +141,7 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
     update: (article, config) => {
       let data;
       try {
-        data = config.renderData(appState, defaultDays, activeProgram, selectedDay);
+        data = config.renderData(appState, defaultDays, activeProgram, selectedDay, model);
       } catch (e) {
         data = { state: 'error' };
       }
@@ -136,6 +150,57 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
   });
 
   mountTileDragAndDrop();
+}
+
+// ==========================================
+// TOP-INSIGHT BANNER — the single most important thing right now.
+// ==========================================
+function renderDashboardInsight(model) {
+  const el = document.getElementById('dashboardInsight');
+  if (!el) return;
+  const insight = model.topInsight;
+  if (!insight || !insight.text) { el.style.display = 'none'; return; }
+  const toneClass = `dash-insight--${insight.tone || 'neutral'}`;
+  el.className = `dash-insight ${toneClass}`;
+  el.style.display = '';
+  el.setAttribute('data-action', 'open-analytics');
+  el.setAttribute('data-context', insight.nav && !insight.nav.startsWith('custom:') ? insight.nav : 'recovery-score');
+  if (insight.nav && insight.nav.startsWith('custom:')) {
+    // custom targets (e.g. fasting) route through app:navigate instead
+    el.setAttribute('data-action', 'tile-nav');
+    el.setAttribute('data-nav', insight.nav);
+  } else {
+    el.removeAttribute('data-nav');
+  }
+  el.innerHTML = `<span class="dash-insight__icon">💡</span><span class="dash-insight__text">${insight.text}</span><span class="dash-insight__arrow">›</span>`;
+}
+
+// ==========================================
+// QUICK ACTIONS — Start/Resume Fast · Check-in · Log Weight.
+// ==========================================
+function updateQuickActions(model) {
+  const fastBtn = document.getElementById('qaFasting');
+  if (fastBtn) {
+    const f = model.fasting;
+    const labelEl = fastBtn.querySelector('.qa-label');
+    const subEl   = fastBtn.querySelector('.qa-sub');
+    if (f.active) {
+      if (labelEl) labelEl.textContent = 'Fasting';
+      if (subEl)   subEl.textContent   = `${Math.floor(f.hours)}h · ${f.zone.name}`;
+      fastBtn.classList.add('qa-btn--active');
+    } else {
+      if (labelEl) labelEl.textContent = 'Start Fast';
+      if (subEl)   subEl.textContent   = f.streak > 0 ? `${f.streak}d streak` : 'Intermittent fasting';
+      fastBtn.classList.remove('qa-btn--active');
+    }
+  }
+  const checkBtn = document.getElementById('qaCheckin');
+  if (checkBtn) {
+    const done = ((model.ready && model.ready.available) || []).includes('wellness');
+    const sub = checkBtn.querySelector('.qa-sub');
+    if (sub) sub.textContent = done ? '✓ Done today' : 'Sleep · mood · soreness';
+    checkBtn.classList.toggle('qa-btn--active', done);
+  }
 }
 
 // ==========================================

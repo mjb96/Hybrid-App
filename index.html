@@ -114,8 +114,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 118px;
-      min-height: 0;
+      min-height: 124px;
       overflow: hidden;
       padding: 10px !important;
       margin-bottom: 0 !important;
@@ -125,6 +124,81 @@
     .glance-card .text-xl {
       font-size: 0.9rem !important;
     }
+
+    /* ── Reinvented tile internals ──────────────────────────────── */
+    .tile-body { display: flex; flex-direction: column; gap: 3px; }
+    .tile-hero-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+    .tile-delta { font-size: 0.62rem; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .tile-spark { display: flex; align-items: flex-end; gap: 2px; height: 22px; margin-top: 2px; }
+    .tile-spark .spark-bar { flex: 1; min-width: 2px; border-radius: 1.5px; align-self: flex-end; }
+    .tile-insight {
+      font-size: 0.6rem; line-height: 1.3; color: var(--text-secondary);
+      margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.07);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    html[data-theme="light"] .tile-insight { border-top-color: rgba(0,0,0,0.08); }
+    .tile-tag { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .ring-tile-grid { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+    .ring-tile-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+    .tile-progress-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; margin: 4px 0 3px; }
+    html[data-theme="light"] .tile-progress-track { background: rgba(0,0,0,0.10); }
+    .tile-progress-fill { height: 100%; border-radius: 3px; transition: width var(--duration-base, 0.25s) ease; }
+
+    /* Full-width tiles (Connect Health) */
+    .glance-card--full { grid-column: 1 / -1; }
+    .glance-card--connect { min-height: 0; justify-content: center; }
+    .connect-health-tile__inner { display: flex; align-items: center; gap: 12px; }
+    .connect-health-tile__icon { font-size: 1.5rem; }
+    .connect-health-tile__text { flex: 1; min-width: 0; }
+    .connect-health-tile__title { font-size: 0.85rem; font-weight: 800; color: var(--text-primary); }
+    .connect-health-tile__sub { font-size: 0.66rem; color: var(--text-secondary); margin-top: 1px; }
+    .connect-health-tile__arrow { font-size: 1.1rem; color: var(--text-secondary); }
+
+    /* ── Quick actions ──────────────────────────────────────────── */
+    .qa-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 4px; }
+    .qa-btn {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+      padding: 11px 11px; border-radius: 14px; text-align: left; cursor: pointer;
+      background: var(--surface-1, rgba(255,255,255,0.05));
+      border: 1px solid var(--border-default, rgba(255,255,255,0.10));
+      transition: transform var(--duration-base, 0.18s) ease, border-color var(--duration-base, 0.18s) ease;
+    }
+    .qa-btn:active { transform: scale(0.97); }
+    .qa-icon { font-size: 1.15rem; }
+    .qa-text { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+    .qa-label { font-size: 0.74rem; font-weight: 800; color: var(--text-primary); white-space: nowrap; }
+    .qa-sub { font-size: 0.56rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qa-btn--active { border-color: var(--color-amber, #f59e0b); background: rgba(245,158,11,0.12); }
+    .qa-btn--active .qa-label { color: var(--color-amber, #f59e0b); }
+    @media (hover: hover) { .qa-btn:hover { border-color: rgba(255,255,255,0.22); } }
+
+    /* ── Top-insight banner ─────────────────────────────────────── */
+    .dash-insight {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      padding: 11px 13px; margin-bottom: 10px; border-radius: 14px; cursor: pointer; text-align: left;
+      background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.30);
+      transition: transform var(--duration-base, 0.18s) ease;
+    }
+    .dash-insight:active { transform: scale(0.99); }
+    .dash-insight__icon { font-size: 1rem; flex-shrink: 0; }
+    .dash-insight__text { flex: 1; font-size: 0.74rem; font-weight: 600; line-height: 1.3; color: var(--text-primary); }
+    .dash-insight__arrow { font-size: 1.1rem; color: var(--text-secondary); flex-shrink: 0; }
+    .dash-insight--positive { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.32); }
+    .dash-insight--caution  { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.34); }
+    .dash-insight--warning  { background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.34); }
+
+    /* ── Restored coaching alert cards ──────────────────────────── */
+    #homeAlerts:empty { display: none; }
+    .home-alert-card { margin-bottom: 12px; padding: 14px !important; }
+    .home-alert-card--warn {
+      background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.30);
+      border-left: 3px solid var(--color-red, #ef4444); border-radius: 14px;
+    }
+    .home-alert-card__head { display: flex; align-items: center; gap: 7px; }
+    .home-alert-card__head h2 { font-size: 0.86rem; font-weight: 800; color: var(--text-primary); margin: 0; }
+    .home-alert-card__desc { font-size: 0.72rem; line-height: 1.4; color: var(--text-secondary); margin: 6px 0 0; }
 
     #cockpitRunPanel {
       background: #0a1a20 !important;
@@ -321,16 +395,6 @@
         <div id="homeWeeklyProgressBar"></div>
         <span id="homeBlockTypeLabel"></span>
         <span id="homeWeeklyProgressTasks"></span>
-        <article id="homeEngineAlertCard"><h2 id="homeEngineAlertTitle"></h2><p id="homeEngineAlertDesc"></p></article>
-        <article id="homeDeloadSuggestionCard" class="card-dark" style="display:none;border-left:3px solid var(--color-amber);">
-          <div class="card-icon-title" style="color:var(--color-amber);"><span>🔄</span> Deload Suggested</div>
-          <p id="homeDeloadReason" class="text-muted" style="font-size:0.74rem;line-height:1.4;margin:8px 0 14px;"></p>
-          <div class="flex gap-2">
-            <button class="btn-action-block btn-ghost mt-0" data-action="close-deload-modal" style="flex:1;">Dismiss</button>
-            <button class="btn-action-block btn-amber mt-0" data-action="execute-deload-week" style="flex:1;">Apply Deload</button>
-          </div>
-        </article>
-        <article id="homeWeekCompareCard"><div id="homeWeekCompareGrid"></div></article>
       </div>
 
       <div class="home-header">
@@ -339,6 +403,28 @@
           <h1 id="homeWeekBlockIndicator" class="home-week-label">Week 1</h1>
           <span class="home-phase-label" id="homePhaseLabelTag"></span>
         </div>
+      </div>
+
+      <!-- Coaching alerts — surfaced (previously hidden): stall, deload, week-compare -->
+      <div id="homeAlerts">
+        <article id="homeEngineAlertCard" class="home-alert-card home-alert-card--warn" style="display:none;">
+          <div class="home-alert-card__head"><span>⚠️</span><h2 id="homeEngineAlertTitle">Engine Alert</h2></div>
+          <p id="homeEngineAlertDesc" class="home-alert-card__desc"></p>
+        </article>
+
+        <article id="homeDeloadSuggestionCard" class="card-dark home-alert-card" style="display:none;border-left:3px solid var(--color-amber);">
+          <div class="card-icon-title" style="color:var(--color-amber);"><span>🔄</span> Deload Suggested</div>
+          <p id="homeDeloadReason" class="text-muted" style="font-size:0.74rem;line-height:1.4;margin:8px 0 14px;"></p>
+          <div class="flex gap-2">
+            <button class="btn-action-block btn-ghost mt-0" data-action="close-deload-modal" style="flex:1;">Dismiss</button>
+            <button class="btn-action-block btn-amber mt-0" data-action="execute-deload-week" style="flex:1;">Apply Deload</button>
+          </div>
+        </article>
+
+        <article id="homeWeekCompareCard" class="card-dark home-alert-card" style="display:none;">
+          <div class="card-icon-title" style="color:var(--color-blue);"><span>📊</span> This Week vs Last</div>
+          <div id="homeWeekCompareGrid" class="grid-2-col gap-2" style="margin-top:8px;"></div>
+        </article>
       </div>
 
       <div class="app-section-heading">
@@ -388,10 +474,28 @@
         </div>
       </article>
 
+      <!-- Quick actions — high-frequency habit actions, always one tap away -->
+      <div class="qa-row" id="dashboardQuickActions" aria-label="Quick actions">
+        <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="Start or view fast">
+          <span class="qa-icon">⏱️</span>
+          <span class="qa-text"><span class="qa-label">Start Fast</span><span class="qa-sub">Intermittent fasting</span></span>
+        </button>
+        <button class="qa-btn" id="qaCheckin" data-action="open-analytics" data-context="recovery-score" aria-label="Daily wellness check-in">
+          <span class="qa-icon">📝</span>
+          <span class="qa-text"><span class="qa-label">Check-in</span><span class="qa-sub">Sleep · mood · soreness</span></span>
+        </button>
+        <button class="qa-btn" id="qaLogWeight" data-action="open-analytics" data-context="bodyweight" aria-label="Log body weight">
+          <span class="qa-icon">⚖️</span>
+          <span class="qa-text"><span class="qa-label">Log Weight</span><span class="qa-sub">Track your trend</span></span>
+        </button>
+      </div>
+
       <div class="app-section-heading" style="margin-top: 20px;">
         <div class="app-section-heading__title">At a Glance</div>
         <div class="app-section-heading__sub">Key metrics snapshot</div>
       </div>
+
+      <button id="dashboardInsight" class="dash-insight" style="display:none;"></button>
 
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 
@@ -1640,6 +1744,7 @@
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
     <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" aria-hidden="true">🏋️</span><span>Workout</span></button>
+    <button class="nav-item" data-target="analytics" data-action="switch-tab"><span class="icon" aria-hidden="true">📊</span><span>Insights</span></button>
     <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" aria-hidden="true">📋</span><span>Programs</span></button>
     <button class="nav-item" data-target="profile" data-action="switch-tab"><span class="icon" aria-hidden="true">👤</span><span>Profile</span></button>
   </nav>

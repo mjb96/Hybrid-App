@@ -1,6 +1,8 @@
 // @ts-check
 // =============================================================================
-// TILE RENDERERS — pure functions, no state closure dependency
+// TILE RENDERERS — pure functions, no state closure dependency.
+// Tiles are presenters of the dashboard model: hero value + optional
+// delta chip + optional sparkline + optional one-line brain insight.
 // =============================================================================
 import { DashboardTileType } from '../dashboard.js';
 
@@ -20,19 +22,61 @@ export function renderTileError(label) {
   `;
 }
 
+// ── Shared sub-components ────────────────────────────────────────────────────
+
+// Tiny inline bar sparkline. `values` is a numeric array; the last bar is
+// highlighted. Degrades to nothing when there's <2 points of signal.
+export function renderSparkline(values, color = 'var(--color-blue)') {
+  if (!Array.isArray(values)) return '';
+  const vals = values.filter(v => typeof v === 'number' && !isNaN(v));
+  if (vals.length < 2) return '';
+  const max = Math.max(...vals, 0.0001);
+  const min = Math.min(...vals, 0);
+  const range = max - min || 1;
+  const bars = vals.map((v, i) => {
+    const h = Math.max(8, Math.round(((v - min) / range) * 100));
+    const last = i === vals.length - 1;
+    return `<span class="spark-bar" style="height:${h}%;background:${last ? color : 'rgba(255,255,255,0.18)'};"></span>`;
+  }).join('');
+  return `<div class="tile-spark" aria-hidden="true">${bars}</div>`;
+}
+
+// Coloured week-over-week delta chip. `delta` is the model's makeDelta() output.
+export function renderDelta(delta) {
+  if (!delta) return '';
+  const arrow = delta.dir === 'up' ? '▲' : delta.dir === 'down' ? '▼' : '→';
+  const color = delta.dir === 'flat'
+    ? 'var(--text-secondary)'
+    : delta.good ? 'var(--color-green)' : 'var(--color-red)';
+  const text = delta.usePct === false ? delta.label : (delta.pctLabel || delta.label);
+  return `<span class="tile-delta" style="color:${color};">${arrow} ${text}</span>`;
+}
+
+function insightLine(insight) {
+  if (!insight) return '';
+  return `<div class="tile-insight">${insight}</div>`;
+}
+
+// ── Tile types ───────────────────────────────────────────────────────────────
+
 export function renderMetricTile(config, data) {
   const accentColor = `var(${config.accentVar})`;
   const tagHTML = data.tag
-    ? `<div class="tile-tag font-bold mb-1" style="font-size:0.75rem;color:${data.tagColor || accentColor};">${data.tag}</div>`
+    ? `<div class="tile-tag font-bold" style="font-size:0.7rem;color:${data.tagColor || accentColor};">${data.tag}</div>`
     : '';
   const heroColor = data.state === 'empty' ? 'var(--text-secondary)' : 'var(--text-primary)';
   return `
     <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
-    <div>
+    <div class="tile-body">
+      <div class="tile-hero-row">
+        <div class="font-heavy tile-hero" style="font-size:1.3rem;line-height:1.05;color:${heroColor};">${data.hero ?? '--'}</div>
+        ${renderDelta(data.delta)}
+      </div>
       ${tagHTML}
-      <div class="font-heavy tile-hero" style="font-size:1.3rem;line-height:1.1;color:${heroColor};">${data.hero || '--'}</div>
-      <div class="text-muted tile-sub" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>
+      ${data.spark ? renderSparkline(data.spark, data.sparkColor || accentColor) : `<div class="text-muted tile-sub" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>`}
+      ${data.spark && data.sub ? `<div class="text-muted tile-sub" style="font-size:0.58rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub}</div>` : ''}
     </div>
+    ${insightLine(data.insight)}
   `;
 }
 
@@ -44,14 +88,18 @@ export function renderRingTile(config, data) {
   const grad = `conic-gradient(${ringColor} ${pct}%, ${trackColor} 0)`;
   return `
     <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
-    <div class="readiness-ring-container">
+    <div class="ring-tile-grid">
       <div class="readiness-ring green" style="background:${grad};">
         <div class="readiness-ring-inner">
-          <span class="font-heavy text-inverse" style="font-size:0.75rem;">${data.hero || '--'}</span>
+          <span class="font-heavy text-inverse" style="font-size:0.8rem;">${data.hero ?? '--'}</span>
         </div>
       </div>
+      <div class="ring-tile-meta">
+        ${data.tag ? `<div class="font-bold" style="font-size:0.72rem;color:${data.tagColor || ringColor};">${data.tag}</div>` : ''}
+        <div class="text-muted" style="font-size:0.58rem;line-height:1.25;">${data.sub || ''}</div>
+      </div>
     </div>
-    <div class="text-muted text-center" style="font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${data.sub || ''}</div>
+    ${insightLine(data.insight)}
   `;
 }
 
@@ -65,33 +113,56 @@ export function renderSplit3Tile(config, data) {
   `).join('');
   return `
     <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
-    <div>${rows}</div>
+    <div class="tile-body">${rows}</div>
+    ${insightLine(data.insight)}
   `;
 }
 
 export function renderRatioBarTile(config, data) {
   return `
     <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
-    <div>
+    <div class="tile-body">
       <div class="font-heavy text-inverse mb-1" style="font-size:0.95rem;">${data.label || '0% / 0%'}</div>
-      <div class="ratio-bar-track mb-1" style="height:5px;border-radius:3px;">
-        <div class="ratio-fill-blue" id="tileRatioLiftBar" style="width:${data.liftPct || 50}%;background:#3b82f6;"></div>
-        <div class="ratio-fill-pink" id="tileRatioRunBar" style="width:${data.runPct || 50}%;background:#ec4899;"></div>
+      <div class="ratio-bar-track mb-1" style="height:6px;border-radius:3px;">
+        <div class="ratio-fill-blue" style="width:${data.liftPct || 50}%;background:#3b82f6;"></div>
+        <div class="ratio-fill-pink" style="width:${data.runPct || 50}%;background:#ec4899;"></div>
       </div>
       <div class="text-muted" style="font-size:0.6rem;">${data.advice || 'Lift / Run bias'}</div>
     </div>
+    ${insightLine(data.insight)}
   `;
 }
 
 export function renderProgressTile(config, data) {
   const accentColor = `var(${config.accentVar})`;
+  const pct = data.total > 0 ? Math.round((data.done / data.total) * 100) : 0;
   return `
     <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
-    <div>
-      <div class="font-heavy text-inverse mb-1" style="font-size:1.3rem;line-height:1.1;">
-        ${data.done || 0} <span class="text-muted" style="font-size:0.9rem;">/ ${data.total || 0}</span>
+    <div class="tile-body">
+      <div class="tile-hero-row">
+        <div class="font-heavy text-inverse" style="font-size:1.3rem;line-height:1.05;">
+          ${data.done || 0} <span class="text-muted" style="font-size:0.9rem;">/ ${data.total || 0}</span>
+        </div>
+        <span class="tile-delta" style="color:${pct >= 80 ? 'var(--color-green)' : pct >= 50 ? 'var(--color-amber)' : 'var(--text-secondary)'};">${pct}%</span>
       </div>
+      <div class="tile-progress-track"><div class="tile-progress-fill" style="width:${pct}%;background:${accentColor};"></div></div>
       <div class="text-muted" style="font-size:0.6rem;">${data.sub || ''}</div>
+    </div>
+    ${insightLine(data.insight)}
+  `;
+}
+
+// Connect-Health placeholder — replaces five dead "Setup" tiles when the
+// Health app isn't linked. Spans the full grid width.
+export function renderConnectHealthTile(config, data) {
+  return `
+    <div class="connect-health-tile__inner">
+      <span class="connect-health-tile__icon">⌚</span>
+      <div class="connect-health-tile__text">
+        <div class="connect-health-tile__title">Connect your Health app</div>
+        <div class="connect-health-tile__sub">Unlock HRV, resting HR, sleep, steps &amp; VO₂ max</div>
+      </div>
+      <span class="connect-health-tile__arrow">›</span>
     </div>
   `;
 }
@@ -103,6 +174,7 @@ export function renderTileContent(config, data) {
     case DashboardTileType.SPLIT_3:   return renderSplit3Tile(config, data);
     case DashboardTileType.RATIO_BAR: return renderRatioBarTile(config, data);
     case DashboardTileType.PROGRESS:  return renderProgressTile(config, data);
+    case DashboardTileType.CONNECT:   return renderConnectHealthTile(config, data);
     default:                          return renderMetricTile(config, data);
   }
 }
