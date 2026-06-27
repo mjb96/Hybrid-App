@@ -16,6 +16,7 @@ import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
 import { setHTML, reconcileKeyed } from './ui/render.js';
+import { ensureLeaflet } from './ui/leaflet-loader.js';
 
 let _getState;
 let _getSelectedDay;
@@ -421,11 +422,12 @@ export function renderHome() {
       previewContainer.innerHTML = summaryHTML;
 
       if (todayRunDist > 0) {
-        getMapFromDB(wk, selectedDay).then(coords => {
+        getMapFromDB(wk, selectedDay).then(async coords => {
           if (coords && coords.length > 0) {
             const mapEl = document.getElementById('homeMiniMapContainer');
             if (mapEl) {
               mapEl.style.display = 'block';
+              try { await ensureLeaflet(); } catch { mapEl.style.display = 'none'; return; }
               setTimeout(() => {
                 if (activeHomeMapInstance) activeHomeMapInstance.remove();
                 activeHomeMapInstance = L.map('homeMiniMapContainer', {

@@ -4,6 +4,7 @@
 // Extracted verbatim from workout.js renderWorkout(); logic unchanged.
 // ==========================================
 import { getMapFromDB } from './db.js';
+import { ensureLeaflet } from './ui/leaflet-loader.js';
 
 // Private module-scoped Leaflet instance for the active workout map.
 let activeWorkoutMapInstance = null;
@@ -48,9 +49,10 @@ export function renderRunMap(wk, selectedDay, hasDistance, options = {}) {
   if (!runMapContainer) return;
 
   if (hasDistance) {
-    getMapFromDB(wk, selectedDay).then(coords => {
+    getMapFromDB(wk, selectedDay).then(async coords => {
       if (coords && coords.length > 0) {
         runMapContainer.style.display = 'block';
+        try { await ensureLeaflet(); } catch { runMapContainer.style.display = 'none'; return; }
         setTimeout(() => {
           if (activeWorkoutMapInstance) { activeWorkoutMapInstance.remove(); activeWorkoutMapInstance = null; }
           runMapContainer.innerHTML = '';

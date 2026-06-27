@@ -7,6 +7,7 @@ import { big3Maxes } from './metrics/metrics-strength.js';
 import { getLiftDisplayName } from './engine.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 import { showToast } from './state.js';
+import { createSortable } from './ui/sortable.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -255,7 +256,7 @@ export function openProfileCustomiser() {
       const sec = PROFILE_SECTIONS.find(s => s.id === id);
       if (!sec) return '';
       return `
-        <div class="pcs-item" data-section-id="${id}" draggable="true">
+        <div class="pcs-item" data-section-id="${id}">
           <span class="pcs-handle" aria-hidden="true">⠿</span>
           <span class="pcs-icon" aria-hidden="true">${sec.icon}</span>
           <span class="pcs-label">${sec.label}</span>
@@ -304,59 +305,12 @@ export function resetProfileCustomiser() {
 }
 
 function _mountCustomiserDragDrop(list) {
-  let dragEl = null;
-
-  list.addEventListener('dragstart', e => {
-    dragEl = e.target.closest('.pcs-item');
-    if (dragEl) { requestAnimationFrame(() => dragEl.classList.add('pcs-dragging')); }
-  });
-  list.addEventListener('dragover', e => {
-    e.preventDefault();
-    const over = e.target.closest('.pcs-item');
-    if (over && dragEl && over !== dragEl) {
-      const rect = over.getBoundingClientRect();
-      if (e.clientY < rect.top + rect.height / 2) list.insertBefore(dragEl, over);
-      else over.insertAdjacentElement('afterend', dragEl);
-    }
-  });
-  list.addEventListener('dragend', () => {
-    dragEl?.classList.remove('pcs-dragging');
-    dragEl = null;
-  });
-
-  // Touch drag-to-reorder
-  let touchDragEl = null, touchClone = null, touchOffsetY = 0;
-  list.addEventListener('touchstart', e => {
-    const item = e.target.closest('.pcs-item');
-    if (!item) return;
-    const handle = e.target.closest('.pcs-handle');
-    if (!handle) return;
-    touchDragEl = item;
-    const rect = item.getBoundingClientRect();
-    touchOffsetY = e.touches[0].clientY - rect.top;
-    touchClone = item.cloneNode(true);
-    touchClone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;opacity:0.85;z-index:9999;pointer-events:none;border-radius:10px;`;
-    document.body.appendChild(touchClone);
-    item.style.opacity = '0.3';
-    e.preventDefault();
-  }, { passive: false });
-  list.addEventListener('touchmove', e => {
-    if (!touchDragEl || !touchClone) return;
-    const y = e.touches[0].clientY;
-    touchClone.style.top = (y - touchOffsetY) + 'px';
-    const over = document.elementFromPoint(e.touches[0].clientX, y)?.closest('.pcs-item');
-    if (over && over !== touchDragEl) {
-      const rect = over.getBoundingClientRect();
-      if (y < rect.top + rect.height / 2) list.insertBefore(touchDragEl, over);
-      else over.insertAdjacentElement('afterend', touchDragEl);
-    }
-    e.preventDefault();
-  }, { passive: false });
-  list.addEventListener('touchend', () => {
-    if (touchDragEl) touchDragEl.style.opacity = '';
-    touchClone?.remove();
-    touchDragEl = null;
-    touchClone  = null;
+  // Grab the ⠿ handle to reorder. The shared engine reorders the DOM in place;
+  // closeProfileCustomiser() reads the resulting order on apply.
+  createSortable(list, {
+    itemSelector: '.pcs-item',
+    handleSelector: '.pcs-handle',
+    layout: 'list',
   });
 }
 
