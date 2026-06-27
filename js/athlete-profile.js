@@ -21,7 +21,6 @@ export const PROFILE_SECTIONS = [
   { id: 'thisweek',   label: 'This Week',           icon: '📅' },
   { id: 'bodyweight', label: 'Body Weight',         icon: '⚖️' },
   { id: 'health',     label: 'Health Metrics',      icon: '❤️' },
-  { id: 'wellness',   label: 'Wellness Hub',        icon: '🌿' },
   { id: 'sessions',   label: 'Recent Sessions',     icon: '📝' },
   { id: 'completed',  label: 'Completed Programs',  icon: '🏆' },
 ];
@@ -253,7 +252,6 @@ export function renderAthleteProfile() {
     ` : '',
     bodyweight: _renderBodyWeightSection(state),
     health:    _renderHealthSection(state),
-    wellness:  _renderWellnessSection(state, days),
     sessions: recentSessions.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Recent Sessions</div>
@@ -526,9 +524,6 @@ function _mountCustomiserDragDrop(list) {
 
 // Pure helpers extracted to ./profile-stats.js
 import {
-  _wellnessContext,
-  _renderWellnessSection,
-  _renderWellnessSheetBody,
   _renderHealthSection,
   _renderHeatmap,
   _esc,
@@ -774,24 +769,6 @@ export function handleProfileAction(action, el) {
 
   if (action === 'close-session-detail') {
     closeSessionDetailModal();
-    return;
-  }
-
-  if (action === 'open-wellness-detail') {
-    if (!_getState) return;
-    const body     = document.getElementById('wellnessSheetBody');
-    const sheet    = document.getElementById('wellnessSheet');
-    const backdrop = document.getElementById('wellnessSheetBackdrop');
-    if (!sheet || !body) return;
-    body.innerHTML = _renderWellnessSheetBody(_getState(), _getDays());
-    sheet.classList.add('active');
-    if (backdrop) backdrop.classList.add('active');
-    return;
-  }
-
-  if (action === 'close-wellness-detail') {
-    document.getElementById('wellnessSheet')?.classList.remove('active');
-    document.getElementById('wellnessSheetBackdrop')?.classList.remove('active');
     return;
   }
 }
