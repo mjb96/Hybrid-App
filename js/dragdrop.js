@@ -1,9 +1,9 @@
 // ==========================================
-// DRAG & DROP REORDERING
+// DRAG & DROP — thin wiring over the shared sortable engine (js/ui/sortable.js)
 // ==========================================
 import { showToast } from './state.js';
+import { createSortable } from './ui/sortable.js';
 
-let sourceDraggedElementNode = null;
 let _getState;
 let _getSelectedDay;
 let _saveState;
@@ -14,72 +14,20 @@ export function initDragDrop(getStateFn, getSelectedDayFn, saveStateFn) {
   _saveState = saveStateFn;
 }
 
+// ==========================================
+// WORKOUT EXERCISE / SUPERSET REORDER
+// Grab the grip (or a superset header) and drag. Supersets are top-level units;
+// their nested exercises are not independently sortable (directChildrenOnly).
+// ==========================================
 export function mountExerciseDragAndDropSystems() {
   const container = document.getElementById('cockpitExercisesContainer');
-  // Iterate direct children: standalone .cockpit-exercise AND .superset-group wrappers
-  const topLevelElements = Array.from(container.children);
-
-  topLevelElements.forEach(element => {
-    // For superset groups, use the group header as grip; for standalone exercises, use the inner grip
-    let grip;
-    if (element.classList.contains('superset-group')) {
-      grip = element.querySelector('.superset-group-header');
-    } else if (element.classList.contains('cockpit-exercise')) {
-      grip = element.querySelector('.drag-handle-grip');
-    }
-    if (!grip) return;
-
-    grip.addEventListener('mousedown', () => element.setAttribute('draggable', 'true'));
-    grip.addEventListener('mouseup', () => element.setAttribute('draggable', 'false'));
-
-    element.addEventListener('dragstart', (e) => {
-      sourceDraggedElementNode = element;
-      element.classList.add('is-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-
-    element.addEventListener('dragend', () => {
-      element.classList.remove('is-dragging');
-      commitReorderedDOMStateToStorage();
-    });
-
-    element.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      if (element === sourceDraggedElementNode) return;
-      const bounding = element.getBoundingClientRect();
-      const offset = e.clientY - bounding.top;
-      if (offset > bounding.height / 2) element.after(sourceDraggedElementNode);
-      else element.before(sourceDraggedElementNode);
-    });
-
-    grip.addEventListener('touchstart', () => {
-      sourceDraggedElementNode = element;
-      element.classList.add('is-dragging');
-      if (navigator.vibrate) navigator.vibrate(10);
-    }, { passive: true });
-
-    grip.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touchLocation = e.touches[0];
-      const targetNode = document.elementFromPoint(touchLocation.clientX, touchLocation.clientY);
-      if (!targetNode) return;
-      // Find a top-level draggable child of container
-      const closestTopLevel = targetNode.closest('.cockpit-exercise, .superset-group');
-      if (closestTopLevel && closestTopLevel !== sourceDraggedElementNode && closestTopLevel.parentNode === container) {
-        const bounding = closestTopLevel.getBoundingClientRect();
-        const offset = touchLocation.clientY - bounding.top;
-        if (offset > bounding.height / 2) closestTopLevel.after(sourceDraggedElementNode);
-        else closestTopLevel.before(sourceDraggedElementNode);
-      }
-    }, { passive: false });
-
-    grip.addEventListener('touchend', () => {
-      if (sourceDraggedElementNode) {
-        sourceDraggedElementNode.classList.remove('is-dragging');
-        sourceDraggedElementNode = null;
-        commitReorderedDOMStateToStorage();
-      }
-    });
+  if (!container) return;
+  createSortable(container, {
+    itemSelector: '.cockpit-exercise, .superset-group',
+    handleSelector: '.drag-handle-grip, .superset-group-header',
+    layout: 'list',
+    directChildrenOnly: true,
+    onReorder: () => commitReorderedDOMStateToStorage(),
   });
 }
 
@@ -87,6 +35,7 @@ export function commitReorderedDOMStateToStorage() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const container = document.getElementById('cockpitExercisesContainer');
+  if (!container) return;
   const wk = appState.currentWeek;
   const dayLifts = appState.weeks?.[wk]?.lifts?.[selectedDay] || {};
 
@@ -95,7 +44,6 @@ export function commitReorderedDOMStateToStorage() {
   // on enumeration, which silently reverts the user's reorder. The order array
   // is the single source of truth the renderer reads.
   const newOrder = [];
-  // Read direct children in DOM order; superset groups expand to inner exercises.
   Array.from(container.children).forEach(child => {
     if (child.classList.contains('superset-group')) {
       child.querySelectorAll('.cockpit-exercise').forEach(card => {
@@ -107,14 +55,12 @@ export function commitReorderedDOMStateToStorage() {
       if (liftName && dayLifts[liftName] && !newOrder.includes(liftName)) newOrder.push(liftName);
     }
   });
-
-  // Append any lifts that weren't represented in the DOM (defensive).
   Object.keys(dayLifts).forEach(n => { if (!newOrder.includes(n)) newOrder.push(n); });
 
   if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
   appState.weeks[wk].liftOrder[selectedDay] = newOrder;
   _saveState(true);
-  showToast('Order Updated ✓');
+  showToast('Order updated ✓');
 }
 
 // ==========================================
@@ -144,162 +90,29 @@ export function resetTileOrder() {
 }
 
 // ==========================================
-// TILE DRAG AND DROP
-// Long-press to enter edit mode, then drag to reorder.
+// DASHBOARD TILE REORDER
+// Press-and-hold a tile to pick it up; the grid reflows around it. The synthetic
+// tile id prefix (glance-tile-) maps back to the registry id we persist.
 // ==========================================
-let tileDragSource   = null;
-let tileDragEditMode = false;
-let tileLongPressTimer = null;
-let tileTouchDragActive = false;
-
 export function mountTileDragAndDrop() {
   const grid = document.getElementById('glanceGrid');
   if (!grid) return;
-
-  const tiles = Array.from(grid.querySelectorAll('.glance-card'));
-  if (!tiles.length) return;
-
-  tiles.forEach(tile => {
-    if (tile.dataset.tileDragBound === '1') return;
-    tile.dataset.tileDragBound = '1';
-
-    // --- Mouse ---
-    tile.addEventListener('mousedown', onTileMouseDown);
-    tile.addEventListener('dragstart', onTileDragStart);
-    tile.addEventListener('dragover',  onTileDragOver);
-    tile.addEventListener('dragleave', onTileDragLeave);
-    tile.addEventListener('drop',      onTileDrop);
-    tile.addEventListener('dragend',   onTileDragEnd);
-
-    // --- Touch ---
-    tile.addEventListener('touchstart', onTileTouchStart, { passive: true });
-    tile.addEventListener('touchmove',  onTileTouchMove,  { passive: false });
-    tile.addEventListener('touchend',   onTileTouchEnd);
+  createSortable(grid, {
+    itemSelector: '.glance-card',
+    layout: 'grid',
+    holdDelay: 230,
+    onReorder: (items) => {
+      const ids = items
+        .map(t => t.id.replace('glance-tile-', ''))
+        .filter(id => id && id !== 'connect-health');
+      saveTileOrder(ids);
+      showToast('Tile order saved ✓');
+    },
   });
 }
 
-function enterTileEditMode() {
-  if (tileDragEditMode) return;
-  tileDragEditMode = true;
-  const grid = document.getElementById('glanceGrid');
-  grid?.querySelectorAll('.glance-card').forEach(t => t.classList.add('tile-drag-mode'));
-  if (navigator.vibrate) navigator.vibrate(30);
-  showToast('Drag to reorder tiles');
-}
-
-export function exitTileEditMode() {
-  tileDragEditMode = false;
-  const grid = document.getElementById('glanceGrid');
-  grid?.querySelectorAll('.glance-card').forEach(t => {
-    t.classList.remove('tile-drag-mode', 'tile-drag-over');
-  });
-}
-
-function commitTileOrder() {
-  const grid = document.getElementById('glanceGrid');
-  if (!grid) return;
-  const orderedIds = Array.from(grid.querySelectorAll('.glance-card'))
-    .map(t => t.id.replace('glance-tile-', ''));
-  saveTileOrder(orderedIds);
-  showToast('Tile order saved ✓');
-}
-
-// Mouse handlers
-function onTileMouseDown(e) {
-  const tile = e.currentTarget;
-  tileLongPressTimer = setTimeout(() => {
-    enterTileEditMode();
-    tile.setAttribute('draggable', 'true');
-  }, 450);
-}
-
-function onTileDragStart(e) {
-  clearTimeout(tileLongPressTimer);
-  if (!tileDragEditMode) { e.preventDefault(); return; }
-  tileDragSource = e.currentTarget;
-  e.currentTarget.classList.add('tile-dragging');
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', e.currentTarget.id);
-}
-
-function onTileDragOver(e) {
-  if (!tileDragEditMode || !tileDragSource) return;
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  const target = e.currentTarget;
-  if (target === tileDragSource) return;
-  target.classList.add('tile-drag-over');
-}
-
-function onTileDragLeave(e) {
-  e.currentTarget.classList.remove('tile-drag-over');
-}
-
-function onTileDrop(e) {
-  if (!tileDragEditMode || !tileDragSource) return;
-  e.preventDefault();
-  const target = e.currentTarget;
-  if (target === tileDragSource) return;
-  const grid = document.getElementById('glanceGrid');
-  const tiles = Array.from(grid.querySelectorAll('.glance-card'));
-  const srcIdx = tiles.indexOf(tileDragSource);
-  const tgtIdx = tiles.indexOf(target);
-  if (srcIdx < tgtIdx) target.after(tileDragSource);
-  else target.before(tileDragSource);
-  target.classList.remove('tile-drag-over');
-}
-
-function onTileDragEnd(e) {
-  clearTimeout(tileLongPressTimer);
-  e.currentTarget.classList.remove('tile-dragging');
-  e.currentTarget.setAttribute('draggable', 'false');
-  document.getElementById('glanceGrid')
-    ?.querySelectorAll('.glance-card')
-    .forEach(t => t.classList.remove('tile-drag-over'));
-  if (tileDragEditMode) commitTileOrder();
-}
-
-// Touch handlers
-function onTileTouchStart(e) {
-  const tile = e.currentTarget;
-  tileLongPressTimer = setTimeout(() => {
-    enterTileEditMode();
-    tileTouchDragActive = true;
-    tileDragSource = tile;
-    tile.classList.add('tile-dragging');
-  }, 450);
-}
-
-function onTileTouchMove(e) {
-  clearTimeout(tileLongPressTimer);
-  if (!tileTouchDragActive || !tileDragSource) return;
-  e.preventDefault();
-  const touch = e.touches[0];
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (!el) return;
-  const target = el.closest('.glance-card');
-  if (!target || target === tileDragSource) return;
-  const grid = document.getElementById('glanceGrid');
-  if (!grid.contains(target)) return;
-  const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
-  grid.querySelectorAll('.glance-card').forEach(t => t.classList.remove('tile-drag-over'));
-  target.classList.add('tile-drag-over');
-  if (touch.clientY > mid) target.after(tileDragSource);
-  else target.before(tileDragSource);
-}
-
-function onTileTouchEnd() {
-  clearTimeout(tileLongPressTimer);
-  if (tileDragSource) tileDragSource.classList.remove('tile-dragging');
-  document.getElementById('glanceGrid')
-    ?.querySelectorAll('.glance-card')
-    .forEach(t => t.classList.remove('tile-drag-over'));
-  if (tileTouchDragActive) {
-    tileTouchDragActive = false;
-    tileDragSource = null;
-    commitTileOrder();
-  }
-}
+// Retained as a no-op for backward compatibility with older call sites.
+export function exitTileEditMode() {}
 
 // ==========================================
 // HIDDEN TILES PERSISTENCE
