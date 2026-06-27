@@ -6,7 +6,7 @@
 // =============================================================================
 import { getCatalogEntry } from './programs/catalog.js';
 import { getLiftDisplayName } from './engine.js';
-import { allLiftsStats, big3Maxes } from './metrics/metrics-strength.js';
+import { allLiftsStats } from './metrics/metrics-strength.js';
 
 // ── Section helpers ───────────────────────────────────────────────────────────
 
@@ -357,6 +357,36 @@ export function _topLiftsByE1rm(state, days, limit = 6) {
     .slice(0, limit);
 }
 
+// Accessory/variant lifts that contain a big-3 keyword but aren't the main lift.
+const BIG3_EXCLUDE = /romanian|stiff[- ]?leg|\brdl\b|split|cossack|goblet|sumo squat|single-leg|deep squat|good\s*morning|leg press|hack|jump|bbj|benchmark|hold|zercher/i;
+
+function _big3Movement(name) {
+  if (BIG3_EXCLUDE.test(name)) return null;
+  const n = name.toLowerCase();
+  if (n.includes('deadlift')) return 'Deadlift';
+  if (n.includes('bench'))    return 'Bench';
+  if (n.includes('squat'))    return 'Squat';
+  return null;
+}
+
+// The big-three PRs (Squat / Bench / Deadlift) — best e1RM per movement, robust
+// to variant naming (e.g. "Paused Squat", "Close-Grip Bench"). Accessory
+// variants (RDLs, split squats, …) are excluded. Returns S/B/D order, each item
+// tagged with its movement.
+export function _big3PRs(state, days) {
+  const stats = allLiftsStats(state, days);
+  const best = {}; // movement → { movement, name, displayName, e1rm }
+  for (const [name, s] of Object.entries(stats)) {
+    if (!(s.allTimeMax > 0)) continue;
+    const mv = _big3Movement(name);
+    if (!mv) continue;
+    if (!best[mv] || s.allTimeMax > best[mv].e1rm) {
+      best[mv] = { movement: mv, name, displayName: getLiftDisplayName(state, name), e1rm: s.allTimeMax };
+    }
+  }
+  return ['Squat', 'Bench', 'Deadlift'].map(m => best[m]).filter(Boolean);
+}
+
 // Bodyweight-ratio standards per lift (ascending tier thresholds). Common
 // rule-of-thumb breakpoints for Novice / Intermediate / Advanced / Elite.
 const STRENGTH_STANDARDS = {
@@ -381,17 +411,14 @@ export function _strengthTier(label, ratio) {
 }
 
 // Strength-to-bodyweight ratios for the big lifts, each classified into a
-// strength-standard tier. Returns [{ label, e1rm, ratio, tier }].
-export function _relativeStrength(state, bodyWeight) {
+// strength-standard tier. Uses the same robust movement matching as the PR
+// list, so variant names (e.g. "Paused Squat") still count. Returns
+// [{ label, e1rm, ratio, tier }].
+export function _relativeStrength(state, days, bodyWeight) {
   if (!bodyWeight || bodyWeight <= 0) return [];
-  const maxes = big3Maxes(state);
-  return [
-    { label: 'Squat',    e1rm: maxes.squat },
-    { label: 'Bench',    e1rm: maxes.bench },
-    { label: 'Deadlift', e1rm: maxes.deadlift },
-  ].filter(i => i.e1rm > 0).map(i => {
-    const ratio = i.e1rm / bodyWeight;
-    return { ...i, ratio, tier: _strengthTier(i.label, ratio) };
+  return _big3PRs(state, days).map(l => {
+    const ratio = l.e1rm / bodyWeight;
+    return { label: l.movement, e1rm: l.e1rm, ratio, tier: _strengthTier(l.movement, ratio) };
   });
 }
 
