@@ -378,10 +378,13 @@ export function _big3PRs(state, days) {
   const best = {}; // movement → { movement, name, displayName, e1rm }
   for (const [name, s] of Object.entries(stats)) {
     if (!(s.allTimeMax > 0)) continue;
-    const mv = _big3Movement(name);
+    // Match on the resolved display name — lift storage may be ID-keyed, so the
+    // raw key won't always contain the movement word (the display name does).
+    const displayName = getLiftDisplayName(state, name);
+    const mv = _big3Movement(displayName);
     if (!mv) continue;
     if (!best[mv] || s.allTimeMax > best[mv].e1rm) {
-      best[mv] = { movement: mv, name, displayName: getLiftDisplayName(state, name), e1rm: s.allTimeMax };
+      best[mv] = { movement: mv, name, displayName, e1rm: s.allTimeMax };
     }
   }
   return ['Squat', 'Bench', 'Deadlift'].map(m => best[m]).filter(Boolean);
