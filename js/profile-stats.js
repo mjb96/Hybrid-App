@@ -346,17 +346,6 @@ export function _renderProgressionSection(prog) {
   `;
 }
 
-// Top lifts ranked by all-time e1RM (data-driven — every tracked lift, not a
-// hardcoded list). Returns [{ name, displayName, e1rm }].
-export function _topLiftsByE1rm(state, days, limit = 6) {
-  const stats = allLiftsStats(state, days);
-  return Object.entries(stats)
-    .map(([name, s]) => ({ name, displayName: getLiftDisplayName(state, name), e1rm: s.allTimeMax }))
-    .filter(l => l.e1rm > 0)
-    .sort((a, b) => b.e1rm - a.e1rm)
-    .slice(0, limit);
-}
-
 // Accessory/variant lifts that contain a big-3 keyword but aren't the main lift.
 const BIG3_EXCLUDE = /romanian|stiff[- ]?leg|\brdl\b|split|cossack|goblet|sumo squat|single-leg|deep squat|good\s*morning|leg press|hack|jump|bbj|benchmark|hold|zercher/i;
 
