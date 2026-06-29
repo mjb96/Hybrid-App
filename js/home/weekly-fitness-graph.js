@@ -2,6 +2,7 @@
 // WEEKLY FITNESS GRAPH — Garmin Connect-style
 // Renders inside the In Focus carousel cards.
 // ==========================================
+import { isCompletedSet } from '../set-utils.js';
 
 const DAY_KEYS  = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const CHART_H   = 120;  // bars area height in px
@@ -332,7 +333,7 @@ class WeeklyFitnessGraph {
             for (const l in lifts) {
               if (Array.isArray(lifts[l])) {
                 lifts[l].forEach(s => {
-                  if (s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)) sets++;
+                  if (isCompletedSet(s)) sets++;
                 });
               }
             }

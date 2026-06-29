@@ -4,6 +4,10 @@
 // ==========================================
 import { CONFIG } from './constants.js';
 import { devWarn } from './debug.js';
+import { isCompletedSet } from './set-utils.js';
+
+// Re-exported for backwards-compatible import sites (and the engine test suite).
+export { isCompletedSet };
 
 let _getState;
 let _getDays;
@@ -22,11 +26,6 @@ export function epley1RM(weight, reps) {
   const r = parseInt(reps, 10) || 0;
   if (w <= 0 || r === 0) return 0;
   return w * (1 + r / 30);
-}
-
-export function isCompletedSet(s) {
-  if (!s) return false;
-  return s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
 }
 
 export function parseDurationToMinutes(timeStr) {
@@ -54,35 +53,9 @@ export function formatPace(secsPerKm) {
 }
 
 // ==========================================
-// LIFT IDENTITY MAP (D8)
-// getLiftId — registers a name → stable opaque key, idempotent.
-// getLiftDisplayName — resolves key back to display name.
-// resolveLiftKey — maps display name → stored key.
-// ==========================================
-
-export function getLiftId(state, name) {
-  if (!name) return '';
-  if (!state.liftIdMap) state.liftIdMap = {};
-  if (!state.liftNames) state.liftNames = {};
-  if (state.liftIdMap[name]) return state.liftIdMap[name];
-  const id = 'lift_' + Math.random().toString(36).slice(2, 10);
-  state.liftIdMap[name] = id;
-  state.liftNames[id] = name;
-  return id;
-}
-
-export function getLiftDisplayName(state, id) {
-  return (state.liftNames && state.liftNames[id]) || id;
-}
-
-export function resolveLiftKey(state, name) {
-  return (state.liftIdMap && state.liftIdMap[name]) || name;
-}
-
-// ==========================================
-// FIND LAST PERFORMANCE (D9)
+// FIND LAST PERFORMANCE
 // Scans weeks in descending order for the last completed working sets of a
-// given lift. Accepts both ID-keyed and plain-string-keyed storage.
+// given lift. Lifts are stored keyed by display name.
 // Returns { weekKey, day, workingSets } or null.
 // ==========================================
 
@@ -92,7 +65,7 @@ export function resolveLiftKey(state, name) {
  * @param {{ excludeWeek?: string|number, days?: string[] }} [opts]
  */
 export function findLastPerformance(state, name, { excludeWeek, days = [] } = {}) {
-  const key = resolveLiftKey(state, name);
+  const key = name;
   const weeks = Object.keys(state.weeks || {}).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
   for (const wKey of weeks) {
     if (wKey === excludeWeek) continue;
@@ -182,7 +155,7 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
   const cWk = parseInt(currentWeekString, 10);
   if (isNaN(cWk) || cWk <= 1 || !appState.weeks) return result;
 
-  const liftKey = resolveLiftKey(appState, liftName);
+  const liftKey = liftName;
   const history = [];
   for (let w = cWk - 1; w >= 1; w--) {
     const wData = appState.weeks[w.toString()];
@@ -319,9 +292,8 @@ export function computeEstimated1RMs() {
         const setsArr = dayLifts[lKey];
         if (!Array.isArray(setsArr)) continue;
 
-        // Resolve opaque lift ID → display name so comparisons work regardless
-        // of whether old data uses plain strings or the lift identity map.
-        const lName = getLiftDisplayName(appState, lKey);
+        // Lifts are stored keyed by display name.
+        const lName = lKey;
 
         setsArr.forEach(s => {
           if (s && s.c && s.type !== 'W' && !s.isWarmup) {

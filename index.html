@@ -625,7 +625,7 @@
         <p class="workout-run-desc" id="cockpitRunSpecs">Loading target distance parameters...</p>
 
         <div class="run-grid-inputs mb-2">
-          <label><span class="set-num-lbl block mb-1">Dist KM</span><input type="number" step="0.01" id="runInputDist" placeholder="0.00"></label>
+          <label><span class="set-num-lbl block mb-1" id="runDistUnitLabel">Dist KM</span><input type="number" step="0.01" id="runInputDist" placeholder="0.00"></label>
           <label><span class="set-num-lbl block mb-1">Time</span><input type="text" id="runInputTime" placeholder="00:00"></label>
           <label><span class="set-num-lbl block mb-1">RPE</span><input type="number" id="runInputRpeCockpit" placeholder="1-10" max="10"></label>
         </div>
@@ -633,7 +633,7 @@
         <div class="run-pace-row mb-3" id="runPaceRow">
           <span class="run-pace-label">AVG PACE</span>
           <input type="text" id="runInputPace" class="run-pace-input" placeholder="—:—— /km" autocomplete="off">
-          <span class="run-pace-unit">/km</span>
+          <span class="run-pace-unit" id="runPaceUnit">/km</span>
         </div>
 
         <textarea id="runInputNotes" class="run-notes-input" placeholder="How did it feel? Route, conditions, notes…"></textarea>

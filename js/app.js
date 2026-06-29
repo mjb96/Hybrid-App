@@ -30,7 +30,7 @@ import {
   applyDeloadToCurrentWeek,
 } from './state.js';
 
-import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
+import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
@@ -66,6 +66,7 @@ import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProf
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
+import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
@@ -499,9 +500,9 @@ export function openTodaySummaryModal() {
     for (const lift in dayLifts) {
       if (Array.isArray(dayLifts[lift])) {
         dayLifts[lift].forEach(s => {
-          if (s && s.c && s.type !== 'W') {
+          if (isCompletedSet(s) && !isWarmupSet(s)) {
             sets++;
-            volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
+            volume += setVolume(s);
           }
         });
       }
@@ -551,7 +552,7 @@ export function openTodaySummaryModal() {
         liftNames.forEach(lift => {
           const completedSets = dayLifts[lift].filter(s => s && s.c);
           if (completedSets.length === 0) return;
-          const displayLiftName = getLiftDisplayName(appState, lift);
+          const displayLiftName = lift;
           html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${escapeHtml(displayLiftName)}</div>`;
           completedSets.forEach((s, idx) => {
             const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;

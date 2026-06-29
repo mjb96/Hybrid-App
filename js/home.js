@@ -4,6 +4,7 @@
 import { WEEK_PHASE_NAMES } from './constants.js';
 import { getProgramById } from './state.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
+import { isCompletedSet } from './set-utils.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
@@ -343,7 +344,7 @@ export function renderHome() {
         if (Array.isArray(dayLifts[lift])) {
           dayLifts[lift].forEach(s => {
             total++;
-            if (s && (s.c === true || s.c === "true" || s.c === "on" || s.c === 1)) done++;
+            if (isCompletedSet(s)) done++;
           });
         }
       }
@@ -371,10 +372,7 @@ export function renderHome() {
         for (const l in pLifts) {
           if (Array.isArray(pLifts[l])) {
             pLifts[l].forEach(s => {
-              if (s) {
-                const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
-                if (isCompleted && s.type !== 'W') prevVol += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
-              }
+              if (isCompletedSet(s) && s.type !== 'W') prevVol += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
             });
           }
         }
@@ -382,10 +380,7 @@ export function renderHome() {
         for (const l in cLifts) {
           if (Array.isArray(cLifts[l])) {
             cLifts[l].forEach(s => {
-              if (s) {
-                const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
-                if (isCompleted && s.type !== 'W') currentWeekVolSum += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
-              }
+              if (isCompletedSet(s) && s.type !== 'W') currentWeekVolSum += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
             });
           }
         }

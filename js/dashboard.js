@@ -22,6 +22,7 @@
 
 import { dateKey } from './dates.js';
 import { fmtFastDuration, fmtHoursLabel } from './fasting.js';
+import { isCompletedSet } from './set-utils.js';
 
 export const DashboardTileType = Object.freeze({
   METRIC:    'metric',
@@ -104,7 +105,7 @@ export const TILE_REGISTRY = [
         for (const lift in todayLifts) {
           if (Array.isArray(todayLifts[lift])) {
             totalSets += todayLifts[lift].length;
-            completedSets += todayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
+            completedSets += todayLifts[lift].filter(s => isCompletedSet(s)).length;
           }
         }
         const runDist = parseFloat(todayRun.dist) || 0;
@@ -323,7 +324,7 @@ export const TILE_REGISTRY = [
             const dayLifts = weekData.lifts?.[d] || {};
             let completedSets = 0;
             for (const lift in dayLifts) {
-              if (Array.isArray(dayLifts[lift])) completedSets += dayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
+              if (Array.isArray(dayLifts[lift])) completedSets += dayLifts[lift].filter(s => isCompletedSet(s)).length;
             }
             if (gymMins > 0 && gRpe > 0) gymTSS += gymMins * gRpe;
             else if (completedSets > 0) gymTSS += completedSets * (gRpe > 0 ? gRpe : 6) * 4;
