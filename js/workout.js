@@ -14,6 +14,7 @@ import { orderedLiftNames } from './workout-order.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
+import { dateKey } from './dates.js';
 
 let _getState;
 let _getSelectedDay;
@@ -528,7 +529,7 @@ function _ensureWorkoutDateStamp(appState, wk, day) {
   const hasCompleted = Object.values(dayLifts).some(sets => Array.isArray(sets) && sets.some(s => s?.c));
   if (!hasCompleted) return;
   if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
-  if (!appState.weeks[wk].dates[day]) appState.weeks[wk].dates[day] = new Date().toISOString().slice(0, 10);
+  if (!appState.weeks[wk].dates[day]) appState.weeks[wk].dates[day] = dateKey();
 }
 
 export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
@@ -752,7 +753,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       // Stamp workout date on first set completion for this day
       if (!_appState.weeks[_wk].dates) _appState.weeks[_wk].dates = {};
       if (!_appState.weeks[_wk].dates[_selDay]) {
-        _appState.weeks[_wk].dates[_selDay] = new Date().toISOString().slice(0, 10);
+        _appState.weeks[_wk].dates[_selDay] = dateKey();
       }
 
       // PR detection — compare this set's e1RM against stored all-time max

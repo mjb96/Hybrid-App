@@ -67,6 +67,7 @@ import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTrack
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
+import { dateKey } from './dates.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
@@ -1118,7 +1119,7 @@ initGarminRunImport((distance, timeStr, coordinates, stats) => {
   if (appState.weeks[wk]) {
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
     if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = new Date().toISOString().slice(0, 10);
+      appState.weeks[wk].dates[sd] = dateKey();
     }
   }
   if (coordinates && coordinates.length > 0) {
@@ -1146,7 +1147,7 @@ initGarminGymImport((timeStr, stats) => {
     g.gymSets     = stats?.gymSets     || null;
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
     if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = new Date().toISOString().slice(0, 10);
+      appState.weeks[wk].dates[sd] = dateKey();
     }
   }
   saveStateToLocalStorage(true);
