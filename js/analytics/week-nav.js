@@ -4,8 +4,6 @@
 
 let _offset = 0;
 
-export function getWeekOffset() { return _offset; }
-
 export function getSelectedWeek(currentWeekStr) {
   const current = parseInt(currentWeekStr, 10) || 1;
   return Math.max(1, current + _offset);
@@ -71,10 +69,6 @@ export function updateWeekNavDisplay(getState) {
 
   if (prevBtn) prevBtn.disabled = selectedWeek <= 1;
   if (nextBtn) nextBtn.disabled = isCurrent;
-}
-
-export function getWeekDateRange(weekNum, appState) {
-  return _weekDateRange(weekNum, appState);
 }
 
 function _weekDateRange(weekNum, appState) {

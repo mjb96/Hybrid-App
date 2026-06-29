@@ -4,7 +4,7 @@
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { getSimilarPrograms } from './recommendations.js';
-import { renderProgramCard, returnToLibrary } from './library.js';
+import { renderProgramCard } from './program-card.js';
 import { PROGRAMS } from '../constants.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted } from '../state.js';
 import { escapeHtml } from '../util.js';
@@ -47,6 +47,10 @@ export function renderProgramDetail(programId, appState) {
       <div class="detail-back-actions">
         ${isActive ? '<span class="detail-active-badge">ACTIVE</span>' : ''}
         ${completed ? '<span class="detail-completed-badge">COMPLETED</span>' : ''}
+        <button class="detail-bookmark-btn"
+                data-action="rate-program"
+                data-program-id="${programId}"
+                aria-label="Rate this program">⭐</button>
         <button class="detail-bookmark-btn ${saved ? 'saved' : ''}"
                 data-action="detail-toggle-bookmark"
                 data-program-id="${programId}"
@@ -451,7 +455,9 @@ function getAuthorTypeLabel(type) {
 }
 
 export function closeProgramDetail() {
-  returnToLibrary();
+  // Decoupled from library.js (avoids a circular import); app.js owns the
+  // library:return handler and calls returnToLibrary().
+  document.dispatchEvent(new CustomEvent('library:return'));
 }
 
 // ── Workout Preview Modal ─────────────────────────────────────────────────────

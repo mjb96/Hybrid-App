@@ -7,7 +7,6 @@
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { prescribeSetsForLift } from './engine.js';
-import { todayKey, daysBetween } from './dates.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
@@ -553,50 +552,5 @@ export function saveNewCustomExerciseToLibrary(exerciseName) {
   if (!appState.customExercises.includes(cleanedName)) {
     appState.customExercises.push(cleanedName);
     saveStateToLocalStorage(true); 
-  }
-}
-
-export function logActivityForStreak() {
-  const today = todayKey();
-  if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
-  const lastDate = appState.streakData.lastActivityDate;
-  
-  if (lastDate === today) return; 
-
-  if (lastDate) {
-    // Compare calendar-day keys with the UTC-based helper so the diff never
-    // mixes timezones (the old new Date()+setHours approach parsed the key as
-    // UTC then shifted to local, causing off-by-one streaks near midnight).
-    const diffDays = daysBetween(lastDate, today);
-    if (diffDays === 1) appState.streakData.current += 1;
-    else if (diffDays !== null && diffDays > 1) appState.streakData.current = 1;
-    // diffDays === 0 handled by the early return above; negative = clock skew → no change
-  } else {
-    appState.streakData.current = 1;
-  }
-
-  if (appState.streakData.current > appState.streakData.longest) {
-    appState.streakData.longest = appState.streakData.current;
-  }
-
-  appState.streakData.lastActivityDate = today;
-  saveStateToLocalStorage(true);
-}
-
-export function addGoalMilestone(title) {
-  if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0 };
-  appState.goalData.milestones.push({ 
-    id: Date.now().toString(), title: title, completed: false, dateAdded: new Date().toISOString()
-  });
-  saveStateToLocalStorage(true);
-}
-
-export function toggleMilestoneCompletion(id) {
-  if (!appState.goalData) return;
-  const milestone = appState.goalData.milestones.find(m => m.id === id);
-  if (milestone) {
-    milestone.completed = !milestone.completed;
-    appState.goalData.completedCount = appState.goalData.milestones.filter(m => m.completed).length;
-    saveStateToLocalStorage(true);
   }
 }

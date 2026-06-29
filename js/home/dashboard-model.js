@@ -324,7 +324,7 @@ function computePace(weeks, days, distUnit) {
   return { hasData: true, label: `${pm}:${ps}`, unit: distUnit, spark: spark.reverse() };
 }
 
-function computeStreak(weeks, days, state) {
+export function computeStreak(weeks, days, state) {
   const active = new Set();
   const base = state?.weekStartedAt ? new Date(state.weekStartedAt) : new Date();
   const curWk = parseInt(state?.currentWeek, 10) || 1;

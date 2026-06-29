@@ -6,8 +6,8 @@ import { getHomeCollections, filterByCategory, getCollectionDef } from './collec
 import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
-import { isBookmarked, toggleBookmark, isProgramCompleted, recordRecentlyViewed, getProgramById } from '../state.js';
-import { escapeHtml } from '../util.js';
+import { renderProgramCard, isWod } from './program-card.js';
+import { toggleBookmark, recordRecentlyViewed, getProgramById } from '../state.js';
 
 let _appState = null;
 let _activeFilter = 'all';
@@ -485,96 +485,6 @@ function renderFilteredGrid(container) {
 }
 
 // ── Program cards ─────────────────────────────────────────────────────────────
-
-function isWod(program) {
-  return program.tags?.includes('hyrox-wod');
-}
-
-const EQUIP_TIER_LABELS = {
-  gym: 'Full Gym', home: 'Home Gym', garage_gym: 'Garage Gym',
-  bodyweight: 'Bodyweight', minimal: 'Minimal',
-};
-
-export function renderProgramCard(program, size = 'small', showBadge = false) {
-  const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
-  const dots = '●'.repeat(diff.dots) + '○'.repeat(4 - diff.dots);
-  const isActive    = _appState?.activeProgramId === program.id;
-  const saved       = isBookmarked(program.id);
-  const completed   = isProgramCompleted(program.id);
-  const wod         = isWod(program);
-  const isLarge     = size === 'large';
-
-  const equipTierLabel = isLarge && program.equipmentTier && !wod
-    ? EQUIP_TIER_LABELS[program.equipmentTier] : null;
-
-  const durationLabel = wod && program.sessionDurationMinutes
-    ? `~${program.sessionDurationMinutes.min}–${program.sessionDurationMinutes.max} min`
-    : `${program.durationWeeks}w`;
-
-  const categoryLabel = wod ? 'Workout' : (CATEGORIES[program.category]?.label || program.category);
-
-  // Rating shown on all cards; count only on large
-  const ratingHTML = program.rating
-    ? `<div class="prog-card-rating">
-         <span class="rating-star">★</span> ${program.rating}${isLarge && program.ratingCount ? ` <span class="rating-count">(${program.ratingCount.toLocaleString()})</span>` : ''}
-       </div>`
-    : '';
-
-  // Social proof row — large cards only
-  const statsHTML = isLarge && !wod ? (() => {
-    const parts = [];
-    if (program.enrolledCount)   parts.push(`${program.enrolledCount.toLocaleString()} athletes`);
-    if (program.completionRate)  parts.push(`${Math.round(program.completionRate * 100)}% finish`);
-    return parts.length
-      ? `<div class="prog-card-stats">${parts.join('<span class="prog-card-sep">·</span>')}</div>`
-      : '';
-  })() : '';
-
-  // Author / coach attribution — large cards only, skip generic WOD entries
-  const authorHTML = isLarge && program.author && program.author.name && !wod
-    ? `<div class="prog-card-author">
-         <span class="prog-card-author-name">by ${escapeHtml(program.author.name)}</span>
-         ${program.author.verified ? '<span class="prog-card-verified" title="Verified creator">✓</span>' : ''}
-       </div>`
-    : '';
-
-  return `
-    <div class="prog-card prog-card--${size} ${isActive ? 'prog-card--active' : ''} ${completed ? 'prog-card--completed' : ''}"
-         data-action="open-program-detail"
-         data-program-id="${program.id}">
-      <div class="prog-card-cover"
-           style="background: linear-gradient(145deg, ${program.coverGradient[0]}, ${program.coverGradient[1]})">
-        <div class="prog-card-icon">${program.icon}</div>
-        <div class="prog-card-badges">
-          ${isActive ? '<span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}
-          ${completed && !isActive ? '<span class="prog-badge prog-badge--completed">DONE</span>' : ''}
-          ${wod && !isActive && !completed ? '<span class="prog-badge prog-badge--wod">WOD</span>' : ''}
-          ${program.featured && !isActive && !completed && !wod ? '<span class="prog-badge prog-badge--featured">FEATURED</span>' : ''}
-          ${program.isNew && !isActive && !completed ? '<span class="prog-badge prog-badge--new">NEW</span>' : ''}
-        </div>
-        <button class="prog-card-bookmark ${saved ? 'saved' : ''}"
-                data-action="toggle-bookmark"
-                data-program-id="${program.id}"
-                aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
-          ${saved ? '🔖' : '🤍'}
-        </button>
-        ${ratingHTML}
-      </div>
-      <div class="prog-card-info">
-        <div class="prog-card-name">${escapeHtml(program.name)}</div>
-        ${authorHTML}
-        <div class="prog-card-meta">
-          <span class="prog-card-category" style="color: ${program.accentColor}">${categoryLabel}</span>
-          <span class="prog-card-sep">·</span>
-          <span>${durationLabel}</span>
-          ${equipTierLabel ? `<span class="prog-card-sep">·</span><span class="prog-card-equip">${equipTierLabel}</span>` : ''}
-        </div>
-        ${statsHTML}
-        <div class="prog-card-diff" style="color: ${diff.color}" title="${diff.label}">${dots}</div>
-      </div>
-    </div>
-  `;
-}
 
 // ── Search results ─────────────────────────────────────────────────────────────
 

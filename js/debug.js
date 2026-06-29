@@ -21,11 +21,3 @@ export const DEBUG = (() => {
 export function devWarn(context, detail) {
   if (DEBUG) console.error(`[hybrid:dev] ${context}`, detail !== undefined ? detail : '');
 }
-
-// Hard failure in dev for an invariant that must hold; no-op in production.
-export function devAssert(condition, message) {
-  if (DEBUG && !condition) {
-    console.error(`[hybrid:dev] ASSERT FAILED: ${message}`);
-    throw new Error(`[hybrid:dev] ${message}`);
-  }
-}

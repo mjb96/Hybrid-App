@@ -1,12 +1,9 @@
 // ==========================================
 // HOME DASHBOARD — coordinator. UI sub-modules live in ./home/
 // ==========================================
-import { PROGRAMS, WEEK_PHASE_NAMES, DAY_NAMES_FULL } from './constants.js';
+import { WEEK_PHASE_NAMES } from './constants.js';
 import { getProgramById } from './state.js';
-import { buildRunPreviewRow, buildLiftPreviewRow, buildRestDayPreview } from './templates.js';
-import { computeDiagnosticForLift, computeEstimated1RMs, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
-import { orderedLiftNames } from './workout-order.js';
-import { getMapFromDB } from './db.js';
+import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
@@ -16,7 +13,6 @@ import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
 import { setHTML, reconcileKeyed } from './ui/render.js';
-import { ensureLeaflet } from './ui/leaflet-loader.js';
 
 let _getState;
 let _getSelectedDay;
@@ -25,9 +21,6 @@ let _getDays;
 // Weekly fitness graph instances (one per In Focus card)
 let _strengthGraph = null;
 let _runGraph      = null;
-
-// Private module-scoped variable to hold the map instance safely
-let activeHomeMapInstance = null;
 
 export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getState = getStateFn;
@@ -292,23 +285,6 @@ export function renderHome() {
   if (labelEl) labelEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const homeBlueprint = activeProgram.days?.[selectedDay] || { title: "Rest Day", badge: "Rest", color: "#6b7280", desc: "No specific template found.", runs: "Rest", lifts: [] };
-
-  const hBadge = document.getElementById('homeFocusBadge');
-  const dAccent = document.getElementById('homeDayAccentBar');
-  if (hBadge) {
-    hBadge.textContent = homeBlueprint.badge || 'Rest';
-    hBadge.style.color = homeBlueprint.color || '#6b7280';
-  }
-  if (dAccent) dAccent.style.background = homeBlueprint.color || '#6b7280';
-
-  const dayLabel = document.getElementById('homeCalendarDayLabel');
-  const focusTitle = document.getElementById('homeFocusTitle');
-  const focusDesc = document.getElementById('homeFocusDesc');
-
-  if (dayLabel) dayLabel.textContent = DAY_NAMES_FULL[selectedDay] || '';
-  if (focusTitle) focusTitle.textContent = homeBlueprint.title || 'Rest Day';
-  if (focusDesc) focusDesc.textContent = homeBlueprint.desc || '';
 
   const engineAlertCard = document.getElementById('homeEngineAlertCard');
   const engineAlertDesc = document.getElementById('homeEngineAlertDesc');
@@ -333,133 +309,6 @@ export function renderHome() {
     if (engineAlertDesc) engineAlertDesc.textContent = globalStallAlertsFound[0];
   } else {
     if (engineAlertCard) engineAlertCard.style.display = 'none';
-  }
-
-  const previewContainer = document.getElementById('homeDrillPreviewContainer');
-  const todayLifts = weekData.lifts?.[selectedDay] || {};
-  const todayRun = weekData.runs?.[selectedDay] || {};
-
-  let todayVol = 0;
-  let todaySets = 0;
-
-  for (let lift in todayLifts) {
-    if (Array.isArray(todayLifts[lift])) {
-      todayLifts[lift].forEach(s => {
-        if (s) {
-          const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
-          if (isCompleted) {
-            todaySets++;
-            todayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
-          }
-        }
-      });
-    }
-  }
-
-  const todayRunDist = parseFloat(todayRun.dist) || 0;
-  const isSessionStarted = todaySets > 0 || todayRunDist > 0;
-
-  if (previewContainer) {
-    previewContainer.innerHTML = '';
-
-    if (isSessionStarted) {
-      if (hBadge) hBadge.textContent = "✓ Completed";
-      if (hBadge) hBadge.style.color = "var(--accent-green)";
-      if (dAccent) dAccent.style.background = "var(--accent-green)";
-      if (focusTitle) focusTitle.textContent = "Session Logged";
-      if (focusDesc) focusDesc.textContent = "Great work. Tap below to edit or add notes.";
-
-      let summaryHTML = `
-        <div class="grid-2-col gap-2 mb-1">
-          <div class="card-dark p-2 text-center" style="border: 1px solid rgba(255,255,255,0.1);">
-            <div class="text-xs text-muted">Sets</div>
-            <div class="text-lg font-heavy text-main">${todaySets}</div>
-          </div>
-          <div class="card-dark p-2 text-center" style="border: 1px solid rgba(255,255,255,0.1);">
-            <div class="text-xs text-muted">Volume</div>
-            <div class="text-lg font-heavy text-main">${todayVol} kg</div>
-          </div>
-        </div>
-      `;
-
-      const todayGym = weekData.gymStats?.[selectedDay] || {};
-      const hasGymStats = todayGym.time || todayGym.avgHR || todayGym.maxHR || todayGym.cals;
-
-      if (hasGymStats) {
-        summaryHTML += `
-          <div class="card-dark p-2 mb-1" style="border: 1px solid rgba(255,255,255,0.12);">
-            <div class="flex-between">
-              <span class="text-xs font-bold text-main" style="text-transform:uppercase;letter-spacing:0.06em;">Gym Session</span>
-              <span class="text-xs text-muted">${todayGym.time || ''}</span>
-            </div>
-            <div class="flex gap-3 text-xs text-muted" style="margin-top:3px;">
-              ${todayGym.avgHR ? `<span>❤️ ${Math.round(todayGym.avgHR)} avg</span>` : ''}
-              ${todayGym.maxHR ? `<span>📈 ${Math.round(todayGym.maxHR)} max</span>` : ''}
-              ${todayGym.cals  ? `<span>🔥 ${Math.round(todayGym.cals)} kcal</span>` : ''}
-            </div>
-          </div>
-        `;
-      }
-
-      if (todayRunDist > 0) {
-        summaryHTML += `
-          <div class="card-dark p-2 mb-1" style="border: 1px solid var(--accent-pink);">
-            <div class="flex-between">
-              <span class="text-xs text-accent-pink font-bold">Run Logged</span>
-              <span class="text-xs text-main">${todayRun.time || '--:--'}</span>
-            </div>
-            <div class="text-lg font-heavy text-inverse" style="margin-top:2px;">${appState.settings?.distanceUnit === 'mi' ? (todayRunDist * 0.621371).toFixed(2) + ' mi' : todayRunDist + ' km'}</div>
-            <div class="flex gap-2 text-xs text-muted" style="margin-top:2px;">
-              ${todayRun.avgHR ? `<span>❤️ ${Math.round(todayRun.avgHR)} bpm</span>` : ''}
-              ${todayRun.elev  ? `<span>⛰️ ${Math.round(todayRun.elev)}m</span>`     : ''}
-              ${todayRun.cals  ? `<span>🔥 ${Math.round(todayRun.cals)}</span>`      : ''}
-            </div>
-            <div id="homeMiniMapContainer" style="height: 100px; width: 100%; border-radius: 6px; display: none; z-index: 1; margin-top: 6px;"></div>
-          </div>
-        `;
-      }
-
-      previewContainer.innerHTML = summaryHTML;
-
-      if (todayRunDist > 0) {
-        getMapFromDB(wk, selectedDay).then(async coords => {
-          if (coords && coords.length > 0) {
-            const mapEl = document.getElementById('homeMiniMapContainer');
-            if (mapEl) {
-              mapEl.style.display = 'block';
-              try { await ensureLeaflet(); } catch { mapEl.style.display = 'none'; return; }
-              setTimeout(() => {
-                if (activeHomeMapInstance) activeHomeMapInstance.remove();
-                activeHomeMapInstance = L.map('homeMiniMapContainer', {
-                  zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false
-                });
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(activeHomeMapInstance);
-                const route = L.polyline(coords, { color: '#f43f5e', weight: 4, opacity: 1.0 }).addTo(activeHomeMapInstance);
-                activeHomeMapInstance.fitBounds(route.getBounds(), { padding: [5, 5] });
-              }, 50);
-            }
-          }
-        }).catch(err => console.warn("No map found in DB"));
-      }
-
-    } else {
-      if (selectedDay !== 'sun' && homeBlueprint.runs) {
-        previewContainer.innerHTML += buildRunPreviewRow(homeBlueprint.runs);
-      }
-      for (const liftName of orderedLiftNames(weekData, selectedDay, homeBlueprint)) {
-        const expectedSets = Array.isArray(todayLifts[liftName]) ? todayLifts[liftName].length : 4;
-        let displayLiftName;
-        if (!isNaN(liftName) && homeBlueprint.lifts && homeBlueprint.lifts[parseInt(liftName, 10)]) {
-          displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
-        } else {
-          displayLiftName = getLiftDisplayName(appState, liftName);
-        }
-        previewContainer.innerHTML += buildLiftPreviewRow(displayLiftName, expectedSets);
-      }
-      if (selectedDay === 'sun' || (Object.keys(todayLifts).length === 0 && selectedDay === 'sat')) {
-        previewContainer.innerHTML = buildRestDayPreview();
-      }
-    }
   }
 
   let currentWeekRunDistSum = 0;
@@ -506,31 +355,6 @@ export function renderHome() {
   const progressBarEl = document.getElementById('homeWeeklyProgressBar');
   if (progressPctEl) progressPctEl.textContent = progressPercentage + '% WEEK DONE';
   if (progressBarEl) progressBarEl.style.width = progressPercentage + '%';
-
-  const nextRunTitle = document.getElementById('homeNextRunTitle');
-  const nextRunDesc = document.getElementById('homeNextRunDesc');
-  if (nextRunTitle && nextRunDesc) {
-    const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    const todayIdx = dayKeys.indexOf(selectedDay);
-    let foundNextRun = false;
-    for (let offset = 1; offset <= 7; offset++) {
-      const checkDay = dayKeys[(todayIdx + offset) % 7];
-      const checkBlueprint = activeProgram.days?.[checkDay];
-      if (checkBlueprint && checkBlueprint.runs &&
-          checkBlueprint.runs.toLowerCase() !== 'rest' &&
-          !checkBlueprint.runs.toLowerCase().includes('no running') &&
-          !checkBlueprint.runs.toLowerCase().includes('no structured')) {
-        nextRunTitle.textContent = checkBlueprint.title || 'Run Day';
-        nextRunDesc.textContent = checkBlueprint.runs;
-        foundNextRun = true;
-        break;
-      }
-    }
-    if (!foundNextRun) {
-      nextRunTitle.textContent = 'No Run Scheduled';
-      nextRunDesc.textContent = 'No aerobic sessions in the current program.';
-    }
-  }
 
   const compareCard = document.getElementById('homeWeekCompareCard');
   const compareGrid = document.getElementById('homeWeekCompareGrid');

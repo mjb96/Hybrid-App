@@ -245,46 +245,6 @@ export function rankInsights(allInsights) {
     .sort((a, b) => (order[a.priority] ?? 3) - (order[b.priority] ?? 3));
 }
 
-// Generate all insights from the full analytics payload.
-export function generateAllInsights({ loadAnalytics, strengthAnalytics, runningAnalytics, recoveryAnalytics, thresholdSecs = null }) {
-  const all = [
-    ...generateLoadInsights({
-      atl:        loadAnalytics.currentATL,
-      ctl:        loadAnalytics.currentCTL,
-      ratio:      loadAnalytics.currentRatio,
-      loadProgPct: loadAnalytics.loadProgPct,
-      fatigue:    loadAnalytics.fatigue,
-      loadStatus: loadAnalytics.loadStatus,
-    }),
-    ...generateStrengthInsights({
-      volSeries:       strengthAnalytics.volSeries,
-      volProgPct:      strengthAnalytics.volProgPct,
-      liftProgression: strengthAnalytics.liftProgression,
-      muscleStatus:    strengthAnalytics.muscleStatus,
-      acwr:            strengthAnalytics.tonnageACWR,
-    }),
-    ...generateRunningInsights({
-      paceSeries:  runningAnalytics.paceSeries,
-      roi:         runningAnalytics.roi,
-      distSeries:  runningAnalytics.distSeries,
-      distProgPct: runningAnalytics.distProgPct,
-      hrZonePct:   runningAnalytics.hrZonePct,
-      bestPace:    runningAnalytics.bestPace,
-      decoupling:  runningAnalytics.decoupling,
-      vdot:        runningAnalytics.vdot,
-      thresholdSecs,
-    }),
-    ...generateRecoveryInsights({
-      recovDecline:  recoveryAnalytics.recovDecline,
-      sleep7d:       recoveryAnalytics.sleep7d,
-      hrvStat:       recoveryAnalytics.hrvStat,
-      loadStatus:    loadAnalytics.loadStatus,
-      todayWellness: recoveryAnalytics.todayWellness,
-    }),
-  ];
-  return rankInsights(all);
-}
-
 // Render insights as HTML for injection into any view.
 export function renderInsightsHTML(insights, maxShow = 5) {
   if (!insights || insights.length === 0) return '';

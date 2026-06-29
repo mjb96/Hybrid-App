@@ -33,13 +33,6 @@ export function dateKey(date = new Date(), tz = DEFAULT_TZ) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
 }
 
-// Returns a new Date offset by `days` from `base`.
-export function shiftDate(base, days) {
-  const d = new Date(base instanceof Date ? base : new Date(base));
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 // Returns 'D/M' label for a YYYY-MM-DD string, interpreted in the given timezone.
 export function formatDayMonth(dateStr, tz = DEFAULT_TZ) {
   const d = new Date(dateStr + 'T00:00:00');

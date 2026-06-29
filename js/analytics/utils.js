@@ -14,22 +14,6 @@ export function formatDist(km, unit = 'km', decimals = 1) {
   return val.toFixed(decimals) + ' ' + unit;
 }
 
-// Convert km value for display (no label)
-export function distVal(km, unit = 'km') {
-  return unit === 'mi' ? parseFloat((km * KM_TO_MI).toFixed(2)) : parseFloat(km);
-}
-
-// Pace unit label
-export function paceUnit(unit = 'km') {
-  return unit === 'mi' ? 'min/mi' : 'min/km';
-}
-
-// Convert pace (secs/km) to display pace (secs/unit)
-export function paceForUnit(secsPerKm, unit = 'km') {
-  if (!secsPerKm) return 0;
-  return unit === 'mi' ? secsPerKm / KM_TO_MI : secsPerKm;
-}
-
 export function parsePaceSeconds(distKm, timeStr) {
   if (!distKm || !timeStr || parseFloat(distKm) === 0) return 0;
   const parts = timeStr.split(':').map(Number);

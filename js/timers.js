@@ -13,8 +13,6 @@ let _restDuration = 90;       // module-level baseline duration in seconds
 let _restRemaining = 90;      // current countdown remaining
 let _restTotalDuration = 90;  // total for progress bar calculation
 
-export function getWorkoutStartTime() { return workoutStartTime; }
-
 // ==========================================
 // COMPOUND LIFT DETECTION
 // ==========================================

@@ -42,7 +42,6 @@ import {
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
-  handleExerciseDropdownSelectionChange,
   handleExerciseSearch, addExerciseToDayFromLibrary
 } from './workout.js';
 
@@ -220,7 +219,15 @@ export function hydrateCurrentView() {
 }
 
 function safeRenderExecution(renderFn, viewLabel) {
-  try { renderFn(); } catch (err) { console.warn(`[Insulation Shield] Prevented load crash on ${viewLabel}:`, err); }
+  try {
+    renderFn();
+  } catch (err) {
+    // Production: stay graceful (a render crash must never blank the app).
+    // Dev (localStorage.hybrid_debug='1'): escalate to a loud console.error so
+    // swallowed render failures are visible instead of hiding behind a warn.
+    console.warn(`[Insulation Shield] Prevented load crash on ${viewLabel}:`, err);
+    devWarn(`Render crash in ${viewLabel}`, err);
+  }
 }
 
 export function switchBrowserSectionTab(tabName) {
@@ -651,6 +658,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
+  else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
   // Timers
@@ -729,7 +737,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'sign-out')             signOut();
 
   // Onboarding
-  else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
+  else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
     handleOnboardingAction(action, target);
   }
 
@@ -791,6 +799,13 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-fasting-detail')   { openFastingDetail(); }
   else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
   else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
+  else if (action === 'open-fasting-education') {
+    // Deep-link the buried "Fasting Knowledge" section (last block of the
+    // fasting analytics view) straight from the daily fasting sheet.
+    closeFastingDetail();
+    openAnalyticsView('fasting');
+    setTimeout(() => document.getElementById('fa-edu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  }
   else if (action === 'fast-edit-history') {
     const idx = parseInt(target.dataset.index, 10);
     openHistoryEditPanel(idx, appState);
@@ -1026,6 +1041,10 @@ document.addEventListener('library:view-active', () => {
 
 document.addEventListener('library:continue-training', () => {
   switchGlobalAppTab('workout');
+});
+
+document.addEventListener('library:return', () => {
+  try { returnToLibrary(); } catch (_) {}
 });
 
 // ==========================================
