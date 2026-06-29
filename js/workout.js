@@ -2,7 +2,7 @@
 // WORKOUT VIEW
 // ==========================================
 import { getProgramById } from './state.js';
-import { CONFIG, EXERCISE_LIBRARY } from './constants.js';
+import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, getLiftDisplayName } from './engine.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
@@ -535,8 +535,11 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
 
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][liftName]) appState.weeks[wk].lifts[selectedDay][liftName] = [];
-  
-  appState.weeks[wk].lifts[selectedDay][liftName][sIdx] = { w: targetW, r: targetR, c: true };
+
+  // Merge — never replace: preserve any existing set metadata (type, rpe, isPR)
+  // so quick-logging a warmup/drop set doesn't silently demote it to a working set.
+  const _setArr = appState.weeks[wk].lifts[selectedDay][liftName];
+  _setArr[sIdx] = { ...(_setArr[sIdx] || {}), w: targetW, r: targetR, c: true };
   _ensureWorkoutDateStamp(appState, wk, selectedDay);
 
   parentRow.classList.add('is-complete');
@@ -620,7 +623,11 @@ export function commitWorkoutUIState() {
   const gCalsEl = document.getElementById('gymInputCals');
 
   if (gTimeEl && gTimeEl.offsetParent !== null) {
+    // Spread existing so .FIT-imported extras (trainingEffect, aerobicTE,
+    // gymSets) survive — they have no inputs here and would otherwise be wiped.
+    const existingGym = weekData.gymStats[selectedDay] || {};
     weekData.gymStats[selectedDay] = {
+        ...existingGym,
         time: gTimeEl.value,
         avgHR: gAvgHREl ? gAvgHREl.value : '',
         maxHR: gMaxHREl ? gMaxHREl.value : '',
@@ -757,59 +764,20 @@ export function evaluateAccordionAutoFlowTransitions() {
     showToast('Exercise Complete! ✓');
 
     expandedCard.classList.add('collapsed');
-    const nextCard = expandedCard.nextElementSibling;
-    if (nextCard && nextCard.classList.contains('cockpit-exercise') && !nextCard.classList.contains('completed')) {
+    // Advance to the next incomplete exercise in document order. Use a flat scan
+    // rather than nextElementSibling so we step across superset wrappers and
+    // connectors instead of stalling on them.
+    const allCards = Array.from(document.querySelectorAll('#cockpitExercisesContainer .cockpit-exercise'));
+    const curIdx = allCards.indexOf(expandedCard);
+    const nextCard = curIdx >= 0
+      ? allCards.slice(curIdx + 1).find(c => !c.classList.contains('completed'))
+      : null;
+    if (nextCard) {
       nextCard.classList.remove('collapsed');
       try { nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) {}
       try { moveRestTimerToActiveExercise(); } catch(e) {}
     }
   }
-}
-
-export function applyQuickFillModifier(btnNode, typeModifier, sIdx) {
-  if (!btnNode) return;
-  const appState = _getState();
-  const selectedDay = _getSelectedDay();
-
-  const row = btnNode.closest('.cockpit-set-row');
-  if (!row) return;
-  
-  const wInput = row.querySelector('.input-weight-node');
-  const rInput = row.querySelector('.input-reps-node');
-  if (!wInput || !rInput) return;
-  
-  let baseW = parseFloat(wInput.value) || 0;
-  let baseR = parseInt(rInput.value, 10) || 0;
-
-  if (typeModifier === 'match') {
-    const exCard = btnNode.closest('.cockpit-exercise');
-    if (exCard) {
-      const liftName = exCard.getAttribute('data-liftname');
-      const wkNum = parseInt(appState.currentWeek, 10);
-      if (wkNum > 1 && appState.weeks) {
-        const prevWeekData = appState.weeks[(wkNum - 1).toString()];
-        if (prevWeekData && prevWeekData.lifts?.[selectedDay]?.[liftName]) {
-          const matchedSet = prevWeekData.lifts[selectedDay][liftName][sIdx];
-          if (matchedSet) {
-            baseW = parseFloat(matchedSet.w) || 0;
-            baseR = parseInt(matchedSet.r, 10) || 0;
-          }
-        }
-      }
-    }
-  } else if (typeModifier === 'p25') baseW += (CONFIG.weightIncrement || 2.5);
-  else if (typeModifier === 'p5') baseW += (CONFIG.weightIncrement || 2.5) * 2;
-  else if (typeModifier === 'r1') baseR += (CONFIG.repsIncrement || 1);
-
-  wInput.value = baseW > 0 ? baseW : '';
-  rInput.value = baseR > 0 ? baseR : '';
-  updateInputState(wInput);
-  updateInputState(rInput);
-}
-
-export function toggleQuickPad(rowEl) {
-  if (!rowEl) return;
-  rowEl.classList.toggle('pad-visible');
 }
 
 export function appendCustomSetRow(btnNode, liftName) {
@@ -1164,7 +1132,8 @@ export function openFinishSessionModal() {
   for (let lift in liftsData) {
     if (Array.isArray(liftsData[lift])) {
       liftsData[lift].forEach(s => {
-        if (s && s.c) { vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); setsDone++; }
+        // Exclude warmups so the summary tonnage/sets match home & analytics.
+        if (s && s.c && s.type !== 'W') { vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); setsDone++; }
       });
     }
   }
@@ -1226,13 +1195,10 @@ document.addEventListener('click', (e) => {
   
   // Context extractors
   const exCard = target.closest('.cockpit-exercise');
-  const row = target.closest('.cockpit-set-row');
   const liftName = exCard ? exCard.getAttribute('data-liftname') : target.getAttribute('data-liftname');
   const sIdx = parseInt(target.getAttribute('data-sidx'), 10);
 
   if (action === 'quick-log') executeOneTapQuickLog(target, liftName, sIdx);
-  else if (action === 'quick-modifier') applyQuickFillModifier(target, target.getAttribute('data-modifier'), sIdx);
-  else if (action === 'toggle-pad') toggleQuickPad(row);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);

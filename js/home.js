@@ -370,10 +370,10 @@ export function renderHome() {
         const pLifts = prevWkData.lifts?.[d] || {};
         for (const l in pLifts) {
           if (Array.isArray(pLifts[l])) {
-            pLifts[l].forEach(s => { 
+            pLifts[l].forEach(s => {
               if (s) {
                 const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
-                if (isCompleted) prevVol += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0); 
+                if (isCompleted && s.type !== 'W') prevVol += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
               }
             });
           }
@@ -381,10 +381,10 @@ export function renderHome() {
         const cLifts = weekData.lifts?.[d] || {};
         for (const l in cLifts) {
           if (Array.isArray(cLifts[l])) {
-            cLifts[l].forEach(s => { 
+            cLifts[l].forEach(s => {
               if (s) {
                 const isCompleted = s.c === true || s.c === "true" || s.c === "on" || s.c === 1;
-                if (isCompleted) currentWeekVolSum += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0); 
+                if (isCompleted && s.type !== 'W') currentWeekVolSum += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
               }
             });
           }

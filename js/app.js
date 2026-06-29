@@ -37,8 +37,8 @@ import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
   updateInputState, commitWorkoutUIState, toggleGymCheckLoggingState,
-  applyQuickFillModifier, appendCustomSetRow, removeCustomSetRow,
-  toggleAccordionManual, toggleQuickPad,
+  appendCustomSetRow, removeCustomSetRow,
+  toggleAccordionManual,
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
@@ -65,6 +65,7 @@ import {
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
+import { orderedLiftNames } from './workout-order.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
@@ -541,7 +542,10 @@ export function openTodaySummaryModal() {
   if (breakdownEl) {
     if (hasLift && weekData) {
       const dayLifts = weekData.lifts?.[todayKey] || {};
-      const liftNames = Object.keys(dayLifts).filter(l => Array.isArray(dayLifts[l]) && dayLifts[l].length > 0);
+      // Order identically to the cockpit (liftOrder / blueprint), not raw object
+      // keys — otherwise drag-reordered or integer-keyed days list out of sequence.
+      const _bp = getProgramById(appState.activeProgramId)?.days?.[todayKey];
+      const liftNames = orderedLiftNames(weekData, todayKey, _bp).filter(l => Array.isArray(dayLifts[l]) && dayLifts[l].length > 0);
       if (liftNames.length > 0) {
         let html = '<div class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">Set Breakdown</div>';
         liftNames.forEach(lift => {

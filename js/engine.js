@@ -133,7 +133,7 @@ export function computeGAP(distKm, elapsedSec, altitude) {
 // TEXT DESCRIPTION PARSER ENGINE
 // ==========================================
 export function parseTargetFromDescription(descString, liftName) {
-  let result = { sets: 3, reps: 10 };
+  let result = { sets: 3, reps: 10, matched: false };
   if (!descString || !liftName) return result;
 
   try {
@@ -144,6 +144,7 @@ export function parseTargetFromDescription(descString, liftName) {
     const match = descString.match(regex);
 
     if (match) {
+      result.matched = true;
       result.sets = parseInt(match[1], 10) || 3;
       
       // Normalize en-dashes (–) to standard hyphens (-) before splitting
@@ -262,7 +263,10 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
 // ==========================================
 export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier) {
   const parsedTarget = parseTargetFromDescription(desc, liftName);
-  const usesInlineSpec = desc && desc.includes('x');
+  // Use the parser's own (lift-anchored, [xX×]-aware) match result rather than a
+  // loose desc.includes('x') — the latter missed '×'/'X' specs and false-fired on
+  // incidental letters (e.g. "Box Squat", "Max effort").
+  const usesInlineSpec = parsedTarget.matched;
   let setsCount  = usesInlineSpec ? parsedTarget.sets : (weekModifier.sets || 4);
   let repsTarget = usesInlineSpec ? parsedTarget.reps : (weekModifier.reps || 5);
 
