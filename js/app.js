@@ -219,7 +219,15 @@ export function hydrateCurrentView() {
 }
 
 function safeRenderExecution(renderFn, viewLabel) {
-  try { renderFn(); } catch (err) { console.warn(`[Insulation Shield] Prevented load crash on ${viewLabel}:`, err); }
+  try {
+    renderFn();
+  } catch (err) {
+    // Production: stay graceful (a render crash must never blank the app).
+    // Dev (localStorage.hybrid_debug='1'): escalate to a loud console.error so
+    // swallowed render failures are visible instead of hiding behind a warn.
+    console.warn(`[Insulation Shield] Prevented load crash on ${viewLabel}:`, err);
+    devWarn(`Render crash in ${viewLabel}`, err);
+  }
 }
 
 export function switchBrowserSectionTab(tabName) {
