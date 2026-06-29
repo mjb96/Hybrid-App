@@ -55,18 +55,3 @@ export const CATALOG_MAP = Object.fromEntries(
 export function getCatalogEntry(id) {
   return CATALOG_MAP[id] || null;
 }
-
-// Get all programs for a category
-export function getProgramsByCategory(category) {
-  return PROGRAM_CATALOG.filter(p => p.category === category);
-}
-
-// Get featured programs
-export function getFeaturedPrograms() {
-  return PROGRAM_CATALOG.filter(p => p.featured);
-}
-
-// Get programs for a collection key
-export function getProgramsForCollection(collectionKey) {
-  return PROGRAM_CATALOG.filter(p => p.collections?.includes(collectionKey));
-}

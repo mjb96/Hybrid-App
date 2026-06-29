@@ -6,14 +6,6 @@
 // =============================================================================
 import { DashboardTileType } from '../dashboard.js';
 
-export function renderTileLoading() {
-  return `
-    <div class="tile-skeleton-line" style="width:60%;height:12px;border-radius:4px;margin-bottom:8px;"></div>
-    <div class="tile-skeleton-line" style="width:40%;height:22px;border-radius:4px;margin-bottom:6px;"></div>
-    <div class="tile-skeleton-line" style="width:80%;height:10px;border-radius:4px;"></div>
-  `;
-}
-
 export function renderTileError(label) {
   return `
     <div class="card-icon-title text-muted"><span>⚠️</span> ${label}</div>

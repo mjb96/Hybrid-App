@@ -145,30 +145,6 @@ export function _countTotalWorkouts(state, days) {
   return count;
 }
 
-export function _computeWeekVolume(state, days, weekNum) {
-  const wkData = (state.weeks || {})[String(weekNum)];
-  if (!wkData) return 0;
-  let volume = 0;
-  days.forEach(d => {
-    const dayLifts = wkData.lifts?.[d] || {};
-    for (const lift in dayLifts) {
-      if (!Array.isArray(dayLifts[lift])) continue;
-      dayLifts[lift].forEach(s => {
-        if (_isSet(s)) volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
-      });
-    }
-  });
-  return volume;
-}
-
-export function _computeWeekDistance(state, days, weekNum) {
-  const wkData = (state.weeks || {})[String(weekNum)];
-  if (!wkData) return 0;
-  let dist = 0;
-  days.forEach(d => { dist += parseFloat(wkData.runs?.[d]?.dist) || 0; });
-  return dist;
-}
-
 export function _computeRunningPBs(state, days) {
   const brackets = [
     { label: '5K',       minKm: 4.5,  maxKm: 5.5  },
@@ -451,25 +427,6 @@ export function _fmtPace(secsPerKm) {
   const m = Math.floor(secsPerKm / 60);
   const s = Math.round(secsPerKm % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// Returns best e1RM (and lift name) across a group of lift-name variants.
-export function _bestLiftFromGroup(state, days, liftNames) {
-  let bestName = null, bestVal = 0;
-  for (const liftName of liftNames) {
-    for (const wkData of Object.values(state.weeks || {})) {
-      for (const d of days) {
-        const sets = wkData?.lifts?.[d]?.[liftName];
-        if (!Array.isArray(sets)) continue;
-        for (const s of sets) {
-          if (!_isSet(s)) continue;
-          const e = (parseFloat(s.w) || 0) * (1 + (parseInt(s.r, 10) || 0) / 30);
-          if (e > bestVal) { bestVal = e; bestName = liftName; }
-        }
-      }
-    }
-  }
-  return bestName ? { name: bestName, max: bestVal } : null;
 }
 
 // Compares best e1RM in last 4 weeks vs older history. Returns { diff, dir } or null.

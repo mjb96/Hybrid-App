@@ -121,10 +121,3 @@ export function statCard({ label, value, unit = '', delta = null, sub = '', colo
     ${statusHtml}
   </article>`;
 }
-
-// Insight banner HTML (for view-level important note).
-export function sectionInsightBanner(text, type = 'info') {
-  return `<div class="an-insight an-insight--${type}" style="margin-bottom:12px;border-radius:8px;">
-    <span>${text}</span>
-  </div>`;
-}

@@ -74,21 +74,6 @@ export function loadProgressionPct(loadSeries) {
   return pctChange(loadSeries[n - 2], loadSeries[n - 1]);
 }
 
-// Volume of training in each zone based on run pace data.
-// Zones: easy (<80% T-pace), moderate (80-95%), threshold (95-105%), hard (>105%)
-export function runZoneDistribution(weeklyPaceSeries, thresholdSecs) {
-  if (!thresholdSecs) return null;
-  const zones = { easy: 0, moderate: 0, threshold: 0, hard: 0 };
-  weeklyPaceSeries.filter(p => p > 0).forEach(pace => {
-    const ratio = pace / thresholdSecs;
-    if (ratio > 1.2)        zones.easy++;
-    else if (ratio > 1.05)  zones.moderate++;
-    else if (ratio > 0.95)  zones.threshold++;
-    else                    zones.hard++;
-  });
-  return zones;
-}
-
 // Training Monotony: mean / stdDev of recent weekly loads (Foster's method).
 // High monotony (>2) = repetitive, increases injury risk.
 export function trainingMonotony(weeklyTotalSeries, lookback = 7) {
