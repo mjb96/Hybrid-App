@@ -47,6 +47,10 @@ export function renderProgramDetail(programId, appState) {
       <div class="detail-back-actions">
         ${isActive ? '<span class="detail-active-badge">ACTIVE</span>' : ''}
         ${completed ? '<span class="detail-completed-badge">COMPLETED</span>' : ''}
+        <button class="detail-bookmark-btn"
+                data-action="rate-program"
+                data-program-id="${programId}"
+                aria-label="Rate this program">⭐</button>
         <button class="detail-bookmark-btn ${saved ? 'saved' : ''}"
                 data-action="detail-toggle-bookmark"
                 data-program-id="${programId}"
