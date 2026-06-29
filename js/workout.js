@@ -1073,10 +1073,6 @@ export function addExerciseToDayFromLibrary(name) {
   showToast(`Added: ${name}`);
 }
 
-// Keep populateExerciseDropdown as no-op for compat
-export function populateExerciseDropdown() {}
-export function handleExerciseDropdownSelectionChange() {}
-
 export function openAddExerciseModal() {
   const modal = document.getElementById('addExerciseModal');
   if (!modal) return;
@@ -1265,8 +1261,6 @@ document.addEventListener('change', (e) => {
     updateInputState(target);
   } else if (target.classList.contains('gym-check')) {
     toggleGymCheckLoggingState(target);
-  } else if (target.id === 'newExerciseSelect') {
-    handleExerciseDropdownSelectionChange();
   }
 });
 

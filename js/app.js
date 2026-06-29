@@ -42,7 +42,6 @@ import {
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
-  handleExerciseDropdownSelectionChange,
   handleExerciseSearch, addExerciseToDayFromLibrary
 } from './workout.js';
 
@@ -651,6 +650,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
+  else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
   // Timers
@@ -729,7 +729,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'sign-out')             signOut();
 
   // Onboarding
-  else if (['ob-next','ob-back','ob-goal','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
+  else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
     handleOnboardingAction(action, target);
   }
 

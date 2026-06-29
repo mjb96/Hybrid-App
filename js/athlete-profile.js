@@ -7,6 +7,7 @@ import { getLiftDisplayName } from './engine.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 import { showToast } from './state.js';
 import { createSortable } from './ui/sortable.js';
+import { computeStreak } from './home/dashboard-model.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -46,8 +47,11 @@ export function renderAthleteProfile() {
     : '?';
 
   const activeCatalog = state.activeProgramId ? getCatalogEntry(state.activeProgramId) : null;
-  const streak        = state.streakData?.current || 0;
-  const longestStreak = state.streakData?.longest || 0;
+  // Streak is derived live from logged training days (single source of truth,
+  // shared with the dashboard) — the legacy state.streakData was never written.
+  const liveStreak    = computeStreak(state.weeks || {}, days, state);
+  const streak        = liveStreak.current;
+  const longestStreak = liveStreak.longest;
   const completions   = state.programLibrary?.completions || [];
   const totalWorkouts = _countTotalWorkouts(state, days);
   const weightUnit    = state.settings?.weightUnit || 'kg';
@@ -395,7 +399,7 @@ function shareProfileCard() {
   const prog       = _athleteProgression(
     lifetime,
     (state.programLibrary?.completions || []).length,
-    state.streakData?.longest || 0,
+    computeStreak(state.weeks || {}, days, state).longest,
     Object.keys(state.prGoals || {}).length
   );
 
