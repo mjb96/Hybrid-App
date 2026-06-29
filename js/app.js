@@ -1028,6 +1028,10 @@ document.addEventListener('library:continue-training', () => {
   switchGlobalAppTab('workout');
 });
 
+document.addEventListener('library:return', () => {
+  try { returnToLibrary(); } catch (_) {}
+});
+
 // ==========================================
 // BOOTSTRAP AND INITIALIZATION
 // ==========================================

@@ -4,7 +4,7 @@
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { getSimilarPrograms } from './recommendations.js';
-import { renderProgramCard, returnToLibrary } from './library.js';
+import { renderProgramCard } from './program-card.js';
 import { PROGRAMS } from '../constants.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted } from '../state.js';
 import { escapeHtml } from '../util.js';
@@ -455,7 +455,9 @@ function getAuthorTypeLabel(type) {
 }
 
 export function closeProgramDetail() {
-  returnToLibrary();
+  // Decoupled from library.js (avoids a circular import); app.js owns the
+  // library:return handler and calls returnToLibrary().
+  document.dispatchEvent(new CustomEvent('library:return'));
 }
 
 // ── Workout Preview Modal ─────────────────────────────────────────────────────
