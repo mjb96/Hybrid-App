@@ -37,7 +37,7 @@ export function moveRestTimerToActiveExercise() {
     timerBar.style.bottom = "auto";
     timerBar.style.left = "auto";
   } else {
-    document.getElementById('view-workout').appendChild(timerBar);
+    document.getElementById('view-workout')?.appendChild(timerBar);
     timerBar.style.position = "fixed";
     timerBar.style.bottom = "85px";
     timerBar.style.width = "calc(100% - 32px)";
@@ -185,7 +185,7 @@ export function dismissRestTimer() {
 
   if (timerBar) {
     timerBar.classList.remove('active', 'rest-warning', 'rest-done');
-    document.getElementById('view-workout').appendChild(timerBar);
+    document.getElementById('view-workout')?.appendChild(timerBar);
     timerBar.style.position = "fixed";
     timerBar.style.bottom = "85px";
     timerBar.style.width = "calc(100% - 32px)";

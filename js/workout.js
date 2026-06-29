@@ -2,8 +2,9 @@
 // WORKOUT VIEW
 // ==========================================
 import { getProgramById } from './state.js';
-import { CONFIG, EXERCISE_LIBRARY } from './constants.js';
-import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, getLiftDisplayName } from './engine.js';
+import { EXERCISE_LIBRARY } from './constants.js';
+import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs } from './engine.js';
+import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
@@ -13,11 +14,34 @@ import { orderedLiftNames } from './workout-order.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
+import { dateKey } from './dates.js';
 
 let _getState;
 let _getSelectedDay;
 
+// ── Distance-unit helpers ──────────────────────────────────────────────────────
+// Distance is stored canonically in km everywhere. The cockpit run panel accepts
+// and displays the user's configured unit (km|mi) and converts on the boundary.
+const KM_TO_MI = 0.621371;
+function _runDistUnit(appState) {
+  return appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
+}
+function _kmToDisplayDist(km, unit) {
+  const n = parseFloat(km);
+  if (!isFinite(n)) return '';
+  const v = unit === 'mi' ? n * KM_TO_MI : n;
+  return String(Math.round(v * 100) / 100);
+}
+function _displayDistToKm(val, unit) {
+  const n = parseFloat(val);
+  if (!isFinite(n)) return '';
+  const km = unit === 'mi' ? n / KM_TO_MI : n;
+  return String(Math.round(km * 1000) / 1000);
+}
+
 // ── Pace helpers ──────────────────────────────────────────────────────────────
+// Note: _paceFromDistTime divides time by whatever distance number it is given,
+// so passing a display-unit distance yields a per-display-unit pace.
 function _paceFromDistTime(distKm, timeStr) {
   const dist = parseFloat(distKm);
   if (!dist || dist <= 0 || !timeStr) return '';
@@ -95,7 +119,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   if (!isNaN(liftName) && homeBlueprint.lifts?.[parseInt(liftName, 10)]) {
     displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
   } else {
-    displayLiftName = getLiftDisplayName(appState, liftName);
+    displayLiftName = liftName;
   }
 
   let blueprintLabel = 'Target: Working Sets';
@@ -188,7 +212,9 @@ export function renderWorkout() {
   const calsEl       = document.getElementById('runInputCals');
   const runExtraStatsRow = document.getElementById('runExtraStats');
 
-  if (distEl)       distEl.value       = runContext.dist        || '';
+  const distUnit = _runDistUnit(appState);
+  if (distEl)       distEl.value       = (runContext.dist === '' || runContext.dist == null)
+                                           ? '' : _kmToDisplayDist(runContext.dist, distUnit);
   if (timeEl)       timeEl.value       = runContext.time        || '';
   if (rpeCockpitEl) rpeCockpitEl.value = runContext.rpe         || '';
   if (notesRunEl)   notesRunEl.value   = runContext.notes       || '';
@@ -197,11 +223,18 @@ export function renderWorkout() {
   if (elevEl)       elevEl.value       = runContext.elev        || '';
   if (calsEl)       calsEl.value       = runContext.cals        || '';
 
-  // Restore or compute pace
+  // Restore or compute pace (per the user's display unit)
   if (paceEl) {
-    const storedPace = runContext.pace || _paceFromDistTime(runContext.dist, runContext.time);
-    paceEl.value = storedPace ? `${storedPace}` : '';
+    const dispDist = _kmToDisplayDist(runContext.dist, distUnit);
+    const computedPace = _paceFromDistTime(dispDist, runContext.time);
+    paceEl.value = computedPace || runContext.pace || '';
+    paceEl.placeholder = `—:—— /${distUnit}`;
   }
+  // Distance + pace unit labels track the configured unit.
+  const distLabelEl = document.getElementById('runDistUnitLabel');
+  if (distLabelEl) distLabelEl.textContent = distUnit === 'mi' ? 'Dist MI' : 'Dist KM';
+  const paceUnitEl = document.getElementById('runPaceUnit');
+  if (paceUnitEl) paceUnitEl.textContent = `/${distUnit}`;
 
   const hasRunExtra = runContext.avgHR || runContext.maxHR || runContext.elev || runContext.cals ||
                       runContext.avgCadence || runContext.descent || runContext.trainingEffect ||
@@ -496,7 +529,7 @@ function _ensureWorkoutDateStamp(appState, wk, day) {
   const hasCompleted = Object.values(dayLifts).some(sets => Array.isArray(sets) && sets.some(s => s?.c));
   if (!hasCompleted) return;
   if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
-  if (!appState.weeks[wk].dates[day]) appState.weeks[wk].dates[day] = new Date().toISOString().slice(0, 10);
+  if (!appState.weeks[wk].dates[day]) appState.weeks[wk].dates[day] = dateKey();
 }
 
 export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
@@ -535,8 +568,11 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
 
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][liftName]) appState.weeks[wk].lifts[selectedDay][liftName] = [];
-  
-  appState.weeks[wk].lifts[selectedDay][liftName][sIdx] = { w: targetW, r: targetR, c: true };
+
+  // Merge — never replace: preserve any existing set metadata (type, rpe, isPR)
+  // so quick-logging a warmup/drop set doesn't silently demote it to a working set.
+  const _setArr = appState.weeks[wk].lifts[selectedDay][liftName];
+  _setArr[sIdx] = { ...(_setArr[sIdx] || {}), w: targetW, r: targetR, c: true };
   _ensureWorkoutDateStamp(appState, wk, selectedDay);
 
   parentRow.classList.add('is-complete');
@@ -599,9 +635,11 @@ export function commitWorkoutUIState() {
 
   if (distEl && distEl.offsetParent !== null) {
     const existing = weekData.runs[selectedDay] || {};
+    const distUnit = _runDistUnit(appState);
     weekData.runs[selectedDay] = {
       ...existing,
-      dist:  distEl.value,
+      // Convert the entered display-unit distance back to canonical km.
+      dist:  distEl.value === '' ? '' : _displayDistToKm(distEl.value, distUnit),
       time:  timeEl.value,
       rpe:   rpeRunEl.value,
       pace:  paceEl   ? paceEl.value   : '',
@@ -620,7 +658,11 @@ export function commitWorkoutUIState() {
   const gCalsEl = document.getElementById('gymInputCals');
 
   if (gTimeEl && gTimeEl.offsetParent !== null) {
+    // Spread existing so .FIT-imported extras (trainingEffect, aerobicTE,
+    // gymSets) survive — they have no inputs here and would otherwise be wiped.
+    const existingGym = weekData.gymStats[selectedDay] || {};
     weekData.gymStats[selectedDay] = {
+        ...existingGym,
         time: gTimeEl.value,
         avgHR: gAvgHREl ? gAvgHREl.value : '',
         maxHR: gMaxHREl ? gMaxHREl.value : '',
@@ -711,7 +753,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       // Stamp workout date on first set completion for this day
       if (!_appState.weeks[_wk].dates) _appState.weeks[_wk].dates = {};
       if (!_appState.weeks[_wk].dates[_selDay]) {
-        _appState.weeks[_wk].dates[_selDay] = new Date().toISOString().slice(0, 10);
+        _appState.weeks[_wk].dates[_selDay] = dateKey();
       }
 
       // PR detection — compare this set's e1RM against stored all-time max
@@ -757,59 +799,20 @@ export function evaluateAccordionAutoFlowTransitions() {
     showToast('Exercise Complete! ✓');
 
     expandedCard.classList.add('collapsed');
-    const nextCard = expandedCard.nextElementSibling;
-    if (nextCard && nextCard.classList.contains('cockpit-exercise') && !nextCard.classList.contains('completed')) {
+    // Advance to the next incomplete exercise in document order. Use a flat scan
+    // rather than nextElementSibling so we step across superset wrappers and
+    // connectors instead of stalling on them.
+    const allCards = Array.from(document.querySelectorAll('#cockpitExercisesContainer .cockpit-exercise'));
+    const curIdx = allCards.indexOf(expandedCard);
+    const nextCard = curIdx >= 0
+      ? allCards.slice(curIdx + 1).find(c => !c.classList.contains('completed'))
+      : null;
+    if (nextCard) {
       nextCard.classList.remove('collapsed');
       try { nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) {}
       try { moveRestTimerToActiveExercise(); } catch(e) {}
     }
   }
-}
-
-export function applyQuickFillModifier(btnNode, typeModifier, sIdx) {
-  if (!btnNode) return;
-  const appState = _getState();
-  const selectedDay = _getSelectedDay();
-
-  const row = btnNode.closest('.cockpit-set-row');
-  if (!row) return;
-  
-  const wInput = row.querySelector('.input-weight-node');
-  const rInput = row.querySelector('.input-reps-node');
-  if (!wInput || !rInput) return;
-  
-  let baseW = parseFloat(wInput.value) || 0;
-  let baseR = parseInt(rInput.value, 10) || 0;
-
-  if (typeModifier === 'match') {
-    const exCard = btnNode.closest('.cockpit-exercise');
-    if (exCard) {
-      const liftName = exCard.getAttribute('data-liftname');
-      const wkNum = parseInt(appState.currentWeek, 10);
-      if (wkNum > 1 && appState.weeks) {
-        const prevWeekData = appState.weeks[(wkNum - 1).toString()];
-        if (prevWeekData && prevWeekData.lifts?.[selectedDay]?.[liftName]) {
-          const matchedSet = prevWeekData.lifts[selectedDay][liftName][sIdx];
-          if (matchedSet) {
-            baseW = parseFloat(matchedSet.w) || 0;
-            baseR = parseInt(matchedSet.r, 10) || 0;
-          }
-        }
-      }
-    }
-  } else if (typeModifier === 'p25') baseW += (CONFIG.weightIncrement || 2.5);
-  else if (typeModifier === 'p5') baseW += (CONFIG.weightIncrement || 2.5) * 2;
-  else if (typeModifier === 'r1') baseR += (CONFIG.repsIncrement || 1);
-
-  wInput.value = baseW > 0 ? baseW : '';
-  rInput.value = baseR > 0 ? baseR : '';
-  updateInputState(wInput);
-  updateInputState(rInput);
-}
-
-export function toggleQuickPad(rowEl) {
-  if (!rowEl) return;
-  rowEl.classList.toggle('pad-visible');
 }
 
 export function appendCustomSetRow(btnNode, liftName) {
@@ -917,7 +920,7 @@ export function showSupersetLinkPanel(exCard) {
   if (myGroupId) {
     const partners = Object.keys(dayMeta).filter(n => n !== liftName && dayMeta[n]?.groupId === myGroupId);
     panel.innerHTML = `
-      <div class="ss-panel-title">Superset ${escapeHtml(String(myGroupId))} — paired with: ${partners.map(n => escapeHtml(getLiftDisplayName(appState, n))).join(', ') || 'none'}</div>
+      <div class="ss-panel-title">Superset ${escapeHtml(String(myGroupId))} — paired with: ${partners.map(n => escapeHtml(n)).join(', ') || 'none'}</div>
       <button class="btn-pad" style="color:#ef4444;border-color:rgba(239,68,68,0.3);" data-action="unlink-superset" data-liftname="${liftName}">Unlink superset</button>`;
   } else if (others.length === 0) {
     panel.innerHTML = `<div class="ss-panel-title" style="color:#94a3b8;">Add more exercises to pair as a superset.</div>`;
@@ -925,7 +928,7 @@ export function showSupersetLinkPanel(exCard) {
     let html = '<div class="ss-panel-title">Pair with:</div>';
     others.forEach(name => {
       const safe    = name.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-      const display = getLiftDisplayName(appState, name);
+      const display = name;
       html += `<button class="btn-pad" data-action="link-superset" data-liftname="${liftName}" data-partner="${safe}">${escapeHtml(display)}</button>`;
     });
     panel.innerHTML = html;
@@ -1164,7 +1167,8 @@ export function openFinishSessionModal() {
   for (let lift in liftsData) {
     if (Array.isArray(liftsData[lift])) {
       liftsData[lift].forEach(s => {
-        if (s && s.c) { vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); setsDone++; }
+        // Exclude warmups so the summary tonnage/sets match home & analytics.
+        if (isCompletedSet(s) && !isWarmupSet(s)) { vol += setVolume(s); setsDone++; }
       });
     }
   }
@@ -1226,13 +1230,10 @@ document.addEventListener('click', (e) => {
   
   // Context extractors
   const exCard = target.closest('.cockpit-exercise');
-  const row = target.closest('.cockpit-set-row');
   const liftName = exCard ? exCard.getAttribute('data-liftname') : target.getAttribute('data-liftname');
   const sIdx = parseInt(target.getAttribute('data-sidx'), 10);
 
   if (action === 'quick-log') executeOneTapQuickLog(target, liftName, sIdx);
-  else if (action === 'quick-modifier') applyQuickFillModifier(target, target.getAttribute('data-modifier'), sIdx);
-  else if (action === 'toggle-pad') toggleQuickPad(row);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);

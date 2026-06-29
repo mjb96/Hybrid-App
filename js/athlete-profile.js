@@ -3,7 +3,6 @@
 // ATHLETE PROFILE — Personal training identity and performance summary
 // =============================================================================
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
-import { getLiftDisplayName } from './engine.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 import { showToast } from './state.js';
 import { createSortable } from './ui/sortable.js';
@@ -622,7 +621,7 @@ function openSessionDetailModal(el) {
         const allSets       = dayLifts[lift];
         const completedSets = allSets.filter(s => s && s.c);
         if (completedSets.length === 0) return;
-        const displayName = getLiftDisplayName(state, lift);
+        const displayName = lift;
         html += `<div class="sds-lift"><div class="sds-lift-name">${_esc(displayName)}</div>`;
         let workingSetNum = 0;
         completedSets.forEach(s => {

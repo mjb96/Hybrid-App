@@ -2,6 +2,7 @@
 // MANUAL RUN LOGGER
 // ==========================================
 import { saveStateToLocalStorage, showToast } from './state.js';
+import { dateKey } from './dates.js';
 
 let _getState;
 
@@ -78,7 +79,7 @@ export function saveManualRun() {
 
   if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
   if (!appState.weeks[wk].dates[activeDay]) {
-    appState.weeks[wk].dates[activeDay] = new Date().toISOString().slice(0, 10);
+    appState.weeks[wk].dates[activeDay] = dateKey();
   }
 
   saveStateToLocalStorage(true);

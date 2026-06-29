@@ -6,10 +6,6 @@ const FULL_MONTH = ['January','February','March','April','May','June','July','Au
 const _MN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const _DN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-function _resolveLiftName(appState, id) {
-  return (appState.liftNames && appState.liftNames[id]) || id;
-}
-
 function _buildActivityMap(appState) {
   const map = {};
   const weeks = appState.weeks || {};
@@ -38,7 +34,7 @@ function _buildActivityMap(appState) {
           const done = dayLifts[ln].filter(s => s?.c);
           if (done.length > 0) {
             completedSets += done.length;
-            exercises.push(_resolveLiftName(appState, ln));
+            exercises.push(ln);
           }
         }
       }

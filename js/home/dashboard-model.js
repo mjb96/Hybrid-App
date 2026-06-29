@@ -18,6 +18,7 @@ import { trainingStatus } from '../brain/briefing.js';
 import { generateRecommendation } from '../brain/recommendations.js';
 import { computeReadiness, readinessStatus, readinessColor } from '../analytics/scoring/readiness-scoring.js';
 import { getFastingContext } from '../fasting.js';
+import { isCompletedSet as isDone } from '../set-utils.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -27,7 +28,6 @@ const TONE_COLOR = {
   warning:  'var(--color-red)',
 };
 
-const isDone = (s) => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1);
 const num = (v) => parseFloat(v) || 0;
 
 // Last `n` non-undefined values of a series (for sparklines).
@@ -273,7 +273,7 @@ function computeBig3(state) {
     for (const day in lifts) {
       for (const lift in lifts[day]) {
         if (!Array.isArray(lifts[day][lift])) continue;
-        const name = (state?.liftNames?.[lift] || lift).toLowerCase();
+        const name = lift.toLowerCase();
         lifts[day][lift].forEach(s => {
           if (!isDone(s) || s.type === 'W' || s.isWarmup) return;
           const w0 = num(s.w), r0 = parseInt(s.r, 10) || 0;

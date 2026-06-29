@@ -2,7 +2,7 @@
 // PERFORMANCE MATRIX — analytics.js (orchestrator)
 // ==========================================
 import { getProgramById, saveStateToLocalStorage } from './state.js';
-import { getLiftDisplayName } from './engine.js';
+import { isCompletedSet } from './set-utils.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
 import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
@@ -123,7 +123,7 @@ function collectAnalyticsData() {
         for (const lift in dayLifts) {
           if (!Array.isArray(dayLifts[lift])) continue;
 
-          const displayName = getLiftDisplayName(appState, lift);
+          const displayName = lift;
 
           if (!data.dynamicStats[displayName]) {
             data.dynamicStats[displayName] = { allTimeMax: 0, currentEstimatedMax: 0, previousWeekMax: 0 };
@@ -132,7 +132,7 @@ function collectAnalyticsData() {
           const prevWeek = (parseInt(appState.currentWeek, 10) - 1).toString();
 
           dayLifts[lift].forEach(s => {
-            const completed = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+            const completed = isCompletedSet(s);
             const weight = parseFloat(s.w) || 0;
             const reps   = parseInt(s.r, 10) || 0;
 
@@ -197,7 +197,7 @@ function collectAnalyticsData() {
       for (const lift in dayLifts) {
         if (!Array.isArray(dayLifts[lift])) continue;
         dayLifts[lift].forEach(s => {
-          const completed = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+          const completed = isCompletedSet(s);
           if (completed && s.type !== 'W') {
             weekVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
             data.globalTotalSets++;
@@ -248,7 +248,7 @@ function collectAnalyticsData() {
       for (const lift in dayLifts) {
         if (!Array.isArray(dayLifts[lift])) continue;
         dayLifts[lift].forEach(s => {
-          if (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1) completedSets++;
+          if (isCompletedSet(s)) completedSets++;
         });
       }
       const gymHasData = completedSets > 0;

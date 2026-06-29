@@ -15,7 +15,7 @@
 // Dispatches: CustomEvent 'gps:route-saved' { detail: { week, day, distKm } }
 // ==========================================
 import { saveMapToDB } from './db.js';
-import { showToast }   from './state.js';
+import { showToast, appState } from './state.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
@@ -309,7 +309,11 @@ export async function stopTracking(week, day) {
   const distInput = document.getElementById('runInputDist');
   const timeInput = document.getElementById('runInputTime');
   if (distInput) {
-    distInput.value = finalDist.toFixed(2);
+    // finalDist is km; fill the box in the user's configured unit so the
+    // cockpit's km<->display conversion round-trips correctly.
+    const unit = appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
+    const dispDist = unit === 'mi' ? finalDist * 0.621371 : finalDist;
+    distInput.value = dispDist.toFixed(2);
     distInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
   if (timeInput) {

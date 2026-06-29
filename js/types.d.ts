@@ -75,8 +75,6 @@ export interface AppState {
   streakData: StreakData;
   goalData: GoalData;
   prGoals: Record<string, any>;
-  liftNames: Record<string, string>;
-  liftIdMap: Record<string, string>;
   loadMetrics: LoadMetrics;
   healthConnect: HealthConnectState;
   wellnessLog: any[];

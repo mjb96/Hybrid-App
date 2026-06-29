@@ -30,15 +30,15 @@ import {
   applyDeloadToCurrentWeek,
 } from './state.js';
 
-import { initEngine, shouldSuggestDeload, getLiftDisplayName } from './engine.js';
+import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
 import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
   updateInputState, commitWorkoutUIState, toggleGymCheckLoggingState,
-  applyQuickFillModifier, appendCustomSetRow, removeCustomSetRow,
-  toggleAccordionManual, toggleQuickPad,
+  appendCustomSetRow, removeCustomSetRow,
+  toggleAccordionManual,
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
@@ -65,6 +65,9 @@ import {
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
+import { orderedLiftNames } from './workout-order.js';
+import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
+import { dateKey } from './dates.js';
 import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
@@ -498,9 +501,9 @@ export function openTodaySummaryModal() {
     for (const lift in dayLifts) {
       if (Array.isArray(dayLifts[lift])) {
         dayLifts[lift].forEach(s => {
-          if (s && s.c && s.type !== 'W') {
+          if (isCompletedSet(s) && !isWarmupSet(s)) {
             sets++;
-            volume += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
+            volume += setVolume(s);
           }
         });
       }
@@ -541,13 +544,16 @@ export function openTodaySummaryModal() {
   if (breakdownEl) {
     if (hasLift && weekData) {
       const dayLifts = weekData.lifts?.[todayKey] || {};
-      const liftNames = Object.keys(dayLifts).filter(l => Array.isArray(dayLifts[l]) && dayLifts[l].length > 0);
+      // Order identically to the cockpit (liftOrder / blueprint), not raw object
+      // keys — otherwise drag-reordered or integer-keyed days list out of sequence.
+      const _bp = getProgramById(appState.activeProgramId)?.days?.[todayKey];
+      const liftNames = orderedLiftNames(weekData, todayKey, _bp).filter(l => Array.isArray(dayLifts[l]) && dayLifts[l].length > 0);
       if (liftNames.length > 0) {
         let html = '<div class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">Set Breakdown</div>';
         liftNames.forEach(lift => {
           const completedSets = dayLifts[lift].filter(s => s && s.c);
           if (completedSets.length === 0) return;
-          const displayLiftName = getLiftDisplayName(appState, lift);
+          const displayLiftName = lift;
           html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${escapeHtml(displayLiftName)}</div>`;
           completedSets.forEach((s, idx) => {
             const typeLabel = s.type === 'W' ? 'W' : s.type === 'D' ? `D${idx + 1}` : s.type === 'F' ? 'F' : `S${idx + 1}`;
@@ -1113,7 +1119,7 @@ initGarminRunImport((distance, timeStr, coordinates, stats) => {
   if (appState.weeks[wk]) {
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
     if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = new Date().toISOString().slice(0, 10);
+      appState.weeks[wk].dates[sd] = dateKey();
     }
   }
   if (coordinates && coordinates.length > 0) {
@@ -1141,7 +1147,7 @@ initGarminGymImport((timeStr, stats) => {
     g.gymSets     = stats?.gymSets     || null;
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
     if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = new Date().toISOString().slice(0, 10);
+      appState.weeks[wk].dates[sd] = dateKey();
     }
   }
   saveStateToLocalStorage(true);

@@ -4,6 +4,7 @@
 // ==========================================
 import { formatPace, rpeColour } from '../utils.js';
 import { renderVolumeChart } from '../charts.js';
+import { isCompletedSet } from '../../set-utils.js';
 
 const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -190,9 +191,7 @@ export function renderWeeklySummaryAnalytics(data, getState, getDays, selectedWe
 function _hasGymActivity(wkData, day) {
   if (!wkData?.lifts?.[day]) return false;
   return Object.values(wkData.lifts[day]).some(sets =>
-    Array.isArray(sets) && sets.some(s =>
-      s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1
-    )
+    Array.isArray(sets) && sets.some(isCompletedSet)
   );
 }
 
@@ -201,7 +200,7 @@ function _countCompletedSets(wkData, day) {
   let n = 0;
   Object.values(wkData.lifts[day]).forEach(sets => {
     if (Array.isArray(sets))
-      n += sets.filter(s => s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1).length;
+      n += sets.filter(isCompletedSet).length;
   });
   return n;
 }
@@ -212,7 +211,7 @@ function _dayGymVol(wkData, day) {
   Object.values(wkData.lifts[day]).forEach(sets => {
     if (Array.isArray(sets))
       sets.forEach(s => {
-        if (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)
+        if (isCompletedSet(s) && s.type !== 'W')
           vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
       });
   });

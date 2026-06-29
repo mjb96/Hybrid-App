@@ -18,6 +18,7 @@ import {
   rankInsights,
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
+import { isCompletedSet } from '../../set-utils.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -381,7 +382,7 @@ export function render1RMProgressSection(sectionEl, weekLabels, getState, getDay
           if (!Array.isArray(dayLifts[lift])) continue;
           const liftLower = lift.toLowerCase();
           dayLifts[lift].forEach(s => {
-            const completed = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+            const completed = isCompletedSet(s);
             const weight = parseFloat(s.w) || 0;
             const reps   = parseInt(s.r, 10) || 0;
             if (!completed || weight <= 0 || reps <= 0) return;

@@ -5,8 +5,8 @@
 // the data it needs (state / days) as parameters.
 // =============================================================================
 import { getCatalogEntry } from './programs/catalog.js';
-import { getLiftDisplayName } from './engine.js';
 import { allLiftsStats } from './metrics/metrics-strength.js';
+import { isCompletedSet, isWarmupSet } from './set-utils.js';
 
 // ── Section helpers ───────────────────────────────────────────────────────────
 
@@ -127,7 +127,7 @@ export function _esc(str) {
 }
 
 export function _isSet(s) {
-  return (s.c === true || s.c === 'on' || s.c === 1) && !s.isWarmup;
+  return isCompletedSet(s) && !isWarmupSet(s);
 }
 
 export function _countTotalWorkouts(state, days) {
@@ -343,9 +343,8 @@ export function _big3PRs(state, days) {
   const best = {}; // movement → { movement, name, displayName, e1rm }
   for (const [name, s] of Object.entries(stats)) {
     if (!(s.allTimeMax > 0)) continue;
-    // Match on the resolved display name — lift storage may be ID-keyed, so the
-    // raw key won't always contain the movement word (the display name does).
-    const displayName = getLiftDisplayName(state, name);
+    // Lifts are stored keyed by display name.
+    const displayName = name;
     const mv = _big3Movement(displayName);
     if (!mv) continue;
     if (!best[mv] || s.allTimeMax > best[mv].e1rm) {
@@ -582,7 +581,7 @@ export function _recentSessions(state, days, limit = 5) {
       const liftDone = Object.keys(wkData.lifts?.[d] || {}).filter(l => {
         const sets = wkData.lifts[d][l];
         return Array.isArray(sets) && sets.some(_isSet);
-      }).map(id => getLiftDisplayName(state, id));
+      });
       const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
       if (liftDone.length === 0 && runDist === 0) continue;
 

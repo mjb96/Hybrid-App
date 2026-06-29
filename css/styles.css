@@ -1146,19 +1146,6 @@ input[type="checkbox"].gym-check:checked ~ .gym-check-icon { opacity: 1; }
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
 }
 
-.quick-pad-row {
-  display: none;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  grid-column: span 6;
-  padding: var(--space-2);
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--overlay-xs);
-}
-.cockpit-set-row.pad-visible .quick-pad-row { display: grid; }
-
 .btn-pad {
   background: var(--overlay-md);
   border: 1px solid var(--glass-border);
@@ -3997,13 +3984,7 @@ html[data-theme="light"] .cockpit-body {
   background: rgba(0, 0, 0, 0.025);
 }
 
-/* Quick-pad row container (was rgba(0,0,0,0.25)) */
-html[data-theme="light"] .quick-pad-row {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.06);
-}
-
-/* Quick-pad weight/rep preset buttons */
+/* Superset link-panel preset buttons */
 html[data-theme="light"] .btn-pad {
   background: rgba(0, 0, 0, 0.05) !important;
   border-color: rgba(0, 0, 0, 0.11) !important;

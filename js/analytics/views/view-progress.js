@@ -5,6 +5,7 @@ import { formatPace, rpeColour, paceZoneColour } from '../utils.js';
 import { renderVolumeChart, renderConsistencyHeatmap } from '../charts.js';
 import { dateKey } from '../../dates.js';
 import { getProgramById } from '../../state.js';
+import { isCompletedSet } from '../../set-utils.js';
 
 export function renderProgressAnalytics(data, getState) {
   const tbody = document.getElementById('analyticsTimelineTableBody');
@@ -46,7 +47,7 @@ export function renderWeeklyVolumeDetail(data, getState, getDays) {
       for (const lift in dayLifts) {
         if (Array.isArray(dayLifts[lift])) {
           dayLifts[lift].forEach(s => {
-            if (s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)) {
+            if (isCompletedSet(s)) {
               const w = parseFloat(s.w) || 0;
               const r = parseInt(s.r, 10) || 0;
               totalVol  += w * r;
@@ -86,7 +87,7 @@ export function renderStreakDetail(data, getState, getDays) {
       const dayLifts = wkData?.lifts?.[d] || {};
       for (const lift in dayLifts) {
         if (Array.isArray(dayLifts[lift])) {
-          completedSets += dayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
+          completedSets += dayLifts[lift].filter(s => isCompletedSet(s)).length;
         }
       }
       if (rDist > 0 || completedSets > 0) {
@@ -165,7 +166,7 @@ export function renderStreakDetail(data, getState, getDays) {
       const dayLifts = wkData?.lifts?.[d] || {};
       for (const lift in dayLifts) {
         if (Array.isArray(dayLifts[lift])) {
-          completedSets += dayLifts[lift].filter(s => s && (s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1)).length;
+          completedSets += dayLifts[lift].filter(s => isCompletedSet(s)).length;
         }
       }
       const gymHasData = completedSets > 0;

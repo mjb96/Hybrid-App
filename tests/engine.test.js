@@ -17,9 +17,6 @@ import {
   formatPace,
   initEngine,
   computeDiagnosticForLift,
-  getLiftId,
-  getLiftDisplayName,
-  resolveLiftKey,
   findLastPerformance,
   computeGAP,
 } from '../js/engine.js';
@@ -145,51 +142,6 @@ test('computeDiagnosticForLift: no rpe data at all does not flag fatigue overloa
   assert.equal(r.isFatigueOverload, false);
 });
 
-// ---- getLiftId / getLiftDisplayName / resolveLiftKey (D8) --------------------
-test('getLiftId creates a stable ID and populates both maps', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  const id = getLiftId(state, 'Squat');
-  assert.ok(id.startsWith('lift_'));
-  assert.equal(state.liftIdMap['Squat'], id);
-  assert.equal(state.liftNames[id], 'Squat');
-});
-
-test('getLiftId returns the same ID on repeated calls', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  const id1 = getLiftId(state, 'Bench Press');
-  const id2 = getLiftId(state, 'Bench Press');
-  assert.equal(id1, id2);
-});
-
-test('getLiftId returns empty string for empty / nullish input', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  assert.equal(getLiftId(state, ''), '');
-  assert.equal(getLiftId(state, null), '');
-});
-
-test('getLiftDisplayName resolves ID back to display name', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  const id = getLiftId(state, 'Deadlift');
-  assert.equal(getLiftDisplayName(state, id), 'Deadlift');
-});
-
-test('getLiftDisplayName falls back to raw value for unregistered IDs', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  assert.equal(getLiftDisplayName(state, 'Squat'), 'Squat');
-  assert.equal(getLiftDisplayName(state, 'lift_unknown'), 'lift_unknown');
-});
-
-test('resolveLiftKey maps display name to ID after registration', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  const id = getLiftId(state, 'Overhead Press');
-  assert.equal(resolveLiftKey(state, 'Overhead Press'), id);
-});
-
-test('resolveLiftKey falls back to the raw string for unregistered names', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  assert.equal(resolveLiftKey(state, 'Unknown'), 'Unknown');
-});
-
 // ---- computeGAP (D10) --------------------------------------------------------
 
 test('computeGAP: flat course returns pace ≈ actual pace', () => {
@@ -236,33 +188,32 @@ test('computeGAP: returns empty for single-point arrays', () => {
   assert.equal(gap[0], 0);
 });
 
-// ---- findLastPerformance with ID-keyed storage (D9) -------------------------
-test('findLastPerformance works on ID-keyed state (post-migration)', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  const id = getLiftId(state, 'Squat');
-  state.currentWeek = '2';
+// ---- findLastPerformance (name-keyed storage) -------------------------------
+test('findLastPerformance returns the most recent completed working sets', () => {
+  const state = { currentWeek: '3' };
   state.weeks = {
-    '1': { lifts: { mon: { [id]: [{ w: '100', r: '5', c: true }] } } },
-    '2': { lifts: { mon: { [id]: [] } } },
+    '1': { lifts: { mon: { 'Squat': [{ w: '90', r: '5', c: true }] } } },
+    '2': { lifts: { mon: { 'Squat': [{ w: '100', r: '5', c: true }] } } },
+    '3': { lifts: { mon: { 'Squat': [] } } },
   };
-  const result = findLastPerformance(state, 'Squat', { excludeWeek: '2', days: DAYS });
+  const result = findLastPerformance(state, 'Squat', { excludeWeek: '3', days: DAYS });
   assert.ok(result, 'should find last performance');
+  assert.equal(result.weekKey, '2');
   assert.equal(result.workingSets[0].w, '100');
 });
 
-test('findLastPerformance rename safety: history survives display-name change', () => {
-  const state = { liftIdMap: {}, liftNames: {} };
-  const id = getLiftId(state, 'Back Squat');
-  state.currentWeek = '2';
+test('findLastPerformance skips warmups and incomplete sets', () => {
+  const state = { currentWeek: '2' };
   state.weeks = {
-    '1': { lifts: { mon: { [id]: [{ w: '120', r: '3', c: true }] } } },
-    '2': { lifts: { mon: { [id]: [] } } },
+    '1': { lifts: { mon: { 'Bench Press': [
+      { w: '40', r: '10', c: true, type: 'W' },
+      { w: '80', r: '5', c: false },
+      { w: '75', r: '5', c: true },
+    ] } } },
+    '2': { lifts: { mon: { 'Bench Press': [] } } },
   };
-  // Simulate rename: 'Back Squat' → 'Low Bar Squat'
-  state.liftIdMap['Low Bar Squat'] = id;
-  state.liftNames[id] = 'Low Bar Squat';
-
-  const result = findLastPerformance(state, 'Low Bar Squat', { excludeWeek: '2', days: DAYS });
-  assert.ok(result, 'history must be found under the new name');
-  assert.equal(result.workingSets[0].w, '120');
+  const result = findLastPerformance(state, 'Bench Press', { excludeWeek: '2', days: DAYS });
+  assert.ok(result, 'should find a working set');
+  assert.equal(result.workingSets.length, 1);
+  assert.equal(result.workingSets[0].w, '75');
 });
