@@ -799,6 +799,13 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-fasting-detail')   { openFastingDetail(); }
   else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
   else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
+  else if (action === 'open-fasting-education') {
+    // Deep-link the buried "Fasting Knowledge" section (last block of the
+    // fasting analytics view) straight from the daily fasting sheet.
+    closeFastingDetail();
+    openAnalyticsView('fasting');
+    setTimeout(() => document.getElementById('fa-edu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  }
   else if (action === 'fast-edit-history') {
     const idx = parseInt(target.dataset.index, 10);
     openHistoryEditPanel(idx, appState);
