@@ -2082,26 +2082,37 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 .settings-body {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0 40px;
+  padding: 14px 0 calc(40px + env(safe-area-inset-bottom, 0px));
 }
+/* Grouped inset cards: each section is a rounded card on the panel background,
+   with its title sitting at the top of the card and hairline dividers between
+   rows only. */
 .settings-section {
-  padding: 16px 20px 8px;
-  border-bottom: 1px solid var(--border-subtle);
+  margin: 0 14px 16px;
+  padding: 2px 14px 4px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
 }
 .settings-section:last-child { border-bottom: none; }
 .settings-section-label {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
-  margin-bottom: 12px;
+  padding: 11px 2px 7px;
+  margin: 0;
 }
 .settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+  row-gap: 8px;
+  min-height: 44px;
+  padding: 10px 2px;
   border-bottom: 1px solid var(--border-subtle);
 }
 .settings-row:last-child { border-bottom: none; }
@@ -2145,10 +2156,14 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
 
 /* Toggle group */
 .settings-toggle-group {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  display: inline-flex;
+  gap: 2px;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 2px;
 }
 .settings-toggle-btn {
   font-size: 0.7rem;
@@ -2171,13 +2186,35 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   border-color: rgba(99,102,241,0.5);
   color: #a5b4fc;
 }
+/* Segmented control: buttons inside a group share the group's track, the active
+   segment is filled and raised. Standalone .settings-toggle-btn keeps its pill. */
+.settings-toggle-group > .settings-toggle-btn {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--text-muted);
+  padding: 5px 11px;
+}
+.settings-toggle-group > .settings-toggle-btn:hover {
+  background: transparent;
+  color: var(--text-strong);
+}
+.settings-toggle-group > .settings-toggle-btn.active {
+  background: var(--color-blue);
+  border: none;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.28);
+}
 
 /* Action buttons */
 .settings-action-btn {
+  position: relative;
   display: block;
   width: 100%;
   text-align: left;
-  padding: 11px 0;
+  padding: 13px 18px 13px 2px;
+  min-height: 44px;
+  box-sizing: border-box;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-strong);
@@ -2185,11 +2222,21 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   border: none;
   border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 .settings-action-btn:last-child { border-bottom: none; }
 .settings-action-btn:hover { color: #fff; }
-.settings-action-btn-danger { color: rgba(239,68,68,0.6); }
+.settings-action-btn:active { opacity: 0.55; }
+.settings-action-btn:not(.settings-action-btn-danger)::after {
+  content: '›';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.1rem;
+  color: var(--text-faint);
+}
+.settings-action-btn-danger { color: rgba(239,68,68,0.85); }
 .settings-action-btn-danger:hover { color: #f87171; }
 
 /* ==========================================
@@ -2341,12 +2388,13 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   transition: transform 0.2s ease, background 0.2s ease;
 }
 .settings-switch input:checked ~ .settings-switch-track {
-  background: rgba(99,102,241,0.5);
-  border-color: rgba(99,102,241,0.6);
+  background: var(--color-green);
+  border-color: var(--color-green);
 }
 .settings-switch input:checked ~ .settings-switch-track::after {
   transform: translateX(18px);
   background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 /* ==========================================================================
@@ -2513,11 +2561,38 @@ html[data-theme="light"] .settings-toggle-btn.active {
   color: var(--color-indigo);
 }
 html[data-theme="light"] .settings-action-btn {
-  color: rgba(0,0,0,0.60);
-  border-bottom-color: rgba(0,0,0,0.05);
+  color: rgba(0,0,0,0.78);
+  border-bottom-color: rgba(0,0,0,0.07);
 }
 html[data-theme="light"] .settings-action-btn:hover {
   color: rgba(0,0,0,0.88);
+}
+html[data-theme="light"] .settings-action-btn:not(.settings-action-btn-danger)::after {
+  color: rgba(0,0,0,0.28);
+}
+
+/* --- Grouped inset cards (light) --- */
+html[data-theme="light"] .settings-body { background: #f1f3f7; }
+html[data-theme="light"] .settings-section {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .settings-row,
+html[data-theme="light"] .settings-action-btn,
+html[data-theme="light"] .hc-data-toggle {
+  border-bottom-color: rgba(0,0,0,0.07);
+}
+html[data-theme="light"] .settings-toggle-group {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .settings-toggle-group > .settings-toggle-btn {
+  background: transparent;
+  color: rgba(0,0,0,0.55);
+}
+html[data-theme="light"] .settings-toggle-group > .settings-toggle-btn.active {
+  background: var(--color-blue);
+  color: #fff;
 }
 
 /* --- Health Connect --- */
