@@ -30,7 +30,7 @@ const QUERY_ALIASES = {
   '5km':            ['5k', 'running', 'sub-20'],
   'half marathon':  ['half-marathon', '21k', 'running', 'endurance'],
   'marathon':       ['42k', 'running', 'endurance'],
-  'hyrox':          ['hyrox-collection', 'race'],
+  'hyrox':          ['hyrox-collection', 'race', 'functional-fitness'],
   'beginner':       ['starter', 'foundation', 'linear-progression', 'beginner-friendly'],
   'powerbuilding':  ['powerlifting', 'hypertrophy'],
   '531':            ['nsuns', '5/3/1', 'wendler'],
@@ -69,8 +69,6 @@ const QUERY_ALIASES = {
   'deadlift':       ['powerlifting', 'strength', 'compound'],
   'couch to 5k':    ['c25k', 'beginner', 'running', 'jogging'],
   'c25k':           ['couch-to-5k', 'beginner', 'running'],
-  'half marathon':  ['half-marathon', '21k', 'running', 'endurance'],
-  'hyrox':          ['hyrox-collection', 'race', 'functional-fitness'],
 };
 
 // Tokenise a string into lowercase words

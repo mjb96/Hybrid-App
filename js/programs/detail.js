@@ -6,7 +6,7 @@ import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from 
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard } from './program-card.js';
 import { PROGRAMS } from '../constants.js';
-import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted } from '../state.js';
+import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById } from '../state.js';
 import { escapeHtml } from '../util.js';
 
 let _currentProgramId = null;
@@ -465,7 +465,10 @@ export function closeProgramDetail() {
 export function openDayPreviewModal(dayKey, programId) {
   const resolvedId = programId || _currentProgramId;
   const catalog = getCatalogEntry(resolvedId);
-  const day = catalog?.days?.[dayKey] || PROGRAMS[resolvedId]?.days?.[dayKey];
+  // Prefer the catalog day (richest: carries workoutPreview), then fall back to
+  // the resolved program — which covers system PROGRAMS *and* custom programs
+  // (getProgramById walks customPrograms → PROGRAMS → catalog).
+  const day = catalog?.days?.[dayKey] || getProgramById(resolvedId)?.days?.[dayKey];
   if (!day) return;
 
   const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');

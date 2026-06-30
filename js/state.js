@@ -146,7 +146,9 @@ export function recordRecentlyViewed(programId) {
   lib.recentlyViewed = lib.recentlyViewed.filter(v => v.programId !== programId);
   lib.recentlyViewed.unshift({ programId, viewedAt: new Date().toISOString() });
   if (lib.recentlyViewed.length > 20) lib.recentlyViewed.length = 20;
-  saveStateToLocalStorage(false);
+  // Autosave (debounced, no toast): viewing a program shouldn't fire a
+  // "Saved" toast or an immediate cloud round-trip on every detail open.
+  saveStateToLocalStorage(true);
 }
 
 export function savePersonalRating(programId, rating, review = '') {
@@ -275,17 +277,20 @@ export function verifyWeekStorageSchema(wk) {
 
     DEFAULT_DAYS.forEach(d => {
       const dayBlueprint = activeProgram.days[d];
-      if (dayBlueprint && dayBlueprint.lifts && dayBlueprint.lifts.length > 0) {
+      // Ignore blank/whitespace lift names (custom-builder programs can carry
+      // empty rows) so they never seed a junk lift key or pollute liftOrder.
+      const liftNames = (dayBlueprint?.lifts || []).filter(n => typeof n === 'string' && n.trim());
+      if (liftNames.length > 0) {
         const weekModifier = getWeekModifier(activeProgram, wk);
 
-        dayBlueprint.lifts.forEach(liftName => {
+        liftNames.forEach(liftName => {
           appState.weeks[wk].lifts[d][liftName] =
             prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
         });
         // Stamp the explicit display order (blueprint order). Render reads this
         // instead of object-key enumeration, which would otherwise float any
         // integer-like keys to the top and scramble the prescribed sequence.
-        appState.weeks[wk].liftOrder[d] = [...dayBlueprint.lifts];
+        appState.weeks[wk].liftOrder[d] = [...liftNames];
       }
     });
   }
@@ -301,11 +306,13 @@ export function mergeWeekSchema(wk) {
   const weekModifier = getWeekModifier(activeProgram, wk);
   DEFAULT_DAYS.forEach(d => {
     const dayBlueprint = activeProgram.days[d];
-    if (!dayBlueprint?.lifts?.length) return;
+    // Skip blank/whitespace lift names (see verifyWeekStorageSchema).
+    const liftNames = (dayBlueprint?.lifts || []).filter(n => typeof n === 'string' && n.trim());
+    if (liftNames.length === 0) return;
     if (!appState.weeks[wk].lifts[d]) appState.weeks[wk].lifts[d] = {};
     if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
     if (!Array.isArray(appState.weeks[wk].liftOrder[d])) appState.weeks[wk].liftOrder[d] = [];
-    dayBlueprint.lifts.forEach(liftName => {
+    liftNames.forEach(liftName => {
       if (!appState.weeks[wk].lifts[d][liftName]) {
         appState.weeks[wk].lifts[d][liftName] =
           prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);

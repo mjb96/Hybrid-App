@@ -451,14 +451,15 @@ export function executeCreateProgram() {
   const name = document.getElementById('cpInputName').value;
   const focus = document.getElementById('cpInputFocus').value;
   const wks = document.getElementById('cpInputWeeks').value;
-  createCustomProgram(name, wks, focus, "");
+  const newId = createCustomProgram(name, wks, focus, "");
   closeCreateProgramModal();
-  updateLibraryState(appState);
-  renderLibrary();
-  showToast('Custom Program Created!');
   document.getElementById('cpInputName').value = '';
   document.getElementById('cpInputFocus').value = '';
   document.getElementById('cpInputWeeks').value = '12';
+  showToast('Custom Program Created!');
+  // Drop straight into the builder so the (empty) program is actually fillable.
+  switchProgramMode('builder');
+  openBuilder(newId);
 }
 
 export function executeDeleteProgram(id) {

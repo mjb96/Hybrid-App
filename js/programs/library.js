@@ -8,6 +8,7 @@ import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { renderProgramCard, isWod } from './program-card.js';
 import { toggleBookmark, recordRecentlyViewed, getProgramById } from '../state.js';
+import { escapeHtml } from '../util.js';
 
 let _appState = null;
 let _activeFilter = 'all';
@@ -84,7 +85,9 @@ function renderActiveProgramBanner() {
   const catalog = getCatalogEntry(activeId);
   const programName = catalog?.name || _appState.customPrograms?.find(p => p.id === activeId)?.name || 'My Program';
   const currentWeek = parseInt(_appState.currentWeek || '1', 10);
-  const totalWeeks = catalog?.durationWeeks || 12;
+  // Fall back to the resolved program's totalWeeks so custom/system programs
+  // without a catalog duration don't all collapse to a hard-coded "of 12".
+  const totalWeeks = catalog?.durationWeeks || getProgramById(activeId)?.totalWeeks || 12;
   const pct = Math.min(100, Math.round((currentWeek / totalWeeks) * 100));
   const accent = catalog?.accentColor || '#8b5cf6';
   const circumference = 113;
@@ -340,8 +343,10 @@ function renderLibraryContent() {
 
 function renderCollectionRows(container) {
   const recommendations = getRecommendations(_appState, 8);
-  const recommendedIds = recommendations.map(r => r.program.id);
-  const collections = getHomeCollections(recommendedIds);
+  // Don't pass recommendedIds into getHomeCollections: we render the
+  // personalised row ourselves below, and letting getHomeCollections inject its
+  // own "recommended-for-you" collection too would duplicate the row.
+  const collections = getHomeCollections();
 
   // Featured hero (first 3 featured programs)
   const featuredPrograms = PROGRAM_CATALOG.filter(p => p.featured).slice(0, 3);
@@ -353,13 +358,21 @@ function renderCollectionRows(container) {
     html += renderHeroBanner(featuredPrograms);
   }
 
-  // Personalised recommendations row
+  // Your custom programs (created in the builder) — only place they surface
+  const customPrograms = _appState?.customPrograms || [];
+  if (customPrograms.length > 0) {
+    html += renderCustomProgramsSection(customPrograms);
+  }
+
+  // Personalised recommendations row. hideSeeAll: recommendations aren't a
+  // static collection, so there's no valid "see all" target for them.
   if (recommendations.length > 0) {
     html += renderCollectionRow({
       id: 'recommended',
       label: 'Recommended For You',
       subtitle: 'Based on your training',
       icon: '✨',
+      hideSeeAll: true,
     }, recommendations.map(r => r.program), true);
   }
 
@@ -384,6 +397,54 @@ function renderCollectionRows(container) {
 
   container.innerHTML = html;
   initHeroCarousel();
+}
+
+// ── Custom programs ("My Programs") ───────────────────────────────────────────
+
+function renderCustomProgramsSection(customPrograms) {
+  return `
+    <div class="collection-row mb-5">
+      <div class="collection-header mb-2">
+        <div class="collection-title-wrap">
+          <span class="collection-icon">🛠️</span>
+          <div>
+            <div class="collection-title">My Programs</div>
+            <div class="collection-subtitle">Programs you've built</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex-col gap-2">
+        ${customPrograms.map(renderCustomProgramCard).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderCustomProgramCard(p) {
+  const isActive = _appState?.activeProgramId === p.id;
+  const focus = p.dossier?.focus || 'Custom Program';
+  const weeks = p.totalWeeks || 12;
+  const trainingDays = Object.values(p.days || {}).filter(d =>
+    (d?.lifts || []).some(n => typeof n === 'string' && n.trim()) ||
+    (d?.runs && d.runs !== 'Rest')
+  ).length;
+
+  return `
+    <div class="card-dark p-3" style="border:1px solid var(--overlay-sm);${isActive ? 'border-color:var(--accent-blue);' : ''}">
+      <div class="flex-between align-center mb-2">
+        <div>
+          <div class="font-heavy text-inverse">${escapeHtml(p.name)}${isActive ? ' <span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}</div>
+          <div class="text-xs text-muted">${escapeHtml(focus)} · ${weeks}w · ${trainingDays} training day${trainingDays !== 1 ? 's' : ''}</div>
+        </div>
+      </div>
+      <div class="flex gap-2" style="flex-wrap:wrap;">
+        ${isActive ? '' : `<button class="btn-pad btn-blue" style="font-size:0.75rem;" data-action="make-active-program" data-program-id="${p.id}">Make Active</button>`}
+        <button class="btn-pad" style="font-size:0.75rem;" data-action="open-builder" data-program-id="${p.id}">Edit</button>
+        <button class="btn-pad" style="font-size:0.75rem;" data-action="duplicate-program" data-program-id="${p.id}">Duplicate</button>
+        <button class="btn-pad" style="font-size:0.75rem;color:var(--accent-red);border-color:rgba(239,68,68,0.2);" data-action="delete-program" data-program-id="${p.id}">Delete</button>
+      </div>
+    </div>
+  `;
 }
 
 function renderHeroBanner(programs) {
@@ -434,7 +495,7 @@ function renderCollectionRow(collection, programs, withReasonBadge = false) {
             ${collection.subtitle ? `<div class="collection-subtitle">${collection.subtitle}</div>` : ''}
           </div>
         </div>
-        <button class="collection-see-all" data-action="prog-filter" data-filter="${collection.id}">See all</button>
+        ${collection.hideSeeAll ? '' : `<button class="collection-see-all" data-action="prog-filter" data-filter="${collection.id}">See all</button>`}
       </div>
       <div class="card-scroll-row">
         ${cards}
