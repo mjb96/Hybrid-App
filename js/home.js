@@ -4,7 +4,6 @@
 import { WEEK_PHASE_NAMES } from './constants.js';
 import { getProgramById } from './state.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
-import { isCompletedSet, dayVolume } from './set-utils.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
@@ -69,7 +68,7 @@ export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHisto
 // GLANCE GRID RENDERER
 // Builds / updates the .glance-grid dynamically from TILE_REGISTRY
 // ==========================================
-function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
+function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sharedModel) {
   const grid = document.getElementById('glanceGrid');
   if (!grid) return;
 
@@ -83,8 +82,10 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay) {
     header.appendChild(btn);
   }
 
-  // One shared brain pass for the whole dashboard — every tile reads the same model.
-  const model = computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
+  // One shared brain pass for the whole dashboard — every tile reads the same
+  // model. renderHome computes it once and passes it in; the tile customiser
+  // re-renders the grid on its own and lets us compute a fresh one here.
+  const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
   renderDashboardInsight(model);
   updateQuickActions(model);
 
@@ -287,6 +288,10 @@ export function renderHome() {
 
   const activeProgram = getProgramById(appState.activeProgramId);
 
+  // One shared brain pass — the header progress, week-compare card and every
+  // tile all read from this single model so their numbers never diverge.
+  const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, selectedDay);
+
   const engineAlertCard = document.getElementById('homeEngineAlertCard');
   const engineAlertDesc = document.getElementById('homeEngineAlertDesc');
   const globalStallAlertsFound = [];
@@ -312,13 +317,6 @@ export function renderHome() {
     if (engineAlertCard) engineAlertCard.style.display = 'none';
   }
 
-  let currentWeekRunDistSum = 0;
-
-  DEFAULT_DAYS.forEach(dKey => {
-    const rData = weekData.runs?.[dKey];
-    if (rData) currentWeekRunDistSum += parseFloat(rData.dist) || 0;
-  });
-
   // Weekly fitness graphs handle their own rendering and data refresh.
   // Legacy hero/sub elements are hidden by the graphs on mount.
   if (_strengthGraph) {
@@ -328,80 +326,46 @@ export function renderHome() {
     refreshWeeklyFitnessGraph('runBarChart');
   }
 
-  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay);
+  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
   renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
-  const progress = (() => {
-    let total = 0, done = 0;
-    DEFAULT_DAYS.forEach(dKey => {
-      const bp = activeProgram.days?.[dKey];
-      const isRunScheduled = bp?.runs && !bp.runs.toLowerCase().includes('no structured') && bp.runs.toLowerCase() !== 'rest';
-      if (isRunScheduled) total++;
-      const rDist = parseFloat(weekData.runs?.[dKey]?.dist) || 0;
-      if (isRunScheduled && rDist > 0) done++;
-      const dayLifts = weekData.lifts?.[dKey] || {};
-      for (const lift in dayLifts) {
-        if (Array.isArray(dayLifts[lift])) {
-          dayLifts[lift].forEach(s => {
-            total++;
-            if (isCompletedSet(s)) done++;
-          });
-        }
-      }
-    });
-    return { pct: total > 0 ? Math.round((done / total) * 100) : 0, done, total };
-  })();
-
+  // Weekly completion header — same numbers as the Consistency tile (model.week).
+  const w = model.week;
   const progressPctEl = document.getElementById('homeWeeklyProgressPct');
   const progressBarEl = document.getElementById('homeWeeklyProgressBar');
   const progressTasksEl = document.getElementById('homeWeeklyProgressTasks');
-  if (progressPctEl) progressPctEl.textContent = progress.pct + '%';
-  if (progressBarEl) progressBarEl.style.width = progress.pct + '%';
-  if (progressTasksEl) progressTasksEl.textContent = progress.total > 0 ? `${progress.done}/${progress.total} done` : 'No tasks yet';
+  if (progressPctEl) progressPctEl.textContent = w.consistencyPct + '%';
+  if (progressBarEl) progressBarEl.style.width = w.consistencyPct + '%';
+  if (progressTasksEl) progressTasksEl.textContent = w.consistencyTotal > 0 ? `${w.consistencyDone}/${w.consistencyTotal} done` : 'No tasks yet';
 
   const compareCard = document.getElementById('homeWeekCompareCard');
   const compareGrid = document.getElementById('homeWeekCompareGrid');
-  const prevWkNum = parseInt(wk, 10) - 1;
-  if (compareCard && compareGrid && prevWkNum >= 1) {
-    const prevWkData = appState.weeks[prevWkNum.toString()];
-    if (prevWkData) {
-      let prevVol = 0, prevDist = 0;
-      let currentWeekVolSum = 0;
-      DEFAULT_DAYS.forEach(d => {
-        prevDist += parseFloat(prevWkData.runs?.[d]?.dist) || 0;
-        // Canonical tonnage: completed working sets only (warm-ups excluded),
-        // matching the Weekly Volume tile and the analytics volume view.
-        prevVol += dayVolume(prevWkData.lifts?.[d]);
-        currentWeekVolSum += dayVolume(weekData.lifts?.[d]);
-      });
+  const wc = model.weekCompare;
+  if (compareCard && compareGrid && wc.hasPrev) {
+    const distUnit = appState.settings?.distanceUnit || 'km';
+    const KM_TO_MI = 0.621371;
+    const toDisplayDist = km => distUnit === 'mi' ? km * KM_TO_MI : km;
 
-      const distUnit = appState.settings?.distanceUnit || 'km';
-      const KM_TO_MI = 0.621371;
-      const toDisplayDist = km => distUnit === 'mi' ? km * KM_TO_MI : km;
+    const makeMetric = (label, current, prev, unit, higherIsBetter = true) => {
+      if (prev === 0) return '';
+      const diff = current - prev;
+      const pct = Math.round((diff / prev) * 100);
+      const isPositive = higherIsBetter ? diff >= 0 : diff <= 0;
+      const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+      const colour = diff === 0 ? 'var(--text-muted)' : isPositive ? '#10b981' : '#ef4444';
+      return `<div class="card-dark p-2 text-center" style="border:1px solid rgba(255,255,255,0.08);">
+        <div class="text-xs text-muted mb-1">${label}</div>
+        <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'kg' ? Math.round(current).toLocaleString() : current.toFixed(1)) : current}${unit ? ' '+unit : ''}</div>
+        <div class="text-xs font-bold" style="color:${colour};">${arrow} ${Math.abs(pct)}%</div>
+      </div>`;
+    };
 
-      const makeMetric = (label, current, prev, unit, higherIsBetter = true) => {
-        if (prev === 0) return '';
-        const diff = current - prev;
-        const pct = Math.round((diff / prev) * 100);
-        const isPositive = higherIsBetter ? diff >= 0 : diff <= 0;
-        const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
-        const colour = diff === 0 ? 'var(--text-muted)' : isPositive ? '#10b981' : '#ef4444';
-        return `<div class="card-dark p-2 text-center" style="border:1px solid rgba(255,255,255,0.08);">
-          <div class="text-xs text-muted mb-1">${label}</div>
-          <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'kg' ? Math.round(current).toLocaleString() : current.toFixed(1)) : current}${unit ? ' '+unit : ''}</div>
-          <div class="text-xs font-bold" style="color:${colour};">${arrow} ${Math.abs(pct)}%</div>
-        </div>`;
-      };
-
-      const volHTML  = makeMetric('Volume', currentWeekVolSum, prevVol, 'kg');
-      const distHTML = makeMetric('Running', toDisplayDist(currentWeekRunDistSum), toDisplayDist(prevDist), distUnit);
-      const combined = [volHTML, distHTML].filter(Boolean).join('');
-      if (combined) {
-        compareGrid.innerHTML = combined;
-        compareCard.style.display = 'block';
-      } else {
-        compareCard.style.display = 'none';
-      }
+    const volHTML  = makeMetric('Volume', wc.volume.current, wc.volume.prev, 'kg');
+    const distHTML = makeMetric('Running', toDisplayDist(wc.distance.current), toDisplayDist(wc.distance.prev), distUnit);
+    const combined = [volHTML, distHTML].filter(Boolean).join('');
+    if (combined) {
+      compareGrid.innerHTML = combined;
+      compareCard.style.display = 'block';
     } else {
       compareCard.style.display = 'none';
     }

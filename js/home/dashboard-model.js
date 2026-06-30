@@ -18,7 +18,7 @@ import { trainingStatus } from '../brain/briefing.js';
 import { generateRecommendation } from '../brain/recommendations.js';
 import { computeReadiness, readinessStatus, readinessColor } from '../analytics/scoring/readiness-scoring.js';
 import { getFastingContext } from '../fasting.js';
-import { isCompletedSet as isDone } from '../set-utils.js';
+import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -171,6 +171,9 @@ export function computeDashboardModel(state, days, program, selectedDay) {
   // ---- Fasting ------------------------------------------------------------
   const fasting = getFastingContext(state || {});
 
+  // ---- This-week vs last-week roll-up (for the home compare card) ---------
+  const weekCompare = computeWeekCompare(weeks, days, wkNum);
+
   // ---- Goal progress ------------------------------------------------------
   const totalWeeks = program?.totalWeeks || 12;
   const calPct = Math.round((wkNum / totalWeeks) * 100);
@@ -210,6 +213,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     streak,
     fasting,
     goal: { calPct, wk: wkNum, total: totalWeeks, avgConsistency: avgConsistency(weeks, days, program, wkNum) },
+    weekCompare,
     health,
   };
 
@@ -367,6 +371,32 @@ export function computeStreak(weeks, days, state) {
     prev = ds;
   });
   return { current, longest, total: active.size };
+}
+
+// This-week vs previous-week totals for the home compare card. Tonnage uses the
+// canonical dayVolume (completed working sets, warm-ups excluded); distance is
+// raw km (the view converts to the user's unit). Returns hasPrev:false when
+// there is no previous week to compare against.
+function computeWeekCompare(weeks, days, wkNum) {
+  const prevWeek = wkNum - 1;
+  if (prevWeek < 1) return { hasPrev: false };
+  const prevWkData = weeks[String(prevWeek)];
+  if (!prevWkData) return { hasPrev: false };
+  const curWkData = weeks[String(wkNum)] || {};
+
+  let prevVol = 0, prevDist = 0, curVol = 0, curDist = 0;
+  days.forEach(d => {
+    prevDist += num(prevWkData.runs?.[d]?.dist);
+    curDist  += num(curWkData.runs?.[d]?.dist);
+    prevVol  += dayVolume(prevWkData.lifts?.[d]);
+    curVol   += dayVolume(curWkData.lifts?.[d]);
+  });
+  return {
+    hasPrev: true,
+    prevWeek,
+    volume:   { current: curVol,  prev: prevVol },
+    distance: { current: curDist, prev: prevDist },
+  };
 }
 
 function avgConsistency(weeks, days, program, wkNum) {
