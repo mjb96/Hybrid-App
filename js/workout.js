@@ -790,28 +790,23 @@ export function evaluateAccordionAutoFlowTransitions() {
   const expandedCard = document.querySelector('.cockpit-exercise:not(.collapsed)');
   if (!expandedCard) return;
   const rows = Array.from(expandedCard.querySelectorAll('.cockpit-set-row'));
+  if (rows.length === 0) return; // a card with no sets isn't "finished"
   const finished = rows.every(r => r.querySelector('.gym-check')?.checked);
+  const statusNode = expandedCard.querySelector('.cockpit-ex-status');
 
   if (finished) {
+    const wasCompleted = expandedCard.classList.contains('completed');
     expandedCard.classList.add('completed');
-    const statusNode = expandedCard.querySelector('.cockpit-ex-status');
     if (statusNode) statusNode.textContent = 'DONE';
-    showToast('Exercise Complete! ✓');
-
-    expandedCard.classList.add('collapsed');
-    // Advance to the next incomplete exercise in document order. Use a flat scan
-    // rather than nextElementSibling so we step across superset wrappers and
-    // connectors instead of stalling on them.
-    const allCards = Array.from(document.querySelectorAll('#cockpitExercisesContainer .cockpit-exercise'));
-    const curIdx = allCards.indexOf(expandedCard);
-    const nextCard = curIdx >= 0
-      ? allCards.slice(curIdx + 1).find(c => !c.classList.contains('completed'))
-      : null;
-    if (nextCard) {
-      nextCard.classList.remove('collapsed');
-      try { nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) {}
-      try { moveRestTimerToActiveExercise(); } catch(e) {}
-    }
+    // Keep the card expanded after the final set so the per-set RPE pad (which
+    // only appears on completed sets) stays reachable — previously the card
+    // collapsed and auto-advanced the instant the last set was ticked, hiding
+    // RPE before it could be entered. Move on by tapping the next exercise.
+    if (!wasCompleted) showToast('Exercise Complete! ✓');
+  } else {
+    // Unchecking a set after completion re-opens the exercise.
+    expandedCard.classList.remove('completed');
+    if (statusNode) statusNode.textContent = 'LOG';
   }
 }
 
