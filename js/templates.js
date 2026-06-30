@@ -18,6 +18,9 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
   const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
   const typeClass  = type === 'W' ? 'type-warmup' : type === 'D' ? 'type-dropset' : type === 'F' ? 'type-amrap' : '';
 
+  const band = sData.band || '';
+  const bandLabels = { '': '— None', 'L': '🟢 Light', 'M': '🟡 Medium', 'H': '🔴 Heavy' };
+
   return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}">
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
     <div class="set-num-lbl tactile-scale"
@@ -52,6 +55,16 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
         data-action="remove-set"
         data-liftname="${safeLiftName}"
         data-sidx="${sIdx}">✕</button>
+    </div>
+    <div class="band-pad-row">
+      <span class="rpe-pad-label">BAND</span>
+      <button class="btn-band tactile-scale${band ? ' band-' + band : ''}"
+              data-action="cycle-band"
+              data-liftname="${safeLiftName}"
+              data-sidx="${sIdx}"
+              title="Tap to cycle resistance band: None → Light → Medium → Heavy. Uses your band weights for volume.">
+        ${bandLabels[band]}
+      </button>
     </div>
     <div class="rpe-pad-row">
       <span class="rpe-pad-label">RPE</span>

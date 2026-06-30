@@ -60,7 +60,7 @@ import {
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
-  saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, signOut,
+  saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights, signOut,
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
@@ -949,6 +949,7 @@ document.addEventListener('change', (e) => {
   if (target.id === 'settingsNotifMissedWorkout')   { setNotifToggle('missed', target.checked); return; }
   const eqKey = target.getAttribute?.('data-equipment');
   if (eqKey) { toggleEquipment(eqKey, target.checked); return; }
+  if (target.id === 'settingsBandLight' || target.id === 'settingsBandMed' || target.id === 'settingsBandHeavy') { saveBandWeights(); return; }
   if (target.id === 'settingsNotifications') {
     if (target.checked) {
       requestNotificationPermission().then(({ granted }) => {

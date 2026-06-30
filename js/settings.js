@@ -85,6 +85,15 @@ function _syncSettingsUI() {
     if (el) el.checked = eq[key] !== false && (eq[key] === true || ['barbell','rack','dumbbells','cables','pullupBar'].includes(key));
   });
 
+  // Resistance band weights (≈ kg used for volume)
+  const bw = s.bandWeights || { L: 10, M: 20, H: 30 };
+  const bl = document.getElementById('settingsBandLight');
+  const bm = document.getElementById('settingsBandMed');
+  const bh = document.getElementById('settingsBandHeavy');
+  if (bl) bl.value = bw.L ?? '';
+  if (bm) bm.value = bw.M ?? '';
+  if (bh) bh.value = bw.H ?? '';
+
   // Notification toggles
   const notifCheckbox = document.getElementById('settingsNotifications');
   if (notifCheckbox) notifCheckbox.checked = ('Notification' in window) && Notification.permission === 'granted';
@@ -377,6 +386,23 @@ export function toggleEquipment(key, enabled) {
   const appState = _ensureSettings();
   if (!appState.settings.equipment) appState.settings.equipment = {};
   appState.settings.equipment[key] = enabled;
+  saveStateToLocalStorage(true);
+}
+
+// Persist the nominal kg-equivalent for each resistance band. These feed the
+// cockpit's per-set band selector so band work still contributes to volume.
+export function saveBandWeights() {
+  const appState = _ensureSettings();
+  const read = (id, fallback) => {
+    const el = document.getElementById(id);
+    const v = el ? parseFloat(el.value) : NaN;
+    return Number.isFinite(v) && v >= 0 ? v : fallback;
+  };
+  appState.settings.bandWeights = {
+    L: read('settingsBandLight', 10),
+    M: read('settingsBandMed', 20),
+    H: read('settingsBandHeavy', 30),
+  };
   saveStateToLocalStorage(true);
 }
 

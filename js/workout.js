@@ -898,6 +898,46 @@ export function cycleSetType(liftName, sIdx) {
   _saveState(true);
 }
 
+// Cycle a set's resistance band: None → Light → Medium → Heavy. Selecting a
+// band stamps the set's weight with the configured nominal kg for that band
+// (settings.bandWeights) so it still contributes to volume / e1RM / the
+// summary; clearing it removes the auto weight.
+export function cycleSetBand(liftName, sIdx) {
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
+  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
+
+  const order = ['', 'L', 'M', 'H'];
+  const cur = setArr[sIdx].band || '';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  const bw = appState.settings?.bandWeights || { L: 10, M: 20, H: 30 };
+
+  if (next) {
+    setArr[sIdx].band = next;
+    setArr[sIdx].w = String(bw[next] ?? '');
+  } else {
+    delete setArr[sIdx].band;
+    setArr[sIdx].w = '';
+  }
+
+  // Targeted DOM update (keep the card expanded / scroll position).
+  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
+  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
+  if (row) {
+    const chip = row.querySelector('.btn-band');
+    const labels = { '': '— None', L: '🟢 Light', M: '🟡 Medium', H: '🔴 Heavy' };
+    if (chip) {
+      chip.textContent = labels[next];
+      chip.className = 'btn-band tactile-scale' + (next ? ' band-' + next : '');
+    }
+    const wInput = row.querySelector('.input-weight-node');
+    if (wInput) wInput.value = setArr[sIdx].w;
+  }
+  _saveState(true);
+}
+
 export function showSupersetLinkPanel(exCard) {
   if (!exCard) return;
   const appState   = _getState();
@@ -1238,6 +1278,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
   else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
+  else if (action === 'cycle-band') cycleSetBand(liftName, sIdx);
   else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
   else if (action === 'unlink-superset') unpairSuperset(liftName);
