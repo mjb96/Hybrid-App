@@ -14,12 +14,46 @@ let _restRemaining = 90;      // current countdown remaining
 let _restTotalDuration = 90;  // total for progress bar calculation
 
 // ==========================================
-// COMPOUND LIFT DETECTION
+// EXERCISE-TYPE REST PRESCRIPTION
 // ==========================================
-const COMPOUND_KEYWORDS = [
-  'squat', 'deadlift', 'bench', 'press', 'row', 'pull-up', 'pullup',
-  'chin', 'rdl', 'lunge', 'hip thrust', 'snatch', 'clean', 'jerk'
+// Rest need scales with how systemically taxing a lift is, not with a single
+// global default. Evidence (Schoenfeld 2016; Grgic 2017 meta-analysis; de Salles
+// 2009 review) supports ~3 min between heavy multi-joint sets for strength and
+// hypertrophy, ~2 min for secondary/assistance compounds, and ~60–90 s for
+// single-joint isolation work (which recovers far faster). We classify by name
+// and fall back to the user's configured default for anything unrecognised.
+const REST_PRIMARY   = 180; // heavy multi-joint: squat / deadlift / bench / OHP / heavy hinge
+const REST_SECONDARY = 120; // assistance compounds: rows / pulls / dips / lunges / machine presses
+const REST_ISOLATION = 90;  // single-joint: curls / raises / extensions / pushdowns / calves
+
+// Checked isolation-first so "leg extension" / "leg curl" don't fall through to
+// the broad "press"/"row" compound keywords.
+const ISOLATION_KEYWORDS = [
+  'curl', 'raise', 'fly', 'flye', 'extension', 'pushdown', 'push-down', 'kickback',
+  'calf', 'shrug', 'face pull', 'pec deck', 'lateral', 'rear delt', 'reverse fly',
+  'concentration', 'preacher', 'wrist', 'crunch', 'sit-up', 'sit up', 'plank',
+  'pull-apart', 'pull apart', 'cable cross', 'adduction', 'abduction',
 ];
+const PRIMARY_KEYWORDS = [
+  'squat', 'deadlift', 'bench', 'overhead press', 'ohp', 'military press',
+  'barbell row', 'pendlay', 'rdl', 'romanian', 'hip thrust', 'good morning',
+  'clean', 'snatch', 'jerk',
+];
+const SECONDARY_KEYWORDS = [
+  'press', 'row', 'pull-up', 'pullup', 'pull up', 'chin', 'dip', 'lunge',
+  'pulldown', 'pull-down', 'pull down', 'thruster', 'split squat', 'step-up',
+  'step up', 'push press', 't-bar',
+];
+
+// Recommended rest (seconds) for a lift by name, or null if unrecognised.
+export function recommendedRestFor(liftName) {
+  if (!liftName || typeof liftName !== 'string') return null;
+  const n = liftName.toLowerCase();
+  if (ISOLATION_KEYWORDS.some(k => n.includes(k))) return REST_ISOLATION;
+  if (PRIMARY_KEYWORDS.some(k => n.includes(k)))   return REST_PRIMARY;
+  if (SECONDARY_KEYWORDS.some(k => n.includes(k))) return REST_SECONDARY;
+  return null;
+}
 
 // ==========================================
 // REST TIMER
@@ -129,18 +163,16 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
     // AMRAP sets get a fixed 2-minute rest
     duration = 120;
   } else {
-    // Working sets start from the user-configured baseline
-    duration = _restDuration;
+    // Working sets: prescribe rest by exercise type (heavy compound → isolation)
+    // so a curl no longer inherits the same 3 min as a squat. Unrecognised /
+    // custom lifts fall back to the user-configured default.
+    const recommended = recommendedRestFor(liftName);
+    duration = recommended != null ? recommended : _restDuration;
 
     // RPE bonus: heavier perceived effort = more rest
     const rpe = parseFloat(setRpe) || 0;
     if (rpe >= 9) duration += 30;
     else if (rpe >= 8) duration += 15;
-
-    // Compound lifts get at least 180s rest, but respect a higher user baseline
-    const isCompound = liftName &&
-      COMPOUND_KEYWORDS.some(k => liftName.toLowerCase().includes(k));
-    if (isCompound) duration = Math.max(duration, 180);
   }
 
   _restTotalDuration = duration;
