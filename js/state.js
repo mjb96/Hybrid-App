@@ -296,34 +296,6 @@ export function verifyWeekStorageSchema(wk) {
   }
 }
 
-// Merge a new program's exercise slots into an existing week without touching
-// any already-logged sets. Called after a program switch so the cockpit shows
-// the new exercises while preserving all historical log data.
-export function mergeWeekSchema(wk) {
-  verifyWeekStorageSchema(wk); // creates the week object if it doesn't exist yet
-  const activeProgram = getProgramById(appState.activeProgramId);
-  if (!activeProgram?.days) return;
-  const weekModifier = getWeekModifier(activeProgram, wk);
-  DEFAULT_DAYS.forEach(d => {
-    const dayBlueprint = activeProgram.days[d];
-    // Skip blank/whitespace lift names (see verifyWeekStorageSchema).
-    const liftNames = (dayBlueprint?.lifts || []).filter(n => typeof n === 'string' && n.trim());
-    if (liftNames.length === 0) return;
-    if (!appState.weeks[wk].lifts[d]) appState.weeks[wk].lifts[d] = {};
-    if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
-    if (!Array.isArray(appState.weeks[wk].liftOrder[d])) appState.weeks[wk].liftOrder[d] = [];
-    liftNames.forEach(liftName => {
-      if (!appState.weeks[wk].lifts[d][liftName]) {
-        appState.weeks[wk].lifts[d][liftName] =
-          prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
-      }
-      if (!appState.weeks[wk].liftOrder[d].includes(liftName)) {
-        appState.weeks[wk].liftOrder[d].push(liftName);
-      }
-    });
-  });
-}
-
 // A set counts as "logged" (real history, never discard on a program switch)
 // once it's completed or carries an entered weight. Prescribed-but-untouched
 // sets seed w:'' with only a rep target, so they don't qualify.
@@ -333,10 +305,9 @@ function liftHasLoggedData(sets) {
 
 // Re-point a single week at the *active* program: add the new program's
 // exercises, drop the previous program's unlogged scaffolding, and rebuild
-// liftOrder (new blueprint order first, retained logged lifts appended). Unlike
-// mergeWeekSchema (add-only), this replaces stale scaffolding so a program
-// switch doesn't leave a week showing the union of both programs. Logged sets
-// are always preserved.
+// liftOrder (new blueprint order first, retained logged lifts appended). This
+// replaces stale scaffolding so a program switch doesn't leave a week showing
+// the union of both programs. Logged sets are always preserved.
 export function reseedActiveProgramIntoWeek(wk) {
   verifyWeekStorageSchema(wk); // ensures the week object exists & is shaped
   const program = getProgramById(appState.activeProgramId);

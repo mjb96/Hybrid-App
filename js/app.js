@@ -1,7 +1,7 @@
 // ==========================================
 // CLEANED CORE PROTOCOL ROUTER (app.js)
 // ==========================================
-import { PROGRAMS, WEEK_PHASE_NAMES } from './constants.js';
+import { WEEK_PHASE_NAMES } from './constants.js';
 import { devWarn } from './debug.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
@@ -16,7 +16,6 @@ import {
   getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
-  mergeWeekSchema,
   reseedActiveProgramIntoWeek,
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
@@ -414,34 +413,6 @@ function _renderScheduleTab(catalog, prog) {
   `;
 }
 
-export function triggerEditActiveProgram(progId) {
-  const isSystem = !!PROGRAMS[progId];
-  
-  if (isSystem) {
-    if (confirm("System blueprints are read-only. Duplicate this to a Custom Program so you can edit it?")) {
-      const newId = 'prog_' + Date.now();
-      const source = JSON.parse(JSON.stringify(PROGRAMS[progId]));
-      source.id = newId;
-      source.name = source.name + " (Custom)";
-      if (source.dossier) source.dossier.creator = "You";
-      
-      if (!appState.customPrograms) appState.customPrograms = [];
-      appState.customPrograms.push(source);
-      
-      appState.activeProgramId = newId;
-      mergeWeekSchema(appState.currentWeek);
-      saveStateToLocalStorage(true);
-      hydrateCurrentView();
-      
-      switchProgramMode('builder');
-      openBuilder(newId);
-    }
-  } else {
-    switchProgramMode('builder');
-    openBuilder(progId);
-  }
-}
-
 export function confirmWeekAdvance() {
   const modal = document.getElementById('weekAdvanceModal');
   if (!modal) return;
@@ -699,13 +670,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'dismiss-rest') dismissRestTimer();
 
   // Programs & Library
-  else if (action === 'switch-program-mode') switchProgramMode(target.getAttribute('data-mode'));
   else if (action === 'open-create-program') openCreateProgramModal();
   else if (action === 'close-create-program') closeCreateProgramModal();
   else if (action === 'execute-create-program') executeCreateProgram();
   else if (action === 'cancel-week-advance') cancelWeekAdvance();
   else if (action === 'confirm-week-advance') confirmWeekAdvance();
-  else if (action === 'edit-program') triggerEditActiveProgram(progId);
   else if (action === 'make-active-program') triggerMakeActiveProgram(progId);
   else if (action === 'open-builder') openBuilder(progId);
   else if (action === 'delete-program') executeDeleteProgram(progId);

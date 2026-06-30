@@ -3,10 +3,11 @@
 //
 // Edits a custom program's *trainable* shape: days{} object map (mon..sun),
 // each day carrying { title, runs, lifts[] }. This is exactly what the cockpit
-// and mergeWeekSchema/verifyWeekStorageSchema seed from (state.js), so a program
-// built here loads as real, loggable exercises when made active. Sets/reps come
-// from the program's weekly modifiers (createCustomProgram seeds them), not from
-// per-exercise overrides — keep it honest about what the engine actually reads.
+// and verifyWeekStorageSchema/reseedActiveProgramIntoWeek seed from (state.js),
+// so a program built here loads as real, loggable exercises when made active.
+// Sets/reps come from the program's weekly modifiers (createCustomProgram seeds
+// them), not from per-exercise overrides — keep it honest about what the engine
+// actually reads.
 // ==========================================
 import { saveStateToLocalStorage, getProgramById } from './state.js';
 import { escapeHtml } from './util.js';
