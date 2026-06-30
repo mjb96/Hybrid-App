@@ -1243,6 +1243,19 @@ export function executeResetActiveDayMetrics() {
   showToast('Day Logs Cleared');
 }
 
+// Normalise a duration entry to canonical "M:SS" (matching .FIT imports). A
+// bare number is treated as minutes ("45" → "45:00"); "" stays "".
+function _normalizeDuration(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (s.includes(':')) {
+    const [m, sec] = s.split(':');
+    return `${parseInt(m, 10) || 0}:${(parseInt(sec, 10) || 0).toString().padStart(2, '0')}`;
+  }
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? `${n}:00` : '';
+}
+
 export function openFinishSessionModal() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
@@ -1261,12 +1274,25 @@ export function openFinishSessionModal() {
   
   const sumVolEl = document.getElementById('summaryVolume');
   const sumSetsEl = document.getElementById('summarySets');
+  const sumDurEl = document.getElementById('summaryDuration');
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
   const sumRunRpeEl = document.getElementById('summaryRunRPE');
   const sumModalEl = document.getElementById('summaryModal');
 
   if (sumVolEl) sumVolEl.textContent = vol + ' kg';
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
+  // Prefill duration with an already-logged value (e.g. .FIT import), else the
+  // session timer's elapsed — surfaced here so it's confirmed/corrected at the
+  // moment of finishing rather than silently logged.
+  if (sumDurEl) {
+    const existing = appState.weeks[wk].gymStats?.[selectedDay]?.time;
+    if (existing) {
+      sumDurEl.value = existing;
+    } else {
+      const elapsed = getWorkoutElapsedSeconds();
+      sumDurEl.value = elapsed > 0 ? _normalizeDuration(`${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`) : '';
+    }
+  }
   if (sumGymRpeEl) sumGymRpeEl.value = appState.weeks[wk].gymRpe?.[selectedDay] || '';
   if (sumRunRpeEl) sumRunRpeEl.value = appState.weeks[wk].runs?.[selectedDay]?.rpe || '';
   if (sumModalEl) sumModalEl.classList.add('active');
@@ -1291,21 +1317,16 @@ export function closeFinishSessionModal() {
   if (gymRpeEl) gymRpeEl.value = appState.weeks[wk].gymRpe[selectedDay] || '';
   if (runRpeEl) runRpeEl.value = appState.weeks[wk].runs[selectedDay]?.rpe || '';
 
-  // Capture the in-app session timer as this day's gym duration (so it's
-  // actually logged), but never clobber a value already set — a .FIT import or
-  // a manual edit wins. Read elapsed before stopAndResetWorkoutTimer clears it.
-  const elapsedSec = getWorkoutElapsedSeconds();
-  if (elapsedSec > 0) {
+  // Persist the confirmed session duration from the summary field (prefilled
+  // from the timer in openFinishSessionModal, editable by the user).
+  const sumDurEl = document.getElementById('summaryDuration');
+  if (sumDurEl) {
+    const normalized = _normalizeDuration(sumDurEl.value);
     if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
     if (!appState.weeks[wk].gymStats[selectedDay]) {
       appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
     }
-    const g = appState.weeks[wk].gymStats[selectedDay];
-    if (!g.time) {
-      const m = Math.floor(elapsedSec / 60);
-      const s = elapsedSec % 60;
-      g.time = `${m}:${s.toString().padStart(2, '0')}`;
-    }
+    appState.weeks[wk].gymStats[selectedDay].time = normalized;
   }
 
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
