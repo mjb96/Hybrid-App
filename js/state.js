@@ -469,7 +469,7 @@ export async function pullEngineDataFromStorage() {
     wellnessLog: [],
     fastingSession: { active: false, startTime: null, goal: 16, history: [] },
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
-    settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', restTimerDefault: 90, progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true, theme: 'dark', onboardingComplete: false, fitnessGoal: 'hybrid', fitnessLevel: 'intermediate', equipmentTier: 'gym', weekStartDay: 'mon', fastingDefault: 16, reminderTime: { hour: 7, minute: 30 }, notifWeeklySummary: false, notifStreak: false, streakAlertTime: { hour: 20, minute: 0 }, notifMissedWorkout: false, equipment: { barbell: true, rack: true, dumbbells: true, cables: true, pullupBar: true, bands: false, kettlebells: false, treadmill: false }, bandWeights: { L: 10, M: 20, H: 30 }, avatarDataUrl: null },
+    settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', restTimerDefault: 90, progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true, theme: 'dark', onboardingComplete: false, fitnessGoal: 'hybrid', fitnessLevel: 'intermediate', equipmentTier: 'gym', weekStartDay: 'mon', fastingDefault: 16, reminderTime: { hour: 7, minute: 30 }, notifWeeklySummary: false, notifStreak: false, streakAlertTime: { hour: 20, minute: 0 }, notifMissedWorkout: false, equipment: { barbell: true, rack: true, dumbbells: true, cables: true, pullupBar: true, bands: false, kettlebells: false, treadmill: false }, bandWeights: { L: 10, M: 20, H: 30 }, restPeriods: { compound: 180, accessory: 120, isolation: 90 }, restTimerEnabled: true, restOverrides: {}, avatarDataUrl: null },
     profileSections: { order: null, hidden: [] },
   };
 
@@ -536,6 +536,9 @@ export async function pullEngineDataFromStorage() {
   if (!appState.profileSections) appState.profileSections = { order: null, hidden: [] };
   if (!appState.settings.avatarDataUrl && appState.settings.avatarDataUrl !== null) appState.settings.avatarDataUrl = null;
   if (!appState.settings.bandWeights) appState.settings.bandWeights = { L: 10, M: 20, H: 30 };
+  if (!appState.settings.restPeriods) appState.settings.restPeriods = { compound: 180, accessory: 120, isolation: 90 };
+  if (appState.settings.restTimerEnabled === undefined) appState.settings.restTimerEnabled = true;
+  if (!appState.settings.restOverrides) appState.settings.restOverrides = {};
 
   // Run versioned schema migrations (legacy-week cleanup lives here now) and
   // stamp the current schema version.

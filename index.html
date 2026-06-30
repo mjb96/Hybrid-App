@@ -1542,13 +1542,18 @@
               <button class="settings-toggle-btn" data-action="set-dist-unit" data-unit="mi">miles</button>
             </div>
           </div>
-          <div class="settings-row">
-            <label class="settings-row-label">Default Rest Timer</label>
-            <div class="settings-toggle-group">
-              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="60">60s</button>
-              <button class="settings-toggle-btn active" data-action="set-rest-default" data-secs="90">90s</button>
-              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="120">2m</button>
-              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="180">3m</button>
+          <div class="settings-row" style="display:block;">
+            <label class="hc-data-toggle" style="margin-bottom:8px;"><input type="checkbox" id="settingsRestEnabled" checked><span>Auto rest timer between sets</span></label>
+            <div class="settings-hint" style="margin-bottom:8px;">Rest is suggested by exercise type. Tune each tier (m:ss):</div>
+            <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
+              <label><span class="set-num-lbl block mb-1 text-accent-red">Compound</span><input type="text" id="settingsRestCompound" inputmode="numeric" placeholder="3:00" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-amber">Accessory</span><input type="text" id="settingsRestAccessory" inputmode="numeric" placeholder="2:00" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-green">Isolation</span><input type="text" id="settingsRestIsolation" inputmode="numeric" placeholder="1:30" style="text-align:center;"></label>
+            </div>
+            <div class="settings-toggle-group" style="margin-top:8px;">
+              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="strength">Strength</button>
+              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="hypertrophy">Hypertrophy</button>
+              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="efficient">Time-efficient</button>
             </div>
           </div>
           <div class="settings-row">

@@ -22,9 +22,32 @@ let _restTotalDuration = 90;  // total for progress bar calculation
 // hypertrophy, ~2 min for secondary/assistance compounds, and ~60–90 s for
 // single-joint isolation work (which recovers far faster). We classify by name
 // and fall back to the user's configured default for anything unrecognised.
-const REST_PRIMARY   = 180; // heavy multi-joint: squat / deadlift / bench / OHP / heavy hinge
-const REST_SECONDARY = 120; // assistance compounds: rows / pulls / dips / lunges / machine presses
-const REST_ISOLATION = 90;  // single-joint: curls / raises / extensions / pushdowns / calves
+// Tier defaults (seconds), tunable from Settings (settings.restPeriods). Pushed
+// in via setRestTiers on boot/change so this leaf module needs no state import.
+let _restTiers = { compound: 180, accessory: 120, isolation: 90 };
+let _restTimerEnabled = true;
+let _restOverrides = {};       // { liftName: seconds } — remembered ± adjustments
+let _currentLift = null;       // exercise whose rest is currently running
+let _currentWorking = false;   // is that set a working set (override-eligible)?
+let _onOverridesChange = null; // persistence callback (app layer owns the save)
+
+const _clampRest = (v, fallback) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n >= 30 && n <= 600 ? n : fallback;
+};
+
+export function setRestTiers(t) {
+  if (!t || typeof t !== 'object') return;
+  _restTiers = {
+    compound:  _clampRest(t.compound,  _restTiers.compound),
+    accessory: _clampRest(t.accessory, _restTiers.accessory),
+    isolation: _clampRest(t.isolation, _restTiers.isolation),
+  };
+}
+export function getRestTiers() { return { ..._restTiers }; }
+export function setRestTimerEnabled(b) { _restTimerEnabled = b !== false; }
+export function setRestOverrides(o) { _restOverrides = (o && typeof o === 'object') ? { ...o } : {}; }
+export function initRestPersistence(cb) { _onOverridesChange = typeof cb === 'function' ? cb : null; }
 
 // Checked isolation-first so "leg extension" / "leg curl" don't fall through to
 // the broad "press"/"row" compound keywords.
@@ -49,9 +72,9 @@ const SECONDARY_KEYWORDS = [
 export function recommendedRestFor(liftName) {
   if (!liftName || typeof liftName !== 'string') return null;
   const n = liftName.toLowerCase();
-  if (ISOLATION_KEYWORDS.some(k => n.includes(k))) return REST_ISOLATION;
-  if (PRIMARY_KEYWORDS.some(k => n.includes(k)))   return REST_PRIMARY;
-  if (SECONDARY_KEYWORDS.some(k => n.includes(k))) return REST_SECONDARY;
+  if (ISOLATION_KEYWORDS.some(k => n.includes(k))) return _restTiers.isolation;
+  if (PRIMARY_KEYWORDS.some(k => n.includes(k)))   return _restTiers.compound;
+  if (SECONDARY_KEYWORDS.some(k => n.includes(k))) return _restTiers.accessory;
   return null;
 }
 
@@ -154,7 +177,11 @@ function _startRestCountdown() {
 // setRpe:   optional numeric RPE of the completed set
 // setType:  optional set type char — 'W' = warmup, 'F' = AMRAP, '' = working set
 export function triggerRestTimerEngine(liftName, setRpe, setType) {
+  if (!_restTimerEnabled) return; // auto rest timer turned off in Settings
+
   let duration;
+  _currentLift = liftName || null;
+  _currentWorking = (setType !== 'W' && setType !== 'F');
 
   // 1. Warmup sets always get a short 45s rest, regardless of lift type.
   if (setType === 'W') {
@@ -162,12 +189,15 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
   } else if (setType === 'F') {
     // AMRAP sets get a fixed 2-minute rest
     duration = 120;
+  } else if (liftName && _restOverrides[liftName] != null) {
+    // A remembered per-exercise adjustment is an explicit choice — use it as-is
+    // (no RPE bonus on top, since the user already dialled in this value).
+    duration = _restOverrides[liftName];
   } else {
     // Working sets: prescribe rest by exercise type (heavy compound → isolation)
     // so a curl no longer inherits the same 3 min as a squat. Unrecognised /
-    // custom lifts fall back to the user-configured default.
-    const recommended = recommendedRestFor(liftName);
-    duration = recommended != null ? recommended : _restDuration;
+    // custom lifts fall back to the accessory tier.
+    duration = recommendedRestFor(liftName) ?? _restTiers.accessory;
 
     // RPE bonus: heavier perceived effort = more rest
     const rpe = parseFloat(setRpe) || 0;
@@ -175,6 +205,7 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
     else if (rpe >= 8) duration += 15;
   }
 
+  _restDuration = duration; // last prescribed — used by idle display / dismiss reset
   _restTotalDuration = duration;
   _restRemaining = duration;
 
@@ -190,15 +221,20 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
 }
 
 export function adjustRestDuration(delta) {
-  _restDuration = Math.min(300, Math.max(30, _restDuration + delta));
-  // If timer is active, adjust remaining time and restart countdown
-  if (restTimerInt !== null || _restRemaining > 0) {
-    _restRemaining = Math.min(300, Math.max(0, _restRemaining + delta));
-    _restTotalDuration = Math.max(_restTotalDuration, _restRemaining);
-    _updateRestTimerDisplay(_restRemaining, _restTotalDuration);
-    if (restTimerInt !== null) {
-      _startRestCountdown();
-    }
+  // Adjust ONLY the running countdown — never a hidden global baseline (which
+  // used to leak one exercise's nudge into every later unrecognised lift).
+  const newTotal = Math.min(600, Math.max(30, _restTotalDuration + delta));
+  _restTotalDuration = newTotal;
+  _restDuration = newTotal;
+  _restRemaining = Math.min(newTotal, Math.max(0, _restRemaining + delta));
+  _updateRestTimerDisplay(_restRemaining, _restTotalDuration);
+  if (restTimerInt !== null) _startRestCountdown();
+
+  // Remember the adjustment for this exercise (working sets only) so it
+  // auto-applies next set and next session.
+  if (_currentWorking && _currentLift) {
+    _restOverrides[_currentLift] = newTotal;
+    if (_onOverridesChange) _onOverridesChange({ ..._restOverrides });
   }
 }
 
