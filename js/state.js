@@ -146,7 +146,9 @@ export function recordRecentlyViewed(programId) {
   lib.recentlyViewed = lib.recentlyViewed.filter(v => v.programId !== programId);
   lib.recentlyViewed.unshift({ programId, viewedAt: new Date().toISOString() });
   if (lib.recentlyViewed.length > 20) lib.recentlyViewed.length = 20;
-  saveStateToLocalStorage(false);
+  // Autosave (debounced, no toast): viewing a program shouldn't fire a
+  // "Saved" toast or an immediate cloud round-trip on every detail open.
+  saveStateToLocalStorage(true);
 }
 
 export function savePersonalRating(programId, rating, review = '') {
@@ -275,45 +277,65 @@ export function verifyWeekStorageSchema(wk) {
 
     DEFAULT_DAYS.forEach(d => {
       const dayBlueprint = activeProgram.days[d];
-      if (dayBlueprint && dayBlueprint.lifts && dayBlueprint.lifts.length > 0) {
+      // Ignore blank/whitespace lift names (custom-builder programs can carry
+      // empty rows) so they never seed a junk lift key or pollute liftOrder.
+      const liftNames = (dayBlueprint?.lifts || []).filter(n => typeof n === 'string' && n.trim());
+      if (liftNames.length > 0) {
         const weekModifier = getWeekModifier(activeProgram, wk);
 
-        dayBlueprint.lifts.forEach(liftName => {
+        liftNames.forEach(liftName => {
           appState.weeks[wk].lifts[d][liftName] =
             prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
         });
         // Stamp the explicit display order (blueprint order). Render reads this
         // instead of object-key enumeration, which would otherwise float any
         // integer-like keys to the top and scramble the prescribed sequence.
-        appState.weeks[wk].liftOrder[d] = [...dayBlueprint.lifts];
+        appState.weeks[wk].liftOrder[d] = [...liftNames];
       }
     });
   }
 }
 
-// Merge a new program's exercise slots into an existing week without touching
-// any already-logged sets. Called after a program switch so the cockpit shows
-// the new exercises while preserving all historical log data.
-export function mergeWeekSchema(wk) {
-  verifyWeekStorageSchema(wk); // creates the week object if it doesn't exist yet
-  const activeProgram = getProgramById(appState.activeProgramId);
-  if (!activeProgram?.days) return;
-  const weekModifier = getWeekModifier(activeProgram, wk);
+// A set counts as "logged" (real history, never discard on a program switch)
+// once it's completed or carries an entered weight. Prescribed-but-untouched
+// sets seed w:'' with only a rep target, so they don't qualify.
+function liftHasLoggedData(sets) {
+  return Array.isArray(sets) && sets.some(s => s && (s.c || (s.w !== '' && s.w != null)));
+}
+
+// Re-point a single week at the *active* program: add the new program's
+// exercises, drop the previous program's unlogged scaffolding, and rebuild
+// liftOrder (new blueprint order first, retained logged lifts appended). This
+// replaces stale scaffolding so a program switch doesn't leave a week showing
+// the union of both programs. Logged sets are always preserved.
+export function reseedActiveProgramIntoWeek(wk) {
+  verifyWeekStorageSchema(wk); // ensures the week object exists & is shaped
+  const program = getProgramById(appState.activeProgramId);
+  if (!program?.days) return;
+  const weekModifier = getWeekModifier(program, wk);
+  const week = appState.weeks[wk];
+  if (!week.lifts) week.lifts = {};
+  if (!week.liftOrder) week.liftOrder = {};
+
   DEFAULT_DAYS.forEach(d => {
-    const dayBlueprint = activeProgram.days[d];
-    if (!dayBlueprint?.lifts?.length) return;
-    if (!appState.weeks[wk].lifts[d]) appState.weeks[wk].lifts[d] = {};
-    if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
-    if (!Array.isArray(appState.weeks[wk].liftOrder[d])) appState.weeks[wk].liftOrder[d] = [];
-    dayBlueprint.lifts.forEach(liftName => {
-      if (!appState.weeks[wk].lifts[d][liftName]) {
-        appState.weeks[wk].lifts[d][liftName] =
-          prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
-      }
-      if (!appState.weeks[wk].liftOrder[d].includes(liftName)) {
-        appState.weeks[wk].liftOrder[d].push(liftName);
+    const blueprintLifts = (program.days[d]?.lifts || []).filter(n => typeof n === 'string' && n.trim());
+    if (!week.lifts[d]) week.lifts[d] = {};
+    const existing = week.lifts[d];
+
+    // 1. Drop old, unlogged scaffolding that isn't in the new blueprint.
+    for (const liftName of Object.keys(existing)) {
+      if (blueprintLifts.includes(liftName)) continue;
+      if (!liftHasLoggedData(existing[liftName])) delete existing[liftName];
+    }
+    // 2. Seed any new blueprint lift that isn't already present.
+    blueprintLifts.forEach(liftName => {
+      if (!existing[liftName]) {
+        existing[liftName] = prescribeSetsForLift(wk, d, liftName, program.days[d]?.desc, weekModifier);
       }
     });
+    // 3. Rebuild order: blueprint order, then retained logged lifts (history).
+    const retained = Object.keys(existing).filter(n => !blueprintLifts.includes(n));
+    week.liftOrder[d] = [...blueprintLifts, ...retained];
   });
 }
 
