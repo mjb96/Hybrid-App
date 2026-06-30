@@ -248,12 +248,20 @@ export const TILE_REGISTRY = [
       try {
         const b = model.bodyweight;
         if (!b.hasData) return { hero: '-- kg', sub: 'Tap to log', tag: 'No data', tagColor: 'var(--text-secondary)', state: 'empty' };
+        const goal = appState.settings?.weightGoal || 'maintain';
         let delta = null;
         if (b.delta7 !== null) {
-          delta = { dir: b.delta7 > 0 ? 'up' : b.delta7 < 0 ? 'down' : 'flat', good: b.delta7 <= 0, label: `${b.delta7 > 0 ? '+' : ''}${b.delta7}kg`, usePct: false };
+          const dir = b.delta7 > 0 ? 'up' : b.delta7 < 0 ? 'down' : 'flat';
+          // Whether a weekly change is "good" depends on the body-composition goal.
+          const good = goal === 'cut' ? b.delta7 <= 0
+                     : goal === 'bulk' ? b.delta7 >= 0
+                     : Math.abs(b.delta7) <= 1;        // maintain: holding within ~1kg/wk
+          delta = { dir, good, label: `${b.delta7 > 0 ? '+' : ''}${b.delta7}kg`, usePct: false };
         }
+        const goalTag = { cut: 'Cutting', maintain: 'Maintaining', bulk: 'Bulking' }[goal];
         return {
           hero: `${b.latest.toFixed(1)} kg`, sub: 'vs 7 days ago', delta,
+          tag: goalTag, tagColor: 'var(--text-secondary)',
           spark: b.trend, sparkColor: 'var(--color-green)', state: 'loaded',
         };
       } catch { return { hero: '--', sub: 'Unavailable', state: 'error' }; }
@@ -388,23 +396,26 @@ export const TILE_REGISTRY = [
 
   // ---- HRV (HEALTH CONNECT) ----------------------------------
   {
-    id: 'hrv', type: DashboardTileType.RING, icon: '💓', label: 'HRV',
+    id: 'hrv', type: DashboardTileType.METRIC, icon: '💓', label: 'HRV',
     accentVar: '--color-green', navTarget: 'recovery-score', order: 12, requiresHealth: true,
     renderData(appState) {
       try {
         const hc = appState.healthConnect; const log = hc?.hrv;
-        if (!hc?.connected || !log?.length) return { hero: '--', sub: 'Connect Health app', ringPct: 0, ringColor: 'var(--color-blue)', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
+        if (!hc?.connected || !log?.length) return { hero: '--', sub: 'Connect Health app', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
         const sorted = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
         const latest = sorted[0].rmssd;
         const count30 = Math.min(sorted.length, 30);
         const avg30 = sorted.slice(0, count30).reduce((s, e) => s + e.rmssd, 0) / count30;
-        const delta = latest - avg30;
+        const diff = Math.round(latest - avg30);
+        // Higher HRV vs your own 30-day baseline signals better recovery.
+        const delta = sorted.length > 1
+          ? { dir: diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat', good: diff >= 0, label: `${diff > 0 ? '+' : ''}${diff}ms`, usePct: false }
+          : null;
         return {
-          hero: `${Math.round(latest)}ms`, sub: `${Math.round(avg30)}ms 30-day avg`,
-          tag: `${delta >= 0 ? '+' : ''}${Math.round(delta)} vs 30d`, tagColor: delta >= 0 ? 'var(--color-green)' : 'var(--color-red)',
-          ringPct: Math.min(100, Math.round(latest)), ringColor: delta >= 0 ? 'var(--color-green)' : 'var(--color-amber)', state: 'loaded',
+          hero: `${Math.round(latest)} ms`, sub: `${Math.round(avg30)} ms · 30-day avg`,
+          delta, state: 'loaded',
         };
-      } catch { return { hero: '--', sub: 'Unavailable', ringPct: 0, ringColor: 'var(--color-blue)', state: 'error' }; }
+      } catch { return { hero: '--', sub: 'Unavailable', state: 'error' }; }
     },
   },
 

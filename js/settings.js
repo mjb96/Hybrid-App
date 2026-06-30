@@ -83,6 +83,7 @@ function _syncSettingsUI() {
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${s.progressionIncrement || 2.5}"]`);
   _setToggleActive('[data-action="set-theme"]',       `[data-theme-val="${s.theme || 'dark'}"]`);
   _setToggleActive('[data-action="set-fitness-goal"]',`[data-goal="${s.fitnessGoal || 'hybrid'}"]`);
+  _setToggleActive('[data-action="set-weight-goal"]',`[data-weight-goal="${s.weightGoal || 'maintain'}"]`);
   _setToggleActive('[data-action="set-fitness-level"]',`[data-level="${s.fitnessLevel || 'intermediate'}"]`);
   _setToggleActive('[data-action="set-week-start"]',  `[data-day="${s.weekStartDay || 'mon'}"]`);
   _setToggleActive('[data-action="set-fasting-default"]',`[data-hours="${s.fastingDefault || 16}"]`);
@@ -346,6 +347,15 @@ export function setFitnessGoal(goal) {
   _setToggleActive('[data-action="set-fitness-goal"]', `[data-goal="${goal}"]`);
   const labels = { strength: 'Strength First', hybrid: 'True Hybrid', endurance: 'Run-Focused' };
   showToast(`Goal: ${labels[goal] || goal}`);
+}
+
+export function setWeightGoal(goal) {
+  const appState = _ensureSettings();
+  appState.settings.weightGoal = goal;
+  saveStateToLocalStorage(true);
+  _setToggleActive('[data-action="set-weight-goal"]', `[data-weight-goal="${goal}"]`);
+  const labels = { cut: 'Cutting', maintain: 'Maintaining', bulk: 'Bulking' };
+  showToast(`Weight goal: ${labels[goal] || goal}`);
 }
 
 export function setFitnessLevel(level) {

@@ -34,7 +34,7 @@ import {
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
-import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
+import { initDragDrop } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
   updateInputState, commitWorkoutUIState, toggleGymCheckLoggingState,
@@ -59,7 +59,7 @@ import {
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
-  setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
+  setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
   saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights,
   saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut,
   openAvatarPicker, handleAvatarFile,
@@ -662,6 +662,11 @@ document.addEventListener('click', (e) => {
   }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
+  else if (action === 'dismiss-insight') {
+    appState.dashboardInsightDismissed = { nav: target.getAttribute('data-nav') || '', date: new Date().toISOString().slice(0, 10) };
+    saveStateToLocalStorage(true);
+    document.getElementById('dashboardInsightWrap')?.style.setProperty('display', 'none');
+  }
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
@@ -735,6 +740,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
   else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));
+  else if (action === 'set-weight-goal')      setWeightGoal(target.getAttribute('data-weight-goal'));
   else if (action === 'set-fitness-level')    setFitnessLevel(target.getAttribute('data-level'));
   else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
   else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));

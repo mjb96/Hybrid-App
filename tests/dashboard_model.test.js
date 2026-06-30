@@ -65,6 +65,39 @@ test('weekly volume + delta reflect completed tonnage growth', () => {
   assert.equal(m.week.volume.delta.good, true);
 });
 
+test('weekly consistency drives the header progress (done/total/pct)', () => {
+  const m = computeDashboardModel(fixture(), DAYS, PROGRAM, 'mon');
+  // Week 2: Sat run scheduled + logged (1/1) and 2 completed squat sets (2/2).
+  assert.equal(m.week.consistencyDone, 3);
+  assert.equal(m.week.consistencyTotal, 3);
+  assert.equal(m.week.consistencyPct, 100);
+});
+
+test('weekCompare totals this week vs last (canonical tonnage + distance)', () => {
+  const m = computeDashboardModel(fixture(), DAYS, PROGRAM, 'mon');
+  assert.equal(m.weekCompare.hasPrev, true);
+  assert.equal(m.weekCompare.prevWeek, 1);
+  assert.equal(m.weekCompare.volume.current, 1100);   // 2 × 110 × 5
+  assert.equal(m.weekCompare.volume.prev, 500);        // 1 × 100 × 5
+  assert.equal(m.weekCompare.distance.current, 10);    // week 2 Sat run
+  assert.equal(m.weekCompare.distance.prev, 8);        // week 1 Sat run
+});
+
+test('weekCompare reports no previous week in week 1', () => {
+  const s = fixture();
+  s.currentWeek = '1';
+  const m = computeDashboardModel(s, DAYS, PROGRAM, 'mon');
+  assert.equal(m.weekCompare.hasPrev, false);
+});
+
+test('weekCompare excludes warm-up sets from tonnage', () => {
+  const s = fixture();
+  // Add a completed warm-up to week 2 — it must not inflate compare volume.
+  s.weeks['2'].lifts.mon['Back Squat'].push({ w: '60', r: '5', c: true, type: 'W' });
+  const m = computeDashboardModel(s, DAYS, PROGRAM, 'mon');
+  assert.equal(m.weekCompare.volume.current, 1100);   // warm-up ignored
+});
+
 test('body weight trend exposes latest value and 7-day delta', () => {
   const m = computeDashboardModel(fixture(), DAYS, PROGRAM, 'mon');
   assert.equal(m.bodyweight.hasData, true);

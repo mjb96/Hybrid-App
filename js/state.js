@@ -469,8 +469,10 @@ export async function pullEngineDataFromStorage() {
     wellnessLog: [],
     fastingSession: { active: false, startTime: null, goal: 16, history: [] },
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
-    settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true, theme: 'dark', onboardingComplete: false, fitnessGoal: 'hybrid', fitnessLevel: 'intermediate', equipmentTier: 'gym', weekStartDay: 'mon', fastingDefault: 16, reminderTime: { hour: 7, minute: 30 }, notifWeeklySummary: false, notifStreak: false, streakAlertTime: { hour: 20, minute: 0 }, notifMissedWorkout: false, equipment: { barbell: true, rack: true, dumbbells: true, cables: true, pullupBar: true, bands: false, kettlebells: false, treadmill: false }, bandWeights: { L: 10, M: 20, H: 30 }, restPeriods: { compound: 180, accessory: 120, isolation: 90 }, restTimerEnabled: true, restOverrides: {}, avatarDataUrl: null },
+    settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true, theme: 'dark', onboardingComplete: false, fitnessGoal: 'hybrid', weightGoal: 'maintain', fitnessLevel: 'intermediate', equipmentTier: 'gym', weekStartDay: 'mon', fastingDefault: 16, reminderTime: { hour: 7, minute: 30 }, notifWeeklySummary: false, notifStreak: false, streakAlertTime: { hour: 20, minute: 0 }, notifMissedWorkout: false, equipment: { barbell: true, rack: true, dumbbells: true, cables: true, pullupBar: true, bands: false, kettlebells: false, treadmill: false }, bandWeights: { L: 10, M: 20, H: 30 }, restPeriods: { compound: 180, accessory: 120, isolation: 90 }, restTimerEnabled: true, restOverrides: {}, avatarDataUrl: null },
     profileSections: { order: null, hidden: [] },
+    dashboardTiles: { order: null, hidden: [] },
+    dashboardInsightDismissed: null,
   };
 
   // Always seed defaults so a brand-new install (no localData, no cloud) still
@@ -534,10 +536,27 @@ export async function pullEngineDataFromStorage() {
   if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
   if (!appState.prGoals) appState.prGoals = {};
   if (!appState.profileSections) appState.profileSections = { order: null, hidden: [] };
+  if (!appState.dashboardTiles) appState.dashboardTiles = { order: null, hidden: [] };
+  // One-time migration of dashboard tile layout from the legacy standalone
+  // localStorage keys into synced app state. The legacy keys are removed so a
+  // later "reset tiles" can't be silently resurrected from them on next load.
+  try {
+    if (appState.dashboardTiles.order == null) {
+      const _legacyOrder = localStorage.getItem('dashboardTileOrder');
+      if (_legacyOrder) appState.dashboardTiles.order = JSON.parse(_legacyOrder);
+    }
+    if (!appState.dashboardTiles.hidden || appState.dashboardTiles.hidden.length === 0) {
+      const _legacyHidden = localStorage.getItem('dashboardTilesHidden');
+      if (_legacyHidden) appState.dashboardTiles.hidden = JSON.parse(_legacyHidden);
+    }
+    localStorage.removeItem('dashboardTileOrder');
+    localStorage.removeItem('dashboardTilesHidden');
+  } catch {}
   if (!appState.settings.avatarDataUrl && appState.settings.avatarDataUrl !== null) appState.settings.avatarDataUrl = null;
   if (!appState.settings.bandWeights) appState.settings.bandWeights = { L: 10, M: 20, H: 30 };
   if (!appState.settings.restPeriods) appState.settings.restPeriods = { compound: 180, accessory: 120, isolation: 90 };
   if (appState.settings.restTimerEnabled === undefined) appState.settings.restTimerEnabled = true;
+  if (appState.settings.weightGoal === undefined) appState.settings.weightGoal = 'maintain';
   if (!appState.settings.restOverrides) appState.settings.restOverrides = {};
 
   // Run versioned schema migrations (legacy-week cleanup lives here now) and

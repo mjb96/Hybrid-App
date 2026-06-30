@@ -55,6 +55,7 @@ export interface AppSettings {
   restOverrides?: Record<string, number>;
   progressionIncrement?: number;
   fitnessGoal?: string;
+  weightGoal?: 'cut' | 'maintain' | 'bulk';
   fitnessLevel?: string;
   weekStartDay?: 'mon' | 'sun';
   fastingDefault?: number;
@@ -83,6 +84,8 @@ export interface AppState {
   fastingSession: FastingSession;
   programLibrary: ProgramLibrary;
   profileSections?: { order: string[] | null; hidden: string[] };
+  dashboardTiles?: { order: string[] | null; hidden: string[] };
+  dashboardInsightDismissed?: { nav: string; date: string } | null;
   settings?: AppSettings;
 }
 

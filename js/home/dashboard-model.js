@@ -18,7 +18,7 @@ import { trainingStatus } from '../brain/briefing.js';
 import { generateRecommendation } from '../brain/recommendations.js';
 import { computeReadiness, readinessStatus, readinessColor } from '../analytics/scoring/readiness-scoring.js';
 import { getFastingContext } from '../fasting.js';
-import { isCompletedSet as isDone } from '../set-utils.js';
+import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -171,6 +171,9 @@ export function computeDashboardModel(state, days, program, selectedDay) {
   // ---- Fasting ------------------------------------------------------------
   const fasting = getFastingContext(state || {});
 
+  // ---- This-week vs last-week roll-up (for the home compare card) ---------
+  const weekCompare = computeWeekCompare(weeks, days, wkNum);
+
   // ---- Goal progress ------------------------------------------------------
   const totalWeeks = program?.totalWeeks || 12;
   const calPct = Math.round((wkNum / totalWeeks) * 100);
@@ -200,7 +203,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     },
     week: {
       volume:   { current: volCurrent, prev: volPrev, delta: makeDelta(volCurrent, volPrev, { unit: 'kg' }), spark: tail(volumeSeries, 8) },
-      distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev, { unit: distCurrent ? '' : '' }), spark: tail(distanceSeries, 8) },
+      distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev), spark: tail(distanceSeries, 8) },
       sets, reps, consistencyDone, consistencyTotal,
       consistencyPct: consistencyTotal > 0 ? Math.round((consistencyDone / consistencyTotal) * 100) : 0,
     },
@@ -210,6 +213,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     streak,
     fasting,
     goal: { calPct, wk: wkNum, total: totalWeeks, avgConsistency: avgConsistency(weeks, days, program, wkNum) },
+    weekCompare,
     health,
   };
 
@@ -330,15 +334,23 @@ export function computeStreak(weeks, days, state) {
   const curWk = parseInt(state?.currentWeek, 10) || 1;
   for (const w in weeks) {
     const wd = weeks[w];
+    const storedDates = wd?.dates || {};
     days.forEach((d, dayIdx) => {
       let done = 0;
       const dl = wd?.lifts?.[d] || {};
       for (const lift in dl) if (Array.isArray(dl[lift])) done += dl[lift].filter(isDone).length;
       const rDist = num(wd?.runs?.[d]?.dist);
       if (done > 0 || rDist > 0) {
-        const approx = new Date(base);
-        approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
-        active.add(approx.toISOString().slice(0, 10));
+        // Prefer the real logged date (the same source the activity calendar
+        // uses); fall back to reconstructing from weekStartedAt only when the
+        // stored date is missing.
+        let ds = storedDates[d];
+        if (!ds) {
+          const approx = new Date(base);
+          approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
+          ds = approx.toISOString().slice(0, 10);
+        }
+        active.add(ds);
       }
     });
   }
@@ -359,6 +371,32 @@ export function computeStreak(weeks, days, state) {
     prev = ds;
   });
   return { current, longest, total: active.size };
+}
+
+// This-week vs previous-week totals for the home compare card. Tonnage uses the
+// canonical dayVolume (completed working sets, warm-ups excluded); distance is
+// raw km (the view converts to the user's unit). Returns hasPrev:false when
+// there is no previous week to compare against.
+function computeWeekCompare(weeks, days, wkNum) {
+  const prevWeek = wkNum - 1;
+  if (prevWeek < 1) return { hasPrev: false };
+  const prevWkData = weeks[String(prevWeek)];
+  if (!prevWkData) return { hasPrev: false };
+  const curWkData = weeks[String(wkNum)] || {};
+
+  let prevVol = 0, prevDist = 0, curVol = 0, curDist = 0;
+  days.forEach(d => {
+    prevDist += num(prevWkData.runs?.[d]?.dist);
+    curDist  += num(curWkData.runs?.[d]?.dist);
+    prevVol  += dayVolume(prevWkData.lifts?.[d]);
+    curVol   += dayVolume(curWkData.lifts?.[d]);
+  });
+  return {
+    hasPrev: true,
+    prevWeek,
+    volume:   { current: curVol,  prev: prevVol },
+    distance: { current: curDist, prev: prevDist },
+  };
 }
 
 function avgConsistency(weeks, days, program, wkNum) {
