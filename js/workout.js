@@ -906,78 +906,47 @@ function _currentBodyweight(appState) {
   return 75;
 }
 
-// Cycle a set's resistance band: None → Light → Medium → Heavy. Selecting a
-// band stamps the set's weight with the configured nominal kg for that band
-// (settings.bandWeights) so it still contributes to volume / e1RM / the
-// summary; clearing it removes the auto weight. A band and bodyweight are
-// mutually exclusive.
-export function cycleSetBand(liftName, sIdx) {
-  const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
-
-  const order = ['', 'L', 'M', 'H'];
-  const cur = setArr[sIdx].band || '';
-  const next = order[(order.indexOf(cur) + 1) % order.length];
-  const bw = appState.settings?.bandWeights || { L: 10, M: 20, H: 30 };
-
-  if (next) {
-    setArr[sIdx].band = next;
-    delete setArr[sIdx].bw; // a band replaces bodyweight as the load source
-    setArr[sIdx].w = String(bw[next] ?? '');
-  } else {
-    delete setArr[sIdx].band;
-    setArr[sIdx].w = '';
-  }
-
-  // Targeted DOM update (keep the card expanded / scroll position).
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (row) {
-    const chip = row.querySelector('.btn-band');
-    const labels = { '': '— None', L: '🟢 Light', M: '🟡 Medium', H: '🔴 Heavy' };
-    if (chip) {
-      chip.textContent = labels[next];
-      chip.className = 'btn-band tactile-scale' + (next ? ' band-' + next : '');
-    }
-    const bwBtn = row.querySelector('.btn-bw');
-    if (bwBtn) bwBtn.className = 'btn-bw tactile-scale';
-    const wInput = row.querySelector('.input-weight-node');
-    if (wInput) wInput.value = setArr[sIdx].w;
-  }
-  _saveState(true);
-}
-
-// Toggle a set as bodyweight: stamps your bodyweight as the load so the set
-// counts as bodyweight×reps toward volume/e1RM. Edit the weight afterwards to
-// add load (weighted) or reduce it (assisted). Mutually exclusive with a band.
-export function toggleSetBodyweight(liftName, sIdx) {
+// One "load" control per set, cycling Weighted → Bodyweight → Light → Medium →
+// Heavy band. Bodyweight stamps your bodyweight; a band stamps its configured
+// nominal kg (settings.bandWeights); both feed volume/e1RM. Returning to
+// Weighted clears the auto-stamped weight. (Replaces the separate band + BW
+// controls so each set carries a single, quiet chip.)
+export function cycleSetLoad(liftName, sIdx) {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const wk = appState.currentWeek;
   const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
   if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
   const set = setArr[sIdx];
-  const turningOn = !set.bw;
+  const bands = appState.settings?.bandWeights || { L: 10, M: 20, H: 30 };
 
-  if (turningOn) {
+  const order = ['', 'BW', 'L', 'M', 'H'];
+  const cur = set.bw ? 'BW' : (set.band || '');
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+
+  delete set.bw;
+  delete set.band;
+  if (next === 'BW') {
     set.bw = true;
-    delete set.band;
     set.w = String(_currentBodyweight(appState));
+  } else if (next) {
+    set.band = next;
+    set.w = String(bands[next] ?? '');
   } else {
-    delete set.bw;
-    set.w = '';
+    set.w = ''; // back to Weighted — drop the auto-stamped load
   }
 
+  // Targeted DOM update (keep the card expanded / scroll position).
   const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
   const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
   if (row) {
-    const bwBtn = row.querySelector('.btn-bw');
-    if (bwBtn) bwBtn.className = 'btn-bw tactile-scale' + (turningOn ? ' bw-on' : '');
-    const bandBtn = row.querySelector('.btn-band');
-    if (bandBtn) { bandBtn.textContent = '— None'; bandBtn.className = 'btn-band tactile-scale'; }
+    const chip = row.querySelector('.btn-load');
+    const labels = { '': 'Weighted', BW: 'Bodyweight', L: '🟢 Light band', M: '🟡 Med band', H: '🔴 Heavy band' };
+    const cls = next === '' ? 'weighted' : next === 'BW' ? 'bw' : next;
+    if (chip) {
+      chip.textContent = labels[next];
+      chip.className = 'btn-load tactile-scale load-' + cls;
+    }
     const wInput = row.querySelector('.input-weight-node');
     if (wInput) wInput.value = set.w;
   }
@@ -1362,8 +1331,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
   else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
-  else if (action === 'cycle-band') cycleSetBand(liftName, sIdx);
-  else if (action === 'toggle-bodyweight') toggleSetBodyweight(liftName, sIdx);
+  else if (action === 'cycle-load') cycleSetLoad(liftName, sIdx);
   else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
   else if (action === 'unlink-superset') unpairSuperset(liftName);
