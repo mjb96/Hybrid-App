@@ -1941,36 +1941,25 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 .cockpit-set-row .rpe-pad-row { display: none; }
 .cockpit-set-row.is-complete .rpe-pad-row { display: flex; }
 
-/* Resistance band selector — always visible (you pick the band before logging,
-   unlike RPE which is confirmed after). One chip that cycles None→L→M→H. */
-.band-pad-row {
+/* Single per-set "load" chip: one quiet control cycling Weighted → Bodyweight →
+   Light/Medium/Heavy band. Subtle (faint) in the default Weighted state so a
+   plain barbell set reads cleanly; only colours up when a load type is active. */
+.load-pad-row {
   grid-column: span 6;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   padding-top: 2px;
 }
-.btn-band {
-  flex: 1; font-size: 0.7rem; font-weight: 700; padding: 4px 0;
-  border-radius: 6px; border: 1px solid var(--border-medium);
+.btn-load {
+  font-size: 0.66rem; font-weight: 700; padding: 3px 12px;
+  border-radius: 999px; border: 1px solid var(--border-medium);
   background: var(--overlay-sm); color: var(--text-faint);
   cursor: pointer; transition: all 0.15s ease;
 }
-.btn-band:hover { border-color: rgba(255,255,255,0.25); color: var(--text-strong); }
-.btn-band.band-L { background: rgba(16,185,129,0.18);  border-color: rgba(16,185,129,0.5);  color: #34d399; }
-.btn-band.band-M { background: rgba(245,158,11,0.18);  border-color: rgba(245,158,11,0.5);  color: #fbbf24; }
-.btn-band.band-H { background: rgba(239,68,68,0.18);   border-color: rgba(239,68,68,0.5);   color: #f87171; }
-
-/* Bodyweight toggle — stamps your bodyweight as the load (mutually exclusive
-   with a band). Compact, sits left of the band chip in the LOAD row. */
-.btn-bw {
-  flex: 0 0 auto; min-width: 46px; font-size: 0.7rem; font-weight: 800;
-  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-medium);
-  background: var(--overlay-sm); color: var(--text-faint);
-  cursor: pointer; transition: all 0.15s ease;
-}
-.btn-bw:hover { border-color: rgba(255,255,255,0.25); color: var(--text-strong); }
-.btn-bw.bw-on { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.5); color: #60a5fa; }
+.btn-load:hover { border-color: rgba(255,255,255,0.25); color: var(--text-strong); }
+.btn-load.load-weighted { opacity: 0.5; border-style: dashed; }
+.btn-load.load-bw { opacity: 1; background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.5); color: #60a5fa; }
+.btn-load.load-L  { opacity: 1; background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.5); color: #34d399; }
+.btn-load.load-M  { opacity: 1; background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.5); color: #fbbf24; }
+.btn-load.load-H  { opacity: 1; background: rgba(239,68,68,0.18);  border-color: rgba(239,68,68,0.5);  color: #f87171; }
 
 /* ==========================================
    PROFILE AVATAR BUTTON

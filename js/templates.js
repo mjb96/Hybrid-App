@@ -18,9 +18,11 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
   const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
   const typeClass  = type === 'W' ? 'type-warmup' : type === 'D' ? 'type-dropset' : type === 'F' ? 'type-amrap' : '';
 
-  const band = sData.band || '';
-  const bandLabels = { '': '— None', 'L': '🟢 Light', 'M': '🟡 Medium', 'H': '🔴 Heavy' };
-  const bw = !!sData.bw;
+  // Single "load" chip: one control cycling Weighted → Bodyweight → band tiers,
+  // instead of a separate label + BW button + band chip on every set.
+  const loadState = sData.bw ? 'BW' : (sData.band || '');
+  const loadLabels = { '': 'Weighted', 'BW': 'Bodyweight', 'L': '🟢 Light band', 'M': '🟡 Med band', 'H': '🔴 Heavy band' };
+  const loadCls = loadState === '' ? 'weighted' : loadState === 'BW' ? 'bw' : loadState;
 
   return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}">
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
@@ -57,21 +59,13 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
         data-liftname="${safeLiftName}"
         data-sidx="${sIdx}">✕</button>
     </div>
-    <div class="band-pad-row">
-      <span class="rpe-pad-label">LOAD</span>
-      <button class="btn-bw tactile-scale${bw ? ' bw-on' : ''}"
-              data-action="toggle-bodyweight"
+    <div class="load-pad-row">
+      <button class="btn-load tactile-scale load-${loadCls}"
+              data-action="cycle-load"
               data-liftname="${safeLiftName}"
               data-sidx="${sIdx}"
-              title="Bodyweight: use your bodyweight as the load. Edit the weight to add (weighted) or reduce (assisted).">
-        BW
-      </button>
-      <button class="btn-band tactile-scale${band ? ' band-' + band : ''}"
-              data-action="cycle-band"
-              data-liftname="${safeLiftName}"
-              data-sidx="${sIdx}"
-              title="Tap to cycle resistance band: None → Light → Medium → Heavy. Uses your band weights for volume.">
-        ${bandLabels[band]}
+              title="Tap to set load: Weighted → Bodyweight → Light → Medium → Heavy band. Bodyweight/band auto-fill the weight for volume; edit it to add or assist.">
+        ${loadLabels[loadState]}
       </button>
     </div>
     <div class="rpe-pad-row">
