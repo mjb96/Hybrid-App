@@ -11,6 +11,7 @@
 // Called by state.js before every save so appState.loadMetrics stays current.
 // ==========================================
 import { estimateWeekStart, slotDateISO } from '../dates.js';
+import { dayVolume } from '../set-utils.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -35,16 +36,7 @@ export function strengthLoadSeries(state, days, maxWeek) {
     const wkData = (state.weeks || {})[String(w)];
     let tonnage = 0;
     if (wkData) {
-      days.forEach(d => {
-        const dayLifts = wkData.lifts?.[d] || {};
-        for (const liftName of Object.keys(dayLifts)) {
-          (dayLifts[liftName] || []).forEach(set => {
-            if (set.c && !set.isWarmup) {
-              tonnage += (parseFloat(set.w) || 0) * (parseInt(set.r, 10) || 0);
-            }
-          });
-        }
-      });
+      days.forEach(d => { tonnage += dayVolume(wkData.lifts?.[d]); });
     }
     result.push(tonnage);
   }

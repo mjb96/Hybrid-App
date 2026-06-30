@@ -64,29 +64,35 @@ export function commitReorderedDOMStateToStorage() {
 }
 
 // ==========================================
-// DASHBOARD TILE ORDER PERSISTENCE
+// DASHBOARD TILE LAYOUT PERSISTENCE
+// Order + hidden live in appState (appState.dashboardTiles) so they export and
+// cloud-sync with the rest of the user's data. Legacy standalone localStorage
+// keys are migrated once on load in state.js.
 // ==========================================
-const TILE_ORDER_KEY = 'dashboardTileOrder';
+function _dashboardTiles() {
+  const st = _getState?.();
+  if (!st) return null;
+  if (!st.dashboardTiles) st.dashboardTiles = { order: null, hidden: [] };
+  return st.dashboardTiles;
+}
 
 export function loadTileOrder() {
-  try {
-    const raw = localStorage.getItem(TILE_ORDER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  const t = _dashboardTiles();
+  return t && Array.isArray(t.order) ? t.order : null;
 }
 
 export function saveTileOrder(orderedIds) {
-  try {
-    localStorage.setItem(TILE_ORDER_KEY, JSON.stringify(orderedIds));
-  } catch {}
+  const t = _dashboardTiles();
+  if (!t) return;
+  t.order = orderedIds;
+  _saveState?.(true);
 }
 
 export function resetTileOrder() {
-  try {
-    localStorage.removeItem(TILE_ORDER_KEY);
-  } catch {}
+  const t = _dashboardTiles();
+  if (!t) return;
+  t.order = null;
+  _saveState?.(true);
 }
 
 // ==========================================
@@ -115,27 +121,23 @@ export function mountTileDragAndDrop() {
 export function exitTileEditMode() {}
 
 // ==========================================
-// HIDDEN TILES PERSISTENCE
+// HIDDEN TILES PERSISTENCE (appState-backed)
 // ==========================================
-const TILE_HIDDEN_KEY = 'dashboardTilesHidden';
-
 export function loadHiddenTiles() {
-  try {
-    const raw = localStorage.getItem(TILE_HIDDEN_KEY);
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch {
-    return new Set();
-  }
+  const t = _dashboardTiles();
+  return new Set(t && Array.isArray(t.hidden) ? t.hidden : []);
 }
 
 export function saveHiddenTiles(hiddenSet) {
-  try {
-    localStorage.setItem(TILE_HIDDEN_KEY, JSON.stringify([...hiddenSet]));
-  } catch {}
+  const t = _dashboardTiles();
+  if (!t) return;
+  t.hidden = [...hiddenSet];
+  _saveState?.(true);
 }
 
 export function resetHiddenTiles() {
-  try {
-    localStorage.removeItem(TILE_HIDDEN_KEY);
-  } catch {}
+  const t = _dashboardTiles();
+  if (!t) return;
+  t.hidden = [];
+  _saveState?.(true);
 }

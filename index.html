@@ -398,18 +398,16 @@
 
     <section id="view-home" class="view-container active" aria-label="Home Dashboard">
       
-      <div style="display:none;">
-        <span id="homeWeeklyProgressPct">0%</span>
-        <div id="homeWeeklyProgressBar"></div>
-        <span id="homeBlockTypeLabel"></span>
-        <span id="homeWeeklyProgressTasks"></span>
-      </div>
-
       <div class="home-header">
         <div class="home-header-meta">
           <span class="home-app-label">Helyx</span>
           <h1 id="homeWeekBlockIndicator" class="home-week-label">Week 1</h1>
           <span class="home-phase-label" id="homePhaseLabelTag"></span>
+        </div>
+        <div class="home-week-progress" aria-label="Weekly completion">
+          <span id="homeWeeklyProgressPct" class="home-week-progress__pct">0%</span>
+          <div class="home-week-progress__track"><div id="homeWeeklyProgressBar" class="home-week-progress__fill"></div></div>
+          <span id="homeWeeklyProgressTasks" class="home-week-progress__tasks"></span>
         </div>
       </div>
 

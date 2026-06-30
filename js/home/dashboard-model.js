@@ -330,15 +330,23 @@ export function computeStreak(weeks, days, state) {
   const curWk = parseInt(state?.currentWeek, 10) || 1;
   for (const w in weeks) {
     const wd = weeks[w];
+    const storedDates = wd?.dates || {};
     days.forEach((d, dayIdx) => {
       let done = 0;
       const dl = wd?.lifts?.[d] || {};
       for (const lift in dl) if (Array.isArray(dl[lift])) done += dl[lift].filter(isDone).length;
       const rDist = num(wd?.runs?.[d]?.dist);
       if (done > 0 || rDist > 0) {
-        const approx = new Date(base);
-        approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
-        active.add(approx.toISOString().slice(0, 10));
+        // Prefer the real logged date (the same source the activity calendar
+        // uses); fall back to reconstructing from weekStartedAt only when the
+        // stored date is missing.
+        let ds = storedDates[d];
+        if (!ds) {
+          const approx = new Date(base);
+          approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
+          ds = approx.toISOString().slice(0, 10);
+        }
+        active.add(ds);
       }
     });
   }

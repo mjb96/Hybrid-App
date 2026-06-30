@@ -10,7 +10,6 @@
 //
 // severity: 'positive' | 'neutral' | 'caution' | 'warning'
 // ==========================================
-import { recoveryCostBalance } from './load_models.js';
 import { trainingStatus } from './briefing.js';
 
 // Collect RPE readings from the last two weeks, most recent first.
@@ -119,21 +118,21 @@ function buildAdvice(acwr, tsb, session, highRpeStreak, hasData) {
 
 // Main export — call once per home render.
 export function generateRecommendation(state, days, activeProgram, selectedDay) {
-  const currentWk = parseInt(state.currentWeek || '1', 10);
-  const weekKeys = Object.keys(state.weeks || {}).map(Number);
-  const maxWeek = weekKeys.length > 0 ? Math.max(...weekKeys) : 1;
-
-  const balance = recoveryCostBalance(state, days, currentWk, maxWeek);
-  const { status } = trainingStatus(balance);
   const session = classifySession(activeProgram?.days?.[selectedDay]);
   const recentRpes = getRecentRpes(state, days);
 
-  const acwr = balance.acwr;
+  // Single ACWR source for the whole dashboard: the persisted EWMA load metrics
+  // (ATL/CTL). Keeps the coaching card, top-insight banner, training-status tile
+  // and deload card all reading the same number instead of diverging.
   const atl = state.loadMetrics?.atl || 0;
   const ctl = state.loadMetrics?.ctl || 0;
   const tsb = ctl - atl;
+  const hasLoad = ctl > 0;
+  const acwr = hasLoad ? Math.round((atl / ctl) * 100) / 100 : 0;
+  const { status } = trainingStatus({ hasData: hasLoad, acwr });
+
   const highRpeStreak = recentRpes.filter(r => r >= 8).length;
-  const hasData = balance.hasData || recentRpes.length >= 2;
+  const hasData = hasLoad || recentRpes.length >= 2;
 
   if (!hasData) {
     return {

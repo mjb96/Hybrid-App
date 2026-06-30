@@ -4,7 +4,7 @@
 import { WEEK_PHASE_NAMES } from './constants.js';
 import { getProgramById } from './state.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
-import { isCompletedSet } from './set-utils.js';
+import { isCompletedSet, dayVolume } from './set-utils.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
 import { generateRecommendation } from './brain/recommendations.js';
@@ -281,9 +281,9 @@ export function renderHome() {
   const weekData = appState?.weeks?.[wk] || {};
 
   const indicatorEl = document.getElementById('homeWeekBlockIndicator');
-  const labelEl = document.getElementById('homeBlockTypeLabel');
+  const phaseEl = document.getElementById('homePhaseLabelTag');
   if (indicatorEl) indicatorEl.textContent = 'Week ' + wk;
-  if (labelEl) labelEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
+  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
 
   const activeProgram = getProgramById(appState.activeProgramId);
 
@@ -331,7 +331,7 @@ export function renderHome() {
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay);
   renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
-  const progressPercentage = (() => {
+  const progress = (() => {
     let total = 0, done = 0;
     DEFAULT_DAYS.forEach(dKey => {
       const bp = activeProgram.days?.[dKey];
@@ -349,13 +349,15 @@ export function renderHome() {
         }
       }
     });
-    return total > 0 ? Math.round((done / total) * 100) : 0;
+    return { pct: total > 0 ? Math.round((done / total) * 100) : 0, done, total };
   })();
 
   const progressPctEl = document.getElementById('homeWeeklyProgressPct');
   const progressBarEl = document.getElementById('homeWeeklyProgressBar');
-  if (progressPctEl) progressPctEl.textContent = progressPercentage + '% WEEK DONE';
-  if (progressBarEl) progressBarEl.style.width = progressPercentage + '%';
+  const progressTasksEl = document.getElementById('homeWeeklyProgressTasks');
+  if (progressPctEl) progressPctEl.textContent = progress.pct + '%';
+  if (progressBarEl) progressBarEl.style.width = progress.pct + '%';
+  if (progressTasksEl) progressTasksEl.textContent = progress.total > 0 ? `${progress.done}/${progress.total} done` : 'No tasks yet';
 
   const compareCard = document.getElementById('homeWeekCompareCard');
   const compareGrid = document.getElementById('homeWeekCompareGrid');
@@ -366,24 +368,11 @@ export function renderHome() {
       let prevVol = 0, prevDist = 0;
       let currentWeekVolSum = 0;
       DEFAULT_DAYS.forEach(d => {
-        const pRun = prevWkData.runs?.[d] || {};
-        prevDist += parseFloat(pRun.dist) || 0;
-        const pLifts = prevWkData.lifts?.[d] || {};
-        for (const l in pLifts) {
-          if (Array.isArray(pLifts[l])) {
-            pLifts[l].forEach(s => {
-              if (isCompletedSet(s) && s.type !== 'W') prevVol += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
-            });
-          }
-        }
-        const cLifts = weekData.lifts?.[d] || {};
-        for (const l in cLifts) {
-          if (Array.isArray(cLifts[l])) {
-            cLifts[l].forEach(s => {
-              if (isCompletedSet(s) && s.type !== 'W') currentWeekVolSum += (parseFloat(s.w)||0)*(parseInt(s.r,10)||0);
-            });
-          }
-        }
+        prevDist += parseFloat(prevWkData.runs?.[d]?.dist) || 0;
+        // Canonical tonnage: completed working sets only (warm-ups excluded),
+        // matching the Weekly Volume tile and the analytics volume view.
+        prevVol += dayVolume(prevWkData.lifts?.[d]);
+        currentWeekVolSum += dayVolume(weekData.lifts?.[d]);
       });
 
       const distUnit = appState.settings?.distanceUnit || 'km';

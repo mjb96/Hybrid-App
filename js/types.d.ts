@@ -83,6 +83,7 @@ export interface AppState {
   fastingSession: FastingSession;
   programLibrary: ProgramLibrary;
   profileSections?: { order: string[] | null; hidden: string[] };
+  dashboardTiles?: { order: string[] | null; hidden: string[] };
   settings?: AppSettings;
 }
 
