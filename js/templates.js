@@ -20,6 +20,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
 
   const band = sData.band || '';
   const bandLabels = { '': '— None', 'L': '🟢 Light', 'M': '🟡 Medium', 'H': '🔴 Heavy' };
+  const bw = !!sData.bw;
 
   return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}">
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
@@ -57,7 +58,14 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
         data-sidx="${sIdx}">✕</button>
     </div>
     <div class="band-pad-row">
-      <span class="rpe-pad-label">BAND</span>
+      <span class="rpe-pad-label">LOAD</span>
+      <button class="btn-bw tactile-scale${bw ? ' bw-on' : ''}"
+              data-action="toggle-bodyweight"
+              data-liftname="${safeLiftName}"
+              data-sidx="${sIdx}"
+              title="Bodyweight: use your bodyweight as the load. Edit the weight to add (weighted) or reduce (assisted).">
+        BW
+      </button>
       <button class="btn-band tactile-scale${band ? ' band-' + band : ''}"
               data-action="cycle-band"
               data-liftname="${safeLiftName}"

@@ -1961,6 +1961,17 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 .btn-band.band-M { background: rgba(245,158,11,0.18);  border-color: rgba(245,158,11,0.5);  color: #fbbf24; }
 .btn-band.band-H { background: rgba(239,68,68,0.18);   border-color: rgba(239,68,68,0.5);   color: #f87171; }
 
+/* Bodyweight toggle — stamps your bodyweight as the load (mutually exclusive
+   with a band). Compact, sits left of the band chip in the LOAD row. */
+.btn-bw {
+  flex: 0 0 auto; min-width: 46px; font-size: 0.7rem; font-weight: 800;
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-medium);
+  background: var(--overlay-sm); color: var(--text-faint);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.btn-bw:hover { border-color: rgba(255,255,255,0.25); color: var(--text-strong); }
+.btn-bw.bw-on { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.5); color: #60a5fa; }
+
 /* ==========================================
    PROFILE AVATAR BUTTON
    ========================================== */
