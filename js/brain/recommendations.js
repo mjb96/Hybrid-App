@@ -169,8 +169,10 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
     badge = 'Detraining';
   }
 
-  // Override if consecutive high-RPE sessions even when ACWR looks normal
-  if (highRpeStreak >= 3 && severity === 'neutral') {
+  // Override if consecutive high-RPE sessions even when ACWR looks normal —
+  // including on otherwise-"positive" (fresh, productive-load) days, where a
+  // run of hard efforts is exactly the signal worth flagging.
+  if (highRpeStreak >= 3 && (severity === 'neutral' || severity === 'positive')) {
     severity = 'caution';
     headline = 'High effort streak — listen to your body';
     badge = 'High RPE Trend';

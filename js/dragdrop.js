@@ -117,9 +117,6 @@ export function mountTileDragAndDrop() {
   });
 }
 
-// Retained as a no-op for backward compatibility with older call sites.
-export function exitTileEditMode() {}
-
 // ==========================================
 // HIDDEN TILES PERSISTENCE (appState-backed)
 // ==========================================

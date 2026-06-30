@@ -200,7 +200,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     },
     week: {
       volume:   { current: volCurrent, prev: volPrev, delta: makeDelta(volCurrent, volPrev, { unit: 'kg' }), spark: tail(volumeSeries, 8) },
-      distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev, { unit: distCurrent ? '' : '' }), spark: tail(distanceSeries, 8) },
+      distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev), spark: tail(distanceSeries, 8) },
       sets, reps, consistencyDone, consistencyTotal,
       consistencyPct: consistencyTotal > 0 ? Math.round((consistencyDone / consistencyTotal) * 100) : 0,
     },

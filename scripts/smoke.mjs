@@ -16,7 +16,7 @@ export async function load(u,c,n){ if(u.startsWith('stub:')) return {format:'mod
 const noop = () => {};
 const store = new Map();
 const makeEl = (id) => {
-  const e = { id: id || '', setAttribute: noop, getAttribute: () => null, appendChild: (c) => c,
+  const e = { id: id || '', setAttribute: noop, getAttribute: () => null, removeAttribute: noop, appendChild: (c) => c,
     insertBefore: (c) => c, removeChild: noop, remove: noop, addEventListener: noop, removeEventListener: noop,
     dispatchEvent: noop, querySelector: () => null, querySelectorAll: () => [], closest: () => null,
     contains: () => false, click: noop, focus: noop, getBoundingClientRect: () => ({ top:0,left:0,width:100,height:50 }),

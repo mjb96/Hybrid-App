@@ -55,6 +55,7 @@ export interface AppSettings {
   restOverrides?: Record<string, number>;
   progressionIncrement?: number;
   fitnessGoal?: string;
+  weightGoal?: 'cut' | 'maintain' | 'bulk';
   fitnessLevel?: string;
   weekStartDay?: 'mon' | 'sun';
   fastingDefault?: number;

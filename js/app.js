@@ -34,7 +34,7 @@ import {
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
-import { initDragDrop, resetTileOrder, exitTileEditMode } from './dragdrop.js';
+import { initDragDrop, resetTileOrder } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
   updateInputState, commitWorkoutUIState, toggleGymCheckLoggingState,
@@ -59,7 +59,7 @@ import {
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
-  setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
+  setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
   saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights,
   saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut,
   openAvatarPicker, handleAvatarFile,
@@ -735,6 +735,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
   else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));
+  else if (action === 'set-weight-goal')      setWeightGoal(target.getAttribute('data-weight-goal'));
   else if (action === 'set-fitness-level')    setFitnessLevel(target.getAttribute('data-level'));
   else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
   else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));
