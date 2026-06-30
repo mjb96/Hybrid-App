@@ -2397,6 +2397,28 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   box-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
+/* ── Grouped-card consistency polish ──────────────────────────────────────── */
+/* Nested input grids (rest tiers, band weights) match the card inputs. */
+.settings-section .run-grid-inputs input {
+  background: var(--overlay-md);
+  border: 1px solid var(--border-medium);
+  border-radius: 9px;
+  color: #f1f5f9;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 9px 6px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.settings-section .run-grid-inputs input:focus { border-color: rgba(99,102,241,0.6); }
+/* Uniform tap highlight on the multi-select checklist rows. */
+.hc-data-toggle {
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.hc-data-toggle:hover  { background: rgba(255,255,255,0.03); }
+.hc-data-toggle:active { background: rgba(255,255,255,0.06); }
+
 /* ==========================================================================
    LIGHT MODE
    ========================================================================== */
@@ -2594,6 +2616,13 @@ html[data-theme="light"] .settings-toggle-group > .settings-toggle-btn.active {
   background: var(--color-blue);
   color: #fff;
 }
+html[data-theme="light"] .settings-section .run-grid-inputs input {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.12);
+  color: #0f172a;
+}
+html[data-theme="light"] .hc-data-toggle:hover  { background: rgba(0,0,0,0.025); }
+html[data-theme="light"] .hc-data-toggle:active { background: rgba(0,0,0,0.05); }
 
 /* --- Health Connect --- */
 html[data-theme="light"] .hc-status-card {
