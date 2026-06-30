@@ -662,6 +662,11 @@ document.addEventListener('click', (e) => {
   }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
+  else if (action === 'dismiss-insight') {
+    appState.dashboardInsightDismissed = { nav: target.getAttribute('data-nav') || '', date: new Date().toISOString().slice(0, 10) };
+    saveStateToLocalStorage(true);
+    document.getElementById('dashboardInsightWrap')?.style.setProperty('display', 'none');
+  }
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));

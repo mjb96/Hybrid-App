@@ -183,9 +183,10 @@
     @media (hover: hover) { .qa-btn:hover { border-color: rgba(255,255,255,0.22); } }
 
     /* ── Top-insight banner ─────────────────────────────────────── */
+    .dash-insight-wrap { position: relative; margin-bottom: 10px; }
     .dash-insight {
       width: 100%; display: flex; align-items: center; gap: 10px;
-      padding: 11px 13px; margin-bottom: 10px; border-radius: 14px; cursor: pointer; text-align: left;
+      padding: 11px 42px 11px 13px; border-radius: 14px; cursor: pointer; text-align: left;
       background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.30);
       transition: transform var(--duration-base, 0.18s) ease;
     }
@@ -193,6 +194,17 @@
     .dash-insight__icon { font-size: 1rem; flex-shrink: 0; }
     .dash-insight__text { flex: 1; font-size: 0.74rem; font-weight: 600; line-height: 1.3; color: var(--text-primary); }
     .dash-insight__arrow { font-size: 1.1rem; color: var(--text-secondary); flex-shrink: 0; }
+    .dash-insight__dismiss {
+      position: absolute; top: 50%; right: 7px; transform: translateY(-50%);
+      width: 26px; height: 26px; padding: 0; border: none; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+      background: rgba(255,255,255,0.08); color: var(--text-secondary); font-size: 0.78rem; line-height: 1;
+      transition: background var(--duration-base, 0.18s) ease, color var(--duration-base, 0.18s) ease;
+    }
+    .dash-insight__dismiss:hover { background: rgba(255,255,255,0.16); color: var(--text-primary); }
+    .dash-insight__dismiss:active { transform: translateY(-50%) scale(0.92); }
+    html[data-theme="light"] .dash-insight__dismiss { background: rgba(0,0,0,0.06); }
+    html[data-theme="light"] .dash-insight__dismiss:hover { background: rgba(0,0,0,0.12); }
     .dash-insight--positive { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.32); }
     .dash-insight--caution  { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.34); }
     .dash-insight--warning  { background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.34); }
@@ -504,7 +516,10 @@
         <div class="app-section-heading__sub">Key metrics snapshot</div>
       </div>
 
-      <button id="dashboardInsight" class="dash-insight" style="display:none;"></button>
+      <div id="dashboardInsightWrap" class="dash-insight-wrap" style="display:none;">
+        <button id="dashboardInsight" class="dash-insight"></button>
+        <button class="dash-insight__dismiss" data-action="dismiss-insight" aria-label="Dismiss insight">✕</button>
+      </div>
 
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 

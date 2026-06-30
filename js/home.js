@@ -152,13 +152,22 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
 // TOP-INSIGHT BANNER — the single most important thing right now.
 // ==========================================
 function renderDashboardInsight(model) {
-  const el = document.getElementById('dashboardInsight');
-  if (!el) return;
+  const wrap = document.getElementById('dashboardInsightWrap');
+  const el   = document.getElementById('dashboardInsight');
+  if (!wrap || !el) return;
   const insight = model.topInsight;
-  if (!insight || !insight.text) { el.style.display = 'none'; return; }
+
+  // Honour a same-day dismissal of this exact insight. A different insight (new
+  // nav) or a new day brings the banner back.
+  const today = new Date().toISOString().slice(0, 10);
+  const dismissed = _getState()?.dashboardInsightDismissed;
+  const isDismissed = !!insight && !!dismissed && dismissed.date === today
+    && (dismissed.nav || '') === (insight.nav || '');
+
+  if (!insight || !insight.text || isDismissed) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
   const toneClass = `dash-insight--${insight.tone || 'neutral'}`;
   el.className = `dash-insight ${toneClass}`;
-  el.style.display = '';
   el.setAttribute('data-action', 'open-analytics');
   el.setAttribute('data-context', insight.nav && !insight.nav.startsWith('custom:') ? insight.nav : 'recovery-score');
   if (insight.nav && insight.nav.startsWith('custom:')) {
@@ -168,7 +177,9 @@ function renderDashboardInsight(model) {
   } else {
     el.removeAttribute('data-nav');
   }
-  el.innerHTML = `<span class="dash-insight__icon">💡</span><span class="dash-insight__text">${insight.text}</span><span class="dash-insight__arrow">›</span>`;
+  el.innerHTML = `<span class="dash-insight__icon">💡</span><span class="dash-insight__text">${insight.text}</span>`;
+  const dismissBtn = wrap.querySelector('.dash-insight__dismiss');
+  if (dismissBtn) dismissBtn.setAttribute('data-nav', insight.nav || '');
 }
 
 // ==========================================

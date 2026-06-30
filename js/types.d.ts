@@ -85,6 +85,7 @@ export interface AppState {
   programLibrary: ProgramLibrary;
   profileSections?: { order: string[] | null; hidden: string[] };
   dashboardTiles?: { order: string[] | null; hidden: string[] };
+  dashboardInsightDismissed?: { nav: string; date: string } | null;
   settings?: AppSettings;
 }
 
