@@ -34,7 +34,7 @@ import {
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
-import { initDragDrop, resetTileOrder } from './dragdrop.js';
+import { initDragDrop } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
   updateInputState, commitWorkoutUIState, toggleGymCheckLoggingState,

@@ -54,7 +54,7 @@ function classifySession(blueprint) {
 }
 
 // Build advice text based on ACWR, TSB, session type, and RPE trend.
-function buildAdvice(acwr, tsb, session, highRpeStreak, hasData) {
+function buildAdvice(acwr, tsb, session) {
   const { hasRun, hasGym } = session;
 
   if (acwr >= 1.5) {
@@ -178,7 +178,7 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
     badge = 'High RPE Trend';
   }
 
-  let advice = buildAdvice(acwr, tsb, session, highRpeStreak, hasData);
+  let advice = buildAdvice(acwr, tsb, session);
 
   return { severity, badge, headline, advice, sessionLabel: session.label, acwr, status };
 }
