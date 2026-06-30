@@ -278,10 +278,27 @@ export function stopAndResetWorkoutTimer() {
   if (durationClock) durationClock.textContent = '00:00';
 }
 
+// Seconds the session timer has been running (0 if not started).
+export function getWorkoutElapsedSeconds() {
+  return workoutStartTime ? Math.max(0, Math.floor((Date.now() - workoutStartTime) / 1000)) : 0;
+}
+
+// Longest a single gym session can plausibly run. A stored start older than
+// this almost certainly belongs to a session the user never tapped "Finish" on,
+// so resuming it would inflate the live duration (40-min workout shows an hour+).
+const MAX_SESSION_MS = 5 * 60 * 60 * 1000; // 5 hours
+
 export function checkActiveTimerOnLoad() {
   const storedTime = localStorage.getItem('hybrid_workoutStartTime');
-  if (storedTime) {
-    workoutStartTime = parseInt(storedTime, 10);
-    resumeTimerDisplay();
+  if (!storedTime) return;
+  const start = parseInt(storedTime, 10);
+  const age = Date.now() - start;
+  // Discard a stale / never-finished start instead of resuming a runaway timer.
+  if (!Number.isFinite(start) || age < 0 || age > MAX_SESSION_MS) {
+    localStorage.removeItem('hybrid_workoutStartTime');
+    workoutStartTime = null;
+    return;
   }
+  workoutStartTime = start;
+  resumeTimerDisplay();
 }

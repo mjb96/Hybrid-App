@@ -5,7 +5,7 @@ import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs } from './engine.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
-import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
+import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
@@ -1290,6 +1290,23 @@ export function closeFinishSessionModal() {
   const runRpeEl = document.getElementById('runInputRpeCockpit');
   if (gymRpeEl) gymRpeEl.value = appState.weeks[wk].gymRpe[selectedDay] || '';
   if (runRpeEl) runRpeEl.value = appState.weeks[wk].runs[selectedDay]?.rpe || '';
+
+  // Capture the in-app session timer as this day's gym duration (so it's
+  // actually logged), but never clobber a value already set — a .FIT import or
+  // a manual edit wins. Read elapsed before stopAndResetWorkoutTimer clears it.
+  const elapsedSec = getWorkoutElapsedSeconds();
+  if (elapsedSec > 0) {
+    if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
+    if (!appState.weeks[wk].gymStats[selectedDay]) {
+      appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
+    }
+    const g = appState.weeks[wk].gymStats[selectedDay];
+    if (!g.time) {
+      const m = Math.floor(elapsedSec / 60);
+      const s = elapsedSec % 60;
+      g.time = `${m}:${s.toString().padStart(2, '0')}`;
+    }
+  }
 
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
   _saveState(true);
