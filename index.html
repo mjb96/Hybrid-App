@@ -691,7 +691,7 @@
 
         <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(4, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="--" readonly style="text-align: center;"></label>
+            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="e.g. 45 or 45:00" inputmode="numeric" style="text-align: center;"></label>
             <label><span class="set-num-lbl block mb-1 text-accent-pink">Avg HR</span><input type="text" id="gymInputAvgHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
             <label><span class="set-num-lbl block mb-1 text-accent-pink">Max HR</span><input type="text" id="gymInputMaxHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
             <label><span class="set-num-lbl block mb-1 text-accent-green">Cals</span><input type="text" id="gymInputCals" placeholder="--" readonly style="text-align: center; color:#10b981;"></label>
@@ -1542,14 +1542,21 @@
               <button class="settings-toggle-btn" data-action="set-dist-unit" data-unit="mi">miles</button>
             </div>
           </div>
-          <div class="settings-row">
-            <label class="settings-row-label">Default Rest Timer</label>
-            <div class="settings-toggle-group">
-              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="60">60s</button>
-              <button class="settings-toggle-btn active" data-action="set-rest-default" data-secs="90">90s</button>
-              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="120">2m</button>
-              <button class="settings-toggle-btn" data-action="set-rest-default" data-secs="180">3m</button>
+          <div class="settings-row" style="display:block;">
+            <label class="hc-data-toggle" style="margin-bottom:8px;"><input type="checkbox" id="settingsRestEnabled" checked><span>Auto rest timer between sets</span></label>
+            <div class="settings-hint" style="margin-bottom:8px;">Rest is suggested by exercise type. Tune each tier (m:ss):</div>
+            <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
+              <label><span class="set-num-lbl block mb-1 text-accent-red">Compound</span><input type="text" id="settingsRestCompound" inputmode="numeric" placeholder="3:00" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-amber">Accessory</span><input type="text" id="settingsRestAccessory" inputmode="numeric" placeholder="2:00" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-green">Isolation</span><input type="text" id="settingsRestIsolation" inputmode="numeric" placeholder="1:30" style="text-align:center;"></label>
             </div>
+            <div class="settings-toggle-group" style="margin-top:8px;">
+              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="strength">Strength</button>
+              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="hypertrophy">Hypertrophy</button>
+              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="efficient">Time-efficient</button>
+            </div>
+            <div class="settings-hint" style="margin-top:10px;">Adjusting a timer with −/+ during a set is remembered for that exercise.</div>
+            <button class="settings-toggle-btn" data-action="reset-rest-overrides" style="margin-top:4px;">Reset remembered rests</button>
           </div>
           <div class="settings-row">
             <label class="settings-row-label">Progression Step</label>
@@ -1607,6 +1614,13 @@
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="bands"><span>Resistance Bands</span></label>
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="kettlebells"><span>Kettlebells</span></label>
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="treadmill"><span>Treadmill</span></label>
+
+          <div class="settings-hint" style="margin-top:12px;">Band resistance (≈ kg) — used so band sets count toward volume in the cockpit.</div>
+          <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
+            <label><span class="set-num-lbl block mb-1 text-accent-green">🟢 Light</span><input type="number" id="settingsBandLight" min="0" step="0.5" placeholder="10" style="text-align:center;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-amber">🟡 Medium</span><input type="number" id="settingsBandMed" min="0" step="0.5" placeholder="20" style="text-align:center;"></label>
+            <label><span class="set-num-lbl block mb-1 text-accent-red">🔴 Heavy</span><input type="number" id="settingsBandHeavy" min="0" step="0.5" placeholder="30" style="text-align:center;"></label>
+          </div>
         </div>
 
         <!-- Fasting -->
@@ -1788,6 +1802,8 @@
         <strong id="summarySets" class="text-inverse">0</strong>
       </div>
       <div class="mt-5">
+        <label for="summaryDuration" class="text-xs-bold block mb-1 text-muted">Session Duration (min)</label>
+        <input type="text" id="summaryDuration" inputmode="numeric" placeholder="e.g. 45 or 45:00" class="mb-4">
         <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Confirm Gym RPE (1-10)</label>
         <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-4">
         <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Confirm Run RPE (1-10)</label>

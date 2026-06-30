@@ -53,14 +53,15 @@ import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun, handleRunL
 import { initOnboarding, shouldShowOnboarding, startOnboarding, handleOnboardingAction } from './onboarding.js';
 import {
   initSettings, openSettings, closeSettings,
-  saveName, saveBodyWeight, setWeightUnit, setRestDefault,
+  saveName, saveBodyWeight, setWeightUnit,
   setProgressionIncrement, setDistanceUnit, setTheme, stepCurrentWeek, setAutoAdvanceWeek,
   saveThresholdPace as saveSettingsThresholdPace,
   exportData, triggerImport, handleImportFile, confirmResetAllData,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
-  saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, signOut,
+  saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights,
+  saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut,
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
@@ -724,7 +725,8 @@ document.addEventListener('click', (e) => {
   else if (action === 'set-unit') setWeightUnit(target.getAttribute('data-unit'));
   else if (action === 'set-dist-unit') setDistanceUnit(target.getAttribute('data-unit'));
   else if (action === 'set-theme')    setTheme(target.getAttribute('data-theme-val'));
-  else if (action === 'set-rest-default') setRestDefault(parseInt(target.getAttribute('data-secs'), 10));
+  else if (action === 'rest-preset') applyRestPreset(target.getAttribute('data-preset'));
+  else if (action === 'reset-rest-overrides') resetRestOverrides();
   else if (action === 'set-progression') setProgressionIncrement(parseFloat(target.getAttribute('data-kg')));
   else if (action === 'week-step') stepCurrentWeek(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'export-data') exportData();
@@ -949,6 +951,9 @@ document.addEventListener('change', (e) => {
   if (target.id === 'settingsNotifMissedWorkout')   { setNotifToggle('missed', target.checked); return; }
   const eqKey = target.getAttribute?.('data-equipment');
   if (eqKey) { toggleEquipment(eqKey, target.checked); return; }
+  if (target.id === 'settingsBandLight' || target.id === 'settingsBandMed' || target.id === 'settingsBandHeavy') { saveBandWeights(); return; }
+  if (target.id === 'settingsRestCompound' || target.id === 'settingsRestAccessory' || target.id === 'settingsRestIsolation') { saveRestPeriods(); return; }
+  if (target.id === 'settingsRestEnabled') { setRestTimerEnabledSetting(target.checked); return; }
   if (target.id === 'settingsNotifications') {
     if (target.checked) {
       requestNotificationPermission().then(({ granted }) => {

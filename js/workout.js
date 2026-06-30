@@ -5,7 +5,7 @@ import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs } from './engine.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
-import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer } from './timers.js';
+import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
@@ -790,28 +790,23 @@ export function evaluateAccordionAutoFlowTransitions() {
   const expandedCard = document.querySelector('.cockpit-exercise:not(.collapsed)');
   if (!expandedCard) return;
   const rows = Array.from(expandedCard.querySelectorAll('.cockpit-set-row'));
+  if (rows.length === 0) return; // a card with no sets isn't "finished"
   const finished = rows.every(r => r.querySelector('.gym-check')?.checked);
+  const statusNode = expandedCard.querySelector('.cockpit-ex-status');
 
   if (finished) {
+    const wasCompleted = expandedCard.classList.contains('completed');
     expandedCard.classList.add('completed');
-    const statusNode = expandedCard.querySelector('.cockpit-ex-status');
     if (statusNode) statusNode.textContent = 'DONE';
-    showToast('Exercise Complete! ✓');
-
-    expandedCard.classList.add('collapsed');
-    // Advance to the next incomplete exercise in document order. Use a flat scan
-    // rather than nextElementSibling so we step across superset wrappers and
-    // connectors instead of stalling on them.
-    const allCards = Array.from(document.querySelectorAll('#cockpitExercisesContainer .cockpit-exercise'));
-    const curIdx = allCards.indexOf(expandedCard);
-    const nextCard = curIdx >= 0
-      ? allCards.slice(curIdx + 1).find(c => !c.classList.contains('completed'))
-      : null;
-    if (nextCard) {
-      nextCard.classList.remove('collapsed');
-      try { nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(e) {}
-      try { moveRestTimerToActiveExercise(); } catch(e) {}
-    }
+    // Keep the card expanded after the final set so the per-set RPE pad (which
+    // only appears on completed sets) stays reachable — previously the card
+    // collapsed and auto-advanced the instant the last set was ticked, hiding
+    // RPE before it could be entered. Move on by tapping the next exercise.
+    if (!wasCompleted) showToast('Exercise Complete! ✓');
+  } else {
+    // Unchecking a set after completion re-opens the exercise.
+    expandedCard.classList.remove('completed');
+    if (statusNode) statusNode.textContent = 'LOG';
   }
 }
 
@@ -894,6 +889,97 @@ export function cycleSetType(liftName, sIdx) {
     const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
     if (lbl)  lbl.textContent  = numLabels[newType];
     if (pill) pill.textContent = pillLabels[newType];
+  }
+  _saveState(true);
+}
+
+// Best-available bodyweight for stamping bodyweight sets: latest logged weight,
+// else the settings default, else a neutral fallback.
+function _currentBodyweight(appState) {
+  const log = appState.bodyWeightLog || [];
+  for (let i = log.length - 1; i >= 0; i--) {
+    const w = parseFloat(log[i]?.weight);
+    if (Number.isFinite(w) && w > 0) return w;
+  }
+  const dbw = parseFloat(appState.settings?.defaultBodyWeight);
+  if (Number.isFinite(dbw) && dbw > 0) return dbw;
+  return 75;
+}
+
+// Cycle a set's resistance band: None → Light → Medium → Heavy. Selecting a
+// band stamps the set's weight with the configured nominal kg for that band
+// (settings.bandWeights) so it still contributes to volume / e1RM / the
+// summary; clearing it removes the auto weight. A band and bodyweight are
+// mutually exclusive.
+export function cycleSetBand(liftName, sIdx) {
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
+  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
+
+  const order = ['', 'L', 'M', 'H'];
+  const cur = setArr[sIdx].band || '';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  const bw = appState.settings?.bandWeights || { L: 10, M: 20, H: 30 };
+
+  if (next) {
+    setArr[sIdx].band = next;
+    delete setArr[sIdx].bw; // a band replaces bodyweight as the load source
+    setArr[sIdx].w = String(bw[next] ?? '');
+  } else {
+    delete setArr[sIdx].band;
+    setArr[sIdx].w = '';
+  }
+
+  // Targeted DOM update (keep the card expanded / scroll position).
+  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
+  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
+  if (row) {
+    const chip = row.querySelector('.btn-band');
+    const labels = { '': '— None', L: '🟢 Light', M: '🟡 Medium', H: '🔴 Heavy' };
+    if (chip) {
+      chip.textContent = labels[next];
+      chip.className = 'btn-band tactile-scale' + (next ? ' band-' + next : '');
+    }
+    const bwBtn = row.querySelector('.btn-bw');
+    if (bwBtn) bwBtn.className = 'btn-bw tactile-scale';
+    const wInput = row.querySelector('.input-weight-node');
+    if (wInput) wInput.value = setArr[sIdx].w;
+  }
+  _saveState(true);
+}
+
+// Toggle a set as bodyweight: stamps your bodyweight as the load so the set
+// counts as bodyweight×reps toward volume/e1RM. Edit the weight afterwards to
+// add load (weighted) or reduce it (assisted). Mutually exclusive with a band.
+export function toggleSetBodyweight(liftName, sIdx) {
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
+  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
+  const set = setArr[sIdx];
+  const turningOn = !set.bw;
+
+  if (turningOn) {
+    set.bw = true;
+    delete set.band;
+    set.w = String(_currentBodyweight(appState));
+  } else {
+    delete set.bw;
+    set.w = '';
+  }
+
+  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
+  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
+  if (row) {
+    const bwBtn = row.querySelector('.btn-bw');
+    if (bwBtn) bwBtn.className = 'btn-bw tactile-scale' + (turningOn ? ' bw-on' : '');
+    const bandBtn = row.querySelector('.btn-band');
+    if (bandBtn) { bandBtn.textContent = '— None'; bandBtn.className = 'btn-band tactile-scale'; }
+    const wInput = row.querySelector('.input-weight-node');
+    if (wInput) wInput.value = set.w;
   }
   _saveState(true);
 }
@@ -1157,6 +1243,19 @@ export function executeResetActiveDayMetrics() {
   showToast('Day Logs Cleared');
 }
 
+// Normalise a duration entry to canonical "M:SS" (matching .FIT imports). A
+// bare number is treated as minutes ("45" → "45:00"); "" stays "".
+function _normalizeDuration(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  if (s.includes(':')) {
+    const [m, sec] = s.split(':');
+    return `${parseInt(m, 10) || 0}:${(parseInt(sec, 10) || 0).toString().padStart(2, '0')}`;
+  }
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? `${n}:00` : '';
+}
+
 export function openFinishSessionModal() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
@@ -1175,12 +1274,25 @@ export function openFinishSessionModal() {
   
   const sumVolEl = document.getElementById('summaryVolume');
   const sumSetsEl = document.getElementById('summarySets');
+  const sumDurEl = document.getElementById('summaryDuration');
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
   const sumRunRpeEl = document.getElementById('summaryRunRPE');
   const sumModalEl = document.getElementById('summaryModal');
 
   if (sumVolEl) sumVolEl.textContent = vol + ' kg';
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
+  // Prefill duration with an already-logged value (e.g. .FIT import), else the
+  // session timer's elapsed — surfaced here so it's confirmed/corrected at the
+  // moment of finishing rather than silently logged.
+  if (sumDurEl) {
+    const existing = appState.weeks[wk].gymStats?.[selectedDay]?.time;
+    if (existing) {
+      sumDurEl.value = existing;
+    } else {
+      const elapsed = getWorkoutElapsedSeconds();
+      sumDurEl.value = elapsed > 0 ? _normalizeDuration(`${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`) : '';
+    }
+  }
   if (sumGymRpeEl) sumGymRpeEl.value = appState.weeks[wk].gymRpe?.[selectedDay] || '';
   if (sumRunRpeEl) sumRunRpeEl.value = appState.weeks[wk].runs?.[selectedDay]?.rpe || '';
   if (sumModalEl) sumModalEl.classList.add('active');
@@ -1204,6 +1316,18 @@ export function closeFinishSessionModal() {
   const runRpeEl = document.getElementById('runInputRpeCockpit');
   if (gymRpeEl) gymRpeEl.value = appState.weeks[wk].gymRpe[selectedDay] || '';
   if (runRpeEl) runRpeEl.value = appState.weeks[wk].runs[selectedDay]?.rpe || '';
+
+  // Persist the confirmed session duration from the summary field (prefilled
+  // from the timer in openFinishSessionModal, editable by the user).
+  const sumDurEl = document.getElementById('summaryDuration');
+  if (sumDurEl) {
+    const normalized = _normalizeDuration(sumDurEl.value);
+    if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
+    if (!appState.weeks[wk].gymStats[selectedDay]) {
+      appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
+    }
+    appState.weeks[wk].gymStats[selectedDay].time = normalized;
+  }
 
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
   _saveState(true);
@@ -1238,6 +1362,8 @@ document.addEventListener('click', (e) => {
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
   else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
+  else if (action === 'cycle-band') cycleSetBand(liftName, sIdx);
+  else if (action === 'toggle-bodyweight') toggleSetBodyweight(liftName, sIdx);
   else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
   else if (action === 'unlink-superset') unpairSuperset(liftName);

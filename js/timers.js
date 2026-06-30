@@ -14,12 +14,69 @@ let _restRemaining = 90;      // current countdown remaining
 let _restTotalDuration = 90;  // total for progress bar calculation
 
 // ==========================================
-// COMPOUND LIFT DETECTION
+// EXERCISE-TYPE REST PRESCRIPTION
 // ==========================================
-const COMPOUND_KEYWORDS = [
-  'squat', 'deadlift', 'bench', 'press', 'row', 'pull-up', 'pullup',
-  'chin', 'rdl', 'lunge', 'hip thrust', 'snatch', 'clean', 'jerk'
+// Rest need scales with how systemically taxing a lift is, not with a single
+// global default. Evidence (Schoenfeld 2016; Grgic 2017 meta-analysis; de Salles
+// 2009 review) supports ~3 min between heavy multi-joint sets for strength and
+// hypertrophy, ~2 min for secondary/assistance compounds, and ~60–90 s for
+// single-joint isolation work (which recovers far faster). We classify by name
+// and fall back to the user's configured default for anything unrecognised.
+// Tier defaults (seconds), tunable from Settings (settings.restPeriods). Pushed
+// in via setRestTiers on boot/change so this leaf module needs no state import.
+let _restTiers = { compound: 180, accessory: 120, isolation: 90 };
+let _restTimerEnabled = true;
+let _restOverrides = {};       // { liftName: seconds } — remembered ± adjustments
+let _currentLift = null;       // exercise whose rest is currently running
+let _currentWorking = false;   // is that set a working set (override-eligible)?
+let _onOverridesChange = null; // persistence callback (app layer owns the save)
+
+const _clampRest = (v, fallback) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n >= 30 && n <= 600 ? n : fallback;
+};
+
+export function setRestTiers(t) {
+  if (!t || typeof t !== 'object') return;
+  _restTiers = {
+    compound:  _clampRest(t.compound,  _restTiers.compound),
+    accessory: _clampRest(t.accessory, _restTiers.accessory),
+    isolation: _clampRest(t.isolation, _restTiers.isolation),
+  };
+}
+export function getRestTiers() { return { ..._restTiers }; }
+export function setRestTimerEnabled(b) { _restTimerEnabled = b !== false; }
+export function setRestOverrides(o) { _restOverrides = (o && typeof o === 'object') ? { ...o } : {}; }
+export function initRestPersistence(cb) { _onOverridesChange = typeof cb === 'function' ? cb : null; }
+
+// Checked isolation-first so "leg extension" / "leg curl" don't fall through to
+// the broad "press"/"row" compound keywords.
+const ISOLATION_KEYWORDS = [
+  'curl', 'raise', 'fly', 'flye', 'extension', 'pushdown', 'push-down', 'kickback',
+  'calf', 'shrug', 'face pull', 'pec deck', 'lateral', 'rear delt', 'reverse fly',
+  'concentration', 'preacher', 'wrist', 'crunch', 'sit-up', 'sit up', 'plank',
+  'pull-apart', 'pull apart', 'cable cross', 'adduction', 'abduction',
 ];
+const PRIMARY_KEYWORDS = [
+  'squat', 'deadlift', 'bench', 'overhead press', 'ohp', 'military press',
+  'barbell row', 'pendlay', 'rdl', 'romanian', 'hip thrust', 'good morning',
+  'clean', 'snatch', 'jerk',
+];
+const SECONDARY_KEYWORDS = [
+  'press', 'row', 'pull-up', 'pullup', 'pull up', 'chin', 'dip', 'lunge',
+  'pulldown', 'pull-down', 'pull down', 'thruster', 'split squat', 'step-up',
+  'step up', 'push press', 't-bar',
+];
+
+// Recommended rest (seconds) for a lift by name, or null if unrecognised.
+export function recommendedRestFor(liftName) {
+  if (!liftName || typeof liftName !== 'string') return null;
+  const n = liftName.toLowerCase();
+  if (ISOLATION_KEYWORDS.some(k => n.includes(k))) return _restTiers.isolation;
+  if (PRIMARY_KEYWORDS.some(k => n.includes(k)))   return _restTiers.compound;
+  if (SECONDARY_KEYWORDS.some(k => n.includes(k))) return _restTiers.accessory;
+  return null;
+}
 
 // ==========================================
 // REST TIMER
@@ -120,7 +177,11 @@ function _startRestCountdown() {
 // setRpe:   optional numeric RPE of the completed set
 // setType:  optional set type char — 'W' = warmup, 'F' = AMRAP, '' = working set
 export function triggerRestTimerEngine(liftName, setRpe, setType) {
+  if (!_restTimerEnabled) return; // auto rest timer turned off in Settings
+
   let duration;
+  _currentLift = liftName || null;
+  _currentWorking = (setType !== 'W' && setType !== 'F');
 
   // 1. Warmup sets always get a short 45s rest, regardless of lift type.
   if (setType === 'W') {
@@ -128,21 +189,23 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
   } else if (setType === 'F') {
     // AMRAP sets get a fixed 2-minute rest
     duration = 120;
+  } else if (liftName && _restOverrides[liftName] != null) {
+    // A remembered per-exercise adjustment is an explicit choice — use it as-is
+    // (no RPE bonus on top, since the user already dialled in this value).
+    duration = _restOverrides[liftName];
   } else {
-    // Working sets start from the user-configured baseline
-    duration = _restDuration;
+    // Working sets: prescribe rest by exercise type (heavy compound → isolation)
+    // so a curl no longer inherits the same 3 min as a squat. Unrecognised /
+    // custom lifts fall back to the accessory tier.
+    duration = recommendedRestFor(liftName) ?? _restTiers.accessory;
 
     // RPE bonus: heavier perceived effort = more rest
     const rpe = parseFloat(setRpe) || 0;
     if (rpe >= 9) duration += 30;
     else if (rpe >= 8) duration += 15;
-
-    // Compound lifts get at least 180s rest, but respect a higher user baseline
-    const isCompound = liftName &&
-      COMPOUND_KEYWORDS.some(k => liftName.toLowerCase().includes(k));
-    if (isCompound) duration = Math.max(duration, 180);
   }
 
+  _restDuration = duration; // last prescribed — used by idle display / dismiss reset
   _restTotalDuration = duration;
   _restRemaining = duration;
 
@@ -158,20 +221,21 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
 }
 
 export function adjustRestDuration(delta) {
-  _restDuration = Math.min(300, Math.max(30, _restDuration + delta));
-  // If timer is active, adjust remaining time and restart countdown
-  if (restTimerInt !== null || _restRemaining > 0) {
-    _restRemaining = Math.min(300, Math.max(0, _restRemaining + delta));
-    _restTotalDuration = Math.max(_restTotalDuration, _restRemaining);
-    _updateRestTimerDisplay(_restRemaining, _restTotalDuration);
-    if (restTimerInt !== null) {
-      _startRestCountdown();
-    }
-  }
-}
+  // Adjust ONLY the running countdown — never a hidden global baseline (which
+  // used to leak one exercise's nudge into every later unrecognised lift).
+  const newTotal = Math.min(600, Math.max(30, _restTotalDuration + delta));
+  _restTotalDuration = newTotal;
+  _restDuration = newTotal;
+  _restRemaining = Math.min(newTotal, Math.max(0, _restRemaining + delta));
+  _updateRestTimerDisplay(_restRemaining, _restTotalDuration);
+  if (restTimerInt !== null) _startRestCountdown();
 
-export function setRestDuration(secs) {
-  _restDuration = Math.min(300, Math.max(30, parseInt(secs, 10) || 90));
+  // Remember the adjustment for this exercise (working sets only) so it
+  // auto-applies next set and next session.
+  if (_currentWorking && _currentLift) {
+    _restOverrides[_currentLift] = newTotal;
+    if (_onOverridesChange) _onOverridesChange({ ..._restOverrides });
+  }
 }
 
 export function dismissRestTimer() {
@@ -246,10 +310,27 @@ export function stopAndResetWorkoutTimer() {
   if (durationClock) durationClock.textContent = '00:00';
 }
 
+// Seconds the session timer has been running (0 if not started).
+export function getWorkoutElapsedSeconds() {
+  return workoutStartTime ? Math.max(0, Math.floor((Date.now() - workoutStartTime) / 1000)) : 0;
+}
+
+// Longest a single gym session can plausibly run. A stored start older than
+// this almost certainly belongs to a session the user never tapped "Finish" on,
+// so resuming it would inflate the live duration (40-min workout shows an hour+).
+const MAX_SESSION_MS = 5 * 60 * 60 * 1000; // 5 hours
+
 export function checkActiveTimerOnLoad() {
   const storedTime = localStorage.getItem('hybrid_workoutStartTime');
-  if (storedTime) {
-    workoutStartTime = parseInt(storedTime, 10);
-    resumeTimerDisplay();
+  if (!storedTime) return;
+  const start = parseInt(storedTime, 10);
+  const age = Date.now() - start;
+  // Discard a stale / never-finished start instead of resuming a runaway timer.
+  if (!Number.isFinite(start) || age < 0 || age > MAX_SESSION_MS) {
+    localStorage.removeItem('hybrid_workoutStartTime');
+    workoutStartTime = null;
+    return;
   }
+  workoutStartTime = start;
+  resumeTimerDisplay();
 }

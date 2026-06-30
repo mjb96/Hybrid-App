@@ -39,6 +39,21 @@
   --color-green:    #10b981;
   --color-amber:    #f59e0b;
   --color-red:      #ef4444;
+  --color-violet:   #8b5cf6;
+
+  /* Accent aliases. The codebase references --accent-* in ~230 places (badge
+     colours, borders, and solid backgrounds like the save toast). They were
+     never defined, so `color:` usages silently inherited and `background:`
+     usages fell back to transparent — e.g. the toast rendered as bare text
+     over the page. Alias them to the colour tokens so they track the theme. */
+  --accent-blue:    var(--color-blue);
+  --accent-indigo:  var(--color-indigo);
+  --accent-cyan:    var(--color-cyan);
+  --accent-green:   var(--color-green);
+  --accent-amber:   var(--color-amber);
+  --accent-red:     var(--color-red);
+  --accent-purple:  var(--color-violet);
+  --accent-pink:    #ec4899;
 
   /* Tinted alpha layers */
   --blue-alpha:     rgba(59, 130, 246, 0.10);
@@ -1925,6 +1940,37 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 }
 .cockpit-set-row .rpe-pad-row { display: none; }
 .cockpit-set-row.is-complete .rpe-pad-row { display: flex; }
+
+/* Resistance band selector — always visible (you pick the band before logging,
+   unlike RPE which is confirmed after). One chip that cycles None→L→M→H. */
+.band-pad-row {
+  grid-column: span 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 2px;
+}
+.btn-band {
+  flex: 1; font-size: 0.7rem; font-weight: 700; padding: 4px 0;
+  border-radius: 6px; border: 1px solid var(--border-medium);
+  background: var(--overlay-sm); color: var(--text-faint);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.btn-band:hover { border-color: rgba(255,255,255,0.25); color: var(--text-strong); }
+.btn-band.band-L { background: rgba(16,185,129,0.18);  border-color: rgba(16,185,129,0.5);  color: #34d399; }
+.btn-band.band-M { background: rgba(245,158,11,0.18);  border-color: rgba(245,158,11,0.5);  color: #fbbf24; }
+.btn-band.band-H { background: rgba(239,68,68,0.18);   border-color: rgba(239,68,68,0.5);   color: #f87171; }
+
+/* Bodyweight toggle — stamps your bodyweight as the load (mutually exclusive
+   with a band). Compact, sits left of the band chip in the LOAD row. */
+.btn-bw {
+  flex: 0 0 auto; min-width: 46px; font-size: 0.7rem; font-weight: 800;
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-medium);
+  background: var(--overlay-sm); color: var(--text-faint);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.btn-bw:hover { border-color: rgba(255,255,255,0.25); color: var(--text-strong); }
+.btn-bw.bw-on { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.5); color: #60a5fa; }
 
 /* ==========================================
    PROFILE AVATAR BUTTON

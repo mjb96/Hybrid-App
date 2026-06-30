@@ -2,7 +2,29 @@
 // SETTINGS
 // ==========================================
 import { saveStateToLocalStorage } from './state.js';
-import { setRestDuration } from './timers.js';
+import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
+
+// Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
+const _fmtRest = (sec) => {
+  const n = parseInt(sec, 10) || 0;
+  return `${Math.floor(n / 60)}:${(n % 60).toString().padStart(2, '0')}`;
+};
+const _parseRest = (str) => {
+  if (str == null) return null;
+  const s = String(str).trim();
+  if (!s) return null;
+  if (s.includes(':')) {
+    const [m, sec] = s.split(':');
+    return (parseInt(m, 10) || 0) * 60 + (parseInt(sec, 10) || 0);
+  }
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? n : null;
+};
+const REST_PRESETS = {
+  strength:    { compound: 240, accessory: 180, isolation: 120 },
+  hypertrophy: { compound: 180, accessory: 120, isolation: 90 },
+  efficient:   { compound: 120, accessory: 90,  isolation: 60 },
+};
 import { showToast } from './state.js';
 import { rearmReminder } from './notifications.js';
 import { getCloudUser, signOutSupabase } from './state/auth.js';
@@ -58,7 +80,6 @@ function _syncSettingsUI() {
 
   _setToggleActive('[data-action="set-unit"]',        `[data-unit="${s.weightUnit || 'kg'}"]`);
   _setToggleActive('[data-action="set-dist-unit"]',   `[data-unit="${s.distanceUnit || 'km'}"]`);
-  _setToggleActive('[data-action="set-rest-default"]',`[data-secs="${s.restTimerDefault || 90}"]`);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${s.progressionIncrement || 2.5}"]`);
   _setToggleActive('[data-action="set-theme"]',       `[data-theme-val="${s.theme || 'dark'}"]`);
   _setToggleActive('[data-action="set-fitness-goal"]',`[data-goal="${s.fitnessGoal || 'hybrid'}"]`);
@@ -84,6 +105,26 @@ function _syncSettingsUI() {
     const el = document.querySelector(`[data-equipment="${key}"]`);
     if (el) el.checked = eq[key] !== false && (eq[key] === true || ['barbell','rack','dumbbells','cables','pullupBar'].includes(key));
   });
+
+  // Resistance band weights (≈ kg used for volume)
+  const bw = s.bandWeights || { L: 10, M: 20, H: 30 };
+  const bl = document.getElementById('settingsBandLight');
+  const bm = document.getElementById('settingsBandMed');
+  const bh = document.getElementById('settingsBandHeavy');
+  if (bl) bl.value = bw.L ?? '';
+  if (bm) bm.value = bw.M ?? '';
+  if (bh) bh.value = bw.H ?? '';
+
+  // Rest tiers + auto-timer toggle
+  const rp = s.restPeriods || { compound: 180, accessory: 120, isolation: 90 };
+  const rc = document.getElementById('settingsRestCompound');
+  const ra = document.getElementById('settingsRestAccessory');
+  const ri = document.getElementById('settingsRestIsolation');
+  if (rc) rc.value = _fmtRest(rp.compound);
+  if (ra) ra.value = _fmtRest(rp.accessory);
+  if (ri) ri.value = _fmtRest(rp.isolation);
+  const rEnabled = document.getElementById('settingsRestEnabled');
+  if (rEnabled) rEnabled.checked = s.restTimerEnabled !== false;
 
   // Notification toggles
   const notifCheckbox = document.getElementById('settingsNotifications');
@@ -231,13 +272,13 @@ export function setWeightUnit(unit) {
   showToast(`Weight unit: ${unit}`);
 }
 
-export function setRestDefault(secs) {
+// Clear all remembered per-exercise rest adjustments.
+export function resetRestOverrides() {
   const appState = _ensureSettings();
-  appState.settings.restTimerDefault = secs;
+  appState.settings.restOverrides = {};
+  setRestOverrides({});
   saveStateToLocalStorage(true);
-  setRestDuration(secs);
-  _setToggleActive('[data-action="set-rest-default"]', `[data-secs="${secs}"]`);
-  showToast(`Default rest: ${secs >= 60 ? Math.floor(secs / 60) + 'm' + (secs % 60 ? (secs % 60) + 's' : '') : secs + 's'}`);
+  showToast('Remembered rests cleared');
 }
 
 export function setProgressionIncrement(kg) {
@@ -377,6 +418,64 @@ export function toggleEquipment(key, enabled) {
   const appState = _ensureSettings();
   if (!appState.settings.equipment) appState.settings.equipment = {};
   appState.settings.equipment[key] = enabled;
+  saveStateToLocalStorage(true);
+}
+
+// Persist the nominal kg-equivalent for each resistance band. These feed the
+// cockpit's per-set band selector so band work still contributes to volume.
+// Persist the three rest tiers from the Settings inputs (clamped 30–600s).
+export function saveRestPeriods() {
+  const appState = _ensureSettings();
+  const cur = appState.settings.restPeriods || { compound: 180, accessory: 120, isolation: 90 };
+  const read = (id, fallback) => {
+    const sec = _parseRest(document.getElementById(id)?.value);
+    return sec != null ? Math.min(600, Math.max(30, sec)) : fallback;
+  };
+  appState.settings.restPeriods = {
+    compound:  read('settingsRestCompound',  cur.compound),
+    accessory: read('settingsRestAccessory', cur.accessory),
+    isolation: read('settingsRestIsolation', cur.isolation),
+  };
+  setRestTiers(appState.settings.restPeriods);
+  saveStateToLocalStorage(true);
+}
+
+// Apply a preset to the three tiers and reflect it in the inputs.
+export function applyRestPreset(name) {
+  const preset = REST_PRESETS[name];
+  if (!preset) return;
+  const appState = _ensureSettings();
+  appState.settings.restPeriods = { ...preset };
+  setRestTiers(preset);
+  const rc = document.getElementById('settingsRestCompound');
+  const ra = document.getElementById('settingsRestAccessory');
+  const ri = document.getElementById('settingsRestIsolation');
+  if (rc) rc.value = _fmtRest(preset.compound);
+  if (ra) ra.value = _fmtRest(preset.accessory);
+  if (ri) ri.value = _fmtRest(preset.isolation);
+  saveStateToLocalStorage(true);
+}
+
+// Toggle the auto rest timer on/off.
+export function setRestTimerEnabledSetting(enabled) {
+  const appState = _ensureSettings();
+  appState.settings.restTimerEnabled = !!enabled;
+  setRestTimerEnabled(!!enabled);
+  saveStateToLocalStorage(true);
+}
+
+export function saveBandWeights() {
+  const appState = _ensureSettings();
+  const read = (id, fallback) => {
+    const el = document.getElementById(id);
+    const v = el ? parseFloat(el.value) : NaN;
+    return Number.isFinite(v) && v >= 0 ? v : fallback;
+  };
+  appState.settings.bandWeights = {
+    L: read('settingsBandLight', 10),
+    M: read('settingsBandMed', 20),
+    H: read('settingsBandHeavy', 30),
+  };
   saveStateToLocalStorage(true);
 }
 
@@ -595,7 +694,18 @@ window.onHealthConnectData = function(payload) {
 // ==========================================
 export function applySettingsOnBoot(appState) {
   const s = appState.settings || {};
-  if (s.restTimerDefault) setRestDuration(s.restTimerDefault);
+  // Push rest config into the (state-free) timers module, and give it a
+  // callback so a live ± adjustment persists back into settings.restOverrides.
+  setRestTiers(s.restPeriods);
+  setRestTimerEnabled(s.restTimerEnabled);
+  setRestOverrides(s.restOverrides || {});
+  initRestPersistence((overrides) => {
+    const st = _getState?.();
+    if (!st) return;
+    if (!st.settings) st.settings = {};
+    st.settings.restOverrides = overrides;
+    saveStateToLocalStorage(true);
+  });
   _applyTheme(s.theme || 'dark');
 
   // Re-apply system theme if OS preference changes at runtime
