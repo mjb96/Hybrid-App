@@ -324,6 +324,50 @@ export function mergeWeekSchema(wk) {
   });
 }
 
+// A set counts as "logged" (real history, never discard on a program switch)
+// once it's completed or carries an entered weight. Prescribed-but-untouched
+// sets seed w:'' with only a rep target, so they don't qualify.
+function liftHasLoggedData(sets) {
+  return Array.isArray(sets) && sets.some(s => s && (s.c || (s.w !== '' && s.w != null)));
+}
+
+// Re-point a single week at the *active* program: add the new program's
+// exercises, drop the previous program's unlogged scaffolding, and rebuild
+// liftOrder (new blueprint order first, retained logged lifts appended). Unlike
+// mergeWeekSchema (add-only), this replaces stale scaffolding so a program
+// switch doesn't leave a week showing the union of both programs. Logged sets
+// are always preserved.
+export function reseedActiveProgramIntoWeek(wk) {
+  verifyWeekStorageSchema(wk); // ensures the week object exists & is shaped
+  const program = getProgramById(appState.activeProgramId);
+  if (!program?.days) return;
+  const weekModifier = getWeekModifier(program, wk);
+  const week = appState.weeks[wk];
+  if (!week.lifts) week.lifts = {};
+  if (!week.liftOrder) week.liftOrder = {};
+
+  DEFAULT_DAYS.forEach(d => {
+    const blueprintLifts = (program.days[d]?.lifts || []).filter(n => typeof n === 'string' && n.trim());
+    if (!week.lifts[d]) week.lifts[d] = {};
+    const existing = week.lifts[d];
+
+    // 1. Drop old, unlogged scaffolding that isn't in the new blueprint.
+    for (const liftName of Object.keys(existing)) {
+      if (blueprintLifts.includes(liftName)) continue;
+      if (!liftHasLoggedData(existing[liftName])) delete existing[liftName];
+    }
+    // 2. Seed any new blueprint lift that isn't already present.
+    blueprintLifts.forEach(liftName => {
+      if (!existing[liftName]) {
+        existing[liftName] = prescribeSetsForLift(wk, d, liftName, program.days[d]?.desc, weekModifier);
+      }
+    });
+    // 3. Rebuild order: blueprint order, then retained logged lifts (history).
+    const retained = Object.keys(existing).filter(n => !blueprintLifts.includes(n));
+    week.liftOrder[d] = [...blueprintLifts, ...retained];
+  });
+}
+
 // ==========================================
 // CLOUD PERSISTENCE
 // ==========================================

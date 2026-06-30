@@ -2914,3 +2914,52 @@ html[data-theme="light"] .detail-complete-btn:active {
     border-color var(--duration-base, 0.22s) ease;
 }
 
+
+/* ── Active-plan: week-aware "This Week" prescription strip ──────────────── */
+.aplan-week-prescription {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.aplan-week-prescription .aplan-wp-week {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #cbd5e1);
+}
+.aplan-week-prescription .aplan-wp-phase {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-blue, #8b5cf6);
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent-blue, #8b5cf6) 40%, transparent);
+  border-radius: 999px;
+}
+.aplan-week-prescription .aplan-wp-load {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  margin-left: auto;
+}
+
+/* ── Program detail: the user's own saved rating ────────────────────────── */
+.detail-your-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #cbd5e1);
+}
+.detail-your-rating .detail-your-rating-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.65rem;
+  color: var(--text-muted, #94a3b8);
+}
+.detail-your-rating .detail-stars { color: #f59e0b; }

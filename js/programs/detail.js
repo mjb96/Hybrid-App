@@ -6,7 +6,7 @@ import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from 
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard } from './program-card.js';
 import { PROGRAMS } from '../constants.js';
-import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById } from '../state.js';
+import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
 import { escapeHtml } from '../util.js';
 
 let _currentProgramId = null;
@@ -32,6 +32,7 @@ export function renderProgramDetail(programId, appState) {
   const isActive = appState?.activeProgramId === programId;
   const saved = isBookmarked(programId);
   const completed = isProgramCompleted(programId);
+  const personalRating = getPersonalRating(programId);
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const category = CATEGORIES[program.category] || { label: program.category || 'Program', icon: '📋', color: '#8b5cf6' };
   const wod = program.tags?.includes('hyrox-wod');
@@ -100,7 +101,7 @@ export function renderProgramDetail(programId, appState) {
       </div>
       ` : `
       <div class="detail-stat">
-        <div class="detail-stat-value">${program.durationWeeks || '12'}</div>
+        <div class="detail-stat-value">${program.durationWeeks || program.totalWeeks || '12'}</div>
         <div class="detail-stat-label">Weeks</div>
       </div>
       <div class="detail-stat-divider"></div>
@@ -159,6 +160,12 @@ export function renderProgramDetail(programId, appState) {
              <span class="detail-rating-empty-text">No ratings yet</span>
            </div>`
       }
+      ${personalRating ? `
+        <div class="detail-your-rating" data-action="rate-program" data-program-id="${programId}" role="button" tabindex="0">
+          <span class="detail-your-rating-label">Your rating</span>
+          ${renderStars(personalRating.rating)}
+          <span class="detail-rating-value">${personalRating.rating}/5</span>
+        </div>` : ''}
     </div>
 
     <!-- Description -->

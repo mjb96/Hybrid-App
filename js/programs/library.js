@@ -7,8 +7,8 @@ import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { renderProgramCard, isWod } from './program-card.js';
-import { toggleBookmark, recordRecentlyViewed, getProgramById } from '../state.js';
-import { escapeHtml } from '../util.js';
+import { toggleBookmark, recordRecentlyViewed, getProgramById, saveStateToLocalStorage } from '../state.js';
+import { escapeHtml, programProgressPct } from '../util.js';
 
 let _appState = null;
 let _activeFilter = 'all';
@@ -25,11 +25,43 @@ export function updateLibraryState(appState) {
   _appState = appState;
 }
 
+// Resolve a program id to its display metadata WITHOUT getProgramById's
+// hybrid_engine fallback — a bookmark/completion for a deleted id should drop
+// out of the list, not silently masquerade as the default program. Covers
+// catalog + system (catalog entries exist for system programs) and custom.
+function resolveProgramMeta(id) {
+  return getCatalogEntry(id) || _appState?.customPrograms?.find(p => p.id === id) || null;
+}
+
+// ── Persisted filter state (programLibrary.activeFilters) ─────────────────────
+let _filtersRestored = false;
+
+function restoreFilters() {
+  const f = _appState?.programLibrary?.activeFilters;
+  if (!f || typeof f !== 'object') return;
+  if (typeof f.filter === 'string') _activeFilter = f.filter;
+  if (f.difficulty === null || typeof f.difficulty === 'string') _activeDifficulty = f.difficulty || null;
+  if (typeof f.tab === 'string') _activeTab = f.tab;
+}
+
+function persistFilters() {
+  if (!_appState?.programLibrary) return;
+  _appState.programLibrary.activeFilters = {
+    filter: _activeFilter,
+    difficulty: _activeDifficulty,
+    tab: _activeTab,
+  };
+  saveStateToLocalStorage(true);
+}
+
 // ── Main render ───────────────────────────────────────────────────────────────
 
 export function renderLibrary() {
   const screen = document.getElementById('programLibraryScreen');
   if (!screen) return;
+
+  // Restore the user's last filter/tab once per session (persisted across reloads).
+  if (!_filtersRestored) { restoreFilters(); _filtersRestored = true; }
 
   renderActiveProgramBanner();
   renderLibraryTabs();
@@ -88,7 +120,7 @@ function renderActiveProgramBanner() {
   // Fall back to the resolved program's totalWeeks so custom/system programs
   // without a catalog duration don't all collapse to a hard-coded "of 12".
   const totalWeeks = catalog?.durationWeeks || getProgramById(activeId)?.totalWeeks || 12;
-  const pct = Math.min(100, Math.round((currentWeek / totalWeeks) * 100));
+  const pct = programProgressPct(currentWeek, totalWeeks);
   const accent = catalog?.accentColor || '#8b5cf6';
   const circumference = 113;
   const dashArray = Math.round((pct / 100) * circumference);
@@ -162,7 +194,7 @@ function renderSavedPrograms() {
   if (!content) return;
 
   const bookmarkIds = _appState?.programLibrary?.bookmarks || [];
-  const allSaved = PROGRAM_CATALOG.filter(p => bookmarkIds.includes(p.id));
+  const allSaved = bookmarkIds.map(resolveProgramMeta).filter(Boolean);
 
   if (allSaved.length === 0) {
     content.style.display = 'block';
@@ -220,7 +252,7 @@ function renderCompletedPrograms() {
 
   const completions = _appState?.programLibrary?.completions || [];
   const completed = completions
-    .map(c => ({ completion: c, program: PROGRAM_CATALOG.find(p => p.id === c.programId) }))
+    .map(c => ({ completion: c, program: resolveProgramMeta(c.programId) }))
     .filter(x => x.program)
     .sort((a, b) => new Date(b.completion.completedAt) - new Date(a.completion.completedAt));
 
@@ -358,6 +390,21 @@ function renderCollectionRows(container) {
     html += renderHeroBanner(featuredPrograms);
   }
 
+  // Recently viewed — surfaces the (previously write-only) recentlyViewed log
+  const recentlyViewed = (_appState?.programLibrary?.recentlyViewed || [])
+    .map(v => resolveProgramMeta(v.programId))
+    .filter(Boolean)
+    .slice(0, 10);
+  if (recentlyViewed.length > 0) {
+    html += renderCollectionRow({
+      id: 'recently-viewed',
+      label: 'Recently Viewed',
+      subtitle: 'Pick up where you left off',
+      icon: '🕘',
+      hideSeeAll: true,
+    }, recentlyViewed);
+  }
+
   // Your custom programs (created in the builder) — only place they surface
   const customPrograms = _appState?.customPrograms || [];
   if (customPrograms.length > 0) {
@@ -431,11 +478,12 @@ function renderCustomProgramCard(p) {
 
   return `
     <div class="card-dark p-3" style="border:1px solid var(--overlay-sm);${isActive ? 'border-color:var(--accent-blue);' : ''}">
-      <div class="flex-between align-center mb-2">
+      <div class="flex-between align-center mb-2" data-action="open-program-detail" data-program-id="${p.id}" role="button" tabindex="0" style="cursor:pointer;">
         <div>
           <div class="font-heavy text-inverse">${escapeHtml(p.name)}${isActive ? ' <span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}</div>
           <div class="text-xs text-muted">${escapeHtml(focus)} · ${weeks}w · ${trainingDays} training day${trainingDays !== 1 ? 's' : ''}</div>
         </div>
+        <span class="text-muted" aria-hidden="true">›</span>
       </div>
       <div class="flex gap-2" style="flex-wrap:wrap;">
         ${isActive ? '' : `<button class="btn-pad btn-blue" style="font-size:0.75rem;" data-action="make-active-program" data-program-id="${p.id}">Make Active</button>`}
@@ -728,6 +776,7 @@ export function handleLibraryAction(action, el, event) {
         const inp = document.getElementById('progSearchInput');
         if (inp) inp.value = '';
         renderLibrary();
+        persistFilters();
       }
       break;
     }
@@ -754,12 +803,14 @@ function setActiveFilter(filter) {
   renderFilterChips();
   renderDifficultyChips();
   renderLibraryContent();
+  persistFilters();
 }
 
 function setActiveDifficulty(difficulty) {
   _activeDifficulty = difficulty || null;
   renderDifficultyChips();
   renderLibraryContent();
+  persistFilters();
 }
 
 function openProgramDetail(programId) {

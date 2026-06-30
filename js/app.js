@@ -7,7 +7,8 @@ import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 import { getCatalogEntry } from './programs/catalog.js';
-import { escapeHtml } from './util.js';
+import { escapeHtml, programProgressPct } from './util.js';
+import { getWeekModifier } from './schema.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -16,6 +17,7 @@ import {
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   mergeWeekSchema,
+  reseedActiveProgramIntoWeek,
   saveStateToLocalStorage,
   pullEngineDataFromStorage,
   triggerCSVExport,
@@ -179,7 +181,17 @@ export function triggerMakeActiveProgram(newProgramId) {
 function applyProgramSwitch(newProgramId) {
   appState.activeProgramId = newProgramId;
   appState.weekStartedAt = new Date().toISOString();
-  mergeWeekSchema(appState.currentWeek);
+  // Re-point the current week and every already-materialised future week at the
+  // new program so its exercises replace the old program's unlogged scaffolding
+  // instead of going stale (or stacking as a union). Logged sets are preserved;
+  // past weeks are left untouched as history. Future weeks not yet created will
+  // pick up the new program lazily via verifyWeekStorageSchema.
+  const cur = parseInt(appState.currentWeek, 10) || 1;
+  const targets = new Set([String(appState.currentWeek)]);
+  Object.keys(appState.weeks || {}).forEach(wk => {
+    if ((parseInt(wk, 10) || 0) >= cur) targets.add(wk);
+  });
+  targets.forEach(wk => reseedActiveProgramIntoWeek(wk));
   saveStateToLocalStorage(true);
   hydrateCurrentView();
   showActivePlanView(true);
@@ -271,7 +283,7 @@ function _renderActivePlanHero() {
   const displayWk = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
   const actualWk  = parseInt(appState.currentWeek || '1', 10);
   const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
-  const progress = Math.min(100, Math.round(((actualWk - 1) / totalWeeks) * 100));
+  const progress = programProgressPct(actualWk, totalWeeks);
   const phaseName = WEEK_PHASE_NAMES[String(displayWk)] || '';
 
   heroEl.innerHTML = `
@@ -338,7 +350,21 @@ function _renderThisWeekTab(catalog, prog) {
     `;
   }).join('');
 
-  return `<div class="aplan-day-list">${cards}</div>`;
+  // Week-aware header: the stepper/schedule change the displayed week, so show
+  // that week's phase + prescribed load (sets×reps) here instead of a static
+  // blueprint that ignores the selector.
+  const displayWk = _activePlanDisplayWeek || appState.currentWeek || '1';
+  const mod = getWeekModifier(prog, displayWk);
+  const phase = WEEK_PHASE_NAMES[String(displayWk)] || mod.intensityLabel || '';
+  const setsReps = (mod.sets && mod.reps) ? `${mod.sets}×${mod.reps}` : '';
+  const prescription = `
+    <div class="aplan-week-prescription">
+      <span class="aplan-wp-week">Week ${escapeHtml(String(displayWk))}</span>
+      ${phase ? `<span class="aplan-wp-phase">${escapeHtml(phase)}</span>` : ''}
+      ${setsReps ? `<span class="aplan-wp-load">${setsReps}</span>` : ''}
+    </div>`;
+
+  return `${prescription}<div class="aplan-day-list">${cards}</div>`;
 }
 
 function _renderScheduleTab(catalog, prog) {

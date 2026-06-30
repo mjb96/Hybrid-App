@@ -31,9 +31,15 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
 
   const durationLabel = wod && program.sessionDurationMinutes
     ? `~${program.sessionDurationMinutes.min}–${program.sessionDurationMinutes.max} min`
-    : `${program.durationWeeks}w`;
+    : `${program.durationWeeks || program.totalWeeks || 12}w`;
 
-  const categoryLabel = wod ? 'Workout' : (CATEGORIES[program.category]?.label || program.category);
+  const categoryLabel = wod ? 'Workout' : (CATEGORIES[program.category]?.label || program.category || 'Custom');
+  // Non-catalog (custom) programs lack visual metadata — supply safe fallbacks
+  // so the shared card renderer never throws on a missing gradient/icon/accent.
+  const cover = Array.isArray(program.coverGradient) && program.coverGradient.length >= 2
+    ? program.coverGradient : ['#1a0e2e', '#0d1b2a'];
+  const icon = program.icon || '📋';
+  const accentColor = program.accentColor || '#8b5cf6';
 
   // Rating shown on all cards; count only on large
   const ratingHTML = program.rating
@@ -65,8 +71,8 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
          data-action="open-program-detail"
          data-program-id="${program.id}">
       <div class="prog-card-cover"
-           style="background: linear-gradient(145deg, ${program.coverGradient[0]}, ${program.coverGradient[1]})">
-        <div class="prog-card-icon">${program.icon}</div>
+           style="background: linear-gradient(145deg, ${cover[0]}, ${cover[1]})">
+        <div class="prog-card-icon">${icon}</div>
         <div class="prog-card-badges">
           ${isActive ? '<span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}
           ${completed && !isActive ? '<span class="prog-badge prog-badge--completed">DONE</span>' : ''}
@@ -86,7 +92,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
         <div class="prog-card-name">${escapeHtml(program.name)}</div>
         ${authorHTML}
         <div class="prog-card-meta">
-          <span class="prog-card-category" style="color: ${program.accentColor}">${categoryLabel}</span>
+          <span class="prog-card-category" style="color: ${accentColor}">${categoryLabel}</span>
           <span class="prog-card-sep">·</span>
           <span>${durationLabel}</span>
           ${equipTierLabel ? `<span class="prog-card-sep">·</span><span class="prog-card-equip">${equipTierLabel}</span>` : ''}
