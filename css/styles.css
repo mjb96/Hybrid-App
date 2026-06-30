@@ -39,6 +39,21 @@
   --color-green:    #10b981;
   --color-amber:    #f59e0b;
   --color-red:      #ef4444;
+  --color-violet:   #8b5cf6;
+
+  /* Accent aliases. The codebase references --accent-* in ~230 places (badge
+     colours, borders, and solid backgrounds like the save toast). They were
+     never defined, so `color:` usages silently inherited and `background:`
+     usages fell back to transparent — e.g. the toast rendered as bare text
+     over the page. Alias them to the colour tokens so they track the theme. */
+  --accent-blue:    var(--color-blue);
+  --accent-indigo:  var(--color-indigo);
+  --accent-cyan:    var(--color-cyan);
+  --accent-green:   var(--color-green);
+  --accent-amber:   var(--color-amber);
+  --accent-red:     var(--color-red);
+  --accent-purple:  var(--color-violet);
+  --accent-pink:    #ec4899;
 
   /* Tinted alpha layers */
   --blue-alpha:     rgba(59, 130, 246, 0.10);
