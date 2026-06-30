@@ -238,10 +238,6 @@ export function adjustRestDuration(delta) {
   }
 }
 
-export function setRestDuration(secs) {
-  _restDuration = Math.min(300, Math.max(30, parseInt(secs, 10) || 90));
-}
-
 export function dismissRestTimer() {
   clearInterval(restTimerInt);
   restTimerInt = null;

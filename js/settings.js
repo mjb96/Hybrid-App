@@ -2,7 +2,7 @@
 // SETTINGS
 // ==========================================
 import { saveStateToLocalStorage } from './state.js';
-import { setRestDuration, setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
+import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 
 // Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
 const _fmtRest = (sec) => {
@@ -80,7 +80,6 @@ function _syncSettingsUI() {
 
   _setToggleActive('[data-action="set-unit"]',        `[data-unit="${s.weightUnit || 'kg'}"]`);
   _setToggleActive('[data-action="set-dist-unit"]',   `[data-unit="${s.distanceUnit || 'km'}"]`);
-  _setToggleActive('[data-action="set-rest-default"]',`[data-secs="${s.restTimerDefault || 90}"]`);
   _setToggleActive('[data-action="set-progression"]', `[data-kg="${s.progressionIncrement || 2.5}"]`);
   _setToggleActive('[data-action="set-theme"]',       `[data-theme-val="${s.theme || 'dark'}"]`);
   _setToggleActive('[data-action="set-fitness-goal"]',`[data-goal="${s.fitnessGoal || 'hybrid'}"]`);
@@ -273,13 +272,13 @@ export function setWeightUnit(unit) {
   showToast(`Weight unit: ${unit}`);
 }
 
-export function setRestDefault(secs) {
+// Clear all remembered per-exercise rest adjustments.
+export function resetRestOverrides() {
   const appState = _ensureSettings();
-  appState.settings.restTimerDefault = secs;
+  appState.settings.restOverrides = {};
+  setRestOverrides({});
   saveStateToLocalStorage(true);
-  setRestDuration(secs);
-  _setToggleActive('[data-action="set-rest-default"]', `[data-secs="${secs}"]`);
-  showToast(`Default rest: ${secs >= 60 ? Math.floor(secs / 60) + 'm' + (secs % 60 ? (secs % 60) + 's' : '') : secs + 's'}`);
+  showToast('Remembered rests cleared');
 }
 
 export function setProgressionIncrement(kg) {

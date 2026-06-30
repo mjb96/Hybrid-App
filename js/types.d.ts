@@ -50,7 +50,9 @@ export interface AppSettings {
   weightUnit?: 'kg' | 'lbs';
   distanceUnit?: 'km' | 'mi';
   theme?: 'dark' | 'light' | 'system';
-  restTimerDefault?: number;
+  restPeriods?: { compound: number; accessory: number; isolation: number };
+  restTimerEnabled?: boolean;
+  restOverrides?: Record<string, number>;
   progressionIncrement?: number;
   fitnessGoal?: string;
   fitnessLevel?: string;
