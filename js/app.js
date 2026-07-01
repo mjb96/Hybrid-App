@@ -64,7 +64,7 @@ import {
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
   saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights,
-  saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut,
+  saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut, deleteAccount,
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
@@ -754,6 +754,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
   else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));
   else if (action === 'sign-out')             signOut();
+  else if (action === 'delete-account')       deleteAccount();
 
   // Onboarding
   else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {

@@ -27,7 +27,7 @@ const REST_PRESETS = {
 };
 import { showToast } from './state.js';
 import { rearmReminder, notificationsGranted } from './notifications.js';
-import { getCloudUser, signOutSupabase } from './state/auth.js';
+import { getCloudUser, signOutSupabase, deleteAccount as authDeleteAccount } from './state/auth.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect } from './health/health-bridge.js';
 
 let _getState;
@@ -493,19 +493,46 @@ export function signOut() {
   signOutSupabase();
 }
 
+export async function deleteAccount() {
+  // Two-step confirm for an irreversible action.
+  const ok = typeof window !== 'undefined' && typeof window.confirm === 'function'
+    ? window.confirm('Permanently delete your account and ALL synced data?\n\nThis cannot be undone. Consider exporting your data first (Settings → Export).')
+    : true;
+  if (!ok) return;
+
+  showToast('Deleting account…');
+  try {
+    const res = await authDeleteAccount();
+    if (res.ok) {
+      showToast('Account and data deleted.');
+      setTimeout(() => { try { window.location.reload(); } catch (_) {} }, 900);
+    } else {
+      const msg = res.reason === 'not-signed-in' ? 'You are not signed in.'
+        : res.reason === 'offline' ? 'Offline — connect and try again.'
+        : 'Could not delete account. Please try again.';
+      showToast(msg, true);
+    }
+  } catch (_) {
+    showToast('Could not delete account. Please try again.', true);
+  }
+}
+
 // ── Account / cloud status UI ─────────────────────────────────────────────────
 async function _syncAccountUI() {
   const emailEl   = document.getElementById('settingsAccountEmail');
   const signOutBtn = document.getElementById('settingsSignOutBtn');
   if (!emailEl) return;
 
+  const deleteBtn = document.getElementById('settingsDeleteAccountBtn');
   const user = await getCloudUser();
   if (user?.email) {
     emailEl.textContent = user.email;
     if (signOutBtn) signOutBtn.style.display = 'block';
+    if (deleteBtn)  deleteBtn.style.display  = 'block';
   } else {
     emailEl.textContent = 'Local only — not signed in';
     if (signOutBtn) signOutBtn.style.display = 'none';
+    if (deleteBtn)  deleteBtn.style.display  = 'none';
   }
 }
 

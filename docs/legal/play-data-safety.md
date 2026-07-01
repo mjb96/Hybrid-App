@@ -45,13 +45,17 @@ Settings — confirm both before submitting the Health Connect declaration.
 ## Account deletion (Play requirement)
 Play requires a way to request account + data deletion, reachable without
 reinstalling.
-- **Today:** users can export all data (Settings → Export), clear local data by
-  uninstalling, and request account/cloud deletion by emailing
-  {{CONTACT_EMAIL}}. Provide that email (or a deletion web form URL) in the
-  Data Safety "deletion" field.
-- **Recommended `[CC]` follow-up:** add an in-app "Delete account & cloud data"
-  button (deletes the Supabase row + auth user) so deletion is self-serve. Flag
-  if you want this built.
+- **In-app (built):** Settings → Account → **Delete Account & Data** erases the
+  user's synced data row (RLS-permitted own-row delete) and all local data, then
+  signs out. Shown only when signed in.
+- **Full auth-record removal:** requires the `delete-account` edge function
+  (`supabase/functions/delete-account/`) — `[You]` deploy it with
+  `supabase functions deploy delete-account`. The app calls it automatically and
+  falls back to data-row deletion if it isn't deployed yet, so data is erased
+  either way.
+- **Data Safety "deletion" field:** you can now point to the in-app deletion.
+  Users can also export first (Settings → Export). Keep {{CONTACT_EMAIL}} as a
+  backup contact.
 
 ## Content rating & target audience (adjacent forms)
 - **Target age:** {{16+ recommended}} (health data; not directed at children).
