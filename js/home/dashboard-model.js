@@ -225,13 +225,16 @@ export function computeDashboardModel(state, days, program, selectedDay) {
 // The single most important thing to surface right now. Priority-ordered.
 // ---------------------------------------------------------------------------
 function pickTopInsight(m) {
+  // Once today's planned session is logged, don't nudge the athlete to go hard —
+  // the coaching card already acknowledges the session.
+  const sessionDone = m.rec?.badge === 'Session Done';
   if (m.fasting.active) {
     return { text: `Fasting ${Math.floor(m.fasting.hours)}h — ${m.fasting.zone.name}`, tone: 'caution', nav: 'custom:fasting' };
   }
   if (m.load.hasData && m.load.acwr >= 1.5) {
     return { text: `Load spiking (ACWR ${m.load.acwr}). Ease off and protect recovery today.`, tone: 'warning', nav: 'training-status' };
   }
-  if (m.ready.hasData && m.ready.score >= 85) {
+  if (!sessionDone && m.ready.hasData && m.ready.score >= 85) {
     return { text: `Readiness ${m.ready.score} — primed for a hard session or a PR attempt.`, tone: 'positive', nav: 'recovery-score' };
   }
   if (m.ready.hasData && m.ready.score < 40) {
