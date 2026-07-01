@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.hybridapp"
+    namespace = "com.helyx.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.hybridapp"
+        applicationId = "com.helyx.app"
         minSdk = 26
         targetSdk = 36
         // Bump via CI: export VERSION_CODE=$(git rev-list --count HEAD) before the build.

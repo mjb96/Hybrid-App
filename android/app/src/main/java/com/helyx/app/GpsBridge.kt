@@ -1,4 +1,4 @@
-package com.hybridapp
+package com.helyx.app
 
 import android.Manifest
 import android.content.Context

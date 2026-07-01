@@ -19,7 +19,7 @@
 - [ ] Create Google Play Developer account ($25, approval 1–2 days)
 - [ ] Obtain a physical Android phone for testing
 - [ ] Confirm Supabase dashboard access
-- [ ] Decide single brand identity (Helyx vs com.hybridapp / hybrid-app)
+- [x] Decide single brand identity → **Helyx** (Android applicationId `com.helyx.app`)
 - [ ] Create Sentry account (for Phase 1 crash reporting)
 
 ## Phase 1 — Security + Data Safety  ·  branch: `phase1-security`
@@ -37,7 +37,7 @@
 - [~] `[CC]` GPS reliability → **native location foreground service** (decided with `[You]` 2026-07-01). `GpsTrackingService` + `GpsBridge` (Kotlin) buffer fixes by seq; JS drains on wake (`js/gps/native-bridge.js`), recovers a live run after activity death; web watchPosition kept as browser/PWA fallback. Kotlin compile-verified via CI once the branch build passes; then `[You]` device test.
   - NOTE for Play submission (Phase 4): app now uses a `location` foreground service — Play Console requires a foreground-service declaration + video.
 - [ ] `[You]` Real-run device test of GPS
-- [ ] `[CC]`+`[You]` Brand unification (name / icons / splash / package identity)
+- [~] `[CC]`+`[You]` Brand unification: name ✓ (all user-facing = Helyx), package ✓ (`com.hybridapp`→`com.helyx.app`), export filenames ✓. Remaining `[You]`: icons / splash / feature-graphic art.
 - [ ] `[CC]` WebView hardening (back-button/nav, resume state restore, offline behavior)
 - [ ] `[CC]` Android 13+ notification permission flow + Health Connect permission finalize
 - [ ] `[You]` Device-test notifications + Health Connect

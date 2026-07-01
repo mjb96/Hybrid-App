@@ -1,4 +1,4 @@
-package com.hybridapp
+package com.helyx.app
 
 import android.Manifest
 import android.app.Notification
@@ -114,10 +114,10 @@ object GpsPointStore {
 class GpsTrackingService : Service(), LocationListener {
 
     companion object {
-        const val ACTION_START  = "com.hybridapp.gps.START"
-        const val ACTION_PAUSE  = "com.hybridapp.gps.PAUSE"
-        const val ACTION_RESUME = "com.hybridapp.gps.RESUME"
-        const val ACTION_STOP   = "com.hybridapp.gps.STOP"
+        const val ACTION_START  = "com.helyx.app.gps.START"
+        const val ACTION_PAUSE  = "com.helyx.app.gps.PAUSE"
+        const val ACTION_RESUME = "com.helyx.app.gps.RESUME"
+        const val ACTION_STOP   = "com.helyx.app.gps.STOP"
 
         const val CHANNEL_ID = "run_tracking"
         private const val NOTIFICATION_ID = 2001

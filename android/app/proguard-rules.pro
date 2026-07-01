@@ -1,5 +1,5 @@
 # Keep JavascriptInterface methods — R8 would strip them otherwise
--keepclassmembers class com.hybridapp.HybridHealthBridge {
+-keepclassmembers class com.helyx.app.HybridHealthBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
 

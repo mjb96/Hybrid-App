@@ -1,4 +1,4 @@
-package com.hybridapp
+package com.helyx.app
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
