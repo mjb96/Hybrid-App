@@ -15,6 +15,7 @@ import { getSupabaseClient } from './state/supabase.js';
 import { initAuth, loginToSupabase, signUpToSupabase, checkActiveSession } from './state/auth.js';
 import { initImportExport, triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback } from './state/import-export.js';
 import { migrateState, CURRENT_SCHEMA_VERSION } from './state/migrations.js';
+import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './state/sync-guard.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -421,6 +422,19 @@ let _cloudTimer = null;
 let _cloudPending = false;
 const CLOUD_DEBOUNCE_MS = 1500;
 
+// Sync-conflict wiring. When a save would overwrite newer cloud data (another
+// device wrote since we loaded), we do NOT clobber it: we raise a conflict for
+// the user to resolve. `_conflictPending` suppresses further cloud writes until
+// they choose; `_forceOverwrite` is a one-shot bypass set by "keep this device".
+let _onSyncConflict = null;
+let _conflictPending = false;
+let _forceOverwrite = false;
+
+/** Register the UI handler shown when a stale-overwrite is detected. */
+export function setSyncConflictHandler(fn) { _onSyncConflict = fn; }
+
+export function isSyncConflictPending() { return _conflictPending; }
+
 async function cloudSave(suppressToast) {
   const _sb = getSupabaseClient();
   if (!_sb) {
@@ -433,15 +447,67 @@ async function cloudSave(suppressToast) {
       if (!suppressToast) showToast('Session Saved Locally ✓');
       return;
     }
+    const uid = sessionData.session.user.id;
+
+    // Already waiting on the user to resolve a conflict — local state is safely
+    // in localStorage; don't touch the cloud until they decide.
+    if (_conflictPending) return;
+
+    // Divergence guard: unless the user explicitly chose to overwrite, check
+    // whether the server row is newer than the version this device last saw.
+    if (!_forceOverwrite) {
+      const { data: row, error: selErr } = await _sb
+        .from('user_data')
+        .select('updated_at')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (!selErr && row && isServerNewer(getStoredCloudVersion(), row.updated_at)) {
+        _conflictPending = true;
+        if (_onSyncConflict) {
+          _onSyncConflict({ serverUpdatedAt: row.updated_at, lastSeen: getStoredCloudVersion() });
+        }
+        return; // do NOT overwrite newer cloud data
+      }
+    }
+    _forceOverwrite = false;
+
     const { error } = await _sb
       .from('user_data')
-      .upsert({ user_id: sessionData.session.user.id, state_data: appState }, { onConflict: 'user_id' });
+      .upsert({ user_id: uid, state_data: appState }, { onConflict: 'user_id' });
 
     if (error) throw error;
+
+    // Best-effort: record the new server version for divergence detection.
+    // Kept separate from the upsert (and error-tolerant) so a save never breaks
+    // if the updated_at migration hasn't been applied yet.
+    try {
+      const { data: v } = await _sb
+        .from('user_data')
+        .select('updated_at')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (v?.updated_at) setStoredCloudVersion(v.updated_at);
+    } catch { /* column absent until migration applied — degrade gracefully */ }
+
     if (!suppressToast) showToast('Session Saved to Cloud ✓');
   } catch (err) {
     console.error('Supabase Save Error:', err);
     if (!suppressToast) showToast('DB Reject: ' + (err.message || 'Unknown error').substring(0, 40), true);
+  }
+}
+
+// Resolve a detected sync conflict from the UI. 'local' overwrites the cloud
+// with this device's state; 'cloud' discards local edits and reloads the
+// authoritative cloud copy (the pre-pull snapshot backup still lets it be undone).
+export async function resolveSyncConflict(choice) {
+  _conflictPending = false;
+  if (choice === 'local') {
+    _forceOverwrite = true;
+    await cloudSave(false);
+  } else if (choice === 'cloud') {
+    // Reload: the fresh boot pull replaces local with cloud and re-stamps the
+    // last-seen version, so the next save won't re-trigger the conflict.
+    if (typeof window !== 'undefined') window.location.reload();
   }
 }
 
@@ -531,32 +597,38 @@ export async function pullEngineDataFromStorage() {
       const fetchCloud = async () => {
         const { data: userData, error: authError } = await _sb2.auth.getUser();
         if (!authError && userData?.user) {
+            // select('*') (not 'state_data, updated_at') so the load still works
+            // if the updated_at migration hasn't been applied yet — the column
+            // is simply absent from the row rather than erroring the query.
             const { data, error } = await _sb2
               .from('user_data')
-              .select('state_data')
+              .select('*')
               .eq('user_id', userData.user.id)
               .single();
 
-            if (!error && data?.state_data) return data.state_data;
+            if (!error && data?.state_data) return data;
         }
         return null;
       };
 
-      const cloudData = await Promise.race([
+      const cloudRow = await Promise.race([
         fetchCloud(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Supabase timeout")), 4000))
       ]);
 
-      if (cloudData) {
+      if (cloudRow?.state_data) {
         // Safety net: back up the pre-pull local state before the cloud blob
         // overwrites it, so a stale/empty device clobbering real history on
         // load can be recovered (sync is last-write-wins with no merge).
         snapshotLocalBeforeCloudPull(rawLocal);
         appState = {
           ...baseDefaults,
-          ...cloudData,
-          settings: { ...baseDefaults.settings, ...(cloudData && cloudData.settings) },
+          ...cloudRow.state_data,
+          settings: { ...baseDefaults.settings, ...(cloudRow.state_data && cloudRow.state_data.settings) },
         };
+        // Record the server version we just loaded, so a later save can tell
+        // whether another device has written since (divergence detection).
+        if (cloudRow.updated_at) setStoredCloudVersion(cloudRow.updated_at);
       }
     } catch (cloudErr) {
       console.warn('Cloud sync timeout/failure, relying on local backup.');

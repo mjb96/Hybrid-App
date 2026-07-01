@@ -6,7 +6,13 @@ reach across users. This folder holds the SQL to enforce that and the proof.
 
 ## Files
 - `rls_user_data.sql` — RLS policies for `public.user_data` (own-row only).
+- `migration_user_data_updated_at.sql` — adds server-managed `updated_at` +
+  trigger, powering stale-device divergence detection in the app.
 - `../scripts/rls-adversarial-check.mjs` — proof that user A cannot read/write user B.
+
+**`[You]` apply both SQL files** (`rls_user_data.sql` and
+`migration_user_data_updated_at.sql`) in the SQL Editor. Order doesn't matter;
+both are idempotent.
 
 ## Apply + prove (order matters)
 

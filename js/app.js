@@ -30,6 +30,7 @@ import {
   dismissDeloadSuggestion,
   applyDeloadToCurrentWeek,
 } from './state.js';
+import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
@@ -1293,6 +1294,7 @@ if (typeof window !== 'undefined') {
 
 async function bootstrapApp() {
   try {
+    initSyncConflictUI();
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();
