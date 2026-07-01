@@ -169,12 +169,12 @@ export function readinessRecommendation(score, components) {
 }
 
 // Strength imbalance score: returns 0–100 (100 = perfectly balanced).
-// Penalises undertrained groups.
+// Penalises groups below their minimum effective volume — i.e. not receiving
+// enough weekly sets to grow (zones 'detraining' and 'maintenance').
 export function strengthBalanceScore(muscleStatus) {
   if (!muscleStatus || Object.keys(muscleStatus).length === 0) return null;
   const all       = Object.values(muscleStatus);
-  const trained   = all.filter(s => s === 'optimal' || s === 'overtrained').length;
-  const under     = all.filter(s => s === 'undertrained').length;
+  const under     = all.filter(s => s === 'detraining' || s === 'maintenance').length;
   const noData    = all.filter(s => s === 'no_data').length;
   const tracked   = all.length - noData;
   if (tracked === 0) return null;

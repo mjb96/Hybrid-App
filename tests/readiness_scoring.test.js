@@ -88,11 +88,16 @@ test('readinessRecommendation: peak band suggests PR attempt', () => {
 test('strengthBalanceScore: balanced vs imbalanced', () => {
   assert.equal(strengthBalanceScore(null), null);
   assert.equal(strengthBalanceScore({}), null);
-  // all optimal -> 100
-  assert.equal(strengthBalanceScore({ a: 'optimal', b: 'optimal' }), 100);
-  // half undertrained (no_data excluded from tracked) -> penalty 50
+  // all in-range -> 100
+  assert.equal(strengthBalanceScore({ a: 'optimal', b: 'growth' }), 100);
+  // half below MEV (no_data excluded from tracked) -> penalty 50
   assert.equal(
-    strengthBalanceScore({ a: 'optimal', b: 'undertrained', c: 'no_data' }),
+    strengthBalanceScore({ a: 'optimal', b: 'detraining', c: 'no_data' }),
+    50,
+  );
+  // 'maintenance' also counts as below effective volume
+  assert.equal(
+    strengthBalanceScore({ a: 'growth', b: 'maintenance' }),
     50,
   );
 });

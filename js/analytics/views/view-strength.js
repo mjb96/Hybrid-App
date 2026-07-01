@@ -7,8 +7,10 @@ import {
   render1RMProgressionChart,
   renderVolumeProgressionChart,
   renderMuscleGroupBalanceChart,
+  renderVolumeLandmarkChart,
   renderVolumeCalendarHeatmap,
 } from '../charts/strength-charts.js';
+import { MUSCLE_GROUPS, MUSCLE_LABELS, zoneColor, zoneLabel } from '../calculations/volume-landmarks.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { computeStrengthAnalytics } from '../calculations/strength-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
@@ -160,32 +162,60 @@ function renderMuscleGroupAnalysis(sa) {
     return;
   }
 
-  const statusColor = s => s === 'optimal' ? '#10b981' : s === 'undertrained' ? '#ef4444' : s === 'overtrained' ? '#f97316' : 'rgba(255,255,255,0.3)';
-  const statusLabel = s => s === 'optimal' ? 'Optimal' : s === 'undertrained' ? 'Undertrained' : s === 'overtrained' ? 'High Volume' : 'No Data';
+  const report = sa.muscleLandmarks || { groups: {}, muscles: {} };
 
-  const groupRows = groups.map(g => {
-    const sets = sa.currentSets[g] || 0;
-    const status = sa.muscleStatus[g] || 'no_data';
-    const col = statusColor(status);
-    return `<div class="flex-between py-2" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-      <span class="text-sm text-inverse">${g}</span>
-      <div class="flex gap-3" style="align-items:center;">
-        <span class="text-sm font-bold text-inverse">${sets > 0 ? sets.toFixed(0) + ' sets' : '--'}</span>
-        <span class="text-xs font-bold" style="color:${col};min-width:72px;text-align:right;">${statusLabel(status)}</span>
-      </div>
+  // Ordered group rows for the landmark chart.
+  const groupRows = groups
+    .map(g => report.groups[g])
+    .filter(Boolean);
+
+  // Per-muscle breakdown, organised under each group. Only muscles that carry a
+  // landmark appear; volume is the current week's weighted set credits.
+  const muscleBreakdown = groups.map(g => {
+    const members = (MUSCLE_GROUPS[g] || [])
+      .map(m => report.muscles[m])
+      .filter(Boolean);
+    if (members.length === 0) return '';
+    const rows = members.map(m => {
+      const col = zoneColor(m.zone);
+      const setsTxt = m.sets > 0 ? m.sets.toFixed(m.sets % 1 ? 1 : 0) : '–';
+      return `<div class="flex-between" style="padding:3px 0;">
+        <span class="text-xs text-muted">${MUSCLE_LABELS[m.muscle] || m.muscle}</span>
+        <span class="text-xs" style="display:flex;gap:8px;align-items:center;">
+          <span class="text-inverse" style="min-width:34px;text-align:right;">${setsTxt}</span>
+          <span style="color:${col};min-width:64px;text-align:right;font-weight:700;">${zoneLabel(m.zone)}</span>
+        </span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:8px;">
+      <div class="text-xs font-bold text-inverse" style="opacity:0.75;margin-bottom:2px;">${g}</div>
+      ${rows}
     </div>`;
   }).join('');
 
   el.innerHTML = `
     <h2 class="section-header mt-2">Muscle Group Analysis</h2>
+    <article class="card-dark p-3 mb-2">
+      <div class="text-xs text-muted mb-1">Weekly sets vs volume landmarks</div>
+      <div id="volumeLandmarkChart"></div>
+      <div class="text-xs text-muted" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
+        <span><span style="color:${zoneColor('growth')};">■</span> Growth (MEV–MAV)</span>
+        <span><span style="color:${zoneColor('optimal')};">■</span> Optimal (MAV–MRV)</span>
+        <span><span style="color:${zoneColor('overreaching')};">■</span> Over MRV</span>
+        <span style="opacity:0.7;">┊ dashed = MAV target</span>
+      </div>
+    </article>
+    <h3 class="section-header text-sm mb-2" style="font-size:0.8rem;">Per-Muscle Volume</h3>
     <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-3">Current Week — Weekly Sets</div>
-      ${groupRows}
+      ${muscleBreakdown || '<p class="text-muted text-sm">No mapped muscle volume yet.</p>'}
     </article>
     <h3 class="section-header text-sm mb-2" style="font-size:0.8rem;">Relative Volume Balance</h3>
     <article class="card-dark p-3 mb-3">
       <div id="muscleGroupBalanceChart"></div>
     </article>`;
+
+  const landmarkEl = qs('volumeLandmarkChart');
+  if (landmarkEl) renderVolumeLandmarkChart(landmarkEl, groupRows);
 
   const balanceEl = qs('muscleGroupBalanceChart');
   if (balanceEl) renderMuscleGroupBalanceChart(balanceEl, groups, sa.currentSets, sa.muscleStatus);

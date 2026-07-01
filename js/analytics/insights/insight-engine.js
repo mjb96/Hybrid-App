@@ -105,20 +105,21 @@ export function generateStrengthInsights({
     });
   }
 
-  // Muscle imbalance
-  const undertrained = Object.entries(muscleStatus || {}).filter(([, s]) => s === 'undertrained').map(([g]) => g);
+  // Muscle imbalance — groups below their minimum effective volume (not growing)
+  // vs groups above their maximum recoverable volume (junk / injury risk).
+  const undertrained = Object.entries(muscleStatus || {}).filter(([, s]) => s === 'detraining' || s === 'maintenance').map(([g]) => g);
   if (undertrained.length > 0) {
     insights.push({
-      text: `Undertrained muscle groups this week: ${undertrained.join(', ')}. Add sets to maintain balance.`,
+      text: `Below effective volume this week: ${undertrained.join(', ')}. Add sets to reach the growth range.`,
       priority: 'alert',
       category: 'strength',
     });
   }
 
-  const overtrained = Object.entries(muscleStatus || {}).filter(([, s]) => s === 'overtrained').map(([g]) => g);
+  const overtrained = Object.entries(muscleStatus || {}).filter(([, s]) => s === 'overreaching').map(([g]) => g);
   if (overtrained.length > 0) {
     insights.push({
-      text: `${overtrained.join(', ')} volume is above recommended range. Consider redistributing sets.`,
+      text: `${overtrained.join(', ')} volume is above the recoverable range (MRV). Consider redistributing sets.`,
       priority: 'info',
       category: 'strength',
     });

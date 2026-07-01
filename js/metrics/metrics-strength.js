@@ -21,7 +21,7 @@ function isWorkingSet(s) {
 }
 
 // ---- muscle map (primary weight 1.0, secondary weight 0.5) ----------------
-const MUSCLE_MAP = {
+export const MUSCLE_MAP = {
   'Back Squat':                { primary: ['quads', 'glutes'],                  secondary: ['erectors', 'adductors'] },
   'Front Squat':               { primary: ['quads'],                            secondary: ['glutes', 'core'] },
   'Romanian Deadlift':         { primary: ['hamstrings', 'glutes'],             secondary: ['erectors'] },
@@ -180,6 +180,7 @@ export function big3Maxes(state) {
 // Returns {[muscle]: number[]} — weighted set credits (primary 1.0, secondary 0.5)
 // per muscle per week. Excludes warmups. Returns {} when no data.
 export function weeklyVolumeByMuscle(state, days, maxWeek) {
+  /** @type {Record<string, number[]>} */
   const result = {};
 
   for (let w = 1; w <= maxWeek; w++) {

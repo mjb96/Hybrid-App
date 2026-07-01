@@ -4,6 +4,7 @@
 // All return SVG or inject into container.
 // ==========================================
 import { uid, bezierPath, linearGradientV, gridLines, xAxisLabels, areaFill, dotSeries, refLine, trendLinePath, rollingAvgPath } from './chart-primitives.js';
+import { zoneColor } from '../calculations/volume-landmarks.js';
 
 // 1RM Progression chart with projection line and rolling average.
 export function render1RMProgressionChart(container, weekLabels, series, trend, rolling4, lifetimePR, liftName) {
@@ -119,6 +120,55 @@ export function renderVolumeProgressionChart(container, weekLabels, volSeries, r
 }
 
 // Muscle Group Balance bar chart — horizontal bars showing relative volume per group.
+// Volume-landmark chart: one row per muscle group showing weekly sets against
+// the MEV → MAV → MRV target window. The shaded bands are the target zones; the
+// filled bar is the current volume (coloured by which zone it lands in); the
+// dashed line marks MAV, the volume to aim for.
+// `rows` = ordered array of { group|name, sets, mev, mav, mrv, zone }.
+export function renderVolumeLandmarkChart(container, rows) {
+  if (!container) return;
+  const data = (rows || []).filter(r => r && r.mrv > 0);
+  const hasData = data.some(r => (r.sets || 0) > 0);
+  if (!hasData) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 0;">Log mapped strength exercises to see volume vs landmarks.</p>';
+    return;
+  }
+
+  const W = 340, PL = 66, PR = 34, PT = 6, H_PER_ROW = 30, BAR_H = 12;
+  const barArea = W - PL - PR;
+  const H = PT + data.length * H_PER_ROW + 4;
+
+  let svg = '';
+  data.forEach((r, i) => {
+    const label = r.name || r.group || '';
+    const sets  = r.sets || 0;
+    const scale = Math.max(r.mrv * 1.15, sets * 1.05, 1);
+    const X = v => PL + Math.min(v / scale, 1) * barArea;
+    const rowY = PT + i * H_PER_ROW;
+    const barY = rowY + 6;
+    const col  = zoneColor(r.zone);
+
+    // Track base, then target-zone bands (growth, optimal, over-MRV).
+    svg += `<rect x="${PL}" y="${barY}" width="${barArea}" height="${BAR_H}" fill="rgba(255,255,255,0.05)" rx="3"/>`;
+    svg += `<rect x="${X(r.mev).toFixed(1)}" y="${barY}" width="${(X(r.mav) - X(r.mev)).toFixed(1)}" height="${BAR_H}" fill="${zoneColor('growth')}" opacity="0.14"/>`;
+    svg += `<rect x="${X(r.mav).toFixed(1)}" y="${barY}" width="${(X(r.mrv) - X(r.mav)).toFixed(1)}" height="${BAR_H}" fill="${zoneColor('optimal')}" opacity="0.18"/>`;
+    svg += `<rect x="${X(r.mrv).toFixed(1)}" y="${barY}" width="${(W - PR - X(r.mrv)).toFixed(1)}" height="${BAR_H}" fill="${zoneColor('overreaching')}" opacity="0.12"/>`;
+
+    // Current volume bar.
+    const bw = Math.max(2, X(sets) - PL);
+    svg += `<rect x="${PL}" y="${barY}" width="${bw.toFixed(1)}" height="${BAR_H}" fill="${col}" opacity="0.9" rx="3"/>`;
+
+    // MAV target marker (dashed).
+    svg += `<line x1="${X(r.mav).toFixed(1)}" y1="${barY - 2}" x2="${X(r.mav).toFixed(1)}" y2="${barY + BAR_H + 2}" stroke="rgba(255,255,255,0.55)" stroke-width="1" stroke-dasharray="2 2"/>`;
+
+    // Labels: group on the left, current sets on the right.
+    svg += `<text x="${PL - 6}" y="${barY + BAR_H - 2}" text-anchor="end" font-size="11" fill="rgba(255,255,255,0.8)">${label}</text>`;
+    svg += `<text x="${W - PR + 3}" y="${barY + BAR_H - 2}" font-size="10" font-weight="700" fill="${col}">${sets > 0 ? sets.toFixed(sets % 1 ? 1 : 0) : '–'}</text>`;
+  });
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${svg}</svg>`;
+}
+
 export function renderMuscleGroupBalanceChart(container, groupNames, currentSets, muscleStatus) {
   if (!container) return;
   const hasData = Object.values(currentSets || {}).some(v => v > 0);
@@ -135,20 +185,13 @@ export function renderMuscleGroupBalanceChart(container, groupNames, currentSets
   const barArea = W - PL - PR;
   const H = PT + groups.length * H_PER_ROW + 10;
 
-  const statusColor = s => {
-    if (s === 'overtrained')   return '#f97316';
-    if (s === 'undertrained')  return '#ef4444';
-    if (s === 'optimal')       return '#10b981';
-    return 'rgba(255,255,255,0.25)';
-  };
-
   let svgContent = '';
   groups.forEach((g, i) => {
     const sets = currentSets[g] || 0;
     const pct  = sets / maxSets;
     const y    = PT + i * H_PER_ROW;
     const bw   = Math.max(2, pct * barArea);
-    const col  = statusColor(muscleStatus?.[g]);
+    const col  = zoneColor(muscleStatus?.[g]);
 
     svgContent += `<text x="${PL - 6}" y="${y + 14}" text-anchor="end" font-size="11" fill="rgba(255,255,255,0.8)">${g}</text>`;
     svgContent += `<rect x="${PL}" y="${y + 4}" width="${bw.toFixed(1)}" height="16" fill="${col}" opacity="0.85" rx="3"/>`;
