@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var bridge: HybridHealthBridge
     private lateinit var gpsBridge: GpsBridge
+    private lateinit var notifBridge: NotifyBridge
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
@@ -76,7 +77,11 @@ class MainActivity : AppCompatActivity() {
 
     private val requestNotifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* result is handled on the next notifyRestComplete call */ }
+    ) { granted ->
+        // Resolve a pending web request for reminder permission (no-op when the
+        // dialog was triggered by the rest timer, which doesn't await a result).
+        notifBridge.onPermissionResult(granted)
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,6 +109,18 @@ class MainActivity : AppCompatActivity() {
             requestNotificationPermission = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     requestNotifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
+        )
+        notifBridge = NotifyBridge(
+            context = this,
+            webView = webView,
+            requestOsPermission = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestNotifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    // Pre-13: no runtime permission, resolve immediately as granted.
+                    notifBridge.onPermissionResult(true)
                 }
             },
         )
@@ -156,6 +173,7 @@ class MainActivity : AppCompatActivity() {
 
             addJavascriptInterface(bridge, "HybridHealthBridge")
             addJavascriptInterface(gpsBridge, "HybridGpsBridge")
+            addJavascriptInterface(notifBridge, "HybridNotifyBridge")
             loadUrl(BuildConfig.APP_URL)
         }
     }
@@ -226,6 +244,7 @@ class MainActivity : AppCompatActivity() {
             }
         )
         GpsTrackingService.createChannel(this)
+        NotifyBridge.createChannel(this)
     }
 
     private fun scheduleHealthSync() {

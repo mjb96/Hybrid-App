@@ -1,7 +1,16 @@
 // ==========================================
 // TRAINING REMINDERS (js/notifications.js)
-// Uses Web Notifications API for daily training reminders.
-// No server required — scheduled via setTimeout to fire each day.
+//
+// Daily/weekly/streak/missed reminders. Two delivery backends:
+//   • Android WebView → native bridge (window.HybridNotifyBridge). The Web
+//     Notifications API is NOT implemented by Android System WebView, so the
+//     bridge handles both the POST_NOTIFICATIONS permission and display.
+//   • Browser / PWA → Web Notifications API.
+//
+// NOTE: reminders are still scheduled with setTimeout, which the Android
+// WebView freezes while backgrounded (onPause → pauseTimers). So timed
+// reminders fire reliably only while the app is foregrounded; true background
+// delivery needs native AlarmManager/WorkManager scheduling (follow-up).
 // ==========================================
 
 let _reminderTimer = null;
@@ -9,35 +18,80 @@ let _weeklySummaryTimer = null;
 let _streakTimer = null;
 let _getState = null;
 
-export function initNotifications(getStateFn) {
-  _getState = getStateFn;
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'granted') {
-    _armDailyReminder();
-    _armWeeklySummary();
-    _armStreakCheck();
-    checkMissedWorkout();
+// ── Delivery backend (native bridge vs Web Notifications) ──────────────────────
+
+function _notifyBridge() {
+  return (typeof window !== 'undefined' && window.HybridNotifyBridge) || null;
+}
+
+function _hasWebNotif() {
+  return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+// Unified permission check across native + web.
+export function notificationsGranted() {
+  const b = _notifyBridge();
+  if (b && typeof b.hasPermission === 'function') {
+    try { return b.hasPermission() === true; } catch { return false; }
+  }
+  if (_hasWebNotif()) return Notification.permission === 'granted';
+  return false;
+}
+
+// Unified display. Prefers the native bridge; falls back to the Web API.
+function notify(title, body, tag) {
+  const b = _notifyBridge();
+  if (b && typeof b.showNotification === 'function') {
+    try { b.showNotification(title, body, tag); } catch (_) {}
+    return;
+  }
+  if (_hasWebNotif() && Notification.permission === 'granted') {
+    try {
+      new Notification(title, { body, icon: './icon-512.png', badge: './icon-512.png', tag });
+    } catch (_) {}
   }
 }
 
-export async function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    return { granted: false, reason: 'unsupported' };
+function _armAll() {
+  _armDailyReminder();
+  _armWeeklySummary();
+  _armStreakCheck();
+}
+
+export function initNotifications(getStateFn) {
+  _getState = getStateFn;
+  if (!notificationsGranted()) return;
+  _armAll();
+  checkMissedWorkout();
+}
+
+export function requestNotificationPermission() {
+  const b = _notifyBridge();
+  if (b && typeof b.requestPermission === 'function') {
+    return new Promise((resolve) => {
+      if (!window.__notifCB) window.__notifCB = {};
+      const id = 'n_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+      const timer = setTimeout(() => {
+        if (window.__notifCB[id]) { delete window.__notifCB[id]; resolve({ granted: notificationsGranted() }); }
+      }, 120000);
+      window.__notifCB[id] = (res) => {
+        clearTimeout(timer);
+        const granted = res === 'true';
+        if (granted) _armAll();
+        resolve({ granted, reason: granted ? undefined : 'denied' });
+      };
+      try { b.requestPermission(id); }
+      catch { clearTimeout(timer); delete window.__notifCB[id]; resolve({ granted: false, reason: 'error' }); }
+    });
   }
-  if (Notification.permission === 'granted') {
-    _armDailyReminder();
-    _armWeeklySummary();
-    _armStreakCheck();
-    return { granted: true };
-  }
-  const result = await Notification.requestPermission();
-  if (result === 'granted') {
-    _armDailyReminder();
-    _armWeeklySummary();
-    _armStreakCheck();
-    return { granted: true };
-  }
-  return { granted: false, reason: result };
+
+  // Web path.
+  if (!_hasWebNotif()) return Promise.resolve({ granted: false, reason: 'unsupported' });
+  if (Notification.permission === 'granted') { _armAll(); return Promise.resolve({ granted: true }); }
+  return Notification.requestPermission().then((result) => {
+    if (result === 'granted') { _armAll(); return { granted: true }; }
+    return { granted: false, reason: result };
+  });
 }
 
 export function cancelReminders() {
@@ -47,11 +101,7 @@ export function cancelReminders() {
 }
 
 export function rearmReminder() {
-  if (Notification.permission === 'granted') {
-    _armDailyReminder();
-    _armWeeklySummary();
-    _armStreakCheck();
-  }
+  if (notificationsGranted()) _armAll();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,6 +110,15 @@ function _settings() { return _getState?.()?.settings || {}; }
 
 function _dayKey(date) {
   return ['sun','mon','tue','wed','thu','fri','sat'][date.getDay()];
+}
+
+// ms from `now` until the next occurrence of hour:minute (today if still ahead,
+// else tomorrow). Exported for testing.
+export function msUntilNextDaily(now, hour, minute) {
+  const target = new Date(now);
+  target.setHours(hour, minute, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  return target - now;
 }
 
 function _isProgramRestDay(dayKey) {
@@ -97,28 +156,21 @@ function _getReminderTime() {
 function _armDailyReminder() {
   if (_reminderTimer) clearTimeout(_reminderTimer);
   const { hour, minute } = _getReminderTime();
-  const now    = new Date();
-  const target = new Date(now);
-  target.setHours(hour, minute, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
   _reminderTimer = setTimeout(() => {
     _fireWorkoutReminder();
     _armDailyReminder();
-  }, target - now);
+  }, msUntilNextDaily(new Date(), hour, minute));
 }
 
 function _fireWorkoutReminder() {
-  if (Notification.permission !== 'granted') return;
+  if (!notificationsGranted()) return;
   const todayKey = _dayKey(new Date());
 
   // Rest day → send a recovery message instead of a training prompt
   if (_isProgramRestDay(todayKey)) {
-    try {
-      new Notification('Recovery Day', {
-        body: 'Rest day on the program. Focus on sleep, nutrition, and mobility. You\'ve earned it.',
-        icon: './icon-512.png', badge: './icon-512.png', tag: 'training-reminder',
-      });
-    } catch (_) {}
+    notify('Recovery Day',
+      'Rest day on the program. Focus on sleep, nutrition, and mobility. You\'ve earned it.',
+      'training-reminder');
     return;
   }
 
@@ -129,15 +181,13 @@ function _fireWorkoutReminder() {
     "Your training plan is waiting. Let's go. ⚡",
   ];
   const body = messages[Math.floor(Math.random() * messages.length)];
-  try {
-    new Notification('Helyx', { body, icon: './icon-512.png', badge: './icon-512.png', tag: 'training-reminder' });
-  } catch (_) {}
+  notify('Helyx', body, 'training-reminder');
 }
 
 // ── Missed Workout Check (fires on app open, not on a timer) ──────────────────
 
 export function checkMissedWorkout() {
-  if (Notification.permission !== 'granted') return;
+  if (!notificationsGranted()) return;
   if (!_settings().notifMissedWorkout) return;
 
   const yesterday    = new Date();
@@ -159,12 +209,9 @@ export function checkMissedWorkout() {
 
   if (!hasLifts && !hasRun) {
     const dayLabel = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][yesterday.getDay()];
-    try {
-      new Notification('Missed Session', {
-        body: `Looks like ${dayLabel}'s session wasn't logged. Still time to catch up or log it manually.`,
-        icon: './icon-512.png', badge: './icon-512.png', tag: 'missed-workout',
-      });
-    } catch (_) {}
+    notify('Missed Session',
+      `Looks like ${dayLabel}'s session wasn't logged. Still time to catch up or log it manually.`,
+      'missed-workout');
   }
 }
 
@@ -188,13 +235,10 @@ function _armWeeklySummary() {
 }
 
 function _fireWeeklySummary() {
-  if (Notification.permission !== 'granted') return;
-  try {
-    new Notification('Weekly Training Summary', {
-      body: 'Your weekly training report is ready — check your progress and plan the week ahead.',
-      icon: './icon-512.png', badge: './icon-512.png', tag: 'weekly-summary',
-    });
-  } catch (_) {}
+  if (!notificationsGranted()) return;
+  notify('Weekly Training Summary',
+    'Your weekly training report is ready — check your progress and plan the week ahead.',
+    'weekly-summary');
 }
 
 // ── Streak Alert ───────────────────────────────────────────────────────────────
@@ -209,19 +253,14 @@ function _armStreakCheck() {
   if (!_settings().notifStreak) return;
 
   const { hour, minute } = _getStreakAlertTime();
-  const now    = new Date();
-  const target = new Date(now);
-  target.setHours(hour, minute, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
-
   _streakTimer = setTimeout(() => {
     _fireStreakAlert();
     _armStreakCheck();
-  }, target - now);
+  }, msUntilNextDaily(new Date(), hour, minute));
 }
 
 function _fireStreakAlert() {
-  if (Notification.permission !== 'granted') return;
+  if (!notificationsGranted()) return;
   const todayKey = _dayKey(new Date());
   if (_hasLoggedToday(todayKey)) return; // already trained — no nag
 
@@ -230,8 +269,5 @@ function _fireStreakAlert() {
     ? `Don't break your ${streak}-day streak! Log something today to keep it alive. 🔥`
     : "No activity yet today — even a short session counts. Let's go! ⚡";
 
-  try {
-    new Notification('Streak Alert', { body, icon: './icon-512.png', badge: './icon-512.png', tag: 'streak-alert' });
-  } catch (_) {}
+  notify('Streak Alert', body, 'streak-alert');
 }
-

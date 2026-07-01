@@ -26,7 +26,7 @@ const REST_PRESETS = {
   efficient:   { compound: 120, accessory: 90,  isolation: 60 },
 };
 import { showToast } from './state.js';
-import { rearmReminder } from './notifications.js';
+import { rearmReminder, notificationsGranted } from './notifications.js';
 import { getCloudUser, signOutSupabase } from './state/auth.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect } from './health/health-bridge.js';
 
@@ -129,7 +129,7 @@ function _syncSettingsUI() {
 
   // Notification toggles
   const notifCheckbox = document.getElementById('settingsNotifications');
-  if (notifCheckbox) notifCheckbox.checked = ('Notification' in window) && Notification.permission === 'granted';
+  if (notifCheckbox) notifCheckbox.checked = notificationsGranted();
 
   const notifWeekly   = document.getElementById('settingsNotifWeeklySummary');
   const notifStreak   = document.getElementById('settingsNotifStreak');
@@ -158,7 +158,7 @@ function _syncSettingsUI() {
   // Notification status text
   const notifStatusEl = document.getElementById('settingsNotifStatus');
   if (notifStatusEl) {
-    if (('Notification' in window) && Notification.permission === 'granted') {
+    if (notificationsGranted()) {
       const rt = s.reminderTime || { hour: 7, minute: 30 };
       const display = `${String(rt.hour).padStart(2, '0')}:${String(rt.minute).padStart(2, '0')}`;
       notifStatusEl.textContent = `Reminders active — you'll be notified at ${display}.`;

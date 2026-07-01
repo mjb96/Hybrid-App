@@ -906,7 +906,7 @@ else if (action === 'export-csv') triggerCSVExport();
   else if (action === 'request-notifications') {
     requestNotificationPermission().then(({ granted }) => {
       const el = document.getElementById('settingsNotifStatus');
-      if (el) el.textContent = granted ? 'Reminders active — you\'ll be notified at 07:30.' : 'Permission denied in browser settings.';
+      if (el) el.textContent = granted ? 'Reminders active — you\'ll be notified at 07:30.' : 'Permission denied — enable notifications for Helyx in your device settings.';
     });
   }
 });
@@ -975,7 +975,7 @@ document.addEventListener('change', (e) => {
         const el = document.getElementById('settingsNotifStatus');
         if (!granted) {
           target.checked = false;
-          if (el) el.textContent = 'Permission denied. Enable in your browser settings.';
+          if (el) el.textContent = 'Permission denied. Enable notifications for Helyx in your device settings.';
         } else {
           if (el) el.textContent = "Reminders active — you'll be notified at 07:30 each morning.";
         }
