@@ -39,7 +39,7 @@
 - [ ] `[You]` Real-run device test of GPS
 - [~] `[CC]`+`[You]` Brand unification: name ✓ (all user-facing = Helyx), package ✓ (`com.hybridapp`→`com.helyx.app`, CI-verified), export filenames ✓. Remaining `[You]`: icons / splash / feature-graphic art.
 - [~] `[CC]` WebView hardening: back-button/nav ✓ (already robust), offline behavior ✓ (reconnect re-sync, `shouldResyncOnReconnect`), resume/state-restore ✓ via boot pull + GPS run recovery. Nothing outstanding here for now.
-- [~] `[CC]` Notification flow: **permission + native delivery done** (`NotifyBridge`, `window.HybridNotifyBridge`; reminders route through the OS since WebView lacks the Web Notifications API). Health Connect permission path reviewed — already complete (request + `VIEW_PERMISSION_USAGE` rationale alias). **Limitation:** reminders are setTimeout-scheduled → reliable only while foregrounded; true background delivery needs native AlarmManager/WorkManager scheduling (follow-up slice, not yet built).
+- [x] `[CC]` Notification flow: permission + native delivery (`NotifyBridge`; reminders route through the OS since WebView lacks the Web Notifications API) **and background daily reminder** via native AlarmManager (`ReminderScheduler` + boot re-arm) — fires when the app is closed. Health Connect permission path reviewed — already complete (request + `VIEW_PERMISSION_USAGE` rationale alias). Note: background reminder is a generic nudge; program-aware suppression is in-app only.
 - [ ] `[You]` Device-test notifications + Health Connect
 - **Phase 2 done when:** app behaves correctly on a real device across GPS, notifications, resume, offline.
 
