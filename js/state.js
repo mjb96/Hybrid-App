@@ -21,6 +21,44 @@ export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSu
 
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 
+// Recovery point written just before a cloud pull overwrites local state. The
+// cloud sync is last-write-wins with no merge, so a stale/empty device could
+// otherwise clobber real history on load. This snapshot lets that be undone.
+export const CLOUD_BACKUP_KEY = STORAGE_KEY + '_cloud_backup';
+
+function _defaultStorage() {
+  return (typeof localStorage !== 'undefined') ? localStorage : null;
+}
+
+// Snapshot the pre-pull local state so a bad/stale cloud pull can be recovered.
+// Rolling single backup, timestamp-wrapped. Returns true if a snapshot was
+// written. Only snapshots states that actually carry logged history, so a fresh
+// or empty install can't overwrite a previously-good recovery point.
+export function snapshotLocalBeforeCloudPull(rawLocal, storage = _defaultStorage()) {
+  if (!storage || !rawLocal) return false;
+  try {
+    const parsed = JSON.parse(rawLocal);
+    const hasHistory = parsed && parsed.weeks && Object.keys(parsed.weeks).length > 0;
+    if (!hasHistory) return false;
+    storage.setItem(CLOUD_BACKUP_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state: parsed }));
+    return true;
+  } catch (e) {
+    console.warn('Pre-cloud-pull backup failed:', e);
+    return false;
+  }
+}
+
+// Read back the last pre-cloud-pull snapshot (parsed { savedAt, state }) or null.
+export function getCloudPullBackup(storage = _defaultStorage()) {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(CLOUD_BACKUP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Base state configuration
 /** @type {import('./types').AppState} */
 export let appState = {
@@ -447,10 +485,11 @@ export async function saveStateToLocalStorage(suppressToast = false) {
 
 export async function pullEngineDataFromStorage() {
   let localData = null;
+  let rawLocal = null;
   try {
-    const rawData = localStorage.getItem(STORAGE_KEY);
-    if (rawData) {
-      localData = JSON.parse(rawData);
+    rawLocal = localStorage.getItem(STORAGE_KEY);
+    if (rawLocal) {
+      localData = JSON.parse(rawLocal);
     }
   } catch (e) {
     console.error('Failed to parse local storage:', e);
@@ -509,6 +548,10 @@ export async function pullEngineDataFromStorage() {
       ]);
 
       if (cloudData) {
+        // Safety net: back up the pre-pull local state before the cloud blob
+        // overwrites it, so a stale/empty device clobbering real history on
+        // load can be recovered (sync is last-write-wins with no merge).
+        snapshotLocalBeforeCloudPull(rawLocal);
         appState = {
           ...baseDefaults,
           ...cloudData,
