@@ -430,10 +430,23 @@ let _onSyncConflict = null;
 let _conflictPending = false;
 let _forceOverwrite = false;
 
+// Offline resilience: an edit always reaches localStorage, but if the cloud
+// write can't complete (offline, or a transient network error) the cloud copy
+// is now stale. Track that so we can push it up the moment connectivity is
+// back, instead of leaving it un-synced until the next manual save.
+let _cloudDirty = false;
+
 /** Register the UI handler shown when a stale-overwrite is detected. */
 export function setSyncConflictHandler(fn) { _onSyncConflict = fn; }
 
 export function isSyncConflictPending() { return _conflictPending; }
+
+// Pure decision for the reconnect handler: only re-sync when there is unsynced
+// local work, a cloud client exists, and we're not already blocked on a
+// user conflict choice (which would otherwise re-prompt on every reconnect).
+export function shouldResyncOnReconnect(dirty, hasClient, conflictPending) {
+  return !!(dirty && hasClient && !conflictPending);
+}
 
 async function cloudSave(suppressToast) {
   const _sb = getSupabaseClient();
@@ -476,6 +489,7 @@ async function cloudSave(suppressToast) {
       .upsert({ user_id: uid, state_data: appState }, { onConflict: 'user_id' });
 
     if (error) throw error;
+    _cloudDirty = false; // cloud now matches local
 
     // Best-effort: record the new server version for divergence detection.
     // Kept separate from the upsert (and error-tolerant) so a save never breaks
@@ -521,12 +535,19 @@ if (typeof window !== 'undefined') {
   // Don't lose the last debounced sync if the app is backgrounded or killed.
   window.addEventListener('pagehide', () => { flushCloudSave(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) flushCloudSave(); });
+  // Back online: push up any edits made while offline (or after a failed save).
+  window.addEventListener('online', () => {
+    if (shouldResyncOnReconnect(_cloudDirty, !!getSupabaseClient(), _conflictPending)) {
+      cloudSave(true);
+    }
+  });
 }
 
 export async function saveStateToLocalStorage(suppressToast = false) {
   appState.loadMetrics = memoizedLoadMetrics(appState);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+    _cloudDirty = true; // local has changes not yet confirmed in the cloud
   } catch (e) {
     console.error('Failed to save state locally:', e);
   }
