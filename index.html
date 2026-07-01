@@ -25,6 +25,9 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <!-- Crash reporting. Exposes window.Sentry; stays inert until a DSN is
+       configured in js/monitoring/sentry-config.js (see initSentry). -->
+  <script src="https://cdn.jsdelivr.net/npm/@sentry/browser@8/build/bundle.min.js" defer></script>
 
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/programs.css">

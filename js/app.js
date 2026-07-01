@@ -31,6 +31,8 @@ import {
   applyDeloadToCurrentWeek,
 } from './state.js';
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
+import { initSentry } from './monitoring/sentry.js';
+import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
@@ -1294,6 +1296,7 @@ if (typeof window !== 'undefined') {
 
 async function bootstrapApp() {
   try {
+    initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     initSyncConflictUI();
     determineDefaultCalendarDay();
     await checkActiveSession();
