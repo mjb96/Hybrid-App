@@ -15,6 +15,8 @@
 
     <!-- Required for local notifications (API 33+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Re-arm the daily training reminder alarm after a device reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Health Connect read permissions -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
@@ -47,6 +49,15 @@
             android:name=".GpsTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Daily reminder alarm target (triggered by our own PendingIntent). -->
+        <receiver android:name=".ReminderReceiver" android:exported="false" />
+        <!-- Re-arms the reminder alarm on boot. -->
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".MainActivity"

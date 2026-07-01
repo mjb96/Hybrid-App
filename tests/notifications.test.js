@@ -6,7 +6,7 @@
 // ==========================================
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { msUntilNextDaily, notificationsGranted } from '../js/notifications.js';
+import { msUntilNextDaily, notificationsGranted, initNotifications, cancelReminders } from '../js/notifications.js';
 
 const HOUR = 3600 * 1000;
 const MIN  = 60 * 1000;
@@ -42,6 +42,36 @@ test('notificationsGranted: uses the native bridge when present', () => {
   // A throwing bridge must not crash the check.
   globalThis.window = { HybridNotifyBridge: { hasPermission: () => { throw new Error('x'); } } };
   assert.equal(notificationsGranted(), false);
+  if (saved === undefined) delete globalThis.window; else globalThis.window = saved;
+});
+
+test('daily reminder schedules via the native alarm when the bridge is present', () => {
+  const saved = globalThis.window;
+  let scheduled = null;
+  globalThis.window = { HybridNotifyBridge: {
+    hasPermission: () => true,
+    scheduleDailyReminder: (h, m) => { scheduled = [h, m]; },
+  } };
+  // Default reminder time (07:30) when settings omit it.
+  initNotifications(() => ({ settings: {} }));
+  assert.deepEqual(scheduled, [7, 30]);
+  // Reads the configured reminder time.
+  scheduled = null;
+  initNotifications(() => ({ settings: { reminderTime: { hour: 6, minute: 15 } } }));
+  assert.deepEqual(scheduled, [6, 15]);
+  cancelReminders();
+  if (saved === undefined) delete globalThis.window; else globalThis.window = saved;
+});
+
+test('cancelReminders cancels the native alarm', () => {
+  const saved = globalThis.window;
+  let cancelled = false;
+  globalThis.window = { HybridNotifyBridge: {
+    hasPermission: () => true,
+    cancelDailyReminder: () => { cancelled = true; },
+  } };
+  cancelReminders();
+  assert.equal(cancelled, true);
   if (saved === undefined) delete globalThis.window; else globalThis.window = saved;
 });
 

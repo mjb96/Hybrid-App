@@ -95,6 +95,10 @@ export function requestNotificationPermission() {
 }
 
 export function cancelReminders() {
+  const b = _notifyBridge();
+  if (b && typeof b.cancelDailyReminder === 'function') {
+    try { b.cancelDailyReminder(); } catch (_) {}
+  }
   if (_reminderTimer)      { clearTimeout(_reminderTimer);      _reminderTimer = null; }
   if (_weeklySummaryTimer) { clearTimeout(_weeklySummaryTimer); _weeklySummaryTimer = null; }
   if (_streakTimer)        { clearTimeout(_streakTimer);        _streakTimer = null; }
@@ -156,6 +160,15 @@ function _getReminderTime() {
 function _armDailyReminder() {
   if (_reminderTimer) clearTimeout(_reminderTimer);
   const { hour, minute } = _getReminderTime();
+
+  // Prefer the native OS alarm (fires when the app is closed / screen off).
+  // The JS setTimeout below only fires while foregrounded, so it's the
+  // browser/PWA fallback — never both, to avoid duplicate notifications.
+  const b = _notifyBridge();
+  if (b && typeof b.scheduleDailyReminder === 'function') {
+    try { b.scheduleDailyReminder(hour, minute); return; } catch (_) {}
+  }
+
   _reminderTimer = setTimeout(() => {
     _fireWorkoutReminder();
     _armDailyReminder();

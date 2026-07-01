@@ -51,6 +51,33 @@ class NotifyBridge(
                 }
             )
         }
+
+        // Static poster shared by the JS bridge and the background alarm receiver.
+        fun post(context: Context, title: String, body: String, tag: String) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED) return
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val pi = PendingIntent.getActivity(
+                context, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setContentIntent(pi)
+                .build()
+            // Stable id per tag so re-firing the same kind replaces instead of stacking.
+            val id = NOTIFICATION_ID_BASE + abs(tag.hashCode() % 1000)
+            (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(id, notification)
+        }
     }
 
     @JavascriptInterface
@@ -75,27 +102,19 @@ class NotifyBridge(
 
     @JavascriptInterface
     fun showNotification(title: String, body: String, tag: String) {
-        if (!hasPermission()) return
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val pi = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .build()
-        // Stable id per tag so re-firing the same kind replaces instead of stacking.
-        val id = NOTIFICATION_ID_BASE + abs(tag.hashCode() % 1000)
-        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-            .notify(id, notification)
+        post(context, title, body, tag)
+    }
+
+    // Background daily reminder scheduling (survives app close / screen off,
+    // unlike the JS setTimeout path). See ReminderScheduler.
+    @JavascriptInterface
+    fun scheduleDailyReminder(hour: Int, minute: Int) {
+        ReminderScheduler.schedule(context, hour, minute)
+    }
+
+    @JavascriptInterface
+    fun cancelDailyReminder() {
+        ReminderScheduler.cancel(context)
     }
 
     private fun resolve(id: String, granted: Boolean) {
