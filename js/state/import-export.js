@@ -41,7 +41,7 @@ export function triggerEngineExport() {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appState));
   const a = document.createElement('a');
   a.setAttribute('href', dataStr);
-  a.setAttribute('download', 'hybrid_v2_meso_snapshot_wk' + appState.currentWeek + '.json');
+  a.setAttribute('download', 'helyx-snapshot-wk' + appState.currentWeek + '.json');
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -90,7 +90,7 @@ export function triggerCSVExport() {
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'hybrid_data_export.csv';
+  a.download = 'helyx-data-export.csv';
   a.click();
 }
 
