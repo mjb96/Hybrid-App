@@ -204,7 +204,9 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
       for (const lift in dayLifts) {
         if (!Array.isArray(dayLifts[lift])) continue;
         dayLifts[lift].forEach(s => {
-          if (isCompletedSet(s) && s.rpe) {
+          // Warm-ups are submaximal by design — exclude them so their (low)
+          // effort never skews the weekly fatigue average.
+          if (isCompletedSet(s) && s.rpe && s.type !== 'W' && !s.isWarmup) {
             const rpe = parseFloat(s.rpe) || 0;
             if (rpe > 0) { totalRpeSum += rpe; rpeCount++; hasPerSetRpe = true; }
           }

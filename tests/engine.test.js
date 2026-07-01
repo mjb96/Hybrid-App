@@ -319,6 +319,14 @@ test('computeDiagnosticForLift: warm-up-only history yields no progression', () 
   assert.equal(r.progression, null);
 });
 
+test('computeDiagnosticForLift: warm-up effort is excluded from the fatigue average', () => {
+  // A completed warm-up carrying a high RPE must not, on its own, flag fatigue.
+  const sets = [{ w: '40', r: '10', c: true, type: 'W', rpe: '10' }];
+  initEngine(() => makeDiagState(sets), () => DAYS);
+  const r = computeDiagnosticForLift('2', 'mon', 'Squat', 5);
+  assert.equal(r.isFatigueOverload, false);
+});
+
 test('computeDiagnosticForLift: three flat sessions stall → deload progression', () => {
   // e1rm non-increasing across weeks 1→3 (100 ≥ 100 ≥ 100) → stall, then deload.
   const flat = [{ w: '100', r: '5', c: true }];
