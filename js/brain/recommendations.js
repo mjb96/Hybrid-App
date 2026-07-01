@@ -11,6 +11,27 @@
 // severity: 'positive' | 'neutral' | 'caution' | 'warning'
 // ==========================================
 import { trainingStatus } from './briefing.js';
+import { isCompletedSet } from '../set-utils.js';
+
+// Has the selected day's planned session already been logged? Gym counts as done
+// when every materialised set for the day is complete (and there is at least
+// one); a run counts as done once a distance is logged. Rest days never count.
+function sessionCompletion(state, selectedDay, session) {
+  const wkNum = parseInt(state.currentWeek || '1', 10);
+  const wk = state.weeks?.[String(wkNum)] || {};
+  const dayLifts = wk.lifts?.[selectedDay] || {};
+  let totalSets = 0, doneSets = 0;
+  for (const lift in dayLifts) {
+    if (!Array.isArray(dayLifts[lift])) continue;
+    totalSets += dayLifts[lift].length;
+    doneSets += dayLifts[lift].filter(isCompletedSet).length;
+  }
+  const runLogged = (parseFloat(wk.runs?.[selectedDay]?.dist) || 0) > 0;
+  const gymDone = session.hasGym ? (totalSets > 0 && doneSets === totalSets) : true;
+  const runDone = session.hasRun ? runLogged : true;
+  const anyLogged = doneSets > 0 || runLogged;
+  return { complete: anyLogged && gymDone && runDone };
+}
 
 // Collect RPE readings from the last two weeks, most recent first.
 function getRecentRpes(state, days) {
@@ -130,6 +151,28 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
   const hasLoad = ctl > 0;
   const acwr = hasLoad ? Math.round((atl / ctl) * 100) / 100 : 0;
   const { status } = trainingStatus({ hasData: hasLoad, acwr });
+
+  // If today's planned session is already logged, acknowledge it rather than
+  // prescribing effort the athlete has already put in.
+  if (session.hasGym || session.hasRun) {
+    const done = sessionCompletion(state, selectedDay, session);
+    if (done.complete) {
+      const what = session.hasRun && session.hasGym ? 'hybrid session'
+                 : session.hasRun ? 'run' : 'session';
+      const advice = tsb <= -15
+        ? `Nice work — today's ${what} is done. Fatigue is high, so keep the rest of the day easy: refuel, hydrate, and protect your sleep tonight.`
+        : `Nice work — today's ${what} is logged. Ease into recovery — refuel, hydrate, and let the adaptation happen.`;
+      return {
+        severity: 'positive',
+        badge: 'Session Done',
+        headline: 'Today’s session is logged ✓',
+        advice,
+        sessionLabel: session.label,
+        acwr,
+        status: hasLoad ? status : 'Complete',
+      };
+    }
+  }
 
   const highRpeStreak = recentRpes.filter(r => r >= 8).length;
   const hasData = hasLoad || recentRpes.length >= 2;
