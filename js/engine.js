@@ -141,9 +141,9 @@ export function parseTargetFromDescription(descString, liftName) {
 // ==========================================
 // DIAGNOSTIC ENGINE
 // ==========================================
-export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
-  /** @type {{ suggestedWeight: string|number, suggestedReps: string|number, isStalled: boolean, isFatigueOverload: boolean, message: string }} */
-  let result = { suggestedWeight: '', suggestedReps: '', isStalled: false, isFatigueOverload: false, message: '' };
+export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, repTarget = 0) {
+  /** @type {{ suggestedWeight: string|number, suggestedReps: string|number, isStalled: boolean, isFatigueOverload: boolean, message: string, progression: null | { action: string, weight: number|'', reps: number|'', rationale: string } }} */
+  let result = { suggestedWeight: '', suggestedReps: '', isStalled: false, isFatigueOverload: false, message: '', progression: null };
   
   if (!_getState || !_getDays) {
     devWarn('computeDiagnosticForLift called before initEngine() — returning empty diagnostic.');
@@ -157,11 +157,18 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
 
   const liftKey = liftName;
   const history = [];
+  // The most recent session's working sets (warm-ups excluded) — the raw input
+  // the auto-progression engine reasons over. Captured on the first week (newest,
+  // since we iterate descending) that carries completed working sets.
+  let lastSessionSets = null;
   for (let w = cWk - 1; w >= 1; w--) {
     const wData = appState.weeks[w.toString()];
     if (wData && wData.lifts && wData.lifts[dayKey]?.[liftKey]) {
       const finishedSets = wData.lifts[dayKey][liftKey].filter(s => s && s.c && s.w && s.r);
       if (finishedSets.length > 0) {
+        if (!lastSessionSets) {
+          lastSessionSets = finishedSets.filter(s => s.type !== 'W' && !s.isWarmup);
+        }
         let bestE1rm = 0, bestWeight = 0, bestReps = 0;
         finishedSets.forEach(s => {
           const w_ = parseFloat(s.w) || 0;
@@ -180,12 +187,10 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
   result.suggestedWeight = lastSession.weight || '';
   result.suggestedReps = lastSession.reps || '';
 
-  if (history.length >= 3) {
-    if (history[0].e1rm <= history[1].e1rm && history[1].e1rm <= history[2].e1rm) {
-      result.isStalled = true;
-      result.message = 'You stalled on ' + liftName + '. Reducing sets by 20% for this session to allow recovery.';
-      return result;
-    }
+  if (history.length >= 3 &&
+      history[0].e1rm <= history[1].e1rm && history[1].e1rm <= history[2].e1rm) {
+    result.isStalled = true;
+    result.message = 'You stalled on ' + liftName + '. Reducing sets by 20% for this session to allow recovery.';
   }
 
   let totalRpeSum = 0, rpeCount = 0;
@@ -222,11 +227,113 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
   const pastWeekAvgRpe = rpeCount > 0 ? totalRpeSum / rpeCount : 0;
   if (pastWeekAvgRpe >= (CONFIG.fatigueRpeThreshold || 8.5)) {
     result.isFatigueOverload = true;
-    result.message = 'High fatigue detected from last week (Avg RPE ' + pastWeekAvgRpe.toFixed(1) + '). We recommend dropping workout volume by 10% today.';
-    return result;
+    // A documented stall keeps message precedence, so callers that surface a
+    // single line (home stall alerts) are unchanged in the single-flag cases.
+    if (!result.message) {
+      result.message = 'High fatigue detected from last week (Avg RPE ' + pastWeekAvgRpe.toFixed(1) + '). We recommend dropping workout volume by 10% today.';
+    }
+  }
+
+  // Auto-progression: turn the last session into a concrete next target
+  // (the ghost the cockpit shows, and what one-tap quick-log commits).
+  const increment = appState.settings?.progressionIncrement || CONFIG.weightIncrement || 2.5;
+  const prog = suggestProgression(lastSessionSets || [], repTarget, {
+    increment,
+    weightGoal: appState.settings?.weightGoal,
+    stalled: result.isStalled,
+    hardRpe: CONFIG.fatigueRpeThreshold || 8.5,
+  });
+  if (prog.action !== 'baseline') {
+    result.progression = prog;
+    result.suggestedWeight = prog.weight;
+    result.suggestedReps = prog.reps;
   }
 
   return result;
+}
+
+// ==========================================
+// AUTO-PROGRESSION (double progression + RPE autoregulation)
+// Rule-based, evidence-grounded — not generative. Turns the last session for a
+// lift into the next concrete target:
+//   • missed the rep target      → chase one more rep at the same load
+//   • hit target, effort in hand  → add one load increment, reps back to target
+//   • hit target, effort maximal  → hold load and consolidate (avoid grinding)
+//   • documented multi-week stall → cut ~10% and rebuild
+//   • cutting (energy deficit)    → preserve strength: hold load, progress reps
+// Pure (no state access) so it drives the cockpit ghost, the coach label and the
+// quick-log target from one source, and is trivially unit-testable.
+// ==========================================
+
+/**
+ * @param {any[]} lastWorkingSets  completed working sets (warm-ups excluded) from
+ *   the most recent session for this lift; each has at least `w` and `r`.
+ * @param {number} repTarget       prescribed top-of-range rep goal for the lift.
+ * @param {{ increment?: number, weightGoal?: 'cut'|'maintain'|'bulk',
+ *           stalled?: boolean, hardRpe?: number }} [opts]
+ * @returns {{ action: 'baseline'|'load-up'|'hold'|'rep-up'|'deload',
+ *             weight: number|'', reps: number|'', rationale: string }}
+ */
+export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
+  const increment = opts.increment > 0 ? opts.increment : (CONFIG.weightIncrement || 2.5);
+  const hardRpe   = opts.hardRpe > 0 ? opts.hardRpe : 9;
+  const goal      = opts.weightGoal || 'maintain';
+  /** @type {{ action: any, weight: number|'', reps: number|'', rationale: string }} */
+  const baseline  = { action: 'baseline', weight: '', reps: '', rationale: '' };
+
+  const sets = (Array.isArray(lastWorkingSets) ? lastWorkingSets : []).filter(s => {
+    return (parseFloat(s?.w) > 0) && (parseInt(s?.r, 10) > 0);
+  });
+  if (sets.length === 0) return baseline;
+
+  // Reference = the heaviest working set (tie-break on reps): the set the next
+  // session has to beat.
+  let top = sets[0];
+  for (const s of sets) {
+    const w = parseFloat(s.w), tw = parseFloat(top.w);
+    if (w > tw || (w === tw && parseInt(s.r, 10) > parseInt(top.r, 10))) top = s;
+  }
+  const W = parseFloat(top.w);
+  const R = parseInt(top.r, 10);
+  const target = repTarget > 0 ? repTarget : R;
+
+  // Average RPE across the working sets that carry a reading (optional signal).
+  const rpes = sets.map(s => parseFloat(s.rpe)).filter(v => v > 0);
+  const avgRpe = rpes.length ? rpes.reduce((a, b) => a + b, 0) / rpes.length : null;
+
+  const round = v => Math.round(v / increment) * increment;
+
+  // Documented multi-session stall → cut load and rebuild.
+  if (opts.stalled) {
+    const deloaded = Math.max(increment, round(W * 0.9));
+    return { action: 'deload', weight: deloaded, reps: target,
+      rationale: `Plateaued 3 sessions — drop to ${deloaded} and rebuild.` };
+  }
+
+  const hitTarget  = R >= target;
+  const hardEffort = avgRpe != null && avgRpe >= hardRpe;
+  const rpeNote    = avgRpe != null ? ` @ RPE ${+avgRpe.toFixed(1)}` : '';
+
+  // Rep target not met yet → keep the load, chase one more rep.
+  if (!hitTarget) {
+    const nextReps = Math.min(target, R + 1);
+    return { action: 'rep-up', weight: W, reps: nextReps,
+      rationale: `Chase ${nextReps} reps at ${W} before adding load.` };
+  }
+
+  // Rep target met but effort was maximal, or we're in a deficit → hold load and
+  // consolidate rather than grind a load increase into a stall/injury.
+  if (hardEffort || goal === 'cut') {
+    const why = goal === 'cut'
+      ? `Cutting — hold ${W} and keep the reps.`
+      : `Hit ${R}${rpeNote} — hold ${W} to consolidate.`;
+    return { action: 'hold', weight: W, reps: target, rationale: why };
+  }
+
+  // Rep target met with effort in reserve → add a load increment.
+  const next = round(W + increment);
+  return { action: 'load-up', weight: next, reps: target,
+    rationale: `Hit ${R}${rpeNote} — add load to ${next}.` };
 }
 
 // ==========================================

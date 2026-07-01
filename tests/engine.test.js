@@ -17,6 +17,7 @@ import {
   formatPace,
   initEngine,
   computeDiagnosticForLift,
+  suggestProgression,
   findLastPerformance,
   computeGAP,
 } from '../js/engine.js';
@@ -235,4 +236,105 @@ test('prescribeSetsForLift populates the full target with blank, ghost-ready set
   const sets = prescribeSetsForLift('4', 'wed', 'Back Squat', desc, { sets: 2, reps: 8 });
   assert.equal(sets.length, 4);                                   // inline 4, not the deload 2
   assert.ok(sets.every(s => s.w === '' && s.r === '' && s.c === false));
+});
+
+// ==========================================
+// AUTO-PROGRESSION (double progression + RPE autoregulation)
+// ==========================================
+
+test('suggestProgression: no history yields a baseline (no suggestion)', () => {
+  assert.equal(suggestProgression([], 5).action, 'baseline');
+  assert.equal(suggestProgression(null, 5).action, 'baseline');
+  // Sets with no usable weight/reps are ignored → baseline.
+  assert.equal(suggestProgression([{ w: '', r: '' }], 5).action, 'baseline');
+});
+
+test('suggestProgression: hit rep target with effort in hand → add one increment', () => {
+  const sets = [{ w: '100', r: '5', rpe: '7' }, { w: '100', r: '5', rpe: '7.5' }];
+  const p = suggestProgression(sets, 5, { increment: 2.5, hardRpe: 8.5 });
+  assert.equal(p.action, 'load-up');
+  assert.equal(p.weight, 102.5);
+  assert.equal(p.reps, 5);
+});
+
+test('suggestProgression: hit rep target but effort maximal → hold to consolidate', () => {
+  const sets = [{ w: '100', r: '5', rpe: '9' }, { w: '100', r: '5', rpe: '9.5' }];
+  const p = suggestProgression(sets, 5, { increment: 2.5, hardRpe: 8.5 });
+  assert.equal(p.action, 'hold');
+  assert.equal(p.weight, 100);
+  assert.equal(p.reps, 5);
+});
+
+test('suggestProgression: missed rep target → chase one more rep at same load', () => {
+  const sets = [{ w: '100', r: '3', rpe: '8' }];
+  const p = suggestProgression(sets, 5, { increment: 2.5 });
+  assert.equal(p.action, 'rep-up');
+  assert.equal(p.weight, 100);
+  assert.equal(p.reps, 4);          // R+1, capped at target
+});
+
+test('suggestProgression: cutting holds load even when target is hit easily', () => {
+  const sets = [{ w: '100', r: '5', rpe: '7' }];
+  const p = suggestProgression(sets, 5, { increment: 2.5, weightGoal: 'cut' });
+  assert.equal(p.action, 'hold');
+  assert.equal(p.weight, 100);
+});
+
+test('suggestProgression: documented stall → deload ~10%, rounded to the increment', () => {
+  const sets = [{ w: '100', r: '5', rpe: '9' }];
+  const p = suggestProgression(sets, 5, { increment: 2.5, stalled: true });
+  assert.equal(p.action, 'deload');
+  assert.equal(p.weight, 90);       // round(90 / 2.5) * 2.5
+});
+
+test('suggestProgression: uses the heaviest working set as the reference', () => {
+  // Heaviest set (105×5) drives the decision, not the first-listed set.
+  const sets = [{ w: '95', r: '8', rpe: '7' }, { w: '105', r: '5', rpe: '7' }];
+  const p = suggestProgression(sets, 5, { increment: 5, hardRpe: 8.5 });
+  assert.equal(p.action, 'load-up');
+  assert.equal(p.weight, 110);
+});
+
+test('suggestProgression: works with no RPE data (treats effort as sub-maximal)', () => {
+  const sets = [{ w: '60', r: '10' }];
+  const p = suggestProgression(sets, 10, { increment: 2.5 });
+  assert.equal(p.action, 'load-up');
+  assert.equal(p.weight, 62.5);
+});
+
+test('computeDiagnosticForLift: surfaces a load-up progression from last session', () => {
+  const sets = [{ w: '80', r: '5', c: true, rpe: '7' }, { w: '80', r: '5', c: true, rpe: '7' }];
+  initEngine(() => makeDiagState(sets), () => DAYS);
+  const r = computeDiagnosticForLift('2', 'mon', 'Squat', 5);
+  assert.ok(r.progression, 'should attach a progression');
+  assert.equal(r.progression.action, 'load-up');
+  assert.equal(r.suggestedWeight, 82.5);
+  assert.equal(r.suggestedReps, 5);
+});
+
+test('computeDiagnosticForLift: warm-up-only history yields no progression', () => {
+  const sets = [{ w: '40', r: '10', c: true, type: 'W' }];
+  initEngine(() => makeDiagState(sets), () => DAYS);
+  const r = computeDiagnosticForLift('2', 'mon', 'Squat', 5);
+  assert.equal(r.progression, null);
+});
+
+test('computeDiagnosticForLift: three flat sessions stall → deload progression', () => {
+  // e1rm non-increasing across weeks 1→3 (100 ≥ 100 ≥ 100) → stall, then deload.
+  const flat = [{ w: '100', r: '5', c: true }];
+  const state = {
+    currentWeek: '4',
+    weeks: {
+      '1': { lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
+      '2': { lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
+      '3': { lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
+      '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
+    },
+  };
+  initEngine(() => state, () => DAYS);
+  const r = computeDiagnosticForLift('4', 'mon', 'Squat', 5);
+  assert.equal(r.isStalled, true);
+  assert.ok(r.progression, 'stall still produces a progression');
+  assert.equal(r.progression.action, 'deload');
+  assert.equal(r.suggestedWeight, 90);
 });
