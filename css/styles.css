@@ -40,12 +40,14 @@
   --color-amber:    #f59e0b;
   --color-red:      #ef4444;
   --color-violet:   #8b5cf6;
+  --color-orange:   #ff6b00;   /* Coros accent — used subtly (nav outline, focus rings, active indicator) */
 
   /* Accent aliases. The codebase references --accent-* in ~230 places (badge
      colours, borders, and solid backgrounds like the save toast). They were
      never defined, so `color:` usages silently inherited and `background:`
      usages fell back to transparent — e.g. the toast rendered as bare text
      over the page. Alias them to the colour tokens so they track the theme. */
+  --accent-coros:   var(--color-orange);
   --accent-blue:    var(--color-blue);
   --accent-indigo:  var(--color-indigo);
   --accent-cyan:    var(--color-cyan);
@@ -3812,7 +3814,15 @@ html[data-theme="light"] .home-week-progress__track { background: rgba(0,0,0,0.1
   width: 22px !important;
   height: 3px !important;
   border-radius: 3px !important;
-  background: #818cf8 !important;
+  background: var(--color-orange) !important;
+}
+
+/* Subtle Coros-orange keyboard focus ring, app-wide (only shows on keyboard
+   navigation, never on mouse/touch) so the accent threads through the app
+   without recolouring components. */
+:focus-visible {
+  outline: 2px solid rgba(255,107,0,0.6);
+  outline-offset: 2px;
 }
 
 /* --- Workout day pill upgrade --- */
@@ -7100,9 +7110,9 @@ html[data-theme="light"] .home-header { border-bottom-color: rgba(0,0,0,0.07) !i
   color: var(--text-white);
 }
 
-/* Ensure the active highlight is always indigo (both themes) */
+/* Active tab highlight — a faint Coros-orange wash echoing the nav outline. */
 .nav-item.active::before {
-  background: var(--indigo-alpha) !important;
+  background: rgba(255,107,0,0.12) !important;
 }
 
 html[data-theme="light"] .nav-item { color: rgba(0,0,0,0.45); }
