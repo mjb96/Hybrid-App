@@ -217,3 +217,22 @@ test('findLastPerformance skips warmups and incomplete sets', () => {
   assert.equal(result.workingSets.length, 1);
   assert.equal(result.workingSets[0].w, '75');
 });
+
+// ==========================================
+// SET PRESCRIPTION — target and materialisation agree; no silent reduction
+// ==========================================
+import { liftTarget, prescribeSetsForLift } from '../js/engine.js';
+
+test('liftTarget prefers the inline spec, else the week modifier', () => {
+  const desc = 'Targets: Back Squat (4x5), Romanian Deadlift (3x8)...';
+  const mod = { sets: 2, reps: 8 };
+  assert.deepEqual(liftTarget(desc, 'Back Squat', mod), { sets: 4, reps: 5 });   // inline
+  assert.deepEqual(liftTarget(desc, 'Calf Raises', mod), { sets: 2, reps: 8 });  // modifier (deload)
+});
+
+test('prescribeSetsForLift populates the full target with blank, ghost-ready sets', () => {
+  const desc = 'Targets: Back Squat (4x5)...';
+  const sets = prescribeSetsForLift('4', 'wed', 'Back Squat', desc, { sets: 2, reps: 8 });
+  assert.equal(sets.length, 4);                                   // inline 4, not the deload 2
+  assert.ok(sets.every(s => s.w === '' && s.r === '' && s.c === false));
+});

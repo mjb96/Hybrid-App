@@ -120,6 +120,41 @@ test('topInsight prioritises an active fast over everything else', () => {
   assert.equal(m.topInsight.nav, 'custom:fasting');
 });
 
+// High readiness + today's session already logged: the "go hard" banner is
+// suppressed (the coaching card already acknowledges the session).
+function highReadinessState(monSquatSets) {
+  const today = new Date().toISOString().slice(0, 10);
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yday = y.toISOString().slice(0, 10);
+  return {
+    currentWeek: '2',
+    loadMetrics: { atl: 90, ctl: 100 },        // ratio 0.9 → optimal load
+    healthConnect: {
+      connected: true,
+      sleep: [{ date: today, totalHours: 8.7 }],
+      hrv:   [{ date: today, rmssd: 70 }, { date: yday, rmssd: 68 }],
+      restingHR: [], steps: [], vo2max: [],
+    },
+    wellnessLog: [{ date: today, mood: 5, soreness: 1 }],
+    weeks: { '2': { lifts: { mon: { 'Back Squat': monSquatSets } }, runs: {} } },
+  };
+}
+const GYM_PROGRAM = { totalWeeks: 12, days: { mon: { title: 'Push', runs: 'Rest' } } };
+
+test('high readiness surfaces the "go hard" insight when the session is NOT done', () => {
+  const s = highReadinessState([{ w: '100', r: '5', c: true }, { w: '100', r: '5', c: false }]);
+  const m = computeDashboardModel(s, DAYS, GYM_PROGRAM, 'mon');
+  assert.ok(m.ready.score >= 85, `expected high readiness, got ${m.ready.score}`);
+  assert.match(m.topInsight.text, /primed for a hard session/);
+});
+
+test('the "go hard" insight is suppressed once the session is logged', () => {
+  const s = highReadinessState([{ w: '100', r: '5', c: true }, { w: '100', r: '5', c: true }]);
+  const m = computeDashboardModel(s, DAYS, GYM_PROGRAM, 'mon');
+  assert.equal(m.rec.badge, 'Session Done');
+  assert.doesNotMatch(m.topInsight.text, /primed for a hard session/);
+});
+
 test('empty state is safe (no data logged)', () => {
   const empty = { currentWeek: '1', weeks: {}, loadMetrics: {}, healthConnect: { connected: false } };
   const m = computeDashboardModel(empty, DAYS, PROGRAM, 'mon');

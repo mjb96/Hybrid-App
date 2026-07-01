@@ -86,6 +86,7 @@ export interface AppState {
   profileSections?: { order: string[] | null; hidden: string[] };
   dashboardTiles?: { order: string[] | null; hidden: string[] };
   dashboardInsightDismissed?: { nav: string; date: string } | null;
+  coachingDismissed?: { sig: string; date: string } | null;
   settings?: AppSettings;
 }
 

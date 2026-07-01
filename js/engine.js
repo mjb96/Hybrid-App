@@ -234,31 +234,25 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName) {
 // Owns the per-lift prescription decision: inline-spec vs weekly modifier,
 // taper override, and stall/fatigue set reduction. Returns the sets array.
 // ==========================================
+// The prescribed set/rep target for a lift: the inline spec in the day
+// description when present (e.g. "Back Squat (4×5)"), otherwise the week's
+// volume modifier. Used for BOTH what we materialise and what the cockpit label
+// shows, so the two can never disagree.
+export function liftTarget(desc, liftName, weekModifier = {}) {
+  const parsed = parseTargetFromDescription(desc, liftName);
+  if (parsed.matched) return { sets: parsed.sets, reps: parsed.reps };
+  return { sets: weekModifier.sets || 4, reps: weekModifier.reps || 5 };
+}
+
 export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier) {
-  const parsedTarget = parseTargetFromDescription(desc, liftName);
-  // Use the parser's own (lift-anchored, [xX×]-aware) match result rather than a
-  // loose desc.includes('x') — the latter missed '×'/'X' specs and false-fired on
-  // incidental letters (e.g. "Box Squat", "Max effort").
-  const usesInlineSpec = parsedTarget.matched;
-  let setsCount  = usesInlineSpec ? parsedTarget.sets : (weekModifier.sets || 4);
-  let repsTarget = usesInlineSpec ? parsedTarget.reps : (weekModifier.reps || 5);
-
-  if (weekModifier.intensityLabel.toLowerCase().includes("taper") || weekModifier.reps === 1) {
-    repsTarget = weekModifier.reps;
-  }
-
-  const diagnostic = computeDiagnosticForLift(wk, dayKey, liftName);
-  if (diagnostic.isStalled || diagnostic.isFatigueOverload) {
-    setsCount = Math.max(1, Math.round(setsCount * CONFIG.stallSetReductionModifier));
-  }
-
+  // Materialise exactly the program's prescribed number of sets. Weight and reps
+  // are left blank so the cockpit shows last week's numbers as an editable
+  // light-grey ghost; the set/rep target lives on the card label. The diagnostic
+  // engine advises (stall/fatigue notes) but never silently removes sets.
+  const { sets: setsCount } = liftTarget(desc, liftName, weekModifier);
   const sets = [];
   for (let i = 0; i < setsCount; i++) {
-    sets.push({
-      w: diagnostic.suggestedWeight !== '' ? diagnostic.suggestedWeight.toString() : '',
-      r: repsTarget.toString(),
-      c: false
-    });
+    sets.push({ w: '', r: '', c: false });
   }
   return sets;
 }

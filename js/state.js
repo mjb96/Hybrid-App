@@ -473,6 +473,7 @@ export async function pullEngineDataFromStorage() {
     profileSections: { order: null, hidden: [] },
     dashboardTiles: { order: null, hidden: [] },
     dashboardInsightDismissed: null,
+    coachingDismissed: null,
   };
 
   // Always seed defaults so a brand-new install (no localData, no cloud) still

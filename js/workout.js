@@ -3,7 +3,8 @@
 // ==========================================
 import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
-import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs } from './engine.js';
+import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget } from './engine.js';
+import { getWeekModifier } from './schema.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
@@ -126,12 +127,14 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   let diagnostic = { isStalled: false, suggestedWeight: '' };
   try {
     diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName);
-    const parsedTarget = parseTargetFromDescription(homeBlueprint.desc, displayLiftName);
-    blueprintLabel = `Target: ${parsedTarget.sets} × ${parsedTarget.reps}`;
+    // Label shows the SAME target we materialise (inline spec or week modifier),
+    // so "Target: 4 × 5" always matches the number of set rows populated.
+    const weekModifier = getWeekModifier(getProgramById(appState.activeProgramId), wk);
+    const target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
+    blueprintLabel = `Target: ${target.sets} × ${target.reps}`;
+    // Diagnostic is advice only — it no longer changes the prescribed set count.
     if (diagnostic.isStalled) {
-      blueprintLabel = '⚠️ DE-LOAD: Slashed Sets (-20%)';
-    } else if (diagnostic.suggestedWeight !== '') {
-      blueprintLabel = `💡 Suggested: ${diagnostic.suggestedWeight}kg × ${parsedTarget.reps}`;
+      blueprintLabel += ' · ⚠️ plateauing — hold load or add rest';
     }
   } catch(e) { console.warn(e); }
 
