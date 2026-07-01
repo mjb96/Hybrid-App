@@ -15,7 +15,7 @@ android {
         targetSdk = 36
         // Bump via CI: export VERSION_CODE=$(git rev-list --count HEAD) before the build.
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = "1.0.0"
+        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         buildConfigField("String", "APP_URL", "\"https://appassets.androidplatform.net/assets/www/index.html\"")
     }
