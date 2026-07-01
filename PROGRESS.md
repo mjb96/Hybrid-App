@@ -24,8 +24,8 @@
 
 ## Phase 1 — Security + Data Safety  ·  branch: `phase1-security`
 - [x] `[CC]` Draft Supabase RLS SQL for `user_data` (own-row read/write only) → `supabase/rls_user_data.sql`
-- [ ] `[You]` Apply both SQL files in Supabase dashboard (`rls_user_data.sql` + `migration_user_data_updated_at.sql`), then run the adversarial check
-- [~] `[CC]` Adversarial test: prove user A cannot read user B's data — harness ready (`scripts/rls-adversarial-check.mjs`); `[You]` runs it post-apply with two accounts
+- [~] `[You]` Apply both SQL files in Supabase dashboard — `rls_user_data.sql` **applied** (2026-07-01); `migration_user_data_updated_at.sql` still to apply
+- [~] `[CC]` Adversarial test: prove user A cannot read user B's data — harness ready (`scripts/rls-adversarial-check.mjs`). **DEFERRED** until after Phase 2 (needs a desktop + Node; can't run from phone). Not a Phase 2 blocker; gates public launch only.
 - [x] `[CC]` Secret sweep: no service_role key / private secret in repo or bundle — **clean** (only public anon key; see `supabase/README.md`)
 - [x] `[CC]` Fix last-write-wins sync (state.js): server `updated_at`/version + divergence detection → warn-and-choose conflict UI. Needs `migration_user_data_updated_at.sql` applied by `[You]`
 - [x] `[CC]` Local safety net: snapshot/backup before every cloud pull (`snapshotLocalBeforeCloudPull` in state.js, tested)
@@ -70,6 +70,7 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-01 · Phase 1 wrap · `[You]` applied `rls_user_data.sql` (RLS lock now ON — users protected). Turned OFF Supabase "Confirm email" for beta (email-link confirmation didn't fit the WebView app; was causing otp_expired failures on signup). Adversarial proof + `migration_user_data_updated_at.sql` **deferred to after Phase 2** (proof needs desktop+Node; user is on phone). These gate public launch (Phase 4), not Phase 2. · Next: begin Phase 2 — Android Hardening (GPS reliability first).
 - 2026-07-01 · Phase 1 (cont.) · Sentry web SDK integrated (`js/monitoring/`): DSN-gated so nothing is sent until `[You]` pastes a DSN into `sentry-config.js`; conservative config for a health/location app (sendDefaultPii false, event + breadcrumb scrubbers strip request/user/device and redact network URLs). 6 new tests. All green (204 / typecheck / smoke). All Phase 1 `[CC]` items now done. · Next: `[You]` apply both SQL files + run adversarial check + add Sentry DSN; then Phase 2 (Android hardening).
 - 2026-07-01 · Phase 1 (cont.) · Last-write-wins sync fix: `js/state/sync-guard.js` tracks the server `updated_at` this device last saw; before every cloud save, state.js checks whether the server row is newer (another device wrote) and, if so, raises a warn-and-choose conflict modal (`js/state/sync-conflict-ui.js`) instead of clobbering — keep-this-device overwrites, use-cloud reloads. Pull records the version; save/pull degrade gracefully if the migration isn't applied yet. `supabase/migration_user_data_updated_at.sql` (`[You]` apply). 7 new tests. All green (198 / typecheck / smoke). · Next: `[You]` apply both SQL files + adversarial check; then `[CC]` Sentry.
 - 2026-07-01 · Phase 1 started. Secret sweep (clean — only public anon key). Drafted RLS SQL (`supabase/rls_user_data.sql`) + adversarial proof harness (`scripts/rls-adversarial-check.mjs`) + `supabase/README.md`. Added local safety net: `snapshotLocalBeforeCloudPull` backs up local state before a cloud pull can clobber it (state.js, 5 tests). All green (191 tests / typecheck / smoke). · Next: `[You]` apply RLS SQL + run adversarial check; then `[CC]` last-write-wins sync fix (updated_at + divergence) and Sentry.
