@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v73';
+const CACHE_NAME = 'helyx-v74';
 
 const LOCAL_ASSETS = [
   './',
