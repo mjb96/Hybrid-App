@@ -5827,6 +5827,28 @@ html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
   margin-left: auto;
   flex-shrink: 0;
 }
+.brain-coach-dismiss {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.brain-coach-dismiss:hover  { background: rgba(255,255,255,0.16); color: var(--text-primary); }
+.brain-coach-dismiss:active { transform: scale(0.92); }
+html[data-theme="light"] .brain-coach-dismiss { background: rgba(0,0,0,0.06); }
+html[data-theme="light"] .brain-coach-dismiss:hover { background: rgba(0,0,0,0.12); }
 .brain-coach-meta {
   font-size: 0.72rem;
   color: var(--text-muted);

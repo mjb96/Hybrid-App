@@ -667,6 +667,12 @@ document.addEventListener('click', (e) => {
     saveStateToLocalStorage(true);
     document.getElementById('dashboardInsightWrap')?.style.setProperty('display', 'none');
   }
+  else if (action === 'dismiss-coaching') {
+    const card = document.getElementById('brainCoachCard');
+    appState.coachingDismissed = { sig: card?.dataset.sig || '', date: new Date().toISOString().slice(0, 10) };
+    saveStateToLocalStorage(true);
+    if (card) card.style.display = 'none';
+  }
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));

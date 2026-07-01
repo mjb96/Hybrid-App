@@ -42,6 +42,17 @@ function renderCoachingCard(state, days, activeProgram, selectedDay) {
 
   const rec = generateRecommendation(state, days, activeProgram, selectedDay);
 
+  // Same-day dismissal, keyed by the recommendation's content so a materially
+  // different (or escalated) message re-appears while the same one stays hidden.
+  const sig = `${rec.severity}:${rec.headline}`;
+  const today = new Date().toISOString().slice(0, 10);
+  const dismissed = state?.coachingDismissed;
+  if (dismissed && dismissed.date === today && dismissed.sig === sig) {
+    card.style.display = 'none';
+    return;
+  }
+  card.dataset.sig = sig;
+
   const badge    = document.getElementById('brainCoachBadge');
   const headline = document.getElementById('brainCoachHeadline');
   const meta     = document.getElementById('brainCoachMeta');
