@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var bridge: HybridHealthBridge
+    private lateinit var gpsBridge: GpsBridge
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
@@ -54,6 +55,8 @@ class MainActivity : AppCompatActivity() {
         pendingGeoCallback = null
         pendingGeoOrigin   = null
         cb?.invoke(origin, granted, false)
+        // The GPS bridge may also be waiting on this dialog (no-op when not).
+        gpsBridge.onPermissionResult(granted)
     }
 
     // Must be registered before onStart(); PermissionController contract is static.
@@ -87,6 +90,13 @@ class MainActivity : AppCompatActivity() {
         createNotificationChannels()
 
         webView = findViewById(R.id.webView)
+        gpsBridge = GpsBridge(
+            context = this,
+            webView = webView,
+            requestLocationPermission = {
+                requestLocationPermLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            },
+        )
         bridge = HybridHealthBridge(
             context = this,
             webView = webView,
@@ -145,6 +155,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             addJavascriptInterface(bridge, "HybridHealthBridge")
+            addJavascriptInterface(gpsBridge, "HybridGpsBridge")
             loadUrl(BuildConfig.APP_URL)
         }
     }
@@ -214,6 +225,7 @@ class MainActivity : AppCompatActivity() {
                 description = "Notifies when a rest period ends during a backgrounded session"
             }
         )
+        GpsTrackingService.createChannel(this)
     }
 
     private fun scheduleHealthSync() {

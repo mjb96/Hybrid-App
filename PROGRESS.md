@@ -34,7 +34,8 @@
 - **Phase 1 done when:** RLS proven, no stale-device clobber possible, backups in place, crashes reported.
 
 ## Phase 2 — Android Hardening  ·  branch: `phase2-android`
-- [ ] `[CC]` GPS reliability: foreground-service bridge OR foreground-only with honest UX (recommend first)
+- [~] `[CC]` GPS reliability → **native location foreground service** (decided with `[You]` 2026-07-01). `GpsTrackingService` + `GpsBridge` (Kotlin) buffer fixes by seq; JS drains on wake (`js/gps/native-bridge.js`), recovers a live run after activity death; web watchPosition kept as browser/PWA fallback. Kotlin compile-verified via CI once the branch build passes; then `[You]` device test.
+  - NOTE for Play submission (Phase 4): app now uses a `location` foreground service — Play Console requires a foreground-service declaration + video.
 - [ ] `[You]` Real-run device test of GPS
 - [ ] `[CC]`+`[You]` Brand unification (name / icons / splash / package identity)
 - [ ] `[CC]` WebView hardening (back-button/nav, resume state restore, offline behavior)
