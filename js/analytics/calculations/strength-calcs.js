@@ -5,6 +5,7 @@
 // ==========================================
 import { linearRegression, trendLine, rollingAverage, pctChange, clamp } from './math-utils.js';
 import { weeklyE1rmByLift, weeklyTonnageSeries, weeklyVolumeByMuscle } from '../../metrics/metrics-strength.js';
+import { MUSCLE_GROUPS, GROUP_LANDMARKS, classifyVolume, buildMuscleLandmarkReport } from './volume-landmarks.js';
 
 // Rate of improvement (kg per week) for a lift, from linear regression on e1RM series.
 // Returns kg/week. Negative = declining. Returns 0 if insufficient data.
@@ -63,16 +64,6 @@ export function strengthACWR(volSeries) {
   return acute / chronic;
 }
 
-// Muscle group aggregation into 6 canonical groups.
-const MUSCLE_GROUPS = {
-  Chest:     ['chest', 'upper_chest'],
-  Back:      ['lats', 'upper_back', 'erectors'],
-  Legs:      ['quads', 'hamstrings', 'glutes', 'calves', 'adductors'],
-  Shoulders: ['front_delts', 'side_delts', 'rear_delts'],
-  Arms:      ['biceps', 'triceps', 'brachialis'],
-  Core:      ['core'],
-};
-
 // Aggregate fine-grained muscle data into the 6 canonical groups.
 // Returns { Chest, Back, Legs, Shoulders, Arms, Core } each with weeklyVolume[].
 export function aggregateMuscleGroups(weeklyVolumeByMuscleData, maxWeek) {
@@ -108,24 +99,13 @@ export function muscleBalanceRelative(currentWeekSets) {
   return out;
 }
 
-// Minimum evidence-based weekly sets per muscle group for hypertrophy maintenance.
-const MIN_WEEKLY_SETS = {
-  Chest: 8, Back: 10, Legs: 10, Shoulders: 8, Arms: 6, Core: 4,
-};
-const OPTIMAL_WEEKLY_SETS = {
-  Chest: 16, Back: 20, Legs: 20, Shoulders: 14, Arms: 12, Core: 8,
-};
-
-// Classify each muscle group: 'undertrained' | 'optimal' | 'overtrained' | 'no_data'
+// Classify each muscle group against its derived volume landmarks. Returns the
+// shared zone vocabulary: 'no_data' | 'detraining' | 'maintenance' | 'growth' |
+// 'optimal' | 'overreaching'.
 export function muscleTrainingStatus(currentWeekSets) {
   const out = {};
   for (const [group, sets] of Object.entries(currentWeekSets)) {
-    const min     = MIN_WEEKLY_SETS[group] || 6;
-    const optimal = OPTIMAL_WEEKLY_SETS[group] || 12;
-    if (sets === 0)               out[group] = 'no_data';
-    else if (sets < min)          out[group] = 'undertrained';
-    else if (sets <= optimal * 1.5) out[group] = 'optimal';
-    else                          out[group] = 'overtrained';
+    out[group] = classifyVolume(sets, GROUP_LANDMARKS[group]);
   }
   return out;
 }
@@ -175,6 +155,7 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
   // Muscle analysis
   const muscleBalance = muscleBalanceRelative(currentSets);
   const muscleStatus  = muscleTrainingStatus(currentSets);
+  const muscleLandmarks = buildMuscleLandmarkReport(muscleByWeek, currentWeek);
 
   return {
     volSeries,
@@ -187,6 +168,7 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
     currentSets,
     muscleBalance,
     muscleStatus,
+    muscleLandmarks,
     tonnageACWR,
     volProgPct,
     currentWeek,

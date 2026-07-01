@@ -68,10 +68,16 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
         ${loadLabels[loadState]}
       </button>
     </div>
-    <div class="rpe-pad-row">
-      <span class="rpe-pad-label">RPE</span>
-      ${[6,7,8,9,10].map(v => `<button class="btn-rpe tactile-scale${sData.rpe === v ? ' rpe-selected' : ''}" data-action="set-rpe" data-sidx="${sIdx}" data-rpe="${v}">${v}</button>`).join('')}
-    </div>
+    ${type === 'W' ? '' : `<div class="rpe-pad-row">
+      <span class="rpe-pad-label">RIR</span>
+      ${(() => {
+        // Reps in reserve. Prefer a stored RIR; fall back to legacy per-set RPE
+        // (RIR = 10 − RPE) so older logs still show their selection. Warm-ups are
+        // deliberately submaximal, so they carry no effort pad.
+        const selRir = sData.rir != null ? sData.rir : (sData.rpe != null ? 10 - sData.rpe : null);
+        return [0,1,2,3,4].map(v => `<button class="btn-rpe tactile-scale${selRir === v ? ' rpe-selected' : ''}" data-action="set-rir" data-sidx="${sIdx}" data-rir="${v}">${v === 4 ? '4+' : v}</button>`).join('');
+      })()}
+    </div>`}
   </div>`;
 }
 

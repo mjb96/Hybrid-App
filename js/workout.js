@@ -124,16 +124,22 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   }
 
   let blueprintLabel = 'Target: Working Sets';
-  let diagnostic = { isStalled: false, suggestedWeight: '' };
+  let diagnostic = { isStalled: false, suggestedWeight: '', progression: null };
   try {
-    diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName);
-    // Label shows the SAME target we materialise (inline spec or week modifier),
-    // so "Target: 4 × 5" always matches the number of set rows populated.
+    // Resolve the prescribed target first so the auto-progression engine can
+    // judge whether last session actually hit the rep goal.
     const weekModifier = getWeekModifier(getProgramById(appState.activeProgramId), wk);
     const target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
+    diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, target.reps);
+    // Label shows the SAME target we materialise (inline spec or week modifier),
+    // so "Target: 4 × 5" always matches the number of set rows populated.
     blueprintLabel = `Target: ${target.sets} × ${target.reps}`;
-    // Diagnostic is advice only — it no longer changes the prescribed set count.
-    if (diagnostic.isStalled) {
+    // Auto-progression hint: a concrete next move derived from last session.
+    const prog = diagnostic.progression;
+    if (prog && prog.action !== 'baseline') {
+      const icon = { 'load-up': '▲', 'hold': '▬', 'rep-up': '＋', 'deload': '▼' }[prog.action] || '›';
+      blueprintLabel += ` · ${icon} ${prog.rationale}`;
+    } else if (diagnostic.isStalled) {
       blueprintLabel += ' · ⚠️ plateauing — hold load or add rest';
     }
   } catch(e) { console.warn(e); }
@@ -157,9 +163,15 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   const safeLiftName   = liftName.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   const displaySafeName = displayLiftName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  // The auto-progression suggestion becomes the ghost target on every set row.
+  // When there is no suggestion yet (first-ever exposure to this lift) we fall
+  // back to the matching set from last week, preserving the per-set ghost.
+  const suggestedGhost = (diagnostic.progression && diagnostic.progression.weight)
+    ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
+    : null;
   const setsMarkup = setsArr.map((sData, sIdx) => {
-    let ghostSet = null;
-    if (pastWkNum >= 1 && appState.weeks) {
+    let ghostSet = suggestedGhost;
+    if (!ghostSet && pastWkNum >= 1 && appState.weeks) {
       const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
       if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
     }
@@ -550,6 +562,18 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
 
   let targetW = wInput.value;
   let targetR = rInput.value;
+
+  // Fall back to the on-screen ghost (the placeholder) — it now carries the
+  // auto-progression suggestion, so one-tap logs exactly what the coach shows.
+  // The default placeholders ("kg"/"reps") are non-numeric and ignored.
+  if (!targetW) {
+    const ph = wInput.getAttribute('placeholder');
+    if (ph && !isNaN(parseFloat(ph))) targetW = ph;
+  }
+  if (!targetR) {
+    const ph = rInput.getAttribute('placeholder');
+    if (ph && !isNaN(parseFloat(ph))) targetR = ph;
+  }
 
   if (!targetW || !targetR) {
     const pastWkNum = parseInt(wk, 10) - 1;
@@ -1042,19 +1066,23 @@ export function unpairSuperset(liftName) {
   renderWorkout();
 }
 
-export function setPerSetRpe(liftName, sIdx, rpe) {
+export function setPerSetRir(liftName, sIdx, rir) {
   const appState = _getState();
   const day = _getSelectedDay();
   const wk = appState.currentWeek;
   const sets = appState.weeks[wk].lifts?.[day]?.[liftName];
   if (!sets || !sets[sIdx]) return;
-  sets[sIdx].rpe = (sets[sIdx].rpe === rpe) ? null : rpe; // toggle off if same
+  const cleared = sets[sIdx].rir === rir; // tap the active chip to clear
+  sets[sIdx].rir = cleared ? null : rir;
+  // Keep a derived RPE (= 10 − RIR) so the progression/fatigue engine, which
+  // reasons over per-set RPE, needs no changes. The 4+ bucket maps to RPE 6.
+  sets[sIdx].rpe = cleared ? null : 10 - rir;
   _saveState(true);
   // DOM-only update: toggle active class without full re-render
   const rowEl = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"] .cockpit-set-row[data-set-index="${sIdx}"]`);
   if (rowEl) {
     rowEl.querySelectorAll('.btn-rpe').forEach(btn => {
-      btn.classList.toggle('rpe-selected', parseInt(btn.getAttribute('data-rpe'), 10) === sets[sIdx].rpe);
+      btn.classList.toggle('rpe-selected', parseInt(btn.getAttribute('data-rir'), 10) === sets[sIdx].rir);
     });
   }
 }
@@ -1339,7 +1367,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
   else if (action === 'unlink-superset') unpairSuperset(liftName);
   else if (action === 'toggle-accordion') toggleAccordionManual(exCard);
-  else if (action === 'set-rpe') setPerSetRpe(liftName, sIdx, parseInt(target.getAttribute('data-rpe'), 10));
+  else if (action === 'set-rir') setPerSetRir(liftName, sIdx, parseInt(target.getAttribute('data-rir'), 10));
   else if (action === 'rest-adjust') adjustRestDuration(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'open-add-exercise') openAddExerciseModal();
   else if (action === 'close-add-exercise') closeAddExerciseModal();
