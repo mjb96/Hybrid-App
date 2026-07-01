@@ -44,12 +44,13 @@
 - **Phase 2 done when:** app behaves correctly on a real device across GPS, notifications, resume, offline.
 
 ## Phase 3 — Compliance + Store Assets + Tests  ·  branch: `phase3-launch-prep`
-- [ ] `[CC]` Draft Privacy Policy + Terms (health & location = GDPR special category)
-- [ ] `[You]` Get policy reviewed + hosted (public URL)
-- [ ] `[You]` Complete Play Data Safety form (with `[CC]` guidance)
-- [ ] `[CC]` Draft store listing copy / description / categorization
-- [ ] `[You]` Produce screenshots + feature graphic
-- [ ] `[CC]` Integration/UI tests on workout.js + app.js (log-a-workout + new sync path)
+- [x] `[CC]` Draft Privacy Policy + Terms (health & location = GDPR special category) → `docs/legal/`
+- [ ] `[You]` Get policy reviewed + hosted (public URL); fill the `{{PLACEHOLDERS}}`
+- [~] `[You]` Complete Play Data Safety form — exact answers mapped in `docs/legal/play-data-safety.md`
+- [x] `[CC]` Draft store listing copy / description / categorization → `docs/store-listing.md`
+- [ ] `[You]` Produce screenshots + feature graphic (art)
+- [x] `[CC]` Integration/UI tests on workout.js (log-a-workout, `tests/workout_logging.test.js`); sync path covered by sync-guard/cloud-backup/reconnect tests; app.js bootstrap covered by smoke
+- [x] `[CC]` **Bonus:** in-app account & data deletion (Play/GDPR) — `deleteAccount` + `supabase/functions/delete-account` (`[You]` deploy for full auth-record removal)
 - **Phase 3 done when:** policy live, data-safety accurate, listing assets ready, core flows tested.
 
 ## Phase 4 — Beta, Triage, Submit  ·  branch: `phase4-release`
@@ -71,6 +72,7 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-01 · Phase 3 `[CC]` sweep · Drafted GDPR-grade Privacy Policy + Terms + Play Data Safety mapping + store listing (`docs/`). Integration tests for the log-a-workout path (`workout.js`, 7 tests). Built in-app account & data deletion (client erase + `delete-account` edge function for `[You]` to deploy). All Phase 3 `[CC]` items done. 233 tests / typecheck / smoke green; Phase 2 background-reminder build #112 confirmed green. · Next: `[You]` (policy host/review, data-safety form, screenshots, edge-function deploy, device tests); `[CC]` Phase 4 prep (signed release/AAB CI) is the next codeable item.
 - 2026-07-01 · Phase 2 push · GPS reliability shipped (native location foreground service, CI-compiled). Offline edits re-sync on reconnect. Brand unified (all user-facing = Helyx; package renamed `com.hybridapp`→`com.helyx.app`; export filenames). Notification permission + native delivery for Android (WebView lacks Web Notifications API) — foreground reliable; background scheduling flagged as follow-up. All JS gates green (221 tests / typecheck / smoke); Kotlin CI-verified. · Next: `[You]` device tests; `[CC]` optional native reminder scheduling, or move to Phase 3 (Privacy Policy / tests).
 - 2026-07-01 · Phase 1 wrap · `[You]` applied `rls_user_data.sql` (RLS lock now ON — users protected). Turned OFF Supabase "Confirm email" for beta (email-link confirmation didn't fit the WebView app; was causing otp_expired failures on signup). Adversarial proof + `migration_user_data_updated_at.sql` **deferred to after Phase 2** (proof needs desktop+Node; user is on phone). These gate public launch (Phase 4), not Phase 2. · Next: begin Phase 2 — Android Hardening (GPS reliability first).
 - 2026-07-01 · Phase 1 (cont.) · Sentry web SDK integrated (`js/monitoring/`): DSN-gated so nothing is sent until `[You]` pastes a DSN into `sentry-config.js`; conservative config for a health/location app (sendDefaultPii false, event + breadcrumb scrubbers strip request/user/device and redact network URLs). 6 new tests. All green (204 / typecheck / smoke). All Phase 1 `[CC]` items now done. · Next: `[You]` apply both SQL files + run adversarial check + add Sentry DSN; then Phase 2 (Android hardening).
