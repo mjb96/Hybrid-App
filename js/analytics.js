@@ -30,6 +30,7 @@ import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
 import { buildWeeklyReview } from './brain/weekly-review.js';
 import { renderWeeklyReview } from './analytics/views/view-weekly-review.js';
+import { renderProjections } from './analytics/views/view-projections.js';
 import { buildSoWhat } from './analytics/so-what.js';
 
 let _getState;
@@ -286,7 +287,7 @@ export function renderAnalytics() {
   // and send "back" to the dashboard. Every leaf section instead routes "back" to
   // the hub, so you can browse multiple sections without bouncing home each time.
   const weekNav = document.getElementById('analyticsWeekNav');
-  if (weekNav) weekNav.style.display = (context === 'hub' || context === 'hybrid-score' || context === 'weekly-review') ? 'none' : '';
+  if (weekNav) weekNav.style.display = (context === 'hub' || context === 'hybrid-score' || context === 'weekly-review' || context === 'projections') ? 'none' : '';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
     if (context === 'hub') {
@@ -312,6 +313,10 @@ export function renderAnalytics() {
       renderWeeklyReview(review, stR);
       break;
     }
+    case 'projections':
+      document.getElementById('analytics-projections').classList.add('active');
+      renderProjections(_getState, _getDays);
+      break;
     case 'hybrid-score': {
       document.getElementById('analytics-hybrid-score').classList.add('active');
       const st = _getState();

@@ -79,6 +79,7 @@ export function buildSoWhat(context, model, state) {
     case 'hub':
     case 'hybrid-score':
     case 'weekly-review':
+    case 'projections':
       return null;
 
     case 'training-status':

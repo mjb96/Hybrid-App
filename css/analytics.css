@@ -1528,3 +1528,26 @@ html[data-theme="light"] .hub-link__icon {
 .so-what--caution  .so-what__k { color: var(--color-amber, #f59e0b); }
 .so-what--warning  { background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.32); }
 .so-what--warning  .so-what__k { color: var(--color-red, #ef4444); }
+
+/* ==========================================
+   PROJECTIONS (R12)
+   ========================================== */
+.proj-races { display: flex; flex-direction: column; gap: 2px; }
+.proj-race { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.proj-race:last-child { border-bottom: none; }
+.proj-race__d { font-weight: 700; color: var(--text-inverse, #f8fafc); font-size: 0.84rem; }
+.proj-race__t { font-weight: 800; color: var(--color-blue, #3b82f6); font-size: 0.92rem; }
+.proj-race__p { color: var(--text-muted, #94a3b8); font-size: 0.68rem; min-width: 62px; text-align: right; }
+.proj-eta { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 13px; margin-bottom: 12px;
+  background: rgba(16,185,129,0.10); border: 1px solid rgba(16,185,129,0.28); }
+.proj-eta__k { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-green, #10b981); }
+.proj-eta__v { font-size: 0.86rem; color: var(--text-inverse, #f8fafc); font-weight: 600; }
+.proj-lift__head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.proj-lift__name { font-weight: 700; color: var(--text-inverse, #f8fafc); font-size: 0.86rem; }
+.proj-lift__now { font-weight: 800; color: var(--text-inverse, #f8fafc); }
+.proj-lift__bar { height: 7px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.proj-lift__fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #10b981); }
+.proj-lift__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 0.76rem; color: var(--text-secondary, #cbd5e1); }
+.proj-eta-chip { font-size: 0.68rem; font-weight: 800; color: var(--color-green, #10b981); background: rgba(16,185,129,0.14); padding: 2px 9px; border-radius: 999px; }
+.proj-muted { font-size: 0.68rem; color: var(--text-muted, #94a3b8); }
+.proj-note { font-size: 0.68rem; color: var(--text-muted, #94a3b8); line-height: 1.5; margin-top: 14px; text-align: center; }
