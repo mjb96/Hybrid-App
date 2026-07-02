@@ -15,7 +15,7 @@
 // Dispatches: CustomEvent 'gps:route-saved' { detail: { week, day, distKm } }
 // ==========================================
 import { saveMapToDB } from './db.js';
-import { showToast, appState } from './state.js';
+import { showToast, appState, saveStateToLocalStorage } from './state.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
 import {
   isNativeGpsAvailable, ensureLocationPermission,
@@ -27,6 +27,21 @@ const MAX_ACCURACY_M   = 50;   // discard readings worse than 50 m accuracy
 const MIN_POINT_DIST_M = 5;    // skip points within 5 m of the last (GPS jitter)
 const TICK_MS          = 1000; // stats update interval
 
+// ── UI scopes ───────────────────────────────────────────────────────────────
+// The tracker drives two surfaces with the same state machine: the in-program
+// workout cockpit and the standalone Quick Start "Activity" screen. Each owns a
+// distinct set of element IDs; `_scope` selects which one live updates target.
+const UI = {
+  cockpit:  { start: 'gpsStartPanel', wait: 'gpsWaitPanel', live: 'gpsLivePanel',
+              map: 'gpsLiveMap', time: 'gpsStatTime', dist: 'gpsStatDist',
+              pace: 'gpsStatPace', pauseBtn: 'gpsPauseBtn' },
+  activity: { start: 'qsStartPanel', wait: 'qsWaitPanel', live: 'qsLivePanel',
+              map: 'qsLiveMap', time: 'qsStatTime', dist: 'qsStatDist',
+              pace: 'qsStatPace', pauseBtn: 'qsPauseBtn' },
+};
+let _scope = 'cockpit';
+function ui() { return UI[_scope] || UI.cockpit; }
+
 // ── Module state ──────────────────────────────────────────────────────────
 let _status    = 'idle'; // idle | waiting | tracking | paused
 let _watchId   = null;
@@ -36,6 +51,8 @@ let _coords    = [];     // [[lat, lng], …]
 let _distKm    = 0;
 let _wakeLock  = null;
 let _tickTimer = null;
+let _activityType = 'run'; // 'run' | 'walk' — tags the logged activity
+let _quickActivity = false; // true when launched via Home Quick Start (auto-open recap on stop)
 let _liveMap   = null;   // Leaflet instance for the live tracking map
 let _liveLine  = null;   // Leaflet Polyline
 let _liveMarker = null;  // Leaflet CircleMarker (current position dot)
@@ -121,12 +138,13 @@ document.addEventListener('visibilitychange', async () => {
 // ── Leaflet live map ──────────────────────────────────────────────────────
 
 async function buildLiveMap() {
-  const el = document.getElementById('gpsLiveMap');
+  const mapId = ui().map;
+  const el = document.getElementById(mapId);
   if (!el) return;
   try { await ensureLeaflet(); } catch { return; }
   if (typeof L === 'undefined') return;
   if (_liveMap) { _liveMap.remove(); }
-  _liveMap    = L.map('gpsLiveMap', { zoomControl: true, dragging: true, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: true });
+  _liveMap    = L.map(mapId, { zoomControl: true, dragging: true, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: true });
   _liveLine   = L.polyline([], { color: '#f43f5e', weight: 4, opacity: 0.9 }).addTo(_liveMap);
   _liveMarker = null;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(_liveMap);
@@ -153,9 +171,10 @@ function destroyLiveMap() {
 
 function tickStats() {
   const ms = elapsedMs();
-  const timeEl = document.getElementById('gpsStatTime');
-  const distEl = document.getElementById('gpsStatDist');
-  const paceEl = document.getElementById('gpsStatPace');
+  const u = ui();
+  const timeEl = document.getElementById(u.time);
+  const distEl = document.getElementById(u.dist);
+  const paceEl = document.getElementById(u.pace);
   if (timeEl) timeEl.textContent = fmtTime(ms);
   if (distEl) distEl.textContent = _distKm.toFixed(2);
   if (paceEl) paceEl.textContent = fmtPace(_distKm, ms);
@@ -164,9 +183,10 @@ function tickStats() {
 // ── Panel visibility ──────────────────────────────────────────────────────
 
 function showPanel(which) {
-  const start = document.getElementById('gpsStartPanel');
-  const wait  = document.getElementById('gpsWaitPanel');
-  const live  = document.getElementById('gpsLivePanel');
+  const u = ui();
+  const start = document.getElementById(u.start);
+  const wait  = document.getElementById(u.wait);
+  const live  = document.getElementById(u.live);
   if (start) start.style.display = which === 'start' ? 'flex' : 'none';
   if (wait)  wait.style.display  = which === 'wait'  ? 'flex' : 'none';
   if (live)  live.style.display  = which === 'live'  ? 'block' : 'none';
@@ -286,8 +306,16 @@ export function onWorkoutTabActivated() {
   if (_liveMap) setTimeout(() => _liveMap.invalidateSize(), 100);
 }
 
-export async function startTracking() {
+export async function startTracking(activityType = 'run', quickStart = false) {
   if (_status !== 'idle') return false;
+
+  // 'walk' or 'run' — tags the logged activity (Quick Start from Home passes
+  // this; the in-program run tracker defaults to 'run').
+  _activityType = activityType === 'walk' ? 'walk' : 'run';
+  _quickActivity = !!quickStart;
+  // Quick Start drives the standalone Activity screen; in-program runs drive
+  // the workout cockpit. Pick which element set the live UI updates.
+  _scope = quickStart ? 'activity' : 'cockpit';
 
   _coords      = [];
   _distKm      = 0;
@@ -341,6 +369,30 @@ export async function startTracking() {
   return true;
 }
 
+// Abort the current activity WITHOUT saving anything (Quick Start "Cancel").
+// Tears down timers/watch/wake-lock/native run and resets state. Never touches
+// persisted run data — nothing is written until stopTracking().
+export function cancelTracking() {
+  if (_status === 'idle') return;
+  if (_nativeMode) { try { nativeStopRun(); } catch (_) {} }
+  if (_drainTimer) { clearInterval(_drainTimer); _drainTimer = null; }
+  if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
+  clearInterval(_tickTimer); _tickTimer = null;
+  releaseWakeLock();
+
+  _status = 'idle';
+  _startTime = null; _pausedMs = 0;
+  _coords = []; _distKm = 0;
+  _splits = []; _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
+  _nativeMode = false; _nativeSeq = 0; _nativeElapsedMs = 0;
+
+  destroyLiveMap();
+  showPanel('start');
+  _activityType = 'run';
+  _quickActivity = false;
+  _scope = 'cockpit';
+}
+
 export function pauseTracking() {
   if (_status !== 'tracking') return;
   _status = 'paused';
@@ -352,7 +404,7 @@ export function pauseTracking() {
   _startTime = null;
   clearInterval(_tickTimer);
 
-  const btn = document.getElementById('gpsPauseBtn');
+  const btn = document.getElementById(ui().pauseBtn);
   if (btn) { btn.textContent = '▶ Resume'; btn.setAttribute('data-action', 'gps-resume'); }
 }
 
@@ -363,7 +415,7 @@ export function resumeTracking() {
   _startTime = Date.now();
   _tickTimer = setInterval(tickStats, TICK_MS);
 
-  const btn = document.getElementById('gpsPauseBtn');
+  const btn = document.getElementById(ui().pauseBtn);
   if (btn) { btn.textContent = '⏸ Pause'; btn.setAttribute('data-action', 'gps-pause'); }
 }
 
@@ -398,25 +450,43 @@ export async function stopTracking(week, day) {
   destroyLiveMap();
   showPanel('start');
 
+  const typeLabel = _activityType === 'walk' ? 'Walk' : 'Run';
+
   // Persist route
   if (finalCoords.length >= 2 && week && day) {
     try { await saveMapToDB(week, day, finalCoords); } catch (_) {}
   }
 
-  // Auto-fill cockpit run inputs and derive pace
-  const distInput = document.getElementById('runInputDist');
-  const timeInput = document.getElementById('runInputTime');
-  if (distInput) {
-    // finalDist is km; fill the box in the user's configured unit so the
-    // cockpit's km<->display conversion round-trips correctly.
-    const unit = appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
-    const dispDist = unit === 'mi' ? finalDist * 0.621371 : finalDist;
-    distInput.value = dispDist.toFixed(2);
-    distInput.dispatchEvent(new Event('input', { bubbles: true }));
+  // Tag the day's activity (walk vs run) and persist immediately, so a Quick
+  // Start walk is saved even if the user never opens the cockpit to commit.
+  // The cockpit commit merges ...existing, so this tag survives a later edit.
+  if (week && day) {
+    if (!appState.weeks[week]) appState.weeks[week] = {};
+    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
+    const existingRun = appState.weeks[week].runs[day] || {};
+    appState.weeks[week].runs[day] = { ...existingRun, type: _activityType };
+    saveStateToLocalStorage(true);
   }
-  if (timeInput) {
-    timeInput.value = fmtTime(finalMs);
-    timeInput.dispatchEvent(new Event('input', { bubbles: true }));
+  const wasQuick = _quickActivity;
+  _activityType = 'run'; // reset for the next session
+
+  // In-program run: auto-fill the cockpit run inputs so the user can review +
+  // commit. A Quick Start has no cockpit open, so skip this and persist below.
+  if (!wasQuick) {
+    const distInput = document.getElementById('runInputDist');
+    const timeInput = document.getElementById('runInputTime');
+    if (distInput) {
+      // finalDist is km; fill the box in the user's configured unit so the
+      // cockpit's km<->display conversion round-trips correctly.
+      const unit = appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
+      const dispDist = unit === 'mi' ? finalDist * 0.621371 : finalDist;
+      distInput.value = dispDist.toFixed(2);
+      distInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (timeInput) {
+      timeInput.value = fmtTime(finalMs);
+      timeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
 
   document.dispatchEvent(
@@ -425,6 +495,22 @@ export async function stopTracking(week, day) {
     })
   );
 
-  showToast('Run tracked ✓ — add your RPE below');
+  // A Home Quick Start is a standalone activity with no cockpit to commit its
+  // inputs — persist distance + time directly (splits + type are already saved
+  // above and by the gps:route-saved listener), then surface the recap.
+  if (wasQuick && week && day) {
+    if (!appState.weeks[week]) appState.weeks[week] = {};
+    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
+    const existingRun = appState.weeks[week].runs[day] || {};
+    appState.weeks[week].runs[day] = { ...existingRun, dist: finalDist, time: fmtTime(finalMs) };
+    saveStateToLocalStorage(true);
+    showToast(`${typeLabel} saved ✓`);
+    try { document.dispatchEvent(new CustomEvent('session:finished', { detail: { week, day } })); } catch (_) {}
+  } else {
+    showToast(`${typeLabel} tracked ✓ — add your RPE below`);
+  }
+  _quickActivity = false;
+  _scope = 'cockpit'; // back to the default surface for the next session
+
   return { distKm: finalDist, timeStr: fmtTime(finalMs) };
 }

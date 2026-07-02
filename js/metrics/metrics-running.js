@@ -60,6 +60,9 @@ export function weeklyPaceSeries(state, days, maxWeek) {
     if (wkData) {
       days.forEach(d => {
         const run = wkData.runs?.[d] || {};
+        // Walks are aerobic volume/load but NOT a running-pace signal — exclude
+        // them so a slow walk can't skew pace, VDOT, or aerobic-decoupling.
+        if (run.type === 'walk') return;
         const dist = parseFloat(run.dist) || 0;
         const pace = parsePaceSecs(dist, run.time || '');
         if (dist > 0 && pace > 0) { weightedSecs += pace * dist; totalDist += dist; }

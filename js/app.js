@@ -37,6 +37,7 @@ import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
+import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
@@ -68,7 +69,7 @@ import {
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
-import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, onWorkoutTabActivated } from './gps-tracker.js';
+import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, cancelTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
@@ -143,6 +144,41 @@ export function setCockpitActiveDay(dayKey) {
 export function launchActiveWorkoutCockpit() {
   switchGlobalAppTab('workout');
   setCockpitActiveDay(selectedDay);
+}
+
+// Quick Start (from Home): begin a GPS walk/run untethered from the program on
+// a clean, dedicated full-screen Activity tracker. Logs to TODAY's slot
+// regardless of what today's plan prescribes, tagged walk/run. On finish the
+// tracker persists the run and opens the session recap.
+export function openActivityScreen(type) {
+  const screen = document.getElementById('activityScreen');
+  const title  = document.getElementById('activityTitle');
+  if (title) title.textContent = type === 'walk' ? 'Walk' : 'Run';
+  if (screen) { screen.style.display = 'flex'; screen.scrollTop = 0; }
+}
+
+export function closeActivityScreen() {
+  const screen = document.getElementById('activityScreen');
+  if (screen) screen.style.display = 'none';
+}
+
+export function isActivityScreenOpen() {
+  const screen = document.getElementById('activityScreen');
+  return !!screen && screen.style.display !== 'none';
+}
+
+export function startQuickActivity(type) {
+  const kind = type === 'walk' ? 'walk' : 'run';
+  determineDefaultCalendarDay();   // log to today's slot
+  openActivityScreen(kind);
+  startTracking(kind, /* quickStart */ true);
+}
+
+// Cancel a Quick Start: discard the in-progress track (nothing is saved) and
+// close the Activity screen.
+export function cancelQuickActivity() {
+  try { cancelTracking(); } catch (_) {}
+  closeActivityScreen();
 }
 
 // ==========================================
@@ -762,10 +798,18 @@ document.addEventListener('click', (e) => {
   }
 
   // GPS Tracker
+  else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
+  else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
+  else if (action === 'close-session-recap') { closeSessionRecap(); }
   else if (action === 'gps-start')  { startTracking(); }
   else if (action === 'gps-pause')  { pauseTracking(); }
   else if (action === 'gps-resume') { resumeTracking(); }
-  else if (action === 'gps-stop')   { stopTracking(appState.currentWeek, selectedDay); }
+  else if (action === 'gps-stop')   {
+    // Finish: from the Activity screen close it (recap opens via session:finished);
+    // from the cockpit just stop + persist to the current slot.
+    if (isActivityScreenOpen()) closeActivityScreen();
+    stopTracking(appState.currentWeek, selectedDay);
+  }
 
   // Fasting
   else if (action === 'fast-start') {
@@ -1263,6 +1307,12 @@ function _submitProgramRating() {
 // ==========================================
 if (typeof window !== 'undefined') {
   window.__onAndroidBack = function () {
+    // 0) Full-screen session recap sits above everything — close it first.
+    if (isSessionRecapOpen()) { closeSessionRecap(); return 'handled'; }
+
+    // 0b) Quick Start Activity tracker — back cancels the in-progress activity.
+    if (isActivityScreenOpen()) { cancelQuickActivity(); return 'handled'; }
+
     // 1) Generic modals using the .active convention (today-summary, rating,
     //    pr-goal, create-program, week-advance, deload, etc.)
     const activeModal = document.querySelector('.modal.active, [data-modal].active');
@@ -1299,6 +1349,10 @@ async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     initSyncConflictUI();
+    initSessionRecap(() => appState);
+    // Recap entry points: after finishing a session, and tapping a logged day.
+    document.addEventListener('session:finished', (e) => { closeActivityScreen(); openSessionRecap(e.detail?.week, e.detail?.day); });
+    document.addEventListener('app:open-recap',   (e) => openSessionRecap(e.detail?.week, e.detail?.day));
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();

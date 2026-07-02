@@ -429,6 +429,12 @@
       <!-- Primary CTA — one tap from Home into today's logging -->
       <button class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
 
+      <!-- Quick activity — start a walk/run outside the program; logs to today -->
+      <div class="quick-activity-row mb-4" style="display:flex;gap:10px;">
+        <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="walk" aria-label="Start a walk">🚶 Start Walk</button>
+        <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="run" aria-label="Start a run">🏃 Start Run</button>
+      </div>
+
       <!-- Coaching alerts — surfaced (previously hidden): stall, deload, week-compare -->
       <div id="homeAlerts">
         <article id="homeEngineAlertCard" class="home-alert-card home-alert-card--warn" style="display:none;">
@@ -1787,6 +1793,51 @@
       </div>
     </div>
   </div>
+
+  <!-- Session Recap — full-screen review of one day's session (from Finish + calendar tap) -->
+  <section id="sessionRecapScreen" style="display:none;" aria-label="Session Recap">
+    <div class="recap-topbar">
+      <button class="subview-back-btn" data-action="close-session-recap">← Done</button>
+    </div>
+    <div id="sessionRecapContent"></div>
+  </section>
+
+  <!-- Quick Activity — clean full-screen live tracker for a Home Quick Start walk/run -->
+  <section id="activityScreen" style="display:none;" aria-label="Quick Activity">
+    <div class="activity-topbar">
+      <button class="subview-back-btn" data-action="cancel-quick-activity">← Cancel</button>
+      <span class="activity-title" id="activityTitle">Activity</span>
+    </div>
+
+    <!-- Waiting for first GPS fix -->
+    <div id="qsWaitPanel" class="gps-wait-panel" style="display:none;">
+      <div class="gps-wait-spinner"></div>
+      <span class="gps-wait-text">Getting GPS signal…</span>
+    </div>
+
+    <!-- Live tracking -->
+    <div id="qsLivePanel" style="display:none;">
+      <div id="qsLiveMap" class="activity-live-map"></div>
+      <div class="activity-stats">
+        <div class="activity-stat">
+          <span class="activity-stat-value" id="qsStatTime">00:00</span>
+          <span class="activity-stat-label">TIME</span>
+        </div>
+        <div class="activity-stat activity-stat--hero">
+          <span class="activity-stat-value" id="qsStatDist">0.00</span>
+          <span class="activity-stat-label">KM</span>
+        </div>
+        <div class="activity-stat">
+          <span class="activity-stat-value" id="qsStatPace">—:——</span>
+          <span class="activity-stat-label">PACE /KM</span>
+        </div>
+      </div>
+      <div class="activity-actions">
+        <button class="gps-btn-secondary" id="qsPauseBtn" data-action="gps-pause">⏸ Pause</button>
+        <button class="gps-btn-stop" data-action="gps-stop">■ Finish</button>
+      </div>
+    </div>
+  </section>
 
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
