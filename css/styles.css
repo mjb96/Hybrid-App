@@ -236,6 +236,9 @@ body {
   max-width: 600px;
   margin: 0 auto;
   padding: var(--space-5) var(--space-4);
+  /* Edge-to-edge: WebView draws behind the status bar, so clear it at the top
+     (mirrors the safe-area-inset-bottom handling used for the nav). */
+  padding-top: calc(var(--space-5) + env(safe-area-inset-top, 0px));
   animation: viewSlideIn var(--duration-slow) var(--ease-spring) both;
 }
 .view-container.active { display: block; }
