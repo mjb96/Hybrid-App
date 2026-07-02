@@ -8,35 +8,15 @@
 // and the predictions engine. reportToText() renders share/notification copy.
 // =============================================================================
 import { computeDashboardModel } from '../home/dashboard-model.js';
-import { dayVolume } from '../set-utils.js';
+import { forEachLoggedDay } from '../analytics/logged-days.js';
 import { buildPredictions, topPredictionLine } from './predictions.js';
 
-const num = (v) => parseFloat(v) || 0;
 const DAY_MS = 86400000;
 
-// Walk every logged day → { dateISO, volume, distance }. Uses stored dates when
-// present, else reconstructs from weekStartedAt (same rule as computeStreak).
+// Every logged day → { dateISO, volume, distance } via the shared iterator.
 function datedSessions(state, days) {
   const out = [];
-  const weeks = state?.weeks || {};
-  const base = state?.weekStartedAt ? new Date(state.weekStartedAt) : new Date();
-  const curWk = parseInt(state?.currentWeek, 10) || 1;
-  for (const w in weeks) {
-    const wd = weeks[w];
-    const stored = wd?.dates || {};
-    days.forEach((d, dayIdx) => {
-      const vol = dayVolume(wd?.lifts?.[d]);
-      const dist = num(wd?.runs?.[d]?.dist);
-      if (vol <= 0 && dist <= 0) return;
-      let ds = stored[d];
-      if (!ds) {
-        const approx = new Date(base);
-        approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
-        ds = approx.toISOString().slice(0, 10);
-      }
-      out.push({ dateISO: ds, volume: vol, distance: dist });
-    });
-  }
+  forEachLoggedDay(state, days, (d) => out.push({ dateISO: d.dateISO, volume: d.volume, distance: d.distance }));
   return out;
 }
 

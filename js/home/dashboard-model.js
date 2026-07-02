@@ -19,6 +19,7 @@ import { generateRecommendation } from '../brain/recommendations.js';
 import { computeReadiness, readinessStatus, readinessColor } from '../analytics/scoring/readiness-scoring.js';
 import { getFastingContext } from '../fasting.js';
 import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
+import { loggedDateSet } from '../analytics/logged-days.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -336,34 +337,11 @@ function computePace(weeks, days, distUnit) {
 
 // The set of ISO dates on which real training was logged (gym or run). Shared
 // by the streak view, the Hybrid Score history and the streak-freeze module so
-// "what counts as a training day" has one definition.
+// "what counts as a training day" has one definition (js/analytics/logged-days).
 export function activeTrainingDates(weeks, days, state) {
-  const active = new Set();
-  const base = state?.weekStartedAt ? new Date(state.weekStartedAt) : new Date();
-  const curWk = parseInt(state?.currentWeek, 10) || 1;
-  for (const w in weeks) {
-    const wd = weeks[w];
-    const storedDates = wd?.dates || {};
-    days.forEach((d, dayIdx) => {
-      let done = 0;
-      const dl = wd?.lifts?.[d] || {};
-      for (const lift in dl) if (Array.isArray(dl[lift])) done += dl[lift].filter(isDone).length;
-      const rDist = num(wd?.runs?.[d]?.dist);
-      if (done > 0 || rDist > 0) {
-        // Prefer the real logged date (the same source the activity calendar
-        // uses); fall back to reconstructing from weekStartedAt only when the
-        // stored date is missing.
-        let ds = storedDates[d];
-        if (!ds) {
-          const approx = new Date(base);
-          approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
-          ds = approx.toISOString().slice(0, 10);
-        }
-        active.add(ds);
-      }
-    });
-  }
-  return active;
+  // `state` carries weeks; loggedDateSet reads state.weeks, so ensure it sees
+  // the same weeks object even when a caller passes them separately.
+  return loggedDateSet(state?.weeks === weeks ? state : { ...state, weeks }, days);
 }
 
 export function computeStreak(weeks, days, state) {
