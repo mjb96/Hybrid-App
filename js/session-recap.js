@@ -9,6 +9,7 @@
 // tested. Rendering + show/hide touch the DOM.
 // ==========================================
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
+import { renderRunMap } from './workout-map.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
@@ -166,6 +167,7 @@ export function renderSessionRecapHTML(r) {
       <div class="recap-badges">${r.types.map(typeBadge).join('')}</div>
     </div>
     <div class="recap-stats">${tiles}</div>
+    ${r.run && r.run.distKm > 0 ? `<div id="recapMapContainer" class="recap-map"></div>` : ''}
     ${r.insights.length ? `<div class="recap-section-title">Insights</div>
       <ul class="recap-insights">${r.insights.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
     ${r.lifts.length ? `<div class="recap-section-title">Lifts</div>${liftRows}` : ''}
@@ -181,6 +183,17 @@ export function openSessionRecap(week, day) {
   if (content) content.innerHTML = renderSessionRecapHTML(recap);
   const screen = document.getElementById('sessionRecapScreen');
   if (screen) { screen.style.display = 'block'; screen.scrollTop = 0; }
+
+  // Draw the saved GPS route for a run/walk (async — loads coords + Leaflet).
+  if (recap.run && recap.run.distKm > 0) {
+    try {
+      renderRunMap(week, day, recap.run.distKm, {
+        containerId: 'recapMapContainer',
+        splits: recap.run.splits,
+        thresholdSec: state.thresholdPaceSeconds,
+      });
+    } catch (_) { /* map is best-effort */ }
+  }
 }
 
 export function closeSessionRecap() {

@@ -152,7 +152,7 @@ export function launchActiveWorkoutCockpit() {
 export function startQuickActivity(type) {
   determineDefaultCalendarDay();   // point the cockpit at today
   launchActiveWorkoutCockpit();    // switch to workout view for today + render
-  startTracking(type === 'walk' ? 'walk' : 'run');
+  startTracking(type === 'walk' ? 'walk' : 'run', /* quickStart */ true);
 }
 
 // ==========================================

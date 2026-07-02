@@ -37,6 +37,7 @@ let _distKm    = 0;
 let _wakeLock  = null;
 let _tickTimer = null;
 let _activityType = 'run'; // 'run' | 'walk' — tags the logged activity
+let _quickActivity = false; // true when launched via Home Quick Start (auto-open recap on stop)
 let _liveMap   = null;   // Leaflet instance for the live tracking map
 let _liveLine  = null;   // Leaflet Polyline
 let _liveMarker = null;  // Leaflet CircleMarker (current position dot)
@@ -287,12 +288,13 @@ export function onWorkoutTabActivated() {
   if (_liveMap) setTimeout(() => _liveMap.invalidateSize(), 100);
 }
 
-export async function startTracking(activityType = 'run') {
+export async function startTracking(activityType = 'run', quickStart = false) {
   if (_status !== 'idle') return false;
 
   // 'walk' or 'run' — tags the logged activity (Quick Start from Home passes
   // this; the in-program run tracker defaults to 'run').
   _activityType = activityType === 'walk' ? 'walk' : 'run';
+  _quickActivity = !!quickStart;
 
   _coords      = [];
   _distKm      = 0;
@@ -445,5 +447,13 @@ export async function stopTracking(week, day) {
   );
 
   showToast(`${typeLabel} tracked ✓ — add your RPE below`);
+
+  // A Home Quick Start is a standalone activity — surface its recap right away
+  // (fires after gps:route-saved has committed dist/time/splits above).
+  if (_quickActivity && week && day) {
+    try { document.dispatchEvent(new CustomEvent('session:finished', { detail: { week, day } })); } catch (_) {}
+  }
+  _quickActivity = false;
+
   return { distKm: finalDist, timeStr: fmtTime(finalMs) };
 }

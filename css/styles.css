@@ -7744,3 +7744,5 @@ input[type="text"],
 .recap-splits { display: flex; flex-direction: column; gap: 2px; }
 .recap-split { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-secondary, #cbd5e1); padding: 6px 0; border-bottom: 1px solid var(--border, #1f242c); }
 .recap-empty { text-align: center; color: var(--text-muted, #94a3b8); padding: 60px 20px; }
+.recap-map { height: 220px; border-radius: 12px; overflow: hidden; margin: 12px 0 4px; border: 1px solid var(--border, #23272e); }
+.recap-map .leaflet-container { height: 100%; width: 100%; background: #0b0f14; }

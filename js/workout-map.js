@@ -6,8 +6,9 @@
 import { getMapFromDB } from './db.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
 
-// Private module-scoped Leaflet instance for the active workout map.
-let activeWorkoutMapInstance = null;
+// One Leaflet instance per container id (the cockpit map and the recap map are
+// distinct surfaces and must not clobber each other).
+const _mapInstances = {};
 
 // Returns a colour string for a given pace relative to threshold.
 // delta = secPerKm - thresholdSec: positive = slower, negative = faster.
@@ -45,7 +46,8 @@ function drawPaceSegments(map, coords, splits, thresholdSec) {
 // hasDistance: pass the run's recorded distance (truthy => a run exists to map).
 // options: { splits, thresholdSec } — when provided, draws pace-zone colouring.
 export function renderRunMap(wk, selectedDay, hasDistance, options = {}) {
-  const runMapContainer = document.getElementById('runMapContainer');
+  const containerId = options.containerId || 'runMapContainer';
+  const runMapContainer = document.getElementById(containerId);
   if (!runMapContainer) return;
 
   if (hasDistance) {
@@ -54,23 +56,24 @@ export function renderRunMap(wk, selectedDay, hasDistance, options = {}) {
         runMapContainer.style.display = 'block';
         try { await ensureLeaflet(); } catch { runMapContainer.style.display = 'none'; return; }
         setTimeout(() => {
-          if (activeWorkoutMapInstance) { activeWorkoutMapInstance.remove(); activeWorkoutMapInstance = null; }
+          if (_mapInstances[containerId]) { _mapInstances[containerId].remove(); _mapInstances[containerId] = null; }
           runMapContainer.innerHTML = '';
-          activeWorkoutMapInstance = L.map('runMapContainer');
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(activeWorkoutMapInstance);
+          const map = L.map(containerId);
+          _mapInstances[containerId] = map;
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
           const { splits, thresholdSec } = options;
           const hasPaceData = splits && splits.length > 0 && splits[0].coordsStartIdx !== undefined;
 
           if (hasPaceData) {
-            drawPaceSegments(activeWorkoutMapInstance, coords, splits, thresholdSec);
+            drawPaceSegments(map, coords, splits, thresholdSec);
           } else {
-            L.polyline(coords, { color: '#f43f5e', weight: 4, opacity: 0.9 }).addTo(activeWorkoutMapInstance);
+            L.polyline(coords, { color: '#f43f5e', weight: 4, opacity: 0.9 }).addTo(map);
           }
 
           const bounds = L.latLngBounds(coords);
-          activeWorkoutMapInstance.fitBounds(bounds, { padding: [10, 10] });
-          activeWorkoutMapInstance.invalidateSize();
+          map.fitBounds(bounds, { padding: [10, 10] });
+          map.invalidateSize();
         }, 100);
       } else {
         runMapContainer.style.display = 'none';
