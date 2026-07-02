@@ -226,6 +226,35 @@ test('recordDailyScore: idempotent per day, banks XP once', () => {
   assert.equal(currentLevel(state).xp, xpAfterFirst);
 });
 
+test('recordDailyScore: milestones — level-up, streak, first 90+ (once each)', () => {
+  const mkModel = (streak, done = true) => ({
+    rec: { badge: done ? 'Session Done' : '' },
+    week: { consistencyDone: done ? 5 : 0 },
+    streak: { current: streak },
+  });
+  const score = (n) => ({ score: n, level: { tier: 1 } });
+
+  // Level-up: 480 XP + a completed high-score day crosses Builder (500).
+  const s1 = { hybridScore: { xp: 480, history: [], lastRecordedDate: null } };
+  const r1 = recordDailyScore(s1, score(85), mkModel(3), '2026-07-02');
+  assert.ok(r1.milestones.some(m => m.kind === 'level' && m.name === 'Builder'), JSON.stringify(r1.milestones));
+
+  // Streak milestone on day 7; first-ever 90+ fires alongside it.
+  const s2 = { hybridScore: { xp: 0, history: [{ date: '2026-07-01', score: 85, level: 1 }], lastRecordedDate: '2026-07-01' } };
+  const r2 = recordDailyScore(s2, score(91), mkModel(7), '2026-07-02');
+  assert.ok(r2.milestones.some(m => m.kind === 'streak' && m.days === 7));
+  assert.ok(r2.milestones.some(m => m.kind === 'score' && m.score === 91));
+
+  // Next day: another 90+ does NOT re-fire the score milestone, and streak 8
+  // is not a milestone day.
+  const r3 = recordDailyScore(s2, score(92), mkModel(8), '2026-07-03');
+  assert.equal(r3.milestones.length, 0, JSON.stringify(r3.milestones));
+
+  // Same-day re-record never re-fires milestones (idempotent).
+  const r4 = recordDailyScore(s2, score(95), mkModel(8), '2026-07-03');
+  assert.deepEqual(r4.milestones, []);
+});
+
 test('recordDailyScore: delta reflects yesterday, trends bucket', () => {
   const state = makeState();
   const y = iso(new Date(Date.now() - 86400000));

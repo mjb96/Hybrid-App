@@ -8,6 +8,7 @@ import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
+import { celebrateMilestone } from './ui/celebration.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
@@ -52,8 +53,11 @@ function renderHybridScoreHome(appState, model) {
   // The Morning Briefing directly below owns the day's action — one voice.
   setHTML(el, heroHTML(result, { showAction: false }));
   try {
-    const { changed } = recordDailyScore(appState, result, model);
+    const { changed, milestones } = recordDailyScore(appState, result, model);
     if (changed) saveStateToLocalStorage(true);
+    // Earned moments (level-up · streak milestone · first 90+) fire only on
+    // the first record of the day, so this can't spam on re-renders.
+    (milestones || []).forEach(celebrateMilestone);
   } catch (e) {
     console.warn('Hybrid Score record failed (non-fatal):', e);
   }

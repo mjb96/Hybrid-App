@@ -20,37 +20,53 @@ function ensure(state) {
   return state.hybridScore;
 }
 
-// Idempotently record today's score + bank XP. Returns { changed } so the caller
-// can decide whether to persist. Never double-counts a day.
+// Idempotently record today's score + bank XP. Returns { changed, milestones }
+// so the caller can persist and celebrate. Never double-counts a day, and
+// milestones only fire on the FIRST record of a day (so they can't re-trigger
+// on every render).
+//
+// Milestone kinds: { kind:'level', tier, name, icon } · { kind:'streak', days }
+//                · { kind:'score', score } (first 90+).
 export function recordDailyScore(state, scoreResult, model, todayISO) {
   const hs = ensure(state);
   const today = todayISO || new Date().toISOString().slice(0, 10);
-  if (!scoreResult || scoreResult.score == null) return { changed: false };
+  if (!scoreResult || scoreResult.score == null) return { changed: false, milestones: [] };
   if (hs.lastRecordedDate === today) {
     // Already recorded today — keep the snapshot fresh (score can move intraday
-    // as sessions are logged) but do NOT re-bank XP.
+    // as sessions are logged) but do NOT re-bank XP or re-fire milestones.
     const entry = hs.history.find(h => h.date === today);
     if (entry && entry.score !== scoreResult.score) {
       entry.score = scoreResult.score;
       entry.level = scoreResult.level?.tier ?? entry.level;
-      return { changed: true };
+      return { changed: true, milestones: [] };
     }
-    return { changed: false };
+    return { changed: false, milestones: [] };
   }
 
   const sessionCompleted = model?.rec?.badge === 'Session Done';
   const anyLogged = (model?.week?.consistencyDone || 0) > 0 || (model?.streak?.current || 0) > 0;
-  hs.xp += xpForDay({
-    score: scoreResult.score,
-    sessionCompleted,
-    anyLogged,
-    streak: model?.streak?.current || 0,
-  });
+  const streak = model?.streak?.current || 0;
 
-  hs.history.push({ date: today, score: scoreResult.score, level: scoreResult.level?.tier ?? 1 });
+  const levelBefore = levelFromXp(hs.xp);
+  hs.xp += xpForDay({ score: scoreResult.score, sessionCompleted, anyLogged, streak });
+  const levelAfter = levelFromXp(hs.xp);
+
+  // Milestones — evaluated against history BEFORE today's entry lands.
+  const milestones = [];
+  if (levelAfter.tier > levelBefore.tier) {
+    milestones.push({ kind: 'level', tier: levelAfter.tier, name: levelAfter.name, icon: levelAfter.icon });
+  }
+  if (streak === 7 || streak === 30 || streak === 100) {
+    milestones.push({ kind: 'streak', days: streak });
+  }
+  if (scoreResult.score >= 90 && !hs.history.some(h => h.score >= 90)) {
+    milestones.push({ kind: 'score', score: scoreResult.score });
+  }
+
+  hs.history.push({ date: today, score: scoreResult.score, level: levelAfter.tier });
   if (hs.history.length > MAX_HISTORY) hs.history = hs.history.slice(-MAX_HISTORY);
   hs.lastRecordedDate = today;
-  return { changed: true };
+  return { changed: true, milestones };
 }
 
 // Current career level from banked XP.
