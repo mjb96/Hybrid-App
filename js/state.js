@@ -599,6 +599,8 @@ export async function pullEngineDataFromStorage() {
     profileSections: { order: null, hidden: [] },
     dashboardTiles: { order: null, hidden: null },   // hidden:null = focused default set (R4)
     hybridScore: { history: [], xp: 0, lastRecordedDate: null },
+    overtrainingAck: null,        // { sig, date } — acknowledged risk condition (R10)
+    _overtrainingPushedDate: null,
   };
 
   // Always seed defaults so a brand-new install (no localData, no cloud) still

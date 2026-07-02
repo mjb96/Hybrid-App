@@ -230,6 +230,20 @@ function _fireWorkoutReminder() {
   notify('Helyx', body, 'training-reminder');
 }
 
+// ── Overtraining warning (R10 — fired from Home when risk is high) ────────────
+// Best-effort: returns true only if a notification was actually sent, so the
+// caller can record the once-per-day guard. Never throws.
+export function pushOvertrainingWarning(assessment) {
+  try {
+    if (!assessment || assessment.level !== 'high') return false;
+    if (!notificationsGranted()) return false;
+    notify(assessment.headline || 'Overtraining risk',
+      assessment.advice || 'Fatigue signals are stacking up — take a deload and protect recovery.',
+      'overtraining-risk');
+    return true;
+  } catch { return false; }
+}
+
 // ── Missed Workout Check (fires on app open, not on a timer) ──────────────────
 
 export function checkMissedWorkout() {

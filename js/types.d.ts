@@ -86,6 +86,8 @@ export interface AppState {
   profileSections?: { order: string[] | null; hidden: string[] };
   dashboardTiles?: { order: string[] | null; hidden: string[] };
   hybridScore?: { history: { date: string; score: number; level: number }[]; xp: number; lastRecordedDate: string | null };
+  overtrainingAck?: { sig: string; date: string } | null;
+  _overtrainingPushedDate?: string | null;
   settings?: AppSettings;
 }
 

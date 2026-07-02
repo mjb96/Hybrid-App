@@ -9,6 +9,8 @@ import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone } from './ui/celebration.js';
+import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
+import { pushOvertrainingWarning } from './notifications.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
@@ -77,6 +79,59 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
     program: activeProgram, selectedDay,
   });
   setHTML(el, briefingCardHTML(briefing));
+}
+
+// ==========================================
+// OVERTRAINING ESCALATION (R10) — a stronger, acknowledge-required warning
+// when several fatigue signals stack up. Persists until the exact condition
+// (signature) is acknowledged; a new/worse condition resurfaces it. Returns
+// true while it's on screen so the advisory deload card stays out of its way.
+// ==========================================
+function renderOvertrainingCard(appState, model) {
+  const card = document.getElementById('homeOvertrainingCard');
+  if (!card) return false;
+
+  let assessment;
+  try { assessment = assessOvertrainingRisk(model, appState, DEFAULT_DAYS); }
+  catch (e) { card.style.display = 'none'; return false; }
+
+  const sig = riskSignature(assessment);
+  const ack = appState.overtrainingAck;
+  const acknowledged = assessment.level === 'high' && ack && ack.sig === sig;
+
+  if (assessment.level !== 'high' || acknowledged) {
+    card.style.display = 'none';
+    return false;
+  }
+
+  const titleEl  = document.getElementById('homeOvertrainingTitle');
+  const descEl   = document.getElementById('homeOvertrainingDesc');
+  const sigEl    = document.getElementById('homeOvertrainingSignals');
+  const deloadBtn = document.getElementById('homeOvertrainingDeload');
+  if (titleEl) titleEl.textContent = assessment.headline;
+  if (descEl)  descEl.textContent  = assessment.advice;
+  if (sigEl) {
+    sigEl.innerHTML = assessment.signals
+      .map(s => `<span class="ot-signal${s.severity === 'watch' ? ' ot-signal--watch' : ''}">${s.label}</span>`)
+      .join('');
+  }
+  // If they've already deloaded this week, the one-tap deload is redundant.
+  if (deloadBtn) deloadBtn.style.display = assessment.deloadPlanned ? 'none' : '';
+
+  // Store the signature so the acknowledge handler dismisses THIS condition.
+  card.dataset.sig = sig;
+  card.style.display = 'block';
+
+  // Fire a single warning push per day when the condition is high (best-effort).
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    if (appState._overtrainingPushedDate !== today) {
+      const pushed = pushOvertrainingWarning(assessment);
+      if (pushed) { appState._overtrainingPushedDate = today; saveStateToLocalStorage(true); }
+    }
+  } catch (_) { /* push is best-effort */ }
+
+  return true;
 }
 
 // ==========================================
@@ -365,12 +420,17 @@ export function renderHome() {
     compareCard.style.display = 'none';
   }
 
+  // Overtraining escalation (R10) takes priority over the advisory deload card.
+  const overtrainingShowing = renderOvertrainingCard(appState, model);
+
   const deloadCard = document.getElementById('homeDeloadSuggestionCard');
   const deloadReason = document.getElementById('homeDeloadReason');
   if (deloadCard) {
     const alreadyDismissed = appState._deloadDismissedWeek === appState.currentWeek;
     const alreadyApplied   = appState.deloadApplied === appState.currentWeek;
-    if (!alreadyDismissed && !alreadyApplied) {
+    if (overtrainingShowing) {
+      deloadCard.style.display = 'none';
+    } else if (!alreadyDismissed && !alreadyApplied) {
       try {
         const deloadSignal = shouldSuggestDeload();
         if (deloadSignal.suggest) {
@@ -407,5 +467,14 @@ document.addEventListener('click', (e) => {
     closeTileCustomiser(apply);
   } else if (action === 'reset-tile-customiser') {
     resetTileCustomiser();
+  } else if (action === 'ack-overtraining') {
+    // Acknowledge THIS exact risk condition (by signature); a new/worse
+    // signal set will resurface the warning.
+    const appState = _getState();
+    const card = document.getElementById('homeOvertrainingCard');
+    appState.overtrainingAck = { sig: card?.dataset.sig || '', date: new Date().toISOString().slice(0, 10) };
+    saveStateToLocalStorage(true);
+    if (card) card.style.display = 'none';
+    renderHome();
   }
 });
