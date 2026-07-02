@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/programs.css">
   <link rel="stylesheet" href="./css/analytics.css">
+  <link rel="stylesheet" href="./css/hybrid-score.css">
   
   <style>
     .hidden-input { display: none; }
@@ -426,6 +427,9 @@
         </div>
       </div>
 
+      <!-- HYBRID SCORE — the signature surface; first thing the athlete sees -->
+      <div id="hybridScoreHome"></div>
+
       <!-- Primary CTA — one tap from Home into today's logging -->
       <button class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
 
@@ -773,6 +777,7 @@
 
         <h3 class="section-header">Overview</h3>
         <div class="hub-group">
+          <button class="hub-link" data-action="open-analytics" data-context="hybrid-score"><span class="hub-link__icon">◇</span><span class="hub-link__label"><span class="hub-link__title">Hybrid Score</span><span class="hub-link__desc">Your daily hybrid-athlete score & breakdown</span></span><span class="hub-link__arrow">→</span></button>
           <button class="hub-link" data-action="open-analytics" data-context="weekly-summary"><span class="hub-link__icon">🗓️</span><span class="hub-link__label"><span class="hub-link__title">Weekly Summary</span><span class="hub-link__desc">This week's volume, distance & workload</span></span><span class="hub-link__arrow">→</span></button>
           <button class="hub-link" data-action="open-analytics" data-context="progress"><span class="hub-link__icon">📈</span><span class="hub-link__label"><span class="hub-link__title">Consistency & Progress</span><span class="hub-link__desc">Adherence, goals & streaks</span></span><span class="hub-link__arrow">→</span></button>
           <button class="hub-link" data-action="open-analytics" data-context="streak"><span class="hub-link__icon">🔥</span><span class="hub-link__label"><span class="hub-link__title">Training Streak</span><span class="hub-link__desc">Current & longest streaks</span></span><span class="hub-link__arrow">→</span></button>
@@ -813,6 +818,12 @@
           <button class="hub-link" data-action="open-analytics" data-context="bodyweight"><span class="hub-link__icon">🧍</span><span class="hub-link__label"><span class="hub-link__title">Body Weight</span><span class="hub-link__desc">Weight trend & log</span></span><span class="hub-link__arrow">→</span></button>
           <button class="hub-link" data-action="open-analytics" data-context="fasting"><span class="hub-link__icon">🍽️</span><span class="hub-link__label"><span class="hub-link__title">Fasting</span><span class="hub-link__desc">Fasts, streaks & metabolic insights</span></span><span class="hub-link__arrow">→</span></button>
         </div>
+      </div>
+
+      <!-- ── Hybrid Score (flagship detail) ─────────────────────── -->
+      <div id="analytics-hybrid-score" class="analytics-section">
+        <h2 class="section-header">Hybrid Score</h2>
+        <div id="hybridScoreDetail"></div>
       </div>
 
       <!-- ── Weekly Summary (default view) ──────────────────────── -->

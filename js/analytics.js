@@ -25,6 +25,9 @@ import { renderActivityCalendar } from './home.js';
 import { initWeekNav, updateWeekNavDisplay, getSelectedWeek, resetWeekNav } from './analytics/week-nav.js';
 import { renderWeeklySummaryAnalytics } from './analytics/views/view-weekly-summary.js';
 import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
 
 let _getState;
 let _getDays;
@@ -280,7 +283,7 @@ export function renderAnalytics() {
   // and send "back" to the dashboard. Every leaf section instead routes "back" to
   // the hub, so you can browse multiple sections without bouncing home each time.
   const weekNav = document.getElementById('analyticsWeekNav');
-  if (weekNav) weekNav.style.display = context === 'hub' ? 'none' : '';
+  if (weekNav) weekNav.style.display = (context === 'hub' || context === 'hybrid-score') ? 'none' : '';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
     if (context === 'hub') {
@@ -299,6 +302,16 @@ export function renderAnalytics() {
     case 'hub':
       document.getElementById('analytics-hub').classList.add('active');
       break;
+    case 'hybrid-score': {
+      document.getElementById('analytics-hybrid-score').classList.add('active');
+      const st = _getState();
+      const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+      const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
+      const result = computeHybridScore(model, st, _getDays());
+      const el = document.getElementById('hybridScoreDetail');
+      if (el) el.innerHTML = hybridScoreDetailHTML(result, st);
+      break;
+    }
     case 'weekly-summary': {
       document.getElementById('analytics-weekly-summary').classList.add('active');
       const selectedWk = getSelectedWeek(_getState().currentWeek);

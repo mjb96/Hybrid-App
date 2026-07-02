@@ -2,7 +2,10 @@
 // HOME DASHBOARD — coordinator. UI sub-modules live in ./home/
 // ==========================================
 import { WEEK_PHASE_NAMES } from './constants.js';
-import { getProgramById } from './state.js';
+import { getProgramById, saveStateToLocalStorage } from './state.js';
+import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { heroHTML } from './brain/hybrid-score/ui.js';
+import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
@@ -74,6 +77,24 @@ function renderCoachingCard(state, days, activeProgram, selectedDay) {
 }
 
 export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
+
+// ==========================================
+// HYBRID SCORE HERO — the signature surface at the top of Home.
+// Computed from the same shared dashboard model (no extra pass) and recorded
+// once per day so tomorrow's delta/trend/XP is available.
+// ==========================================
+function renderHybridScoreHome(appState, model) {
+  const el = document.getElementById('hybridScoreHome');
+  if (!el) return;
+  const result = computeHybridScore(model, appState, _getDays());
+  setHTML(el, heroHTML(result));
+  try {
+    const { changed } = recordDailyScore(appState, result, model);
+    if (changed) saveStateToLocalStorage(true);
+  } catch (e) {
+    console.warn('Hybrid Score record failed (non-fatal):', e);
+  }
+}
 
 // ==========================================
 // GLANCE GRID RENDERER
@@ -348,6 +369,7 @@ export function renderHome() {
     refreshWeeklyFitnessGraph('runBarChart');
   }
 
+  renderHybridScoreHome(appState, model);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
   renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
