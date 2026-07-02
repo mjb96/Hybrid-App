@@ -6,8 +6,8 @@
 
 **Definition of Done**
 - [x] No user can read another user's data (RLS enforced + **proven** via adversarial check, 2026-07-02)
-- [ ] Multi-device use cannot silently destroy history
-- [ ] Crashes are visible to the owner (reporting live)
+- [x] Multi-device use cannot silently destroy history (server `updated_at` migration applied + divergence detection + warn-and-choose UI + local pre-pull backup)
+- [x] Crashes are visible to the owner (reporting live — Sentry DSN configured 2026-07-02)
 - [ ] Store + legal (health/location) requirements met
 - [ ] App live in Play beta with real testers
 
@@ -24,14 +24,14 @@
 
 ## Phase 1 — Security + Data Safety  ·  branch: `phase1-security`
 - [x] `[CC]` Draft Supabase RLS SQL for `user_data` (own-row read/write only) → `supabase/rls_user_data.sql`
-- [~] `[You]` Apply both SQL files in Supabase dashboard — `rls_user_data.sql` **applied** (2026-07-01); `migration_user_data_updated_at.sql` still to apply
+- [x] `[You]` Apply both SQL files in Supabase dashboard — `rls_user_data.sql` + `migration_user_data_updated_at.sql` **both applied** (2026-07-02)
 - [x] `[CC]` Adversarial test: prove user A cannot read user B's data — **PASSED** on live DB (2026-07-02, `scripts/rls-adversarial-check.mjs`). RLS isolation proven.
 - [x] `[CC]` Secret sweep: no service_role key / private secret in repo or bundle — **clean** (only public anon key; see `supabase/README.md`)
 - [x] `[CC]` Fix last-write-wins sync (state.js): server `updated_at`/version + divergence detection → warn-and-choose conflict UI. Needs `migration_user_data_updated_at.sql` applied by `[You]`
 - [x] `[CC]` Local safety net: snapshot/backup before every cloud pull (`snapshotLocalBeforeCloudPull` in state.js, tested)
 - [x] `[CC]` Integrate Sentry web SDK — DSN-gated (off until configured), PII-scrubbed for health/location data. `js/monitoring/`
-- [ ] `[You]` Paste Sentry DSN into `js/monitoring/sentry-config.js` to turn crash reporting on
-- **Phase 1 done when:** RLS proven, no stale-device clobber possible, backups in place, crashes reported.
+- [x] `[You]` Paste Sentry DSN into `js/monitoring/sentry-config.js` to turn crash reporting on — **done** (2026-07-02)
+- **Phase 1 done when:** RLS proven, no stale-device clobber possible, backups in place, crashes reported. → ✅ **ALL MET (2026-07-02)**
 
 ## Phase 2 — Android Hardening  ·  branch: `phase2-android`
 - [x] `[CC]` GPS reliability → **native location foreground service** (decided with `[You]` 2026-07-01). `GpsTrackingService` + `GpsBridge` (Kotlin) buffer fixes by seq; JS drains on wake (`js/gps/native-bridge.js`), recovers a live run after activity death; web watchPosition kept as browser/PWA fallback. **CI-compiled green** (build #109/#110). Then `[You]` device test.
