@@ -37,6 +37,7 @@ import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
+import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
@@ -772,6 +773,7 @@ document.addEventListener('click', (e) => {
 
   // GPS Tracker
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
+  else if (action === 'close-session-recap') { closeSessionRecap(); }
   else if (action === 'gps-start')  { startTracking(); }
   else if (action === 'gps-pause')  { pauseTracking(); }
   else if (action === 'gps-resume') { resumeTracking(); }
@@ -1273,6 +1275,9 @@ function _submitProgramRating() {
 // ==========================================
 if (typeof window !== 'undefined') {
   window.__onAndroidBack = function () {
+    // 0) Full-screen session recap sits above everything — close it first.
+    if (isSessionRecapOpen()) { closeSessionRecap(); return 'handled'; }
+
     // 1) Generic modals using the .active convention (today-summary, rating,
     //    pr-goal, create-program, week-advance, deload, etc.)
     const activeModal = document.querySelector('.modal.active, [data-modal].active');
@@ -1309,6 +1314,10 @@ async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     initSyncConflictUI();
+    initSessionRecap(() => appState);
+    // Recap entry points: after finishing a session, and tapping a logged day.
+    document.addEventListener('session:finished', (e) => openSessionRecap(e.detail?.week, e.detail?.day));
+    document.addEventListener('app:open-recap',   (e) => openSessionRecap(e.detail?.week, e.detail?.day));
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();

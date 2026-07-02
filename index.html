@@ -1794,6 +1794,14 @@
     </div>
   </div>
 
+  <!-- Session Recap — full-screen review of one day's session (from Finish + calendar tap) -->
+  <section id="sessionRecapScreen" style="display:none;" aria-label="Session Recap">
+    <div class="recap-topbar">
+      <button class="subview-back-btn" data-action="close-session-recap">← Done</button>
+    </div>
+    <div id="sessionRecapContent"></div>
+  </section>
+
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
     <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" aria-hidden="true">🏋️</span><span>Workout</span></button>

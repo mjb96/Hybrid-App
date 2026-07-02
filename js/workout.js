@@ -1341,6 +1341,12 @@ export function closeFinishSessionModal() {
   } catch(e) { console.warn(e); }
   
   if (_switchTab) _switchTab('home');
+
+  // Surface the session recap over Home. Decoupled via an event so workout.js
+  // doesn't depend on the recap module.
+  try {
+    document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay } }));
+  } catch (_) {}
 }
 
 // ==========================================

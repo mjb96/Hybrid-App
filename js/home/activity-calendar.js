@@ -23,7 +23,7 @@ function _buildActivityMap(appState) {
     for (const day of allDays) {
       const ds = dates[day];
       if (!ds) continue;
-      if (!map[ds]) map[ds] = { gym: false, run: false, gymDetail: null, runDetail: null };
+      if (!map[ds]) map[ds] = { gym: false, run: false, gymDetail: null, runDetail: null, week: wk, day };
 
       // Gym — count completed sets and collect exercise names
       const dayLifts = lifts[day] || {};
@@ -214,6 +214,11 @@ export function renderActivityCalendar(appState, containerId = 'homeCalendarCont
   container.onclick = e => {
     const cell = e.target.closest('[data-cal-date]');
     if (!cell) return;
-    _openCalModal(cell.getAttribute('data-cal-date'), map);
+    const ds    = cell.getAttribute('data-cal-date');
+    const entry = map[ds];
+    // Logged day → open the full session recap; empty day → nothing.
+    if (entry && entry.day) {
+      document.dispatchEvent(new CustomEvent('app:open-recap', { detail: { week: entry.week, day: entry.day } }));
+    }
   };
 }

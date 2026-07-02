@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v80';
+const CACHE_NAME = 'helyx-v81';
 
 const LOCAL_ASSETS = [
   './',
@@ -41,6 +41,7 @@ const LOCAL_ASSETS = [
   './js/profile-stats.js',
   './js/gps-tracker.js',
   './js/gps/native-bridge.js',
+  './js/session-recap.js',
   './js/fasting.js',
   './js/notifications.js',
   // Health (native bridge)
