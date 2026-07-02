@@ -1,4 +1,4 @@
-name: Release AAB
+name: Release (AAB + APK)
 
 # Builds a SIGNED Android App Bundle (.aab) for Play upload.
 #
@@ -65,7 +65,7 @@ jobs:
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/helyx-release.keystore"
 
-      - name: Build signed release bundle
+      - name: Build signed release bundle + APK
         working-directory: android
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
@@ -78,11 +78,19 @@ jobs:
         run: |
           export VERSION_CODE=$(git rev-list --count HEAD)
           echo "Building versionName=$VERSION_NAME versionCode=$VERSION_CODE"
-          gradle bundleRelease --no-daemon
+          # bundleRelease → .aab for Play; assembleRelease → signed .apk for sideload testing.
+          gradle assembleRelease bundleRelease --no-daemon
 
-      - name: Upload AAB artifact
+      - name: Upload AAB artifact (Play upload)
         uses: actions/upload-artifact@v4
         with:
           name: helyx-release-aab
           path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload APK artifact (sideload / device test)
+        uses: actions/upload-artifact@v4
+        with:
+          name: helyx-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
