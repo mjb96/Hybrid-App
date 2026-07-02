@@ -10,6 +10,7 @@
 //
 // Tones map to the app's severity colours: positive · neutral · caution · warning.
 // =============================================================================
+import { streakRiskLine } from '../brain/streak.js';
 
 const pct = (delta) => (delta && delta.pctLabel) ? delta.pctLabel : null;
 
@@ -129,6 +130,9 @@ export function buildSoWhat(context, model, state) {
 
     case 'streak': {
       const s = model.streak || {};
+      // Loss-aversion first: if a meaningful streak is unprotected today, say so.
+      const risk = streakRiskLine(state, model);
+      if (risk) return risk;
       if ((s.current || 0) <= 0) return { text: 'Start a streak today — even 20 minutes counts as a day.', tone: 'neutral' };
       if (s.longest > s.current) return { text: `${s.current} days — ${s.longest - s.current} more to beat your record of ${s.longest}.`, tone: 'positive' };
       return { text: `${s.current} days — this IS your record. Every day extends it.`, tone: 'positive' };

@@ -75,9 +75,15 @@ test('bodyweight: goal-aware coaching', () => {
   assert.match(noData.text, /Log a weight/);
 });
 
-test('streak: record framing', () => {
-  assert.match(buildSoWhat('streak', base(), {}).text, /5 more to beat your record of 9/);
-  assert.match(buildSoWhat('streak', base({ streak: { current: 12, longest: 12 } }), {}).text, /this IS your record/);
+test('streak: loss-aversion when unprotected, else record framing', () => {
+  // Nothing logged today → loss-aversion line takes priority (R7).
+  assert.match(buildSoWhat('streak', base(), {}).text, /unprotected today/);
+
+  // Today logged → safe → record framing shows.
+  const today = new Date().toISOString().slice(0, 10);
+  const safe = { currentWeek: '1', weekStartedAt: today, weeks: { '1': { lifts: { mon: { A: [{ w: 100, r: 5, c: true }] } }, dates: { mon: today } } } };
+  assert.match(buildSoWhat('streak', base(), safe).text, /5 more to beat your record of 9/);
+  assert.match(buildSoWhat('streak', base({ streak: { current: 12, longest: 12 } }), safe).text, /this IS your record/);
 });
 
 test('fasting: active fast counts down; goal reached advises the break', () => {

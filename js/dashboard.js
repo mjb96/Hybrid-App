@@ -362,11 +362,13 @@ export const TILE_REGISTRY = [
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
         const s = model.streak;
+        const freezes = appState.streakFreezes?.available ?? 0;
+        const freezeNote = freezes > 0 ? `🧊 ${freezes} freeze${freezes > 1 ? 's' : ''} banked` : '';
         return {
           hero: `${s.current}d`, sub: `Longest: ${s.longest} days`,
           tag: s.current > 0 ? `🔥 ${s.current}` : 'Start today',
           tagColor: s.current >= 7 ? 'var(--color-amber)' : 'var(--color-blue)',
-          insight: s.current >= 3 ? 'Consistency compounds — keep the streak alive.' : '',
+          insight: s.current >= 3 ? (freezeNote || 'Consistency compounds — keep the streak alive.') : freezeNote,
           state: s.total > 0 ? 'loaded' : 'empty',
         };
       } catch { return { hero: '0d', sub: 'Longest: 0 days', state: 'error' }; }

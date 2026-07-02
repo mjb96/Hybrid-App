@@ -601,6 +601,7 @@ export async function pullEngineDataFromStorage() {
     hybridScore: { history: [], xp: 0, lastRecordedDate: null },
     overtrainingAck: null,        // { sig, date } — acknowledged risk condition (R10)
     _overtrainingPushedDate: null,
+    streakFreezes: { available: 1, used: [], earnedTier: 0 },   // R7 streak protection
   };
 
   // Always seed defaults so a brand-new install (no localData, no cloud) still

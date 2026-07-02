@@ -334,7 +334,10 @@ function computePace(weeks, days, distUnit) {
   return { hasData: true, label: `${pm}:${ps}`, unit: distUnit, spark: spark.reverse() };
 }
 
-export function computeStreak(weeks, days, state) {
+// The set of ISO dates on which real training was logged (gym or run). Shared
+// by the streak view, the Hybrid Score history and the streak-freeze module so
+// "what counts as a training day" has one definition.
+export function activeTrainingDates(weeks, days, state) {
   const active = new Set();
   const base = state?.weekStartedAt ? new Date(state.weekStartedAt) : new Date();
   const curWk = parseInt(state?.currentWeek, 10) || 1;
@@ -360,6 +363,14 @@ export function computeStreak(weeks, days, state) {
       }
     });
   }
+  return active;
+}
+
+export function computeStreak(weeks, days, state) {
+  const active = activeTrainingDates(weeks, days, state);
+  // Streak freezes (R7): a frozen day counts for streak continuity, so an
+  // occasional missed day doesn't wipe a long streak.
+  (state?.streakFreezes?.used || []).forEach(ds => active.add(ds));
   const todayD = new Date();
   let current = 0;
   for (let i = 0; i <= 120; i++) {

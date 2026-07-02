@@ -11,6 +11,7 @@ import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
 import { pushOvertrainingWarning } from './notifications.js';
+import { reconcileStreakFreezes } from './brain/streak.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
@@ -333,6 +334,13 @@ export function renderHome() {
   if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
 
   const activeProgram = getProgramById(appState.activeProgramId);
+
+  // Streak freezes (R7): auto-cover an occasional missed day and top up the
+  // bank on 7-day tiers — before the model computes the streak below.
+  try {
+    const { changed } = reconcileStreakFreezes(appState, DEFAULT_DAYS);
+    if (changed) saveStateToLocalStorage(true);
+  } catch (e) { console.warn('Streak freeze reconcile failed (non-fatal):', e); }
 
   // One shared brain pass — the header progress, week-compare card and every
   // tile all read from this single model so their numbers never diverge.
