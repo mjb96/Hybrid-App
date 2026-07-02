@@ -156,3 +156,15 @@ test('weeklyTrainingEffectSeries returns 0 for weeks with no TE data', () => {
   const result = weeklyTrainingEffectSeries({ weeks: {} }, DAYS, 2);
   assert.deepEqual(result, [0, 0]);
 });
+
+// ── Walks excluded from pace, kept in distance (added with the walk feature) ──
+test('weeklyPaceSeries excludes walks; weeklyDistanceSeries keeps them', () => {
+  const state = { weeks: { '1': { runs: {
+    mon: { dist: 10, time: '50:00', type: 'run' },   // 5:00/km run
+    tue: { dist: 2,  time: '40:00', type: 'walk' },  // 20:00/km walk — must NOT skew pace
+  } } } };
+  const pace = weeklyPaceSeries(state, DAYS, 1);
+  const dist = weeklyDistanceSeries(state, DAYS, 1);
+  assert.equal(pace[0], 300);   // pure run pace 5:00/km = 300s, walk ignored
+  assert.equal(dist[0], 12);    // walk distance still counted toward volume
+});
