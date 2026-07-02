@@ -88,6 +88,8 @@ export interface AppState {
   hybridScore?: { history: { date: string; score: number; level: number }[]; xp: number; lastRecordedDate: string | null };
   overtrainingAck?: { sig: string; date: string } | null;
   _overtrainingPushedDate?: string | null;
+  _justOnboarded?: boolean;
+  streakFreezes?: { available: number; used: string[]; earnedTier: number };
   settings?: AppSettings;
 }
 

@@ -77,6 +77,17 @@ test('briefingToText: notification-ready paragraph', () => {
   assert.doesNotMatch(briefingToText(rest), /Today:/);
 });
 
+test('firstSession (R14): mission points at the very first action', () => {
+  const train = buildMorningBriefing({ state: STATE, model: baseModel(), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7), firstSession: true });
+  assert.match(train.mission.text, /Log your first session/);
+  assert.equal(train.mission.done, false);
+  const rest = buildMorningBriefing({ state: STATE, model: baseModel({ rec: { sessionLabel: 'Rest Day', badge: '' } }), score: null, program: PROGRAM, selectedDay: 'sun', now: at(7), firstSession: true });
+  assert.match(rest.mission.text, /Welcome!/);
+  // Once the session is already done, we don't override with the first-run copy.
+  const done = buildMorningBriefing({ state: STATE, model: baseModel({ rec: { sessionLabel: 'Run Day', badge: 'Session Done' } }), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7), firstSession: true });
+  assert.equal(done.mission.done, true);
+});
+
 test('degrades gracefully with an empty model/state', () => {
   const b = buildMorningBriefing({ state: {}, model: {}, score: null, program: null, selectedDay: 'mon', now: at(7) });
   assert.equal(b.session.label, 'Rest Day');

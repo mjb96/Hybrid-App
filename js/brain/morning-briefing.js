@@ -51,9 +51,16 @@ function scoreLineFor(score) {
 // The single mission for the day. Priority:
 //   training day → complete the planned session (readiness-aware framing);
 //   rest day     → wellness check-in, then pure recovery framing.
-function missionFor(model, session) {
+function missionFor(model, session, firstSession = false) {
   const readyScore = model?.ready?.hasData ? model.ready.score : null;
   const checkedIn = (model?.ready?.available || []).includes('wellness');
+
+  // First run after onboarding: point squarely at the very first action.
+  if (firstSession && !session.done) {
+    return session.isRest
+      ? { icon: '🚶', text: 'Welcome! Start with an easy walk or run to break the ice', done: false }
+      : { icon: '🎯', text: `Log your first session — tap to open today's ${session.label.toLowerCase()}`, done: false };
+  }
 
   if (!session.isRest) {
     if (session.done) {
@@ -76,9 +83,9 @@ function missionFor(model, session) {
 
 // Main export — compose the whole briefing from already-computed inputs.
 // `model` is the shared dashboard model; `score` is computeHybridScore output.
-/** @param {{state?:any, model?:any, score?:any, program?:any, selectedDay?:string, now?:Date}} [opts] */
+/** @param {{state?:any, model?:any, score?:any, program?:any, selectedDay?:string, now?:Date, firstSession?:boolean}} [opts] */
 export function buildMorningBriefing(opts = {}) {
-  const { state, model, score, program, selectedDay, now = new Date() } = opts;
+  const { state, model, score, program, selectedDay, now = new Date(), firstSession = false } = opts;
   const rec = model?.rec || {};
   const wk = String(state?.currentWeek || '1');
   const phase = WEEK_PHASE_NAMES[wk] || '';
@@ -106,7 +113,7 @@ export function buildMorningBriefing(opts = {}) {
     scoreLine: scoreLineFor(score),
     readinessLine,
     session,
-    mission: missionFor(model, session),
+    mission: missionFor(model, session, firstSession),
     coach: {
       headline: rec.headline || '',
       advice: rec.advice || '',

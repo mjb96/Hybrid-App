@@ -171,4 +171,9 @@ function _finish() {
 
   document.getElementById('onboardingOverlay')?.classList.remove('active');
   document.dispatchEvent(new Event('app:storage-loaded'));
+
+  // R14 — hand off to the first session: land on Home (where the Morning
+  // Briefing's mission is the clear next action) and mark a guided-CTA on it.
+  appState._justOnboarded = true;
+  document.dispatchEvent(new CustomEvent('onboarding:finished', { detail: { name: name || '' } }));
 }

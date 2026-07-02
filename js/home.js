@@ -8,7 +8,7 @@ import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
-import { celebrateMilestone } from './ui/celebration.js';
+import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
 import { pushOvertrainingWarning } from './notifications.js';
 import { reconcileStreakFreezes } from './brain/streak.js';
@@ -75,11 +75,26 @@ function renderHybridScoreHome(appState, model) {
 function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay) {
   const el = document.getElementById('morningBriefing');
   if (!el) return;
+  const firstSession = !!appState._justOnboarded;
   const briefing = buildMorningBriefing({
     state: appState, model, score: scoreResult,
-    program: activeProgram, selectedDay,
+    program: activeProgram, selectedDay, firstSession,
   });
   setHTML(el, briefingCardHTML(briefing));
+
+  // R14 — the guided first session: once, right after onboarding, welcome the
+  // athlete and draw the eye to their first mission.
+  if (firstSession) {
+    appState._justOnboarded = false;
+    saveStateToLocalStorage(true);
+    const name = (appState.settings?.name || '').trim().split(/\s+/)[0];
+    celebrate({
+      icon: '🎉',
+      title: name ? `Welcome, ${name}!` : "You're all set!",
+      subtitle: 'Your daily coach is ready. Your first mission is waiting below — tap it to begin.',
+    });
+    setTimeout(() => { try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 900);
+  }
 }
 
 // ==========================================
