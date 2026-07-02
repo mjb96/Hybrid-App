@@ -6,10 +6,11 @@ import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
+import { buildMorningBriefing } from './brain/morning-briefing.js';
+import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
-import { generateRecommendation } from './brain/recommendations.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
@@ -36,64 +37,42 @@ export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _runGraph      = initWeeklyFitnessGraph('runBarChart',      'running',  getStateFn);
 }
 
-// ==========================================
-// COACHING CARD RENDERER
-// ==========================================
-function renderCoachingCard(state, days, activeProgram, selectedDay) {
-  const card = document.getElementById('brainCoachCard');
-  if (!card) return;
-
-  const rec = generateRecommendation(state, days, activeProgram, selectedDay);
-
-  // Same-day dismissal, keyed by the recommendation's content so a materially
-  // different (or escalated) message re-appears while the same one stays hidden.
-  const sig = `${rec.severity}:${rec.headline}`;
-  const today = new Date().toISOString().slice(0, 10);
-  const dismissed = state?.coachingDismissed;
-  if (dismissed && dismissed.date === today && dismissed.sig === sig) {
-    card.style.display = 'none';
-    return;
-  }
-  card.dataset.sig = sig;
-
-  const badge    = document.getElementById('brainCoachBadge');
-  const headline = document.getElementById('brainCoachHeadline');
-  const meta     = document.getElementById('brainCoachMeta');
-  const advice   = document.getElementById('brainCoachAdvice');
-
-  if (badge)    badge.textContent    = rec.badge;
-  if (headline) headline.textContent = rec.headline;
-  if (advice)   advice.textContent   = rec.advice;
-
-  if (meta) {
-    const parts = [];
-    if (rec.sessionLabel) parts.push(rec.sessionLabel);
-    if (rec.acwr > 0)     parts.push(`ACWR ${rec.acwr.toFixed(2)}`);
-    meta.textContent = parts.join(' · ');
-  }
-
-  card.className     = `brain-coach-card brain-coach--${rec.severity} mb-4`;
-  card.style.display = 'block';
-}
-
 export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
 
 // ==========================================
 // HYBRID SCORE HERO — the signature surface at the top of Home.
 // Computed from the same shared dashboard model (no extra pass) and recorded
-// once per day so tomorrow's delta/trend/XP is available.
+// once per day so tomorrow's delta/trend/XP is available. Returns the score
+// result so the Morning Briefing below reuses it without recomputing.
 // ==========================================
 function renderHybridScoreHome(appState, model) {
   const el = document.getElementById('hybridScoreHome');
-  if (!el) return;
+  if (!el) return null;
   const result = computeHybridScore(model, appState, _getDays());
-  setHTML(el, heroHTML(result));
+  // The Morning Briefing directly below owns the day's action — one voice.
+  setHTML(el, heroHTML(result, { showAction: false }));
   try {
     const { changed } = recordDailyScore(appState, result, model);
     if (changed) saveStateToLocalStorage(true);
   } catch (e) {
     console.warn('Hybrid Score record failed (non-fatal):', e);
   }
+  return result;
+}
+
+// ==========================================
+// MORNING BRIEFING — the one coaching surface (replaces the old coaching card
+// + insight banner pair). Narrative for the day: greeting, session, mission,
+// coach line. Anchored by (and rendered directly under) the Hybrid Score hero.
+// ==========================================
+function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay) {
+  const el = document.getElementById('morningBriefing');
+  if (!el) return;
+  const briefing = buildMorningBriefing({
+    state: appState, model, score: scoreResult,
+    program: activeProgram, selectedDay,
+  });
+  setHTML(el, briefingCardHTML(briefing));
 }
 
 // ==========================================
@@ -118,7 +97,6 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   // model. renderHome computes it once and passes it in; the tile customiser
   // re-renders the grid on its own and lets us compute a fresh one here.
   const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
-  renderDashboardInsight(model);
   updateQuickActions(model);
 
   const savedOrder  = loadTileOrder();
@@ -178,40 +156,6 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   });
 
   mountTileDragAndDrop();
-}
-
-// ==========================================
-// TOP-INSIGHT BANNER — the single most important thing right now.
-// ==========================================
-function renderDashboardInsight(model) {
-  const wrap = document.getElementById('dashboardInsightWrap');
-  const el   = document.getElementById('dashboardInsight');
-  if (!wrap || !el) return;
-  const insight = model.topInsight;
-
-  // Honour a same-day dismissal of this exact insight. A different insight (new
-  // nav) or a new day brings the banner back.
-  const today = new Date().toISOString().slice(0, 10);
-  const dismissed = _getState()?.dashboardInsightDismissed;
-  const isDismissed = !!insight && !!dismissed && dismissed.date === today
-    && (dismissed.nav || '') === (insight.nav || '');
-
-  if (!insight || !insight.text || isDismissed) { wrap.style.display = 'none'; return; }
-  wrap.style.display = '';
-  const toneClass = `dash-insight--${insight.tone || 'neutral'}`;
-  el.className = `dash-insight ${toneClass}`;
-  el.setAttribute('data-action', 'open-analytics');
-  el.setAttribute('data-context', insight.nav && !insight.nav.startsWith('custom:') ? insight.nav : 'recovery-score');
-  if (insight.nav && insight.nav.startsWith('custom:')) {
-    // custom targets (e.g. fasting) route through app:navigate instead
-    el.setAttribute('data-action', 'tile-nav');
-    el.setAttribute('data-nav', insight.nav);
-  } else {
-    el.removeAttribute('data-nav');
-  }
-  el.innerHTML = `<span class="dash-insight__icon">💡</span><span class="dash-insight__text">${insight.text}</span>`;
-  const dismissBtn = wrap.querySelector('.dash-insight__dismiss');
-  if (dismissBtn) dismissBtn.setAttribute('data-nav', insight.nav || '');
 }
 
 // ==========================================
@@ -369,9 +313,9 @@ export function renderHome() {
     refreshWeeklyFitnessGraph('runBarChart');
   }
 
-  renderHybridScoreHome(appState, model);
+  const scoreResult = renderHybridScoreHome(appState, model);
+  renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
-  renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
   // Weekly completion header — same numbers as the Consistency tile (model.week).
   const w = model.week;

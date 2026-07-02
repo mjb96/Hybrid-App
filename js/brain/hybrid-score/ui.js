@@ -41,7 +41,12 @@ function momentumChip(m) {
 }
 
 // ---- HOME HERO -------------------------------------------------------------
-export function heroHTML(r) {
+// `showAction:false` suppresses the bottom action row — used on Home, where the
+// Morning Briefing directly below owns the day's single action (one voice).
+// The Insights detail keeps its own "Do this next" row.
+/** @param {{showAction?:boolean}} [opts] */
+export function heroHTML(r, opts = {}) {
+  const showAction = opts.showAction !== false;
   const color = r.band.color;
   const gauge = gaugeSVG(r.score, color);
   const levelStr = r.level ? `${r.level.icon} ${esc(r.level.name)}` : '';
@@ -66,8 +71,16 @@ export function heroHTML(r) {
     ? `<div class="hs-contrib"><span class="hs-contrib__k">Biggest lift</span><span class="hs-contrib__v">${esc(r.topContributor.label)} <b style="color:var(--color-green)">+${r.topContributor.points}</b></span></div>`
     : '';
 
+  const actionRow = showAction
+    ? `<div class="hs-action">
+      <span class="hs-action__k">Today</span>
+      <span class="hs-action__v">${esc(r.recommendation)}</span>
+      <span class="hs-action__chev">›</span>
+    </div>`
+    : '';
+
   return `
-  <article class="hs-hero" role="button" tabindex="0" style="--hs-accent:${color}"
+  <article class="hs-hero${showAction ? '' : ' hs-hero--noaction'}" role="button" tabindex="0" style="--hs-accent:${color}"
            data-action="open-analytics" data-context="hybrid-score"
            aria-label="Hybrid Score ${r.score}, ${esc(r.band.status)} — tap for the full breakdown">
     <div class="hs-hero__head">
@@ -85,11 +98,7 @@ export function heroHTML(r) {
         ${contributor}
       </div>
     </div>
-    <div class="hs-action">
-      <span class="hs-action__k">Today</span>
-      <span class="hs-action__v">${esc(r.recommendation)}</span>
-      <span class="hs-action__chev">›</span>
-    </div>
+    ${actionRow}
   </article>`;
 }
 

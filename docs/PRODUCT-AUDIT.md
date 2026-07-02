@@ -287,8 +287,8 @@ Scoring: **Impact** (user value), **Effort** (dev), **Retention**, **Business**.
 
 | # | Recommendation | Impact | Effort | Retention | Business | Priority |
 |---|---|---|---|---|---|---|
-| R1 | **Morning Briefing** card (merge the 2 hero surfaces) §5.1, F-R1 | H | M | **H** | H | **P0** |
-| R2 | **Daily Mission** (one tickable action) §5.2 | H | M | **H** | H | **P0** |
+| R1 | **Morning Briefing** card (merge the 2 hero surfaces) §5.1, F-R1 — ✅ **SHIPPED 2026-07-02** (`js/brain/morning-briefing.js`), anchored by Hybrid Score | H | M | **H** | H | **P0** |
+| R2 | **Daily Mission** (one action, derived from logged data) §5.2 — ✅ **SHIPPED 2026-07-02** inside the briefing (ungameable: completes by doing) | H | M | **H** | H | **P0** |
 | R3 | Request **notification permission in onboarding** + daily loop §3.1 U1, F-M6 | M | **L** | **H** | M | **P0** |
 | R4 | **Trim Home tiles** to ~6; Insights stays the encyclopedia §2.2 F-R2 | M | L | M | M | **P0** |
 | R5 | **PR / streak celebration moment** (haptics + confetti) §4, UI6 | M | L | H | M | **P1** |
