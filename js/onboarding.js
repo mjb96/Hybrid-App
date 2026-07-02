@@ -2,6 +2,7 @@
 // ONBOARDING FLOW
 // ==========================================
 import { saveStateToLocalStorage } from './state.js';
+import { requestNotificationPermission } from './notifications.js';
 
 let _getState;
 
@@ -116,6 +117,16 @@ export function handleOnboardingAction(action, target) {
     _distUnit = target.dataset.unit;
     document.querySelectorAll('[data-action="ob-dist-unit"]').forEach(b => b.classList.remove('active'));
     target.classList.add('active');
+  } else if (action === 'ob-notif-enable') {
+    // Daily-coach step: ask for the OS permission, then finish either way —
+    // a denial must never trap the user in onboarding. Granting arms the
+    // morning briefing reminder automatically (notifications.js _armAll).
+    target.disabled = true;
+    requestNotificationPermission()
+      .catch(() => ({ granted: false }))
+      .then(() => _finish());
+  } else if (action === 'ob-notif-skip') {
+    _finish();
   } else if (action === 'ob-finish') {
     _finish();
   }

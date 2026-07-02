@@ -13,10 +13,16 @@
 // delivery needs native AlarmManager/WorkManager scheduling (follow-up).
 // ==========================================
 
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.js';
+
 let _reminderTimer = null;
 let _weeklySummaryTimer = null;
 let _streakTimer = null;
 let _getState = null;
+
+const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 // ── Delivery backend (native bridge vs Web Notifications) ──────────────────────
 
@@ -175,8 +181,34 @@ function _armDailyReminder() {
   }, msUntilNextDaily(new Date(), hour, minute));
 }
 
+// Compose the personalised morning reminder from the athlete's actual day:
+// Hybrid Score + today's session + the mission, via the Morning Briefing
+// engine. Pure (no DOM) so it is unit-testable; the score computed here uses
+// yesterday's recorded history for the delta — exactly the right semantics
+// for a pre-open morning push. Exported for testing.
+export function composeMorningReminder(state, program, now = new Date()) {
+  const selectedDay = _dayKey(now);
+  const model = computeDashboardModel(state, WEEK_DAYS, program, selectedDay);
+  const score = computeHybridScore(model, state, WEEK_DAYS);
+  const briefing = buildMorningBriefing({ state, model, score, program, selectedDay, now });
+  return { title: 'Morning Briefing', body: briefingToText(briefing) };
+}
+
 function _fireWorkoutReminder() {
   if (!notificationsGranted()) return;
+
+  // Preferred: the real briefing (score · session · mission). Falls back to
+  // the generic copy below if composition fails for any reason.
+  try {
+    const state = _getState?.();
+    if (state) {
+      const program = (typeof window !== 'undefined' && window._hybridGetProgram?.()) || null;
+      const { title, body } = composeMorningReminder(state, program);
+      notify(title, body, 'training-reminder');
+      return;
+    }
+  } catch (_) {}
+
   const todayKey = _dayKey(new Date());
 
   // Rest day → send a recovery message instead of a training prompt

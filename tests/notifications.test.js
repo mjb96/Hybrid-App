@@ -6,7 +6,7 @@
 // ==========================================
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { msUntilNextDaily, notificationsGranted, initNotifications, cancelReminders } from '../js/notifications.js';
+import { msUntilNextDaily, notificationsGranted, initNotifications, cancelReminders, composeMorningReminder } from '../js/notifications.js';
 
 const HOUR = 3600 * 1000;
 const MIN  = 60 * 1000;
@@ -73,6 +73,35 @@ test('cancelReminders cancels the native alarm', () => {
   cancelReminders();
   assert.equal(cancelled, true);
   if (saved === undefined) delete globalThis.window; else globalThis.window = saved;
+});
+
+// ── Morning briefing reminder composition (pure — no DOM) ─────────────────────
+
+test('composeMorningReminder: brand-new athlete gets a calibrating briefing', () => {
+  const now = new Date(2026, 6, 1, 7, 30); // Wednesday 07:30
+  const { title, body } = composeMorningReminder({ currentWeek: '1', settings: {}, weeks: {} }, null, now);
+  assert.equal(title, 'Morning Briefing');
+  assert.match(body, /^Good morning\./);
+  assert.match(body, /calibrating/);
+  assert.match(body, /Mission:/);
+});
+
+test('composeMorningReminder: active athlete gets score + session + mission', () => {
+  const now = new Date(2026, 6, 1, 7, 30); // Wednesday 07:30
+  const state = {
+    currentWeek: '2',
+    weekStartedAt: '2026-06-29',
+    settings: { name: 'Alex Carter', fitnessLevel: 'intermediate' },
+    loadMetrics: { atl: 9, ctl: 10 },
+    weeks: { '1': { lifts: {}, runs: { wed: { dist: '5', time: '25:00', rpe: '6' } }, dates: { wed: '2026-06-24' } }, '2': { lifts: {}, runs: {} } },
+  };
+  const program = { totalWeeks: 12, days: { wed: { title: 'Day 3: Tempo Run', runs: '5k tempo' } } };
+  const { body } = composeMorningReminder(state, program, now);
+  assert.match(body, /^Good morning, Alex\./);
+  assert.match(body, /Your Hybrid Score is \d+/);
+  assert.match(body, /Today: Day 3: Tempo Run\./);
+  // The rec engine classifies a non-rest title + a run as a hybrid session.
+  assert.match(body, /Mission: Complete today's hybrid session/);
 });
 
 test('notificationsGranted: falls back to Web Notification permission', () => {
