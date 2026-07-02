@@ -165,6 +165,21 @@ export function detailHTML(r, state) {
   const weekly = bucketedTrend(state, 'week').slice(-8);
   const weeklyBars = weekly.map(b => `<div class="hs-wk"><div class="hs-wk__bar" style="height:${b.avg}%;background:${color}"></div><span class="hs-wk__lbl">${esc(b.label)}</span></div>`).join('');
 
+  // E7 — "why it changed": the pillars that moved the score since yesterday.
+  const whyChanged = (r.delta != null && Array.isArray(r.deltaBreakdown) && r.deltaBreakdown.length)
+    ? `<article class="card-dark p-3 mb-3">
+         <div class="hs-why__head">
+           <span class="hs-why__k">Since yesterday</span>
+           <span class="hs-why__total ${r.delta > 0 ? 'up' : r.delta < 0 ? 'down' : ''}">${r.delta > 0 ? '+' : ''}${r.delta}</span>
+         </div>
+         <ul class="hs-why">${r.deltaBreakdown.slice(0, 5).map(d => `
+           <li class="hs-why__row">
+             <span class="hs-why__pts" style="color:${d.delta > 0 ? 'var(--color-green)' : 'var(--color-red)'}">${d.delta > 0 ? '+' : ''}${d.delta}</span>
+             <span class="hs-why__label">${esc(d.label)} ${d.delta > 0 ? 'improved' : 'slipped'}</span>
+           </li>`).join('')}</ul>
+       </article>`
+    : '';
+
   return `
   <div class="hs-detail">
     <div class="hs-detail__hero">
@@ -176,6 +191,7 @@ export function detailHTML(r, state) {
       </div>
     </div>
 
+    ${whyChanged}
     ${levelBar}
 
     <div class="hs-action hs-action--detail">

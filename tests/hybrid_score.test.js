@@ -305,6 +305,46 @@ test('recordDailyScore: milestones — level-up, streak, first 90+ (once each)',
   assert.deepEqual(r4.milestones, []);
 });
 
+test('E7 — recordDailyScore stores per-pillar contributions', () => {
+  const state = makeState();
+  const model = modelFor(state);
+  const r = computeHybridScore(model, state, DAYS);
+  recordDailyScore(state, r, model);
+  const entry = state.hybridScore.history[state.hybridScore.history.length - 1];
+  assert.ok(entry.contributions && typeof entry.contributions === 'object');
+  // The stored contributions match the available pillars' rounded contributions.
+  const avail = Object.keys(r.pillars).filter(k => r.pillars[k].score != null);
+  for (const k of avail) assert.equal(entry.contributions[k], r.pillars[k].contribution);
+});
+
+test('E7 — deltaBreakdown attributes the change and ~sums to the delta', () => {
+  const state = makeState();
+  const yday = iso(new Date(Date.now() - 86400000));
+  // Yesterday: same pillars but a weaker recovery contribution and a stronger
+  // consistency one, so we expect specific movers today.
+  const model = modelFor(state);
+  const r0 = computeHybridScore(model, state, DAYS);
+  // Seed yesterday from a perturbed copy of today's contributions.
+  const yContribs = {};
+  Object.keys(r0.pillars).filter(k => r0.pillars[k].score != null).forEach(k => { yContribs[k] = r0.pillars[k].contribution; });
+  yContribs.recovery = (yContribs.recovery ?? 0) - 4; // recovery was worse yesterday
+  const yScore = r0.score - 3;
+  state.hybridScore = { xp: 500, lastRecordedDate: yday, history: [{ date: yday, score: yScore, level: 2, contributions: yContribs }] };
+
+  const r = computeHybridScore(model, state, DAYS);
+  assert.equal(r.delta, r.score - yScore);
+  assert.ok(Array.isArray(r.deltaBreakdown) && r.deltaBreakdown.length > 0);
+  // Recovery should be among the movers (it was −4 yesterday → +4 today).
+  assert.ok(r.deltaBreakdown.some(d => d.pillar === 'recovery' && d.delta > 0));
+  // Sum of pillar deltas ≈ score delta (rounding tolerance).
+  const sum = r.deltaBreakdown.reduce((a, d) => a + d.delta, 0);
+  assert.ok(Math.abs(sum - r.delta) <= r.deltaBreakdown.length,
+    `breakdown ${sum} should ~equal delta ${r.delta}`);
+  // No prior contributions → no breakdown.
+  const fresh = makeState();
+  assert.equal(computeHybridScore(modelFor(fresh), fresh, DAYS).deltaBreakdown, null);
+});
+
 test('recordDailyScore: delta reflects yesterday, trends bucket', () => {
   const state = makeState();
   const y = iso(new Date(Date.now() - 86400000));

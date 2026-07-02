@@ -27,6 +27,19 @@ function ensure(state) {
 //
 // Milestone kinds: { kind:'level', tier, name, icon } · { kind:'streak', days }
 //                · { kind:'score', score } (first 90+).
+// Compact per-pillar contribution map for a snapshot (E7 — powers the
+// day-over-day "why it changed" attribution). Rounded ints keyed by pillar.
+function contributionsOf(scoreResult) {
+  const out = {};
+  const pillars = scoreResult?.pillars || {};
+  for (const k in pillars) {
+    if (pillars[k]?.score != null && typeof pillars[k].contribution === 'number') {
+      out[k] = pillars[k].contribution;
+    }
+  }
+  return out;
+}
+
 export function recordDailyScore(state, scoreResult, model, todayISO) {
   const hs = ensure(state);
   const today = todayISO || new Date().toISOString().slice(0, 10);
@@ -38,6 +51,7 @@ export function recordDailyScore(state, scoreResult, model, todayISO) {
     if (entry && entry.score !== scoreResult.score) {
       entry.score = scoreResult.score;
       entry.level = scoreResult.level?.tier ?? entry.level;
+      entry.contributions = contributionsOf(scoreResult);
       return { changed: true, milestones: [] };
     }
     return { changed: false, milestones: [] };
@@ -63,7 +77,7 @@ export function recordDailyScore(state, scoreResult, model, todayISO) {
     milestones.push({ kind: 'score', score: scoreResult.score });
   }
 
-  hs.history.push({ date: today, score: scoreResult.score, level: levelAfter.tier });
+  hs.history.push({ date: today, score: scoreResult.score, level: levelAfter.tier, contributions: contributionsOf(scoreResult) });
   if (hs.history.length > MAX_HISTORY) hs.history = hs.history.slice(-MAX_HISTORY);
   hs.lastRecordedDate = today;
   return { changed: true, milestones };

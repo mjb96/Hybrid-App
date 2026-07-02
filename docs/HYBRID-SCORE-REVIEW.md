@@ -269,9 +269,11 @@ with a measurable acceptance test.
   declining readiness days nudge the score down before it's a crisis. *→ recoveryPillar.*
 
 ### P2 — Premium explainability & anti-game
-- **E7 · "Why it changed" delta attribution.** Persist yesterday's per-pillar contributions;
-  show the day-over-day diff as the delta explanation. **Measure:** "−5" comes with the exact
-  pillars that moved. *→ history + engine + UI.* **Highest perceived-intelligence win.**
+- **E7 · "Why it changed" delta attribution.** ✅ **SHIPPED 2026-07-02.** Snapshots now store
+  per-pillar contributions (`history.js`); the engine diffs yesterday→today into
+  `deltaBreakdown` (sums to the delta); the detail view shows a "Since yesterday +N" block
+  ("+5 Recovery improved · −2 Consistency slipped"), separate from the "why your score IS this"
+  drivers. *→ history + engine + UI.*
 - **E8 · Compound-weighted, smoothed Strength** *(Defect 5).* Weight big-3/compounds; use a
   rolling-max e1RM, not a single session. **Measure:** one near-max single no longer spikes the
   score; a curl PR counts less than a squat PR. *→ strengthPillar.*

@@ -71,7 +71,7 @@ export function computeHybridScore(model, state, days) {
     return {
       score: null, band: scoreBand(null), hasData: false, confidence: 0,
       pillars, drivers: [], level: levelFromXp(state?.hybridScore?.xp),
-      delta: null, momentum: { dir: 'flat', label: 'No trend yet' },
+      delta: null, deltaBreakdown: null, momentum: { dir: 'flat', label: 'No trend yet' },
       deload, returning,
       headline: 'Your Hybrid Score is calibrating',
       recommendation: 'Log a few sessions and a wellness check-in to unlock your Hybrid Score.',
@@ -132,7 +132,26 @@ export function computeHybridScore(model, state, days) {
   const hist = state?.hybridScore?.history || [];
   const today = new Date().toISOString().slice(0, 10);
   const prior = [...hist].filter(h => h.date < today).sort((a, b) => a.date.localeCompare(b.date));
-  const delta = prior.length ? score - prior[prior.length - 1].score : null;
+  const yEntry = prior.length ? prior[prior.length - 1] : null;
+  const delta = yEntry ? score - yEntry.score : null;
+
+  // E7 — "why it changed": attribute the delta to the pillars that moved since
+  // yesterday. Diffing the stored per-pillar contributions (which sum to
+  // score−50) means Σ pillar-deltas ≈ today−yesterday, so the breakdown
+  // literally explains the number the athlete sees. Needs yesterday to carry
+  // contributions (older snapshots without them simply produce no breakdown).
+  let deltaBreakdown = null;
+  if (yEntry && yEntry.contributions) {
+    const yc = yEntry.contributions;
+    const keys = new Set([...available, ...Object.keys(yc)]);
+    deltaBreakdown = [...keys].map(k => {
+      const todayC = available.includes(k) ? (pillars[k].contribution || 0) : 0;
+      const d = todayC - (yc[k] || 0);
+      return { pillar: k, label: PILLAR_META[k]?.label || k, delta: d,
+               tone: d > 0 ? 'good' : d < 0 ? 'bad' : 'neutral' };
+    }).filter(x => Math.abs(x.delta) >= 1)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  }
 
   const level_ = levelFromXp(state?.hybridScore?.xp);
 
@@ -145,7 +164,7 @@ export function computeHybridScore(model, state, days) {
     score, band: scoreBand(score), hasData: true, confidence,
     pillars, drivers, positives, negatives,
     topContributor, topOpportunity,
-    momentum, delta, level: level_,
+    momentum, delta, deltaBreakdown, level: level_,
     deload, returning,
     headline: `Your Hybrid Score is ${score}`,
     recommendation,
