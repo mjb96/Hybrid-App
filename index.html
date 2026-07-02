@@ -429,6 +429,12 @@
       <!-- Primary CTA — one tap from Home into today's logging -->
       <button class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
 
+      <!-- Quick activity — start a walk/run outside the program; logs to today -->
+      <div class="quick-activity-row mb-4" style="display:flex;gap:10px;">
+        <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="walk" aria-label="Start a walk">🚶 Start Walk</button>
+        <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="run" aria-label="Start a run">🏃 Start Run</button>
+      </div>
+
       <!-- Coaching alerts — surfaced (previously hidden): stall, deload, week-compare -->
       <div id="homeAlerts">
         <article id="homeEngineAlertCard" class="home-alert-card home-alert-card--warn" style="display:none;">

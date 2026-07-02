@@ -145,6 +145,15 @@ export function launchActiveWorkoutCockpit() {
   setCockpitActiveDay(selectedDay);
 }
 
+// Quick Start (from Home): begin a GPS walk/run untethered from the program.
+// Logs to TODAY's slot regardless of what today's plan prescribes, tagged
+// walk/run. Reuses the cockpit's GPS tracker + live map.
+export function startQuickActivity(type) {
+  determineDefaultCalendarDay();   // point the cockpit at today
+  launchActiveWorkoutCockpit();    // switch to workout view for today + render
+  startTracking(type === 'walk' ? 'walk' : 'run');
+}
+
 // ==========================================
 // PROGRAM LIBRARY ROUTING
 // ==========================================
@@ -762,6 +771,7 @@ document.addEventListener('click', (e) => {
   }
 
   // GPS Tracker
+  else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
   else if (action === 'gps-start')  { startTracking(); }
   else if (action === 'gps-pause')  { pauseTracking(); }
   else if (action === 'gps-resume') { resumeTracking(); }

@@ -15,7 +15,7 @@
 // Dispatches: CustomEvent 'gps:route-saved' { detail: { week, day, distKm } }
 // ==========================================
 import { saveMapToDB } from './db.js';
-import { showToast, appState } from './state.js';
+import { showToast, appState, saveStateToLocalStorage } from './state.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
 import {
   isNativeGpsAvailable, ensureLocationPermission,
@@ -36,6 +36,7 @@ let _coords    = [];     // [[lat, lng], …]
 let _distKm    = 0;
 let _wakeLock  = null;
 let _tickTimer = null;
+let _activityType = 'run'; // 'run' | 'walk' — tags the logged activity
 let _liveMap   = null;   // Leaflet instance for the live tracking map
 let _liveLine  = null;   // Leaflet Polyline
 let _liveMarker = null;  // Leaflet CircleMarker (current position dot)
@@ -286,8 +287,12 @@ export function onWorkoutTabActivated() {
   if (_liveMap) setTimeout(() => _liveMap.invalidateSize(), 100);
 }
 
-export async function startTracking() {
+export async function startTracking(activityType = 'run') {
   if (_status !== 'idle') return false;
+
+  // 'walk' or 'run' — tags the logged activity (Quick Start from Home passes
+  // this; the in-program run tracker defaults to 'run').
+  _activityType = activityType === 'walk' ? 'walk' : 'run';
 
   _coords      = [];
   _distKm      = 0;
@@ -398,10 +403,24 @@ export async function stopTracking(week, day) {
   destroyLiveMap();
   showPanel('start');
 
+  const typeLabel = _activityType === 'walk' ? 'Walk' : 'Run';
+
   // Persist route
   if (finalCoords.length >= 2 && week && day) {
     try { await saveMapToDB(week, day, finalCoords); } catch (_) {}
   }
+
+  // Tag the day's activity (walk vs run) and persist immediately, so a Quick
+  // Start walk is saved even if the user never opens the cockpit to commit.
+  // The cockpit commit merges ...existing, so this tag survives a later edit.
+  if (week && day) {
+    if (!appState.weeks[week]) appState.weeks[week] = {};
+    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
+    const existingRun = appState.weeks[week].runs[day] || {};
+    appState.weeks[week].runs[day] = { ...existingRun, type: _activityType };
+    saveStateToLocalStorage(true);
+  }
+  _activityType = 'run'; // reset for the next session
 
   // Auto-fill cockpit run inputs and derive pace
   const distInput = document.getElementById('runInputDist');
@@ -425,6 +444,6 @@ export async function stopTracking(week, day) {
     })
   );
 
-  showToast('Run tracked ✓ — add your RPE below');
+  showToast(`${typeLabel} tracked ✓ — add your RPE below`);
   return { distKm: finalDist, timeStr: fmtTime(finalMs) };
 }
