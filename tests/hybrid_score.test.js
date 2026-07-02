@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import { levelFromXp, xpForDay } from '../js/brain/hybrid-score/levels.js';
 import { scoreBand, isDeloadWeek, PILLAR_WEIGHTS } from '../js/brain/hybrid-score/config.js';
-import { consistencyPillar, recoveryPillar, momentumPillar, bodyPillar, lifestylePillar } from '../js/brain/hybrid-score/pillars.js';
+import { consistencyPillar, recoveryPillar, momentumPillar, bodyPillar, lifestylePillar, endurancePillar } from '../js/brain/hybrid-score/pillars.js';
+import { weeklyBestPaceSeries } from '../js/metrics/metrics-running.js';
 import { computeHybridScore } from '../js/brain/hybrid-score/hybrid-score.js';
 import { recordDailyScore, dailySeries, bucketedTrend, currentLevel } from '../js/brain/hybrid-score/history.js';
 import { computeDashboardModel } from '../js/home/dashboard-model.js';
@@ -109,6 +110,55 @@ test('consistencyPillar: null with no data, high when adherent + streak', () => 
   });
   assert.ok(p.score >= 95);
   assert.ok(p.signals.some(s => /done/.test(s)));
+});
+
+test('E1 — consistency no longer sawtooths: Monday ≈ Friday, no reset cliff', () => {
+  const base = { goal: { avgConsistency: 90 }, streak: { current: 0 } };
+  // Monday: nothing done yet this week (0%), established baseline 90%.
+  const mon = consistencyPillar({ ...base, week: { consistencyTotal: 6, consistencyDone: 0, consistencyPct: 0 } });
+  // Friday: most of the week done (83%).
+  const fri = consistencyPillar({ ...base, week: { consistencyTotal: 6, consistencyDone: 5, consistencyPct: 83 } });
+  // The old model gave Monday ≈ 36 and Friday ≈ 86 — a 50-point weekly cliff.
+  // Now Monday holds at the baseline and Friday only rises above it.
+  assert.ok(mon.score >= 85, `Monday should hold near baseline, got ${mon.score}`);
+  assert.ok(fri.score >= mon.score, 'a fuller week should not score below Monday');
+  assert.ok(fri.score - mon.score <= 12, `weekly swing should be small, got ${fri.score - mon.score}`);
+});
+
+test('E2 — best-effort pace ignores added easy volume', () => {
+  const DAYS2 = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  // One fast 5k (4:00/km = 1200s over 5k → 240 s/km) on Monday.
+  const wk = { runs: { mon: { dist: '5', time: '20:00', rpe: '7' } }, lifts: {}, dates: {} };
+  const fast = { currentWeek: '1', weeks: { '1': wk } };
+  const bpFast = weeklyBestPaceSeries(fast, DAYS2, 1)[0];
+  // Add a slow easy 8k (6:15/km) — this LOWERS average pace but not best-effort.
+  const wk2 = { runs: { mon: { dist: '5', time: '20:00', rpe: '7' }, wed: { dist: '8', time: '50:00', rpe: '4' } }, lifts: {}, dates: {} };
+  const withEasy = { currentWeek: '1', weeks: { '1': wk2 } };
+  const bpEasy = weeklyBestPaceSeries(withEasy, DAYS2, 1)[0];
+  assert.equal(Math.round(bpFast), 240);
+  assert.equal(Math.round(bpEasy), 240); // best-effort unchanged by the easy run
+});
+
+test('E2 — endurance pillar not penalised for adding easy volume', () => {
+  const DAYS2 = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const iso2 = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  // 5 weeks, best-effort pace improving each week; build two variants.
+  const mk = (withEasy) => {
+    const weeks = {};
+    for (let w = 1; w <= 5; w++) {
+      const fastSec = 1300 - (w - 1) * 20; // fast run total seconds over 5k, improving
+      const mm = Math.floor(fastSec / 60), ss = String(fastSec % 60).padStart(2, '0');
+      const runs = { wed: { dist: '5', time: `${mm}:${ss}`, rpe: '7' } };
+      if (withEasy) runs.sat = { dist: '10', time: '65:00', rpe: '3' }; // slow easy volume
+      weeks[String(w)] = { runs, lifts: {}, dates: {} };
+    }
+    return { currentWeek: '5', weeks, settings: { fitnessLevel: 'intermediate' } };
+  };
+  const model = { maxWeek: 5, wkNum: 5, week: { consistencyPct: 80 } };
+  const plain = endurancePillar(model, mk(false), DAYS2, 'intermediate').score;
+  const easy = endurancePillar(model, mk(true), DAYS2, 'intermediate').score;
+  // Adding easy volume must not lower the endurance score (it may raise it).
+  assert.ok(easy >= plain - 1, `easy volume should not penalise endurance: plain ${plain}, easy ${easy}`);
 });
 
 test('recoveryPillar: uses readiness score, flags poor sleep', () => {

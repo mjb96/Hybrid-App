@@ -14,7 +14,7 @@
 // =============================================================================
 import { clamp } from '../../analytics/calculations/math-utils.js';
 import { weeklyE1rmByLift } from '../../metrics/metrics-strength.js';
-import { weeklyDistanceSeries, weeklyPaceSeries } from '../../metrics/metrics-running.js';
+import { weeklyDistanceSeries, weeklyPaceSeries, weeklyBestPaceSeries } from '../../metrics/metrics-running.js';
 import { strengthLoadSeries, recoveryCostBreakdown } from '../load_models.js';
 import { vdotFromThresholdPace, enduranceScore } from '../../analytics/calculations/running-calcs.js';
 import { levelProfile } from './config.js';
@@ -58,9 +58,18 @@ export function consistencyPillar(model) {
   const hasData = (w?.consistencyTotal || 0) > 0 || streak > 0 || avg > 0;
   if (!hasData) return { score: null, signals: [] };
 
-  const thisWeek = w.consistencyTotal > 0 ? w.consistencyPct : avg;
-  let score = 0.6 * thisWeek + 0.4 * (avg || thisWeek);
+  // E1 — de-sawtooth: `consistencyPct` is done ÷ the WHOLE week's planned work,
+  // so it reads near-zero every Monday and climbs through the week. That made
+  // the score drop every Monday for no behavioural reason. Fix: anchor on the
+  // established baseline (program-long adherence) and only ever *credit*
+  // within-week progress — the current partial week can lift the score but can
+  // no longer drag it below your baseline just because the week reset.
+  const thisWeekPct = w.consistencyTotal > 0 ? w.consistencyPct : null;
+  const baseline = avg > 0 ? avg : (thisWeekPct ?? 0);
+  const effective = thisWeekPct == null ? baseline : Math.max(baseline, thisWeekPct);
+  let score = 0.5 * baseline + 0.5 * effective;
   score = clamp(score + Math.min(streak, 7) / 7 * 8, 0, 100); // streak nudge
+  const thisWeek = thisWeekPct ?? baseline; // for signal copy below
 
   const signals = [];
   if (w.consistencyTotal > 0) {
@@ -147,13 +156,18 @@ export function endurancePillar(model, state, days, level) {
   const everRan = dist.some(v => v > 0);
   if (!everRan) return { score: null, signals: [] };
 
-  const pace = weeklyPaceSeries(state, days, maxWeek); // sec/km, lower = faster
   // Distance progression (volume trend).
   const distPct = progressionPct(dist, idx, 4);
   const distScore = distPct != null ? gainToScore(distPct, level) : levelProfile(level).floor;
-  // Pace progression: a DROP in sec/km is improvement → invert the sign.
-  const pacePct = progressionPct(pace, idx, 4);
-  const paceScore = pacePct != null ? gainToScore(-pacePct, level) : null;
+  // E2 — pace progression from BEST-EFFORT pace (fastest run/wk), not the weekly
+  // AVERAGE. Average pace slows whenever you add easy Zone-2 volume — the
+  // correct thing — so the old signal penalised polarised training. Best-effort
+  // pace only improves with real speed. A DROP in sec/km is improvement → invert.
+  // And slowing best-effort is treated as neutral, not a penalty (a single easy
+  // week shouldn't read as lost fitness — genuine loss shows via VDOT/distance).
+  const bestPace = weeklyBestPaceSeries(state, days, maxWeek); // sec/km, lower = faster
+  const pacePct = progressionPct(bestPace, idx, 4);
+  const paceScore = pacePct == null ? null : (pacePct <= 0 ? gainToScore(-pacePct, level) : 50);
 
   // If the athlete set a threshold pace, fold in the science-based endurance score.
   const vdot = state?.thresholdPaceSeconds ? vdotFromThresholdPace(state.thresholdPaceSeconds) : null;
