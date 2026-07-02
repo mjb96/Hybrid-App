@@ -58,6 +58,40 @@ test('walk type is carried through', () => {
   assert.deepEqual(r.types, ['walk']);
 });
 
+test('flags a PR when a lift beats its best from every prior session', () => {
+  const state = {
+    weeks: {
+      '1': { dates: { mon: '2026-06-23' }, lifts: { mon: { 'Bench Press': [{ w: 80, r: 5, c: true }] } }, runs: {} },
+      '2': { dates: { mon: '2026-06-30' }, lifts: { mon: { 'Bench Press': [{ w: 90, r: 5, c: true }] } }, runs: {} },
+    },
+  };
+  // Week 2 (90×5) beats week 1 (80×5) -> PR.
+  const r2 = buildSessionRecap(state, '2', 'mon');
+  assert.equal(r2.lifts[0].pr, true);
+  // Week 1 is the first-ever session -> no prior best -> not a PR.
+  const r1 = buildSessionRecap(state, '1', 'mon');
+  assert.equal(r1.lifts[0].pr, false);
+  // The 🏆 badge renders only for the PR session.
+  assert.ok(renderSessionRecapHTML(r2).includes('🏆'));
+  assert.ok(!renderSessionRecapHTML(r1).includes('🏆'));
+});
+
+test('run splits render as a pace bar chart with per-km values', () => {
+  const wd = {
+    dates: { tue: '2026-07-03' }, lifts: {},
+    runs: { tue: { dist: 3, time: '15:00', type: 'run', splits: [
+      { lap: 1, time: 300 }, { lap: 2, time: 280 }, { lap: 3, time: 320 },
+    ] } },
+  };
+  const html = renderSessionRecapHTML(buildSessionRecap(stateWith(wd), '1', 'tue'), [], 270);
+  assert.ok(html.includes('recap-pacechart'));
+  assert.ok(html.includes('Pace / km'));
+  assert.ok(html.includes('5:00'));  // 300s/km
+  assert.ok(html.includes('4:40'));  // 280s/km (fastest)
+  // Fastest split gets the full-width bar.
+  assert.ok(html.includes('width:100%'));
+});
+
 test('empty day yields an empty recap (no throw), renders a friendly message', () => {
   const r = buildSessionRecap(stateWith({ lifts: {}, runs: {} }), '1', 'fri');
   assert.equal(r.empty, true);

@@ -11,6 +11,7 @@
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { renderRunMap } from './workout-map.js';
 import { insightsForSession } from './analytics/insights/build-insights.js';
+import { paceZoneColour } from './analytics/utils.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
@@ -20,6 +21,28 @@ function e1rm(w, r) {
   const weight = parseFloat(w), reps = parseFloat(r);
   if (!weight || !reps) return 0;
   return reps === 1 ? weight : weight * (1 + reps / 30);
+}
+
+// Best working-set e1RM for a lift across every OTHER logged session (all
+// weeks/days except the one being recapped). Used to decide if this session set
+// a new personal best. Pure scan of state; tolerates sparse data.
+function priorBestE1rm(state, week, day, liftName) {
+  let best = 0;
+  const weeks = state?.weeks || {};
+  for (const w in weeks) {
+    const dayLifts = weeks[w]?.lifts || {};
+    for (const d in dayLifts) {
+      if (String(w) === String(week) && d === day) continue; // exclude this session
+      const sets = dayLifts[d]?.[liftName];
+      if (!Array.isArray(sets)) continue;
+      sets.forEach((s) => {
+        if (!isCompletedSet(s) || isWarmupSet(s)) return;
+        const est = e1rm(s.w, s.r);
+        if (est > best) best = est;
+      });
+    }
+  }
+  return best;
 }
 
 function timeToSeconds(t) {
@@ -63,7 +86,11 @@ export function buildSessionRecap(state, week, day) {
     });
     tonnage += liftVol;
     workingSets += done.length;
-    lifts.push({ name, sets: done.length, volume: Math.round(liftVol), topSet, e1rm: Math.round(bestE1) });
+    // PR: this session's best e1RM beats the lift's best in every prior session
+    // (needs an established previous best — a first-ever lift isn't a "PR").
+    const prior = priorBestE1rm(state, week, day, name);
+    const pr = prior > 0 && bestE1 > prior + 0.5;
+    lifts.push({ name, sets: done.length, volume: Math.round(liftVol), topSet, e1rm: Math.round(bestE1), pr });
   }
   lifts.sort((a, b) => b.volume - a.volume);
 
@@ -121,7 +148,12 @@ function statTile(label, value) {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-export function renderSessionRecapHTML(r, insights = []) {
+function fmtPace(secs) {
+  if (!secs || secs <= 0) return '—';
+  return `${Math.floor(secs / 60)}:${String(Math.round(secs % 60)).padStart(2, '0')}`;
+}
+
+export function renderSessionRecapHTML(r, insights = [], thresholdSec = null) {
   if (r.empty) {
     return `<div class="recap-empty">Nothing logged for this day yet.</div>`;
   }
@@ -137,17 +169,36 @@ export function renderSessionRecapHTML(r, insights = []) {
 
   const liftRows = r.lifts.map((l) => `
     <div class="recap-lift">
-      <div class="recap-lift__name">${esc(l.name)}</div>
+      <div class="recap-lift__name">${esc(l.name)}${l.pr ? ` <span class="recap-pr" title="New estimated 1RM best">🏆 PR</span>` : ''}</div>
       <div class="recap-lift__detail">
         ${l.topSet ? `${l.topSet.w} kg × ${l.topSet.r}` : `${l.sets} sets`}
         <span class="recap-lift__e1rm">est. 1RM ${l.e1rm} kg</span>
       </div>
     </div>`).join('');
 
-  const splitRows = (r.run && r.run.splits.length)
-    ? `<div class="recap-splits">${r.run.splits.map((s, i) =>
-        `<div class="recap-split"><span>${s.lap ?? i + 1} km</span><span>${s.time ? `${Math.floor(s.time / 60)}:${String(Math.round(s.time % 60)).padStart(2, '0')}` : '—'}</span></div>`).join('')}</div>`
-    : '';
+  // Pace-per-km bar chart: bar length is relative to the fastest split (fastest
+  // = fullest), each bar coloured by its pace zone. Falls back to plain rows if
+  // no per-km times exist.
+  let splitRows = '';
+  if (r.run && r.run.splits.length) {
+    const paces = r.run.splits.map((s, i) => ({ km: s.lap ?? i + 1, secs: parseFloat(s.time) || 0 }));
+    const timed = paces.filter((p) => p.secs > 0);
+    if (timed.length) {
+      const fastest = Math.min(...timed.map((p) => p.secs));
+      splitRows = `<div class="recap-pacechart">${paces.map((p) => {
+        const pct = p.secs > 0 ? Math.max(12, Math.round((fastest / p.secs) * 100)) : 0;
+        const col = p.secs > 0 ? paceZoneColour(p.secs, thresholdSec) : '#334155';
+        return `<div class="recap-pacerow">
+          <span class="recap-pacerow__km">${p.km}</span>
+          <span class="recap-pacerow__track"><span class="recap-pacerow__bar" style="width:${pct}%;background:${col}"></span></span>
+          <span class="recap-pacerow__val">${fmtPace(p.secs)}</span>
+        </div>`;
+      }).join('')}</div>`;
+    } else {
+      splitRows = `<div class="recap-splits">${paces.map((p) =>
+        `<div class="recap-split"><span>${p.km} km</span><span>—</span></div>`).join('')}</div>`;
+    }
+  }
 
   return `
     <div class="recap-head">
@@ -160,7 +211,7 @@ export function renderSessionRecapHTML(r, insights = []) {
       <ul class="recap-insights">${insights.map((i) =>
         `<li class="recap-insight--${esc(i.priority || 'info')}">${esc(i.text)}</li>`).join('')}</ul>` : ''}
     ${r.lifts.length ? `<div class="recap-section-title">Lifts</div>${liftRows}` : ''}
-    ${splitRows ? `<div class="recap-section-title">Splits</div>${splitRows}` : ''}
+    ${splitRows ? `<div class="recap-section-title">Pace / km</div>${splitRows}` : ''}
   `;
 }
 
@@ -172,7 +223,7 @@ export function openSessionRecap(week, day) {
   let insights = [];
   try { insights = insightsForSession(state, recap.types); } catch (_) { insights = []; }
   const content = document.getElementById('sessionRecapContent');
-  if (content) content.innerHTML = renderSessionRecapHTML(recap, insights);
+  if (content) content.innerHTML = renderSessionRecapHTML(recap, insights, state.thresholdPaceSeconds || null);
   const screen = document.getElementById('sessionRecapScreen');
   if (screen) { screen.style.display = 'block'; screen.scrollTop = 0; }
 

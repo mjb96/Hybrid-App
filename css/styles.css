@@ -7745,6 +7745,13 @@ input[type="text"],
 .recap-lift__name { font-weight: 700; color: var(--text-primary, #fff); font-size: 0.9rem; }
 .recap-lift__detail { text-align: right; font-size: 0.82rem; color: var(--text-secondary, #cbd5e1); }
 .recap-lift__e1rm { display: block; font-size: 0.68rem; color: var(--text-muted, #94a3b8); margin-top: 2px; }
+.recap-pr { font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; color: #fbbf24; background: rgba(251, 191, 36, 0.14); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 6px; padding: 1px 6px; margin-left: 6px; white-space: nowrap; vertical-align: middle; }
+.recap-pacechart { display: flex; flex-direction: column; gap: 5px; padding: 4px 0 2px; }
+.recap-pacerow { display: flex; align-items: center; gap: 10px; }
+.recap-pacerow__km { width: 22px; text-align: right; font-size: 0.74rem; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; flex: none; }
+.recap-pacerow__track { flex: 1; height: 14px; background: var(--surface-2, #171b21); border-radius: 7px; overflow: hidden; }
+.recap-pacerow__bar { display: block; height: 100%; border-radius: 7px; min-width: 3px; transition: width 0.3s ease; }
+.recap-pacerow__val { width: 48px; text-align: right; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary, #cbd5e1); font-variant-numeric: tabular-nums; flex: none; }
 .recap-splits { display: flex; flex-direction: column; gap: 2px; }
 .recap-split { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-secondary, #cbd5e1); padding: 6px 0; border-bottom: 1px solid var(--border, #1f242c); }
 .recap-empty { text-align: center; color: var(--text-muted, #94a3b8); padding: 60px 20px; }
