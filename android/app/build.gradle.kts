@@ -6,16 +6,16 @@ plugins {
 }
 
 android {
-    namespace = "com.hybridapp"
+    namespace = "com.helyx.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.hybridapp"
+        applicationId = "com.helyx.app"
         minSdk = 26
         targetSdk = 36
         // Bump via CI: export VERSION_CODE=$(git rev-list --count HEAD) before the build.
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = "1.0.0"
+        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         buildConfigField("String", "APP_URL", "\"https://appassets.androidplatform.net/assets/www/index.html\"")
     }

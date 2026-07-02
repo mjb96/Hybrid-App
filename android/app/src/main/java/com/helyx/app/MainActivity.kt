@@ -1,4 +1,4 @@
-package com.hybridapp
+package com.helyx.app
 
 import android.annotation.SuppressLint
 import android.app.DownloadManager
@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var bridge: HybridHealthBridge
+    private lateinit var gpsBridge: GpsBridge
+    private lateinit var notifBridge: NotifyBridge
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
@@ -54,6 +56,8 @@ class MainActivity : AppCompatActivity() {
         pendingGeoCallback = null
         pendingGeoOrigin   = null
         cb?.invoke(origin, granted, false)
+        // The GPS bridge may also be waiting on this dialog (no-op when not).
+        gpsBridge.onPermissionResult(granted)
     }
 
     // Must be registered before onStart(); PermissionController contract is static.
@@ -73,7 +77,11 @@ class MainActivity : AppCompatActivity() {
 
     private val requestNotifPermLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* result is handled on the next notifyRestComplete call */ }
+    ) { granted ->
+        // Resolve a pending web request for reminder permission (no-op when the
+        // dialog was triggered by the rest timer, which doesn't await a result).
+        notifBridge.onPermissionResult(granted)
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,6 +95,13 @@ class MainActivity : AppCompatActivity() {
         createNotificationChannels()
 
         webView = findViewById(R.id.webView)
+        gpsBridge = GpsBridge(
+            context = this,
+            webView = webView,
+            requestLocationPermission = {
+                requestLocationPermLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            },
+        )
         bridge = HybridHealthBridge(
             context = this,
             webView = webView,
@@ -94,6 +109,18 @@ class MainActivity : AppCompatActivity() {
             requestNotificationPermission = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     requestNotifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
+        )
+        notifBridge = NotifyBridge(
+            context = this,
+            webView = webView,
+            requestOsPermission = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestNotifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    // Pre-13: no runtime permission, resolve immediately as granted.
+                    notifBridge.onPermissionResult(true)
                 }
             },
         )
@@ -145,6 +172,8 @@ class MainActivity : AppCompatActivity() {
             }
 
             addJavascriptInterface(bridge, "HybridHealthBridge")
+            addJavascriptInterface(gpsBridge, "HybridGpsBridge")
+            addJavascriptInterface(notifBridge, "HybridNotifyBridge")
             loadUrl(BuildConfig.APP_URL)
         }
     }
@@ -214,6 +243,8 @@ class MainActivity : AppCompatActivity() {
                 description = "Notifies when a rest period ends during a backgrounded session"
             }
         )
+        GpsTrackingService.createChannel(this)
+        NotifyBridge.createChannel(this)
     }
 
     private fun scheduleHealthSync() {

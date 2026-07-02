@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v74';
+const CACHE_NAME = 'helyx-v78';
 
 const LOCAL_ASSETS = [
   './',
@@ -40,15 +40,21 @@ const LOCAL_ASSETS = [
   './js/athlete-profile.js',
   './js/profile-stats.js',
   './js/gps-tracker.js',
+  './js/gps/native-bridge.js',
   './js/fasting.js',
   './js/notifications.js',
   // Health (native bridge)
   './js/health/health-bridge.js',
+  // Monitoring
+  './js/monitoring/sentry.js',
+  './js/monitoring/sentry-config.js',
   // State sub-modules
   './js/state/auth.js',
   './js/state/import-export.js',
   './js/state/supabase.js',
   './js/state/migrations.js',
+  './js/state/sync-guard.js',
+  './js/state/sync-conflict-ui.js',
   // Metrics
   './js/metrics/metrics-strength.js',
   './js/metrics/metrics-running.js',

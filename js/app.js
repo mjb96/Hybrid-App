@@ -30,6 +30,9 @@ import {
   dismissDeloadSuggestion,
   applyDeloadToCurrentWeek,
 } from './state.js';
+import { initSyncConflictUI } from './state/sync-conflict-ui.js';
+import { initSentry } from './monitoring/sentry.js';
+import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
@@ -61,7 +64,7 @@ import {
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
   saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights,
-  saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut,
+  saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut, deleteAccount,
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
@@ -751,6 +754,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'set-week-start')       setWeekStartDay(target.getAttribute('data-day'));
   else if (action === 'set-fasting-default')  setFastingDefault(parseInt(target.getAttribute('data-hours'), 10));
   else if (action === 'sign-out')             signOut();
+  else if (action === 'delete-account')       deleteAccount();
 
   // Onboarding
   else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
@@ -903,7 +907,7 @@ else if (action === 'export-csv') triggerCSVExport();
   else if (action === 'request-notifications') {
     requestNotificationPermission().then(({ granted }) => {
       const el = document.getElementById('settingsNotifStatus');
-      if (el) el.textContent = granted ? 'Reminders active — you\'ll be notified at 07:30.' : 'Permission denied in browser settings.';
+      if (el) el.textContent = granted ? 'Reminders active — you\'ll be notified at 07:30.' : 'Permission denied — enable notifications for Helyx in your device settings.';
     });
   }
 });
@@ -972,7 +976,7 @@ document.addEventListener('change', (e) => {
         const el = document.getElementById('settingsNotifStatus');
         if (!granted) {
           target.checked = false;
-          if (el) el.textContent = 'Permission denied. Enable in your browser settings.';
+          if (el) el.textContent = 'Permission denied. Enable notifications for Helyx in your device settings.';
         } else {
           if (el) el.textContent = "Reminders active — you'll be notified at 07:30 each morning.";
         }
@@ -1293,6 +1297,8 @@ if (typeof window !== 'undefined') {
 
 async function bootstrapApp() {
   try {
+    initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
+    initSyncConflictUI();
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();

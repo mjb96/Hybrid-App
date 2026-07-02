@@ -112,6 +112,58 @@ export async function getCloudUser() {
   } catch { return null; }
 }
 
+// Remove all Helyx-owned localStorage keys (state + rolling backups + cloud
+// version). Namespaced by the storage key prefix so unrelated keys are left
+// alone. Returns how many keys were removed. Exported for testing.
+export function clearHelyxLocalData(storage = (typeof localStorage !== 'undefined' ? localStorage : null)) {
+  if (!storage) return 0;
+  const toRemove = [];
+  try {
+    for (let i = 0; i < storage.length; i++) {
+      const k = storage.key(i);
+      if (k && k.startsWith('hybrid_engine_v2_state')) toRemove.push(k);
+    }
+  } catch {
+    return 0;
+  }
+  toRemove.forEach((k) => storage.removeItem(k));
+  return toRemove.length;
+}
+
+// Permanently delete the signed-in user's account + data. Prefers the
+// `delete-account` edge function (which also removes the auth user via
+// service_role — see supabase/functions/delete-account). Falls back to a
+// direct row delete (RLS permits own-row delete) if the function isn't
+// deployed, so the user's *data* is always erased even before [You] deploy it.
+// Always clears local data and signs out.
+export async function deleteAccount() {
+  const sb = getSupabaseClient();
+  if (!sb) return { ok: false, reason: 'offline' };
+
+  let uid = null;
+  try {
+    const { data } = await sb.auth.getSession();
+    uid = data?.session?.user?.id || null;
+  } catch { /* ignore */ }
+  if (!uid) return { ok: false, reason: 'not-signed-in' };
+
+  let authDeleted = false;
+  try {
+    const { error } = await sb.functions.invoke('delete-account');
+    if (!error) authDeleted = true;
+  } catch { /* function not deployed — fall back below */ }
+
+  if (!authDeleted) {
+    // At minimum, erase the user's data row (the sensitive part).
+    try { await sb.from('user_data').delete().eq('user_id', uid); } catch { /* ignore */ }
+  }
+
+  clearHelyxLocalData();
+  try { await sb.auth.signOut(); } catch { /* ignore */ }
+
+  return { ok: true, authDeleted };
+}
+
 export async function signOutSupabase() {
   const sb = getSupabaseClient();
   if (!sb) { showToast('Not signed in.'); return; }

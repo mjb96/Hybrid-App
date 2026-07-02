@@ -17,6 +17,10 @@
 import { saveMapToDB } from './db.js';
 import { showToast, appState } from './state.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
+import {
+  isNativeGpsAvailable, ensureLocationPermission,
+  nativeStartRun, nativePauseRun, nativeResumeRun, nativeStopRun, nativeDrainSince,
+} from './gps/native-bridge.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
 const MAX_ACCURACY_M   = 50;   // discard readings worse than 50 m accuracy
@@ -42,6 +46,15 @@ let _nextKmMark  = 1;   // next km boundary to detect
 let _lapStartMs  = 0;   // elapsedMs() at the start of the current lap
 let _lapStartIdx = 0;   // index into _coords at the start of the current lap
 
+// Native mode (Android WebView): GPS is collected by a location foreground
+// service that keeps running while the WebView is frozen (screen lock, app
+// switch). JS drains buffered fixes by sequence cursor whenever it's awake,
+// so a frozen stretch is caught up losslessly instead of lost.
+let _nativeMode      = false;
+let _nativeSeq       = 0;  // drain cursor into the native point buffer
+let _nativeElapsedMs = 0;  // native service is the source of truth for run time
+let _drainTimer      = null;
+
 // ── Math helpers ──────────────────────────────────────────────────────────
 
 function haversineKm([lat1, lng1], [lat2, lng2]) {
@@ -57,6 +70,7 @@ function haversineKm([lat1, lng1], [lat2, lng2]) {
 }
 
 function elapsedMs() {
+  if (_nativeMode) return _nativeElapsedMs; // refreshed on every drain tick
   if (!_startTime) return _pausedMs;
   return _pausedMs + (Date.now() - _startTime);
 }
@@ -162,6 +176,12 @@ function showPanel(which) {
 
 function onPosition(pos) {
   const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  ingestFix(lat, lng, accuracy);
+}
+
+// Shared fix pipeline for both sources (web watchPosition + native drain):
+// accuracy filter, waiting→tracking transition, distance/split accumulation.
+function ingestFix(lat, lng, accuracy) {
   if (accuracy > MAX_ACCURACY_M) return;
 
   // Transition from waiting on first valid fix
@@ -202,6 +222,23 @@ function onPosition(pos) {
   tickStats();
 }
 
+// Pull buffered fixes from the native service and feed them through the shared
+// pipeline. Runs every TICK_MS while awake and immediately on wake-up; a long
+// frozen stretch (screen locked for 30 min) is replayed in one call.
+function drainNative() {
+  if (!_nativeMode) return;
+  const payload = nativeDrainSince(_nativeSeq);
+  _nativeSeq       = payload.seq;
+  _nativeElapsedMs = payload.elapsedMs;
+  for (const p of payload.points) ingestFix(p.lat, p.lng, p.acc);
+  if (_status === 'tracking') tickStats();
+}
+
+document.addEventListener('visibilitychange', () => {
+  // Waking from a frozen WebView: catch up on everything native collected.
+  if (_nativeMode && document.visibilityState === 'visible') drainNative();
+});
+
 function onPositionError(err) {
   if (_status !== 'waiting' && _status !== 'tracking') return;
   const msg = err.code === 1 ? 'location permission denied' : err.message;
@@ -221,6 +258,28 @@ export function isTracking() {
 
 export function initGpsTracker() {
   showPanel('start');
+  recoverNativeRun();
+}
+
+// If Android killed the activity mid-run, the foreground service kept tracking
+// and holds the full point buffer. Rebuild the JS run state from it so the
+// user comes back to a live run instead of a lost one.
+function recoverNativeRun() {
+  if (!isNativeGpsAvailable()) return;
+  const p = nativeDrainSince(0);
+  if (p.status !== 'TRACKING' && p.status !== 'PAUSED') return;
+
+  _nativeMode      = true;
+  _nativeSeq       = 0;
+  _nativeElapsedMs = p.elapsedMs;
+  _coords = []; _distKm = 0; _splits = [];
+  _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
+  _status = 'waiting';           // ingestFix transitions to live on first valid fix
+  showPanel('wait');
+  drainNative();                 // replay everything collected so far
+  _drainTimer = setInterval(drainNative, TICK_MS);
+  if (p.status === 'PAUSED' && _status === 'tracking') pauseTracking();
+  showToast('Run restored — GPS kept tracking ✓');
 }
 
 export function onWorkoutTabActivated() {
@@ -229,12 +288,7 @@ export function onWorkoutTabActivated() {
 
 export async function startTracking() {
   if (_status !== 'idle') return false;
-  if (!navigator.geolocation) {
-    showToast('GPS not supported on this device');
-    return false;
-  }
 
-  _status      = 'waiting';
   _coords      = [];
   _distKm      = 0;
   _pausedMs    = 0;
@@ -243,6 +297,37 @@ export async function startTracking() {
   _nextKmMark  = 1;
   _lapStartMs  = 0;
   _lapStartIdx = 0;
+  _nativeMode      = false;
+  _nativeSeq       = 0;
+  _nativeElapsedMs = 0;
+
+  // Preferred path (Android app): the native foreground service keeps GPS
+  // alive when the screen locks or the user switches apps. No wake lock
+  // needed — the screen is allowed to sleep.
+  if (isNativeGpsAvailable()) {
+    const granted = await ensureLocationPermission();
+    if (!granted) {
+      showToast('Location permission is needed to track runs');
+      return false;
+    }
+    if (nativeStartRun()) {
+      _nativeMode = true;
+      _status     = 'waiting';
+      showPanel('wait');
+      _drainTimer = setInterval(drainNative, TICK_MS);
+      return true;
+    }
+    // Native start failed unexpectedly — fall back to web tracking below.
+  }
+
+  // Web fallback (browser/PWA): watchPosition + screen wake lock. Honest
+  // limitation: tracking stops if the app leaves the foreground.
+  if (!navigator.geolocation) {
+    showToast('GPS not supported on this device');
+    return false;
+  }
+
+  _status = 'waiting';
   showPanel('wait');
 
   _wakeLock = await acquireWakeLock();
@@ -258,8 +343,12 @@ export async function startTracking() {
 
 export function pauseTracking() {
   if (_status !== 'tracking') return;
-  _status    = 'paused';
-  _pausedMs += Date.now() - _startTime;
+  _status = 'paused';
+  if (_nativeMode) {
+    nativePauseRun();               // service stops GPS while paused (battery)
+  } else if (_startTime) {
+    _pausedMs += Date.now() - _startTime;
+  }
   _startTime = null;
   clearInterval(_tickTimer);
 
@@ -270,6 +359,7 @@ export function pauseTracking() {
 export function resumeTracking() {
   if (_status !== 'paused') return;
   _status    = 'tracking';
+  if (_nativeMode) nativeResumeRun();
   _startTime = Date.now();
   _tickTimer = setInterval(tickStats, TICK_MS);
 
@@ -280,6 +370,11 @@ export function resumeTracking() {
 export async function stopTracking(week, day) {
   if (!isTracking()) return null;
 
+  if (_nativeMode) {
+    drainNative();      // catch any fixes still buffered in the service
+    nativeStopRun();    // dismisses the persistent notification
+  }
+  if (_drainTimer) { clearInterval(_drainTimer); _drainTimer = null; }
   if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
   clearInterval(_tickTimer); _tickTimer = null;
   await releaseWakeLock();
@@ -296,6 +391,9 @@ export async function stopTracking(week, day) {
   _nextKmMark  = 1;
   _lapStartMs  = 0;
   _lapStartIdx = 0;
+  _nativeMode      = false;
+  _nativeSeq       = 0;
+  _nativeElapsedMs = 0;
 
   destroyLiveMap();
   showPanel('start');
