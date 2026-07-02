@@ -30,6 +30,7 @@ import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
 import { buildWeeklyReview } from './brain/weekly-review.js';
 import { renderWeeklyReview } from './analytics/views/view-weekly-review.js';
+import { buildSoWhat } from './analytics/so-what.js';
 
 let _getState;
 let _getDays;
@@ -408,4 +409,32 @@ export function renderAnalytics() {
       break;
     }
   }
+
+  renderSoWhatBanner(context);
+}
+
+// ==========================================
+// "SO WHAT?" BANNER (R8) — one prescriptive line at the top of every leaf,
+// injected here so the 19 view modules stay untouched. buildSoWhat is pure
+// and returns null for surfaces that already prescribe (hub / hybrid-score /
+// weekly-review). Text is app-generated only — safe to inject.
+// ==========================================
+function renderSoWhatBanner(context) {
+  const active = document.querySelector('.analytics-section.active');
+  if (!active) return;
+  active.querySelectorAll('.so-what').forEach(n => n.remove());
+
+  let sw = null;
+  try {
+    const st = _getState();
+    const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+    const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
+    sw = buildSoWhat(context, model, st);
+  } catch (_) { /* banner is best-effort — never block the view */ }
+  if (!sw) return;
+
+  const div = document.createElement('div');
+  div.className = `so-what so-what--${sw.tone}`;
+  div.innerHTML = `<span class="so-what__k">So what?</span><span class="so-what__t">${sw.text}</span>`;
+  active.prepend(div);
 }

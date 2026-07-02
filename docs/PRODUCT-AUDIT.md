@@ -294,7 +294,7 @@ Scoring: **Impact** (user value), **Effort** (dev), **Retention**, **Business**.
 | R5 | **PR / streak celebration moment** (haptics + confetti) §4, UI6 — ✅ **SHIPPED 2026-07-02** (`js/ui/celebration.js` + milestone detection in the score recorder) | M | L | H | M | **P1** |
 | R6 | **Weekly Review** (Sunday, shareable, push) §5.4 — ✅ **SHIPPED 2026-07-02** (`js/brain/weekly-review.js` + "Week in Review" hub leaf + share + real-numbers Sunday push) | H | M | H | **H** (share=growth) | **P1** |
 | R7 | **Streak freeze + milestones + loss-aversion nudge** §4 | M | M | **H** | M | **P1** |
-| R8 | **"So what?" action line on every analytics leaf** §6 A1 | M | M | M | M | **P1** |
+| R8 | **"So what?" action line on every analytics leaf** §6 A1 — ✅ **SHIPPED 2026-07-02** (`js/analytics/so-what.js`, one injection point in the router — 19 leaves covered, views untouched) | M | M | M | M | **P1** |
 | R9 | **Identity/level system** ("Hybrid Athlete" tiers) §4, F-M3 — ✅ largely **SHIPPED 2026-07-02** via Hybrid Score XP → Initiate→Legend ladder + level-up celebrations; remaining: surface the level on the Profile tab | H | M | H | M | **P1** |
 | R10 | **Overtraining/injury escalation** + one-tap deload §5.3/5.6 | M | M | M | M (safety) | **P1** |
 | R11 | **Tab transitions + swipe gestures + pull-to-refresh** §3.2 | M | M | M | M | **P2** |
