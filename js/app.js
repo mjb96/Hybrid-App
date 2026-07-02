@@ -31,6 +31,7 @@ import {
   applyDeloadToCurrentWeek,
 } from './state.js';
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
+import { confirmModal } from './ui/confirm-modal.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -499,16 +500,20 @@ export function executeCreateProgram() {
   openBuilder(newId);
 }
 
-export function executeDeleteProgram(id) {
-  if(confirm("Are you sure you want to delete this custom program?")) {
-    const result = deleteCustomProgram(id);
-    if (result.success) {
-      updateLibraryState(appState);
-      renderLibrary();
-      showToast('Program deleted.');
-    } else {
-      showToast(result.message, true);
-    }
+export async function executeDeleteProgram(id) {
+  const ok = await confirmModal({
+    title: 'Delete this program?',
+    message: 'This custom program will be permanently removed. This cannot be undone.',
+    confirmLabel: 'Delete', danger: true,
+  });
+  if (!ok) return;
+  const result = deleteCustomProgram(id);
+  if (result.success) {
+    updateLibraryState(appState);
+    renderLibrary();
+    showToast('Program deleted.');
+  } else {
+    showToast(result.message, true);
   }
 }
 
