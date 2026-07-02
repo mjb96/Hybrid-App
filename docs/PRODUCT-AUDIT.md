@@ -293,18 +293,18 @@ Scoring: **Impact** (user value), **Effort** (dev), **Retention**, **Business**.
 | R4 | **Trim Home tiles** to ~6; Insights stays the encyclopedia §2.2 F-R2 — ✅ **SHIPPED 2026-07-02** (`DEFAULT_HIDDEN_TILES`; `hidden:null` = focused default, saved customisations untouched) | M | L | M | M | **P0** |
 | R5 | **PR / streak celebration moment** (haptics + confetti) §4, UI6 — ✅ **SHIPPED 2026-07-02** (`js/ui/celebration.js` + milestone detection in the score recorder) | M | L | H | M | **P1** |
 | R6 | **Weekly Review** (Sunday, shareable, push) §5.4 — ✅ **SHIPPED 2026-07-02** (`js/brain/weekly-review.js` + "Week in Review" hub leaf + share + real-numbers Sunday push) | H | M | H | **H** (share=growth) | **P1** |
-| R7 | **Streak freeze + milestones + loss-aversion nudge** §4 | M | M | **H** | M | **P1** |
+| R7 | **Streak freeze + milestones + loss-aversion nudge** §4 — ✅ **SHIPPED** (`js/brain/streak.js`) | M | M | **H** | M | **P1** |
 | R8 | **"So what?" action line on every analytics leaf** §6 A1 — ✅ **SHIPPED 2026-07-02** (`js/analytics/so-what.js`, one injection point in the router — 19 leaves covered, views untouched) | M | M | M | M | **P1** |
 | R9 | **Identity/level system** ("Hybrid Athlete" tiers) §4, F-M3 — ✅ largely **SHIPPED 2026-07-02** via Hybrid Score XP → Initiate→Legend ladder + level-up celebrations; remaining: surface the level on the Profile tab | H | M | H | M | **P1** |
 | R10 | **Overtraining/injury escalation** + one-tap deload §5.3/5.6 — ✅ **SHIPPED 2026-07-02** (`js/brain/risk.js` multi-signal assessment → acknowledge-required Home danger card + one-tap deload + daily push) | M | M | M | M (safety) | **P1** |
-| R11 | **Tab transitions + swipe gestures + pull-to-refresh** §3.2 | M | M | M | M | **P2** |
-| R12 | **Performance prediction** (race time / plate ETA) §5.5 F-M5 | H | M | M | M | **P2** |
-| R13 | **Monthly report** §5.5 | M | M | M | M | **P2** |
-| R14 | **Guided first session** post-onboarding §3.1 U2 | M | L | M | M | **P2** |
-| R15 | Replace `confirm()/alert()` with app modals §3.3 U9 | L | L | L | L | **P2** |
-| R16 | Refactor `app.js`/`workout.js` god-modules §7 C1 | L | M | – | – (debt) | **P3** |
-| R17 | Dead-CSS sweep + extract inline styles §7 C2 | L | L | – | – | **P3** |
-| R18 | Shared `iterateLoggedDays` helper §7 C3 | L | L | – | – (debt) | **P3** |
+| R11 | **Tab/leaf transitions** §3.2 — ✅ **SHIPPED** (opacity/rise enter anims, reduced-motion guarded); swipe gestures + pull-to-refresh deliberately deferred (can't verify touch headless) | M | M | M | M | **P2** |
+| R12 | **Performance prediction** (race time / plate ETA) §5.5 F-M5 — ✅ **SHIPPED** (`js/brain/predictions.js` + Projections leaf) | H | M | M | M | **P2** |
+| R13 | **Monthly report** §5.5 — ✅ **SHIPPED** (`js/brain/monthly-report.js` + leaf + Sunday push) | M | M | M | M | **P2** |
+| R14 | **Guided first session** post-onboarding §3.1 U2 — ✅ **SHIPPED** (first-run mission + welcome moment) | M | L | M | M | **P2** |
+| R15 | Replace `confirm()/alert()` with app modals §3.3 U9 — ✅ **SHIPPED** (`js/ui/confirm-modal.js`) | L | L | L | L | **P2** |
+| R16 | Refactor `app.js`/`workout.js` god-modules §7 C1 — ◑ **STARTED** (fasting sub-router extracted, parity-verified; deeper teardown staged per slice) | L | M | – | – (debt) | **P3** |
+| R17 | Dead-CSS sweep §7 C2 — ✅ **SHIPPED** (removed orphaned #calModal block, grep-verified) | L | L | – | – | **P3** |
+| R18 | Shared `iterateLoggedDays` helper §7 C3 — ✅ **SHIPPED** (`js/analytics/logged-days.js`, adopted + behaviour-preserving) | L | L | – | – (debt) | **P3** |
 
 ### Quick wins (<1 hour each)
 - R3 onboarding notification step (HTML step + one handler).
