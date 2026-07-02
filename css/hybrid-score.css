@@ -153,6 +153,21 @@
 .mbrief__coach-text { flex: 1 1 0%; min-width: 0; font-size: .74rem; color: var(--text-muted,#94a3b8); line-height: 1.45; }
 .mbrief__coach-text b { color: var(--text-secondary,#cbd5e1); font-weight: 700; }
 
+/* ---- Week in Review (R6) -------------------------------------------------- */
+.wrev-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.wrev-stat {
+  padding: 14px 12px; border-radius: 14px; text-align: center;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+}
+.wrev-stat__v { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.4px; color: var(--text-inverse,#f8fafc); }
+.wrev-stat__k { font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted,#94a3b8); margin-top: 2px; }
+.wrev-delta { display: block; font-size: .64rem; font-weight: 700; margin-top: 4px; }
+.wrev-label { font-size: .72rem; font-weight: 700; color: var(--text-muted,#94a3b8); text-transform: uppercase; letter-spacing: .05em; }
+.wrev-arc { font-size: .84rem; color: var(--text-secondary,#cbd5e1); }
+.wrev-arc b { color: var(--text-inverse,#f8fafc); }
+.wrev-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+.wrev-bar__fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #10b981); }
+
 @media (prefers-reduced-motion: reduce) {
   .hs-hero, .hs-gauge__arc, .hs-confidence__fill, .mbrief__mission { transition: none !important; }
 }

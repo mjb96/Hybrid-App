@@ -130,7 +130,7 @@ function pillarBar(key, p) {
   </div>`;
 }
 
-function sparkline(values, color) {
+export function sparkline(values, color) {
   if (!values || values.length < 2) return '';
   const max = Math.max(...values, 100), min = Math.min(...values, 0);
   const span = max - min || 1;

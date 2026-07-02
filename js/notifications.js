@@ -16,6 +16,7 @@
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.js';
+import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
 
 let _reminderTimer = null;
 let _weeklySummaryTimer = null;
@@ -281,6 +282,19 @@ function _armWeeklySummary() {
 
 function _fireWeeklySummary() {
   if (!notificationsGranted()) return;
+  // Prefer the athlete's real Week in Review (totals · PRs · score · focus);
+  // fall back to the generic prompt if composition fails.
+  try {
+    const state = _getState?.();
+    if (state) {
+      const program = (typeof window !== 'undefined' && window._hybridGetProgram?.()) || null;
+      const review = buildWeeklyReview(state, WEEK_DAYS, program);
+      if (review.hasData) {
+        notify('Week in Review', reviewToText(review, state.settings?.distanceUnit || 'km'), 'weekly-summary');
+        return;
+      }
+    }
+  } catch (_) {}
   notify('Weekly Training Summary',
     'Your weekly training report is ready — check your progress and plan the week ahead.',
     'weekly-summary');
