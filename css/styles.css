@@ -243,6 +243,21 @@ body {
 }
 .view-container.active { display: block; }
 
+/* Premium tab/leaf transitions (R11): a subtle enter animation each time a view
+   or analytics leaf becomes active (the .active class is re-applied on switch,
+   so it replays). The top-level view fades on OPACITY ONLY — no transform — so
+   it never creates a containing block for the fixed rest-timer / drag element
+   inside the cockpit. Analytics leaves (no fixed descendants) also rise gently.
+   Guarded for reduced-motion. */
+@keyframes viewFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes leafEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.view-container.active   { animation: viewFade 0.2s ease both; }
+.analytics-section.active { animation: leafEnter 0.18s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .view-container.active,
+  .analytics-section.active { animation: none; }
+}
+
 
 /* ==========================================================================
    4. TYPOGRAPHY
