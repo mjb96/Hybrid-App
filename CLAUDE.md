@@ -17,9 +17,9 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   raise a warn-and-choose modal (`js/state/sync-conflict-ui.js`) instead of clobbering.
   A pre-cloud-pull local snapshot (`snapshotLocalBeforeCloudPull`) is also kept.
 - Auth/sync: `js/state/auth.js`, `js/state/supabase.js`. Anon key is hardcoded (public
-  by design — safe ONLY if Supabase RLS is enforced). RLS SQL is drafted in
-  `supabase/rls_user_data.sql`; **still `[You]`-unapplied + unproven** until the
-  adversarial check (`scripts/rls-adversarial-check.mjs`) passes against the live DB.
+  by design — safe ONLY if Supabase RLS is enforced). RLS (`supabase/rls_user_data.sql`)
+  is **applied + proven** — the adversarial check (`scripts/rls-adversarial-check.mjs`)
+  passed against the live DB (2026-07-02): user A cannot read/write user B's row.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads

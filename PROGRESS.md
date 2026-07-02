@@ -5,7 +5,7 @@
 **Out of scope:** iOS, Capacitor migration, subscriptions.
 
 **Definition of Done**
-- [ ] No user can read another user's data (RLS enforced + proven)
+- [x] No user can read another user's data (RLS enforced + **proven** via adversarial check, 2026-07-02)
 - [ ] Multi-device use cannot silently destroy history
 - [ ] Crashes are visible to the owner (reporting live)
 - [ ] Store + legal (health/location) requirements met
@@ -25,7 +25,7 @@
 ## Phase 1 — Security + Data Safety  ·  branch: `phase1-security`
 - [x] `[CC]` Draft Supabase RLS SQL for `user_data` (own-row read/write only) → `supabase/rls_user_data.sql`
 - [~] `[You]` Apply both SQL files in Supabase dashboard — `rls_user_data.sql` **applied** (2026-07-01); `migration_user_data_updated_at.sql` still to apply
-- [~] `[CC]` Adversarial test: prove user A cannot read user B's data — harness ready (`scripts/rls-adversarial-check.mjs`). **DEFERRED** until after Phase 2 (needs a desktop + Node; can't run from phone). Not a Phase 2 blocker; gates public launch only.
+- [x] `[CC]` Adversarial test: prove user A cannot read user B's data — **PASSED** on live DB (2026-07-02, `scripts/rls-adversarial-check.mjs`). RLS isolation proven.
 - [x] `[CC]` Secret sweep: no service_role key / private secret in repo or bundle — **clean** (only public anon key; see `supabase/README.md`)
 - [x] `[CC]` Fix last-write-wins sync (state.js): server `updated_at`/version + divergence detection → warn-and-choose conflict UI. Needs `migration_user_data_updated_at.sql` applied by `[You]`
 - [x] `[CC]` Local safety net: snapshot/backup before every cloud pull (`snapshotLocalBeforeCloudPull` in state.js, tested)
