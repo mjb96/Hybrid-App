@@ -1802,6 +1802,43 @@
     <div id="sessionRecapContent"></div>
   </section>
 
+  <!-- Quick Activity — clean full-screen live tracker for a Home Quick Start walk/run -->
+  <section id="activityScreen" style="display:none;" aria-label="Quick Activity">
+    <div class="activity-topbar">
+      <button class="subview-back-btn" data-action="cancel-quick-activity">← Cancel</button>
+      <span class="activity-title" id="activityTitle">Activity</span>
+    </div>
+
+    <!-- Waiting for first GPS fix -->
+    <div id="qsWaitPanel" class="gps-wait-panel" style="display:none;">
+      <div class="gps-wait-spinner"></div>
+      <span class="gps-wait-text">Getting GPS signal…</span>
+    </div>
+
+    <!-- Live tracking -->
+    <div id="qsLivePanel" style="display:none;">
+      <div id="qsLiveMap" class="activity-live-map"></div>
+      <div class="activity-stats">
+        <div class="activity-stat">
+          <span class="activity-stat-value" id="qsStatTime">00:00</span>
+          <span class="activity-stat-label">TIME</span>
+        </div>
+        <div class="activity-stat activity-stat--hero">
+          <span class="activity-stat-value" id="qsStatDist">0.00</span>
+          <span class="activity-stat-label">KM</span>
+        </div>
+        <div class="activity-stat">
+          <span class="activity-stat-value" id="qsStatPace">—:——</span>
+          <span class="activity-stat-label">PACE /KM</span>
+        </div>
+      </div>
+      <div class="activity-actions">
+        <button class="gps-btn-secondary" id="qsPauseBtn" data-action="gps-pause">⏸ Pause</button>
+        <button class="gps-btn-stop" data-action="gps-stop">■ Finish</button>
+      </div>
+    </div>
+  </section>
+
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
     <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" aria-hidden="true">🏋️</span><span>Workout</span></button>

@@ -7757,3 +7757,24 @@ input[type="text"],
 .recap-empty { text-align: center; color: var(--text-muted, #94a3b8); padding: 60px 20px; }
 .recap-map { height: 220px; border-radius: 12px; overflow: hidden; margin: 12px 0 4px; border: 1px solid var(--border, #23272e); }
 .recap-map .leaflet-container { height: 100%; width: 100%; background: #0b0f14; }
+
+/* ── Quick Activity (full-screen live tracker) ─────────────────────────── */
+#activityScreen {
+  position: fixed; inset: 0; z-index: 200;
+  max-width: 600px; margin: 0 auto;
+  background: var(--bg-app, #0b0f14);
+  display: flex; flex-direction: column;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 18px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.activity-topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.activity-title { font-size: 1.15rem; font-weight: 800; color: var(--text-primary, #fff); }
+.activity-live-map { flex: 1; min-height: 240px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border, #23272e); background: #0b0f14; }
+.activity-live-map .leaflet-container { height: 100%; width: 100%; background: #0b0f14; }
+.activity-stats { display: grid; grid-template-columns: 1fr 1.3fr 1fr; align-items: end; gap: 8px; margin: 18px 0; }
+.activity-stat { text-align: center; }
+.activity-stat-value { display: block; font-size: 1.7rem; font-weight: 800; color: var(--text-primary, #fff); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.activity-stat--hero .activity-stat-value { font-size: 2.7rem; color: var(--accent-blue, #60a5fa); }
+.activity-stat-label { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted, #94a3b8); margin-top: 4px; }
+.activity-actions { display: flex; gap: 12px; }
+.activity-actions .gps-btn-secondary,
+.activity-actions .gps-btn-stop { flex: 1; }
