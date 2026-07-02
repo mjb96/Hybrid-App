@@ -507,6 +507,20 @@ export const TILE_REGISTRY = [
   },
 ];
 
+// ==========================================
+// DEFAULT-HIDDEN TILES (roadmap R4)
+// New installs get a focused six — Today · Readiness · Training Status ·
+// Weekly Volume · Body Weight · Streak — the tiles that drive decisions.
+// Everything else stays one tap away in the tile customiser, and Insights is
+// the encyclopedia. Users who have EVER saved a customisation keep their own
+// list (this set only applies while dashboardTiles.hidden === null).
+// ==========================================
+export const DEFAULT_HIDDEN_TILES = Object.freeze([
+  'program-hero', 'fasting', 'consistency', 'top-lifts', 'active-fuel',
+  'avg-pace', 'stress-balance', 'goal-progress',
+  'hrv', 'resting-hr', 'sleep', 'steps', 'vo2max',
+]);
+
 // Synthetic full-width tile shown in place of the five Health-Connect tiles
 // when the Health app isn't linked — kills five dead "Setup" placeholders.
 export const CONNECT_HEALTH_TILE = {

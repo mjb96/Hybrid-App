@@ -597,7 +597,7 @@ export async function pullEngineDataFromStorage() {
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
     settings: { name: '', weightUnit: 'kg', distanceUnit: 'km', progressionIncrement: 2.5, defaultBodyWeight: null, autoAdvanceWeek: true, theme: 'dark', onboardingComplete: false, fitnessGoal: 'hybrid', weightGoal: 'maintain', fitnessLevel: 'intermediate', equipmentTier: 'gym', weekStartDay: 'mon', fastingDefault: 16, reminderTime: { hour: 7, minute: 30 }, notifWeeklySummary: false, notifStreak: false, streakAlertTime: { hour: 20, minute: 0 }, notifMissedWorkout: false, equipment: { barbell: true, rack: true, dumbbells: true, cables: true, pullupBar: true, bands: false, kettlebells: false, treadmill: false }, bandWeights: { L: 10, M: 20, H: 30 }, restPeriods: { compound: 180, accessory: 120, isolation: 90 }, restTimerEnabled: true, restOverrides: {}, avatarDataUrl: null },
     profileSections: { order: null, hidden: [] },
-    dashboardTiles: { order: null, hidden: [] },
+    dashboardTiles: { order: null, hidden: null },   // hidden:null = focused default set (R4)
     hybridScore: { history: [], xp: 0, lastRecordedDate: null },
   };
 
@@ -672,7 +672,7 @@ export async function pullEngineDataFromStorage() {
   if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
   if (!appState.prGoals) appState.prGoals = {};
   if (!appState.profileSections) appState.profileSections = { order: null, hidden: [] };
-  if (!appState.dashboardTiles) appState.dashboardTiles = { order: null, hidden: [] };
+  if (!appState.dashboardTiles) appState.dashboardTiles = { order: null, hidden: null };
   // One-time migration of dashboard tile layout from the legacy standalone
   // localStorage keys into synced app state. The legacy keys are removed so a
   // later "reset tiles" can't be silently resurrected from them on next load.

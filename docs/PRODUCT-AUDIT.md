@@ -290,8 +290,8 @@ Scoring: **Impact** (user value), **Effort** (dev), **Retention**, **Business**.
 | R1 | **Morning Briefing** card (merge the 2 hero surfaces) §5.1, F-R1 — ✅ **SHIPPED 2026-07-02** (`js/brain/morning-briefing.js`), anchored by Hybrid Score | H | M | **H** | H | **P0** |
 | R2 | **Daily Mission** (one action, derived from logged data) §5.2 — ✅ **SHIPPED 2026-07-02** inside the briefing (ungameable: completes by doing) | H | M | **H** | H | **P0** |
 | R3 | Request **notification permission in onboarding** + daily loop §3.1 U1, F-M6 — ✅ **SHIPPED 2026-07-02** (step 6 "Meet your daily coach"; JS reminder now sends the real briefing via `composeMorningReminder`) | M | **L** | **H** | M | **P0** |
-| R4 | **Trim Home tiles** to ~6; Insights stays the encyclopedia §2.2 F-R2 | M | L | M | M | **P0** |
-| R5 | **PR / streak celebration moment** (haptics + confetti) §4, UI6 | M | L | H | M | **P1** |
+| R4 | **Trim Home tiles** to ~6; Insights stays the encyclopedia §2.2 F-R2 — ✅ **SHIPPED 2026-07-02** (`DEFAULT_HIDDEN_TILES`; `hidden:null` = focused default, saved customisations untouched) | M | L | M | M | **P0** |
+| R5 | **PR / streak celebration moment** (haptics + confetti) §4, UI6 — ✅ **SHIPPED 2026-07-02** (`js/ui/celebration.js` + milestone detection in the score recorder) | M | L | H | M | **P1** |
 | R6 | **Weekly Review** (Sunday, shareable, push) §5.4 | H | M | H | **H** (share=growth) | **P1** |
 | R7 | **Streak freeze + milestones + loss-aversion nudge** §4 | M | M | **H** | M | **P1** |
 | R8 | **"So what?" action line on every analytics leaf** §6 A1 | M | M | M | M | **P1** |
