@@ -80,6 +80,7 @@ export function buildSoWhat(context, model, state) {
     case 'hybrid-score':
     case 'weekly-review':
     case 'projections':
+    case 'monthly-report':
       return null;
 
     case 'training-status':
