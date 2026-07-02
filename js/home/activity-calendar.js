@@ -3,8 +3,6 @@
 // =============================================================================
 
 const FULL_MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const _MN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const _DN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 function _buildActivityMap(appState) {
   const map = {};
@@ -88,114 +86,6 @@ function _renderCalendarMonth(year, month, activityMap, today, weekStartDay = 'm
   </div>`;
 }
 
-// ── Calendar day modal ────────────────────────────────────────────────────────
-
-function _ensureCalModal() {
-  let modal = document.getElementById('calModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'calModal';
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.innerHTML = '<div class="cal-msheet"><div id="calModalContent"></div></div>';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', e => {
-      if (e.target === modal || e.target.closest('[data-cal-action="close"]')) {
-        modal.classList.remove('cal-modal--open');
-      }
-    });
-  }
-  return modal;
-}
-
-function _fmtTime(timeStr) {
-  if (!timeStr) return null;
-  const p = String(timeStr).split(':').map(Number);
-  if (p.some(isNaN)) return timeStr;
-  if (p.length === 3 && p[0] > 0) return `${p[0]}h ${p[1]}m ${p[2]}s`;
-  if (p.length === 3) return `${p[1]}m ${p[2]}s`;
-  if (p.length === 2) return `${p[0]}m ${p[1]}s`;
-  return timeStr;
-}
-
-function _runPace(dist, timeStr) {
-  if (!dist || !timeStr) return null;
-  const p = String(timeStr).split(':').map(Number);
-  if (p.some(isNaN)) return null;
-  let secs = p.length === 3 ? p[0]*3600 + p[1]*60 + p[2] : p.length === 2 ? p[0]*60 + p[1] : 0;
-  if (secs <= 0 || dist <= 0) return null;
-  const pps = secs / dist;
-  return `${Math.floor(pps/60)}:${String(Math.round(pps%60)).padStart(2,'0')} /km`;
-}
-
-function _stat(label, value) {
-  if (!value && value !== 0) return '';
-  return `<div class="cal-m-stat"><span class="cal-m-sl">${label}</span><span class="cal-m-sv">${value}</span></div>`;
-}
-
-function _openCalModal(dateStr, activityMap) {
-  const modal   = _ensureCalModal();
-  const content = document.getElementById('calModalContent');
-  if (!content) return;
-
-  const [y, mo, d] = dateStr.split('-').map(Number);
-  const dow       = _DN[new Date(`${dateStr}T12:00:00`).getDay()];
-  const dateLabel = `${dow}, ${d} ${_MN[mo]} ${y}`;
-
-  const act = activityMap[dateStr];
-  let bodyHTML = '';
-
-  if (!act) {
-    bodyHTML = '<p class="cal-m-empty">No workout logged.</p>';
-  } else {
-    if (act.run && act.runDetail) {
-      const r    = act.runDetail;
-      const dist = parseFloat(r.dist) || 0;
-      bodyHTML += `<div class="cal-m-section">
-        <h4 class="cal-m-type">🏃 Run</h4>
-        <div class="cal-m-stats">
-          ${_stat('Distance',     dist > 0 ? `${dist.toFixed(2)} km` : null)}
-          ${_stat('Time',         _fmtTime(r.time))}
-          ${_stat('Pace',         _runPace(dist, r.time))}
-          ${_stat('Elevation',    parseFloat(r.elev)     > 0 ? `${Math.round(r.elev)} m`          : null)}
-          ${_stat('Calories',     parseFloat(r.cals)     > 0 ? `${Math.round(r.cals)} kcal`       : null)}
-          ${_stat('Avg HR',       parseFloat(r.avgHR)    > 0 ? `${Math.round(r.avgHR)} bpm`       : null)}
-          ${_stat('Max HR',       parseFloat(r.maxHR)    > 0 ? `${Math.round(r.maxHR)} bpm`       : null)}
-          ${_stat('Avg Cadence',  parseFloat(r.avgCadence) > 0 ? `${Math.round(r.avgCadence)} spm` : null)}
-          ${_stat('RPE',          r.rpe ? `${r.rpe} / 10` : null)}
-          ${_stat('Notes',        r.notes || null)}
-        </div>
-      </div>`;
-    }
-
-    if (act.gym && act.gymDetail) {
-      const g = act.gymDetail;
-      const exList = g.exercises.length > 0
-        ? g.exercises.slice(0, 6).join(', ') + (g.exercises.length > 6 ? ` +${g.exercises.length - 6} more` : '')
-        : null;
-      bodyHTML += `<div class="cal-m-section">
-        <h4 class="cal-m-type">🏋️ Weights</h4>
-        <div class="cal-m-stats">
-          ${_stat('Sets completed', g.completedSets > 0 ? String(g.completedSets) : null)}
-          ${_stat('Duration',       _fmtTime(g.time))}
-          ${_stat('Calories',       parseFloat(g.cals)   > 0 ? `${Math.round(g.cals)} kcal`  : null)}
-          ${_stat('Avg HR',         parseFloat(g.avgHR)  > 0 ? `${Math.round(g.avgHR)} bpm`  : null)}
-          ${_stat('Max HR',         parseFloat(g.maxHR)  > 0 ? `${Math.round(g.maxHR)} bpm`  : null)}
-          ${_stat('Exercises',      exList)}
-        </div>
-      </div>`;
-    }
-  }
-
-  content.innerHTML = `
-    <div class="cal-mhandle"></div>
-    <p class="cal-mdate">${dateLabel}</p>
-    ${bodyHTML}
-    <button type="button" class="cal-mclose" data-cal-action="close">Done</button>
-  `;
-
-  modal.classList.add('cal-modal--open');
-}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 

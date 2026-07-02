@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v82';
+const CACHE_NAME = 'helyx-v83';
 
 const LOCAL_ASSETS = [
   './',
@@ -103,6 +103,7 @@ const LOCAL_ASSETS = [
   './js/analytics/charts/running-charts.js',
   './js/analytics/charts/strength-charts.js',
   './js/analytics/insights/insight-engine.js',
+  './js/analytics/insights/build-insights.js',
   './js/analytics/scoring/readiness-scoring.js',
   './js/analytics/views/view-strength.js',
   './js/analytics/views/view-running.js',

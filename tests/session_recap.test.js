@@ -38,8 +38,6 @@ test('summarises a strength session: tonnage, working sets, top lift + e1RM', ()
   assert.equal(r.lifts[0].name, 'Bench Press');
   assert.equal(r.lifts[0].topSet.w, 80);
   assert.ok(r.lifts[0].e1rm >= 90); // 80*(1+5/30) ≈ 93
-  assert.ok(r.insights.some((i) => i.includes('1,200 kg')));
-  assert.ok(r.insights.some((i) => i.toLowerCase().includes('rpe 8')));
 });
 
 test('summarises a run with pace + tags walk vs run', () => {
@@ -52,14 +50,12 @@ test('summarises a run with pace + tags walk vs run', () => {
   assert.deepEqual(r.types, ['run']);
   assert.equal(r.run.distKm, 5);
   assert.equal(r.run.pace, '5:00');   // 25:00 / 5km
-  assert.ok(r.insights.some((i) => i.includes('5.00 km at 5:00')));
 });
 
 test('walk type is carried through', () => {
   const wd = { dates: { wed: '2026-07-04' }, lifts: {}, runs: { wed: { dist: 2, time: '24:00', type: 'walk' } } };
   const r = buildSessionRecap(stateWith(wd), '1', 'wed');
   assert.deepEqual(r.types, ['walk']);
-  assert.ok(r.insights.some((i) => i.startsWith('Walk:')));
 });
 
 test('empty day yields an empty recap (no throw), renders a friendly message', () => {

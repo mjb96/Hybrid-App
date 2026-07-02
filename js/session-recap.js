@@ -10,6 +10,7 @@
 // ==========================================
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { renderRunMap } from './workout-map.js';
+import { insightsForSession } from './analytics/insights/build-insights.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
@@ -85,27 +86,14 @@ export function buildSessionRecap(state, week, day) {
   if (workingSets > 0) types.push('gym');
   if (runOut) types.push(runOut.type);
 
-  // ── Insights (honest, derived from this session only) ──
-  const insights = [];
-  if (tonnage > 0) insights.push(`Moved ${Math.round(tonnage).toLocaleString()} kg across ${workingSets} working set${workingSets === 1 ? '' : 's'}.`);
-  if (lifts[0]?.topSet?.w) {
-    insights.push(`Top lift: ${lifts[0].name} — ${lifts[0].topSet.w} kg × ${lifts[0].topSet.r} (est. 1RM ~${lifts[0].e1rm} kg).`);
-  }
-  const rpeVal = parseFloat(gymRpe || (runOut && runOut.rpe));
-  if (Number.isFinite(rpeVal) && rpeVal > 0) {
-    if (rpeVal >= 9)      insights.push(`Session RPE ${rpeVal}/10 — very hard. Prioritise sleep and recovery.`);
-    else if (rpeVal >= 7) insights.push(`Session RPE ${rpeVal}/10 — a solid, productive effort.`);
-    else                  insights.push(`Session RPE ${rpeVal}/10 — comfortable. Room to push next time.`);
-  }
-  if (runOut && runOut.pace) {
-    insights.push(`${runOut.type === 'walk' ? 'Walk' : 'Run'}: ${runOut.distKm.toFixed(2)} km at ${runOut.pace} /km.`);
-  }
-
+  // Insights are NOT hand-rolled here — they come from the shared insight
+  // engine (see insightsForSession), so there's one source of truth. This
+  // builder only assembles the session's factual summary.
   return {
     dateISO, types,
     tonnage: Math.round(tonnage), workingSets,
     duration: gymStats.time || '', gymRpe, gymHR: gymStats.avgHR || '',
-    lifts, run: runOut, insights,
+    lifts, run: runOut,
     empty: workingSets === 0 && !runOut,
   };
 }
@@ -133,7 +121,7 @@ function statTile(label, value) {
 
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-export function renderSessionRecapHTML(r) {
+export function renderSessionRecapHTML(r, insights = []) {
   if (r.empty) {
     return `<div class="recap-empty">Nothing logged for this day yet.</div>`;
   }
@@ -168,8 +156,9 @@ export function renderSessionRecapHTML(r) {
     </div>
     <div class="recap-stats">${tiles}</div>
     ${r.run && r.run.distKm > 0 ? `<div id="recapMapContainer" class="recap-map"></div>` : ''}
-    ${r.insights.length ? `<div class="recap-section-title">Insights</div>
-      <ul class="recap-insights">${r.insights.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    ${insights.length ? `<div class="recap-section-title">Insights</div>
+      <ul class="recap-insights">${insights.map((i) =>
+        `<li class="recap-insight--${esc(i.priority || 'info')}">${esc(i.text)}</li>`).join('')}</ul>` : ''}
     ${r.lifts.length ? `<div class="recap-section-title">Lifts</div>${liftRows}` : ''}
     ${splitRows ? `<div class="recap-section-title">Splits</div>${splitRows}` : ''}
   `;
@@ -179,8 +168,11 @@ export function openSessionRecap(week, day) {
   const state = _getState?.();
   if (!state) return;
   const recap = buildSessionRecap(state, week, day);
+  // Insights come from the shared engine, filtered to this session's categories.
+  let insights = [];
+  try { insights = insightsForSession(state, recap.types); } catch (_) { insights = []; }
   const content = document.getElementById('sessionRecapContent');
-  if (content) content.innerHTML = renderSessionRecapHTML(recap);
+  if (content) content.innerHTML = renderSessionRecapHTML(recap, insights);
   const screen = document.getElementById('sessionRecapScreen');
   if (screen) { screen.style.display = 'block'; screen.scrollTop = 0; }
 
