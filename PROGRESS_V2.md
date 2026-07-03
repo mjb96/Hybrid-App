@@ -146,10 +146,14 @@ Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invent
       via each screen's Stats tab); unused analytics.js imports stripped; unknown/absorbed
       contexts fall back to the hub. Nothing stranded (the 4 tiles' navigation resolves
       through the router redirects). typecheck / smoke green.
-- [ ] `[CC]` Remaining follow-up (low priority): delete the orphaned view files
-      (view-training-status / load-focus / run-crossref / vdot / avg-pace / stress-balance
-      / weekly-summary) + their dead `#analytics-*` sections, and fold progress / streak /
-      goal-progress into Review Stats (their router cases still exist but are hub-unlinked).
+- [x] `[CC]` **Follow-up done:** deleted the 7 orphaned view files (view-training-status
+      / load-focus / run-crossref / vdot / avg-pace / stress-balance / weekly-summary) and
+      13 dead `#analytics-*` sections from index.html (23 sections → 10). Folded progress /
+      streak / goal-progress into Review's Stats (scaffolding hosted there, the three
+      render fns called after weekly+monthly; router redirects them → Review/Stats). This
+      also fixed a latent duplicate-id hazard (the static #analytics-progress/#streak
+      sections shadowed the folded ones). Rendered + verified in Chromium; the whole
+      weekly/monthly/streak/goal/consistency story now lives in one Stats tab.
 
 **Score screen** already carries the pattern from V2-2 (number + 3 dials + coaching
 sentence; 8 pillars under the hood). So all five screens now read as one system.

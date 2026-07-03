@@ -12,6 +12,7 @@ import { reviewToText, buildWeeklyReview } from '../../brain/weekly-review.js';
 import { sparkline } from '../../brain/hybrid-score/ui.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { renderMonthlyReport } from './view-monthly-report.js';
+import { renderProgressAnalytics, renderStreakDetail, renderGoalProgressDetail } from './view-progress.js';
 import { screenTabBar, mountScreenTabs, spark } from './_screen-kit.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -40,9 +41,41 @@ export function renderReview(data, getState, getDays) {
       <div id="weeklyReviewContainer"></div>
       <h2 class="section-header mt-4">Monthly Report</h2>
       <div id="monthlyReportContainer"></div>
+
+      <h2 class="section-header mt-4">Streak</h2>
+      <div class="grid-2-col gap-2 mb-4">
+        <article class="card-dark flex-col flex-center p-3" style="border:1px solid rgba(245,158,11,0.35);">
+          <div class="text-xs text-muted mb-1">Current Streak</div>
+          <div id="streakCurrent" class="text-lg font-heavy text-inverse">0 days</div>
+        </article>
+        <article class="card-dark flex-col flex-center p-3" style="border:1px solid rgba(59,130,246,0.35);">
+          <div class="text-xs text-muted mb-1">Longest Streak</div>
+          <div id="streakLongest" class="text-lg font-heavy text-inverse">0 days</div>
+        </article>
+      </div>
+      <article class="card-dark p-4 mb-4">
+        <div id="streakDetailContainer"><p style="color:var(--text-muted);font-size:0.75rem;">Complete workouts to build your streak.</p></div>
+      </article>
+
+      <h2 class="section-header mt-4">Goal Progress</h2>
+      <div id="analytics-goal-detail"></div>
+
+      <h2 class="section-header mt-4">Consistency Log</h2>
+      <article class="card-dark p-3 mb-4">
+        <div class="table-wrapper">
+          <table aria-label="Training History">
+            <thead><tr><th scope="col">Wk</th><th scope="col">Lift Vol</th><th scope="col">Run Dist</th><th scope="col">Avg Pace</th><th scope="col">Avg RPE</th></tr></thead>
+            <tbody id="analyticsTimelineTableBody"></tbody>
+          </table>
+        </div>
+      </article>
     `;
     renderWeeklyReview(review, state);
     renderMonthlyReport(getState, getDays, () => program);
+    // Folded in from the retired progress / streak / goal-progress leaves.
+    renderStreakDetail(data, getState, getDays);
+    renderGoalProgressDetail(data, getState);
+    renderProgressAnalytics(data, getState);
   } else {
     _renderReviewOverview(body, review);
   }

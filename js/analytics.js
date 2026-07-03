@@ -9,11 +9,6 @@ import { renderStrengthAnalytics, setStrengthTab } from './analytics/views/view-
 import { renderRunningAnalytics, setRunningTab } from './analytics/views/view-running.js';
 import { renderRecoveryLoad, setRecoveryTab } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
-import {
-  renderProgressAnalytics,
-  renderStreakDetail,
-  renderGoalProgressDetail,
-} from './analytics/views/view-progress.js';
 import { renderActivityCalendar } from './home.js';
 import { initWeekNav, updateWeekNavDisplay, resetWeekNav } from './analytics/week-nav.js';
 import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
@@ -362,18 +357,14 @@ export function renderAnalytics() {
       document.getElementById('analytics-bodyweight').classList.add('active');
       renderBodyWeightAnalytics(data, _getState);
       break;
+    // V2 (S2): progress, streak and goal-progress are folded into the Review
+    // screen's Stats tab — redirect so deep links still resolve.
     case 'progress':
-      document.getElementById('analytics-progress').classList.add('active');
-      renderProgressAnalytics(data, _getState);
-      break;
     case 'streak':
-      document.getElementById('analytics-streak').classList.add('active');
-      renderStreakDetail(data, _getState, _getDays);
-      break;
     case 'goal-progress':
-      document.getElementById('analytics-progress').classList.add('active');
-      renderProgressAnalytics(data, _getState);
-      renderGoalProgressDetail(data, _getState);
+      setReviewTab('stats');
+      document.getElementById('analytics-weekly-review').classList.add('active');
+      renderReview(data, _getState, _getDays);
       break;
     // V2 (S2): avg-pace, vdot, run-crossref are absorbed into the Running
     // screen's Stats tab — redirect so deep links still resolve.
