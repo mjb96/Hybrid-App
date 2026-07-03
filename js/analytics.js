@@ -5,33 +5,18 @@ import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { isCompletedSet } from './set-utils.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
-import { renderStrengthAnalytics, render1RMList, render1RMProgressSection, setStrengthTab } from './analytics/views/view-strength.js';
+import { renderStrengthAnalytics, setStrengthTab } from './analytics/views/view-strength.js';
 import { renderRunningAnalytics, setRunningTab } from './analytics/views/view-running.js';
 import { renderRecoveryLoad, setRecoveryTab } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
-import {
-  renderProgressAnalytics,
-  renderWeeklyVolumeDetail,
-  renderStreakDetail,
-  renderGoalProgressDetail,
-} from './analytics/views/view-progress.js';
-import { renderTrainingStatusAnalytics } from './analytics/views/view-training-status.js';
-import { renderLoadFocusAnalytics } from './analytics/views/view-load-focus.js';
-import { renderRunCrossRefAnalytics } from './analytics/views/view-run-crossref.js';
-import { renderVdotAnalytics } from './analytics/views/view-vdot.js';
-import { renderAvgPaceAnalytics } from './analytics/views/view-avg-pace.js';
-import { renderStressBalanceAnalytics } from './analytics/views/view-stress-balance.js';
 import { renderActivityCalendar } from './home.js';
-import { initWeekNav, updateWeekNavDisplay, getSelectedWeek, resetWeekNav } from './analytics/week-nav.js';
-import { renderWeeklySummaryAnalytics } from './analytics/views/view-weekly-summary.js';
+import { initWeekNav, updateWeekNavDisplay, resetWeekNav } from './analytics/week-nav.js';
 import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
-import { buildWeeklyReview } from './brain/weekly-review.js';
 import { renderReview, setReviewTab } from './analytics/views/view-weekly-review.js';
 import { renderProjections } from './analytics/views/view-projections.js';
-import { renderMonthlyReport } from './analytics/views/view-monthly-report.js';
 import { buildSoWhat } from './analytics/so-what.js';
 
 let _getState;
@@ -372,18 +357,14 @@ export function renderAnalytics() {
       document.getElementById('analytics-bodyweight').classList.add('active');
       renderBodyWeightAnalytics(data, _getState);
       break;
+    // V2 (S2): progress, streak and goal-progress are folded into the Review
+    // screen's Stats tab — redirect so deep links still resolve.
     case 'progress':
-      document.getElementById('analytics-progress').classList.add('active');
-      renderProgressAnalytics(data, _getState);
-      break;
     case 'streak':
-      document.getElementById('analytics-streak').classList.add('active');
-      renderStreakDetail(data, _getState, _getDays);
-      break;
     case 'goal-progress':
-      document.getElementById('analytics-progress').classList.add('active');
-      renderProgressAnalytics(data, _getState);
-      renderGoalProgressDetail(data, _getState);
+      setReviewTab('stats');
+      document.getElementById('analytics-weekly-review').classList.add('active');
+      renderReview(data, _getState, _getDays);
       break;
     // V2 (S2): avg-pace, vdot, run-crossref are absorbed into the Running
     // screen's Stats tab — redirect so deep links still resolve.
@@ -402,12 +383,10 @@ export function renderAnalytics() {
       document.getElementById('analytics-fasting').classList.add('active');
       renderFastingAnalytics(_getState);
       break;
-    default: {
-      document.getElementById('analytics-weekly-summary').classList.add('active');
-      const selectedWkDef = getSelectedWeek(_getState().currentWeek);
-      renderWeeklySummaryAnalytics(data, _getState, _getDays, selectedWkDef);
+    default:
+      // Unknown / absorbed context → fall back to the Insights hub.
+      document.getElementById('analytics-hub').classList.add('active');
       break;
-    }
   }
 
   renderSoWhatBanner(context);

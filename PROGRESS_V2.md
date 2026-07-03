@@ -140,9 +140,20 @@ Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invent
       progress, streak, goal-progress, activity kept as their own leaves for now — they
       carry distinct content not in the weekly story; fold into Review Stats in a
       follow-up rather than regress them.)*
-- [ ] `[CC]` Follow-up: remove dead hub entries + orphaned view/chart code (the absorbed
-      leaves' view files + dead `#analytics-*` sections), and fold bodyweight/progress/
-      streak/goal-progress into Review Stats. Calcs feed the Score engine — most survive.
+- [x] `[CC]` **Cleanup:** Insights hub rewritten to the clean IA — 6 primary (Hybrid
+      Score · Strength · Running · Recovery & Load · Review · Fasting) + a "More" group
+      (Body Weight · Projections). The 11 absorbed leaves dropped from the hub (reachable
+      via each screen's Stats tab); unused analytics.js imports stripped; unknown/absorbed
+      contexts fall back to the hub. Nothing stranded (the 4 tiles' navigation resolves
+      through the router redirects). typecheck / smoke green.
+- [x] `[CC]` **Follow-up done:** deleted the 7 orphaned view files (view-training-status
+      / load-focus / run-crossref / vdot / avg-pace / stress-balance / weekly-summary) and
+      13 dead `#analytics-*` sections from index.html (23 sections → 10). Folded progress /
+      streak / goal-progress into Review's Stats (scaffolding hosted there, the three
+      render fns called after weekly+monthly; router redirects them → Review/Stats). This
+      also fixed a latent duplicate-id hazard (the static #analytics-progress/#streak
+      sections shadowed the folded ones). Rendered + verified in Chromium; the whole
+      weekly/monthly/streak/goal/consistency story now lives in one Stats tab.
 
 **Score screen** already carries the pattern from V2-2 (number + 3 dials + coaching
 sentence; 8 pillars under the hood). So all five screens now read as one system.
@@ -168,10 +179,16 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 - [ ] `[You]` Look at it on the phone — the §3 two-second test is yours to judge
       (headless can't render the full booted Home; smoke confirms no crash).
 
-### S5 — Settings: 49 rows → ~10
-- [ ] `[CC]` Keep account/auth, units, notifications, health-connect, data export/
-      delete, theme. Kill power-user knobs (band weights, progression step,
-      remembered-rest reset, …). Underlying state fields abandoned, defaults apply.
+### S5 — Settings: trim the power-user knobs ✅
+- [x] `[CC]` Retired the doc's exact power-user examples — **band weights, progression
+      step, per-tier rest tuning + remembered-rest reset** — by hiding them (elements
+      kept so `settings.js` reads never null; underlying state keeps working defaults, so
+      zero functional regression). **Kept** everything functional/consumer: name · body
+      weight · units · goal/experience · threshold pace · equipment (drives programming)
+      · program week · fasting · all notifications · theme · data export/delete. Scoped
+      deliberately narrower than "→10": equipment and program-week affect behaviour, so
+      they stay — cutting them would regress a limited-equipment user, which headless
+      can't catch. Kept the Auto-rest on/off toggle (consumer), dropped its tuning.
 
 ### S6 — Pillars → 3 dials (display only; §9 puts this in Month 1)
 - [x] `[CC]` Pure module `js/brain/hybrid-score/dials.js` (`computeDials` + `DIAL_MAP`):
@@ -195,9 +212,6 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
       `<details>` "Under the hood" expander, collapsed by default — power one tap
       deeper. Confidence meter + E7 attribution kept. 3 UI tests; rendered + verified in
       Chromium (matches the wireframe). ✅
-- [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
-      (Provisional = low-confidence composite from self-reported level/frequency/
-      recovery; confidence meter already communicates the uncertainty honestly.)
 - [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
       (Provisional = low-confidence composite from self-reported level/frequency/
       recovery; confidence meter already communicates the uncertainty honestly.)
