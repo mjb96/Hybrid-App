@@ -121,7 +121,12 @@ Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invent
       load dashboard, volume/strength progression, muscle balance, calendar, and the
       **1RM PR list** — absorbing the old `strength_pr` and `weekly-volume` leaves
       (router redirects both → Strength/Stats). Rendered + verified in Chromium.
-- [ ] **Running** — absorb avg-pace, vdot, run-crossref. Headline = VDOT (or pace).
+- [x] **Running ✅** — Overview: headline **VDOT** + weekly-distance spark, Weekly
+      Distance + Best Pace, one insight. Stats: endurance hero, fitness dashboard, pace
+      analysis, race predictors, HR analysis, running load, distance. Absorbs avg-pace,
+      vdot, run-crossref (router redirects → Running/Stats). Shared pieces factored into
+      `_screen-kit.js` (tab bar · spark · esc); Strength refactored onto it too.
+      Rendered + verified in Chromium.
 - [ ] **Recovery & Load** — absorb recovery, recovery-score, training-status,
       load-focus, stress-balance. Headline = readiness.
 - [ ] **Review** — absorb weekly-review, weekly-summary, monthly-report, progress,

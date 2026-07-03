@@ -21,6 +21,7 @@ import {
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
 import { isCompletedSet } from '../../set-utils.js';
+import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './_screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -256,8 +257,6 @@ function renderStrengthHeatmap(data) {
 }
 
 // ---- Main Export (V2: Overview | Stats, headline number + spark) --------
-const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
 let _strengthTab = 'overview';
 export function setStrengthTab(tab) { _strengthTab = tab === 'stats' ? 'stats' : 'overview'; }
 
@@ -293,35 +292,6 @@ function _liftE1rmSeries(appState, days, maxWeek, liftName) {
   return series;
 }
 
-// A sparkline scaled to its own data's min/max (kg-friendly, unlike the 0–100 one).
-function _spark(values, color) {
-  const nonzero = values.filter(v => v > 0);
-  if (nonzero.length < 2) return '';
-  const max = Math.max(...values), min = Math.min(...nonzero);
-  const span = (max - min) || 1;
-  const w = 100, h = 30;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = v > 0 ? h - ((v - min) / span) * h : h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  return `<svg class="an-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function _tabBar(active) {
-  const tab = (id, label) => `<button class="an-tab ${active === id ? 'an-tab--active' : ''}" data-strength-tab="${id}">${label}</button>`;
-  return `<div class="an-tabbar">${tab('overview', 'Overview')}${tab('stats', 'Stats')}</div>`;
-}
-
-function _mountStrengthTabs(data, getState, getDays) {
-  qs('analytics-strength')?.querySelectorAll('[data-strength-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _strengthTab = btn.getAttribute('data-strength-tab');
-      renderStrengthAnalytics(data, getState, getDays);
-    });
-  });
-}
-
 export function renderStrengthAnalytics(data, getState, getDays) {
   const appState  = getState ? getState() : {};
   const days      = getDays ? getDays() : [];
@@ -342,13 +312,16 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 
   const section = qs('analytics-strength');
   if (!section) return;
-  section.innerHTML = _tabBar(_strengthTab) + `<div id="strength-tab-body"></div>`;
+  section.innerHTML = screenTabBar(_strengthTab) + `<div id="strength-tab-body"></div>`;
   const body = qs('strength-tab-body');
 
   if (_strengthTab === 'stats') _renderStrengthStats(body, data, sa, la);
   else _renderStrengthOverview(body, data, sa, allInsights, appState, days, maxWeek);
 
-  _mountStrengthTabs(data, getState, getDays);
+  mountScreenTabs('analytics-strength', (tab) => {
+    _strengthTab = tab;
+    renderStrengthAnalytics(data, getState, getDays);
+  });
 }
 
 // Overview: headline est-1RM number + its trend spark + the two numbers that

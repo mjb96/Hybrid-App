@@ -6,7 +6,7 @@ import { isCompletedSet } from './set-utils.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
 import { renderStrengthAnalytics, render1RMList, render1RMProgressSection, setStrengthTab } from './analytics/views/view-strength.js';
-import { renderRunningAnalytics } from './analytics/views/view-running.js';
+import { renderRunningAnalytics, setRunningTab } from './analytics/views/view-running.js';
 import { renderRecoveryAnalytics, renderRecoveryScoreDetail } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
 import {
@@ -352,6 +352,7 @@ export function renderAnalytics() {
       renderStrengthAnalytics(data, _getState, _getDays);
       break;
     case 'running':
+      setRunningTab('overview');
       document.getElementById('analytics-running').classList.add('active');
       renderRunningAnalytics(data, _getState, _getDays);
       break;
@@ -388,17 +389,14 @@ export function renderAnalytics() {
       document.getElementById('analytics-load-focus').classList.add('active');
       renderLoadFocusAnalytics(data, _getState, _getDays);
       break;
+    // V2 (S2): avg-pace, vdot, run-crossref are absorbed into the Running
+    // screen's Stats tab — redirect so deep links still resolve.
     case 'run-crossref':
-      document.getElementById('analytics-run-crossref').classList.add('active');
-      renderRunCrossRefAnalytics(data, _getState, _getDays);
-      break;
     case 'vdot':
-      document.getElementById('analytics-vdot').classList.add('active');
-      renderVdotAnalytics(data, _getState, _getDays);
-      break;
     case 'avg-pace':
-      document.getElementById('analytics-avg-pace').classList.add('active');
-      renderAvgPaceAnalytics(data, _getState);
+      setRunningTab('stats');
+      document.getElementById('analytics-running').classList.add('active');
+      renderRunningAnalytics(data, _getState, _getDays);
       break;
     case 'stress-balance':
       document.getElementById('analytics-stress-balance').classList.add('active');
