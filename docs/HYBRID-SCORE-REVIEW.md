@@ -262,9 +262,15 @@ with a measurable acceptance test.
   sleep-only no longer creates a Lifestyle score.
 
 ### P1 — Close the named input gaps
-- **E4 · Auto-VDOT from real runs** *(Defect 4).* Estimate VDOT from best recent effort so
-  running fitness is live for everyone; feed Endurance + Projections. **Measure:** a user who
-  never set threshold pace still gets a VDOT + race predictions. *→ running-calcs + endurance.*
+- **E4 · Auto-VDOT from real runs** *(Defect 4).* ✅ **SHIPPED 2026-07-03.** VDOT is no longer
+  static/manual-only: `vdotFromPerformance` (Daniels–Gilbert %VO₂max curve) turns any logged run
+  into a VDOT; `bestEffortVdot` scans the last ~8 weeks (1.5–42.2 km, walks/sprints excluded) for
+  the hardest effort; `effectiveVdot` prefers a manual threshold pace and otherwise falls back to
+  the best-effort estimate. Wired into `endurancePillar` (science-based Endurance now lights up
+  from runs alone) and `runningProjection` (race predictions + 5k ETA appear for anyone who logs
+  runs, not just those who typed a threshold pace). *→ running-calcs + endurance + predictions.*
+  Acceptance: 20:00 5k → VDOT 49–51 (matches Daniels' tables); a user with no threshold pace
+  still gets a VDOT + race predictions from their runs (`tests/vdot.test.js`).
 - **E5 · Workout-quality / true adherence.** Planned-vs-done at target RPE/load as a Consistency
   sub-signal. **Measure:** completing prescribed work at target RPE scores higher than logging
   junk sets. *→ a small quality calc + consistency.*

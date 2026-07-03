@@ -16,7 +16,7 @@ import { clamp } from '../../analytics/calculations/math-utils.js';
 import { weeklyE1rmByLift } from '../../metrics/metrics-strength.js';
 import { weeklyDistanceSeries, weeklyPaceSeries, weeklyBestPaceSeries } from '../../metrics/metrics-running.js';
 import { strengthLoadSeries, recoveryCostBreakdown } from '../load_models.js';
-import { vdotFromThresholdPace, enduranceScore } from '../../analytics/calculations/running-calcs.js';
+import { enduranceScore, effectiveVdot } from '../../analytics/calculations/running-calcs.js';
 import { levelProfile } from './config.js';
 
 const round = (n) => Math.round(n);
@@ -172,8 +172,9 @@ export function endurancePillar(model, state, days, level) {
   const pacePct = progressionPct(bestPace, idx, 4);
   const paceScore = pacePct == null ? null : (pacePct <= 0 ? gainToScore(-pacePct, level) : 50);
 
-  // If the athlete set a threshold pace, fold in the science-based endurance score.
-  const vdot = state?.thresholdPaceSeconds ? vdotFromThresholdPace(state.thresholdPaceSeconds) : null;
+  // E4 — VDOT from the manual threshold OR estimated from the best recent run,
+  // so the science-based endurance score works for anyone who logs runs.
+  const vdot = effectiveVdot(state, days, maxWeek)?.vdot || null;
   const weeklyAvgDist = dist.filter(v => v > 0).slice(-4).reduce((a, b, _, arr) => a + b / arr.length, 0);
   const eScore = vdot ? enduranceScore(vdot, model.week?.consistencyPct || 0, weeklyAvgDist) : null;
 

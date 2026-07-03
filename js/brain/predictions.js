@@ -12,7 +12,7 @@
 // =============================================================================
 import { weeklyE1rmByLift } from '../metrics/metrics-strength.js';
 import { weeklyPaceSeries, weeklyDistanceSeries } from '../metrics/metrics-running.js';
-import { vdotFromThresholdPace, racePredictors } from '../analytics/calculations/running-calcs.js';
+import { racePredictors, effectiveVdot } from '../analytics/calculations/running-calcs.js';
 
 const MIN_POINTS = 3;     // need at least this many data points to trust a trend
 const MAX_ETA_WEEKS = 78; // don't promise more than ~18 months out
@@ -80,8 +80,12 @@ const FIVEK_TARGETS = [30, 27.5, 25, 22.5, 20, 18, 16].map(m => m * 60); // seco
 // Uses the same 88%-of-threshold model as racePredictors so a pace ETA lines
 // up with the predicted-time card.
 export function runningProjection(state, days, maxWeek) {
-  const thresholdSecs = state?.thresholdPaceSeconds || 0;
-  const vdot = thresholdSecs ? vdotFromThresholdPace(thresholdSecs) : null;
+  // E4 — manual threshold OR estimated from the best recent run, so race
+  // predictions + ETAs appear for anyone who logs runs (not just those who
+  // typed a threshold pace).
+  const ev = effectiveVdot(state, days, maxWeek);
+  const thresholdSecs = ev?.thresholdSecs || 0;
+  const vdot = ev?.vdot || null;
   const races = thresholdSecs ? racePredictors(thresholdSecs) : null;
 
   // Current predicted 5k time (seconds) from threshold, if available.
