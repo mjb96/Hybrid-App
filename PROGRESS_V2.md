@@ -127,8 +127,12 @@ Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invent
       vdot, run-crossref (router redirects → Running/Stats). Shared pieces factored into
       `_screen-kit.js` (tab bar · spark · esc); Strength refactored onto it too.
       Rendered + verified in Chromium.
-- [ ] **Recovery & Load** — absorb recovery, recovery-score, training-status,
-      load-focus, stress-balance. Headline = readiness.
+- [x] **Recovery & Load ✅** — Overview: the **readiness gauge** as hero + status +
+      recommendation, Form (TSB) + Load Ratio (ACWR) cards, one insight. Stats: the full
+      recovery+load detail (`renderRecoveryScoreDetail`, generalised to any host
+      section). Collapses all FIVE leaves — recovery, recovery-score, training-status,
+      load-focus, stress-balance — into one screen ("three names for one concept", §4)
+      via router redirects. Rendered + verified in Chromium.
 - [ ] **Review** — absorb weekly-review, weekly-summary, monthly-report, progress,
       activity, streak, bodyweight, goal-progress. Headline = the week's score.
 - [ ] `[CC]` Remove the now-dead hub entries + orphaned view/chart code once all 5

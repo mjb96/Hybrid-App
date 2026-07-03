@@ -7,7 +7,7 @@ import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
 import { renderStrengthAnalytics, render1RMList, render1RMProgressSection, setStrengthTab } from './analytics/views/view-strength.js';
 import { renderRunningAnalytics, setRunningTab } from './analytics/views/view-running.js';
-import { renderRecoveryAnalytics, renderRecoveryScoreDetail } from './analytics/views/view-recovery.js';
+import { renderRecoveryLoad, setRecoveryTab } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
 import {
   renderProgressAnalytics,
@@ -356,13 +356,21 @@ export function renderAnalytics() {
       document.getElementById('analytics-running').classList.add('active');
       renderRunningAnalytics(data, _getState, _getDays);
       break;
+    // V2 (S2): recovery, recovery-score, training-status, load-focus and
+    // stress-balance collapse into ONE Recovery & Load screen — "three names for
+    // one concept" (§4). Readiness is the Overview hero; the rest is in Stats.
     case 'recovery':
+      setRecoveryTab('overview');
       document.getElementById('analytics-recovery').classList.add('active');
-      renderRecoveryAnalytics(data, _getState, _getDays);
+      renderRecoveryLoad(data, _getState, _getDays);
       break;
     case 'recovery-score':
-      document.getElementById('analytics-recovery-score').classList.add('active');
-      renderRecoveryScoreDetail(data, _getState, _getDays);
+    case 'training-status':
+    case 'load-focus':
+    case 'stress-balance':
+      setRecoveryTab('stats');
+      document.getElementById('analytics-recovery').classList.add('active');
+      renderRecoveryLoad(data, _getState, _getDays);
       break;
     case 'bodyweight':
       document.getElementById('analytics-bodyweight').classList.add('active');
@@ -381,14 +389,6 @@ export function renderAnalytics() {
       renderProgressAnalytics(data, _getState);
       renderGoalProgressDetail(data, _getState);
       break;
-    case 'training-status':
-      document.getElementById('analytics-training-status').classList.add('active');
-      renderTrainingStatusAnalytics(data, _getState, _getDays);
-      break;
-    case 'load-focus':
-      document.getElementById('analytics-load-focus').classList.add('active');
-      renderLoadFocusAnalytics(data, _getState, _getDays);
-      break;
     // V2 (S2): avg-pace, vdot, run-crossref are absorbed into the Running
     // screen's Stats tab — redirect so deep links still resolve.
     case 'run-crossref':
@@ -397,10 +397,6 @@ export function renderAnalytics() {
       setRunningTab('stats');
       document.getElementById('analytics-running').classList.add('active');
       renderRunningAnalytics(data, _getState, _getDays);
-      break;
-    case 'stress-balance':
-      document.getElementById('analytics-stress-balance').classList.add('active');
-      renderStressBalanceAnalytics(data, _getState, _getDays);
       break;
     case 'activity':
       document.getElementById('analytics-activity').classList.add('active');
