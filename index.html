@@ -687,11 +687,14 @@
 
       <button class="btn-action-block btn-dashed mt-3 mb-5" data-action="open-add-exercise">+ Add Unplanned Exercise</button>
 
-      <article class="card-dark mt-4 p-4">
-        <div class="mb-3">
-          <div class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</div>
-          <div class="app-section-heading__sub">RPE &amp; session notes</div>
-        </div>
+      <details class="card-dark mt-4 p-4 wk-overview">
+        <summary class="wk-overview__summary">
+          <span class="wk-overview__titles">
+            <span class="app-section-heading__title" style="font-size:0.95rem; margin-bottom:2px;">Session Overview</span>
+            <span class="app-section-heading__sub">RPE, notes &amp; watch import — tap to add</span>
+          </span>
+          <span class="wk-overview__chev" aria-hidden="true">›</span>
+        </summary>
 
         <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(4, 1fr);">
@@ -724,10 +727,10 @@
           <div class="fit-import-tile__arrow">›</div>
           <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
         </label>
-      </article>
+      </details>
 
       <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Session</button>
-      <button class="btn-action-block btn-danger-ghost mt-2" data-action="open-reset-modal">Clear Today's Log</button>
+      <button class="wk-clear-link mt-2" data-action="open-reset-modal">Clear today's log</button>
     </section>
 
     <section id="view-analytics" class="view-container" aria-label="Performance Analytics">
@@ -1811,22 +1814,6 @@
   <div id="fastingSheetBackdrop" class="fasting-sheet-backdrop" data-action="close-fasting-detail"></div>
   <div id="fastingSheet" class="fasting-sheet" role="dialog" aria-modal="true" aria-label="Fasting details">
     <!-- content injected by home.js openFastingDetail() -->
-  </div>
-
-  <!-- Profile Dashboard Customiser -->
-  <div id="profileCustomiserOverlay" class="profile-customiser-overlay" aria-hidden="true">
-    <div id="profileCustomiserSheet" class="profile-customiser-sheet" role="dialog" aria-label="Customise Dashboard" aria-modal="true">
-      <div class="pcs-header">
-        <span class="pcs-title">Customise Dashboard</span>
-        <button class="pcs-close" data-action="close-profile-customiser" aria-label="Close customiser">✕</button>
-      </div>
-      <p class="pcs-hint">Drag to reorder. Toggle to show or hide each section.</p>
-      <div class="profile-customiser-list" id="profileCustomiserList"></div>
-      <div class="pcs-actions">
-        <button class="pcs-reset" data-action="reset-profile-customiser">Reset to default</button>
-        <button class="pcs-done" data-action="close-profile-customiser">Done</button>
-      </div>
-    </div>
   </div>
 
   <!-- PR Goal Modal -->

@@ -10,6 +10,10 @@ import { renderProgramCard, isWod } from './program-card.js';
 import { toggleBookmark, recordRecentlyViewed, getProgramById, saveStateToLocalStorage } from '../state.js';
 import { escapeHtml, programProgressPct } from '../util.js';
 
+// V2-6 — the curated home rails (in order) shown on the lean Discover surface.
+// Everything else stays reachable via the category chips + Browse-all grid.
+const CURATED_HOME_COLLECTIONS = ['hybridhq-picks', 'highest-rated', 'trending'];
+
 let _appState = null;
 let _activeFilter = 'all';
 let _activeDifficulty = null; // null | 'beginner' | 'intermediate' | 'advanced' | 'elite'
@@ -423,11 +427,36 @@ function renderCollectionRows(container) {
     }, recommendations.map(r => r.program), true);
   }
 
-  // All other collection rows
-  for (const collection of collections) {
-    if (!collection.programs || collection.programs.length === 0) continue;
+  // V2-6 — a curated few rails, not the whole catalogue. The old surface stacked
+  // ~25 collection rows into an endless wall; the full library is one tap away via
+  // the category chips (and the Browse-all grid below), so Discover stays lean.
+  const byId = new Map(collections.map(c => [c.id, c]));
+  for (const id of CURATED_HOME_COLLECTIONS) {
+    const collection = byId.get(id);
+    if (!collection || !collection.programs || collection.programs.length === 0) continue;
     html += renderCollectionRow(collection, collection.programs);
   }
+
+  // Browse-all: every category is reachable here (and via the chips up top), so
+  // no program is buried — it's just not on the surface by default.
+  html += `
+    <div class="collection-row mb-5">
+      <div class="collection-header mb-2">
+        <div class="collection-title-wrap">
+          <span class="collection-icon">🗂️</span>
+          <div>
+            <div class="collection-title">Browse all categories</div>
+            <div class="collection-subtitle">${PROGRAM_CATALOG.length} programs across every discipline</div>
+          </div>
+        </div>
+      </div>
+      <div class="prog-browse-grid">
+        ${FILTER_CHIPS.filter(c => c.key !== 'all').map(c => `
+          <button class="filter-chip" data-action="prog-filter" data-filter="${c.key}">${c.label}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
 
   // Create custom program CTA
   html += `

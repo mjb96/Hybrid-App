@@ -5,26 +5,21 @@
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 import { showToast } from './state.js';
-import { createSortable } from './ui/sortable.js';
 import { computeStreak } from './home/dashboard-model.js';
 import { levelFromXp } from './brain/hybrid-score/levels.js';
+import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
+
+// V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
+// the full depth. Fixed, curated order — the doctrine is "simple front, powerful
+// behind", not "configurable".
+const PROFILE_OVERVIEW_IDS = ['progression', 'program', 'summary'];
+const PROFILE_STATS_IDS = ['performance', 'thisweek', 'heatmap', 'bodyweight', 'health', 'sessions', 'completed'];
+let _profileTab = 'overview';
 
 let _getState  = null;
 let _getDays   = null;
 let _saveState = null;
 
-export const PROFILE_SECTIONS = [
-  { id: 'summary',     label: 'Athlete Summary',    icon: '📊' },
-  { id: 'progression', label: 'Hybrid Level',       icon: '🎖️' },
-  { id: 'heatmap',    label: 'Training Activity',   icon: '🔥' },
-  { id: 'program',    label: 'Current Program',     icon: '📋' },
-  { id: 'performance',label: 'Performance',         icon: '💪' },
-  { id: 'thisweek',   label: 'This Week',           icon: '📅' },
-  { id: 'bodyweight', label: 'Body Weight',         icon: '⚖️' },
-  { id: 'health',     label: 'Health Metrics',      icon: '❤️' },
-  { id: 'sessions',   label: 'Recent Sessions',     icon: '📝' },
-  { id: 'completed',  label: 'Completed Programs',  icon: '🏆' },
-];
 
 export function initAthleteProfile(getStateFn, getDaysFn, saveStateFn) {
   _getState  = getStateFn;
@@ -117,10 +112,6 @@ export function renderAthleteProfile() {
         <h1 class="profile-hero-name">${name}</h1>
         <div class="profile-hero-sub">${heroSub}</div>
       </div>
-      <button class="profile-customise-btn" data-action="open-profile-customiser" aria-label="Customise dashboard">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="11" y2="18"/></svg>
-        Edit
-      </button>
       <button class="profile-settings-btn" data-action="share-profile" aria-label="Share profile card">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -293,88 +284,26 @@ export function renderAthleteProfile() {
       </div>
     `;
   } else {
-    // Apply stored order + hidden preferences. Newly-added sections that aren't
-    // in a user's saved order are appended in their default position so existing
-    // customisations keep working without losing new features.
-    const profileSections = state.profileSections || { order: null, hidden: [] };
-    const defaultOrder = PROFILE_SECTIONS.map(s => s.id);
-    const stored = profileSections.order || defaultOrder;
-    const order  = stored.concat(defaultOrder.filter(id => !stored.includes(id)));
-    const hidden = new Set(profileSections.hidden || []);
-
-    body = order
-      .filter(id => !hidden.has(id) && sectionHTML[id])
-      .map(id => sectionHTML[id])
-      .join('');
+    // V2-6 — curated Overview | Stats. Overview is the lean identity glance
+    // (level · program · lifetime); Stats holds the full depth. Empty sections
+    // drop out so a tab is never a wall of blanks.
+    const pick = (ids) => ids.map(id => sectionHTML[id]).filter(Boolean).join('');
+    const overview = pick(PROFILE_OVERVIEW_IDS);
+    const stats    = pick(PROFILE_STATS_IDS);
+    body = `
+      ${screenTabBar(_profileTab)}
+      <div class="profile-tabbody">${_profileTab === 'stats' ? stats : overview}</div>
+    `;
   }
 
   container.innerHTML = heroHTML + body + `<div style="height: 80px;"></div>`;
+
+  if (!isNewAthlete) {
+    mountScreenTabs('profileContent', (tab) => { _profileTab = tab; renderAthleteProfile(); });
+  }
 }
 
 // ── Profile Customiser ────────────────────────────────────────────────────────
-
-export function openProfileCustomiser() {
-  if (!_getState) return;
-  const state = _getState();
-  const psSt  = state.profileSections || { order: null, hidden: [] };
-  const defaultOrder = PROFILE_SECTIONS.map(s => s.id);
-  const stored = psSt.order || defaultOrder;
-  const order  = stored.concat(defaultOrder.filter(id => !stored.includes(id)));
-  const hidden = new Set(psSt.hidden || []);
-
-  const list = document.getElementById('profileCustomiserList');
-  if (list) {
-    list.innerHTML = order.map(id => {
-      const sec = PROFILE_SECTIONS.find(s => s.id === id);
-      if (!sec) return '';
-      return `
-        <div class="pcs-item" data-section-id="${id}">
-          <span class="pcs-handle" aria-hidden="true">⠿</span>
-          <span class="pcs-icon" aria-hidden="true">${sec.icon}</span>
-          <span class="pcs-label">${sec.label}</span>
-          <label class="settings-switch pcs-toggle" aria-label="Show ${sec.label}">
-            <input type="checkbox" class="pcs-visibility-toggle" data-section-id="${id}" ${hidden.has(id) ? '' : 'checked'}>
-            <span class="settings-switch-track"></span>
-          </label>
-        </div>
-      `;
-    }).join('');
-    _mountCustomiserDragDrop(list);
-  }
-
-  const overlay = document.getElementById('profileCustomiserOverlay');
-  const sheet   = document.getElementById('profileCustomiserSheet');
-  if (overlay) { overlay.classList.add('active'); overlay.removeAttribute('aria-hidden'); }
-  if (sheet)   sheet.classList.add('active');
-}
-
-export function closeProfileCustomiser() {
-  const list = document.getElementById('profileCustomiserList');
-  if (list && _getState && _saveState) {
-    const state = _getState();
-    if (!state.profileSections) state.profileSections = { order: null, hidden: [] };
-    const items  = list.querySelectorAll('.pcs-item[data-section-id]');
-    const newOrder = Array.from(items).map(el => /** @type {HTMLElement} */ (el).dataset.sectionId);
-    const newHidden = Array.from(list.querySelectorAll('.pcs-visibility-toggle:not(:checked)')).map(el => /** @type {HTMLElement} */ (el).dataset.sectionId);
-    state.profileSections.order  = newOrder;
-    state.profileSections.hidden = newHidden;
-    _saveState(true);
-    renderAthleteProfile();
-  }
-  document.getElementById('profileCustomiserOverlay')?.classList.remove('active');
-  document.getElementById('profileCustomiserOverlay')?.setAttribute('aria-hidden', 'true');
-  document.getElementById('profileCustomiserSheet')?.classList.remove('active');
-}
-
-export function resetProfileCustomiser() {
-  if (!_getState || !_saveState) return;
-  const state = _getState();
-  state.profileSections = { order: null, hidden: [] };
-  _saveState(true);
-  showToast('Dashboard reset to default');
-  openProfileCustomiser();
-  renderAthleteProfile();
-}
 
 // ── Shareable profile card ────────────────────────────────────────────────────
 // Renders a 1080×1350 summary card to an offscreen canvas, then shares it via
@@ -510,16 +439,6 @@ function _roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
-}
-
-function _mountCustomiserDragDrop(list) {
-  // Grab the ⠿ handle to reorder. The shared engine reorders the DOM in place;
-  // closeProfileCustomiser() reads the resulting order on apply.
-  createSortable(list, {
-    itemSelector: '.pcs-item',
-    handleSelector: '.pcs-handle',
-    layout: 'list',
-  });
 }
 
 // Pure helpers extracted to ./profile-stats.js

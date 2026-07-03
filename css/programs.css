@@ -81,6 +81,14 @@
   gap: 6px;
 }
 
+/* V2-6 — Browse-all category grid on the lean Discover surface. */
+.prog-browse-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.prog-browse-grid .filter-chip { flex-shrink: 1; }
+
 .filter-chip {
   flex-shrink: 0;
   padding: 7px 14px;

@@ -69,7 +69,7 @@ import {
   saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut, deleteAccount,
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
-import { initAthleteProfile, renderAthleteProfile, handleProfileAction, openProfileCustomiser, closeProfileCustomiser, resetProfileCustomiser } from './athlete-profile.js';
+import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, cancelTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
@@ -838,10 +838,6 @@ else if (action === 'export-csv') triggerCSVExport();
   // Athlete Profile
   else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'share-profile'].includes(action))
     handleProfileAction(action, target);
-  else if (action === 'open-profile-customiser')  openProfileCustomiser();
-  else if (action === 'close-profile-customiser') closeProfileCustomiser();
-  else if (action === 'reset-profile-customiser') resetProfileCustomiser();
-  else if (e.target.id === 'profileCustomiserOverlay') closeProfileCustomiser();
   else if (action === 'pick-avatar')              openAvatarPicker();
 
   // Deload week

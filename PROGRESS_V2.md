@@ -265,6 +265,29 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
       banner + weekly caption; "Share your Score card" button on the Weekly Review screen
       (text share kept as a secondary option). Rendered + verified.
 
+## Phase V2-6 — Extend the pattern to Workout / Programs / Profile
+The last three heavy surfaces get the same doctrine: one identity hero · lean
+Overview · full depth under Stats/expanders · curated, not configurable.
+- [x] `[CC]` **Profile → hero + Overview | Stats.** Kept the identity hero (avatar ·
+      level · streak · relative-strength band); split the old 9-section customiser stack
+      into a curated Overview (Hybrid Level · Current Program · Lifetime) and Stats
+      (Performance · This Week · Activity · Body Weight · Health · Recent · Completed) via
+      the shared screen-kit tab bar. Removed the profile customiser entirely (button +
+      3 functions + drag-drop + overlay + app wiring) — curated beats configurable, same
+      call as the Home tiles. 383 tests green; both tabs verified in Chromium.
+- [x] `[CC]` **Programs → active-program hero + curated rails + Browse-all.** Discover
+      now shows the NOW-TRAINING hero + featured banner + 4 curated rails (Recommended ·
+      Helyx Picks · Highest Rated · Trending) + a "Browse all categories" chip grid,
+      instead of stacking ~25 collection rows. Verified in Chromium: the surface dropped
+      from 27 rows / ~7,400px to 5 rows / ~1,600px (~78% shorter), whole catalogue still
+      reachable via chips + Browse-all, no errors.
+- [x] `[CC]` **Workout → one primary action + quiet depth.** Session Overview (RPE,
+      notes, gym stats, watch import) collapses into a tap-to-expand `<details>` so the
+      cockpit ends on the exercises + one Finish action; "Clear today's log" demoted from
+      a loud red block to a quiet destructive-tinted link. Inputs stay in the DOM (logging
+      path intact). Verified in Chromium: overview collapsed by default, Finish primary,
+      no exceptions.
+
 ---
 
 ## Scorecard (from PRODUCT_V2 §10 — tick when true)
@@ -277,6 +300,18 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-6 complete — Workout + Programs simplified.** Programs Discover went
+  from a ~30-rail / 7,400px wall to the active hero + 4 curated rails + Browse-all grid
+  (~1,600px, catalogue still fully reachable). Workout cockpit collapses Session Overview
+  into a `<details>` and demotes Clear to a quiet link — one primary action per state.
+  With Profile (earlier today) all three remaining surfaces now follow the doctrine.
+  383 tests, typecheck, smoke green; each verified in Chromium.
+- 2026-07-03 · **V2-6 started — Profile rebuilt on the pattern.** Profile now leads with
+  the identity hero + a curated Overview | Stats split (screen-kit tab bar), replacing the
+  9-section user customiser (removed entirely — button, functions, drag-drop, overlay, app
+  wiring). Overview = level · program · lifetime; Stats = the full depth. 383 tests +
+  typecheck + smoke green; both tabs verified in Chromium. Next: Programs (kill the 30-rail
+  wall → hero + curated rails + Browse-all), then Workout (one primary action + quiet overflow).
 - 2026-07-03 · **V2-5 shareable card shipped — V2 phases complete.** `share-card.js`
   renders the Score card (gauge · level · 3 dials · streak) to a 1080×1350 PNG via
   navigator.share + download fallback; "Share your Score" on the Score detail and a
