@@ -406,7 +406,7 @@
           <h1 id="homeWeekBlockIndicator" class="home-week-label">Week 1</h1>
           <span class="home-phase-label" id="homePhaseLabelTag"></span>
         </div>
-        <div class="home-week-progress" aria-label="Weekly completion">
+        <div class="home-week-progress" aria-label="Weekly completion" style="display:none;">
           <span id="homeWeeklyProgressPct" class="home-week-progress__pct">0%</span>
           <div class="home-week-progress__track"><div id="homeWeeklyProgressBar" class="home-week-progress__fill"></div></div>
           <span id="homeWeeklyProgressTasks" class="home-week-progress__tasks"></span>
@@ -460,12 +460,13 @@
         </article>
       </div>
 
-      <div class="app-section-heading">
+      <!-- V2 (S4): In-Focus performance graphs moved off Home → Insights (Strength / Running). -->
+      <div class="app-section-heading" style="display:none;">
         <div class="app-section-heading__title">In Focus</div>
         <div class="app-section-heading__sub">Your training this week</div>
       </div>
 
-      <div class="in-focus-carousel">
+      <div class="in-focus-carousel" style="display:none;">
 
         <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="strength">
           <div class="hmcard-top">
@@ -490,8 +491,8 @@
 
       </div>
 
-      <!-- Quick actions — high-frequency habit actions, always one tap away -->
-      <div class="qa-row" id="dashboardQuickActions" aria-label="Quick actions">
+      <!-- V2 (S4): quick actions moved off Home — fasting / check-in / weight are one tap away in Insights. -->
+      <div class="qa-row" id="dashboardQuickActions" aria-label="Quick actions" style="display:none;">
         <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="Start or view fast">
           <span class="qa-icon">⏱️</span>
           <span class="qa-text"><span class="qa-label">Start Fast</span><span class="qa-sub">Intermittent fasting</span></span>

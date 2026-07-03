@@ -36,7 +36,7 @@ import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail } from './home.js';
+import { initHome, renderHome, openFastingDetail } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
 import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';

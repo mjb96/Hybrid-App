@@ -120,20 +120,25 @@ own focused surface (owner override) — the other 23 leaves collapse to 5:
       Score engine — most survive; views die, math lives). Fasting calcs are kept.
 
 ### S3 — Tiles: 19 defs + customiser → 4 fixed
-- [ ] `[CC]` Keep exactly: **Readiness · Weekly Volume · Top Lifts (strength #) ·
-      Avg Pace (running #)**. Delete the other 15 defs, `js/dragdrop.js` customiser,
-      `DEFAULT_HIDDEN_TILES` machinery, customiser settings row. `dashboardTiles`
-      state field abandoned in place.
+- [x] `[CC]` Home now renders exactly **Readiness · Weekly Volume · Top Lifts ·
+      Avg Pace** (`HOME_TILE_IDS` in dashboard.js). The customiser is gone: removed the
+      "Edit" button, `openTileCustomiser` / `closeTileCustomiser` / `resetTileCustomiser`,
+      the `open/close/reset-tile-customiser` actions, `mountTileDragAndDrop` on Home, and
+      the app.js imports. 3 tests. *(Dead-but-harmless remnants left for a later sweep:
+      the `#tileCustomiserSheet` DOM in index.html and the now-unused tile fns in
+      dragdrop.js; `dashboardTiles` state field abandoned in place.)*
 
 ### S4 — Home: one hero, then silence
-- [ ] `[CC]` Above the fold: Hybrid Score card only (it absorbs the morning-briefing
-      card's action + coaching sentence — one voice, §7). Below: today's-session card
-      → 4 tiles → one **flag slot** merging the overtraining danger card + deload
-      advisory into a single calm surface (`js/brain/risk.js` already dedupes them).
-- [ ] `[CC]` Off Home: weekly-progress header, week-compare, In-Focus graphs,
-      activity calendar (→ Review screen), quick actions (→ Workout tab), engine
-      alerts (→ the flag slot or death).
-- [ ] `[You]` Look at it on the phone. The two-second test from §3 is yours to judge.
+- [x] `[CC]` Home is now **hero → briefing (session + mission) → "Go to Today's Workout"
+      CTA → flag slot → 4 tiles**. The Hybrid Score card (with the 3 dials) is the hero,
+      showAction:false so the briefing owns the one action (one voice). Flag slot = the
+      existing overtraining/deload cards (already deduped by `risk.js`).
+- [x] `[CC]` Moved off Home (hidden; all still reachable via Insights): weekly-progress
+      header, week-compare card, engine-stall alert, the In-Focus performance graphs, and
+      the quick-actions row (fasting / check-in / weight). Smoke renders the real Home
+      graph clean. *(Kept on Home: the walk/run quick-start row — no other entry yet.)*
+- [ ] `[You]` Look at it on the phone — the §3 two-second test is yours to judge
+      (headless can't render the full booted Home; smoke confirms no crash).
 
 ### S5 — Settings: 49 rows → ~10
 - [ ] `[CC]` Keep account/auth, units, notifications, health-connect, data export/
