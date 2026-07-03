@@ -224,13 +224,19 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
       driven + screenshotted in Chromium (fresh user → onboarding → reveal → Home). ✅
 
 ## Phase V2-3 — The morning hook (Month 2)
-- [ ] `[CC]` Forward-looking score: pure `projectScore(state, {completeToday |
-      skipUntil})` — simulate today's planned session through the existing pillars;
-      render "rises to ~85 if you train" on the card + in the morning push.
-- [ ] `[CC]` Morning push rewrite: decisive, forward-looking, one sentence
-      (`composeMorningReminder` exists; the voice changes, not the plumbing).
-- [ ] `[CC]` Streak-at-stake framing ("you'll lose your 12-day streak unless…") —
-      `js/brain/streak.js` freeze/repair already makes it fair.
+- [x] `[CC]` **Forward-looking score: pure `projectScore(model, state, days)`.**
+      `js/brain/hybrid-score/project.js` clones the model with today's planned session
+      marked done (adherence up + streak +1) and re-runs the REAL engine — so "rises to
+      85 if you train" is the actual score they'd see, and it honestly projects no gain
+      on a rest day / completed week. Surfaced on the Home briefing card (↑ climbs to X)
+      and in the push. 5 tests.
+- [x] `[CC]` **Morning push rewrite: decisive, forward-looking, one sentence.**
+      `briefingToText` now leads with the upside of training today (falls back to the
+      plain score line when there's no gain), plumbing unchanged. Verified: real output
+      "…70 today — train and it rises to 81. Today: … Mission: …".
+- [x] `[CC]` **Streak-at-stake framing.** `streakRiskLine` (freeze-aware, already fair)
+      wired into both the card (amber/red row) and the push tail when a real streak is
+      unprotected today. Rendered + verified in Chromium.
 - [ ] `[You]` Device-test the push loop for a week. Retention is felt, not unit-tested.
 
 ## Phase V2-4 — One coach with memory (Month 2–3)
@@ -259,6 +265,12 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-3 morning hook shipped.** Pure `projectScore()` simulates completing
+  today's session through the real engine (adherence + streak) → "train and it rises to
+  X", surfaced on the briefing card + rewritten decisive/forward-looking push; streak-at-
+  stake (loss-aversion) line wired into both. 10 new tests (384 total), typecheck + smoke
+  green, card + Home render verified in Chromium. Next: V2-4 (coach voice — consequences
+  not mechanisms; memory lines from history; retire R8 banners).
 - 2026-07-03 · **V2-2 provisional-Score onboarding shipped + the "onboarding never
   shows" bug fixed.** Added `provisionalScore()` (pure, low-confidence composite from
   3 self-reports, momentum/body left null) rendered in the real Home card language as

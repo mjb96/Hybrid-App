@@ -15,6 +15,7 @@
 
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { projectScore } from './brain/hybrid-score/project.js';
 import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.js';
 import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
 import { maybePushFastingNudge } from './fasting/fasting-nudge.js';
@@ -192,7 +193,8 @@ export function composeMorningReminder(state, program, now = new Date()) {
   const selectedDay = _dayKey(now);
   const model = computeDashboardModel(state, WEEK_DAYS, program, selectedDay);
   const score = computeHybridScore(model, state, WEEK_DAYS);
-  const briefing = buildMorningBriefing({ state, model, score, program, selectedDay, now });
+  const projection = projectScore(model, state, WEEK_DAYS);
+  const briefing = buildMorningBriefing({ state, model, score, projection, program, selectedDay, now });
   return { title: 'Morning Briefing', body: briefingToText(briefing) };
 }
 
