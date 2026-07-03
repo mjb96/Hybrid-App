@@ -283,9 +283,18 @@ with a measurable acceptance test.
   `deltaBreakdown` (sums to the delta); the detail view shows a "Since yesterday +N" block
   ("+5 Recovery improved · −2 Consistency slipped"), separate from the "why your score IS this"
   drivers. *→ history + engine + UI.*
-- **E8 · Compound-weighted, smoothed Strength** *(Defect 5).* Weight big-3/compounds; use a
-  rolling-max e1RM, not a single session. **Measure:** one near-max single no longer spikes the
-  score; a curl PR counts less than a squat PR. *→ strengthPillar.*
+- **E8 · Compound-weighted, smoothed Strength** *(Defect 5).* ✅ **SHIPPED 2026-07-03.** Two
+  gaming vectors closed. (1) **Smoothing:** the e1RM formula over-estimates a grindy near-max
+  single, so `weeklyE1rmByLift`'s single-session peak spiked the pillar. `robustE1rmSeries`
+  replaces each training week's peak with the **trailing-median** of the last ~3 training weeks —
+  a one-off is rejected outright (median ignores a lone outlier), a PR that's actually *repeated*
+  persists within a couple of weeks (chosen over a naive rolling-max, which would *keep* the
+  spike). (2) **Compound weighting:** `liftWeight` tiers each lift (primary barbell compound 1.0 ·
+  secondary/assistance 0.6 · isolation 0.25 · unknown 0.5) and progression is a weighted mean with
+  the denominator floored at one compound's worth — so an accessory-only block can't earn full
+  credit, yet accessories added *on top of* compounds never dilute them. **Measure (tests):** a
+  lone near-max single scores like a flat block while a repeated climb scores clearly higher; an
+  identical curl PR moves Strength less than a squat PR. *→ metrics-strength + strengthPillar.*
 - **E9 · Daily-movement term for non-wearable users.** A small "today's session done at target"
   signal so the number moves every day. **Measure:** score changes daily without Health Connect.
 

@@ -116,6 +116,51 @@ export function weeklyE1rmByLift(state, days, maxWeek) {
   return result;
 }
 
+// Median of a numeric array (sorted copy; robust to a single outlier).
+function _median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// E8 — robust weekly e1RM. `weeklyE1rmByLift` stores each week's single best-set
+// e1RM, and the e1RM formula OVER-estimates a grindy near-max single (low reps),
+// so one such set spikes the series and, with it, the Strength score. This
+// replaces each *training* week's peak with the MEDIAN of the trailing `window`
+// training weeks: a one-off spike is rejected (median ignores a lone outlier),
+// while a genuine PR that's actually repeated persists into the median within a
+// couple of weeks. Non-training weeks (0) stay 0 so progression's gap-skipping
+// (lastNonZero/priorNonZero) still works.
+export function robustE1rmSeries(series, window = 3) {
+  const out = new Array(series.length).fill(0);
+  const seen = []; // trailing non-zero (training-week) values, in order
+  for (let i = 0; i < series.length; i++) {
+    if (series[i] > 0) {
+      seen.push(series[i]);
+      out[i] = _median(seen.slice(-window));
+    }
+  }
+  return out;
+}
+
+// E8 — compound weighting. A squat PR is a truer signal of whole-body strength
+// than a curl PR, and isolation lifts are both easy to PR and easy to game, so
+// each lift's contribution to the Strength progression average is scaled by its
+// tier. Checked accessory → secondary → primary (order matters: "incline bench"
+// must resolve as secondary, not primary "bench"). Unknown lifts stay neutral so
+// an unusual name is neither inflated nor punished.
+export function liftWeight(name) {
+  const n = String(name || '').toLowerCase();
+  if (/curl|extension|lateral|front raise|rear delt|\bfly|flye|calf|shrug|face.?pull|pec.?deck|kickback|pullover|crunch|sit.?up|plank|abduction|adduction|wrist|reverse fly/.test(n))
+    return 0.25; // isolation / accessory
+  if (/split|bulgarian|lunge|goblet|hack|sissy|leg press|romanian|stiff|\brdl\b|good morning|hip thrust|\brow\b|pull.?up|chin.?up|pull.?down|\bdip\b|push press|incline|decline|close.?grip/.test(n))
+    return 0.6; // secondary compound / assistance
+  if (/\bsquat\b|dead\s?lift|bench|overhead press|military|strict press|\bohp\b|shoulder press|clean|snatch|\bjerk\b|\bpress\b/.test(n))
+    return 1.0; // primary barbell compound
+  return 0.5; // unknown → neutral
+}
+
 // Returns {[lift]: {allTimeMax, currentWeekMax, prevWeekMax}} scanning all weeks.
 export function allLiftsStats(state, days) {
   const result = {};

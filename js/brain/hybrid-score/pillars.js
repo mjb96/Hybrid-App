@@ -13,7 +13,7 @@
 //            "why today" drivers.
 // =============================================================================
 import { clamp } from '../../analytics/calculations/math-utils.js';
-import { weeklyE1rmByLift } from '../../metrics/metrics-strength.js';
+import { weeklyE1rmByLift, robustE1rmSeries, liftWeight } from '../../metrics/metrics-strength.js';
 import { weeklyDistanceSeries, weeklyPaceSeries, weeklyBestPaceSeries } from '../../metrics/metrics-running.js';
 import { strengthLoadSeries, recoveryCostBreakdown } from '../load_models.js';
 import { enduranceScore, effectiveVdot } from '../../analytics/calculations/running-calcs.js';
@@ -119,18 +119,25 @@ export function strengthPillar(model, state, days, level) {
   const everLifted = tonnage.some(v => v > 0);
   if (!everLifted) return { score: null, signals: [] };
 
-  // Progression: best per-lift e1RM change over ~4 weeks, averaged across lifts.
+  // E8 — compound-weighted, smoothed progression. Each lift's weekly e1RM is
+  // first robust-smoothed (trailing median) so a single grindy near-max set
+  // can't spike the pillar, then its gain is weighted by lift tier so a squat
+  // PR moves the score more than a curl PR. Denominator floored at one compound's
+  // worth so an accessory-only week can't earn full progression credit, while
+  // adding accessories on top of compounds never dilutes them.
   const byLift = weeklyE1rmByLift(state, days, maxWeek);
-  const gains = [];
-  let bestLift = null, bestGain = -Infinity;
+  let num = 0, den = 0;
+  let bestLift = null, bestGain = 0, bestRank = -Infinity;
   for (const lift in byLift) {
-    const pct = progressionPct(byLift[lift], idx, 4);
+    const pct = progressionPct(robustE1rmSeries(byLift[lift]), idx, 4);
     if (pct == null) continue;
-    gains.push(pct);
-    if (pct > bestGain) { bestGain = pct; bestLift = lift; }
+    const w = liftWeight(lift);
+    num += w * pct; den += w;
+    const rank = w * pct; // headline the biggest *weighted* mover
+    if (rank > bestRank) { bestRank = rank; bestGain = pct; bestLift = lift; }
   }
-  const progScore = gains.length
-    ? gainToScore(gains.reduce((a, b) => a + b, 0) / gains.length, level)
+  const progScore = den > 0
+    ? gainToScore(num / Math.max(den, 1.0), level)
     : levelProfile(level).floor; // lifting but no window yet → neutral floor
 
   // Volume upkeep: current week tonnage vs trailing 3-week average.
