@@ -215,9 +215,6 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 - [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
       (Provisional = low-confidence composite from self-reported level/frequency/
       recovery; confidence meter already communicates the uncertainty honestly.)
-- [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
-      (Provisional = low-confidence composite from self-reported level/frequency/
-      recovery; confidence meter already communicates the uncertainty honestly.)
 
 ## Phase V2-3 — The morning hook (Month 2)
 - [ ] `[CC]` Forward-looking score: pure `projectScore(state, {completeToday |
