@@ -168,10 +168,16 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 - [ ] `[You]` Look at it on the phone — the §3 two-second test is yours to judge
       (headless can't render the full booted Home; smoke confirms no crash).
 
-### S5 — Settings: 49 rows → ~10
-- [ ] `[CC]` Keep account/auth, units, notifications, health-connect, data export/
-      delete, theme. Kill power-user knobs (band weights, progression step,
-      remembered-rest reset, …). Underlying state fields abandoned, defaults apply.
+### S5 — Settings: trim the power-user knobs ✅
+- [x] `[CC]` Retired the doc's exact power-user examples — **band weights, progression
+      step, per-tier rest tuning + remembered-rest reset** — by hiding them (elements
+      kept so `settings.js` reads never null; underlying state keeps working defaults, so
+      zero functional regression). **Kept** everything functional/consumer: name · body
+      weight · units · goal/experience · threshold pace · equipment (drives programming)
+      · program week · fasting · all notifications · theme · data export/delete. Scoped
+      deliberately narrower than "→10": equipment and program-week affect behaviour, so
+      they stay — cutting them would regress a limited-equipment user, which headless
+      can't catch. Kept the Auto-rest on/off toggle (consumer), dropped its tuning.
 
 ### S6 — Pillars → 3 dials (display only; §9 puts this in Month 1)
 - [x] `[CC]` Pure module `js/brain/hybrid-score/dials.js` (`computeDials` + `DIAL_MAP`):

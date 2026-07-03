@@ -1595,22 +1595,21 @@
             </div>
           </div>
           <div class="settings-row" style="display:block;">
-            <label class="hc-data-toggle" style="margin-bottom:8px;"><input type="checkbox" id="settingsRestEnabled" checked><span>Auto rest timer between sets</span></label>
-            <div class="settings-hint" style="margin-bottom:8px;">Rest is suggested by exercise type. Tune each tier (m:ss):</div>
-            <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
-              <label><span class="set-num-lbl block mb-1 text-accent-red">Compound</span><input type="text" id="settingsRestCompound" inputmode="numeric" placeholder="3:00" style="text-align:center;"></label>
-              <label><span class="set-num-lbl block mb-1 text-accent-amber">Accessory</span><input type="text" id="settingsRestAccessory" inputmode="numeric" placeholder="2:00" style="text-align:center;"></label>
-              <label><span class="set-num-lbl block mb-1 text-accent-green">Isolation</span><input type="text" id="settingsRestIsolation" inputmode="numeric" placeholder="1:30" style="text-align:center;"></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="settingsRestEnabled" checked><span>Auto rest timer between sets</span></label>
+            <!-- V2 (S5): per-tier rest tuning / presets / remembered-rest reset retired
+                 as power-user knobs. Elements kept hidden so settings.js reads stay safe;
+                 rest still auto-suggests by exercise type using sensible defaults. -->
+            <div style="display:none;">
+              <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
+                <label><span class="set-num-lbl block mb-1 text-accent-red">Compound</span><input type="text" id="settingsRestCompound" inputmode="numeric" placeholder="3:00" style="text-align:center;"></label>
+                <label><span class="set-num-lbl block mb-1 text-accent-amber">Accessory</span><input type="text" id="settingsRestAccessory" inputmode="numeric" placeholder="2:00" style="text-align:center;"></label>
+                <label><span class="set-num-lbl block mb-1 text-accent-green">Isolation</span><input type="text" id="settingsRestIsolation" inputmode="numeric" placeholder="1:30" style="text-align:center;"></label>
+              </div>
+              <button class="settings-toggle-btn" data-action="reset-rest-overrides">Reset remembered rests</button>
             </div>
-            <div class="settings-toggle-group" style="margin-top:8px;">
-              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="strength">Strength</button>
-              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="hypertrophy">Hypertrophy</button>
-              <button class="settings-toggle-btn" data-action="rest-preset" data-preset="efficient">Time-efficient</button>
-            </div>
-            <div class="settings-hint" style="margin-top:10px;">Adjusting a timer with −/+ during a set is remembered for that exercise.</div>
-            <button class="settings-toggle-btn" data-action="reset-rest-overrides" style="margin-top:4px;">Reset remembered rests</button>
           </div>
-          <div class="settings-row">
+          <!-- V2 (S5): progression step retired as a power-user knob (defaults to 2.5 kg). -->
+          <div class="settings-row" style="display:none;">
             <label class="settings-row-label">Progression Step</label>
             <div class="settings-toggle-group">
               <button class="settings-toggle-btn" data-action="set-progression" data-kg="1.25">1.25</button>
@@ -1667,11 +1666,14 @@
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="kettlebells"><span>Kettlebells</span></label>
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="treadmill"><span>Treadmill</span></label>
 
-          <div class="settings-hint" style="margin-top:12px;">Band resistance (≈ kg) — used so band sets count toward volume in the cockpit.</div>
-          <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-accent-green">🟢 Light</span><input type="number" id="settingsBandLight" min="0" step="0.5" placeholder="10" style="text-align:center;"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-amber">🟡 Medium</span><input type="number" id="settingsBandMed" min="0" step="0.5" placeholder="20" style="text-align:center;"></label>
-            <label><span class="set-num-lbl block mb-1 text-accent-red">🔴 Heavy</span><input type="number" id="settingsBandHeavy" min="0" step="0.5" placeholder="30" style="text-align:center;"></label>
+          <!-- V2 (S5): band-weight tuning retired as a power-user knob (kept hidden so
+               settings.js reads stay safe; bands count toward volume with defaults). -->
+          <div style="display:none;">
+            <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
+              <label><span class="set-num-lbl block mb-1 text-accent-green">🟢 Light</span><input type="number" id="settingsBandLight" min="0" step="0.5" placeholder="10" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-amber">🟡 Medium</span><input type="number" id="settingsBandMed" min="0" step="0.5" placeholder="20" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-red">🔴 Heavy</span><input type="number" id="settingsBandHeavy" min="0" step="0.5" placeholder="30" style="text-align:center;"></label>
+            </div>
           </div>
         </div>
 
