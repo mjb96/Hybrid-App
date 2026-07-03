@@ -942,6 +942,31 @@ select.native-select {
 }
 
 /* ── FIT import tile ───────────────────────────────────────────────────────── */
+/* V2-6 — Session Overview collapses to a tap-to-expand (RPE/notes/import live
+   one tap deeper, so the cockpit ends on the exercises + one Finish action). */
+.wk-overview > summary { list-style: none; cursor: pointer; }
+.wk-overview > summary::-webkit-details-marker { display: none; }
+.wk-overview__summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.wk-overview__titles { display: flex; flex-direction: column; min-width: 0; }
+.wk-overview__chev {
+  flex: 0 0 auto; color: var(--text-muted, #94a3b8); font-size: 1.4rem;
+  transition: transform .18s ease;
+}
+.wk-overview[open] > summary .wk-overview__chev { transform: rotate(90deg); }
+.wk-overview[open] > summary { margin-bottom: 14px; }
+
+/* V2-6 — Clear today's log demoted from a loud block to a quiet, destructive-tinted link. */
+.wk-clear-link {
+  display: block; width: 100%; text-align: center;
+  background: none; border: none; font: inherit; cursor: pointer;
+  padding: 10px; font-size: 0.8rem; font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  -webkit-tap-highlight-color: transparent;
+}
+.wk-clear-link:hover { color: var(--color-red, #ef4444); }
+
 .fit-import-tile {
   display: flex;
   align-items: center;

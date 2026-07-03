@@ -281,8 +281,12 @@ Overview · full depth under Stats/expanders · curated, not configurable.
       instead of stacking ~25 collection rows. Verified in Chromium: the surface dropped
       from 27 rows / ~7,400px to 5 rows / ~1,600px (~78% shorter), whole catalogue still
       reachable via chips + Browse-all, no errors.
-- [ ] `[CC]` **Workout → one primary action + quiet overflow.** Collapse Session Overview,
-      fold the two Watch-imports into one quiet control, demote Finish/Clear from loud CTAs.
+- [x] `[CC]` **Workout → one primary action + quiet depth.** Session Overview (RPE,
+      notes, gym stats, watch import) collapses into a tap-to-expand `<details>` so the
+      cockpit ends on the exercises + one Finish action; "Clear today's log" demoted from
+      a loud red block to a quiet destructive-tinted link. Inputs stay in the DOM (logging
+      path intact). Verified in Chromium: overview collapsed by default, Finish primary,
+      no exceptions.
 
 ---
 
@@ -296,6 +300,12 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-6 complete — Workout + Programs simplified.** Programs Discover went
+  from a ~30-rail / 7,400px wall to the active hero + 4 curated rails + Browse-all grid
+  (~1,600px, catalogue still fully reachable). Workout cockpit collapses Session Overview
+  into a `<details>` and demotes Clear to a quiet link — one primary action per state.
+  With Profile (earlier today) all three remaining surfaces now follow the doctrine.
+  383 tests, typecheck, smoke green; each verified in Chromium.
 - 2026-07-03 · **V2-6 started — Profile rebuilt on the pattern.** Profile now leads with
   the identity hero + a curated Overview | Stats split (screen-kit tab bar), replacing the
   9-section user customiser (removed entirely — button, functions, drag-drop, overlay, app
