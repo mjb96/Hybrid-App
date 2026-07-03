@@ -17,7 +17,7 @@ import {
 
 // Every action this router owns — app.js delegates when the action is in here.
 export const FASTING_ACTIONS = new Set([
-  'fast-start', 'fast-stop',
+  'fast-start', 'fast-stop', 'fast-set-protocol',
   'fast-edit-start-time', 'fast-cancel-edit-start', 'fast-save-start-time',
   'fast-edit-end-time', 'fast-cancel-edit-end', 'fast-save-end-time',
   'open-fasting-detail', 'close-fasting-detail',
@@ -46,6 +46,17 @@ export function handleFastingClickAction(action, target, ctx) {
     stopFast(appState, () => saveStateToLocalStorage(true));
     closeFastingDetail();
     renderHome();
+  }
+  else if (action === 'fast-set-protocol') {
+    // DOM-only: pick a protocol before starting. The hidden goal input feeds
+    // fast-start; no state is written until the fast actually begins.
+    const goal = target.dataset.goal;
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('fastingSheetGoalSelect'));
+    if (input && goal) input.value = goal;
+    document.querySelectorAll('.fasting-chip').forEach(c =>
+      c.classList.toggle('fasting-chip--active', c === target));
+    const caution = document.getElementById('fastingProtocolCaution');
+    if (caution) caution.style.display = target.dataset.caution === '1' ? '' : 'none';
   }
   else if (action === 'fast-edit-start-time') {
     const sp = document.getElementById('fastingEditStartPanel');

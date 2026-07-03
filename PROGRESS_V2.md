@@ -57,16 +57,17 @@ correlations) — the gap is a **signature ring** and **named protocols**. Owner
 *"Add extended fasts"* (named presets incl. 24/36/48h with a caution note).
 
 Build order (each a tested commit):
-- [ ] **S1a — Protocols (data layer, pure):** `FASTING_PROTOCOLS` in `js/fasting.js` —
-      14:10, 16:8, 18:6, 20:4, OMAD (23:1) + extended 24h/36h/48h (`caution:true`) +
-      Custom. Helpers `protocolById`, `protocolForGoalHours`. Additive: `goal` stays
-      the numeric hours (back-compat with app.js/actions/calcs); `FAST_GOAL_OPTIONS`
-      kept until S1b swaps the UI. New `tests/fasting_protocols.test.js`.
-- [ ] **S1b — Signature ring hero:** `fastingRingSVG` modelled on the Hybrid Score
-      `gaugeSVG` (`js/brain/hybrid-score/ui.js`) — elapsed time centre, current stage
-      named, arc fills toward goal, "next stage in …". Replaces the linear progress
-      bar in `fasting-card.js`. Protocol chips replace the raw-hours `<select>`;
-      extended picks show the caution note. Rendered + verified in Chromium.
+- [x] **S1a — Protocols (data layer, pure):** `FASTING_PROTOCOLS` in `js/fasting.js` —
+      14:10, 16:8, 18:6, 20:4, OMAD (23:1) + extended 24h/36h/48h (`caution:true`).
+      Helpers `protocolById`, `protocolForGoalHours`, `protocolLabelForGoal`. Additive:
+      `goal` stays the numeric hours (back-compat); 23h added to `FAST_GOAL_OPTIONS`.
+      7 tests. ✅
+- [x] **S1b — Signature ring hero:** `js/fasting/fasting-ring.js` (`fastingRingSVG` +
+      `ringArcOffset` + `ringCaption`) modelled on the Hybrid Score `gaugeSVG` — elapsed
+      time centre, stage named + coloured, arc fills toward goal; live ticker rolls the
+      arc/stage as zones cross. Replaces the linear bar in `fasting-card.js`; protocol
+      chips replace the raw-hours `<select>` (new `fast-set-protocol` action); extended
+      picks reveal the caution note. 6 ring tests; rendered + verified in Chromium. ✅
 - [ ] **S1c — Ring primary + Stats tab:** split `view-fasting.js` (836) into a lean
       primary (ring recap + streak/week/longest + ONE fasting×recovery line from the
       correlation engine) and a **Stats** sub-screen holding the richer analytics

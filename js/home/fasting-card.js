@@ -3,8 +3,10 @@
 // FASTING CARD — sheet UI and live ticker. Call initFastingCard() first.
 // =============================================================================
 import {
-  getFastingContext, fmtFastDuration, fmtHoursLabel, FASTING_ZONES, FAST_GOAL_OPTIONS,
+  getFastingContext, fmtFastDuration, fmtHoursLabel, FASTING_ZONES,
+  FASTING_PROTOCOLS, protocolForGoalHours,
 } from '../fasting.js';
+import { fastingRingSVG, ringArcOffset, ringCaption } from '../fasting/fasting-ring.js';
 
 function _isoToDatetimeLocal(isoString) {
   if (!isoString) return '';
@@ -26,8 +28,14 @@ function _fastingTickUpdate() {
   const ctx = getFastingContext(state);
   const sheetTimer = document.getElementById('fastingSheetTimer');
   if (sheetTimer) sheetTimer.textContent = fmtFastDuration(ctx.hours);
-  const sheetFill = document.getElementById('fastingSheetFill');
-  if (sheetFill) sheetFill.style.width = `${ctx.progressPct.toFixed(1)}%`;
+  // Advance the ring arc, and roll the stage name/colour when a zone is crossed.
+  const arc = document.getElementById('fastingRingArc');
+  if (arc) arc.setAttribute('stroke-dashoffset', ringArcOffset(ctx.progressPct).toFixed(1));
+  const stage = document.getElementById('fastingRingStage');
+  if (stage) { stage.textContent = ctx.zone.name; stage.setAttribute('fill', ctx.zone.color); }
+  if (arc) arc.setAttribute('stroke', ctx.zone.color);
+  const caption = document.getElementById('fastingRingCaption');
+  if (caption) caption.textContent = ringCaption(ctx);
 }
 
 function _startFastingTicker() {
@@ -99,8 +107,11 @@ export function openFastingDetail() {
         </div>`;
       }).join('');
 
-  const goalOptions = FAST_GOAL_OPTIONS.map(h =>
-    `<option value="${h}" ${h === ctx.goal ? 'selected' : ''}>${h}h</option>`
+  const activeCaution = protocolForGoalHours(ctx.goal)?.caution ?? false;
+  const protocolChips = FASTING_PROTOCOLS.map(p =>
+    `<button class="fasting-chip ${p.fastHours === ctx.goal ? 'fasting-chip--active' : ''}"
+       data-action="fast-set-protocol" data-goal="${p.fastHours}" data-caution="${p.caution ? '1' : '0'}"
+       title="${p.blurb}">${p.label}</button>`
   ).join('');
 
   sheet.innerHTML = `
@@ -111,19 +122,10 @@ export function openFastingDetail() {
       <button class="fasting-sheet-close" data-action="close-fasting-detail">✕</button>
     </div>
 
-    <div class="fasting-sheet-hero ${ctx.active ? 'fasting-sheet-hero--active' : ''}">
-      <div class="fasting-sheet-zone-icon">${ctx.zone.icon}</div>
-      <div class="fasting-sheet-timer" id="fastingSheetTimer">${fmtFastDuration(ctx.hours)}</div>
-      <div class="fasting-sheet-zone-name" style="color:${ctx.zone.color};">${ctx.zone.name}</div>
-      <div class="fasting-sheet-zone-desc">${ctx.zone.description}</div>
-    </div>
-
-    <div class="fasting-progress-track fasting-sheet-progress">
-      <div class="fasting-progress-fill" id="fastingSheetFill"
-           style="width:${ctx.progressPct.toFixed(1)}%;background:${ctx.zone.color};"></div>
-    </div>
-    <div class="fasting-sheet-progress-label">
-      ${ctx.progressPct >= 100 ? '🎉 Goal reached!' : `${fmtHoursLabel(ctx.remainingHours)} to goal`}
+    <div class="fasting-ring-wrap ${ctx.active ? 'fasting-ring-wrap--active' : ''}">
+      ${fastingRingSVG(ctx, 208)}
+      <div class="fasting-ring-caption" id="fastingRingCaption">${ringCaption(ctx)}</div>
+      <div class="fasting-ring-zonedesc">${ctx.zone.description}</div>
     </div>
 
     <div class="fasting-metrics-grid">
@@ -164,11 +166,15 @@ export function openFastingDetail() {
                <button class="fasting-edit-save" data-action="fast-save-end-time">Save</button>
              </div>
            </div>`
-        : `<div class="fasting-sheet-start-row">
-             <label class="fasting-goal-label">Goal:
-               <select class="fasting-goal-select" id="fastingSheetGoalSelect">${goalOptions}</select>
-             </label>
-             <button class="fasting-btn-start" data-action="fast-start">Start Fast</button>
+        : `<div class="fasting-protocol-picker">
+             <div class="fasting-protocol-label">Protocol</div>
+             <div class="fasting-chip-row">${protocolChips}</div>
+             <input type="hidden" id="fastingSheetGoalSelect" value="${ctx.goal}">
+             <div class="fasting-protocol-caution" id="fastingProtocolCaution"
+                  style="display:${activeCaution ? '' : 'none'};">
+               ⚠ Extended fast — consider medical guidance for 24h+.
+             </div>
+             <button class="fasting-btn-start fasting-btn-start--full" data-action="fast-start">Start Fast</button>
            </div>`
       }
     </div>
