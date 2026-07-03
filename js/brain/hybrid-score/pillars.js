@@ -85,7 +85,10 @@ export function consistencyPillar(model) {
 
 // ---- RECOVERY -------------------------------------------------------------
 export function recoveryPillar(model) {
-  const r = model.ready;
+  // E3 — use readiness WITHOUT its ACWR load component so load isn't counted
+  // twice (the Load pillar already owns ACWR). Falls back to the full readiness
+  // only if the load-excluded variant isn't available.
+  const r = model.readyNoLoad?.hasData ? model.readyNoLoad : model.ready;
   const hasLoad = model.load?.hasData;
   if (!r?.hasData && !hasLoad) return { score: null, signals: [] };
 
@@ -244,32 +247,33 @@ export function loadPillar(model, state, days, deload) {
 }
 
 // ---- MOMENTUM -------------------------------------------------------------
-// Trajectory of the whole picture over recent weeks (rewards improvers early,
-// independent of absolute level). Uses existing tail series on the model.
-export function momentumPillar(model) {
-  const s = model.series || {};
-  const trends = [];
-  const slope = (arr) => {
-    const v = (arr || []).filter(x => typeof x === 'number');
-    if (v.length < 3) return null;
-    const recent = v.slice(-3);
-    const base = recent[0];
-    if (base <= 0) return recent[recent.length - 1] > 0 ? 1 : null;
-    return (recent[recent.length - 1] - base) / base; // fractional change
-  };
-  const vol = slope(s.volume);
-  const dist = slope(s.distance);
-  const ctl = slope(s.ctl);
-  [vol, dist, ctl].forEach(x => { if (x != null) trends.push(x); });
-  if (!trends.length) return { score: null, signals: [] };
+// E3 — trajectory of the HYBRID SCORE ITSELF, not a re-derivation of volume /
+// distance / CTL (which the Strength, Endurance and Load pillars already own).
+// "Is my overall trend rising?" is exactly what momentum should mean, and it's
+// orthogonal to the other pillars (they measure today's level; this measures
+// the slope of the composite over the last ~week). Reads only PAST scores
+// (history excludes today), so there's no circular dependency.
+export function momentumPillar(model, state) {
+  const hist = [...(state?.hybridScore?.history || [])]
+    .filter(h => typeof h.score === 'number')
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const pts = hist.slice(-7).map(h => h.score);
+  if (pts.length < 3) return { score: null, signals: [] };
 
-  const avg = trends.reduce((a, b) => a + b, 0) / trends.length;
-  const score = clamp(50 + avg * 120, 0, 100); // ±40% swing → full range
+  // Least-squares slope (points per day) over the trailing window.
+  const n = pts.length;
+  const mx = (n - 1) / 2;
+  const my = pts.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) { num += (i - mx) * (pts[i] - my); den += (i - mx) ** 2; }
+  const slope = den === 0 ? 0 : num / den;      // score-points per day
+  const change = slope * (n - 1);               // total move across the window
+  const score = clamp(50 + change * 4, 0, 100); // ±12.5 pts over the window → full range
+
   const signals = [];
-  if (avg > 0.05) signals.push('fitness trending up');
-  else if (avg < -0.05) signals.push('fitness trending down');
+  if (change > 1.5) signals.push('score trending up');
+  else if (change < -1.5) signals.push('score trending down');
   else signals.push('holding steady');
-  if (ctl != null && ctl > 0.03) signals.push('chronic load rising');
   return { score: round(score), signals };
 }
 
@@ -301,12 +305,9 @@ export function lifestylePillar(model) {
   const subs = [];
   const signals = [];
 
-  if (h.sleepHours > 0) {
-    const s = clamp((h.sleepHours / 8) * 100, 20, 100);
-    subs.push(s);
-    if (h.sleepHours < 6) signals.push('short sleep');
-    else if (h.sleepHours >= 7.5) signals.push('sleep on point');
-  }
+  // E3 — sleep is NOT scored here: it already drives the Recovery pillar (via
+  // readiness). Lifestyle owns only the non-recovery daily habits — daily
+  // movement (steps) and fasting — so no signal is counted twice.
   if (h.steps != null && h.steps > 0) {
     subs.push(clamp((h.steps / 10000) * 100, 10, 100));
     if (h.steps >= 10000) signals.push('step goal hit');
@@ -332,7 +333,7 @@ export function computePillars(model, state, days, opts = {}) {
     strength:    strengthPillar(model, state, days, level),
     endurance:   endurancePillar(model, state, days, level),
     load:        loadPillar(model, state, days, deload),
-    momentum:    momentumPillar(model),
+    momentum:    momentumPillar(model, state),
     body:        bodyPillar(model, state),
     lifestyle:   lifestylePillar(model),
   };

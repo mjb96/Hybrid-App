@@ -252,11 +252,14 @@ with a measurable acceptance test.
   intensity-aware signal — best-effort pace trend (and pace-at-HR / decoupling when HR exists);
   never score "more easy volume" as regression. **Measure:** a week that only adds easy Z2 km
   no longer lowers Endurance. *→ endurancePillar + a small running-calc.* **Low/med risk.**
-- **E3 · De-double-count** *(Defect 2).* Make pillars orthogonal: remove **sleep** from
-  Lifestyle (Recovery owns it); base **Momentum** on the **Hybrid Score's own history trend**
-  instead of re-deriving volume/distance/CTL; document Load↔Recovery ACWR overlap and damp one.
-  **Measure:** no input feeds >1 pillar; weights become honest. *→ pillars + engine.* **Med risk
-  (rebalances scores — needs a golden-fixture regression test).**
+- **E3 · De-double-count** *(Defect 2).* ✅ **SHIPPED 2026-07-02.** Pillars are now orthogonal:
+  **sleep** removed from Lifestyle (Recovery owns it — Lifestyle = steps + fasting only);
+  **Momentum** rebased on the **Hybrid Score's own history trend** (least-squares slope of the
+  last ~7 daily scores) instead of re-deriving volume/distance/CTL; **Recovery** uses a
+  load-excluded readiness (`model.readyNoLoad`) so ACWR is no longer counted by both Recovery
+  and Load. No input now feeds >1 pillar; the stated weights are honest. *→ pillars + dashboard
+  model.* Acceptance tests: Recovery is invariant to ACWR; Momentum reads history not series;
+  sleep-only no longer creates a Lifestyle score.
 
 ### P1 — Close the named input gaps
 - **E4 · Auto-VDOT from real runs** *(Defect 4).* Estimate VDOT from best recent effort so

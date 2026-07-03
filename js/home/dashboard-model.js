@@ -125,6 +125,23 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     hasData:        readyRaw.score !== null,
   };
 
+  // Readiness WITHOUT the ACWR load component (E3): the Hybrid Score's Recovery
+  // pillar uses this so ACWR isn't counted twice (Recovery + the Load pillar).
+  // The full `ready` above still powers the Readiness tile and recovery view.
+  const readyNoLoadRaw = computeReadiness({
+    hrvStat:        hrvStatusFrom(hc.hrv),
+    sleepHours,
+    atl: 0, ctl: 0,   // 0 → the load component drops out (that's the point)
+    todayWellness,
+    restingHrValues: hc.restingHR || [],
+  });
+  const readyNoLoad = {
+    score:      readyNoLoadRaw.score,
+    status:     readyNoLoadRaw.status,
+    components: readyNoLoadRaw.components,
+    hasData:    readyNoLoadRaw.score !== null,
+  };
+
   // ---- Prescriptive recommendation (reused coach brain) ------------------
   let rec;
   try { rec = generateRecommendation(state, days, program, selectedDay); }
@@ -193,6 +210,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     wkNum, maxWeek, hasLoad,
     load: { atl, ctl, tsb, acwr, status: ts.status, tone: ts.tone, color: TONE_COLOR[ts.tone] || TONE_COLOR.neutral, hasData: hasLoad },
     ready,
+    readyNoLoad,
     rec,
     balance,
     series: {

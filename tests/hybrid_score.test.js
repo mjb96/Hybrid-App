@@ -161,6 +161,19 @@ test('E2 — endurance pillar not penalised for adding easy volume', () => {
   assert.ok(easy >= plain - 1, `easy volume should not penalise endurance: plain ${plain}, easy ${easy}`);
 });
 
+test('E3 — Recovery uses load-excluded readiness, independent of ACWR', () => {
+  // Same recovery signals (readyNoLoad), wildly different ACWR → same Recovery.
+  const mk = (acwr) => ({
+    readyNoLoad: { hasData: true, score: 72, status: 'Ready', components: { sleep: 80 } },
+    ready: { hasData: true, score: 55, components: {} },
+    load: { hasData: true, acwr, tsb: 0 },
+  });
+  const a = recoveryPillar(mk(0.9));
+  const b = recoveryPillar(mk(1.7));
+  assert.equal(a.score, 72);           // uses readyNoLoad, not the load-tainted ready
+  assert.equal(a.score, b.score);      // ACWR no longer moves Recovery (no double-count)
+});
+
 test('recoveryPillar: uses readiness score, flags poor sleep', () => {
   const p = recoveryPillar({
     ready: { hasData: true, score: 45, status: 'Low', components: { sleep: 30 } },
@@ -172,13 +185,16 @@ test('recoveryPillar: uses readiness score, flags poor sleep', () => {
   assert.equal(recoveryPillar({ ready: { hasData: false }, load: { hasData: false } }).score, null);
 });
 
-test('momentumPillar: rising series scores above 50', () => {
-  const up = momentumPillar({ series: { volume: [100, 120, 150], distance: [5, 6, 7], ctl: [8, 9, 10] } });
+test('momentumPillar (E3): reads the score history trend, not raw series', () => {
+  const hist = (scores) => ({ hybridScore: { history: scores.map((s, i) => ({ date: `2026-07-0${i + 1}`, score: s })) } });
+  const up = momentumPillar({}, hist([70, 73, 76, 80]));
   assert.ok(up.score > 50);
   assert.ok(up.signals.some(s => /up/.test(s)));
-  const down = momentumPillar({ series: { volume: [150, 120, 100], distance: [7, 6, 5], ctl: [10, 9, 8] } });
+  const down = momentumPillar({}, hist([85, 80, 75, 70]));
   assert.ok(down.score < 50);
-  assert.equal(momentumPillar({ series: {} }).score, null);
+  // Fewer than 3 recorded days → no momentum yet (drops out).
+  assert.equal(momentumPillar({}, hist([80, 82])).score, null);
+  assert.equal(momentumPillar({}, {}).score, null);
 });
 
 test('bodyPillar: goal-aware scoring', () => {
@@ -188,9 +204,11 @@ test('bodyPillar: goal-aware scoring', () => {
   assert.equal(bodyPillar({ bodyweight: { hasData: false } }, {}).score, null);
 });
 
-test('lifestylePillar: blends sleep/steps/fasting; null when empty', () => {
-  const p = lifestylePillar({ health: { sleepHours: 8, steps: 11000 }, fasting: { streak: 4 } });
+test('lifestylePillar (E3): steps + fasting only — sleep is Recovery-owned', () => {
+  const p = lifestylePillar({ health: { steps: 11000 }, fasting: { streak: 4 } });
   assert.ok(p.score > 70);
+  // Sleep alone no longer creates a Lifestyle score (it lives in Recovery).
+  assert.equal(lifestylePillar({ health: { sleepHours: 8 }, fasting: {} }).score, null);
   assert.equal(lifestylePillar({ health: {}, fasting: {} }).score, null);
 });
 
