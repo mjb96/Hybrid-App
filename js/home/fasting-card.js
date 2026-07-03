@@ -117,7 +117,6 @@ export function openFastingDetail() {
   sheet.innerHTML = `
     <div class="fasting-sheet-header">
       <span class="fasting-sheet-title">Fasting</span>
-      <button class="fasting-btn-analytics" data-action="open-fasting-education">📚 Learn</button>
       <button class="fasting-btn-analytics" data-action="open-fasting-analytics">Analytics</button>
       <button class="fasting-sheet-close" data-action="close-fasting-detail">✕</button>
     </div>

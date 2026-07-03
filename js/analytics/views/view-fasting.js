@@ -6,7 +6,6 @@
 import { computeFastingAnalytics, buildCalendarData } from '../../fasting/fasting-calcs.js';
 import { generateFastingInsights, renderFastingInsightsHTML } from '../../fasting/fasting-insights.js';
 import { getUnlockedAchievements } from '../../fasting/fasting-achievements.js';
-import { EDUCATION_CONTENT, EDUCATION_CATEGORIES } from '../../fasting/fasting-education.js';
 import { statCard, deltaBadge } from '../charts/chart-primitives.js';
 import {
   renderFastingHoursBarChart,
@@ -27,7 +26,6 @@ const PURPLE = '#8b5cf6';
 const RED    = '#ef4444';
 
 let _calendarMonth = null;
-let _eduState = { category: 'articles', articleId: null };
 let _fastingTab = 'overview'; // 'overview' (lean, ring-led) | 'stats' (the deep analytics)
 
 // Allow the education deep-link to jump straight into the Stats tab.
@@ -569,100 +567,6 @@ function _renderPerformance(el, calcs) {
   el.innerHTML = `<article class="card-dark p-4 mb-3">${rows}</article>`;
 }
 
-// ── Education hub ─────────────────────────────────────────────────────────────
-
-function _renderEducation(el) {
-  _renderEduList(el);
-}
-
-function _renderEduList(el) {
-  const { category } = _eduState;
-
-  const catTabs = EDUCATION_CATEGORIES.map(c =>
-    `<button class="fa-edu-tab ${c.id === category ? 'fa-edu-tab--active' : ''}" data-action="fa-edu-cat" data-cat="${c.id}">
-      ${c.icon} ${c.label}
-    </button>`
-  ).join('');
-
-  let content = '';
-  if (category === 'articles') {
-    content = EDUCATION_CONTENT.articles.map(a => `
-      <div class="fa-edu-card" data-action="fa-edu-article" data-article="${a.id}" data-cat="articles" role="button" tabindex="0">
-        <div class="fa-edu-card__meta">${a.readTime}</div>
-        <div class="fa-edu-card__title">${a.title}</div>
-        <div class="fa-edu-card__tagline">${a.tagline}</div>
-        <div class="fa-edu-card__arrow">→</div>
-      </div>`).join('');
-  } else if (category === 'studies') {
-    content = EDUCATION_CONTENT.studies.map(s => `
-      <div class="fa-edu-card" data-action="fa-edu-article" data-article="${s.id}" data-cat="studies" role="button" tabindex="0">
-        <div class="fa-edu-card__meta">${s.year} · ${s.studyType}${s.sampleSize ? ` · n=${s.sampleSize}` : ''}</div>
-        <div class="fa-edu-card__title">${s.title}</div>
-        <div class="fa-edu-card__tagline">${s.journal}</div>
-        <div class="fa-edu-card__arrow">→</div>
-      </div>`).join('');
-  } else if (category === 'guides') {
-    content = EDUCATION_CONTENT.guides.map(g => `
-      <div class="fa-edu-card" data-action="fa-edu-article" data-article="${g.id}" data-cat="guides" role="button" tabindex="0">
-        <div class="fa-edu-card__meta">${g.readTime}</div>
-        <div class="fa-edu-card__title">${g.title}</div>
-        <div class="fa-edu-card__tagline">${g.tagline}</div>
-        <div class="fa-edu-card__arrow">→</div>
-      </div>`).join('');
-  } else if (category === 'glossary') {
-    content = `<div class="fa-edu-glossary">${EDUCATION_CONTENT.glossary.map(g => `
-      <div class="fa-edu-gterm">
-        <div class="fa-edu-gterm__term">${g.term}</div>
-        <div class="fa-edu-gterm__def">${g.definition}</div>
-      </div>`).join('')}</div>`;
-  }
-
-  el.innerHTML = `
-    <div class="fa-edu-tabs">${catTabs}</div>
-    <div class="fa-edu-list" id="fa-edu-list">${content}</div>
-  `;
-}
-
-function _renderEduArticle(el, articleId, cat) {
-  const items = cat === 'studies' ? EDUCATION_CONTENT.studies : cat === 'guides' ? EDUCATION_CONTENT.guides : EDUCATION_CONTENT.articles;
-  const item  = items.find(a => a.id === articleId);
-  if (!item) { _renderEduList(el); return; }
-
-  const isStudy = cat === 'studies';
-
-  let body = '';
-  if (isStudy) {
-    body = `
-      <div class="fa-edu-article__meta">
-        ${item.year} · ${item.studyType}${item.sampleSize ? ` · n = ${item.sampleSize}` : ''} · ${item.journal}
-        ${item.authors ? `<br><span style="opacity:0.6;">${item.authors}</span>` : ''}
-      </div>
-      <div class="fa-edu-article__section-head">Key Findings</div>
-      <ul class="fa-edu-article__list">${item.keyFindings.map(f => `<li>${f}</li>`).join('')}</ul>
-      <div class="fa-edu-article__section-head">Practical Takeaways</div>
-      <ul class="fa-edu-article__list">${item.practicalTakeaways.map(t => `<li>${t}</li>`).join('')}</ul>
-      ${item.disclaimer ? `<div class="fa-edu-disclaimer">${item.disclaimer}</div>` : ''}
-    `;
-  } else {
-    body = item.sections.map(s => {
-      if (s.type === 'paragraph') return `<p class="fa-edu-article__p">${s.text}</p>`;
-      if (s.type === 'heading')   return `<div class="fa-edu-article__section-head">${s.text}</div>`;
-      if (s.type === 'list')      return `<ul class="fa-edu-article__list">${s.items.map(i => `<li>${i}</li>`).join('')}</ul>`;
-      if (s.type === 'callout')   return `<div class="fa-edu-callout">${s.text}</div>`;
-      return '';
-    }).join('');
-  }
-
-  el.innerHTML = `
-    <button class="fa-edu-back" data-action="fa-edu-back">← Fasting Knowledge</button>
-    <div class="fa-edu-article">
-      ${isStudy ? '' : `<div class="fa-edu-article__read-time">${item.readTime || ''}</div>`}
-      <h3 class="fa-edu-article__title">${item.title}</h3>
-      ${body}
-    </div>
-  `;
-}
-
 // ── Live ticker ───────────────────────────────────────────────────────────────
 
 let _analyticsLiveTicker = null;
@@ -709,28 +613,6 @@ function _stopAnalyticsTicker() {
   _analyticsLiveTicker = null;
 }
 
-// ── Education event handlers (called from app.js) ─────────────────────────────
-
-export function handleFastingEduAction(action, target, getState) {
-  const section = qs('analytics-fasting');
-  if (!section) return;
-  const eduEl = qs('fa-edu');
-  if (!eduEl) return;
-
-  if (action === 'fa-edu-cat') {
-    _eduState.category  = target.dataset.cat;
-    _eduState.articleId = null;
-    _renderEduList(eduEl);
-  } else if (action === 'fa-edu-article') {
-    _eduState.articleId = target.dataset.article;
-    _eduState.category  = target.dataset.cat || _eduState.category;
-    _renderEduArticle(eduEl, _eduState.articleId, _eduState.category);
-  } else if (action === 'fa-edu-back') {
-    _eduState.articleId = null;
-    _renderEduList(eduEl);
-  }
-}
-
 // ── Calendar navigation (called from app.js) ──────────────────────────────────
 
 export function handleFastingCalAction(action, getState) {
@@ -770,16 +652,13 @@ export function renderFastingAnalytics(getState) {
 
   if (!history.length && !fs?.active) {
     section.innerHTML = `
-      <h2 class="section-header">Fasting Analytics</h2>
+      <h2 class="section-header">Fasting</h2>
       <article class="card-dark p-4 mb-3" style="text-align:center;padding:36px 20px;">
         <div style="font-size:2rem;margin-bottom:12px;">⏱️</div>
         <div style="font-size:0.95rem;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:8px;">No fasting data yet</div>
         <div style="font-size:0.8rem;color:rgba(255,255,255,0.38);line-height:1.6;">Start your first fast from the home screen.<br>Analytics will appear here once you have data.</div>
       </article>
-      <h2 class="section-header">Fasting Knowledge</h2>
-      <div id="fa-edu"></div>
     `;
-    _renderEducation(qs('fa-edu'));
     return;
   }
 
@@ -832,7 +711,6 @@ function _renderStatsTab(body, calcs, achievements, appState) {
     <h2 class="section-header">Distribution</h2><div id="fa-distribution"></div>
     <h2 class="section-header">All-Time Stats</h2><div id="fa-performance"></div>
     <h2 class="section-header">Achievements</h2><div id="fa-achievements"></div>
-    <h2 class="section-header">Fasting Knowledge</h2><div id="fa-edu"></div>
   `;
   _renderOverview(qs('fa-overview'), calcs);
   _renderAdvancedMetrics(qs('fa-advanced'), calcs);
@@ -842,7 +720,6 @@ function _renderStatsTab(body, calcs, achievements, appState) {
   _renderDistribution(qs('fa-distribution'), calcs);
   _renderPerformance(qs('fa-performance'), calcs);
   _renderAchievements(qs('fa-achievements'), achievements);
-  _renderEducation(qs('fa-edu'));
 }
 
 // One sentence from the strongest available fasting↔recovery signal (HRV → sleep →

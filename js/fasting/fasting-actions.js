@@ -21,9 +21,8 @@ export const FASTING_ACTIONS = new Set([
   'fast-edit-start-time', 'fast-cancel-edit-start', 'fast-save-start-time',
   'fast-edit-end-time', 'fast-cancel-edit-end', 'fast-save-end-time',
   'open-fasting-detail', 'close-fasting-detail',
-  'open-fasting-analytics', 'open-fasting-education',
+  'open-fasting-analytics',
   'fast-edit-history', 'fast-save-history', 'fast-cancel-history-edit',
-  'fa-edu-cat', 'fa-edu-article', 'fa-edu-back',
   'fa-cal-prev', 'fa-cal-next',
   'fa-tab-overview', 'fa-tab-stats',
 ]);
@@ -98,15 +97,6 @@ export function handleFastingClickAction(action, target, ctx) {
   else if (action === 'open-fasting-detail')   { openFastingDetail(); }
   else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
   else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
-  else if (action === 'open-fasting-education') {
-    // Deep-link the "Fasting Knowledge" section, which now lives in the Stats tab.
-    closeFastingDetail();
-    import('../analytics/views/view-fasting.js').then(m => {
-      m.setFastingTab('stats');
-      openAnalyticsView('fasting');
-      setTimeout(() => document.getElementById('fa-edu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-    });
-  }
   else if (action === 'fa-tab-overview' || action === 'fa-tab-stats') {
     import('../analytics/views/view-fasting.js').then(m => m.handleFastingTabAction(action, () => appState));
   }
@@ -124,10 +114,8 @@ export function handleFastingClickAction(action, target, ctx) {
     }
   }
   else if (action === 'fast-cancel-history-edit') { closeHistoryEditPanel(); }
-  else if (action === 'fa-edu-cat' || action === 'fa-edu-article' || action === 'fa-edu-back') {
-    import('../analytics/views/view-fasting.js').then(m => m.handleFastingEduAction(action, target, () => appState));
-  }
   else if (action === 'fa-cal-prev' || action === 'fa-cal-next') {
     import('../analytics/views/view-fasting.js').then(m => m.handleFastingCalAction(action, () => appState));
   }
+
 }

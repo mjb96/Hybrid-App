@@ -10,7 +10,7 @@ import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
-import { pushOvertrainingWarning } from './notifications.js';
+import { pushOvertrainingWarning, pushFastingStageNudge } from './notifications.js';
 import { reconcileStreakFreezes } from './brain/streak.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
@@ -174,6 +174,12 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
   updateQuickActions(model);
 
+  // Fasting stage / goal nudge (S1d): if an active fast crossed a metabolic
+  // stage or hit its goal since last seen, deliver it now (app-open / return).
+  if (appState.fastingSession?.active) {
+    pushFastingStageNudge(appState, () => saveStateToLocalStorage(true));
+  }
+
   const savedOrder  = loadTileOrder();
   const hiddenTiles = loadHiddenTiles();
   const healthLinked = !!appState.healthConnect?.connected;
@@ -240,6 +246,11 @@ function updateQuickActions(model) {
   const fastBtn = document.getElementById('qaFasting');
   if (fastBtn) {
     const f = model.fasting;
+    // Quiet Home (S1d): only surface fasting when it's in use — an active fast
+    // or some history. A user who's never fasted gets a calm Home, not a nudge
+    // toward a feature they haven't chosen.
+    const inUse = f.active || (f.history?.length ?? 0) > 0;
+    fastBtn.style.display = inUse ? '' : 'none';
     const labelEl = fastBtn.querySelector('.qa-label');
     const subEl   = fastBtn.querySelector('.qa-sub');
     if (f.active) {

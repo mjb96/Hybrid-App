@@ -84,8 +84,19 @@ Build order (each a tested commit):
       education deep-link jumps to Stats. Routing verified in Chromium (Overview lean,
       Stats deep). typecheck / smoke green. Note: education wall NOT pruned (kept in
       Stats); a later CSS sweep can drop the now-unused `.fasting-sheet-hero` block.
-- [ ] **S1d — Quiet home + stage nudges:** fasting shows on Home only while active/
-      scheduled; stage-entry + goal-reached notifications via the native NotifyBridge.
+- [x] **S1d — Quiet home + stage nudges:** stage-entry + goal-reached notifications
+      via a pure decider (`js/fasting/fasting-nudge.js`, 6 tests) + `pushFastingStageNudge`
+      wired through the native NotifyBridge, fired on home render / app-open (marker
+      persisted per-fast so each stage nudges once; `notifFastingStage` default on).
+      Quiet Home: the fasting quick-action hides for users with no active fast and no
+      history. Honest limitation documented: backgrounded WebView freezes timers, so a
+      crossing lands on next foreground (same as every timer reminder). `[You]` device-
+      test the nudges. ✅
+- [x] **Kill the fasting learning/knowledge section (owner, 2026-07-03):** deleted
+      `js/fasting/fasting-education.js` (505 lines), the "📚 Learn" button, the Fasting
+      Knowledge section + its edu-hub renderers/handlers/actions, and the ~200 lines of
+      education-only CSS (kept `.fa-edu-tip` callouts). Verified in Chromium: Stats still
+      carries metrics/trends/calendar/achievements, no knowledge library.
 - [ ] **Lifestyle pillar unchanged** — stays steps + fasting (E3); fasting stays a
       live Hybrid Score signal. No recompute.
 - [ ] `[You]` Judge the ring + Stats split on the phone — minimal *and* still capable?

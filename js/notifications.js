@@ -17,6 +17,7 @@ import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.js';
 import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
+import { maybePushFastingNudge } from './fasting/fasting-nudge.js';
 
 let _reminderTimer = null;
 let _weeklySummaryTimer = null;
@@ -242,6 +243,17 @@ export function pushOvertrainingWarning(assessment) {
       'overtraining-risk');
     return true;
   } catch { return false; }
+}
+
+// ── Fasting stage / goal nudges (S1d — fired on home render / app open) ───────
+// Best-effort: delivers a nudge when an active fast has crossed into a new
+// metabolic stage or hit its goal since the last check. Gated on granted +
+// (not explicitly disabled). `saveFn` persists the once-per-stage marker.
+export function pushFastingStageNudge(state, saveFn) {
+  try {
+    if (!state || state.settings?.notifFastingStage === false) return null;
+    return maybePushFastingNudge(state, { notifyFn: notify, granted: notificationsGranted(), saveFn });
+  } catch { return null; }
 }
 
 // ── Missed Workout Check (fires on app open, not on a timer) ──────────────────
