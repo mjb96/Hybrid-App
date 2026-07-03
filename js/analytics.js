@@ -5,7 +5,7 @@ import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { isCompletedSet } from './set-utils.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
-import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
+import { renderStrengthAnalytics, render1RMList, render1RMProgressSection, setStrengthTab } from './analytics/views/view-strength.js';
 import { renderRunningAnalytics } from './analytics/views/view-running.js';
 import { renderRecoveryAnalytics, renderRecoveryScoreDetail } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
@@ -339,13 +339,17 @@ export function renderAnalytics() {
       break;
     }
     case 'strength':
+      setStrengthTab('overview');
       document.getElementById('analytics-strength').classList.add('active');
       renderStrengthAnalytics(data, _getState, _getDays);
       break;
+    // V2 (S2): the old 1RM (strength_pr) and Weekly-Volume leaves are absorbed
+    // into the Strength screen's Stats tab — redirect so deep links still resolve.
     case 'strength_pr':
-      document.getElementById('analytics-strength_pr').classList.add('active');
-      render1RMList(document.getElementById('allLiftsRmContainer_PR'), data.dynamicStats);
-      render1RMProgressSection(document.getElementById('analytics-strength_pr'), data.weekLabels, _getState, _getDays);
+    case 'weekly-volume':
+      setStrengthTab('stats');
+      document.getElementById('analytics-strength').classList.add('active');
+      renderStrengthAnalytics(data, _getState, _getDays);
       break;
     case 'running':
       document.getElementById('analytics-running').classList.add('active');
@@ -366,10 +370,6 @@ export function renderAnalytics() {
     case 'progress':
       document.getElementById('analytics-progress').classList.add('active');
       renderProgressAnalytics(data, _getState);
-      break;
-    case 'weekly-volume':
-      document.getElementById('analytics-weekly-volume').classList.add('active');
-      renderWeeklyVolumeDetail(data, _getState, _getDays);
       break;
     case 'streak':
       document.getElementById('analytics-streak').classList.add('active');

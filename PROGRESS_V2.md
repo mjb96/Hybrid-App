@@ -112,12 +112,22 @@ own focused surface (owner override) — the other 23 leaves collapse to 5:
 | **Recovery & Load** | recovery, recovery-score, training-status, load-focus, stress-balance |
 | **Review** | weekly-review, weekly-summary, monthly-report, progress, activity, streak, bodyweight, goal-progress |
 | **Fasting** *(kept)* | fasting — one minimal-but-powerful screen (see S1) |
-- [ ] `[CC]` One slice per new screen (5 commits): build the merged view from the
-      existing view modules' best parts, then delete the absorbed views + hub entries
-      + add router redirects. Bodyweight/goal-progress → Review is a judgment call
-      (V2 doc is silent) — flag at review if it reads wrong.
-- [ ] `[CC]` Delete orphaned chart/calc code only after all 5 land (calcs feed the
-      Score engine — most survive; views die, math lives). Fasting calcs are kept.
+Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invented
+0–100 index. Reusable pattern classes: `.an-tabbar` / `.an-tab` / `.an-hero` /
+`.an-spark` (analytics.css).
+- [x] **Strength (template) ✅** — `view-strength.js` rebuilt into Overview | Stats.
+      Overview: headline **Est. 1RM · top lift** + its weekly-e1RM spark + delta,
+      Weekly Volume + PRs This Week, one synthesized insight. Stats: the full training-
+      load dashboard, volume/strength progression, muscle balance, calendar, and the
+      **1RM PR list** — absorbing the old `strength_pr` and `weekly-volume` leaves
+      (router redirects both → Strength/Stats). Rendered + verified in Chromium.
+- [ ] **Running** — absorb avg-pace, vdot, run-crossref. Headline = VDOT (or pace).
+- [ ] **Recovery & Load** — absorb recovery, recovery-score, training-status,
+      load-focus, stress-balance. Headline = readiness.
+- [ ] **Review** — absorb weekly-review, weekly-summary, monthly-report, progress,
+      activity, streak, bodyweight, goal-progress. Headline = the week's score.
+- [ ] `[CC]` Remove the now-dead hub entries + orphaned view/chart code once all 5
+      land (calcs feed the Score engine — most survive; views die, math lives).
 
 ### S3 — Tiles: 19 defs + customiser → 4 fixed
 - [x] `[CC]` Home now renders exactly **Readiness · Weekly Volume · Top Lifts ·

@@ -255,7 +255,73 @@ function renderStrengthHeatmap(data) {
   }
 }
 
-// ---- Main Export --------------------------------------------------------
+// ---- Main Export (V2: Overview | Stats, headline number + spark) --------
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let _strengthTab = 'overview';
+export function setStrengthTab(tab) { _strengthTab = tab === 'stats' ? 'stats' : 'overview'; }
+
+// The single top lift by estimated 1RM, or null.
+function _topLift(dynamicStats) {
+  const entries = Object.entries(dynamicStats || {})
+    .filter(([, v]) => v.allTimeMax > 0)
+    .sort(([, a], [, b]) => b.allTimeMax - a.allTimeMax);
+  return entries[0] ? { name: entries[0][0], ...entries[0][1] } : null;
+}
+
+// Weekly estimated-1RM series for one lift (matches the dynamicStats maths:
+// working sets only, e1RM = w·(1 + r/30), max per week).
+function _liftE1rmSeries(appState, days, maxWeek, liftName) {
+  const series = [];
+  for (let w = 1; w <= maxWeek; w++) {
+    const wk = appState.weeks?.[String(w)];
+    let mx = 0;
+    if (wk) days.forEach(d => {
+      const dayLifts = wk.lifts?.[d] || {};
+      const sets = dayLifts[liftName];
+      if (!Array.isArray(sets)) return;
+      sets.forEach(s => {
+        const weight = parseFloat(s.w) || 0;
+        const reps = parseInt(s.r, 10) || 0;
+        if (isCompletedSet(s) && weight > 0 && reps > 0 && s.type !== 'W') {
+          mx = Math.max(mx, weight * (1 + reps / 30));
+        }
+      });
+    });
+    series.push(mx);
+  }
+  return series;
+}
+
+// A sparkline scaled to its own data's min/max (kg-friendly, unlike the 0–100 one).
+function _spark(values, color) {
+  const nonzero = values.filter(v => v > 0);
+  if (nonzero.length < 2) return '';
+  const max = Math.max(...values), min = Math.min(...nonzero);
+  const span = (max - min) || 1;
+  const w = 100, h = 30;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = v > 0 ? h - ((v - min) / span) * h : h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg class="an-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function _tabBar(active) {
+  const tab = (id, label) => `<button class="an-tab ${active === id ? 'an-tab--active' : ''}" data-strength-tab="${id}">${label}</button>`;
+  return `<div class="an-tabbar">${tab('overview', 'Overview')}${tab('stats', 'Stats')}</div>`;
+}
+
+function _mountStrengthTabs(data, getState, getDays) {
+  qs('analytics-strength')?.querySelectorAll('[data-strength-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _strengthTab = btn.getAttribute('data-strength-tab');
+      renderStrengthAnalytics(data, getState, getDays);
+    });
+  });
+}
+
 export function renderStrengthAnalytics(data, getState, getDays) {
   const appState  = getState ? getState() : {};
   const days      = getDays ? getDays() : [];
@@ -263,60 +329,87 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 
   const sa = computeStrengthAnalytics(appState, days, maxWeek);
   const la = computeLoadAnalytics(appState, days, maxWeek);
+  const allInsights = rankInsights([
+    ...generateStrengthInsights({
+      volSeries: sa.volSeries, volProgPct: sa.volProgPct,
+      liftProgression: sa.liftProgression, muscleStatus: sa.muscleStatus, acwr: sa.tonnageACWR,
+    }),
+    ...generateLoadInsights({
+      atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
+      loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus,
+    }),
+  ]);
 
-  const strengthInsights = generateStrengthInsights({
-    volSeries: sa.volSeries, volProgPct: sa.volProgPct,
-    liftProgression: sa.liftProgression, muscleStatus: sa.muscleStatus, acwr: sa.tonnageACWR,
-  });
-  const loadInsights = generateLoadInsights({
-    atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
-    loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus,
-  });
-  const allInsights = rankInsights([...strengthInsights, ...loadInsights]);
-
-  // Inject sections into the view
   const section = qs('analytics-strength');
   if (!section) return;
+  section.innerHTML = _tabBar(_strengthTab) + `<div id="strength-tab-body"></div>`;
+  const body = qs('strength-tab-body');
 
-  // Ensure section containers exist
-  let insightsEl = section.querySelector('.strength-insights-panel');
-  if (!insightsEl) {
-    insightsEl = document.createElement('div');
-    insightsEl.className = 'strength-insights-panel';
-    section.prepend(insightsEl);
+  if (_strengthTab === 'stats') _renderStrengthStats(body, data, sa, la);
+  else _renderStrengthOverview(body, data, sa, allInsights, appState, days, maxWeek);
+
+  _mountStrengthTabs(data, getState, getDays);
+}
+
+// Overview: headline est-1RM number + its trend spark + the two numbers that
+// matter + ONE synthesized insight. The depth lives one tap away in Stats.
+function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWeek) {
+  const top = _topLift(data.dynamicStats);
+  const volCur  = sa.volSeries[sa.volSeries.length - 1] || 0;
+  const volPrev = sa.volSeries[sa.volSeries.length - 2] || 0;
+  const volPct  = volPrev > 0 ? ((volCur - volPrev) / volPrev) * 100 : null;
+  const prCount = Object.values(data.dynamicStats).filter(v =>
+    v.currentEstimatedMax > 0 && Math.abs(v.currentEstimatedMax - v.allTimeMax) < 0.5).length;
+
+  let hero;
+  if (top) {
+    const series = _liftE1rmSeries(appState, days, maxWeek, top.name).slice(-12);
+    const delta = (top.currentEstimatedMax > 0 && top.previousWeekMax > 0)
+      ? Math.round(top.currentEstimatedMax - top.previousWeekMax) : null;
+    const deltaChip = delta == null ? '' :
+      `<span class="an-hero__delta" style="color:${delta > 0 ? '#10b981' : delta < 0 ? '#ef4444' : 'var(--text-muted)'}">${delta > 0 ? '+' : ''}${delta} kg this week</span>`;
+    hero = `<article class="card-dark an-hero">
+      <div class="an-hero__k">Estimated 1RM · ${esc(top.name)}</div>
+      <div class="an-hero__val">${Math.round(top.allTimeMax)}<span class="an-hero__unit">kg</span></div>
+      ${deltaChip}
+      ${_spark(series, '#3b82f6')}
+    </article>`;
+  } else {
+    hero = `<article class="card-dark an-hero">
+      <div class="an-hero__k">Estimated 1RM</div>
+      <div class="an-hero__val">—</div>
+      <div class="an-hero__empty">Log working sets to see your top lift.</div>
+    </article>`;
   }
-  insightsEl.innerHTML = renderInsightsHTML(allInsights, 4);
 
-  _ensureDiv(section, 'strengthTrainingLoadDashboard');
-  _ensureDiv(section, 'strengthVolumeProgressionSection');
-  _ensureDiv(section, 'strengthProgressionSection');
-  _ensureDiv(section, 'muscleGroupAnalysisSection');
-  _ensureDiv(section, 'strengthHeatmapSection');
+  body.innerHTML = `
+    ${hero}
+    <div class="grid-2-col gap-2 mb-2">
+      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volPct, sub: 'vs last week', color: '#8b5cf6' })}
+      ${statCard({ label: 'PRs This Week', value: String(prCount), sub: prCount === 1 ? 'lift at a new best' : 'lifts at a new best', color: '#10b981' })}
+    </div>
+    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+  `;
+}
 
-  // Also keep legacy 1RM list container for backward compat
-  let legacyRm = section.querySelector('#allLiftsRmContainer');
-  if (!legacyRm) {
-    legacyRm = document.createElement('div');
-    legacyRm.id = 'allLiftsRmContainer';
-    section.appendChild(legacyRm);
-  }
-
+// Stats: the full strength engine, one tap deeper. Absorbs the old 1RM (strength_pr)
+// and Weekly-Volume leaves so each fact lives in exactly one place.
+function _renderStrengthStats(body, data, sa, la) {
+  body.innerHTML = `
+    <div id="strengthTrainingLoadDashboard"></div>
+    <div id="strengthVolumeProgressionSection"></div>
+    <div id="strengthProgressionSection"></div>
+    <div id="muscleGroupAnalysisSection"></div>
+    <div id="strengthHeatmapSection"></div>
+    <h2 class="section-header mt-2">Lift PRs · est. 1RM</h2>
+    <div id="allLiftsRmContainer"></div>
+  `;
   renderTrainingLoadDashboard(sa, la, data.weekLabels);
   renderVolumeSection(sa, data);
   renderStrengthProgression(sa, data.weekLabels);
   renderMuscleGroupAnalysis(sa);
   renderStrengthHeatmap(data);
-
-  // Keep legacy list for tile compatibility
-  render1RMList(legacyRm, data.dynamicStats);
-}
-
-function _ensureDiv(parent, id) {
-  if (!document.getElementById(id)) {
-    const div = document.createElement('div');
-    div.id = id;
-    parent.appendChild(div);
-  }
+  render1RMList(qs('allLiftsRmContainer'), data.dynamicStats);
 }
 
 // Legacy 1RM list (still used by strength_pr view and tiles)
