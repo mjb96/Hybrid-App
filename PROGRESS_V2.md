@@ -4,6 +4,12 @@ Companion to `PRODUCT_V2.md` (the philosophy) and `PROGRESS.md` (the Android-lau
 tracker). This file turns V2's quarter roadmap (§9) into session-sized, file-level
 slices. Same legend: `[CC]` Claude Code drives · `[You]` human action required.
 
+**THE PATTERN (owner-endorsed 2026-07-03):** the fasting redesign is the template for
+the *whole app* — **simple UI, powerful behind the scenes.** One signature gauge hero ·
+a lean default surface with one synthesized insight line · all the power one tap deeper
+under a Stats tab, never deleted. Codified in `docs/v2/ui-pattern.md`; every remaining
+slice below must follow it.
+
 **Working rules for every slice** (inherited from CLAUDE.md, restated because V2 is
 mostly subtraction and subtraction is where data gets lost):
 - One slice = one commit; `npm test` + `npm run typecheck` + `npm run smoke` green
@@ -124,12 +130,14 @@ own focused surface (owner override) — the other 23 leaves collapse to 5:
       remembered-rest reset, …). Underlying state fields abandoned, defaults apply.
 
 ### S6 — Pillars → 3 dials (display only; §9 puts this in Month 1)
-- [ ] `[CC]` Pure module `js/brain/hybrid-score/dials.js`: **TRAIN** = Consistency +
-      Load (+E5 adherence) · **RECOVER** = Recovery + Lifestyle · **PROGRESS** =
-      Strength + Endurance + Momentum + Body. (V2 §2.1 omits Body from the mapping —
-      the composite math is untouchable per §2, so Body must live somewhere; PROGRESS
-      is the honest home. Flag at review.) 8 pillars stay as "under the hood"
-      expansion. Tests: dial values are pure functions of pillar contributions.
+- [x] `[CC]` Pure module `js/brain/hybrid-score/dials.js` (`computeDials` + `DIAL_MAP`):
+      **TRAIN** = Consistency + Load · **RECOVER** = Recovery + Lifestyle · **PROGRESS**
+      = Strength + Endurance + Momentum + Body (Body assigned here — §2.1 omits it but
+      the composite math is untouchable per §2, so PROGRESS is its honest home). Each
+      dial = weight-blended mean of its available members (pillar renormalised weights),
+      null when all members are data-less; every pillar claimed by exactly one dial. 8
+      pillars stay as the "under the hood" expansion. 6 tests. ✅ *(UI wiring of the
+      dials into the Score card lands with V2-2's card rebuild.)*
 
 **Phase V2-1 done when:** fasting redesigned to one minimal-but-powerful surface,
 5 analytics screens (+ fasting), 4 fixed tiles, one-hero Home, ~10 settings, 3 dials
@@ -178,6 +186,17 @@ own focused surface (owner override) — the other 23 leaves collapse to 5:
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **Fasting redesign S1a–c shipped + pattern generalised to the app.**
+  S1a named protocols (Zero-style presets incl. extended 24/36/48h), S1b signature ring
+  hero (gauge-card language, live ticker, protocol chips) — verified in Chromium, S1c
+  Overview | Stats tab split (lean default + one Fasting×Recovery line, power one tap
+  deeper). Owner saw it, loved it, and asked for the *whole app* to follow the pattern —
+  codified in `docs/v2/ui-pattern.md` (one gauge hero · lean surface + one synthesized
+  line · power under Stats · curated-not-configurable). First generalisation shipped:
+  **S6 3-dial collapse** (`dials.js`, pure, 6 tests) — 8 pillars → TRAIN/RECOVER/
+  PROGRESS, engine math untouched. 357 tests / typecheck / smoke green. · Next: S1d
+  (quiet home + stage nudges) then roll the pattern onto the Score card (V2-2) and the
+  5 analytics screens (S2).
 - 2026-07-03 · **Owner override: fasting is KEPT, not killed.** PRODUCT_V2.md §1's
   headline deletion is overruled — fasting stays as "minimal feel but still powerful":
   engine (calcs/insights/achievements/streaks) intact, presentation trimmed to one
