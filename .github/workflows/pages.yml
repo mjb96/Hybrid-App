@@ -1,0 +1,73 @@
+name: Deploy Pages
+
+# Deploys the PWA to GitHub Pages via Actions, replacing GitHub's automatic
+# "pages build and deployment" (Jekyll) run that kept failing on the first
+# attempt with the transient "Deployment failed, try again later".
+#
+# Why this is reliable:
+#   - a single, serialized deploy path (concurrency group) so a new push never
+#     collides with an in-flight deployment — the usual cause of that error;
+#   - one automatic retry of the deploy step, so a transient failure self-heals
+#     without anyone re-running the job;
+#   - .nojekyll + a staged clean web root (no Jekyll build, no android/tests/etc.).
+#
+# ONE-TIME SETUP (required): repo Settings → Pages → Source → "GitHub Actions".
+# Until that is set, GitHub still uses the old auto-deploy and this workflow errors.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy_retry.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the web root
+        run: |
+          mkdir -p _site
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='_site' \
+            --exclude='android' --exclude='node_modules' \
+            --exclude='tests' --exclude='scripts' --exclude='docs' \
+            --exclude='supabase' \
+            --exclude='package.json' --exclude='package-lock.json' \
+            --exclude='jsconfig.json' \
+            ./ _site/
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Deploy to GitHub Pages (auto-retry)
+        id: deploy_retry
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Fail only if both attempts failed
+        if: steps.deploy.outcome == 'failure' && steps.deploy_retry.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages deploy failed on both attempts."
+          exit 1
