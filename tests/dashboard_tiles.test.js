@@ -14,8 +14,11 @@ test('default-hidden ids all exist in the tile registry', () => {
   }
 });
 
-test('the default-visible dashboard is the focused six', () => {
+test('the default-visible dashboard is the focused, non-overlapping six', () => {
   const hidden = new Set(DEFAULT_HIDDEN_TILES);
   const visible = TILE_REGISTRY.filter(t => !hidden.has(t.id)).map(t => t.id).sort();
-  assert.deepEqual(visible, ['bodyweight', 'readiness', 'recovery-score', 'streak', 'today', 'weekly-volume']);
+  // recovery · load · strength work · endurance · body · habit — one each, no
+  // overlap. 'today' is hidden (it overlaps the Morning Briefing).
+  assert.deepEqual(visible, ['avg-pace', 'bodyweight', 'readiness', 'recovery-score', 'streak', 'weekly-volume']);
+  assert.ok(!visible.includes('today'));
 });

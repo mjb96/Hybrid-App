@@ -533,9 +533,14 @@ export const TILE_REGISTRY = [
 // the encyclopedia. Users who have EVER saved a customisation keep their own
 // list (this set only applies while dashboardTiles.hidden === null).
 // ==========================================
+// The focused default six give a balanced, non-overlapping hybrid snapshot —
+// recovery (Readiness), load (Training Status), strength work (Weekly Volume),
+// endurance (Avg Pace), body (Body Weight), habit (Streak). 'today' is hidden
+// by default: it overlaps the Morning Briefing, which already owns today's
+// session + mission (still available via the tile customiser).
 export const DEFAULT_HIDDEN_TILES = Object.freeze([
-  'program-hero', 'fasting', 'consistency', 'top-lifts', 'active-fuel',
-  'avg-pace', 'stress-balance', 'goal-progress',
+  'program-hero', 'today', 'fasting', 'consistency', 'top-lifts', 'active-fuel',
+  'stress-balance', 'goal-progress',
   'hrv', 'resting-hr', 'sleep', 'steps', 'vo2max',
 ]);
 
