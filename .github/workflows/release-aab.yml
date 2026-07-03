@@ -1,6 +1,10 @@
 name: Release (AAB + APK)
 
-# Builds a SIGNED Android App Bundle (.aab) for Play upload.
+# Builds a SIGNED Android App Bundle (.aab) + APK for Play upload.
+#
+# Runs automatically on every merge to main (versionName is auto-derived as
+# 1.0.<commit-count>), and can also be run manually with an explicit versionName
+# for a real Play release.
 #
 # [You] add these repository secrets first (Settings → Secrets → Actions):
 #   KEYSTORE_BASE64     - your upload keystore, base64-encoded
@@ -8,17 +12,17 @@ name: Release (AAB + APK)
 #   KEYSTORE_PASSWORD   - keystore password
 #   KEY_ALIAS           - key alias
 #   KEY_PASSWORD        - key password
-# Then run this workflow (Actions → Release AAB → Run workflow) and set the
-# version name. The signed AAB is uploaded as a build artifact to download and
-# upload to the Play Console.
+# The signed AAB is uploaded as a build artifact to download and push to Play.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       versionName:
-        description: 'versionName (e.g. 1.0.0)'
-        required: true
-        default: '1.0.0'
+        description: 'versionName (e.g. 1.0.0) — blank auto-derives 1.0.<commitCount>'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -74,9 +78,12 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          VERSION_NAME: ${{ inputs.versionName }}
+          INPUT_VERSION_NAME: ${{ inputs.versionName }}
         run: |
           export VERSION_CODE=$(git rev-list --count HEAD)
+          # Manual dispatch can pin a versionName; an automatic merge-to-main
+          # build derives 1.0.<commitCount> so it always increments.
+          export VERSION_NAME="${INPUT_VERSION_NAME:-1.0.$VERSION_CODE}"
           echo "Building versionName=$VERSION_NAME versionCode=$VERSION_CODE"
           # bundleRelease → .aab for Play; assembleRelease → signed .apk for sideload testing.
           gradle assembleRelease bundleRelease --no-daemon
