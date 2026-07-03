@@ -133,10 +133,19 @@ Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invent
       section). Collapses all FIVE leaves — recovery, recovery-score, training-status,
       load-focus, stress-balance — into one screen ("three names for one concept", §4)
       via router redirects. Rendered + verified in Chromium.
-- [ ] **Review** — absorb weekly-review, weekly-summary, monthly-report, progress,
-      activity, streak, bodyweight, goal-progress. Headline = the week's score.
-- [ ] `[CC]` Remove the now-dead hub entries + orphaned view/chart code once all 5
-      land (calcs feed the Score engine — most survive; views die, math lives).
+- [x] **Review ✅** — Overview: headline **this week's Hybrid Score** + score-arc spark
+      + delta, Sessions + Adherence cards, the week's focus line. Stats: the full Week in
+      Review + Monthly Report. Absorbs weekly-review, weekly-summary, monthly-report
+      (router redirects). Rendered + verified in Chromium. *(Scoped: bodyweight,
+      progress, streak, goal-progress, activity kept as their own leaves for now — they
+      carry distinct content not in the weekly story; fold into Review Stats in a
+      follow-up rather than regress them.)*
+- [ ] `[CC]` Follow-up: remove dead hub entries + orphaned view/chart code (the absorbed
+      leaves' view files + dead `#analytics-*` sections), and fold bodyweight/progress/
+      streak/goal-progress into Review Stats. Calcs feed the Score engine — most survive.
+
+**Score screen** already carries the pattern from V2-2 (number + 3 dials + coaching
+sentence; 8 pillars under the hood). So all five screens now read as one system.
 
 ### S3 — Tiles: 19 defs + customiser → 4 fixed
 - [x] `[CC]` Home now renders exactly **Readiness · Weekly Volume · Top Lifts ·

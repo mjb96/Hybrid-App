@@ -7,12 +7,88 @@
 // pure builder (js/brain/weekly-review.js); this file only renders and wires
 // the Share button.
 // =============================================================================
-import { showToast } from '../../state.js';
-import { reviewToText } from '../../brain/weekly-review.js';
+import { showToast, getProgramById } from '../../state.js';
+import { reviewToText, buildWeeklyReview } from '../../brain/weekly-review.js';
 import { sparkline } from '../../brain/hybrid-score/ui.js';
+import { statCard } from '../charts/chart-primitives.js';
+import { renderMonthlyReport } from './view-monthly-report.js';
+import { screenTabBar, mountScreenTabs, spark } from './_screen-kit.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KM_TO_MI = 0.621371;
+
+// ---- V2: unified Review screen (Overview | Stats) -----------------------
+// The weekly/monthly story in one place — Overview leads with this week's Hybrid
+// Score arc; Stats holds the full Week in Review + the Monthly Report (absorbing
+// the weekly-summary and monthly-report leaves).
+let _reviewTab = 'overview';
+export function setReviewTab(tab) { _reviewTab = tab === 'stats' ? 'stats' : 'overview'; }
+
+export function renderReview(data, getState, getDays) {
+  const section = document.getElementById('analytics-weekly-review');
+  if (!section) return;
+  const state   = getState();
+  const program = getProgramById(state.activeProgramId);
+  const review  = buildWeeklyReview(state, getDays(), program);
+
+  section.innerHTML = screenTabBar(_reviewTab) + `<div id="review-tab-body"></div>`;
+  const body = document.getElementById('review-tab-body');
+
+  if (_reviewTab === 'stats') {
+    body.innerHTML = `
+      <h2 class="section-header mt-2">Week in Review</h2>
+      <div id="weeklyReviewContainer"></div>
+      <h2 class="section-header mt-4">Monthly Report</h2>
+      <div id="monthlyReportContainer"></div>
+    `;
+    renderWeeklyReview(review, state);
+    renderMonthlyReport(getState, getDays, () => program);
+  } else {
+    _renderReviewOverview(body, review);
+  }
+
+  mountScreenTabs('analytics-weekly-review', (tab) => {
+    _reviewTab = tab;
+    renderReview(data, getState, getDays);
+  });
+}
+
+function _renderReviewOverview(body, review) {
+  if (!review.hasData) {
+    body.innerHTML = `<article class="card-dark an-hero">
+      <div class="an-hero__k">This week</div>
+      <div class="an-hero__val">—</div>
+      <div class="an-hero__empty">Nothing logged yet — your review builds itself as you train.</div>
+    </article>`;
+    return;
+  }
+  const arc = review.arc;
+  const color = !arc.hasData ? '#94a3b8' : arc.delta >= 0 ? '#10b981' : '#ef4444';
+  const hero = arc.hasData
+    ? `<article class="card-dark an-hero">
+        <div class="an-hero__k">Hybrid Score · this week</div>
+        <div class="an-hero__val" style="color:${color}">${arc.end}</div>
+        <div class="an-hero__delta" style="color:${color}">${arc.delta > 0 ? '+' : ''}${arc.delta} over the week</div>
+        ${spark(arc.series, color)}
+      </article>`
+    : `<article class="card-dark an-hero">
+        <div class="an-hero__k">This week</div>
+        <div class="an-hero__val">${review.totals.sessions}</div>
+        <div class="an-hero__empty">sessions logged — keep going to unlock your score arc.</div>
+      </article>`;
+
+  body.innerHTML = `
+    ${hero}
+    <div class="grid-2-col gap-2 mb-2">
+      ${statCard({ label: 'Sessions', value: String(review.totals.sessions), sub: 'logged this week', color: '#3b82f6' })}
+      ${statCard({ label: 'Adherence', value: review.consistency.total > 0 ? review.consistency.pct + '%' : '—', sub: review.consistency.total > 0 ? `${review.consistency.done}/${review.consistency.total} planned` : 'no plan set', color: '#10b981' })}
+    </div>
+    <article class="card-dark p-3 mb-3" style="border-left:3px solid var(--color-blue);">
+      <div style="font-weight:800;color:var(--color-blue);font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${esc(review.focus.area)}</div>
+      <p style="color:var(--text-secondary);font-size:0.84rem;line-height:1.5;margin:0;">${esc(review.focus.text)}</p>
+    </article>
+  `;
+}
 
 function deltaChip(pct) {
   if (pct === null || pct === undefined) return '';

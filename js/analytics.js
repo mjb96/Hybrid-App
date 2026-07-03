@@ -29,7 +29,7 @@ import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
 import { buildWeeklyReview } from './brain/weekly-review.js';
-import { renderWeeklyReview } from './analytics/views/view-weekly-review.js';
+import { renderReview, setReviewTab } from './analytics/views/view-weekly-review.js';
 import { renderProjections } from './analytics/views/view-projections.js';
 import { renderMonthlyReport } from './analytics/views/view-monthly-report.js';
 import { buildSoWhat } from './analytics/so-what.js';
@@ -307,20 +307,22 @@ export function renderAnalytics() {
     case 'hub':
       document.getElementById('analytics-hub').classList.add('active');
       break;
-    case 'weekly-review': {
+    // V2 (S2): the Review screen — weekly-review (Overview) + weekly-summary and
+    // monthly-report (Stats) collapse into one weekly/monthly story.
+    case 'weekly-review':
+      setReviewTab('overview');
       document.getElementById('analytics-weekly-review').classList.add('active');
-      const stR = _getState();
-      const review = buildWeeklyReview(stR, _getDays(), getProgramById(stR.activeProgramId));
-      renderWeeklyReview(review, stR);
+      renderReview(data, _getState, _getDays);
       break;
-    }
+    case 'weekly-summary':
+    case 'monthly-report':
+      setReviewTab('stats');
+      document.getElementById('analytics-weekly-review').classList.add('active');
+      renderReview(data, _getState, _getDays);
+      break;
     case 'projections':
       document.getElementById('analytics-projections').classList.add('active');
       renderProjections(_getState, _getDays);
-      break;
-    case 'monthly-report':
-      document.getElementById('analytics-monthly-report').classList.add('active');
-      renderMonthlyReport(_getState, _getDays, () => getProgramById(_getState().activeProgramId));
       break;
     case 'hybrid-score': {
       document.getElementById('analytics-hybrid-score').classList.add('active');
@@ -330,12 +332,6 @@ export function renderAnalytics() {
       const result = computeHybridScore(model, st, _getDays());
       const el = document.getElementById('hybridScoreDetail');
       if (el) el.innerHTML = hybridScoreDetailHTML(result, st);
-      break;
-    }
-    case 'weekly-summary': {
-      document.getElementById('analytics-weekly-summary').classList.add('active');
-      const selectedWk = getSelectedWeek(_getState().currentWeek);
-      renderWeeklySummaryAnalytics(data, _getState, _getDays, selectedWk);
       break;
     }
     case 'strength':
