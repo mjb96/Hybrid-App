@@ -84,7 +84,26 @@ export function consistencyPillar(model) {
 }
 
 // ---- RECOVERY -------------------------------------------------------------
-export function recoveryPillar(model) {
+// E6 — recovery-trend term. A single day's readiness can look fine on the way
+// into an overreach; a multi-day *slope* catches the slide early. Least-squares
+// slope (readiness pts/day) over the last 3 recorded days, mapped to a modest
+// ±8 adjustment so today's actual readiness still dominates. null-slope (not
+// enough history) → no adjustment.
+function recoveryTrendAdj(state) {
+  const pts = (state?.hybridScore?.history || [])
+    .filter(e => typeof e.readiness === 'number')
+    .slice(-3)
+    .map((e, i) => ({ x: i, y: e.readiness }));
+  if (pts.length < 3) return 0;
+  const my = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  const mx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  let num = 0, den = 0;
+  for (const p of pts) { num += (p.x - mx) * (p.y - my); den += (p.x - mx) ** 2; }
+  const slope = den ? num / den : 0;
+  return clamp(slope * 1.5, -8, 8);
+}
+
+export function recoveryPillar(model, state) {
   // E3 — use readiness WITHOUT its ACWR load component so load isn't counted
   // twice (the Load pillar already owns ACWR). Falls back to the full readiness
   // only if the load-excluded variant isn't available.
@@ -100,7 +119,13 @@ export function recoveryPillar(model) {
     score = clamp(60 + tsb * 1.5, 10, 100);
   }
 
+  // E6 — fold in the multi-day readiness trend (early-warning nudge).
+  const trendAdj = recoveryTrendAdj(state);
+  score = clamp(score + trendAdj, 0, 100);
+
   const signals = [];
+  if (trendAdj <= -3) signals.push('recovery trending down');
+  else if (trendAdj >= 3) signals.push('recovery trending up');
   const c = r?.components || {};
   if (c.sleep != null && c.sleep < 55) signals.push('poor sleep');
   else if (c.sleep != null && c.sleep >= 85) signals.push('good sleep');
@@ -337,7 +362,7 @@ export function computePillars(model, state, days, opts = {}) {
   const { level, deload } = opts;
   return {
     consistency: consistencyPillar(model),
-    recovery:    recoveryPillar(model),
+    recovery:    recoveryPillar(model, state),
     strength:    strengthPillar(model, state, days, level),
     endurance:   endurancePillar(model, state, days, level),
     load:        loadPillar(model, state, days, deload),

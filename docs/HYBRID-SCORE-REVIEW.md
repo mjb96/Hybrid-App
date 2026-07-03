@@ -274,8 +274,14 @@ with a measurable acceptance test.
 - **E5 · Workout-quality / true adherence.** Planned-vs-done at target RPE/load as a Consistency
   sub-signal. **Measure:** completing prescribed work at target RPE scores higher than logging
   junk sets. *→ a small quality calc + consistency.*
-- **E6 · Recovery trend term.** Fold a 3-day readiness slope into Recovery. **Measure:** three
-  declining readiness days nudge the score down before it's a crisis. *→ recoveryPillar.*
+- **E6 · Recovery trend term.** ✅ **SHIPPED 2026-07-03.** Recovery no longer reads only today's
+  reading: the daily snapshot now persists that day's load-excluded readiness (`history.js`), and
+  `recoveryPillar` folds a least-squares slope over the last 3 recorded days into a modest ±8
+  nudge (today's actual readiness still dominates) — a multi-day slide pulls Recovery down *before*
+  a single day looks bad, and a rebuild nudges it up. Signals surface "recovery trending
+  down/up". Distinct from Momentum (which slopes the *composite* score), so no double-count.
+  **Measure (tests):** an identical 70 today scores lower after a 3-day decline than after a flat
+  run; <3 days of history applies no adjustment. *→ history + recoveryPillar.*
 
 ### P2 — Premium explainability & anti-game
 - **E7 · "Why it changed" delta attribution.** ✅ **SHIPPED 2026-07-02.** Snapshots now store

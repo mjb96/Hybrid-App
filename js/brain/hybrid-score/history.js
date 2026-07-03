@@ -40,6 +40,13 @@ function contributionsOf(scoreResult) {
   return out;
 }
 
+// E6 — today's load-excluded readiness for the recovery-trend term (a pure
+// recovery signal, ACWR removed so it doesn't overlap the Load pillar). null
+// when no readiness signals exist yet.
+function readinessOf(model) {
+  return model?.readyNoLoad?.hasData ? model.readyNoLoad.score : null;
+}
+
 export function recordDailyScore(state, scoreResult, model, todayISO) {
   const hs = ensure(state);
   const today = todayISO || new Date().toISOString().slice(0, 10);
@@ -48,11 +55,18 @@ export function recordDailyScore(state, scoreResult, model, todayISO) {
     // Already recorded today — keep the snapshot fresh (score can move intraday
     // as sessions are logged) but do NOT re-bank XP or re-fire milestones.
     const entry = hs.history.find(h => h.date === today);
-    if (entry && entry.score !== scoreResult.score) {
-      entry.score = scoreResult.score;
-      entry.level = scoreResult.level?.tier ?? entry.level;
-      entry.contributions = contributionsOf(scoreResult);
-      return { changed: true, milestones: [] };
+    if (entry) {
+      // E6 — keep the day's readiness fresh even when the score itself is
+      // unchanged, so the recovery-trend slope always has today's value.
+      const rd = readinessOf(model);
+      const readinessMoved = rd != null && entry.readiness !== rd;
+      if (entry.score !== scoreResult.score || readinessMoved) {
+        entry.score = scoreResult.score;
+        entry.level = scoreResult.level?.tier ?? entry.level;
+        entry.contributions = contributionsOf(scoreResult);
+        if (rd != null) entry.readiness = rd;
+        return { changed: true, milestones: [] };
+      }
     }
     return { changed: false, milestones: [] };
   }
@@ -77,7 +91,7 @@ export function recordDailyScore(state, scoreResult, model, todayISO) {
     milestones.push({ kind: 'score', score: scoreResult.score });
   }
 
-  hs.history.push({ date: today, score: scoreResult.score, level: levelAfter.tier, contributions: contributionsOf(scoreResult) });
+  hs.history.push({ date: today, score: scoreResult.score, level: levelAfter.tier, contributions: contributionsOf(scoreResult), readiness: readinessOf(model) });
   if (hs.history.length > MAX_HISTORY) hs.history = hs.history.slice(-MAX_HISTORY);
   hs.lastRecordedDate = today;
   return { changed: true, milestones };
