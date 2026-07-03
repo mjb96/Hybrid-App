@@ -25,6 +25,7 @@ export const FASTING_ACTIONS = new Set([
   'fast-edit-history', 'fast-save-history', 'fast-cancel-history-edit',
   'fa-edu-cat', 'fa-edu-article', 'fa-edu-back',
   'fa-cal-prev', 'fa-cal-next',
+  'fa-tab-overview', 'fa-tab-stats',
 ]);
 
 /**
@@ -98,11 +99,16 @@ export function handleFastingClickAction(action, target, ctx) {
   else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
   else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
   else if (action === 'open-fasting-education') {
-    // Deep-link the buried "Fasting Knowledge" section (last block of the
-    // fasting analytics view) straight from the daily fasting sheet.
+    // Deep-link the "Fasting Knowledge" section, which now lives in the Stats tab.
     closeFastingDetail();
-    openAnalyticsView('fasting');
-    setTimeout(() => document.getElementById('fa-edu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    import('../analytics/views/view-fasting.js').then(m => {
+      m.setFastingTab('stats');
+      openAnalyticsView('fasting');
+      setTimeout(() => document.getElementById('fa-edu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+    });
+  }
+  else if (action === 'fa-tab-overview' || action === 'fa-tab-stats') {
+    import('../analytics/views/view-fasting.js').then(m => m.handleFastingTabAction(action, () => appState));
   }
   else if (action === 'fast-edit-history') {
     const idx = parseInt(target.dataset.index, 10);

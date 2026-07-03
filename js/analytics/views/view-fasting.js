@@ -28,6 +28,10 @@ const RED    = '#ef4444';
 
 let _calendarMonth = null;
 let _eduState = { category: 'articles', articleId: null };
+let _fastingTab = 'overview'; // 'overview' (lean, ring-led) | 'stats' (the deep analytics)
+
+// Allow the education deep-link to jump straight into the Stats tab.
+export function setFastingTab(tab) { _fastingTab = tab === 'stats' ? 'stats' : 'overview'; }
 
 function qs(id) { return document.getElementById(id); }
 
@@ -783,45 +787,53 @@ export function renderFastingAnalytics(getState) {
   const insights     = generateFastingInsights(calcs);
   const achievements = getUnlockedAchievements(calcs);
 
-  section.innerHTML = `
+  section.innerHTML = _tabBar(_fastingTab) + `<div id="fa-tab-body"></div>`;
+  const body = qs('fa-tab-body');
+
+  if (_fastingTab === 'stats') {
+    _renderStatsTab(body, calcs, achievements, appState);
+  } else {
+    _renderOverviewTab(body, calcs, insights);
+    if (calcs.active) _startAnalyticsTicker(getState);
+  }
+}
+
+// ── Tab bar + bodies (S1c: lean Overview, deep Stats) ───────────────────────────
+
+function _tabBar(active) {
+  const tab = (id, label) =>
+    `<button class="fa-tab ${active === id ? 'fa-tab--active' : ''}" data-action="fa-tab-${id}">${label}</button>`;
+  return `<div class="fa-tab-bar">${tab('overview', 'Overview')}${tab('stats', 'Stats')}</div>`;
+}
+
+// Overview: the ring-led hero, current fast, the daily insights, and the ONE
+// fasting×recovery line — the hybrid-athlete angle a pure fasting app can't give.
+function _renderOverviewTab(body, calcs, insights) {
+  body.innerHTML = `
     <h2 class="section-header">Fasting Score</h2>
     <div id="fa-score"></div>
-
     ${calcs.active ? '<h2 class="section-header">Current Fast</h2><div id="fa-active-fast"></div>' : ''}
-
     <div id="fa-insights"></div>
-
-    <h2 class="section-header">Key Metrics</h2>
-    <div id="fa-overview"></div>
-
-    <h2 class="section-header">Advanced Analytics</h2>
-    <div id="fa-advanced"></div>
-
-    <h2 class="section-header">Trends</h2>
-    <div id="fa-trends"></div>
-
-    <h2 class="section-header">Correlations</h2>
-    <div id="fa-integrations"></div>
-
-    <h2 class="section-header">Calendar</h2>
-    <div id="fa-calendar"></div>
-
-    <h2 class="section-header">Distribution</h2>
-    <div id="fa-distribution"></div>
-
-    <h2 class="section-header">All-Time Stats</h2>
-    <div id="fa-performance"></div>
-
-    <h2 class="section-header">Achievements</h2>
-    <div id="fa-achievements"></div>
-
-    <h2 class="section-header">Fasting Knowledge</h2>
-    <div id="fa-edu"></div>
+    ${_fastingRecoveryLine(calcs)}
   `;
-
   _renderFastingScore(qs('fa-score'), calcs);
   if (calcs.active) _renderActiveFast(qs('fa-active-fast'), calcs);
   qs('fa-insights').innerHTML = renderFastingInsightsHTML(insights);
+}
+
+// Stats: everything deeper, one tap away — the power the owner chose to keep.
+function _renderStatsTab(body, calcs, achievements, appState) {
+  body.innerHTML = `
+    <h2 class="section-header">Key Metrics</h2><div id="fa-overview"></div>
+    <h2 class="section-header">Advanced Analytics</h2><div id="fa-advanced"></div>
+    <h2 class="section-header">Trends</h2><div id="fa-trends"></div>
+    <h2 class="section-header">Correlations</h2><div id="fa-integrations"></div>
+    <h2 class="section-header">Calendar</h2><div id="fa-calendar"></div>
+    <h2 class="section-header">Distribution</h2><div id="fa-distribution"></div>
+    <h2 class="section-header">All-Time Stats</h2><div id="fa-performance"></div>
+    <h2 class="section-header">Achievements</h2><div id="fa-achievements"></div>
+    <h2 class="section-header">Fasting Knowledge</h2><div id="fa-edu"></div>
+  `;
   _renderOverview(qs('fa-overview'), calcs);
   _renderAdvancedMetrics(qs('fa-advanced'), calcs);
   _renderTrends(qs('fa-trends'), calcs);
@@ -831,6 +843,40 @@ export function renderFastingAnalytics(getState) {
   _renderPerformance(qs('fa-performance'), calcs);
   _renderAchievements(qs('fa-achievements'), achievements);
   _renderEducation(qs('fa-edu'));
+}
 
-  if (calcs.active) _startAnalyticsTicker(getState);
+// One sentence from the strongest available fasting↔recovery signal (HRV → sleep →
+// mood), or a prompt to log the data. Pure string builder.
+function _fastingRecoveryLine(calcs) {
+  const hrv = calcs.hrvCorrelation, sleep = calcs.sleepCorrelation, rec = calcs.recoveryCorrelation;
+  let text = null, tone = 'info';
+  if (hrv?.hasData && hrv.direction !== 'neutral') {
+    tone = hrv.direction === 'better' ? 'good' : 'alert';
+    text = hrv.direction === 'better'
+      ? `Your HRV runs ${Math.abs(hrv.diffPct).toFixed(0)}% higher on fasting days — fasting is supporting your recovery.`
+      : `Your HRV runs ${Math.abs(hrv.diffPct).toFixed(0)}% lower on fasting days — watch that extended fasts aren't adding stress.`;
+  } else if (sleep?.hasData && sleep.direction !== 'neutral') {
+    tone = sleep.direction === 'better' ? 'good' : 'info';
+    text = sleep.direction === 'better'
+      ? `You sleep ${Math.abs(sleep.diff).toFixed(1)}h more on fasting days — an earlier eating window is paying off.`
+      : `You sleep ${Math.abs(sleep.diff).toFixed(1)}h less on fasting days — consider closing your fast earlier.`;
+  } else if (rec?.hasData && Math.abs(rec.moodEffect) > 5) {
+    tone = rec.moodEffect > 0 ? 'good' : 'alert';
+    text = rec.moodEffect > 0
+      ? `Your mood scores average ${rec.moodEffect.toFixed(0)}% higher on fasting days.`
+      : `Your mood dips on fasting days — prioritise nutrient density in your eating window.`;
+  }
+  if (!text) {
+    text = 'Log wellness, sleep, or HRV to see how fasting affects your recovery — the insight a workout app can give that a fasting app can\'t.';
+  }
+  return `<article class="card-dark p-4 mb-3 fa-recovery-line fa-recovery-line--${tone}">
+    <div class="fa-recovery-line__label">Fasting × Recovery</div>
+    <div class="fa-recovery-line__text">${text}</div>
+  </article>`;
+}
+
+// Tab switch (routed from app.js via fasting-actions).
+export function handleFastingTabAction(action, getState) {
+  _fastingTab = action === 'fa-tab-stats' ? 'stats' : 'overview';
+  renderFastingAnalytics(getState);
 }

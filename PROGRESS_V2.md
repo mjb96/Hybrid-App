@@ -68,12 +68,16 @@ Build order (each a tested commit):
       arc/stage as zones cross. Replaces the linear bar in `fasting-card.js`; protocol
       chips replace the raw-hours `<select>` (new `fast-set-protocol` action); extended
       picks reveal the caution note. 6 ring tests; rendered + verified in Chromium. ✅
-- [ ] **S1c — Ring primary + Stats tab:** split `view-fasting.js` (836) into a lean
-      primary (ring recap + streak/week/longest + ONE fasting×recovery line from the
-      correlation engine) and a **Stats** sub-screen holding the richer analytics
-      (trends, correlations, calendar). Trim the generic chart stack; prune
-      `fasting-education.js` (505) to essential in-context copy; retire the
-      achievements wall (keep engine, drop the dedicated surface). Route redirects.
+- [x] **S1c — Ring primary + Stats tab:** `view-fasting.js` now renders an
+      Overview | Stats tab bar. **Overview** = Fasting Score card (+ streak/week/longest)
+      · current-fast recap · daily insights · ONE `Fasting × Recovery` line
+      (`_fastingRecoveryLine`, strongest of HRV→sleep→mood from the correlation engine —
+      the hybrid-athlete angle). **Stats** = the deep analytics one tap deeper (metrics,
+      advanced, trends, correlations, calendar, distribution, all-time, achievements,
+      knowledge — power kept per owner's "Ring + a Stats tab"). New `fa-tab-*` actions;
+      education deep-link jumps to Stats. Routing verified in Chromium (Overview lean,
+      Stats deep). typecheck / smoke green. Note: education wall NOT pruned (kept in
+      Stats); a later CSS sweep can drop the now-unused `.fasting-sheet-hero` block.
 - [ ] **S1d — Quiet home + stage nudges:** fasting shows on Home only while active/
       scheduled; stage-entry + goal-reached notifications via the native NotifyBridge.
 - [ ] **Lifestyle pillar unchanged** — stays steps + fasting (E3); fasting stays a
