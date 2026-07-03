@@ -221,6 +221,10 @@ export function detailHTML(r, state) {
       <span class="hs-action__v">${esc(r.recommendation)}</span>
     </div>
 
+    <button class="hs-share-btn" data-action="share-score-card" aria-label="Share your Hybrid Score card">
+      <span class="hs-share-btn__icon">↗</span> Share your Score
+    </button>
+
     <h3 class="section-header">Why your score is ${r.score} today</h3>
     <ul class="hs-drivers">${drivers || '<li class="hs-driver hs-driver--neutral">Balanced day — no single factor dominated.</li>'}</ul>
 

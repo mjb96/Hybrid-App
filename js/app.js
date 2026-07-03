@@ -37,7 +37,7 @@ import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, openFastingDetail } from './home.js';
-import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
+import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext, shareScoreCard } from './analytics.js';
 import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
 import {
@@ -705,6 +705,7 @@ document.addEventListener('click', (e) => {
     switchGlobalAppTab(tgt);
   }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
+  else if (action === 'share-score-card') shareScoreCard();
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();

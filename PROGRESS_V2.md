@@ -255,22 +255,35 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
       banners, no errors (verified in Chromium).
 
 ## Phase V2-5 — The shareable card (Month 3)
-- [ ] `[CC]` Canvas/SVG export of the Score card: number, level, 3 dials, identity
-      line, streak — the gauge card's visual language at share size. `navigator.share`
-      + clipboard fallback (pattern exists in weekly-review).
-- [ ] `[CC]` Weekly variant riding on `weekly-review.js`.
+- [x] `[CC]` **Canvas export of the Score card.** `js/brain/hybrid-score/share-card.js`
+      renders the gauge + number + level + the 3 dials + streak to a 1080×1350 PNG in the
+      card's own visual language, shared via `navigator.share` (files) with a PNG-download
+      fallback. Number comes from the real result the caller holds, so the card can never
+      disagree with the app. "Share your Score" button on the Score detail. 4 tests +
+      canvas-render verified in Chromium.
+- [x] `[CC]` **Weekly variant riding on `weekly-review.js`.** Same builder with a "WEEK N"
+      banner + weekly caption; "Share your Score card" button on the Weekly Review screen
+      (text share kept as a secondary option). Rendered + verified.
 
 ---
 
 ## Scorecard (from PRODUCT_V2 §10 — tick when true)
-- [ ] Home: 1 hero + ≤3 quiet surfaces (today ~13)
-- [ ] Analytics screens: 5 (today 23)
-- [ ] Pillars shown by default: 3 (today 8)
-- [ ] One-sentence explainability · one shareable thing · a reason to open before logging
+- [x] Home: 1 hero + ≤3 quiet surfaces (Score hero + briefing + 4 tiles)
+- [x] Analytics screens: 5 (Strength · Running · Recovery · Review · + Score/hub)
+- [x] Pillars shown by default: 3 (TRAIN / RECOVER / PROGRESS; 8 under the hood)
+- [x] One-sentence explainability · one shareable thing · a reason to open before logging
+      (morning hook: "train and it rises to X" + streak-at-stake + memory)
 
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-5 shareable card shipped — V2 phases complete.** `share-card.js`
+  renders the Score card (gauge · level · 3 dials · streak) to a 1080×1350 PNG via
+  navigator.share + download fallback; "Share your Score" on the Score detail and a
+  weekly "WEEK N" variant on the Weekly Review. Both rendered + verified in Chromium.
+  4 tests (383 total), typecheck + smoke green. With this, all five V2 phases (Subtract →
+  Score → morning hook → coach → share) are done; the §10 scorecard is fully ticked.
+  Remaining are `[You]` items only (device-testing the push loop). 
 - 2026-07-03 · **V2-4 one coach with memory shipped.** Rewrote the coaching voice to
   speak consequences not mechanisms (no ACWR/TSB numbers on the card/push; they stay in
   Stats). Added `coach-memory.js` (pure, 5 tests) — one true history callback (PB /

@@ -186,6 +186,19 @@
 .mbrief__memory-icon { flex: 0 0 auto; font-size: .9rem; }
 .mbrief__memory-text { flex: 1 1 0%; min-width: 0; font-size: .76rem; font-weight: 600; color: var(--text-secondary,#cbd5e1); line-height: 1.35; }
 
+/* V2-5 — share the Score card */
+.hs-share-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 14px; padding: 13px 16px;
+  border-radius: 14px; border: 1px solid var(--glass-border, rgba(255,255,255,0.12));
+  background: rgba(255,255,255,0.05); color: var(--text-inverse, #f8fafc);
+  font: inherit; font-weight: 700; font-size: .86rem; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: transform .12s ease, background .12s ease;
+}
+.hs-share-btn:active { transform: scale(.985); }
+.hs-share-btn:hover { background: rgba(255,255,255,0.08); }
+.hs-share-btn__icon { font-weight: 900; }
+
 .mbrief__coach { display: flex; align-items: flex-start; gap: 8px; }
 .mbrief__coach-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--mb-sev, var(--color-blue,#3b82f6)); }
 .mbrief__coach-text { flex: 1 1 0%; min-width: 0; font-size: .74rem; color: var(--text-muted,#94a3b8); line-height: 1.45; }

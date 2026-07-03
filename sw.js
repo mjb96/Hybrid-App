@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v91';
+const CACHE_NAME = 'helyx-v92';
 
 const LOCAL_ASSETS = [
   './',
@@ -51,6 +51,7 @@ const LOCAL_ASSETS = [
   './js/brain/hybrid-score/history.js',
   './js/brain/hybrid-score/hybrid-score.js',
   './js/brain/hybrid-score/project.js',
+  './js/brain/hybrid-score/share-card.js',
   './js/brain/hybrid-score/levels.js',
   './js/brain/hybrid-score/pillars.js',
   './js/brain/hybrid-score/ui.js',

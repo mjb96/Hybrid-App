@@ -10,6 +10,9 @@
 import { showToast, getProgramById } from '../../state.js';
 import { reviewToText, buildWeeklyReview } from '../../brain/weekly-review.js';
 import { sparkline } from '../../brain/hybrid-score/ui.js';
+import { computeDashboardModel } from '../../home/dashboard-model.js';
+import { computeHybridScore } from '../../brain/hybrid-score/hybrid-score.js';
+import { shareHybridScoreCard } from '../../brain/hybrid-score/share-card.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { renderMonthlyReport } from './view-monthly-report.js';
 import { renderProgressAnalytics, renderStreakDetail, renderGoalProgressDetail } from './view-progress.js';
@@ -191,7 +194,8 @@ export function renderWeeklyReview(review, state) {
       <div style="font-weight:800;color:var(--color-blue);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${esc(review.focus.area)}</div>
       <p style="color:var(--text-secondary);font-size:0.84rem;line-height:1.5;margin:0;">${esc(review.focus.text)}</p>
     </article>
-    <button id="wrevShareBtn" class="btn-action-block btn-ghost" aria-label="Share this week's review">📤 Share your week</button>
+    <button id="wrevShareCardBtn" class="btn-action-block" aria-label="Share your Hybrid Score card for this week">↗ Share your Score card</button>
+    <button id="wrevShareBtn" class="btn-action-block btn-ghost" aria-label="Share this week's review as text">📤 Share as text</button>
   `;
 
   const btn = el.querySelector('#wrevShareBtn');
@@ -207,6 +211,22 @@ export function renderWeeklyReview(review, state) {
           showToast('Copied to clipboard ✓');
         } catch { showToast('Sharing unavailable on this device', true); }
       }
+    });
+  }
+
+  // V2-5 — the weekly variant of the shareable card, riding on this screen.
+  const cardBtn = el.querySelector('#wrevShareCardBtn');
+  if (cardBtn) {
+    cardBtn.addEventListener('click', () => {
+      try {
+        const WK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+        const model = computeDashboardModel(state, WK_DAYS, getProgramById(state.activeProgramId), dayKey);
+        const result = computeHybridScore(model, state, WK_DAYS);
+        shareHybridScoreCard(result, state, {
+          showToast, variant: 'weekly', weekLabel: `Week ${state.currentWeek || ''}`.trim(),
+        });
+      } catch { showToast('Could not create the card', true); }
     });
   }
 }

@@ -15,12 +15,29 @@ import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
+import { shareHybridScoreCard } from './brain/hybrid-score/share-card.js';
+import { showToast } from './toast.js';
 import { renderReview, setReviewTab } from './analytics/views/view-weekly-review.js';
 import { renderProjections } from './analytics/views/view-projections.js';
 
 let _getState;
 let _getDays;
 let _analyticsContext = 'weekly-summary';
+let _lastScoreResult = null;   // most recent Score-detail result, for the Share card
+
+// V2-5 — share the Hybrid Score card. Uses the result last rendered into the
+// Score detail (falls back to a fresh compute so the button always works).
+export function shareScoreCard() {
+  const st = _getState?.();
+  if (!st) return;
+  let result = _lastScoreResult;
+  if (!result) {
+    const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+    const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
+    result = computeHybridScore(model, st, _getDays());
+  }
+  shareHybridScoreCard(result, st, { showToast });
+}
 
 export function setAnalyticsContext(ctx) { _analyticsContext = ctx || 'weekly-summary'; }
 
@@ -314,6 +331,7 @@ export function renderAnalytics() {
       const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
       const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
       const result = computeHybridScore(model, st, _getDays());
+      _lastScoreResult = result;   // for the Share action (V2-5)
       const el = document.getElementById('hybridScoreDetail');
       if (el) el.innerHTML = hybridScoreDetailHTML(result, st);
       break;
