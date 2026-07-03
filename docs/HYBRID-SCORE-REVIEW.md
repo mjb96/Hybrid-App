@@ -271,9 +271,18 @@ with a measurable acceptance test.
   runs, not just those who typed a threshold pace). *→ running-calcs + endurance + predictions.*
   Acceptance: 20:00 5k → VDOT 49–51 (matches Daniels' tables); a user with no threshold pace
   still gets a VDOT + race predictions from their runs (`tests/vdot.test.js`).
-- **E5 · Workout-quality / true adherence.** Planned-vs-done at target RPE/load as a Consistency
-  sub-signal. **Measure:** completing prescribed work at target RPE scores higher than logging
-  junk sets. *→ a small quality calc + consistency.*
+- **E5 · Workout-quality / true adherence.** ✅ **SHIPPED 2026-07-03.** "Showing up" no longer
+  equals "doing the work." First a **logging change**: the workout logger now records each set's
+  *prescribed* target (`tw`/`tr`, read from the coach's ghost placeholder) distinctly from the
+  actual `w`/`r` — additive, never overwritten, invisible (the schema previously stored only the
+  actual, and quick-log set it *to* the target, so adherence was unmeasurable). Then a pure,
+  tested metric `workoutQuality` (metrics-strength) scores completed working sets' actual
+  load-volume against their prescription (hitting/beating target = full; junk far below = low;
+  overshoot caps at 100; targetless/legacy sets ignored). `consistencyPillar` folds it in as a
+  gentle factor (≤20% haircut, neutral when nothing's measurable) with "hitting your targets" /
+  "sets logged below target" signals. **Measure (tests):** on-target work scores like the
+  un-adjusted pillar while junk sets trim it; the factor never fires without a plan to measure
+  against. *→ workout logger + metrics-strength + consistencyPillar + model.*
 - **E6 · Recovery trend term.** ✅ **SHIPPED 2026-07-03.** Recovery no longer reads only today's
   reading: the daily snapshot now persists that day's load-excluded readiness (`history.js`), and
   `recoveryPillar` folds a least-squares slope over the last 3 recorded days into a modest ±8

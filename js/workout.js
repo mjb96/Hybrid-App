@@ -20,6 +20,15 @@ import { dateKey } from './dates.js';
 let _getState;
 let _getSelectedDay;
 
+// E5 — a set-row input's placeholder carries the prescribed ghost target (the
+// coach's suggestion); the default "kg"/"reps" placeholders are non-numeric.
+// Returns the numeric target, or null when there's no real prescription.
+function _numericPlaceholder(inputNode) {
+  const ph = inputNode?.getAttribute?.('placeholder');
+  const n = ph == null ? NaN : parseFloat(ph);
+  return isNaN(n) ? null : n;
+}
+
 // ── Distance-unit helpers ──────────────────────────────────────────────────────
 // Distance is stored canonically in km everywhere. The cockpit run panel accepts
 // and displays the user's configured unit (km|mi) and converts on the boundary.
@@ -596,10 +605,21 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][liftName]) appState.weeks[wk].lifts[selectedDay][liftName] = [];
 
+  // E5 — record the PRESCRIBED target (the ghost placeholder) distinctly from the
+  // actual, so true-adherence is measurable later. Read the placeholder, not the
+  // logged value, so it's the coach's prescription even if the athlete typed a
+  // different number. Additive + never overwritten: default "kg"/"reps" ghosts are
+  // non-numeric and skipped, and an existing target is preserved.
+  const _tw = _numericPlaceholder(wInput);
+  const _tr = _numericPlaceholder(rInput);
+
   // Merge — never replace: preserve any existing set metadata (type, rpe, isPR)
   // so quick-logging a warmup/drop set doesn't silently demote it to a working set.
   const _setArr = appState.weeks[wk].lifts[selectedDay][liftName];
-  _setArr[sIdx] = { ...(_setArr[sIdx] || {}), w: targetW, r: targetR, c: true };
+  const _prev = _setArr[sIdx] || {};
+  _setArr[sIdx] = { ..._prev, w: targetW, r: targetR, c: true };
+  if (_tw != null && _prev.tw == null) _setArr[sIdx].tw = _tw;
+  if (_tr != null && _prev.tr == null) _setArr[sIdx].tr = _tr;
   _ensureWorkoutDateStamp(appState, wk, selectedDay);
 
   parentRow.classList.add('is-complete');
@@ -636,10 +656,16 @@ export function updateInputState(inputNode) {
     appState.weeks[wk].lifts[selectedDay][liftName][sIdx] = { w: '', r: '', c: false };
   }
 
+  // E5 — capture the prescribed target (ghost placeholder) alongside the actual,
+  // additively, so a manually-typed set still records what it was measured against.
+  const setObj = appState.weeks[wk].lifts[selectedDay][liftName][sIdx];
+  const ph = _numericPlaceholder(inputNode);
   if (inputNode.classList.contains('input-weight-node')) {
-    appState.weeks[wk].lifts[selectedDay][liftName][sIdx].w = inputNode.value;
+    setObj.w = inputNode.value;
+    if (ph != null && setObj.tw == null) setObj.tw = ph;
   } else {
-    appState.weeks[wk].lifts[selectedDay][liftName][sIdx].r = inputNode.value;
+    setObj.r = inputNode.value;
+    if (ph != null && setObj.tr == null) setObj.tr = ph;
   }
   _saveState(true);
 }

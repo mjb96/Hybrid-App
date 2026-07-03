@@ -69,7 +69,14 @@ export function consistencyPillar(model) {
   const effective = thisWeekPct == null ? baseline : Math.max(baseline, thisWeekPct);
   let score = 0.5 * baseline + 0.5 * effective;
   score = clamp(score + Math.min(streak, 7) / 7 * 8, 0, 100); // streak nudge
-  const thisWeek = thisWeekPct ?? baseline; // for signal copy below
+
+  // E5 — true-adherence quality. Showing up isn't the same as doing the work:
+  // when completed sets carry a prescribed target, completing that work at/near
+  // target keeps full credit while logging junk (far below the prescription)
+  // trims Consistency. Gentle (≤20% haircut) and neutral when nothing is
+  // measurable, so free-loggers and legacy data are never punished.
+  const qPct = w.qualityPct;
+  if (qPct != null) score = clamp(score * (0.8 + 0.2 * (qPct / 100)), 0, 100);
 
   const signals = [];
   if (w.consistencyTotal > 0) {
@@ -77,6 +84,10 @@ export function consistencyPillar(model) {
     if (w.consistencyPct >= 100) signals.push('all planned sessions done');
     else if (missed > 0) signals.push(`${missed} planned session${missed > 1 ? 's' : ''} still open`);
     else signals.push(`${w.consistencyPct}% of the plan done`);
+  }
+  if (qPct != null && (w.qualityN || 0) >= 3) {
+    if (qPct >= 95) signals.push('hitting your targets');
+    else if (qPct < 70) signals.push('sets logged below target');
   }
   if (streak >= 3) signals.push(`${streak}-day streak`);
   if (!signals.length) signals.push('building your routine');

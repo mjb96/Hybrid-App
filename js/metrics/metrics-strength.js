@@ -161,6 +161,40 @@ export function liftWeight(name) {
   return 0.5; // unknown → neutral
 }
 
+// E5 — true adherence / workout quality. Each logged set can carry the prescribed
+// target it was measured against (`tw`/`tr`, captured by the workout logger). For
+// the COMPLETED working sets that carry a target, this scores how fully the actual
+// load-volume met the prescription: hitting or beating target = full marks; a set
+// logged far below target (junk — 20 kg × 2 against a 100 kg × 5 prescription) =
+// low. Sets with no target (free logging / legacy data) are ignored, so the signal
+// only speaks when there's a plan to measure against and never punishes its absence.
+// Returns { hasData, pct, n } over the trailing `window` weeks.
+export function workoutQuality(state, days, maxWeek, window = 3) {
+  let sum = 0, n = 0;
+  const from = Math.max(1, maxWeek - window + 1);
+  for (let w = from; w <= maxWeek; w++) {
+    const wkData = (state.weeks || {})[String(w)];
+    days.forEach(d => {
+      const dayLifts = wkData?.lifts?.[d] || {};
+      for (const lift in dayLifts) {
+        if (!Array.isArray(dayLifts[lift])) continue;
+        dayLifts[lift].forEach(s => {
+          if (!isWorkingSet(s)) return;
+          const tw = parseFloat(s.tw) || 0;
+          const tr = parseInt(s.tr, 10) || 0;
+          const targetVol = tw * tr;
+          if (targetVol <= 0) return; // no prescription → not measurable
+          const actualVol = (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0);
+          sum += Math.max(0, Math.min(1, actualVol / targetVol));
+          n++;
+        });
+      }
+    });
+  }
+  if (n === 0) return { hasData: false, pct: null, n: 0 };
+  return { hasData: true, pct: Math.round((sum / n) * 100), n };
+}
+
 // Returns {[lift]: {allTimeMax, currentWeekMax, prevWeekMax}} scanning all weeks.
 export function allLiftsStats(state, days) {
   const result = {};

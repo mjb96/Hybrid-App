@@ -14,6 +14,7 @@ import {
   strengthLoadSeries, enduranceLoadSeries, recoveryCostSeries, weeklyLoadMetricsSeries,
   recoveryCostBalance,
 } from '../brain/load_models.js';
+import { workoutQuality } from '../metrics/metrics-strength.js';
 import { trainingStatus } from '../brain/briefing.js';
 import { generateRecommendation } from '../brain/recommendations.js';
 import { computeReadiness, readinessStatus, readinessColor } from '../analytics/scoring/readiness-scoring.js';
@@ -225,6 +226,9 @@ export function computeDashboardModel(state, days, program, selectedDay) {
       distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev), spark: tail(distanceSeries, 8) },
       sets, reps, consistencyDone, consistencyTotal,
       consistencyPct: consistencyTotal > 0 ? Math.round((consistencyDone / consistencyTotal) * 100) : 0,
+      // E5 — true-adherence quality of completed sets vs their prescribed target
+      // (null until sets carry targets; the Consistency pillar folds it in gently).
+      ...(() => { const q = workoutQuality(state, days, maxWeek); return { qualityPct: q.pct, qualityN: q.n }; })(),
     },
     bodyweight,
     big3,
