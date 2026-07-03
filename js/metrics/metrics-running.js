@@ -72,6 +72,27 @@ export function weeklyPaceSeries(state, days, maxWeek) {
   });
 }
 
+// Best-effort pace (fastest s/km) per week — the intensity-honest fitness
+// signal. Unlike weekly *average* pace, this doesn't slow down when the athlete
+// adds easy Zone-2 volume, so improvement here reflects real speed, not run mix.
+// Walks excluded. Returns 0 for weeks with no run.
+export function weeklyBestPaceSeries(state, days, maxWeek) {
+  return eachWeek(state, days, maxWeek, (wkData, days) => {
+    let best = 0;
+    if (wkData) {
+      days.forEach(d => {
+        const run = wkData.runs?.[d] || {};
+        if (run.type === 'walk') return;
+        const dist = parseFloat(run.dist) || 0;
+        const pace = parsePaceSecs(dist, run.time || '');
+        // Faster = smaller s/km; track the minimum positive pace.
+        if (dist > 0 && pace > 0 && (best === 0 || pace < best)) best = pace;
+      });
+    }
+    return best;
+  });
+}
+
 // Average and maximum HR per week. Returns {avgHr: number[], maxHr: number[]}.
 export function weeklyHrSeries(state, days, maxWeek) {
   const avgHr = [], maxHr = [];

@@ -2,6 +2,7 @@
 // ONBOARDING FLOW
 // ==========================================
 import { saveStateToLocalStorage } from './state.js';
+import { requestNotificationPermission } from './notifications.js';
 
 let _getState;
 
@@ -116,6 +117,16 @@ export function handleOnboardingAction(action, target) {
     _distUnit = target.dataset.unit;
     document.querySelectorAll('[data-action="ob-dist-unit"]').forEach(b => b.classList.remove('active'));
     target.classList.add('active');
+  } else if (action === 'ob-notif-enable') {
+    // Daily-coach step: ask for the OS permission, then finish either way —
+    // a denial must never trap the user in onboarding. Granting arms the
+    // morning briefing reminder automatically (notifications.js _armAll).
+    target.disabled = true;
+    requestNotificationPermission()
+      .catch(() => ({ granted: false }))
+      .then(() => _finish());
+  } else if (action === 'ob-notif-skip') {
+    _finish();
   } else if (action === 'ob-finish') {
     _finish();
   }
@@ -160,4 +171,9 @@ function _finish() {
 
   document.getElementById('onboardingOverlay')?.classList.remove('active');
   document.dispatchEvent(new Event('app:storage-loaded'));
+
+  // R14 — hand off to the first session: land on Home (where the Morning
+  // Briefing's mission is the clear next action) and mark a guided-CTA on it.
+  appState._justOnboarded = true;
+  document.dispatchEvent(new CustomEvent('onboarding:finished', { detail: { name: name || '' } }));
 }

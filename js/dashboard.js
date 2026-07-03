@@ -111,19 +111,24 @@ export const TILE_REGISTRY = [
         const runDist = parseFloat(todayRun.dist) || 0;
         if (completedSets > 0 || runDist > 0) {
           const completionPct = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 100;
-          const pctColor = completionPct >= 100 ? 'var(--color-green)' : completionPct >= 50 ? 'var(--color-amber)' : 'var(--color-red)';
+          const runStr = runDist > 0 ? ' · ' + (appState.settings?.distanceUnit === 'mi' ? (runDist * 0.621371).toFixed(2) + ' mi' : runDist + ' km') : '';
+          const done = completionPct >= 100;
+          // Hero is the state, tag adds the colour cue — no line repeats another,
+          // and no coaching line (the Morning Briefing owns that).
           return {
-            hero: totalSets > 0 ? `${completionPct}%` : '✓ Done',
-            sub: `${completedSets}${totalSets > 0 ? '/' + totalSets : ''} sets${runDist > 0 ? ' · ' + (appState.settings?.distanceUnit === 'mi' ? (runDist * 0.621371).toFixed(2) + ' mi' : runDist + ' km') : ''}`,
-            tag: completionPct >= 100 ? 'Complete' : `${completionPct}% done`,
-            tagColor: pctColor, state: 'loaded',
+            hero: totalSets > 0 && !done ? `${completionPct}%` : '✓ Done',
+            sub: `${completedSets}${totalSets > 0 ? '/' + totalSets : ''} sets${runStr}`,
+            // When done, the ✓ hero says it — no "Complete" tag repeating it.
+            tag: done ? '' : 'In progress',
+            tagColor: 'var(--color-amber)', state: 'loaded',
           };
         }
+        // Nothing logged yet: show what's planned (the coaching lives in the briefing).
         return {
           hero: bp.title || 'Rest Day',
           sub: (bp.desc || 'No session planned.').substring(0, 40),
           tag: bp.badge || 'Rest', tagColor: bp.color || 'var(--color-blue)',
-          insight: model.rec?.headline || '', state: 'loaded',
+          state: 'loaded',
         };
       } catch { return { hero: '--', sub: 'Unavailable', state: 'error' }; }
     },
@@ -168,11 +173,17 @@ export const TILE_REGISTRY = [
       try {
         const r = model.ready;
         if (!r.hasData) return { hero: '—', sub: 'Log sessions & check-ins', ringPct: 0, ringColor: 'var(--color-blue)', state: 'empty' };
-        const signals = (r.available || []).map(k => ({ hrv: 'HRV', sleep: 'Sleep', load: 'Load', restingHr: 'RHR', wellness: 'Wellness' }[k] || k)).join(' · ');
+        // Sub shows the actual driving VALUES (not a list of input names). Pick
+        // the two most informative signals the athlete has.
+        const h = model.health || {};
+        const parts = [];
+        if (h.sleepHours > 0) parts.push(`Sleep ${h.sleepHours.toFixed(1)}h`);
+        if (h.hrv != null) parts.push(`HRV ${Math.round(h.hrv)}ms`);
+        if (parts.length < 2 && h.restingHR != null) parts.push(`RHR ${Math.round(h.restingHR)}`);
+        const sub = parts.slice(0, 2).join(' · ') || `${r.available?.length || 0} signals tracked`;
         return {
           hero: String(r.score), ringPct: r.score, ringColor: r.color,
-          tag: r.status, tagColor: r.color, sub: signals || '—',
-          insight: r.recommendation, state: 'loaded',
+          tag: r.status, tagColor: r.color, sub, state: 'loaded',
         };
       } catch { return { hero: '--', sub: 'Unavailable', ringPct: 0, ringColor: 'var(--color-blue)', state: 'error' }; }
     },
@@ -186,20 +197,19 @@ export const TILE_REGISTRY = [
       try {
         const L = model.load;
         if (!L.hasData) return { hero: '--', sub: 'Log RPE + durations', tag: 'Building', tagColor: 'var(--text-secondary)', state: 'empty' };
-        // Fitness / Fatigue / Form framing (CTL / ATL / TSB) — keeps ACWR the
-        // coaching card's domain so the two never show conflicting numbers.
-        const tsbLabel = L.tsb >= 5 ? 'Fresh' : L.tsb <= -15 ? 'Fatigued' : 'Neutral';
-        const insight = L.tsb >= 5
-          ? 'Carrying freshness — a good window to push intensity.'
+        // Plain-language freshness (from TSB) — no raw EWMA "Fitness 10" units,
+        // which mean nothing to a human. The CTL spark carries the trend shape.
+        const fresh = L.tsb >= 5
+          ? { tag: 'Fresh', sub: 'Good window to push intensity.' }
           : L.tsb <= -15
-            ? 'Fatigue is high — keep volume in check and recover well.'
-            : 'Fitness and fatigue are balanced — train as planned.';
+            ? { tag: 'Fatigued', sub: 'Ease volume and recover well.' }
+            : { tag: 'Balanced', sub: 'Fitness & fatigue in balance.' };
         return {
           hero: L.status,
-          sub: `Fitness ${Math.round(L.ctl)} · Fatigue ${Math.round(L.atl)}`,
-          tag: `Form ${L.tsb >= 0 ? '+' : ''}${Math.round(L.tsb)} · ${tsbLabel}`, tagColor: L.color,
+          sub: fresh.sub,
+          tag: fresh.tag, tagColor: L.color,
           spark: model.series.ctl, sparkColor: L.color,
-          insight, state: 'loaded',
+          state: 'loaded',
         };
       } catch { return { hero: '--', sub: 'Unavailable', state: 'error' }; }
     },
@@ -230,10 +240,11 @@ export const TILE_REGISTRY = [
         const v = model.week.volume;
         if (v.current <= 0 && !v.delta) return { hero: '0 kg', sub: `${model.week.sets} sets · ${model.week.reps} reps`, state: 'empty' };
         const hero = v.current >= 1000 ? `${(v.current / 1000).toFixed(1)}t` : `${Math.round(v.current)} kg`;
+        // The delta chip already shows the ± vs last week — no insight line
+        // restating it. Hero + delta + weekly spark + a sets/reps sub.
         return {
           hero, sub: `${model.week.sets} sets · ${model.week.reps} reps`,
           delta: v.delta, spark: v.spark, sparkColor: 'var(--color-blue)',
-          insight: v.delta ? (v.delta.good ? `Up ${v.delta.pctLabel} on last week` : `Down ${v.delta.pctLabel} on last week`) : '',
           state: v.current > 0 ? 'loaded' : 'empty',
         };
       } catch { return { hero: '0 kg', sub: 'Unavailable', state: 'error' }; }
@@ -362,11 +373,18 @@ export const TILE_REGISTRY = [
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
         const s = model.streak;
+        const freezes = appState.streakFreezes?.available ?? 0;
+        const freezeNote = freezes > 0 ? `🧊 ${freezes} freeze${freezes > 1 ? 's' : ''} banked` : '';
+        // The 🔥 icon lives in the label already — no "🔥 N" tag repeating the
+        // "Nd" hero. A tag only when there's genuinely new info to add.
+        const beatsBy = s.longest > s.current ? s.longest - s.current : 0;
         return {
           hero: `${s.current}d`, sub: `Longest: ${s.longest} days`,
-          tag: s.current > 0 ? `🔥 ${s.current}` : 'Start today',
-          tagColor: s.current >= 7 ? 'var(--color-amber)' : 'var(--color-blue)',
-          insight: s.current >= 3 ? 'Consistency compounds — keep the streak alive.' : '',
+          tag: s.current === 0 ? 'Start today'
+             : s.current >= s.longest && s.current > 0 ? 'Personal best'
+             : beatsBy > 0 && beatsBy <= 3 ? `${beatsBy}d to record` : '',
+          tagColor: s.current >= s.longest && s.current > 0 ? 'var(--color-amber)' : 'var(--color-blue)',
+          insight: freezeNote,
           state: s.total > 0 ? 'loaded' : 'empty',
         };
       } catch { return { hero: '0d', sub: 'Longest: 0 days', state: 'error' }; }
@@ -506,6 +524,25 @@ export const TILE_REGISTRY = [
     },
   },
 ];
+
+// ==========================================
+// DEFAULT-HIDDEN TILES (roadmap R4)
+// New installs get a focused six — Today · Readiness · Training Status ·
+// Weekly Volume · Body Weight · Streak — the tiles that drive decisions.
+// Everything else stays one tap away in the tile customiser, and Insights is
+// the encyclopedia. Users who have EVER saved a customisation keep their own
+// list (this set only applies while dashboardTiles.hidden === null).
+// ==========================================
+// The focused default six give a balanced, non-overlapping hybrid snapshot —
+// recovery (Readiness), load (Training Status), strength work (Weekly Volume),
+// endurance (Avg Pace), body (Body Weight), habit (Streak). 'today' is hidden
+// by default: it overlaps the Morning Briefing, which already owns today's
+// session + mission (still available via the tile customiser).
+export const DEFAULT_HIDDEN_TILES = Object.freeze([
+  'program-hero', 'today', 'fasting', 'consistency', 'top-lifts', 'active-fuel',
+  'stress-balance', 'goal-progress',
+  'hrv', 'resting-hr', 'sleep', 'steps', 'vo2max',
+]);
 
 // Synthetic full-width tile shown in place of the five Health-Connect tiles
 // when the Health app isn't linked — kills five dead "Setup" placeholders.

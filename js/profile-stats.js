@@ -292,7 +292,11 @@ export function _athleteProgression(lifetime, completions, longestStreak, prCoun
   return { xp, level, title: _levelTitle(level), pct, xpIntoLevel: Math.round(xpIntoLevel), xpForNext, milestones };
 }
 
-export function _renderProgressionSection(prog) {
+// Renders the identity section. `hybridLevel` (from the canonical Hybrid Score
+// XP ladder — levelFromXp) is the ONE level shown, so Profile and Home never
+// disagree. The milestone badges (achievement flags, not a competing level)
+// stay. Falls back to the legacy derived level only if no hybridLevel is given.
+export function _renderProgressionSection(prog, hybridLevel = null) {
   const earned = prog.milestones.filter(m => m.earned).length;
   const badges = prog.milestones.map(m => `
     <div class="profile-badge${m.earned ? '' : ' profile-badge--locked'}" title="${_esc(m.label)}">
@@ -301,18 +305,28 @@ export function _renderProgressionSection(prog) {
     </div>
   `).join('');
 
+  const ringLabel = hybridLevel ? _esc(hybridLevel.icon) : prog.level;
+  const title     = hybridLevel ? _esc(hybridLevel.name) : prog.title;
+  const xpLine    = hybridLevel
+    ? (hybridLevel.next
+        ? `${hybridLevel.xp.toLocaleString()} XP · ${hybridLevel.next.xpToGo.toLocaleString()} to ${_esc(hybridLevel.next.name)}`
+        : `${hybridLevel.xp.toLocaleString()} XP · top tier reached`)
+    : `${prog.xp.toLocaleString()} XP · ${prog.xpIntoLevel}/${prog.xpForNext} to Lv ${prog.level + 1}`;
+  const barPct    = hybridLevel ? hybridLevel.progressPct : prog.pct;
+  const eyebrow   = hybridLevel ? 'Hybrid Level' : 'Athlete Level';
+
   return `
     <div class="profile-section">
-      <div class="profile-section-title">Athlete Level</div>
+      <div class="profile-section-title">${eyebrow}</div>
       <div class="profile-level-card">
         <div class="profile-level-top">
           <div class="profile-level-ring">
-            <span class="profile-level-num">${prog.level}</span>
+            <span class="profile-level-num" style="${hybridLevel ? 'font-size:1.6rem;' : ''}">${ringLabel}</span>
           </div>
           <div class="profile-level-info">
-            <div class="profile-level-title">${prog.title}</div>
-            <div class="profile-level-xp">${prog.xp.toLocaleString()} XP · ${prog.xpIntoLevel}/${prog.xpForNext} to Lv ${prog.level + 1}</div>
-            <div class="profile-level-bar"><div class="profile-level-fill" style="width:${prog.pct}%"></div></div>
+            <div class="profile-level-title">${title}</div>
+            <div class="profile-level-xp">${xpLine}</div>
+            <div class="profile-level-bar"><div class="profile-level-fill" style="width:${barPct}%"></div></div>
           </div>
         </div>
         <div class="profile-badges-head">Milestones <span class="profile-badges-count">${earned}/${prog.milestones.length}</span></div>

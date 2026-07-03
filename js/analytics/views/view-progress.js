@@ -6,6 +6,7 @@ import { renderVolumeChart, renderConsistencyHeatmap } from '../charts.js';
 import { dateKey } from '../../dates.js';
 import { getProgramById } from '../../state.js';
 import { isCompletedSet } from '../../set-utils.js';
+import { streakFreezeInfo } from '../../brain/streak.js';
 
 export function renderProgressAnalytics(data, getState) {
   const tbody = document.getElementById('analyticsTimelineTableBody');
@@ -141,10 +142,28 @@ export function renderStreakDetail(data, getState, getDays) {
         ? `Start today to begin a new streak.`
         : `${streak} day streak. Every day counts.`;
 
+      const fz = streakFreezeInfo(appState);
+      const freezeIcons = Array.from({ length: fz.max }, (_, i) =>
+        `<span style="opacity:${i < fz.available ? 1 : 0.25};font-size:1.1rem;">🧊</span>`).join(' ');
+      const freezeCard = `
+        <div class="card-dark p-3 mb-3" style="border:1px solid rgba(59,130,246,0.28);background:rgba(59,130,246,0.06);">
+          <div class="flex-between" style="align-items:center;">
+            <div>
+              <div class="font-heavy text-inverse" style="font-size:0.9rem;">Streak freezes ${freezeIcons}</div>
+              <div class="text-muted" style="font-size:0.72rem;margin-top:3px;line-height:1.4;">
+                ${fz.available > 0
+                  ? `${fz.available} of ${fz.max} banked — one automatically covers a missed day so your streak survives.`
+                  : `None left — earn one by reaching your next 7-day milestone.`}
+              </div>
+            </div>
+          </div>
+        </div>`;
+
       detailEl.innerHTML = `
         <div class="card-dark p-3 mb-3" style="border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.06);">
           <div class="font-heavy text-inverse" style="font-size:1rem;">${streakMsg}</div>
         </div>
+        ${freezeCard}
         <div class="flex-between mb-2" style="font-size:0.8rem;">
           <span class="text-muted">Total active days logged</span>
           <span class="font-heavy text-inverse">${activeDates.size}</span>

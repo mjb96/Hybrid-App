@@ -3,6 +3,7 @@
 // ==========================================
 import { showToast } from './state.js';
 import { createSortable } from './ui/sortable.js';
+import { DEFAULT_HIDDEN_TILES } from './dashboard.js';
 
 let _getState;
 let _getSelectedDay;
@@ -72,7 +73,7 @@ export function commitReorderedDOMStateToStorage() {
 function _dashboardTiles() {
   const st = _getState?.();
   if (!st) return null;
-  if (!st.dashboardTiles) st.dashboardTiles = { order: null, hidden: [] };
+  if (!st.dashboardTiles) st.dashboardTiles = { order: null, hidden: null };
   return st.dashboardTiles;
 }
 
@@ -120,9 +121,12 @@ export function mountTileDragAndDrop() {
 // ==========================================
 // HIDDEN TILES PERSISTENCE (appState-backed)
 // ==========================================
+// hidden === null means "never customised" → the focused default set (R4).
+// Any saved array — including [] (user chose to show everything) — wins.
 export function loadHiddenTiles() {
   const t = _dashboardTiles();
-  return new Set(t && Array.isArray(t.hidden) ? t.hidden : []);
+  if (t && Array.isArray(t.hidden)) return new Set(t.hidden);
+  return new Set(DEFAULT_HIDDEN_TILES);
 }
 
 export function saveHiddenTiles(hiddenSet) {
@@ -135,6 +139,6 @@ export function saveHiddenTiles(hiddenSet) {
 export function resetHiddenTiles() {
   const t = _dashboardTiles();
   if (!t) return;
-  t.hidden = [];
+  t.hidden = null;   // back to the focused default set
   _saveState?.(true);
 }

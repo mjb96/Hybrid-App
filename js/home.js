@@ -2,11 +2,19 @@
 // HOME DASHBOARD — coordinator. UI sub-modules live in ./home/
 // ==========================================
 import { WEEK_PHASE_NAMES } from './constants.js';
-import { getProgramById } from './state.js';
+import { getProgramById, saveStateToLocalStorage } from './state.js';
+import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { heroHTML } from './brain/hybrid-score/ui.js';
+import { recordDailyScore } from './brain/hybrid-score/history.js';
+import { buildMorningBriefing } from './brain/morning-briefing.js';
+import { briefingCardHTML } from './home/morning-briefing-card.js';
+import { celebrateMilestone, celebrate } from './ui/celebration.js';
+import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
+import { pushOvertrainingWarning } from './notifications.js';
+import { reconcileStreakFreezes } from './brain/streak.js';
 import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
 import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
 import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
-import { generateRecommendation } from './brain/recommendations.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
@@ -33,47 +41,114 @@ export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _runGraph      = initWeeklyFitnessGraph('runBarChart',      'running',  getStateFn);
 }
 
+export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
+
 // ==========================================
-// COACHING CARD RENDERER
+// HYBRID SCORE HERO — the signature surface at the top of Home.
+// Computed from the same shared dashboard model (no extra pass) and recorded
+// once per day so tomorrow's delta/trend/XP is available. Returns the score
+// result so the Morning Briefing below reuses it without recomputing.
 // ==========================================
-function renderCoachingCard(state, days, activeProgram, selectedDay) {
-  const card = document.getElementById('brainCoachCard');
-  if (!card) return;
-
-  const rec = generateRecommendation(state, days, activeProgram, selectedDay);
-
-  // Same-day dismissal, keyed by the recommendation's content so a materially
-  // different (or escalated) message re-appears while the same one stays hidden.
-  const sig = `${rec.severity}:${rec.headline}`;
-  const today = new Date().toISOString().slice(0, 10);
-  const dismissed = state?.coachingDismissed;
-  if (dismissed && dismissed.date === today && dismissed.sig === sig) {
-    card.style.display = 'none';
-    return;
+function renderHybridScoreHome(appState, model) {
+  const el = document.getElementById('hybridScoreHome');
+  if (!el) return null;
+  const result = computeHybridScore(model, appState, _getDays());
+  // The Morning Briefing directly below owns the day's action — one voice.
+  setHTML(el, heroHTML(result, { showAction: false }));
+  try {
+    const { changed, milestones } = recordDailyScore(appState, result, model);
+    if (changed) saveStateToLocalStorage(true);
+    // Earned moments (level-up · streak milestone · first 90+) fire only on
+    // the first record of the day, so this can't spam on re-renders.
+    (milestones || []).forEach(celebrateMilestone);
+  } catch (e) {
+    console.warn('Hybrid Score record failed (non-fatal):', e);
   }
-  card.dataset.sig = sig;
-
-  const badge    = document.getElementById('brainCoachBadge');
-  const headline = document.getElementById('brainCoachHeadline');
-  const meta     = document.getElementById('brainCoachMeta');
-  const advice   = document.getElementById('brainCoachAdvice');
-
-  if (badge)    badge.textContent    = rec.badge;
-  if (headline) headline.textContent = rec.headline;
-  if (advice)   advice.textContent   = rec.advice;
-
-  if (meta) {
-    const parts = [];
-    if (rec.sessionLabel) parts.push(rec.sessionLabel);
-    if (rec.acwr > 0)     parts.push(`ACWR ${rec.acwr.toFixed(2)}`);
-    meta.textContent = parts.join(' · ');
-  }
-
-  card.className     = `brain-coach-card brain-coach--${rec.severity} mb-4`;
-  card.style.display = 'block';
+  return result;
 }
 
-export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
+// ==========================================
+// MORNING BRIEFING — the one coaching surface (replaces the old coaching card
+// + insight banner pair). Narrative for the day: greeting, session, mission,
+// coach line. Anchored by (and rendered directly under) the Hybrid Score hero.
+// ==========================================
+function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay) {
+  const el = document.getElementById('morningBriefing');
+  if (!el) return;
+  const firstSession = !!appState._justOnboarded;
+  const briefing = buildMorningBriefing({
+    state: appState, model, score: scoreResult,
+    program: activeProgram, selectedDay, firstSession,
+  });
+  setHTML(el, briefingCardHTML(briefing));
+
+  // R14 — the guided first session: once, right after onboarding, welcome the
+  // athlete and draw the eye to their first mission.
+  if (firstSession) {
+    appState._justOnboarded = false;
+    saveStateToLocalStorage(true);
+    const name = (appState.settings?.name || '').trim().split(/\s+/)[0];
+    celebrate({
+      icon: '🎉',
+      title: name ? `Welcome, ${name}!` : "You're all set!",
+      subtitle: 'Your daily coach is ready. Your first mission is waiting below — tap it to begin.',
+    });
+    setTimeout(() => { try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 900);
+  }
+}
+
+// ==========================================
+// OVERTRAINING ESCALATION (R10) — a stronger, acknowledge-required warning
+// when several fatigue signals stack up. Persists until the exact condition
+// (signature) is acknowledged; a new/worse condition resurfaces it. Returns
+// true while it's on screen so the advisory deload card stays out of its way.
+// ==========================================
+function renderOvertrainingCard(appState, model) {
+  const card = document.getElementById('homeOvertrainingCard');
+  if (!card) return false;
+
+  let assessment;
+  try { assessment = assessOvertrainingRisk(model, appState, DEFAULT_DAYS); }
+  catch (e) { card.style.display = 'none'; return false; }
+
+  const sig = riskSignature(assessment);
+  const ack = appState.overtrainingAck;
+  const acknowledged = assessment.level === 'high' && ack && ack.sig === sig;
+
+  if (assessment.level !== 'high' || acknowledged) {
+    card.style.display = 'none';
+    return false;
+  }
+
+  const titleEl  = document.getElementById('homeOvertrainingTitle');
+  const descEl   = document.getElementById('homeOvertrainingDesc');
+  const sigEl    = document.getElementById('homeOvertrainingSignals');
+  const deloadBtn = document.getElementById('homeOvertrainingDeload');
+  if (titleEl) titleEl.textContent = assessment.headline;
+  if (descEl)  descEl.textContent  = assessment.advice;
+  if (sigEl) {
+    sigEl.innerHTML = assessment.signals
+      .map(s => `<span class="ot-signal${s.severity === 'watch' ? ' ot-signal--watch' : ''}">${s.label}</span>`)
+      .join('');
+  }
+  // If they've already deloaded this week, the one-tap deload is redundant.
+  if (deloadBtn) deloadBtn.style.display = assessment.deloadPlanned ? 'none' : '';
+
+  // Store the signature so the acknowledge handler dismisses THIS condition.
+  card.dataset.sig = sig;
+  card.style.display = 'block';
+
+  // Fire a single warning push per day when the condition is high (best-effort).
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    if (appState._overtrainingPushedDate !== today) {
+      const pushed = pushOvertrainingWarning(assessment);
+      if (pushed) { appState._overtrainingPushedDate = today; saveStateToLocalStorage(true); }
+    }
+  } catch (_) { /* push is best-effort */ }
+
+  return true;
+}
 
 // ==========================================
 // GLANCE GRID RENDERER
@@ -97,7 +172,6 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   // model. renderHome computes it once and passes it in; the tile customiser
   // re-renders the grid on its own and lets us compute a fresh one here.
   const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
-  renderDashboardInsight(model);
   updateQuickActions(model);
 
   const savedOrder  = loadTileOrder();
@@ -157,40 +231,6 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   });
 
   mountTileDragAndDrop();
-}
-
-// ==========================================
-// TOP-INSIGHT BANNER — the single most important thing right now.
-// ==========================================
-function renderDashboardInsight(model) {
-  const wrap = document.getElementById('dashboardInsightWrap');
-  const el   = document.getElementById('dashboardInsight');
-  if (!wrap || !el) return;
-  const insight = model.topInsight;
-
-  // Honour a same-day dismissal of this exact insight. A different insight (new
-  // nav) or a new day brings the banner back.
-  const today = new Date().toISOString().slice(0, 10);
-  const dismissed = _getState()?.dashboardInsightDismissed;
-  const isDismissed = !!insight && !!dismissed && dismissed.date === today
-    && (dismissed.nav || '') === (insight.nav || '');
-
-  if (!insight || !insight.text || isDismissed) { wrap.style.display = 'none'; return; }
-  wrap.style.display = '';
-  const toneClass = `dash-insight--${insight.tone || 'neutral'}`;
-  el.className = `dash-insight ${toneClass}`;
-  el.setAttribute('data-action', 'open-analytics');
-  el.setAttribute('data-context', insight.nav && !insight.nav.startsWith('custom:') ? insight.nav : 'recovery-score');
-  if (insight.nav && insight.nav.startsWith('custom:')) {
-    // custom targets (e.g. fasting) route through app:navigate instead
-    el.setAttribute('data-action', 'tile-nav');
-    el.setAttribute('data-nav', insight.nav);
-  } else {
-    el.removeAttribute('data-nav');
-  }
-  el.innerHTML = `<span class="dash-insight__icon">💡</span><span class="dash-insight__text">${insight.text}</span>`;
-  const dismissBtn = wrap.querySelector('.dash-insight__dismiss');
-  if (dismissBtn) dismissBtn.setAttribute('data-nav', insight.nav || '');
 }
 
 // ==========================================
@@ -310,6 +350,13 @@ export function renderHome() {
 
   const activeProgram = getProgramById(appState.activeProgramId);
 
+  // Streak freezes (R7): auto-cover an occasional missed day and top up the
+  // bank on 7-day tiers — before the model computes the streak below.
+  try {
+    const { changed } = reconcileStreakFreezes(appState, DEFAULT_DAYS);
+    if (changed) saveStateToLocalStorage(true);
+  } catch (e) { console.warn('Streak freeze reconcile failed (non-fatal):', e); }
+
   // One shared brain pass — the header progress, week-compare card and every
   // tile all read from this single model so their numbers never diverge.
   const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, selectedDay);
@@ -348,8 +395,9 @@ export function renderHome() {
     refreshWeeklyFitnessGraph('runBarChart');
   }
 
+  const scoreResult = renderHybridScoreHome(appState, model);
+  renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
-  renderCoachingCard(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
   // Weekly completion header — same numbers as the Consistency tile (model.week).
   const w = model.week;
@@ -395,12 +443,17 @@ export function renderHome() {
     compareCard.style.display = 'none';
   }
 
+  // Overtraining escalation (R10) takes priority over the advisory deload card.
+  const overtrainingShowing = renderOvertrainingCard(appState, model);
+
   const deloadCard = document.getElementById('homeDeloadSuggestionCard');
   const deloadReason = document.getElementById('homeDeloadReason');
   if (deloadCard) {
     const alreadyDismissed = appState._deloadDismissedWeek === appState.currentWeek;
     const alreadyApplied   = appState.deloadApplied === appState.currentWeek;
-    if (!alreadyDismissed && !alreadyApplied) {
+    if (overtrainingShowing) {
+      deloadCard.style.display = 'none';
+    } else if (!alreadyDismissed && !alreadyApplied) {
       try {
         const deloadSignal = shouldSuggestDeload();
         if (deloadSignal.suggest) {
@@ -437,5 +490,14 @@ document.addEventListener('click', (e) => {
     closeTileCustomiser(apply);
   } else if (action === 'reset-tile-customiser') {
     resetTileCustomiser();
+  } else if (action === 'ack-overtraining') {
+    // Acknowledge THIS exact risk condition (by signature); a new/worse
+    // signal set will resurface the warning.
+    const appState = _getState();
+    const card = document.getElementById('homeOvertrainingCard');
+    appState.overtrainingAck = { sig: card?.dataset.sig || '', date: new Date().toISOString().slice(0, 10) };
+    saveStateToLocalStorage(true);
+    if (card) card.style.display = 'none';
+    renderHome();
   }
 });

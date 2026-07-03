@@ -31,11 +31,12 @@ import {
   applyDeloadToCurrentWeek,
 } from './state.js';
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
+import { confirmModal } from './ui/confirm-modal.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home.js';
+import { initHome, renderHome, closeTileCustomiser, resetTileCustomiser, openFastingDetail } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext } from './analytics.js';
 import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
@@ -74,7 +75,7 @@ import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { dateKey } from './dates.js';
-import { startFast, stopFast, editFastStartTime, stopFastAtTime, editHistoryFast } from './fasting.js';
+import { FASTING_ACTIONS, handleFastingClickAction } from './fasting/fasting-actions.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
 document.addEventListener('app:storage-loaded', () => {
@@ -499,16 +500,20 @@ export function executeCreateProgram() {
   openBuilder(newId);
 }
 
-export function executeDeleteProgram(id) {
-  if(confirm("Are you sure you want to delete this custom program?")) {
-    const result = deleteCustomProgram(id);
-    if (result.success) {
-      updateLibraryState(appState);
-      renderLibrary();
-      showToast('Program deleted.');
-    } else {
-      showToast(result.message, true);
-    }
+export async function executeDeleteProgram(id) {
+  const ok = await confirmModal({
+    title: 'Delete this program?',
+    message: 'This custom program will be permanently removed. This cannot be undone.',
+    confirmLabel: 'Delete', danger: true,
+  });
+  if (!ok) return;
+  const result = deleteCustomProgram(id);
+  if (result.success) {
+    updateLibraryState(appState);
+    renderLibrary();
+    showToast('Program deleted.');
+  } else {
+    showToast(result.message, true);
   }
 }
 
@@ -701,17 +706,6 @@ document.addEventListener('click', (e) => {
   }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
-  else if (action === 'dismiss-insight') {
-    appState.dashboardInsightDismissed = { nav: target.getAttribute('data-nav') || '', date: new Date().toISOString().slice(0, 10) };
-    saveStateToLocalStorage(true);
-    document.getElementById('dashboardInsightWrap')?.style.setProperty('display', 'none');
-  }
-  else if (action === 'dismiss-coaching') {
-    const card = document.getElementById('brainCoachCard');
-    appState.coachingDismissed = { sig: card?.dataset.sig || '', date: new Date().toISOString().slice(0, 10) };
-    saveStateToLocalStorage(true);
-    if (card) card.style.display = 'none';
-  }
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
@@ -793,7 +787,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-account')       deleteAccount();
 
   // Onboarding
-  else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish'].includes(action)) {
+  else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish','ob-notif-enable','ob-notif-skip'].includes(action)) {
     handleOnboardingAction(action, target);
   }
 
@@ -811,85 +805,8 @@ document.addEventListener('click', (e) => {
     stopTracking(appState.currentWeek, selectedDay);
   }
 
-  // Fasting
-  else if (action === 'fast-start') {
-    const goalEl = document.getElementById('fastingGoalSelect') ?? document.getElementById('fastingSheetGoalSelect');
-    const goal = goalEl ? parseInt(goalEl.value, 10) : (appState.fastingSession?.goal ?? appState.settings?.fastingDefault ?? 16);
-    startFast(appState, goal, () => saveStateToLocalStorage(true));
-    renderHome();
-    openFastingDetail();
-  }
-  else if (action === 'fast-stop') {
-    stopFast(appState, () => saveStateToLocalStorage(true));
-    closeFastingDetail();
-    renderHome();
-  }
-  else if (action === 'fast-edit-start-time') {
-    const sp = document.getElementById('fastingEditStartPanel');
-    const ep = document.getElementById('fastingEditEndPanel');
-    if (ep) ep.style.display = 'none';
-    if (sp) sp.style.display = sp.style.display === 'none' ? '' : 'none';
-  }
-  else if (action === 'fast-cancel-edit-start') {
-    const panel = document.getElementById('fastingEditStartPanel');
-    if (panel) panel.style.display = 'none';
-  }
-  else if (action === 'fast-save-start-time') {
-    const input = document.getElementById('fastingStartTimeInput');
-    if (input?.value) {
-      editFastStartTime(appState, input.value, () => saveStateToLocalStorage(true));
-      openFastingDetail();
-      renderHome();
-    }
-  }
-  else if (action === 'fast-edit-end-time') {
-    const sp = document.getElementById('fastingEditStartPanel');
-    const ep = document.getElementById('fastingEditEndPanel');
-    if (sp) sp.style.display = 'none';
-    if (ep) ep.style.display = ep.style.display === 'none' ? '' : 'none';
-  }
-  else if (action === 'fast-cancel-edit-end') {
-    const panel = document.getElementById('fastingEditEndPanel');
-    if (panel) panel.style.display = 'none';
-  }
-  else if (action === 'fast-save-end-time') {
-    const input = document.getElementById('fastingEndTimeInput');
-    if (input?.value) {
-      stopFastAtTime(appState, input.value, () => saveStateToLocalStorage(true));
-      closeFastingDetail();
-      renderHome();
-    }
-  }
-  else if (action === 'open-fasting-detail')   { openFastingDetail(); }
-  else if (action === 'close-fasting-detail')  { closeFastingDetail(); }
-  else if (action === 'open-fasting-analytics') { closeFastingDetail(); openAnalyticsView('fasting'); }
-  else if (action === 'open-fasting-education') {
-    // Deep-link the buried "Fasting Knowledge" section (last block of the
-    // fasting analytics view) straight from the daily fasting sheet.
-    closeFastingDetail();
-    openAnalyticsView('fasting');
-    setTimeout(() => document.getElementById('fa-edu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
-  }
-  else if (action === 'fast-edit-history') {
-    const idx = parseInt(target.dataset.index, 10);
-    openHistoryEditPanel(idx, appState);
-  }
-  else if (action === 'fast-save-history') {
-    const idx = parseInt(target.dataset.index, 10);
-    const startInput = document.getElementById('fhrEditStart');
-    const endInput   = document.getElementById('fhrEditEnd');
-    if (startInput && endInput) {
-      const ok = editHistoryFast(appState, idx, startInput.value, endInput.value, () => saveStateToLocalStorage(true));
-      if (ok) { closeHistoryEditPanel(); openFastingDetail(); }
-    }
-  }
-  else if (action === 'fast-cancel-history-edit') { closeHistoryEditPanel(); }
-  else if (action === 'fa-edu-cat' || action === 'fa-edu-article' || action === 'fa-edu-back') {
-    import('./analytics/views/view-fasting.js').then(m => m.handleFastingEduAction(action, target, () => appState));
-  }
-  else if (action === 'fa-cal-prev' || action === 'fa-cal-next') {
-    import('./analytics/views/view-fasting.js').then(m => m.handleFastingCalAction(action, () => appState));
-  }
+  // Fasting — delegated to the dedicated domain router (js/fasting/fasting-actions.js)
+  else if (FASTING_ACTIONS.has(action)) handleFastingClickAction(action, target, { openAnalyticsView });
 
   // Run Logger
   else if (action === 'open-run-logger') openRunLogger();

@@ -12,6 +12,8 @@ import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { renderRunMap } from './workout-map.js';
 import { insightsForSession } from './analytics/insights/build-insights.js';
 import { paceZoneColour } from './analytics/utils.js';
+import { confettiBurst } from './ui/celebration.js';
+import { hapticSuccess } from './haptics.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
@@ -226,6 +228,12 @@ export function openSessionRecap(week, day) {
   if (content) content.innerHTML = renderSessionRecapHTML(recap, insights, state.thresholdPaceSeconds || null);
   const screen = document.getElementById('sessionRecapScreen');
   if (screen) { screen.style.display = 'block'; screen.scrollTop = 0; }
+
+  // A PR deserves a moment: haptic + a short confetti burst over the recap.
+  // (Reduced-motion users get the haptic + the 🏆 badge only.)
+  if (recap.lifts?.some(l => l.pr)) {
+    try { hapticSuccess(); confettiBurst(); } catch (_) { /* best-effort */ }
+  }
 
   // Draw the saved GPS route for a run/walk (async — loads coords + Leaflet).
   if (recap.run && recap.run.distKm > 0) {

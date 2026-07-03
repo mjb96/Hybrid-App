@@ -28,6 +28,7 @@ const REST_PRESETS = {
 import { showToast } from './state.js';
 import { rearmReminder, notificationsGranted } from './notifications.js';
 import { getCloudUser, signOutSupabase, deleteAccount as authDeleteAccount } from './state/auth.js';
+import { confirmModal } from './ui/confirm-modal.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect } from './health/health-bridge.js';
 
 let _getState;
@@ -494,10 +495,11 @@ export function signOut() {
 }
 
 export async function deleteAccount() {
-  // Two-step confirm for an irreversible action.
-  const ok = typeof window !== 'undefined' && typeof window.confirm === 'function'
-    ? window.confirm('Permanently delete your account and ALL synced data?\n\nThis cannot be undone. Consider exporting your data first (Settings → Export).')
-    : true;
+  const ok = await confirmModal({
+    title: 'Delete your account?',
+    message: 'This permanently deletes your account and ALL synced data. It cannot be undone.\n\nConsider exporting your data first (Settings → Export).',
+    confirmLabel: 'Delete account', danger: true,
+  });
   if (!ok) return;
 
   showToast('Deleting account…');
@@ -584,8 +586,13 @@ export function handleImportFile(file) {
   reader.readAsText(file);
 }
 
-export function confirmResetAllData() {
-  if (!confirm('Reset ALL training data? This cannot be undone.')) return;
+export async function confirmResetAllData() {
+  const ok = await confirmModal({
+    title: 'Reset all training data?',
+    message: 'Every logged workout, run and setting on this device will be cleared. This cannot be undone.',
+    confirmLabel: 'Reset everything', danger: true,
+  });
+  if (!ok) return;
   localStorage.removeItem('hybridAppState');
   showToast('Data cleared — reloading…');
   setTimeout(() => location.reload(), 1200);

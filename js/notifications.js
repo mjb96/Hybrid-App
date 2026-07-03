@@ -13,10 +13,17 @@
 // delivery needs native AlarmManager/WorkManager scheduling (follow-up).
 // ==========================================
 
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.js';
+import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
+
 let _reminderTimer = null;
 let _weeklySummaryTimer = null;
 let _streakTimer = null;
 let _getState = null;
+
+const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 // ── Delivery backend (native bridge vs Web Notifications) ──────────────────────
 
@@ -175,8 +182,34 @@ function _armDailyReminder() {
   }, msUntilNextDaily(new Date(), hour, minute));
 }
 
+// Compose the personalised morning reminder from the athlete's actual day:
+// Hybrid Score + today's session + the mission, via the Morning Briefing
+// engine. Pure (no DOM) so it is unit-testable; the score computed here uses
+// yesterday's recorded history for the delta — exactly the right semantics
+// for a pre-open morning push. Exported for testing.
+export function composeMorningReminder(state, program, now = new Date()) {
+  const selectedDay = _dayKey(now);
+  const model = computeDashboardModel(state, WEEK_DAYS, program, selectedDay);
+  const score = computeHybridScore(model, state, WEEK_DAYS);
+  const briefing = buildMorningBriefing({ state, model, score, program, selectedDay, now });
+  return { title: 'Morning Briefing', body: briefingToText(briefing) };
+}
+
 function _fireWorkoutReminder() {
   if (!notificationsGranted()) return;
+
+  // Preferred: the real briefing (score · session · mission). Falls back to
+  // the generic copy below if composition fails for any reason.
+  try {
+    const state = _getState?.();
+    if (state) {
+      const program = (typeof window !== 'undefined' && window._hybridGetProgram?.()) || null;
+      const { title, body } = composeMorningReminder(state, program);
+      notify(title, body, 'training-reminder');
+      return;
+    }
+  } catch (_) {}
+
   const todayKey = _dayKey(new Date());
 
   // Rest day → send a recovery message instead of a training prompt
@@ -195,6 +228,20 @@ function _fireWorkoutReminder() {
   ];
   const body = messages[Math.floor(Math.random() * messages.length)];
   notify('Helyx', body, 'training-reminder');
+}
+
+// ── Overtraining warning (R10 — fired from Home when risk is high) ────────────
+// Best-effort: returns true only if a notification was actually sent, so the
+// caller can record the once-per-day guard. Never throws.
+export function pushOvertrainingWarning(assessment) {
+  try {
+    if (!assessment || assessment.level !== 'high') return false;
+    if (!notificationsGranted()) return false;
+    notify(assessment.headline || 'Overtraining risk',
+      assessment.advice || 'Fatigue signals are stacking up — take a deload and protect recovery.',
+      'overtraining-risk');
+    return true;
+  } catch { return false; }
 }
 
 // ── Missed Workout Check (fires on app open, not on a timer) ──────────────────
@@ -249,6 +296,19 @@ function _armWeeklySummary() {
 
 function _fireWeeklySummary() {
   if (!notificationsGranted()) return;
+  // Prefer the athlete's real Week in Review (totals · PRs · score · focus);
+  // fall back to the generic prompt if composition fails.
+  try {
+    const state = _getState?.();
+    if (state) {
+      const program = (typeof window !== 'undefined' && window._hybridGetProgram?.()) || null;
+      const review = buildWeeklyReview(state, WEEK_DAYS, program);
+      if (review.hasData) {
+        notify('Week in Review', reviewToText(review, state.settings?.distanceUnit || 'km'), 'weekly-summary');
+        return;
+      }
+    }
+  } catch (_) {}
   notify('Weekly Training Summary',
     'Your weekly training report is ready — check your progress and plan the week ahead.',
     'weekly-summary');

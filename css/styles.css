@@ -243,6 +243,21 @@ body {
 }
 .view-container.active { display: block; }
 
+/* Premium tab/leaf transitions (R11): a subtle enter animation each time a view
+   or analytics leaf becomes active (the .active class is re-applied on switch,
+   so it replays). The top-level view fades on OPACITY ONLY — no transform — so
+   it never creates a containing block for the fixed rest-timer / drag element
+   inside the cockpit. Analytics leaves (no fixed descendants) also rise gently.
+   Guarded for reduced-motion. */
+@keyframes viewFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes leafEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.view-container.active   { animation: viewFade 0.2s ease both; }
+.analytics-section.active { animation: leafEnter 0.18s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .view-container.active,
+  .analytics-section.active { animation: none; }
+}
+
 
 /* ==========================================================================
    4. TYPOGRAPHY
@@ -2797,96 +2812,6 @@ button.cal-cell {
   -webkit-tap-highlight-color: transparent;
 }
 button.cal-cell:active { opacity: 0.7; }
-
-/* ==========================================================================
-   CALENDAR DAY MODAL
-   ========================================================================== */
-#calModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  z-index: 200;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.22s;
-}
-#calModal.cal-modal--open {
-  opacity: 1;
-  pointer-events: all;
-}
-.cal-msheet {
-  background: #0d1117;
-  border: 1px solid var(--border-medium);
-  border-radius: 20px 20px 0 0;
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
-  overflow-y: auto;
-  padding: 12px 20px 32px;
-  transform: translateY(100%);
-  transition: transform 0.28s cubic-bezier(0.25,1,0.5,1);
-}
-#calModal.cal-modal--open .cal-msheet { transform: translateY(0); }
-.cal-mhandle {
-  width: 36px; height: 4px;
-  background: var(--overlay-2xl);
-  border-radius: 2px;
-  margin: 0 auto 14px;
-}
-.cal-mdate {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 14px;
-}
-.cal-m-section { margin-bottom: 16px; }
-.cal-m-section:last-of-type { margin-bottom: 0; }
-.cal-m-type {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-.cal-m-stats { display: flex; flex-direction: column; gap: 5px; }
-.cal-m-stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 10px;
-  background: var(--overlay-sm);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-}
-.cal-m-sl { font-size: 0.72rem; color: var(--text-secondary); }
-.cal-m-sv { font-size: 0.72rem; font-weight: 600; color: var(--text-primary); }
-.cal-m-empty {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  text-align: center;
-  padding: 20px 0;
-}
-.cal-mclose {
-  display: block;
-  width: 100%;
-  margin-top: 18px;
-  padding: 10px;
-  background: var(--overlay-sm);
-  border: 1px solid var(--border-medium);
-  border-radius: 10px;
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  cursor: pointer;
-  font: inherit;
-}
-html[data-theme="light"] #calModal { background: rgba(0,0,0,0.5); }
-html[data-theme="light"] .cal-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
-html[data-theme="light"] .cal-m-stat { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
-html[data-theme="light"] .cal-mclose { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); color: rgba(0,0,0,0.5); }
 
 /* ==========================================================================
    RUN LOGGER MODAL
@@ -5794,133 +5719,6 @@ html[data-theme="light"] .profile-pr-set-goal-btn { border-color: rgba(0,0,0,0.1
 html[data-theme="light"] .profile-pr-trend--up   { color: #059669; }
 html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
 
-/* ==========================================
-   HYBRID BRAIN — COACHING CARD
-   ========================================== */
-.brain-coach-card {
-  border-radius: 14px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid var(--border-default);
-  background: var(--overlay-sm);
-}
-.brain-coach-inner {
-  padding: 14px 16px;
-}
-.brain-coach-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.brain-coach-icon {
-  font-size: 0.9rem;
-}
-.brain-coach-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  flex: 1;
-}
-.brain-coach-badge {
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  background: var(--overlay-xl);
-  color: var(--text-muted);
-}
-.brain-coach-chevron {
-  font-size: 1.1rem;
-  color: var(--text-muted);
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.brain-coach-dismiss {
-  margin-left: auto;
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: rgba(255,255,255,0.08);
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  line-height: 1;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.brain-coach-dismiss:hover  { background: rgba(255,255,255,0.16); color: var(--text-primary); }
-.brain-coach-dismiss:active { transform: scale(0.92); }
-html[data-theme="light"] .brain-coach-dismiss { background: rgba(0,0,0,0.06); }
-html[data-theme="light"] .brain-coach-dismiss:hover { background: rgba(0,0,0,0.12); }
-.brain-coach-meta {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-}
-.brain-coach-headline {
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--text-inverse);
-  margin-bottom: 6px;
-  line-height: 1.3;
-}
-.brain-coach-advice {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.55;
-}
-
-/* Severity: positive (green) */
-.brain-coach--positive {
-  background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0.04) 100%);
-  border-color: rgba(16,185,129,0.3);
-}
-.brain-coach--positive .brain-coach-badge {
-  background: rgba(16,185,129,0.2);
-  color: var(--color-green);
-}
-
-/* Severity: neutral */
-.brain-coach--neutral {
-  background: var(--overlay-sm);
-  border-color: var(--border-default);
-}
-
-/* Severity: caution (amber) */
-.brain-coach--caution {
-  background: linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(245,158,11,0.04) 100%);
-  border-color: rgba(245,158,11,0.3);
-}
-.brain-coach--caution .brain-coach-badge {
-  background: rgba(245,158,11,0.2);
-  color: var(--color-amber);
-}
-
-/* Severity: warning (red) */
-.brain-coach--warning {
-  background: linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(239,68,68,0.04) 100%);
-  border-color: rgba(239,68,68,0.3);
-}
-.brain-coach--warning .brain-coach-badge {
-  background: rgba(239,68,68,0.2);
-  color: var(--color-red);
-}
-
-/* Light mode overrides */
-html[data-theme="light"] .brain-coach-card  { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.03); }
-html[data-theme="light"] .brain-coach--positive { background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.02) 100%); border-color: rgba(16,185,129,0.25); }
-html[data-theme="light"] .brain-coach--caution  { background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%); border-color: rgba(245,158,11,0.25); }
-html[data-theme="light"] .brain-coach--warning  { background: linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(239,68,68,0.02) 100%);  border-color: rgba(239,68,68,0.25); }
 
 /* ==========================================
    GPS RUN TRACKER PANELS

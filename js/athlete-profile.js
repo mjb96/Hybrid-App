@@ -7,6 +7,7 @@ import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
 import { showToast } from './state.js';
 import { createSortable } from './ui/sortable.js';
 import { computeStreak } from './home/dashboard-model.js';
+import { levelFromXp } from './brain/hybrid-score/levels.js';
 
 let _getState  = null;
 let _getDays   = null;
@@ -14,7 +15,7 @@ let _saveState = null;
 
 export const PROFILE_SECTIONS = [
   { id: 'summary',     label: 'Athlete Summary',    icon: '📊' },
-  { id: 'progression', label: 'Athlete Level',      icon: '🎖️' },
+  { id: 'progression', label: 'Hybrid Level',       icon: '🎖️' },
   { id: 'heatmap',    label: 'Training Activity',   icon: '🔥' },
   { id: 'program',    label: 'Current Program',     icon: '📋' },
   { id: 'performance',label: 'Performance',         icon: '💪' },
@@ -149,7 +150,7 @@ export function renderAthleteProfile() {
         </div>
       </div>
     `,
-    progression: lifetime.sessions > 0 ? _renderProgressionSection(progression) : '',
+    progression: lifetime.sessions > 0 ? _renderProgressionSection(progression, levelFromXp(state.hybridScore?.xp)) : '',
     heatmap: heatmapRows.length > 0 ? `
       <div class="profile-section">
         <div class="profile-section-title">Training Activity</div>
@@ -395,12 +396,6 @@ function shareProfileCard() {
   const bodyWeight = _latestBodyWeight(state);
   const lifetime   = _lifetimeTotals(state, days);
   const rel        = _relativeStrength(state, days, bodyWeight);
-  const prog       = _athleteProgression(
-    lifetime,
-    (state.programLibrary?.completions || []).length,
-    computeStreak(state.weeks || {}, days, state).longest,
-    Object.keys(state.prGoals || {}).length
-  );
 
   // Background + accent glow
   const bg = ctx.createLinearGradient(0, 0, W, H);
@@ -429,11 +424,12 @@ function shareProfileCard() {
   ctx.fillStyle = '#fff'; ctx.font = `800 66px ${FONT}`;
   ctx.textBaseline = 'middle'; ctx.fillText(initials, W / 2, 268); ctx.textBaseline = 'alphabetic';
 
-  // Name + level
+  // Name + Hybrid Level (the canonical identity, shared with Home/Profile)
+  const shareLevel = levelFromXp(state.hybridScore?.xp);
   ctx.fillStyle = '#f8fafc'; ctx.font = `800 62px ${FONT}`;
   ctx.fillText(name, W / 2, 430);
   ctx.fillStyle = '#f59e0b'; ctx.font = `700 30px ${FONT}`;
-  ctx.fillText(`LEVEL ${prog.level} · ${prog.title.toUpperCase()}`, W / 2, 480);
+  ctx.fillText(`LV ${shareLevel.tier} · ${shareLevel.name.toUpperCase()}`, W / 2, 480);
 
   // Relative-strength tiles
   const drawTile = (cx, cy, big, small, sub, color) => {
@@ -468,7 +464,7 @@ function shareProfileCard() {
 
   // Lifetime stat row
   const stats = [
-    [prog.xp >= 1000 ? `${(prog.xp / 1000).toFixed(1)}k` : String(prog.xp), 'XP'],
+    [shareLevel.xp >= 1000 ? `${(shareLevel.xp / 1000).toFixed(1)}k` : String(shareLevel.xp), 'XP'],
     [String(lifetime.sessions), 'SESSIONS'],
     [_compactNum(lifetime.volume), `VOLUME ${unit.toUpperCase()}`],
     [lifetime.distanceKm.toFixed(0), `${distUnit.toUpperCase()} RUN`],
@@ -492,7 +488,7 @@ function shareProfileCard() {
   const finish = (blob) => {
     const file = blob && typeof File !== 'undefined' ? new File([blob], 'helyx-profile.png', { type: 'image/png' }) : null;
     if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: 'My Helyx Profile', text: `${name} · Level ${prog.level} ${prog.title}` })
+      navigator.share({ files: [file], title: 'My Helyx Profile', text: `${name} · ${shareLevel.name} (Lv ${shareLevel.tier})` })
         .catch(() => {});
     } else {
       const a = document.createElement('a');

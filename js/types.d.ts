@@ -85,8 +85,11 @@ export interface AppState {
   programLibrary: ProgramLibrary;
   profileSections?: { order: string[] | null; hidden: string[] };
   dashboardTiles?: { order: string[] | null; hidden: string[] };
-  dashboardInsightDismissed?: { nav: string; date: string } | null;
-  coachingDismissed?: { sig: string; date: string } | null;
+  hybridScore?: { history: { date: string; score: number; level: number }[]; xp: number; lastRecordedDate: string | null };
+  overtrainingAck?: { sig: string; date: string } | null;
+  _overtrainingPushedDate?: string | null;
+  _justOnboarded?: boolean;
+  streakFreezes?: { available: number; used: string[]; earnedTier: number };
   settings?: AppSettings;
 }
 

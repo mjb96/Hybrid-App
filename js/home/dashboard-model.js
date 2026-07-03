@@ -14,11 +14,13 @@ import {
   strengthLoadSeries, enduranceLoadSeries, recoveryCostSeries, weeklyLoadMetricsSeries,
   recoveryCostBalance,
 } from '../brain/load_models.js';
+import { workoutQuality } from '../metrics/metrics-strength.js';
 import { trainingStatus } from '../brain/briefing.js';
 import { generateRecommendation } from '../brain/recommendations.js';
 import { computeReadiness, readinessStatus, readinessColor } from '../analytics/scoring/readiness-scoring.js';
 import { getFastingContext } from '../fasting.js';
 import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
+import { loggedDateSet } from '../analytics/logged-days.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -124,6 +126,23 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     hasData:        readyRaw.score !== null,
   };
 
+  // Readiness WITHOUT the ACWR load component (E3): the Hybrid Score's Recovery
+  // pillar uses this so ACWR isn't counted twice (Recovery + the Load pillar).
+  // The full `ready` above still powers the Readiness tile and recovery view.
+  const readyNoLoadRaw = computeReadiness({
+    hrvStat:        hrvStatusFrom(hc.hrv),
+    sleepHours,
+    atl: 0, ctl: 0,   // 0 → the load component drops out (that's the point)
+    todayWellness,
+    restingHrValues: hc.restingHR || [],
+  });
+  const readyNoLoad = {
+    score:      readyNoLoadRaw.score,
+    status:     readyNoLoadRaw.status,
+    components: readyNoLoadRaw.components,
+    hasData:    readyNoLoadRaw.score !== null,
+  };
+
   // ---- Prescriptive recommendation (reused coach brain) ------------------
   let rec;
   try { rec = generateRecommendation(state, days, program, selectedDay); }
@@ -192,6 +211,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     wkNum, maxWeek, hasLoad,
     load: { atl, ctl, tsb, acwr, status: ts.status, tone: ts.tone, color: TONE_COLOR[ts.tone] || TONE_COLOR.neutral, hasData: hasLoad },
     ready,
+    readyNoLoad,
     rec,
     balance,
     series: {
@@ -206,6 +226,9 @@ export function computeDashboardModel(state, days, program, selectedDay) {
       distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev), spark: tail(distanceSeries, 8) },
       sets, reps, consistencyDone, consistencyTotal,
       consistencyPct: consistencyTotal > 0 ? Math.round((consistencyDone / consistencyTotal) * 100) : 0,
+      // E5 — true-adherence quality of completed sets vs their prescribed target
+      // (null until sets carry targets; the Consistency pillar folds it in gently).
+      ...(() => { const q = workoutQuality(state, days, maxWeek); return { qualityPct: q.pct, qualityN: q.n }; })(),
     },
     bodyweight,
     big3,
@@ -223,6 +246,9 @@ export function computeDashboardModel(state, days, program, selectedDay) {
 
 // ---------------------------------------------------------------------------
 // The single most important thing to surface right now. Priority-ordered.
+// NOTE: no longer rendered on Home (the Morning Briefing replaced the insight
+// banner) — kept as tested model intelligence and the intended copy source for
+// the future morning notification (roadmap R3).
 // ---------------------------------------------------------------------------
 function pickTopInsight(m) {
   // Once today's planned session is logged, don't nudge the athlete to go hard —
@@ -331,32 +357,20 @@ function computePace(weeks, days, distUnit) {
   return { hasData: true, label: `${pm}:${ps}`, unit: distUnit, spark: spark.reverse() };
 }
 
+// The set of ISO dates on which real training was logged (gym or run). Shared
+// by the streak view, the Hybrid Score history and the streak-freeze module so
+// "what counts as a training day" has one definition (js/analytics/logged-days).
+export function activeTrainingDates(weeks, days, state) {
+  // `state` carries weeks; loggedDateSet reads state.weeks, so ensure it sees
+  // the same weeks object even when a caller passes them separately.
+  return loggedDateSet(state?.weeks === weeks ? state : { ...state, weeks }, days);
+}
+
 export function computeStreak(weeks, days, state) {
-  const active = new Set();
-  const base = state?.weekStartedAt ? new Date(state.weekStartedAt) : new Date();
-  const curWk = parseInt(state?.currentWeek, 10) || 1;
-  for (const w in weeks) {
-    const wd = weeks[w];
-    const storedDates = wd?.dates || {};
-    days.forEach((d, dayIdx) => {
-      let done = 0;
-      const dl = wd?.lifts?.[d] || {};
-      for (const lift in dl) if (Array.isArray(dl[lift])) done += dl[lift].filter(isDone).length;
-      const rDist = num(wd?.runs?.[d]?.dist);
-      if (done > 0 || rDist > 0) {
-        // Prefer the real logged date (the same source the activity calendar
-        // uses); fall back to reconstructing from weekStartedAt only when the
-        // stored date is missing.
-        let ds = storedDates[d];
-        if (!ds) {
-          const approx = new Date(base);
-          approx.setDate(base.getDate() - ((curWk - (parseInt(w, 10) || 1)) * 7) + dayIdx);
-          ds = approx.toISOString().slice(0, 10);
-        }
-        active.add(ds);
-      }
-    });
-  }
+  const active = activeTrainingDates(weeks, days, state);
+  // Streak freezes (R7): a frozen day counts for streak continuity, so an
+  // occasional missed day doesn't wipe a long streak.
+  (state?.streakFreezes?.used || []).forEach(ds => active.add(ds));
   const todayD = new Date();
   let current = 0;
   for (let i = 0; i <= 120; i++) {

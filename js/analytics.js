@@ -25,6 +25,14 @@ import { renderActivityCalendar } from './home.js';
 import { initWeekNav, updateWeekNavDisplay, getSelectedWeek, resetWeekNav } from './analytics/week-nav.js';
 import { renderWeeklySummaryAnalytics } from './analytics/views/view-weekly-summary.js';
 import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
+import { buildWeeklyReview } from './brain/weekly-review.js';
+import { renderWeeklyReview } from './analytics/views/view-weekly-review.js';
+import { renderProjections } from './analytics/views/view-projections.js';
+import { renderMonthlyReport } from './analytics/views/view-monthly-report.js';
+import { buildSoWhat } from './analytics/so-what.js';
 
 let _getState;
 let _getDays;
@@ -280,7 +288,7 @@ export function renderAnalytics() {
   // and send "back" to the dashboard. Every leaf section instead routes "back" to
   // the hub, so you can browse multiple sections without bouncing home each time.
   const weekNav = document.getElementById('analyticsWeekNav');
-  if (weekNav) weekNav.style.display = context === 'hub' ? 'none' : '';
+  if (weekNav) weekNav.style.display = (context === 'hub' || context === 'hybrid-score' || context === 'weekly-review' || context === 'projections' || context === 'monthly-report') ? 'none' : '';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
     if (context === 'hub') {
@@ -299,6 +307,31 @@ export function renderAnalytics() {
     case 'hub':
       document.getElementById('analytics-hub').classList.add('active');
       break;
+    case 'weekly-review': {
+      document.getElementById('analytics-weekly-review').classList.add('active');
+      const stR = _getState();
+      const review = buildWeeklyReview(stR, _getDays(), getProgramById(stR.activeProgramId));
+      renderWeeklyReview(review, stR);
+      break;
+    }
+    case 'projections':
+      document.getElementById('analytics-projections').classList.add('active');
+      renderProjections(_getState, _getDays);
+      break;
+    case 'monthly-report':
+      document.getElementById('analytics-monthly-report').classList.add('active');
+      renderMonthlyReport(_getState, _getDays, () => getProgramById(_getState().activeProgramId));
+      break;
+    case 'hybrid-score': {
+      document.getElementById('analytics-hybrid-score').classList.add('active');
+      const st = _getState();
+      const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+      const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
+      const result = computeHybridScore(model, st, _getDays());
+      const el = document.getElementById('hybridScoreDetail');
+      if (el) el.innerHTML = hybridScoreDetailHTML(result, st);
+      break;
+    }
     case 'weekly-summary': {
       document.getElementById('analytics-weekly-summary').classList.add('active');
       const selectedWk = getSelectedWeek(_getState().currentWeek);
@@ -386,4 +419,32 @@ export function renderAnalytics() {
       break;
     }
   }
+
+  renderSoWhatBanner(context);
+}
+
+// ==========================================
+// "SO WHAT?" BANNER (R8) — one prescriptive line at the top of every leaf,
+// injected here so the 19 view modules stay untouched. buildSoWhat is pure
+// and returns null for surfaces that already prescribe (hub / hybrid-score /
+// weekly-review). Text is app-generated only — safe to inject.
+// ==========================================
+function renderSoWhatBanner(context) {
+  const active = document.querySelector('.analytics-section.active');
+  if (!active) return;
+  active.querySelectorAll('.so-what').forEach(n => n.remove());
+
+  let sw = null;
+  try {
+    const st = _getState();
+    const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+    const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
+    sw = buildSoWhat(context, model, st);
+  } catch (_) { /* banner is best-effort — never block the view */ }
+  if (!sw) return;
+
+  const div = document.createElement('div');
+  div.className = `so-what so-what--${sw.tone}`;
+  div.innerHTML = `<span class="so-what__k">So what?</span><span class="so-what__t">${sw.text}</span>`;
+  active.prepend(div);
 }

@@ -23,6 +23,69 @@ export function vdotFromThresholdPace(thresholdSecs) {
   return Math.round(vo2);
 }
 
+// VDOT from an actual performance (distance km + time seconds) — the
+// Daniels–Gilbert model. This is how VDOT is really defined (from a hard
+// effort), so it works for anyone who logs runs, no manual threshold needed.
+export function vdotFromPerformance(distKm, timeSec) {
+  const d = parseFloat(distKm) || 0;
+  const t = parseFloat(timeSec) || 0;
+  if (d <= 0 || t <= 0) return null;
+  const tMin = t / 60;
+  const v = (d * 1000) / tMin;                       // velocity, m/min
+  const pctMax = 0.8 + 0.1894393 * Math.exp(-0.012778 * tMin) + 0.2989558 * Math.exp(-0.1932605 * tMin);
+  const vo2 = -4.60 + 0.182258 * v + 0.000104 * v * v;
+  if (pctMax <= 0) return null;
+  return clamp(Math.round(vo2 / pctMax), 20, 90);
+}
+
+// Inverse of vdotFromThresholdPace: an equivalent threshold pace (s/km) for a
+// VDOT, so an estimated VDOT can reuse racePredictors() / race maths.
+export function thresholdSecsFromVdot(vdot) {
+  if (!vdot || vdot <= 0) return null;
+  return Math.round((3537 / vdot + 0.4) * 60);
+}
+
+function _timeToSecs(timeStr) {
+  if (!timeStr) return 0;
+  const p = String(timeStr).split(':').map(Number);
+  if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
+  if (p.length === 2) return p[0] * 60 + p[1];
+  return parseFloat(timeStr) || 0;
+}
+
+// Best VDOT implied by any qualifying run in the recent window (last `window`
+// weeks). Taking the MAX self-selects the hardest effort — Daniels VDOT is a
+// best-effort metric — without needing RPE. Sprints (<1.5km) and ultras
+// (>42.2km) are excluded as outside the model's validated range. Walks skipped.
+export function bestEffortVdot(state, days, maxWeek, window = 8) {
+  let best = null;
+  const from = Math.max(1, maxWeek - window + 1);
+  for (let w = from; w <= maxWeek; w++) {
+    const wk = (state?.weeks || {})[String(w)];
+    if (!wk) continue;
+    for (const d of days) {
+      const run = wk.runs?.[d];
+      if (!run || run.type === 'walk') continue;
+      const dist = parseFloat(run.dist) || 0;
+      if (dist < 1.5 || dist > 42.2) continue;
+      const v = vdotFromPerformance(dist, _timeToSecs(run.time));
+      if (v != null && (best == null || v > best)) best = v;
+    }
+  }
+  return best;
+}
+
+// The athlete's effective VDOT + an equivalent threshold pace: a manually-set
+// threshold wins (they told us); otherwise it's estimated from their best
+// recent run. Returns { vdot, thresholdSecs, source } or null.
+export function effectiveVdot(state, days, maxWeek) {
+  const manual = parseFloat(state?.thresholdPaceSeconds) || 0;
+  if (manual > 0) return { vdot: vdotFromThresholdPace(manual), thresholdSecs: manual, source: 'threshold' };
+  const best = bestEffortVdot(state, days, maxWeek);
+  if (best != null) return { vdot: best, thresholdSecs: thresholdSecsFromVdot(best), source: 'estimated' };
+  return null;
+}
+
 // Aerobic efficiency series: lower is more efficient (seconds per km per BPM).
 // Returns array of efficiency values, 0 where HR data missing.
 export function aerobicEfficiencySeries(paceSeries, avgHrSeries) {
