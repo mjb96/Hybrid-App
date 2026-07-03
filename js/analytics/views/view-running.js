@@ -19,6 +19,7 @@ import {
   rankInsights,
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
+import { screenTabBar, mountScreenTabs, spark } from './_screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 
@@ -322,6 +323,9 @@ function renderDistanceSection(ra, data) {
 }
 
 // ---- Main Export --------------------------------------------------------
+let _runningTab = 'overview';
+export function setRunningTab(tab) { _runningTab = tab === 'stats' ? 'stats' : 'overview'; }
+
 export function renderRunningAnalytics(data, getState, getDays) {
   const appState = getState ? getState() : {};
   const days     = getDays ? getDays() : [];
@@ -330,46 +334,81 @@ export function renderRunningAnalytics(data, getState, getDays) {
   const ra = computeRunningAnalytics(appState, days, maxWeek, data.thresholdSecs);
   const la = computeLoadAnalytics(appState, days, maxWeek);
 
-  const runInsights  = generateRunningInsights({
-    paceSeries: ra.paceSeries, roi: ra.roi, distSeries: ra.distSeries,
-    distProgPct: ra.distProgPct, hrZonePct: ra.hrZonePct, bestPace: ra.bestPace,
-    decoupling: ra.decoupling, vdot: ra.vdot, thresholdSecs: data.thresholdSecs,
-    endScore: ra.endScore, weeklyDistAvg: ra.weeklyDistAvg,
-  });
-  const loadInsights = generateLoadInsights({
-    atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
-    loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus,
-  });
-  const allInsights  = rankInsights([...runInsights, ...loadInsights]);
+  const allInsights = rankInsights([
+    ...generateRunningInsights({
+      paceSeries: ra.paceSeries, roi: ra.roi, distSeries: ra.distSeries,
+      distProgPct: ra.distProgPct, hrZonePct: ra.hrZonePct, bestPace: ra.bestPace,
+      decoupling: ra.decoupling, vdot: ra.vdot, thresholdSecs: data.thresholdSecs,
+      endScore: ra.endScore, weeklyDistAvg: ra.weeklyDistAvg,
+    }),
+    ...generateLoadInsights({
+      atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
+      loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus,
+    }),
+  ]);
 
   const section = qs('analytics-running');
   if (!section) return;
+  section.innerHTML = screenTabBar(_runningTab) + `<div id="running-tab-body"></div>`;
+  const body = qs('running-tab-body');
 
-  let insightsEl = section.querySelector('.running-insights-panel');
-  if (!insightsEl) {
-    insightsEl = document.createElement('div');
-    insightsEl.className = 'running-insights-panel';
-    section.prepend(insightsEl);
+  if (_runningTab === 'stats') _renderRunningStats(body, ra, la, data);
+  else _renderRunningOverview(body, ra, data, allInsights);
+
+  mountScreenTabs('analytics-running', (tab) => {
+    _runningTab = tab;
+    renderRunningAnalytics(data, getState, getDays);
+  });
+}
+
+// Overview: VDOT (running fitness) as the headline number, its weekly distance
+// trend as the spark, the two numbers that matter, and ONE synthesized insight.
+function _renderRunningOverview(body, ra, data, insights) {
+  const dist = ra.distSeries || [];
+  const distCur  = dist[dist.length - 1] || 0;
+  const color = ra.endScore == null ? '#94a3b8'
+    : ra.endScore >= 80 ? '#10b981' : ra.endScore >= 60 ? '#3b82f6'
+    : ra.endScore >= 40 ? '#f59e0b' : '#ef4444';
+
+  let hero;
+  if (ra.vdot) {
+    const src = data.thresholdSecs ? 'from your threshold pace' : 'estimated from your runs';
+    hero = `<article class="card-dark an-hero">
+      <div class="an-hero__k">VDOT · running fitness</div>
+      <div class="an-hero__val" style="color:${color}">${ra.vdot}</div>
+      <div class="an-hero__empty">${src}</div>
+      ${spark(dist.slice(-12), '#ec4899')}
+    </article>`;
+  } else {
+    hero = `<article class="card-dark an-hero">
+      <div class="an-hero__k">VDOT · running fitness</div>
+      <div class="an-hero__val">—</div>
+      <div class="an-hero__empty">Log a hard run (or set a threshold pace) to unlock your VDOT.</div>
+    </article>`;
   }
-  insightsEl.innerHTML = renderInsightsHTML(allInsights, 4);
 
-  _ensureDiv(section, 'runningEnduranceHero');
-  _ensureDiv(section, 'runningFitnessDashboard');
-  _ensureDiv(section, 'runningPaceAnalysisSection');
-  _ensureDiv(section, 'runningRacePredictors');
-  _ensureDiv(section, 'runningHrAnalysisSection');
-  _ensureDiv(section, 'runningLoadSection');
-  _ensureDiv(section, 'runningDistanceSection');
+  body.innerHTML = `
+    ${hero}
+    <div class="grid-2-col gap-2 mb-2">
+      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: ra.distProgPct, sub: 'vs last week', color: '#3b82f6' })}
+      ${statCard({ label: 'Best Pace', value: fmtPace(ra.bestPace), sub: 'fastest recent run', color: '#10b981' })}
+    </div>
+    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+  `;
+}
 
-  // Keep legacy elements for tile compat
-  _ensureSpan(section, 'allTimeRunDist');
-  _ensureSpan(section, 'allTimeRunElev');
-  _ensureSpan(section, 'allTimeRunCals');
-  const setText = (id, val) => { const el = qs(id); if (el) el.textContent = val; };
-  setText('allTimeRunDist', formatDist(data.globalTotalDist, data.distUnit));
-  setText('allTimeRunElev', Math.round(data.globalTotalElev) + ' m');
-  setText('allTimeRunCals', Math.round(data.globalTotalCals).toLocaleString());
-
+// Stats: the full running engine, one tap deeper. Absorbs the old avg-pace, vdot,
+// and run-crossref leaves so each fact lives in exactly one place.
+function _renderRunningStats(body, ra, la, data) {
+  body.innerHTML = `
+    <div id="runningEnduranceHero"></div>
+    <div id="runningFitnessDashboard"></div>
+    <div id="runningPaceAnalysisSection"></div>
+    <div id="runningRacePredictors"></div>
+    <div id="runningHrAnalysisSection"></div>
+    <div id="runningLoadSection"></div>
+    <div id="runningDistanceSection"></div>
+  `;
   renderEnduranceHero(ra, data);
   renderRunningFitnessDashboard(ra, la, data);
   renderPaceAnalysis(ra, data);
@@ -377,27 +416,4 @@ export function renderRunningAnalytics(data, getState, getDays) {
   renderHRAnalysis(ra, data);
   renderRunningLoad(ra, la, data);
   renderDistanceSection(ra, data);
-
-  // Threshold pace input sync
-  const thresholdInput = qs('analyticsThresholdPaceInput');
-  if (thresholdInput && data.thresholdSecs && !thresholdInput.value) {
-    thresholdInput.value = data.thresholdSecs;
-  }
-}
-
-function _ensureDiv(parent, id) {
-  if (!document.getElementById(id)) {
-    const div = document.createElement('div');
-    div.id = id;
-    parent.appendChild(div);
-  }
-}
-
-function _ensureSpan(parent, id) {
-  if (!document.getElementById(id)) {
-    const span = document.createElement('span');
-    span.id = id;
-    span.style.display = 'none';
-    parent.appendChild(span);
-  }
 }

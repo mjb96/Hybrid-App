@@ -10,11 +10,10 @@ import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
-import { pushOvertrainingWarning } from './notifications.js';
+import { pushOvertrainingWarning, pushFastingStageNudge } from './notifications.js';
 import { reconcileStreakFreezes } from './brain/streak.js';
-import { computeDiagnosticForLift, shouldSuggestDeload } from './engine.js';
-import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation } from './dashboard.js';
-import { loadTileOrder, mountTileDragAndDrop, loadHiddenTiles, saveHiddenTiles, resetTileOrder, resetHiddenTiles } from './dragdrop.js';
+import { shouldSuggestDeload } from './engine.js';
+import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation, HOME_TILE_IDS } from './dashboard.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
@@ -158,43 +157,21 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   const grid = document.getElementById('glanceGrid');
   if (!grid) return;
 
-  const header = grid.previousElementSibling;
-  if (header && !header.querySelector('.tile-customise-btn')) {
-    const btn = document.createElement('button');
-    btn.className = 'tile-customise-btn';
-    btn.textContent = 'Edit';
-    btn.setAttribute('aria-label', 'Customise dashboard tiles');
-    btn.setAttribute('data-action', 'open-tile-customiser');
-    header.appendChild(btn);
-  }
-
   // One shared brain pass for the whole dashboard — every tile reads the same
-  // model. renderHome computes it once and passes it in; the tile customiser
-  // re-renders the grid on its own and lets us compute a fresh one here.
+  // model. renderHome computes it once and passes it in.
   const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
   updateQuickActions(model);
 
-  const savedOrder  = loadTileOrder();
-  const hiddenTiles = loadHiddenTiles();
-  const healthLinked = !!appState.healthConnect?.connected;
-
-  const sorted = [...TILE_REGISTRY].sort((a, b) => {
-    if (savedOrder) {
-      const ai = savedOrder.indexOf(a.id);
-      const bi = savedOrder.indexOf(b.id);
-      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-    }
-    return a.order - b.order;
-  });
-
-  // Hide manually-hidden tiles. When the Health app isn't linked, fold the five
-  // Health-Connect tiles into a single "Connect" tile rather than showing five
-  // dead "Setup" placeholders.
-  let visible = sorted.filter(config => !hiddenTiles.has(config.id));
-  if (!healthLinked) {
-    visible = visible.filter(config => !config.requiresHealth);
-    visible.push(CONNECT_HEALTH_TILE);
+  // Fasting stage / goal nudge (S1d): if an active fast crossed a metabolic
+  // stage or hit its goal since last seen, deliver it now (app-open / return).
+  if (appState.fastingSession?.active) {
+    pushFastingStageNudge(appState, () => saveStateToLocalStorage(true));
   }
+
+  // V2 (S3): exactly four fixed tiles, in order — no customiser, no hidden/order
+  // state. Curated defaults beat a customiser (PRODUCT_V2 §3).
+  const byId = new Map(TILE_REGISTRY.map(t => [t.id, t]));
+  const visible = HOME_TILE_IDS.map(id => byId.get(id)).filter(Boolean);
 
   // Keyed reconciliation: tile nodes persist across renders (identity, one-time
   // listeners and order preserved); only new tiles are created, hidden/removed
@@ -229,8 +206,6 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
       setHTML(article, renderTileContent(config, data));
     },
   });
-
-  mountTileDragAndDrop();
 }
 
 // ==========================================
@@ -240,6 +215,11 @@ function updateQuickActions(model) {
   const fastBtn = document.getElementById('qaFasting');
   if (fastBtn) {
     const f = model.fasting;
+    // Quiet Home (S1d): only surface fasting when it's in use — an active fast
+    // or some history. A user who's never fasted gets a calm Home, not a nudge
+    // toward a feature they haven't chosen.
+    const inUse = f.active || (f.history?.length ?? 0) > 0;
+    fastBtn.style.display = inUse ? '' : 'none';
     const labelEl = fastBtn.querySelector('.qa-label');
     const subEl   = fastBtn.querySelector('.qa-sub');
     if (f.active) {
@@ -261,79 +241,6 @@ function updateQuickActions(model) {
   }
 }
 
-// ==========================================
-// TILE CUSTOMISER
-// ==========================================
-function openTileCustomiser() {
-  const sheet = document.getElementById('tileCustomiserSheet');
-  const list  = document.getElementById('tileCustomiserList');
-  if (!sheet || !list) return;
-
-  const hidden     = loadHiddenTiles();
-  const savedOrder = loadTileOrder();
-  const sorted = [...TILE_REGISTRY].sort((a, b) => {
-    if (savedOrder) {
-      const ai = savedOrder.indexOf(a.id);
-      const bi = savedOrder.indexOf(b.id);
-      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-    }
-    return a.order - b.order;
-  });
-
-  list.innerHTML = sorted.map(config => `
-    <div class="tile-picker-item${hidden.has(config.id) ? ' tile-picker-hidden' : ''}" data-tile-id="${config.id}">
-      <span class="tile-picker-icon">${config.icon}</span>
-      <span class="tile-picker-label">${config.label}</span>
-      <input type="checkbox" class="tile-picker-check" data-tile-id="${config.id}" ${hidden.has(config.id) ? '' : 'checked'}>
-      <span class="tile-picker-toggle"></span>
-    </div>
-  `).join('');
-
-  list.querySelectorAll('.tile-picker-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const cb = item.querySelector('.tile-picker-check');
-      cb.checked = !cb.checked;
-      item.classList.toggle('tile-picker-hidden', !cb.checked);
-    });
-  });
-
-  sheet.classList.add('active');
-  document.getElementById('tileCustomiserBackdrop')?.classList.add('active');
-}
-
-export function closeTileCustomiser(apply) {
-  const sheet = document.getElementById('tileCustomiserSheet');
-  if (!sheet) return;
-
-  if (apply) {
-    const hidden = new Set();
-    sheet.querySelectorAll('.tile-picker-check').forEach(cb => {
-      if (!cb.checked) hidden.add(cb.dataset.tileId);
-    });
-    saveHiddenTiles(hidden);
-    sheet.classList.remove('active');
-    document.getElementById('tileCustomiserBackdrop')?.classList.remove('active');
-    
-    const appState      = _getState();
-    const DEFAULT_DAYS  = _getDays();
-    const activeProgram = getProgramById(appState.activeProgramId);
-    renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, _getSelectedDay());
-  } else {
-    sheet.classList.remove('active');
-    document.getElementById('tileCustomiserBackdrop')?.classList.remove('active');
-  }
-}
-
-export function resetTileCustomiser() {
-  resetTileOrder();
-  resetHiddenTiles();
-  document.getElementById('tileCustomiserSheet')?.classList.remove('active');
-  document.getElementById('tileCustomiserBackdrop')?.classList.remove('active');
-  const appState      = _getState();
-  const DEFAULT_DAYS  = _getDays();
-  const activeProgram = getProgramById(appState.activeProgramId);
-  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, _getSelectedDay());
-}
 
 export function renderHome() {
   const appState = _getState();
@@ -341,7 +248,6 @@ export function renderHome() {
   const DEFAULT_DAYS = _getDays(); 
 
   const wk = appState?.currentWeek || "1";
-  const weekData = appState?.weeks?.[wk] || {};
 
   const indicatorEl = document.getElementById('homeWeekBlockIndicator');
   const phaseEl = document.getElementById('homePhaseLabelTag');
@@ -361,30 +267,11 @@ export function renderHome() {
   // tile all read from this single model so their numbers never diverge.
   const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, selectedDay);
 
+  // V2 (S4): engine stall alerts move off Home — the one-hero Home keeps only
+  // the recovery flag slot (overtraining/deload). Stall diagnostics still surface
+  // in the workout cockpit where they're actionable.
   const engineAlertCard = document.getElementById('homeEngineAlertCard');
-  const engineAlertDesc = document.getElementById('homeEngineAlertDesc');
-  const globalStallAlertsFound = [];
-
-  DEFAULT_DAYS.forEach(dKey => {
-    const dayLifts = weekData.lifts?.[dKey] || {};
-    for (let liftName in dayLifts) {
-      try {
-        const diag = computeDiagnosticForLift(wk, dKey, liftName);
-        if (diag && (diag.isStalled || diag.isFatigueOverload)) {
-          globalStallAlertsFound.push(diag.message);
-        }
-      } catch (e) {
-        console.warn("Defensive shield caught diagnostic breakdown:", e);
-      }
-    }
-  });
-
-  if (globalStallAlertsFound.length > 0) {
-    if (engineAlertCard) engineAlertCard.style.display = 'block';
-    if (engineAlertDesc) engineAlertDesc.textContent = globalStallAlertsFound[0];
-  } else {
-    if (engineAlertCard) engineAlertCard.style.display = 'none';
-  }
+  if (engineAlertCard) engineAlertCard.style.display = 'none';
 
   // Weekly fitness graphs handle their own rendering and data refresh.
   // Legacy hero/sub elements are hidden by the graphs on mount.
@@ -399,49 +286,10 @@ export function renderHome() {
   renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
 
-  // Weekly completion header — same numbers as the Consistency tile (model.week).
-  const w = model.week;
-  const progressPctEl = document.getElementById('homeWeeklyProgressPct');
-  const progressBarEl = document.getElementById('homeWeeklyProgressBar');
-  const progressTasksEl = document.getElementById('homeWeeklyProgressTasks');
-  if (progressPctEl) progressPctEl.textContent = w.consistencyPct + '%';
-  if (progressBarEl) progressBarEl.style.width = w.consistencyPct + '%';
-  if (progressTasksEl) progressTasksEl.textContent = w.consistencyTotal > 0 ? `${w.consistencyDone}/${w.consistencyTotal} done` : 'No tasks yet';
-
+  // V2 (S4): the week-compare card moves off Home — it was one of several
+  // redundant "did you train this week" renderings the Hybrid Score already owns.
   const compareCard = document.getElementById('homeWeekCompareCard');
-  const compareGrid = document.getElementById('homeWeekCompareGrid');
-  const wc = model.weekCompare;
-  if (compareCard && compareGrid && wc.hasPrev) {
-    const distUnit = appState.settings?.distanceUnit || 'km';
-    const KM_TO_MI = 0.621371;
-    const toDisplayDist = km => distUnit === 'mi' ? km * KM_TO_MI : km;
-
-    const makeMetric = (label, current, prev, unit, higherIsBetter = true) => {
-      if (prev === 0) return '';
-      const diff = current - prev;
-      const pct = Math.round((diff / prev) * 100);
-      const isPositive = higherIsBetter ? diff >= 0 : diff <= 0;
-      const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
-      const colour = diff === 0 ? 'var(--text-muted)' : isPositive ? '#10b981' : '#ef4444';
-      return `<div class="card-dark p-2 text-center" style="border:1px solid rgba(255,255,255,0.08);">
-        <div class="text-xs text-muted mb-1">${label}</div>
-        <div class="text-sm font-heavy text-inverse">${typeof current === 'number' ? (unit === 'kg' ? Math.round(current).toLocaleString() : current.toFixed(1)) : current}${unit ? ' '+unit : ''}</div>
-        <div class="text-xs font-bold" style="color:${colour};">${arrow} ${Math.abs(pct)}%</div>
-      </div>`;
-    };
-
-    const volHTML  = makeMetric('Volume', wc.volume.current, wc.volume.prev, 'kg');
-    const distHTML = makeMetric('Running', toDisplayDist(wc.distance.current), toDisplayDist(wc.distance.prev), distUnit);
-    const combined = [volHTML, distHTML].filter(Boolean).join('');
-    if (combined) {
-      compareGrid.innerHTML = combined;
-      compareCard.style.display = 'block';
-    } else {
-      compareCard.style.display = 'none';
-    }
-  } else if (compareCard) {
-    compareCard.style.display = 'none';
-  }
+  if (compareCard) compareCard.style.display = 'none';
 
   // Overtraining escalation (R10) takes priority over the advisory deload card.
   const overtrainingShowing = renderOvertrainingCard(appState, model);
@@ -483,14 +331,7 @@ document.addEventListener('click', (e) => {
 
   const action = target.getAttribute('data-action');
 
-  if (action === 'open-tile-customiser') {
-    openTileCustomiser();
-  } else if (action === 'close-tile-customiser') {
-    const apply = target.getAttribute('data-apply') === 'true';
-    closeTileCustomiser(apply);
-  } else if (action === 'reset-tile-customiser') {
-    resetTileCustomiser();
-  } else if (action === 'ack-overtraining') {
+  if (action === 'ack-overtraining') {
     // Acknowledge THIS exact risk condition (by signature); a new/worse
     // signal set will resurface the warning.
     const appState = _getState();

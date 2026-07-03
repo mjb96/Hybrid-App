@@ -32,9 +32,15 @@ Three non-negotiable design laws for V2:
 
 Deletion is not loss — it is the feature. Each removal buys focus, speed, and trust.
 
+> **Owner override (2026-07-03): fasting is NOT killed.** The one exception to this
+> section. Fasting stays as a first-class feature — the directive is "minimal feel but
+> still powerful": keep the engine (calcs, insights, achievements, streaks), trim the
+> *presentation* to one calm premium surface under the V2 laws. See `PROGRESS_V2.md`
+> S1. The row below is kept for the record but is superseded — do not delete fasting.
+
 | Killed / Hidden | Lines saved (approx) | Why it dies |
 |---|---:|---|
-| **Fasting subsystem** (calcs, education, insights, charts, home card, leaf) | ~3,150 JS + CSS | A whole second app. A hybrid strength+running product is not a fasting product. Off-strategy. Spin out or delete. |
+| ~~**Fasting subsystem**~~ *(SUPERSEDED — kept & redesigned; see override above)* | ~~~3,150~~ | Owner override: kept as a minimal-but-powerful surface, not a second app. |
 | **20 of 25 analytics leaves** | thousands | Nobody navigates 25 analytics screens. Most are the same data resliced. |
 | **Tile customiser + most of 17 tiles** | — | Customization is a confession you couldn't choose defaults. Choose them. |
 | **Home weekly-progress header, week-compare card, "In Focus" graphs, engine-stall card** | — | Four+ redundant renderings of "did you train this week." |

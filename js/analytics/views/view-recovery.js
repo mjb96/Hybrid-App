@@ -26,8 +26,74 @@ import {
   rankInsights,
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
+import { screenTabBar, mountScreenTabs } from './_screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
+
+// ---- V2: unified Recovery & Load screen (Overview | Stats) --------------
+// Absorbs recovery, recovery-score, training-status, load-focus, stress-balance —
+// "three names for one concept: load vs recovery" (PRODUCT_V2 §4). The hero is
+// the readiness gauge; the full recovery+load detail lives one tap away in Stats.
+let _recoveryTab = 'overview';
+export function setRecoveryTab(tab) { _recoveryTab = tab === 'stats' ? 'stats' : 'overview'; }
+
+export function renderRecoveryLoad(data, getState, getDays) {
+  const section = qs('analytics-recovery');
+  if (!section) return;
+  section.innerHTML = screenTabBar(_recoveryTab) + `<div id="recovery-tab-body"></div>`;
+  const body = qs('recovery-tab-body');
+
+  if (_recoveryTab === 'stats') {
+    body.innerHTML = `<div id="recovery-stats-body"></div>`;
+    renderRecoveryScoreDetail(data, getState, getDays, 'recovery-stats-body');
+  } else {
+    _renderRecoveryOverview(body, data, getState, getDays);
+  }
+
+  mountScreenTabs('analytics-recovery', (tab) => {
+    _recoveryTab = tab;
+    renderRecoveryLoad(data, getState, getDays);
+  });
+}
+
+function _renderRecoveryOverview(body, data, getState, getDays) {
+  const appState = getState();
+  const days     = getDays();
+  const recov    = computeRecoveryAnalytics(appState);
+  const la       = computeLoadAnalytics(appState, days, data.weekLabels.length);
+  const lastSleep = recov.sleepData?.length ? recov.sleepData[recov.sleepData.length - 1]?.value : null;
+  const readiness = computeReadiness({
+    hrvStat: recov.hrvStat, sleepHours: lastSleep,
+    atl: la.currentATL, ctl: la.currentCTL, todayWellness: recov.todayWellness,
+  });
+  const color = readinessColor(readiness.score);
+  const status = readiness.status || readinessStatus(readiness.score);
+
+  const tsb   = Math.round((la.currentCTL || 0) - (la.currentATL || 0));
+  const ratio = la.currentRatio > 0 ? la.currentRatio.toFixed(2) : '--';
+  const ratioStatus = la.currentRatio === 0 ? '' : la.currentRatio < 0.8 ? 'Detraining' : la.currentRatio < 1.3 ? 'Productive' : 'High';
+
+  const insights = rankInsights([
+    ...generateRecoveryInsights({ recovDecline: recov.recovDecline, sleep7d: recov.sleep7d, hrvStat: recov.hrvStat, loadStatus: la.loadStatus, todayWellness: recov.todayWellness }),
+    ...generateLoadInsights({ atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio, loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus }),
+  ]);
+
+  body.innerHTML = `
+    <article class="card-dark an-hero" style="border:1px solid ${color}33;">
+      <div class="an-hero__k">Readiness</div>
+      <div id="recoveryReadinessRing" style="display:flex;justify-content:center;margin:6px 0 2px;"></div>
+      <div class="an-hero__k" style="color:${color};font-size:0.95rem;letter-spacing:0;text-transform:none;">${status}</div>
+      <div class="an-hero__empty">${readiness.recommendation || ''}</div>
+    </article>
+    <div class="grid-2-col gap-2 mb-2">
+      ${statCard({ label: 'Form (TSB)', value: String(tsb), sub: tsb >= 0 ? 'fresh / peaking' : 'carrying fatigue', color: '#3b82f6' })}
+      ${statCard({ label: 'Load Ratio (ACWR)', value: ratio, sub: ratioStatus, color: '#f59e0b' })}
+    </div>
+    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+  `;
+  const ringEl = qs('recoveryReadinessRing');
+  if (ringEl) renderReadinessRingLarge(ringEl, readiness.score, status, color);
+}
 
 // ---- RPE-based recovery (existing view) --------------------------------
 export function renderRecoveryAnalytics(data, getState, getDays) {
@@ -91,10 +157,10 @@ export function renderRecoveryAnalytics(data, getState, getDays) {
 }
 
 // ---- Full Recovery Score Detail ----------------------------------------
-export function renderRecoveryScoreDetail(data, getState, getDays) {
+export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = 'analytics-recovery-score') {
   const appState    = getState();
   const defaultDays = getDays();
-  const section     = qs('analytics-recovery-score');
+  const section     = qs(sectionId);
   if (!section) return;
 
   // Compute all recovery analytics

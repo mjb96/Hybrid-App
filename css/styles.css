@@ -6151,6 +6151,46 @@ html[data-theme="light"] .gps-btn-secondary { background: rgba(0,0,0,0.05); colo
 }
 .fasting-sheet-progress-label { text-align: center; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 20px; }
 
+/* ── Signature ring (S1b) ─────────────────────────────────────────────────── */
+.fasting-ring-wrap { display: flex; flex-direction: column; align-items: center; padding: 8px 0 14px; }
+.fasting-ring__svg { display: block; }
+.fasting-ring__arc { transition: stroke-dashoffset .8s cubic-bezier(.22,.61,.36,1), stroke .4s ease; }
+.fasting-ring__time { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+.fasting-ring__stage { font-size: 8px; font-weight: 700; }
+.fasting-ring__target { font-size: 7px; font-weight: 600; }
+.fasting-ring-caption { font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-top: 10px; }
+.fasting-ring-zonedesc { font-size: 0.78rem; color: var(--text-muted); max-width: 280px; margin: 8px auto 0; line-height: 1.4; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .fasting-ring__arc { transition: none; } }
+
+/* ── Protocol picker (S1b) ────────────────────────────────────────────────── */
+.fasting-protocol-picker { margin-bottom: 6px; }
+.fasting-protocol-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; }
+.fasting-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.fasting-chip {
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--overlay-sm); border: 1px solid var(--border-default);
+  color: var(--text-main); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.fasting-chip--active { background: var(--color-amber, #f59e0b); border-color: transparent; color: #1a1205; }
+.fasting-protocol-caution { font-size: 0.72rem; color: var(--color-amber, #f59e0b); margin: 10px 0 4px; }
+.fasting-btn-start--full { width: 100%; margin-top: 12px; }
+
+/* ── Fasting analytics: Overview | Stats tabs (S1c) ───────────────────────── */
+.fa-tab-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.fa-tab {
+  flex: 1; padding: 10px; border-radius: 10px;
+  background: var(--overlay-sm); border: 1px solid var(--border-default);
+  color: var(--text-muted); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.fa-tab--active { background: var(--color-amber, #f59e0b); border-color: transparent; color: #1a1205; }
+.fa-recovery-line__label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.fa-recovery-line__text { font-size: 0.85rem; line-height: 1.5; color: var(--text-main); }
+.fa-recovery-line--good  { border-left: 3px solid #10b981; }
+.fa-recovery-line--alert { border-left: 3px solid #ef4444; }
+.fa-recovery-line--info  { border-left: 3px solid #3b82f6; }
+
 /* ── Metrics grid ─────────────────────────────────────────────────────────── */
 .fasting-metrics-grid {
   display: grid;

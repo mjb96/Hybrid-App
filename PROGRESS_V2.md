@@ -4,16 +4,22 @@ Companion to `PRODUCT_V2.md` (the philosophy) and `PROGRESS.md` (the Android-lau
 tracker). This file turns V2's quarter roadmap (§9) into session-sized, file-level
 slices. Same legend: `[CC]` Claude Code drives · `[You]` human action required.
 
+**THE PATTERN (owner-endorsed 2026-07-03):** the fasting redesign is the template for
+the *whole app* — **simple UI, powerful behind the scenes.** One signature gauge hero ·
+a lean default surface with one synthesized insight line · all the power one tap deeper
+under a Stats tab, never deleted. Codified in `docs/v2/ui-pattern.md`; every remaining
+slice below must follow it.
+
 **Working rules for every slice** (inherited from CLAUDE.md, restated because V2 is
-mostly deletion and deletion is where data gets lost):
+mostly subtraction and subtraction is where data gets lost):
 - One slice = one commit; `npm test` + `npm run typecheck` + `npm run smoke` green
   before each commit.
-- **Feature code dies; user data does not.** Removing a feature never deletes or
-  rewrites what a user already logged (their fast history, hidden-tile prefs, etc.
-  stay untouched inside the state blob — we just stop rendering them). State-schema
-  fields are only ever abandoned, not stripped, so old cloud blobs load cleanly.
+- **Feature code changes; user data does not.** Removing or restyling a feature never
+  deletes or rewrites what a user already logged (their hidden-tile prefs, etc. stay
+  untouched inside the state blob). State-schema fields are only ever abandoned, not
+  stripped, so old cloud blobs load cleanly.
 - Every deletion slice starts with a grep manifest (all references) and ends with a
-  guard test where behavior changed (e.g. Lifestyle pillar without fasting).
+  guard test where behavior changed.
 - Old routes that die get a redirect in the analytics router, not a crash —
   notifications and saved deep links still resolve.
 
@@ -29,28 +35,75 @@ Phase 2–3 can proceed in parallel at any time; Phase 4 (submit) waits for V2-1
 
 ---
 
-## Phase V2-0 — Guardrails before the knife  ·  (half a session)
-- [ ] `[CC]` Tag the pre-V2 tree (`git tag pre-v2`) so any cut is one revert away.
-- [ ] `[CC]` Deletion manifest: grep-map every reference to fasting, each doomed
-      analytics leaf, each doomed tile, each doomed setting → checked into
-      `docs/v2/deletion-manifest.md` so slices can't miss a dangling import.
-- [ ] `[You]` Confirm the fasting call: code deleted (not archived, per §1), logged
-      fast history left untouched in user state. Say the word and V2-1 S1 starts.
+## OWNER OVERRIDE — fasting is retained (2026-07-03)
+
+PRODUCT_V2.md §1 lists the fasting subsystem as the headline *deletion* (~3,150 lines).
+**The owner has overruled that one line of the doc:** fasting stays. The directive is
+**"minimal feel but still powerful"** — keep the calculation/insight/streak engine
+(it's genuinely good), but subject its *presentation* to the same V2 laws as
+everything else: one calm surface, no sprawl, premium not busy. So fasting is not an
+exception to V2 — it gets the V2 treatment (redesign-to-minimal) instead of the
+delete. Everything else in PRODUCT_V2.md stands. A pointer note is added to
+PRODUCT_V2.md §1 so no future session re-reads "kill fasting" as live.
+
+## Phase V2-0 — Guardrails before the knife  ·  (half a session) ✅
+- [x] `[CC]` Tag the pre-V2 tree (`pre-v2` → `15152ff`) so any cut is one revert away.
+- [x] `[CC]` Change manifest: grep-mapped fasting (keep/trim), the 24 analytics leaves,
+      19 tiles, settings → `docs/v2/change-manifest.md` so slices can't miss a dangling
+      import.
 
 ## Phase V2-1 — Subtract (Month 1)  ·  branch: this one
 
-### S1 — Remove the fasting subsystem (~3,150 JS lines + ~90 CSS blocks)
-- [ ] `[CC]` Delete `js/fasting.js`, `js/fasting/` (5 files), `js/home/fasting-card.js`,
-      `js/analytics/views/view-fasting.js`, `js/analytics/charts/fasting-charts.js`,
-      the R16 fasting sub-router in app.js, settings rows, so-what line, timers,
-      notification hooks. CSS sweep in `css/styles.css` (83 refs) + `css/analytics.css`.
-- [ ] `[CC]` Recompute **Lifestyle pillar = steps only** (E3 made it steps+fasting) —
-      renormalize, update pillar tests, add a no-fasting guard test.
-- [ ] `[CC]` Router: `case 'fasting'` → redirect to hub. State fields (`fastingHistory`
-      etc.) documented as abandoned in `js/types.d.ts`, never stripped.
+### S1 — Zero-style fasting: signature ring + protocols, powered by the existing engine
+**Design decided with owner (2026-07-03):** a Zero-level fasting feature, minimalist
+because the app is workout-focused. The engine already matches/beats Zero's paid tier
+(6 metabolic zones, streaks, fasting score, HRV/sleep/recovery/bodyweight
+correlations) — the gap is a **signature ring** and **named protocols**. Owner picks:
+*"Ring + a Stats tab"* (hero ring primary, richer analytics one tap deeper) and
+*"Add extended fasts"* (named presets incl. 24/36/48h with a caution note).
 
-### S2 — Analytics: 23 leaves → 5 screens
-Target mapping (each fact in exactly one place, per §4):
+Build order (each a tested commit):
+- [x] **S1a — Protocols (data layer, pure):** `FASTING_PROTOCOLS` in `js/fasting.js` —
+      14:10, 16:8, 18:6, 20:4, OMAD (23:1) + extended 24h/36h/48h (`caution:true`).
+      Helpers `protocolById`, `protocolForGoalHours`, `protocolLabelForGoal`. Additive:
+      `goal` stays the numeric hours (back-compat); 23h added to `FAST_GOAL_OPTIONS`.
+      7 tests. ✅
+- [x] **S1b — Signature ring hero:** `js/fasting/fasting-ring.js` (`fastingRingSVG` +
+      `ringArcOffset` + `ringCaption`) modelled on the Hybrid Score `gaugeSVG` — elapsed
+      time centre, stage named + coloured, arc fills toward goal; live ticker rolls the
+      arc/stage as zones cross. Replaces the linear bar in `fasting-card.js`; protocol
+      chips replace the raw-hours `<select>` (new `fast-set-protocol` action); extended
+      picks reveal the caution note. 6 ring tests; rendered + verified in Chromium. ✅
+- [x] **S1c — Ring primary + Stats tab:** `view-fasting.js` now renders an
+      Overview | Stats tab bar. **Overview** = Fasting Score card (+ streak/week/longest)
+      · current-fast recap · daily insights · ONE `Fasting × Recovery` line
+      (`_fastingRecoveryLine`, strongest of HRV→sleep→mood from the correlation engine —
+      the hybrid-athlete angle). **Stats** = the deep analytics one tap deeper (metrics,
+      advanced, trends, correlations, calendar, distribution, all-time, achievements,
+      knowledge — power kept per owner's "Ring + a Stats tab"). New `fa-tab-*` actions;
+      education deep-link jumps to Stats. Routing verified in Chromium (Overview lean,
+      Stats deep). typecheck / smoke green. Note: education wall NOT pruned (kept in
+      Stats); a later CSS sweep can drop the now-unused `.fasting-sheet-hero` block.
+- [x] **S1d — Quiet home + stage nudges:** stage-entry + goal-reached notifications
+      via a pure decider (`js/fasting/fasting-nudge.js`, 6 tests) + `pushFastingStageNudge`
+      wired through the native NotifyBridge, fired on home render / app-open (marker
+      persisted per-fast so each stage nudges once; `notifFastingStage` default on).
+      Quiet Home: the fasting quick-action hides for users with no active fast and no
+      history. Honest limitation documented: backgrounded WebView freezes timers, so a
+      crossing lands on next foreground (same as every timer reminder). `[You]` device-
+      test the nudges. ✅
+- [x] **Kill the fasting learning/knowledge section (owner, 2026-07-03):** deleted
+      `js/fasting/fasting-education.js` (505 lines), the "📚 Learn" button, the Fasting
+      Knowledge section + its edu-hub renderers/handlers/actions, and the ~200 lines of
+      education-only CSS (kept `.fa-edu-tip` callouts). Verified in Chromium: Stats still
+      carries metrics/trends/calendar/achievements, no knowledge library.
+- [ ] **Lifestyle pillar unchanged** — stays steps + fasting (E3); fasting stays a
+      live Hybrid Score signal. No recompute.
+- [ ] `[You]` Judge the ring + Stats split on the phone — minimal *and* still capable?
+
+### S2 — Analytics: 24 leaves → 5 screens + fasting
+Target mapping (each fact in exactly one place, per §4). Fasting is retained as its
+own focused surface (owner override) — the other 23 leaves collapse to 5:
 | New screen | Absorbs (current router cases) |
 |---|---|
 | **Score** | hybrid-score, projections |
@@ -58,28 +111,62 @@ Target mapping (each fact in exactly one place, per §4):
 | **Running** | running, avg-pace, vdot, run-crossref |
 | **Recovery & Load** | recovery, recovery-score, training-status, load-focus, stress-balance |
 | **Review** | weekly-review, weekly-summary, monthly-report, progress, activity, streak, bodyweight, goal-progress |
-- [ ] `[CC]` One slice per new screen (5 commits): build the merged view from the
-      existing view modules' best parts, then delete the absorbed views + hub entries
-      + add router redirects. Bodyweight/goal-progress → Review is a judgment call
-      (V2 doc is silent) — flag at review if it reads wrong.
-- [ ] `[CC]` Delete orphaned chart/calc code only after all 5 land (calcs feed the
-      Score engine — most survive; views die, math lives).
+| **Fasting** *(kept)* | fasting — one minimal-but-powerful screen (see S1) |
+Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invented
+0–100 index. Reusable pattern classes: `.an-tabbar` / `.an-tab` / `.an-hero` /
+`.an-spark` (analytics.css).
+- [x] **Strength (template) ✅** — `view-strength.js` rebuilt into Overview | Stats.
+      Overview: headline **Est. 1RM · top lift** + its weekly-e1RM spark + delta,
+      Weekly Volume + PRs This Week, one synthesized insight. Stats: the full training-
+      load dashboard, volume/strength progression, muscle balance, calendar, and the
+      **1RM PR list** — absorbing the old `strength_pr` and `weekly-volume` leaves
+      (router redirects both → Strength/Stats). Rendered + verified in Chromium.
+- [x] **Running ✅** — Overview: headline **VDOT** + weekly-distance spark, Weekly
+      Distance + Best Pace, one insight. Stats: endurance hero, fitness dashboard, pace
+      analysis, race predictors, HR analysis, running load, distance. Absorbs avg-pace,
+      vdot, run-crossref (router redirects → Running/Stats). Shared pieces factored into
+      `_screen-kit.js` (tab bar · spark · esc); Strength refactored onto it too.
+      Rendered + verified in Chromium.
+- [x] **Recovery & Load ✅** — Overview: the **readiness gauge** as hero + status +
+      recommendation, Form (TSB) + Load Ratio (ACWR) cards, one insight. Stats: the full
+      recovery+load detail (`renderRecoveryScoreDetail`, generalised to any host
+      section). Collapses all FIVE leaves — recovery, recovery-score, training-status,
+      load-focus, stress-balance — into one screen ("three names for one concept", §4)
+      via router redirects. Rendered + verified in Chromium.
+- [x] **Review ✅** — Overview: headline **this week's Hybrid Score** + score-arc spark
+      + delta, Sessions + Adherence cards, the week's focus line. Stats: the full Week in
+      Review + Monthly Report. Absorbs weekly-review, weekly-summary, monthly-report
+      (router redirects). Rendered + verified in Chromium. *(Scoped: bodyweight,
+      progress, streak, goal-progress, activity kept as their own leaves for now — they
+      carry distinct content not in the weekly story; fold into Review Stats in a
+      follow-up rather than regress them.)*
+- [ ] `[CC]` Follow-up: remove dead hub entries + orphaned view/chart code (the absorbed
+      leaves' view files + dead `#analytics-*` sections), and fold bodyweight/progress/
+      streak/goal-progress into Review Stats. Calcs feed the Score engine — most survive.
+
+**Score screen** already carries the pattern from V2-2 (number + 3 dials + coaching
+sentence; 8 pillars under the hood). So all five screens now read as one system.
 
 ### S3 — Tiles: 19 defs + customiser → 4 fixed
-- [ ] `[CC]` Keep exactly: **Readiness · Weekly Volume · Top Lifts (strength #) ·
-      Avg Pace (running #)**. Delete the other 15 defs, `js/dragdrop.js` customiser,
-      `DEFAULT_HIDDEN_TILES` machinery, customiser settings row. `dashboardTiles`
-      state field abandoned in place.
+- [x] `[CC]` Home now renders exactly **Readiness · Weekly Volume · Top Lifts ·
+      Avg Pace** (`HOME_TILE_IDS` in dashboard.js). The customiser is gone: removed the
+      "Edit" button, `openTileCustomiser` / `closeTileCustomiser` / `resetTileCustomiser`,
+      the `open/close/reset-tile-customiser` actions, `mountTileDragAndDrop` on Home, and
+      the app.js imports. 3 tests. *(Dead-but-harmless remnants left for a later sweep:
+      the `#tileCustomiserSheet` DOM in index.html and the now-unused tile fns in
+      dragdrop.js; `dashboardTiles` state field abandoned in place.)*
 
 ### S4 — Home: one hero, then silence
-- [ ] `[CC]` Above the fold: Hybrid Score card only (it absorbs the morning-briefing
-      card's action + coaching sentence — one voice, §7). Below: today's-session card
-      → 4 tiles → one **flag slot** merging the overtraining danger card + deload
-      advisory into a single calm surface (`js/brain/risk.js` already dedupes them).
-- [ ] `[CC]` Off Home: weekly-progress header, week-compare, In-Focus graphs,
-      activity calendar (→ Review screen), quick actions (→ Workout tab), engine
-      alerts (→ the flag slot or death).
-- [ ] `[You]` Look at it on the phone. The two-second test from §3 is yours to judge.
+- [x] `[CC]` Home is now **hero → briefing (session + mission) → "Go to Today's Workout"
+      CTA → flag slot → 4 tiles**. The Hybrid Score card (with the 3 dials) is the hero,
+      showAction:false so the briefing owns the one action (one voice). Flag slot = the
+      existing overtraining/deload cards (already deduped by `risk.js`).
+- [x] `[CC]` Moved off Home (hidden; all still reachable via Insights): weekly-progress
+      header, week-compare card, engine-stall alert, the In-Focus performance graphs, and
+      the quick-actions row (fasting / check-in / weight). Smoke renders the real Home
+      graph clean. *(Kept on Home: the walk/run quick-start row — no other entry yet.)*
+- [ ] `[You]` Look at it on the phone — the §3 two-second test is yours to judge
+      (headless can't render the full booted Home; smoke confirms no crash).
 
 ### S5 — Settings: 49 rows → ~10
 - [ ] `[CC]` Keep account/auth, units, notifications, health-connect, data export/
@@ -87,19 +174,30 @@ Target mapping (each fact in exactly one place, per §4):
       remembered-rest reset, …). Underlying state fields abandoned, defaults apply.
 
 ### S6 — Pillars → 3 dials (display only; §9 puts this in Month 1)
-- [ ] `[CC]` Pure module `js/brain/hybrid-score/dials.js`: **TRAIN** = Consistency +
-      Load (+E5 adherence) · **RECOVER** = Recovery + Lifestyle · **PROGRESS** =
-      Strength + Endurance + Momentum + Body. (V2 §2.1 omits Body from the mapping —
-      the composite math is untouchable per §2, so Body must live somewhere; PROGRESS
-      is the honest home. Flag at review.) 8 pillars stay as "under the hood"
-      expansion. Tests: dial values are pure functions of pillar contributions.
+- [x] `[CC]` Pure module `js/brain/hybrid-score/dials.js` (`computeDials` + `DIAL_MAP`):
+      **TRAIN** = Consistency + Load · **RECOVER** = Recovery + Lifestyle · **PROGRESS**
+      = Strength + Endurance + Momentum + Body (Body assigned here — §2.1 omits it but
+      the composite math is untouchable per §2, so PROGRESS is its honest home). Each
+      dial = weight-blended mean of its available members (pillar renormalised weights),
+      null when all members are data-less; every pillar claimed by exactly one dial. 8
+      pillars stay as the "under the hood" expansion. 6 tests. ✅ *(UI wiring of the
+      dials into the Score card lands with V2-2's card rebuild.)*
 
-**Phase V2-1 done when:** fasting gone, 5 analytics screens, 4 fixed tiles, one-hero
-Home, ~10 settings, 3 dials — and the §10 scorecard's first three rows hit target.
+**Phase V2-1 done when:** fasting redesigned to one minimal-but-powerful surface,
+5 analytics screens (+ fasting), 4 fixed tiles, one-hero Home, ~10 settings, 3 dials
+— and the §10 scorecard's first three rows hit target.
 
 ## Phase V2-2 — Make the number tellable (Month 1–2)
-- [ ] `[CC]` Rebuild the Score card: huge number + level + delta/momentum + 3 dials +
-      ONE coaching sentence (§2.1 wireframe). Keep confidence meter + E7 attribution.
+- [x] `[CC]` **Score card rebuilt around the 3 dials (§2.1 wireframe).** `dialsRow` in
+      hybrid-score/ui.js renders TRAIN / RECOVER / PROGRESS (value + accent bar) into
+      BOTH the Home hero (number + level + delta/momentum + confidence + biggest-lift +
+      3 dials + one coaching sentence) and the Score detail. The 8 pillars are now an
+      `<details>` "Under the hood" expander, collapsed by default — power one tap
+      deeper. Confidence meter + E7 attribution kept. 3 UI tests; rendered + verified in
+      Chromium (matches the wireframe). ✅
+- [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
+      (Provisional = low-confidence composite from self-reported level/frequency/
+      recovery; confidence meter already communicates the uncertainty honestly.)
 - [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
       (Provisional = low-confidence composite from self-reported level/frequency/
       recovery; confidence meter already communicates the uncertainty honestly.)
@@ -140,7 +238,25 @@ Home, ~10 settings, 3 dials — and the §10 scorecard's first three rows hit ta
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **Fasting redesign S1a–c shipped + pattern generalised to the app.**
+  S1a named protocols (Zero-style presets incl. extended 24/36/48h), S1b signature ring
+  hero (gauge-card language, live ticker, protocol chips) — verified in Chromium, S1c
+  Overview | Stats tab split (lean default + one Fasting×Recovery line, power one tap
+  deeper). Owner saw it, loved it, and asked for the *whole app* to follow the pattern —
+  codified in `docs/v2/ui-pattern.md` (one gauge hero · lean surface + one synthesized
+  line · power under Stats · curated-not-configurable). First generalisation shipped:
+  **S6 3-dial collapse** (`dials.js`, pure, 6 tests) — 8 pillars → TRAIN/RECOVER/
+  PROGRESS, engine math untouched. 357 tests / typecheck / smoke green. · Next: S1d
+  (quiet home + stage nudges) then roll the pattern onto the Score card (V2-2) and the
+  5 analytics screens (S2).
+- 2026-07-03 · **Owner override: fasting is KEPT, not killed.** PRODUCT_V2.md §1's
+  headline deletion is overruled — fasting stays as "minimal feel but still powerful":
+  engine (calcs/insights/achievements/streaks) intact, presentation trimmed to one
+  calm premium surface under the V2 laws. S1 rewritten from "delete the subsystem" to
+  "redesign to minimal"; Lifestyle pillar stays steps+fasting (no recompute); fasting
+  retained as its own focused analytics surface (IA is 5 collapsed screens + fasting);
+  V2-0 fasting-confirm gate removed. Pointer note added to PRODUCT_V2.md §1.
 - 2026-07-03 · Execution tracker created from PRODUCT_V2.md after codebase survey
   (fasting = 3,153 JS lines / 8 files; 23 router leaves; 19 tile defs; 49 settings
-  rows). Sequencing decided: V2-1 before beta screenshots/testers. · Next: `[You]`
-  confirm the fasting call (V2-0), then `[CC]` starts V2-0 manifest + V2-1 S1.
+  rows). Sequencing decided: V2-1 before beta screenshots/testers. · Next: `[CC]`
+  V2-0 guardrails (pre-v2 tag + change manifest), then V2-1 S1 fasting redesign.

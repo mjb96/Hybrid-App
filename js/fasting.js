@@ -67,7 +67,42 @@ export const FASTING_ZONES = [
   },
 ];
 
-export const FAST_GOAL_OPTIONS = [12, 14, 16, 18, 20, 24, 36, 48, 72];
+export const FAST_GOAL_OPTIONS = [12, 14, 16, 18, 20, 23, 24, 36, 48, 72];
+
+// Named fasting protocols (Zero-style presets). `goal` is still stored as plain
+// fast-hours on the session for back-compat — a protocol is just a named window that
+// maps onto a goal-hours value. `eatHours` is the complementary daily eating window
+// (0 for full-day+ fasts). `extended` fasts (≥24h) carry a `caution` flag so the UI
+// can surface the medical-supervision note that the deep-fasting zone already states.
+export const FASTING_PROTOCOLS = [
+  { id: '14:10', label: '14:10',  fastHours: 14, eatHours: 10, blurb: 'Gentle daily window' },
+  { id: '16:8',  label: '16:8',   fastHours: 16, eatHours: 8,  blurb: 'The classic' },
+  { id: '18:6',  label: '18:6',   fastHours: 18, eatHours: 6,  blurb: 'Deeper fat-burn' },
+  { id: '20:4',  label: '20:4',   fastHours: 20, eatHours: 4,  blurb: 'Warrior' },
+  { id: 'omad',  label: 'OMAD',   fastHours: 23, eatHours: 1,  blurb: 'One meal a day' },
+  { id: '24h',   label: '24h',    fastHours: 24, eatHours: 0,  blurb: 'Full day', extended: true, caution: true },
+  { id: '36h',   label: '36h',    fastHours: 36, eatHours: 0,  blurb: 'Monk fast', extended: true, caution: true },
+  { id: '48h',   label: '48h',    fastHours: 48, eatHours: 0,  blurb: 'Extended',  extended: true, caution: true },
+];
+
+// Look up a protocol by its id. Returns null for unknown/custom ids.
+export function protocolById(id) {
+  return FASTING_PROTOCOLS.find(p => p.id === id) ?? null;
+}
+
+// Map a numeric goal-hours value onto its named protocol, if one matches exactly.
+// A goal that doesn't line up with a preset (a custom window) returns null — callers
+// render that as "Custom · Nh".
+export function protocolForGoalHours(goalHours) {
+  return FASTING_PROTOCOLS.find(p => p.fastHours === goalHours) ?? null;
+}
+
+// Display label for a session's current goal: the protocol name when it matches a
+// preset, else a "Custom · Nh" fallback. Pure — safe for both UI and notifications.
+export function protocolLabelForGoal(goalHours) {
+  const p = protocolForGoalHours(goalHours);
+  return p ? p.label : `Custom · ${goalHours}h`;
+}
 
 // ── Time helpers ──────────────────────────────────────────────────────────────
 

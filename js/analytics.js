@@ -5,9 +5,9 @@ import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { isCompletedSet } from './set-utils.js';
 import { todayKey } from './dates.js';
 import { parsePaceSeconds } from './analytics/utils.js';
-import { renderStrengthAnalytics, render1RMList, render1RMProgressSection } from './analytics/views/view-strength.js';
-import { renderRunningAnalytics } from './analytics/views/view-running.js';
-import { renderRecoveryAnalytics, renderRecoveryScoreDetail } from './analytics/views/view-recovery.js';
+import { renderStrengthAnalytics, render1RMList, render1RMProgressSection, setStrengthTab } from './analytics/views/view-strength.js';
+import { renderRunningAnalytics, setRunningTab } from './analytics/views/view-running.js';
+import { renderRecoveryLoad, setRecoveryTab } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
 import {
   renderProgressAnalytics,
@@ -29,7 +29,7 @@ import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { detailHTML as hybridScoreDetailHTML } from './brain/hybrid-score/ui.js';
 import { buildWeeklyReview } from './brain/weekly-review.js';
-import { renderWeeklyReview } from './analytics/views/view-weekly-review.js';
+import { renderReview, setReviewTab } from './analytics/views/view-weekly-review.js';
 import { renderProjections } from './analytics/views/view-projections.js';
 import { renderMonthlyReport } from './analytics/views/view-monthly-report.js';
 import { buildSoWhat } from './analytics/so-what.js';
@@ -307,20 +307,22 @@ export function renderAnalytics() {
     case 'hub':
       document.getElementById('analytics-hub').classList.add('active');
       break;
-    case 'weekly-review': {
+    // V2 (S2): the Review screen — weekly-review (Overview) + weekly-summary and
+    // monthly-report (Stats) collapse into one weekly/monthly story.
+    case 'weekly-review':
+      setReviewTab('overview');
       document.getElementById('analytics-weekly-review').classList.add('active');
-      const stR = _getState();
-      const review = buildWeeklyReview(stR, _getDays(), getProgramById(stR.activeProgramId));
-      renderWeeklyReview(review, stR);
+      renderReview(data, _getState, _getDays);
       break;
-    }
+    case 'weekly-summary':
+    case 'monthly-report':
+      setReviewTab('stats');
+      document.getElementById('analytics-weekly-review').classList.add('active');
+      renderReview(data, _getState, _getDays);
+      break;
     case 'projections':
       document.getElementById('analytics-projections').classList.add('active');
       renderProjections(_getState, _getDays);
-      break;
-    case 'monthly-report':
-      document.getElementById('analytics-monthly-report').classList.add('active');
-      renderMonthlyReport(_getState, _getDays, () => getProgramById(_getState().activeProgramId));
       break;
     case 'hybrid-score': {
       document.getElementById('analytics-hybrid-score').classList.add('active');
@@ -332,32 +334,39 @@ export function renderAnalytics() {
       if (el) el.innerHTML = hybridScoreDetailHTML(result, st);
       break;
     }
-    case 'weekly-summary': {
-      document.getElementById('analytics-weekly-summary').classList.add('active');
-      const selectedWk = getSelectedWeek(_getState().currentWeek);
-      renderWeeklySummaryAnalytics(data, _getState, _getDays, selectedWk);
-      break;
-    }
     case 'strength':
+      setStrengthTab('overview');
       document.getElementById('analytics-strength').classList.add('active');
       renderStrengthAnalytics(data, _getState, _getDays);
       break;
+    // V2 (S2): the old 1RM (strength_pr) and Weekly-Volume leaves are absorbed
+    // into the Strength screen's Stats tab — redirect so deep links still resolve.
     case 'strength_pr':
-      document.getElementById('analytics-strength_pr').classList.add('active');
-      render1RMList(document.getElementById('allLiftsRmContainer_PR'), data.dynamicStats);
-      render1RMProgressSection(document.getElementById('analytics-strength_pr'), data.weekLabels, _getState, _getDays);
+    case 'weekly-volume':
+      setStrengthTab('stats');
+      document.getElementById('analytics-strength').classList.add('active');
+      renderStrengthAnalytics(data, _getState, _getDays);
       break;
     case 'running':
+      setRunningTab('overview');
       document.getElementById('analytics-running').classList.add('active');
       renderRunningAnalytics(data, _getState, _getDays);
       break;
+    // V2 (S2): recovery, recovery-score, training-status, load-focus and
+    // stress-balance collapse into ONE Recovery & Load screen — "three names for
+    // one concept" (§4). Readiness is the Overview hero; the rest is in Stats.
     case 'recovery':
+      setRecoveryTab('overview');
       document.getElementById('analytics-recovery').classList.add('active');
-      renderRecoveryAnalytics(data, _getState, _getDays);
+      renderRecoveryLoad(data, _getState, _getDays);
       break;
     case 'recovery-score':
-      document.getElementById('analytics-recovery-score').classList.add('active');
-      renderRecoveryScoreDetail(data, _getState, _getDays);
+    case 'training-status':
+    case 'load-focus':
+    case 'stress-balance':
+      setRecoveryTab('stats');
+      document.getElementById('analytics-recovery').classList.add('active');
+      renderRecoveryLoad(data, _getState, _getDays);
       break;
     case 'bodyweight':
       document.getElementById('analytics-bodyweight').classList.add('active');
@@ -366,10 +375,6 @@ export function renderAnalytics() {
     case 'progress':
       document.getElementById('analytics-progress').classList.add('active');
       renderProgressAnalytics(data, _getState);
-      break;
-    case 'weekly-volume':
-      document.getElementById('analytics-weekly-volume').classList.add('active');
-      renderWeeklyVolumeDetail(data, _getState, _getDays);
       break;
     case 'streak':
       document.getElementById('analytics-streak').classList.add('active');
@@ -380,29 +385,14 @@ export function renderAnalytics() {
       renderProgressAnalytics(data, _getState);
       renderGoalProgressDetail(data, _getState);
       break;
-    case 'training-status':
-      document.getElementById('analytics-training-status').classList.add('active');
-      renderTrainingStatusAnalytics(data, _getState, _getDays);
-      break;
-    case 'load-focus':
-      document.getElementById('analytics-load-focus').classList.add('active');
-      renderLoadFocusAnalytics(data, _getState, _getDays);
-      break;
+    // V2 (S2): avg-pace, vdot, run-crossref are absorbed into the Running
+    // screen's Stats tab — redirect so deep links still resolve.
     case 'run-crossref':
-      document.getElementById('analytics-run-crossref').classList.add('active');
-      renderRunCrossRefAnalytics(data, _getState, _getDays);
-      break;
     case 'vdot':
-      document.getElementById('analytics-vdot').classList.add('active');
-      renderVdotAnalytics(data, _getState, _getDays);
-      break;
     case 'avg-pace':
-      document.getElementById('analytics-avg-pace').classList.add('active');
-      renderAvgPaceAnalytics(data, _getState);
-      break;
-    case 'stress-balance':
-      document.getElementById('analytics-stress-balance').classList.add('active');
-      renderStressBalanceAnalytics(data, _getState, _getDays);
+      setRunningTab('stats');
+      document.getElementById('analytics-running').classList.add('active');
+      renderRunningAnalytics(data, _getState, _getDays);
       break;
     case 'activity':
       document.getElementById('analytics-activity').classList.add('active');
