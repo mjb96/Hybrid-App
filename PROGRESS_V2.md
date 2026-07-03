@@ -5,15 +5,15 @@ tracker). This file turns V2's quarter roadmap (§9) into session-sized, file-le
 slices. Same legend: `[CC]` Claude Code drives · `[You]` human action required.
 
 **Working rules for every slice** (inherited from CLAUDE.md, restated because V2 is
-mostly deletion and deletion is where data gets lost):
+mostly subtraction and subtraction is where data gets lost):
 - One slice = one commit; `npm test` + `npm run typecheck` + `npm run smoke` green
   before each commit.
-- **Feature code dies; user data does not.** Removing a feature never deletes or
-  rewrites what a user already logged (their fast history, hidden-tile prefs, etc.
-  stay untouched inside the state blob — we just stop rendering them). State-schema
-  fields are only ever abandoned, not stripped, so old cloud blobs load cleanly.
+- **Feature code changes; user data does not.** Removing or restyling a feature never
+  deletes or rewrites what a user already logged (their hidden-tile prefs, etc. stay
+  untouched inside the state blob). State-schema fields are only ever abandoned, not
+  stripped, so old cloud blobs load cleanly.
 - Every deletion slice starts with a grep manifest (all references) and ends with a
-  guard test where behavior changed (e.g. Lifestyle pillar without fasting).
+  guard test where behavior changed.
 - Old routes that die get a redirect in the analytics router, not a crash —
   notifications and saved deep links still resolve.
 
@@ -29,28 +29,47 @@ Phase 2–3 can proceed in parallel at any time; Phase 4 (submit) waits for V2-1
 
 ---
 
-## Phase V2-0 — Guardrails before the knife  ·  (half a session)
-- [ ] `[CC]` Tag the pre-V2 tree (`git tag pre-v2`) so any cut is one revert away.
-- [ ] `[CC]` Deletion manifest: grep-map every reference to fasting, each doomed
-      analytics leaf, each doomed tile, each doomed setting → checked into
-      `docs/v2/deletion-manifest.md` so slices can't miss a dangling import.
-- [ ] `[You]` Confirm the fasting call: code deleted (not archived, per §1), logged
-      fast history left untouched in user state. Say the word and V2-1 S1 starts.
+## OWNER OVERRIDE — fasting is retained (2026-07-03)
+
+PRODUCT_V2.md §1 lists the fasting subsystem as the headline *deletion* (~3,150 lines).
+**The owner has overruled that one line of the doc:** fasting stays. The directive is
+**"minimal feel but still powerful"** — keep the calculation/insight/streak engine
+(it's genuinely good), but subject its *presentation* to the same V2 laws as
+everything else: one calm surface, no sprawl, premium not busy. So fasting is not an
+exception to V2 — it gets the V2 treatment (redesign-to-minimal) instead of the
+delete. Everything else in PRODUCT_V2.md stands. A pointer note is added to
+PRODUCT_V2.md §1 so no future session re-reads "kill fasting" as live.
+
+## Phase V2-0 — Guardrails before the knife  ·  (half a session) ✅
+- [x] `[CC]` Tag the pre-V2 tree (`pre-v2` → `15152ff`) so any cut is one revert away.
+- [x] `[CC]` Change manifest: grep-mapped fasting (keep/trim), the 24 analytics leaves,
+      19 tiles, settings → `docs/v2/change-manifest.md` so slices can't miss a dangling
+      import.
 
 ## Phase V2-1 — Subtract (Month 1)  ·  branch: this one
 
-### S1 — Remove the fasting subsystem (~3,150 JS lines + ~90 CSS blocks)
-- [ ] `[CC]` Delete `js/fasting.js`, `js/fasting/` (5 files), `js/home/fasting-card.js`,
-      `js/analytics/views/view-fasting.js`, `js/analytics/charts/fasting-charts.js`,
-      the R16 fasting sub-router in app.js, settings rows, so-what line, timers,
-      notification hooks. CSS sweep in `css/styles.css` (83 refs) + `css/analytics.css`.
-- [ ] `[CC]` Recompute **Lifestyle pillar = steps only** (E3 made it steps+fasting) —
-      renormalize, update pillar tests, add a no-fasting guard test.
-- [ ] `[CC]` Router: `case 'fasting'` → redirect to hub. State fields (`fastingHistory`
-      etc.) documented as abandoned in `js/types.d.ts`, never stripped.
+### S1 — Redesign fasting: minimal feel, powerful engine (KEEP, don't delete)
+Goal: fasting stops being "a whole second app" (its own 25-leaf-style sprawl) and
+becomes **one focused, premium surface** — while the engine underneath stays intact.
+- [ ] `[CC]` **Keep the engine:** `js/fasting/fasting-calcs.js`,
+      `fasting-insights.js`, `fasting-achievements.js`, `fasting-actions.js`. This is
+      the "still powerful" half — fasting-stage math, streaks, insights all survive.
+- [ ] `[CC]` **Trim the surface** to minimal: collapse the fasting analytics view +
+      charts (`view-fasting.js` 836 lines, `fasting-charts.js` 357) to one calm screen
+      with the hero fast state + at most one supporting insight/chart, matching the
+      gauge-card visual language (§8). Prune `fasting-education.js` (505 lines) to the
+      essential in-context copy, not a wall.
+- [ ] `[CC]` **Home presence stays quiet:** `js/home/fasting-card.js` shows a compact
+      card *only while a fast is active or scheduled* (a live timer is worth the hero
+      moment); otherwise fasting lives one tap away, not on the reduced Home.
+- [ ] `[CC]` **Lifestyle pillar unchanged** — stays steps + fasting (E3). Fasting
+      remains a real signal into the Hybrid Score; that's what "powerful" buys us.
+- [ ] `[You]` Judge the redesigned fasting surface on the phone — is it minimal *and*
+      still feels capable? Your call on where the line sits.
 
-### S2 — Analytics: 23 leaves → 5 screens
-Target mapping (each fact in exactly one place, per §4):
+### S2 — Analytics: 24 leaves → 5 screens + fasting
+Target mapping (each fact in exactly one place, per §4). Fasting is retained as its
+own focused surface (owner override) — the other 23 leaves collapse to 5:
 | New screen | Absorbs (current router cases) |
 |---|---|
 | **Score** | hybrid-score, projections |
@@ -58,12 +77,13 @@ Target mapping (each fact in exactly one place, per §4):
 | **Running** | running, avg-pace, vdot, run-crossref |
 | **Recovery & Load** | recovery, recovery-score, training-status, load-focus, stress-balance |
 | **Review** | weekly-review, weekly-summary, monthly-report, progress, activity, streak, bodyweight, goal-progress |
+| **Fasting** *(kept)* | fasting — one minimal-but-powerful screen (see S1) |
 - [ ] `[CC]` One slice per new screen (5 commits): build the merged view from the
       existing view modules' best parts, then delete the absorbed views + hub entries
       + add router redirects. Bodyweight/goal-progress → Review is a judgment call
       (V2 doc is silent) — flag at review if it reads wrong.
 - [ ] `[CC]` Delete orphaned chart/calc code only after all 5 land (calcs feed the
-      Score engine — most survive; views die, math lives).
+      Score engine — most survive; views die, math lives). Fasting calcs are kept.
 
 ### S3 — Tiles: 19 defs + customiser → 4 fixed
 - [ ] `[CC]` Keep exactly: **Readiness · Weekly Volume · Top Lifts (strength #) ·
@@ -94,8 +114,9 @@ Target mapping (each fact in exactly one place, per §4):
       is the honest home. Flag at review.) 8 pillars stay as "under the hood"
       expansion. Tests: dial values are pure functions of pillar contributions.
 
-**Phase V2-1 done when:** fasting gone, 5 analytics screens, 4 fixed tiles, one-hero
-Home, ~10 settings, 3 dials — and the §10 scorecard's first three rows hit target.
+**Phase V2-1 done when:** fasting redesigned to one minimal-but-powerful surface,
+5 analytics screens (+ fasting), 4 fixed tiles, one-hero Home, ~10 settings, 3 dials
+— and the §10 scorecard's first three rows hit target.
 
 ## Phase V2-2 — Make the number tellable (Month 1–2)
 - [ ] `[CC]` Rebuild the Score card: huge number + level + delta/momentum + 3 dials +
@@ -140,7 +161,14 @@ Home, ~10 settings, 3 dials — and the §10 scorecard's first three rows hit ta
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **Owner override: fasting is KEPT, not killed.** PRODUCT_V2.md §1's
+  headline deletion is overruled — fasting stays as "minimal feel but still powerful":
+  engine (calcs/insights/achievements/streaks) intact, presentation trimmed to one
+  calm premium surface under the V2 laws. S1 rewritten from "delete the subsystem" to
+  "redesign to minimal"; Lifestyle pillar stays steps+fasting (no recompute); fasting
+  retained as its own focused analytics surface (IA is 5 collapsed screens + fasting);
+  V2-0 fasting-confirm gate removed. Pointer note added to PRODUCT_V2.md §1.
 - 2026-07-03 · Execution tracker created from PRODUCT_V2.md after codebase survey
   (fasting = 3,153 JS lines / 8 files; 23 router leaves; 19 tile defs; 49 settings
-  rows). Sequencing decided: V2-1 before beta screenshots/testers. · Next: `[You]`
-  confirm the fasting call (V2-0), then `[CC]` starts V2-0 manifest + V2-1 S1.
+  rows). Sequencing decided: V2-1 before beta screenshots/testers. · Next: `[CC]`
+  V2-0 guardrails (pre-v2 tag + change manifest), then V2-1 S1 fasting redesign.
