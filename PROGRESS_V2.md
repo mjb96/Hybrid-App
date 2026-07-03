@@ -48,24 +48,36 @@ PRODUCT_V2.md §1 so no future session re-reads "kill fasting" as live.
 
 ## Phase V2-1 — Subtract (Month 1)  ·  branch: this one
 
-### S1 — Redesign fasting: minimal feel, powerful engine (KEEP, don't delete)
-Goal: fasting stops being "a whole second app" (its own 25-leaf-style sprawl) and
-becomes **one focused, premium surface** — while the engine underneath stays intact.
-- [ ] `[CC]` **Keep the engine:** `js/fasting/fasting-calcs.js`,
-      `fasting-insights.js`, `fasting-achievements.js`, `fasting-actions.js`. This is
-      the "still powerful" half — fasting-stage math, streaks, insights all survive.
-- [ ] `[CC]` **Trim the surface** to minimal: collapse the fasting analytics view +
-      charts (`view-fasting.js` 836 lines, `fasting-charts.js` 357) to one calm screen
-      with the hero fast state + at most one supporting insight/chart, matching the
-      gauge-card visual language (§8). Prune `fasting-education.js` (505 lines) to the
-      essential in-context copy, not a wall.
-- [ ] `[CC]` **Home presence stays quiet:** `js/home/fasting-card.js` shows a compact
-      card *only while a fast is active or scheduled* (a live timer is worth the hero
-      moment); otherwise fasting lives one tap away, not on the reduced Home.
-- [ ] `[CC]` **Lifestyle pillar unchanged** — stays steps + fasting (E3). Fasting
-      remains a real signal into the Hybrid Score; that's what "powerful" buys us.
-- [ ] `[You]` Judge the redesigned fasting surface on the phone — is it minimal *and*
-      still feels capable? Your call on where the line sits.
+### S1 — Zero-style fasting: signature ring + protocols, powered by the existing engine
+**Design decided with owner (2026-07-03):** a Zero-level fasting feature, minimalist
+because the app is workout-focused. The engine already matches/beats Zero's paid tier
+(6 metabolic zones, streaks, fasting score, HRV/sleep/recovery/bodyweight
+correlations) — the gap is a **signature ring** and **named protocols**. Owner picks:
+*"Ring + a Stats tab"* (hero ring primary, richer analytics one tap deeper) and
+*"Add extended fasts"* (named presets incl. 24/36/48h with a caution note).
+
+Build order (each a tested commit):
+- [ ] **S1a — Protocols (data layer, pure):** `FASTING_PROTOCOLS` in `js/fasting.js` —
+      14:10, 16:8, 18:6, 20:4, OMAD (23:1) + extended 24h/36h/48h (`caution:true`) +
+      Custom. Helpers `protocolById`, `protocolForGoalHours`. Additive: `goal` stays
+      the numeric hours (back-compat with app.js/actions/calcs); `FAST_GOAL_OPTIONS`
+      kept until S1b swaps the UI. New `tests/fasting_protocols.test.js`.
+- [ ] **S1b — Signature ring hero:** `fastingRingSVG` modelled on the Hybrid Score
+      `gaugeSVG` (`js/brain/hybrid-score/ui.js`) — elapsed time centre, current stage
+      named, arc fills toward goal, "next stage in …". Replaces the linear progress
+      bar in `fasting-card.js`. Protocol chips replace the raw-hours `<select>`;
+      extended picks show the caution note. Rendered + verified in Chromium.
+- [ ] **S1c — Ring primary + Stats tab:** split `view-fasting.js` (836) into a lean
+      primary (ring recap + streak/week/longest + ONE fasting×recovery line from the
+      correlation engine) and a **Stats** sub-screen holding the richer analytics
+      (trends, correlations, calendar). Trim the generic chart stack; prune
+      `fasting-education.js` (505) to essential in-context copy; retire the
+      achievements wall (keep engine, drop the dedicated surface). Route redirects.
+- [ ] **S1d — Quiet home + stage nudges:** fasting shows on Home only while active/
+      scheduled; stage-entry + goal-reached notifications via the native NotifyBridge.
+- [ ] **Lifestyle pillar unchanged** — stays steps + fasting (E3); fasting stays a
+      live Hybrid Score signal. No recompute.
+- [ ] `[You]` Judge the ring + Stats split on the phone — minimal *and* still capable?
 
 ### S2 — Analytics: 24 leaves → 5 screens + fasting
 Target mapping (each fact in exactly one place, per §4). Fasting is retained as its
