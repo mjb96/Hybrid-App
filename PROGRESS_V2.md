@@ -140,9 +140,16 @@ Hero = **real headline number + spark** (owner-chosen 2026-07-03), not an invent
       progress, streak, goal-progress, activity kept as their own leaves for now — they
       carry distinct content not in the weekly story; fold into Review Stats in a
       follow-up rather than regress them.)*
-- [ ] `[CC]` Follow-up: remove dead hub entries + orphaned view/chart code (the absorbed
-      leaves' view files + dead `#analytics-*` sections), and fold bodyweight/progress/
-      streak/goal-progress into Review Stats. Calcs feed the Score engine — most survive.
+- [x] `[CC]` **Cleanup:** Insights hub rewritten to the clean IA — 6 primary (Hybrid
+      Score · Strength · Running · Recovery & Load · Review · Fasting) + a "More" group
+      (Body Weight · Projections). The 11 absorbed leaves dropped from the hub (reachable
+      via each screen's Stats tab); unused analytics.js imports stripped; unknown/absorbed
+      contexts fall back to the hub. Nothing stranded (the 4 tiles' navigation resolves
+      through the router redirects). typecheck / smoke green.
+- [ ] `[CC]` Remaining follow-up (low priority): delete the orphaned view files
+      (view-training-status / load-focus / run-crossref / vdot / avg-pace / stress-balance
+      / weekly-summary) + their dead `#analytics-*` sections, and fold progress / streak /
+      goal-progress into Review Stats (their router cases still exist but are hub-unlinked).
 
 **Score screen** already carries the pattern from V2-2 (number + 3 dials + coaching
 sentence; 8 pillars under the hood). So all five screens now read as one system.
