@@ -1272,29 +1272,6 @@ html[data-theme="light"] .hub-link__icon {
 }
 
 /* ==========================================
-   "SO WHAT?" BANNER (R8) — one prescriptive line per analytics leaf
-   ========================================== */
-.so-what {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 11px 14px; border-radius: 13px; margin-bottom: 14px;
-  background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.28);
-}
-.so-what__k {
-  flex: 0 0 auto; font-size: 0.6rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-blue, #3b82f6);
-}
-.so-what__t {
-  flex: 1 1 0%; min-width: 0; font-size: 0.78rem; font-weight: 600;
-  line-height: 1.4; color: var(--text-primary, #e2e8f0);
-}
-.so-what--positive { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.30); }
-.so-what--positive .so-what__k { color: var(--color-green, #10b981); }
-.so-what--caution  { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.32); }
-.so-what--caution  .so-what__k { color: var(--color-amber, #f59e0b); }
-.so-what--warning  { background: rgba(239,68,68,0.10);  border-color: rgba(239,68,68,0.32); }
-.so-what--warning  .so-what__k { color: var(--color-red, #ef4444); }
-
-/* ==========================================
    PROJECTIONS (R12)
    ========================================== */
 .proj-races { display: flex; flex-direction: column; gap: 2px; }

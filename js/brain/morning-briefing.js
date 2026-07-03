@@ -16,6 +16,9 @@
 // through the Hybrid Score daily recorder.
 // =============================================================================
 import { WEEK_PHASE_NAMES } from '../constants.js';
+import { projectionLine } from './hybrid-score/project.js';
+import { streakRiskLine } from './streak.js';
+import { coachMemory } from './coach-memory.js';
 
 const DAY_NAMES = Object.freeze({
   mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
@@ -83,9 +86,9 @@ function missionFor(model, session, firstSession = false) {
 
 // Main export — compose the whole briefing from already-computed inputs.
 // `model` is the shared dashboard model; `score` is computeHybridScore output.
-/** @param {{state?:any, model?:any, score?:any, program?:any, selectedDay?:string, now?:Date, firstSession?:boolean}} [opts] */
+/** @param {{state?:any, model?:any, score?:any, projection?:any, program?:any, selectedDay?:string, now?:Date, firstSession?:boolean}} [opts] */
 export function buildMorningBriefing(opts = {}) {
-  const { state, model, score, program, selectedDay, now = new Date(), firstSession = false } = opts;
+  const { state, model, score, projection, program, selectedDay, now = new Date(), firstSession = false } = opts;
   const rec = model?.rec || {};
   const wk = String(state?.currentWeek || '1');
   const phase = WEEK_PHASE_NAMES[wk] || '';
@@ -107,11 +110,27 @@ export function buildMorningBriefing(opts = {}) {
     ? `Readiness ${model.ready.score} — ${model.ready.status}`
     : null;
 
+  // V2-3 the morning hook — a forward-looking upside ("train and it rises to X")
+  // simulated through the real engine, and a streak-at-stake line (loss aversion)
+  // when a meaningful streak is unprotected today. Both are omitted honestly when
+  // there's no gain to promise / no streak at risk, so callers fall back cleanly.
+  const forward = (projection && projection.canProject && projection.gain >= 1)
+    ? { line: projectionLine(projection), from: projection.current.score,
+        to: projection.projected.score, gain: projection.gain }
+    : null;
+  const streakRisk = streakRiskLine(state, model, now.toISOString().slice(0, 10));
+  // V2-4 — the coach remembers: one true line drawn from the athlete's own
+  // score/streak history (or null when nothing stands out).
+  const memory = coachMemory(state, score?.score ?? null);
+
   return {
     greeting: greetingFor(now, firstName(state)),
     context: [dayName, `Week ${wk}`, phase].filter(Boolean).join(' · '),
     scoreLine: scoreLineFor(score),
     readinessLine,
+    forward,
+    streakRisk,
+    memory,
     session,
     mission: missionFor(model, session, firstSession),
     coach: {
@@ -123,12 +142,18 @@ export function buildMorningBriefing(opts = {}) {
   };
 }
 
-// Notification-ready plain text (morning push, R3). One compact paragraph.
+// Notification-ready plain text (morning push, V2-3). One compact, decisive,
+// forward-looking paragraph: lead with the upside of training today (falling
+// back to the plain score line when there's no gain to promise), then the
+// session, the mission, and — if a streak is on the line — the loss-aversion nudge.
 export function briefingToText(b) {
-  const parts = [`${b.greeting}.`, `${b.scoreLine}.`];
+  const parts = [`${b.greeting}.`];
+  parts.push(b.forward ? b.forward.line : `${b.scoreLine}.`);
   if (!b.session.isRest) {
     parts.push(`Today: ${b.session.title || b.session.label}.`);
   }
   parts.push(`Mission: ${b.mission.text}.`);
+  if (b.memory) parts.push(b.memory);
+  if (b.streakRisk?.text) parts.push(b.streakRisk.text);
   return parts.join(' ');
 }

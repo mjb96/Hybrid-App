@@ -74,67 +74,70 @@ function classifySession(blueprint) {
   return { label, hasRun, hasGym };
 }
 
-// Build advice text based on ACWR, TSB, session type, and RPE trend.
+// Build advice text from load, freshness, session type and RPE trend. V2-4: the
+// coach speaks CONSEQUENCES, never mechanisms — no "ACWR 1.52", no "TSB +7". The
+// athlete hears what to do and why it matters, not the model's internals (those
+// still live one tap deeper in the Recovery/Load Stats views).
 function buildAdvice(acwr, tsb, session) {
   const { hasRun, hasGym } = session;
 
   if (acwr >= 1.5) {
     if (hasRun && hasGym) {
-      return `ACWR is ${acwr.toFixed(2)} — load is very high. Cut gym volume by 20% and cap the run at easy Zone 2 effort today, or take a full rest day if fatigue is significant.`;
+      return `Your training load is spiking and fatigue is outrunning recovery. Cut gym volume by 20% and keep the run easy Zone 2 today — or take a full rest day if you're feeling beaten up.`;
     }
     if (hasRun) {
-      return `ACWR is ${acwr.toFixed(2)} — load is very high. Replace today's run with a short walk or light mobility work to protect recovery.`;
+      return `Your load is spiking faster than you're recovering. Swap today's run for a short walk or light mobility to let the fatigue drain.`;
     }
     if (hasGym) {
-      return `ACWR is ${acwr.toFixed(2)} — load is very high. Reduce working sets by one per exercise and avoid training to failure today.`;
+      return `Your load is spiking faster than you're recovering. Drop a working set on each lift and stay well clear of failure today.`;
     }
-    return `Load is very high. This rest day is well timed — prioritise sleep, protein intake, and stress management.`;
+    return `Fatigue is running high. This rest day is well timed — prioritise sleep, protein, and keeping stress down.`;
   }
 
   if (acwr >= 1.3) {
     if (hasRun && hasGym) {
-      return `ACWR is ${acwr.toFixed(2)} — building well but watch fatigue. Complete the gym session as planned and keep the run aerobic (Zone 2 effort only).`;
+      return `You're building hard and fatigue is climbing — a productive edge, but an edge. Do the gym work as planned and keep the run aerobic, Zone 2 only.`;
     }
     if (hasRun) {
-      return `ACWR is ${acwr.toFixed(2)}. Complete today's run but target the easier end of your prescribed pace range and avoid surging.`;
+      return `You're building hard and the fatigue is starting to show. Run today, but hold the easier end of your pace range and don't surge.`;
     }
     if (hasGym) {
-      return `ACWR is ${acwr.toFixed(2)}. Stick to planned volume — avoid adding sets, increasing load, or extending the session today.`;
+      return `You're building hard and fatigue is climbing. Hit the planned volume exactly — no extra sets, no load bumps, no extending the session.`;
     }
-    return `Load is elevated. Use this rest day well — sleep, hydrate, and limit non-training stressors.`;
+    return `Fatigue is elevated. Use this rest day well — sleep, hydrate, and keep other stressors light.`;
   }
 
   if (acwr >= 0.8) {
     if (tsb > 5) {
       if (hasRun && hasGym) {
-        return `Training load is optimal and you're carrying freshness (TSB +${Math.round(tsb)}). Today is a good day to push intensity on both the gym session and the run.`;
+        return `You're fresh and your load is right where it should be — a green light. Good day to push the intensity on both the lifts and the run.`;
       }
       if (hasRun) {
-        return `Load balance is optimal and your body is fresh. Good conditions to target the upper end of your pace range — or test a time trial effort.`;
+        return `You're fresh and well-balanced. Ideal conditions to reach for the top of your pace range — or test a time-trial effort.`;
       }
       if (hasGym) {
-        return `Load balance is optimal and you're fresh. Today is a good day to aim for small PRs or add an extra back-off set.`;
+        return `You're fresh and well-balanced. Good day to chase a small PR or add a back-off set.`;
       }
-      return `Recovery is on track and you're carrying freshness. Enjoy the rest day — you'll come back stronger tomorrow.`;
+      return `You're recovered and carrying freshness. Enjoy the rest day — you'll come back stronger tomorrow.`;
     }
     if (hasRun && hasGym) {
-      return `Training load is in the productive zone. Complete today's hybrid session as programmed — no changes needed.`;
+      return `Your load is in the productive zone. Run the hybrid session exactly as programmed — nothing to change today.`;
     }
     if (hasRun) {
-      return `Load is in the productive zone. Stick to your prescribed pace and effort today.`;
+      return `Your load is in the productive zone. Hold your prescribed pace and effort today.`;
     }
     if (hasGym) {
-      return `Load is in the productive zone. Follow the program today — no adjustments needed.`;
+      return `Your load is in the productive zone. Follow the program today — no adjustments needed.`;
     }
-    return `Training load is well balanced. This rest day is well placed in your training cycle.`;
+    return `Your training is well balanced. This rest day is well placed in the cycle.`;
   }
 
   if (acwr >= 0.5) {
-    return `Training volume is on the lighter side. If you're feeling good, consider adding a working set or slightly extending today's session to build momentum.`;
+    return `Your training has been on the lighter side lately. If you feel good, add a working set or stretch today's session a little to build momentum back up.`;
   }
 
-  // Very low ACWR (detraining range)
-  return `Recent training load has dropped. Make sure to complete today's full session — consistency now will protect your fitness base.`;
+  // Detraining range — load has fallen off.
+  return `Your training load has dropped off and fitness is starting to slip. Get today's full session in — consistency now protects the base you've built.`;
 }
 
 // Main export — call once per home render.

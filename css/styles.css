@@ -3902,6 +3902,10 @@ html[data-theme="light"] .home-week-progress__track { background: rgba(0,0,0,0.1
   border-color: rgba(99,102,241,0.5) !important;
   background: rgba(99,102,241,0.10) !important;
 }
+/* V2-2 — provisional Score reveal: let the Home hero card render at full width
+   inside the onboarding card, no extra chrome (it brings its own). */
+.ob-score-reveal { width: 100%; }
+.ob-score-reveal .hs-hero { cursor: default; }
 
 /* ==========================================================================
    LIGHT MODE OVERRIDES — Counters the dark upgrade block above

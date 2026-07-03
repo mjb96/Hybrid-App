@@ -33,6 +33,26 @@ export function briefingCardHTML(b) {
          <span class="mbrief__session-v">Rest day${b.readinessLine ? ` · ${esc(b.readinessLine)}` : ''}</span>
        </div>`;
 
+  // V2-3 — forward-looking hook: the upside of training today, simulated through
+  // the real engine. The gauge just above already shows today's number, so the
+  // card carries only the climb.
+  const forwardRow = b.forward
+    ? `<div class="mbrief__forward">
+         <span class="mbrief__forward-icon">↑</span>
+         <span class="mbrief__forward-text">Train today and your score climbs to <b>${esc(b.forward.to)}</b></span>
+       </div>`
+    : '';
+
+  // V2-4 — the coach's memory: a true callback to the athlete's own history.
+  const memoryRow = b.memory
+    ? `<div class="mbrief__memory"><span class="mbrief__memory-icon">🧠</span><span class="mbrief__memory-text">${esc(b.memory)}</span></div>`
+    : '';
+
+  // Streak-at-stake (loss aversion) — only when a real streak is unprotected.
+  const streakRow = b.streakRisk?.text
+    ? `<div class="mbrief__streak mbrief__streak--${esc(b.streakRisk.tone || 'caution')}">${esc(b.streakRisk.text)}</div>`
+    : '';
+
   const coachRow = b.coach.headline
     ? `<div class="mbrief__coach" style="--mb-sev:${sev}">
          <span class="mbrief__coach-dot"></span>
@@ -61,7 +81,10 @@ export function briefingCardHTML(b) {
       <span class="mbrief__ctx">${esc(b.context)}</span>
     </div>
     ${sessionRow}
+    ${forwardRow}
     ${missionRow}
+    ${memoryRow}
+    ${streakRow}
     ${coachRow}
   </article>`;
 }

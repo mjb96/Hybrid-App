@@ -614,6 +614,13 @@ export async function pullEngineDataFromStorage() {
     settings: { ...baseDefaults.settings, ...(localData && localData.settings) },
   };
 
+  // Whether this device had a real saved Helyx blob when the app loaded. This is
+  // the honest "returning user" signal for onboarding: a brand-new install has
+  // none. It must be read here, before verifyWeekStorageSchema() seeds an empty
+  // week scaffold — otherwise every fresh user looks like they already have data
+  // and onboarding (and its provisional-Score reveal) never shows.
+  appState._hadStoredState = localData != null;
+
   const _sb2 = getSupabaseClient();
   if (_sb2) {
     try {

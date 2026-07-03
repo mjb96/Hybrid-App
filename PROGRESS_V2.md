@@ -212,46 +212,102 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
       `<details>` "Under the hood" expander, collapsed by default — power one tap
       deeper. Confidence meter + E7 attribution kept. 3 UI tests; rendered + verified in
       Chromium (matches the wireframe). ✅
-- [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
-      (Provisional = low-confidence composite from self-reported level/frequency/
-      recovery; confidence meter already communicates the uncertainty honestly.)
+- [x] `[CC]` **Onboarding: "3 questions → provisional Score" — instant wow.** Three
+      self-reports (experience level + weekly frequency + how-recovered) feed a pure
+      `provisionalScore()` (`js/onboarding/provisional-score.js`) that infers only the
+      pillars those answers can honestly speak to (momentum/body stay null) and renders
+      through the SAME card layer as Home (`heroHTML` + `computeDials`), confidence pinned
+      low (22%). New reveal step is the onboarding finale ("Enter Helyx"). Also fixed a
+      latent bug that made onboarding never show at all: boot seeds an empty week scaffold
+      before `shouldShowOnboarding`, so a weeks-key check flagged every fresh install as
+      "existing" — now gated on a real `_hadStoredState` load flag. 10 tests; full flow
+      driven + screenshotted in Chromium (fresh user → onboarding → reveal → Home). ✅
 
 ## Phase V2-3 — The morning hook (Month 2)
-- [ ] `[CC]` Forward-looking score: pure `projectScore(state, {completeToday |
-      skipUntil})` — simulate today's planned session through the existing pillars;
-      render "rises to ~85 if you train" on the card + in the morning push.
-- [ ] `[CC]` Morning push rewrite: decisive, forward-looking, one sentence
-      (`composeMorningReminder` exists; the voice changes, not the plumbing).
-- [ ] `[CC]` Streak-at-stake framing ("you'll lose your 12-day streak unless…") —
-      `js/brain/streak.js` freeze/repair already makes it fair.
+- [x] `[CC]` **Forward-looking score: pure `projectScore(model, state, days)`.**
+      `js/brain/hybrid-score/project.js` clones the model with today's planned session
+      marked done (adherence up + streak +1) and re-runs the REAL engine — so "rises to
+      85 if you train" is the actual score they'd see, and it honestly projects no gain
+      on a rest day / completed week. Surfaced on the Home briefing card (↑ climbs to X)
+      and in the push. 5 tests.
+- [x] `[CC]` **Morning push rewrite: decisive, forward-looking, one sentence.**
+      `briefingToText` now leads with the upside of training today (falls back to the
+      plain score line when there's no gain), plumbing unchanged. Verified: real output
+      "…70 today — train and it rises to 81. Today: … Mission: …".
+- [x] `[CC]` **Streak-at-stake framing.** `streakRiskLine` (freeze-aware, already fair)
+      wired into both the card (amber/red row) and the push tail when a real streak is
+      unprotected today. Rendered + verified in Chromium.
 - [ ] `[You]` Device-test the push loop for a week. Retention is felt, not unit-tested.
 
 ## Phase V2-4 — One coach with memory (Month 2–3)
-- [ ] `[CC]` Voice rewrite in `recommendations.js`/briefing: never quote mechanisms
-      (no "ACWR 1.52"), speak consequences. Memory lines from daily history ("third
-      strong week", "last time a deload broke this wall").
-- [ ] `[CC]` **Retire the R8 so-what banners** — §7 says one voice in one place
-      (Score card + push). R8 was right for V1's 23 leaves; the 5 V2 screens keep at
-      most their own single headline. (Explicitly noted: this undoes recent work — the
-      doctrine changed, the code follows.)
+- [x] `[CC]` **Voice rewrite — consequences, not mechanisms.** `buildAdvice`
+      (recommendations.js) no longer quotes "ACWR 1.52 / TSB +7"; it leads with what's
+      happening to the athlete ("Your load is spiking faster than you're recovering —
+      drop a working set…"). The raw numbers still live one tap deeper in the Stats
+      views. Verified: high-load athlete advice contains no mechanism numbers.
+- [x] `[CC]` **Memory lines from history.** `js/brain/coach-memory.js` (pure, 5 tests)
+      turns the athlete's own score/streak history into one true callback — all-time PB,
+      highest-in-a-month, Nth strong week in a row, longest streak yet — surfaced on the
+      briefing card (🧠 row) + push, silent when nothing stands out.
+- [x] `[CC]` **Retired the R8 so-what banners.** Deleted `analytics/so-what.js` + its
+      injection/CSS/test/precache; the 5 V2 screens now carry only their own single
+      headline (one voice: Score card + push). Analytics leaves render clean, zero
+      banners, no errors (verified in Chromium).
 
 ## Phase V2-5 — The shareable card (Month 3)
-- [ ] `[CC]` Canvas/SVG export of the Score card: number, level, 3 dials, identity
-      line, streak — the gauge card's visual language at share size. `navigator.share`
-      + clipboard fallback (pattern exists in weekly-review).
-- [ ] `[CC]` Weekly variant riding on `weekly-review.js`.
+- [x] `[CC]` **Canvas export of the Score card.** `js/brain/hybrid-score/share-card.js`
+      renders the gauge + number + level + the 3 dials + streak to a 1080×1350 PNG in the
+      card's own visual language, shared via `navigator.share` (files) with a PNG-download
+      fallback. Number comes from the real result the caller holds, so the card can never
+      disagree with the app. "Share your Score" button on the Score detail. 4 tests +
+      canvas-render verified in Chromium.
+- [x] `[CC]` **Weekly variant riding on `weekly-review.js`.** Same builder with a "WEEK N"
+      banner + weekly caption; "Share your Score card" button on the Weekly Review screen
+      (text share kept as a secondary option). Rendered + verified.
 
 ---
 
 ## Scorecard (from PRODUCT_V2 §10 — tick when true)
-- [ ] Home: 1 hero + ≤3 quiet surfaces (today ~13)
-- [ ] Analytics screens: 5 (today 23)
-- [ ] Pillars shown by default: 3 (today 8)
-- [ ] One-sentence explainability · one shareable thing · a reason to open before logging
+- [x] Home: 1 hero + ≤3 quiet surfaces (Score hero + briefing + 4 tiles)
+- [x] Analytics screens: 5 (Strength · Running · Recovery · Review · + Score/hub)
+- [x] Pillars shown by default: 3 (TRAIN / RECOVER / PROGRESS; 8 under the hood)
+- [x] One-sentence explainability · one shareable thing · a reason to open before logging
+      (morning hook: "train and it rises to X" + streak-at-stake + memory)
 
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-5 shareable card shipped — V2 phases complete.** `share-card.js`
+  renders the Score card (gauge · level · 3 dials · streak) to a 1080×1350 PNG via
+  navigator.share + download fallback; "Share your Score" on the Score detail and a
+  weekly "WEEK N" variant on the Weekly Review. Both rendered + verified in Chromium.
+  4 tests (383 total), typecheck + smoke green. With this, all five V2 phases (Subtract →
+  Score → morning hook → coach → share) are done; the §10 scorecard is fully ticked.
+  Remaining are `[You]` items only (device-testing the push loop). 
+- 2026-07-03 · **V2-4 one coach with memory shipped.** Rewrote the coaching voice to
+  speak consequences not mechanisms (no ACWR/TSB numbers on the card/push; they stay in
+  Stats). Added `coach-memory.js` (pure, 5 tests) — one true history callback (PB /
+  month-high / N strong weeks / longest streak) on the card + push. Retired the R8
+  so-what banners entirely (module + CSS + test + precache removed) so there's one coach
+  voice in one place. 379 tests, typecheck + smoke green; voice + analytics leaves
+  verified in Chromium. Next: V2-5 (shareable Score card — canvas/SVG export + weekly
+  variant) — the last V2 phase.
+- 2026-07-03 · **V2-3 morning hook shipped.** Pure `projectScore()` simulates completing
+  today's session through the real engine (adherence + streak) → "train and it rises to
+  X", surfaced on the briefing card + rewritten decisive/forward-looking push; streak-at-
+  stake (loss-aversion) line wired into both. 10 new tests (384 total), typecheck + smoke
+  green, card + Home render verified in Chromium. Next: V2-4 (coach voice — consequences
+  not mechanisms; memory lines from history; retire R8 banners).
+- 2026-07-03 · **V2-2 provisional-Score onboarding shipped + the "onboarding never
+  shows" bug fixed.** Added `provisionalScore()` (pure, low-confidence composite from
+  3 self-reports, momentum/body left null) rendered in the real Home card language as
+  the onboarding finale; wired frequency + recovery questions into the "About you" step.
+  Found & fixed a latent regression-magnet: the empty week scaffold seeded at boot made
+  every fresh install look "existing", so onboarding (and now the reveal) never ran —
+  gated on a new `_hadStoredState` load flag instead. 10 new tests (379 total), typecheck
+  + smoke green, whole flow driven in Chromium. Also earlier this session: fixed the dead
+  PWA (Jekyll was dropping `_screen-kit.js`; renamed + `.nojekyll`, deployed). Next: V2-3
+  (forward-looking `projectScore` + morning-hook push).
 - 2026-07-03 · **Fasting redesign S1a–c shipped + pattern generalised to the app.**
   S1a named protocols (Zero-style presets incl. extended 24/36/48h), S1b signature ring
   hero (gauge-card language, live ticker, protocol chips) — verified in Chromium, S1c

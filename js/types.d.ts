@@ -89,6 +89,7 @@ export interface AppState {
   overtrainingAck?: { sig: string; date: string } | null;
   _overtrainingPushedDate?: string | null;
   _justOnboarded?: boolean;
+  _hadStoredState?: boolean;
   streakFreezes?: { available: number; used: string[]; earnedTier: number };
   settings?: AppSettings;
 }

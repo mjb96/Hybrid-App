@@ -4,6 +4,7 @@
 import { WEEK_PHASE_NAMES } from './constants.js';
 import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
+import { projectScore } from './brain/hybrid-score/project.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
@@ -75,8 +76,9 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
   const el = document.getElementById('morningBriefing');
   if (!el) return;
   const firstSession = !!appState._justOnboarded;
+  const projection = projectScore(model, appState, _getDays());
   const briefing = buildMorningBriefing({
-    state: appState, model, score: scoreResult,
+    state: appState, model, score: scoreResult, projection,
     program: activeProgram, selectedDay, firstSession,
   });
   setHTML(el, briefingCardHTML(briefing));

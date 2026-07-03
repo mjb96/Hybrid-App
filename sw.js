@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v88';
+const CACHE_NAME = 'helyx-v92';
 
 const LOCAL_ASSETS = [
   './',
@@ -30,7 +30,6 @@ const LOCAL_ASSETS = [
   './js/analytics/insights/insight-engine.js',
   './js/analytics/logged-days.js',
   './js/analytics/scoring/readiness-scoring.js',
-  './js/analytics/so-what.js',
   './js/analytics/utils.js',
   './js/analytics/views/screen-kit.js',
   './js/analytics/views/view-bodyweight.js',
@@ -46,10 +45,13 @@ const LOCAL_ASSETS = [
   './js/app.js',
   './js/athlete-profile.js',
   './js/brain/briefing.js',
+  './js/brain/coach-memory.js',
   './js/brain/hybrid-score/config.js',
   './js/brain/hybrid-score/dials.js',
   './js/brain/hybrid-score/history.js',
   './js/brain/hybrid-score/hybrid-score.js',
+  './js/brain/hybrid-score/project.js',
+  './js/brain/hybrid-score/share-card.js',
   './js/brain/hybrid-score/levels.js',
   './js/brain/hybrid-score/pillars.js',
   './js/brain/hybrid-score/ui.js',
@@ -94,6 +96,7 @@ const LOCAL_ASSETS = [
   './js/monitoring/sentry.js',
   './js/notifications.js',
   './js/onboarding.js',
+  './js/onboarding/provisional-score.js',
   './js/profile-stats.js',
   './js/program_builder.js',
   './js/programs/catalog.js',
