@@ -19,7 +19,7 @@ import {
   rankInsights,
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
-import { screenTabBar, mountScreenTabs, spark } from './_screen-kit.js';
+import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 

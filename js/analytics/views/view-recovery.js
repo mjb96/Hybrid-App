@@ -26,7 +26,7 @@ import {
   rankInsights,
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
-import { screenTabBar, mountScreenTabs } from './_screen-kit.js';
+import { screenTabBar, mountScreenTabs } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 

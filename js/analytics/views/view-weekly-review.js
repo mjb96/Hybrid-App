@@ -13,7 +13,7 @@ import { sparkline } from '../../brain/hybrid-score/ui.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { renderMonthlyReport } from './view-monthly-report.js';
 import { renderProgressAnalytics, renderStreakDetail, renderGoalProgressDetail } from './view-progress.js';
-import { screenTabBar, mountScreenTabs, spark } from './_screen-kit.js';
+import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KM_TO_MI = 0.621371;

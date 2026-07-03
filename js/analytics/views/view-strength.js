@@ -21,7 +21,7 @@ import {
   renderInsightsHTML,
 } from '../insights/insight-engine.js';
 import { isCompletedSet } from '../../set-utils.js';
-import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './_screen-kit.js';
+import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }

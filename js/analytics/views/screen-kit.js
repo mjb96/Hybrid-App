@@ -1,6 +1,6 @@
 // @ts-check
 // =============================================================================
-// V2 ANALYTICS SCREEN KIT (analytics/views/_screen-kit.js)
+// V2 ANALYTICS SCREEN KIT (analytics/views/screen-kit.js)
 //
 // The shared pieces every rebuilt analytics screen (Strength / Running /
 // Recovery & Load / Review) uses, so the "simple front, powerful behind"
