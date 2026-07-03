@@ -43,6 +43,11 @@ export function briefingCardHTML(b) {
        </div>`
     : '';
 
+  // V2-4 — the coach's memory: a true callback to the athlete's own history.
+  const memoryRow = b.memory
+    ? `<div class="mbrief__memory"><span class="mbrief__memory-icon">🧠</span><span class="mbrief__memory-text">${esc(b.memory)}</span></div>`
+    : '';
+
   // Streak-at-stake (loss aversion) — only when a real streak is unprotected.
   const streakRow = b.streakRisk?.text
     ? `<div class="mbrief__streak mbrief__streak--${esc(b.streakRisk.tone || 'caution')}">${esc(b.streakRisk.text)}</div>`
@@ -78,6 +83,7 @@ export function briefingCardHTML(b) {
     ${sessionRow}
     ${forwardRow}
     ${missionRow}
+    ${memoryRow}
     ${streakRow}
     ${coachRow}
   </article>`;

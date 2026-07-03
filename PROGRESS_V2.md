@@ -240,13 +240,19 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 - [ ] `[You]` Device-test the push loop for a week. Retention is felt, not unit-tested.
 
 ## Phase V2-4 — One coach with memory (Month 2–3)
-- [ ] `[CC]` Voice rewrite in `recommendations.js`/briefing: never quote mechanisms
-      (no "ACWR 1.52"), speak consequences. Memory lines from daily history ("third
-      strong week", "last time a deload broke this wall").
-- [ ] `[CC]` **Retire the R8 so-what banners** — §7 says one voice in one place
-      (Score card + push). R8 was right for V1's 23 leaves; the 5 V2 screens keep at
-      most their own single headline. (Explicitly noted: this undoes recent work — the
-      doctrine changed, the code follows.)
+- [x] `[CC]` **Voice rewrite — consequences, not mechanisms.** `buildAdvice`
+      (recommendations.js) no longer quotes "ACWR 1.52 / TSB +7"; it leads with what's
+      happening to the athlete ("Your load is spiking faster than you're recovering —
+      drop a working set…"). The raw numbers still live one tap deeper in the Stats
+      views. Verified: high-load athlete advice contains no mechanism numbers.
+- [x] `[CC]` **Memory lines from history.** `js/brain/coach-memory.js` (pure, 5 tests)
+      turns the athlete's own score/streak history into one true callback — all-time PB,
+      highest-in-a-month, Nth strong week in a row, longest streak yet — surfaced on the
+      briefing card (🧠 row) + push, silent when nothing stands out.
+- [x] `[CC]` **Retired the R8 so-what banners.** Deleted `analytics/so-what.js` + its
+      injection/CSS/test/precache; the 5 V2 screens now carry only their own single
+      headline (one voice: Score card + push). Analytics leaves render clean, zero
+      banners, no errors (verified in Chromium).
 
 ## Phase V2-5 — The shareable card (Month 3)
 - [ ] `[CC]` Canvas/SVG export of the Score card: number, level, 3 dials, identity
@@ -265,6 +271,14 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-4 one coach with memory shipped.** Rewrote the coaching voice to
+  speak consequences not mechanisms (no ACWR/TSB numbers on the card/push; they stay in
+  Stats). Added `coach-memory.js` (pure, 5 tests) — one true history callback (PB /
+  month-high / N strong weeks / longest streak) on the card + push. Retired the R8
+  so-what banners entirely (module + CSS + test + precache removed) so there's one coach
+  voice in one place. 379 tests, typecheck + smoke green; voice + analytics leaves
+  verified in Chromium. Next: V2-5 (shareable Score card — canvas/SVG export + weekly
+  variant) — the last V2 phase.
 - 2026-07-03 · **V2-3 morning hook shipped.** Pure `projectScore()` simulates completing
   today's session through the real engine (adherence + streak) → "train and it rises to
   X", surfaced on the briefing card + rewritten decisive/forward-looking push; streak-at-

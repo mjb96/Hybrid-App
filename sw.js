@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v90';
+const CACHE_NAME = 'helyx-v91';
 
 const LOCAL_ASSETS = [
   './',
@@ -30,7 +30,6 @@ const LOCAL_ASSETS = [
   './js/analytics/insights/insight-engine.js',
   './js/analytics/logged-days.js',
   './js/analytics/scoring/readiness-scoring.js',
-  './js/analytics/so-what.js',
   './js/analytics/utils.js',
   './js/analytics/views/screen-kit.js',
   './js/analytics/views/view-bodyweight.js',
@@ -46,6 +45,7 @@ const LOCAL_ASSETS = [
   './js/app.js',
   './js/athlete-profile.js',
   './js/brain/briefing.js',
+  './js/brain/coach-memory.js',
   './js/brain/hybrid-score/config.js',
   './js/brain/hybrid-score/dials.js',
   './js/brain/hybrid-score/history.js',

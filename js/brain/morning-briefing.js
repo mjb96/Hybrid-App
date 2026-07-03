@@ -18,6 +18,7 @@
 import { WEEK_PHASE_NAMES } from '../constants.js';
 import { projectionLine } from './hybrid-score/project.js';
 import { streakRiskLine } from './streak.js';
+import { coachMemory } from './coach-memory.js';
 
 const DAY_NAMES = Object.freeze({
   mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
@@ -118,6 +119,9 @@ export function buildMorningBriefing(opts = {}) {
         to: projection.projected.score, gain: projection.gain }
     : null;
   const streakRisk = streakRiskLine(state, model, now.toISOString().slice(0, 10));
+  // V2-4 — the coach remembers: one true line drawn from the athlete's own
+  // score/streak history (or null when nothing stands out).
+  const memory = coachMemory(state, score?.score ?? null);
 
   return {
     greeting: greetingFor(now, firstName(state)),
@@ -126,6 +130,7 @@ export function buildMorningBriefing(opts = {}) {
     readinessLine,
     forward,
     streakRisk,
+    memory,
     session,
     mission: missionFor(model, session, firstSession),
     coach: {
@@ -148,6 +153,7 @@ export function briefingToText(b) {
     parts.push(`Today: ${b.session.title || b.session.label}.`);
   }
   parts.push(`Mission: ${b.mission.text}.`);
+  if (b.memory) parts.push(b.memory);
   if (b.streakRisk?.text) parts.push(b.streakRisk.text);
   return parts.join(' ');
 }
