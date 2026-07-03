@@ -1,7 +1,7 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
 // ==========================================
-const CACHE_NAME = 'helyx-v88';
+const CACHE_NAME = 'helyx-v89';
 
 const LOCAL_ASSETS = [
   './',
@@ -94,6 +94,7 @@ const LOCAL_ASSETS = [
   './js/monitoring/sentry.js',
   './js/notifications.js',
   './js/onboarding.js',
+  './js/onboarding/provisional-score.js',
   './js/profile-stats.js',
   './js/program_builder.js',
   './js/programs/catalog.js',

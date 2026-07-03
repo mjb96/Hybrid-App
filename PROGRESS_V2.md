@@ -212,9 +212,16 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
       `<details>` "Under the hood" expander, collapsed by default — power one tap
       deeper. Confidence meter + E7 attribution kept. 3 UI tests; rendered + verified in
       Chromium (matches the wireframe). ✅
-- [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
-      (Provisional = low-confidence composite from self-reported level/frequency/
-      recovery; confidence meter already communicates the uncertainty honestly.)
+- [x] `[CC]` **Onboarding: "3 questions → provisional Score" — instant wow.** Three
+      self-reports (experience level + weekly frequency + how-recovered) feed a pure
+      `provisionalScore()` (`js/onboarding/provisional-score.js`) that infers only the
+      pillars those answers can honestly speak to (momentum/body stay null) and renders
+      through the SAME card layer as Home (`heroHTML` + `computeDials`), confidence pinned
+      low (22%). New reveal step is the onboarding finale ("Enter Helyx"). Also fixed a
+      latent bug that made onboarding never show at all: boot seeds an empty week scaffold
+      before `shouldShowOnboarding`, so a weeks-key check flagged every fresh install as
+      "existing" — now gated on a real `_hadStoredState` load flag. 10 tests; full flow
+      driven + screenshotted in Chromium (fresh user → onboarding → reveal → Home). ✅
 
 ## Phase V2-3 — The morning hook (Month 2)
 - [ ] `[CC]` Forward-looking score: pure `projectScore(state, {completeToday |
@@ -252,6 +259,16 @@ sentence; 8 pillars under the hood). So all five screens now read as one system.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **V2-2 provisional-Score onboarding shipped + the "onboarding never
+  shows" bug fixed.** Added `provisionalScore()` (pure, low-confidence composite from
+  3 self-reports, momentum/body left null) rendered in the real Home card language as
+  the onboarding finale; wired frequency + recovery questions into the "About you" step.
+  Found & fixed a latent regression-magnet: the empty week scaffold seeded at boot made
+  every fresh install look "existing", so onboarding (and now the reveal) never ran —
+  gated on a new `_hadStoredState` load flag instead. 10 new tests (379 total), typecheck
+  + smoke green, whole flow driven in Chromium. Also earlier this session: fixed the dead
+  PWA (Jekyll was dropping `_screen-kit.js`; renamed + `.nojekyll`, deployed). Next: V2-3
+  (forward-looking `projectScore` + morning-hook push).
 - 2026-07-03 · **Fasting redesign S1a–c shipped + pattern generalised to the app.**
   S1a named protocols (Zero-style presets incl. extended 24/36/48h), S1b signature ring
   hero (gauge-card language, live ticker, protocol chips) — verified in Chromium, S1c

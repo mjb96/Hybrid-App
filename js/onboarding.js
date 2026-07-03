@@ -3,6 +3,8 @@
 // ==========================================
 import { saveStateToLocalStorage } from './state.js';
 import { requestNotificationPermission } from './notifications.js';
+import { provisionalScore } from './onboarding/provisional-score.js';
+import { heroHTML } from './brain/hybrid-score/ui.js';
 
 let _getState;
 
@@ -14,9 +16,12 @@ export function shouldShowOnboarding() {
   const s = _getState();
   if (s.settings?.onboardingComplete) return false;
 
-  // Existing user: has logged data or a saved name — skip onboarding and mark done
-  const hasData = s.settings?.name
-    || Object.keys(s.weeks || {}).length > 0
+  // Existing user: had a saved state blob on load (or real logged data) — skip
+  // onboarding and mark done. We deliberately DON'T test `weeks` here: boot seeds
+  // an empty week scaffold before this runs, so a weeks-key check would flag every
+  // brand-new install as "existing" and suppress onboarding entirely.
+  const hasData = s._hadStoredState
+    || s.settings?.name
     || (s.bodyWeightLog || []).length > 0
     || (s.customExercises || []).length > 0;
 
@@ -59,6 +64,10 @@ let _weightUnit      = 'kg';
 let _distUnit        = 'km';
 let _fitnessLevel    = 'intermediate';
 let _equipmentTier   = 'gym';
+// V2-2 — the two self-reports (alongside experience level) that seed the
+// provisional Hybrid Score reveal at the end of onboarding.
+let _weeklyFrequency = 'some';   // low | some | high | daily
+let _recoveryFeel    = 'ok';     // low | ok | fresh
 
 function _showStep(n) {
   document.querySelectorAll('.ob-step').forEach((el, i) => {
@@ -100,6 +109,14 @@ export function handleOnboardingAction(action, target) {
     _fitnessLevel = target.dataset.level;
     document.querySelectorAll('[data-action="ob-level"]').forEach(b => b.classList.remove('active'));
     target.classList.add('active');
+  } else if (action === 'ob-frequency') {
+    _weeklyFrequency = target.dataset.freq;
+    document.querySelectorAll('[data-action="ob-frequency"]').forEach(b => b.classList.remove('active'));
+    target.classList.add('active');
+  } else if (action === 'ob-recovery') {
+    _recoveryFeel = target.dataset.recovery;
+    document.querySelectorAll('[data-action="ob-recovery"]').forEach(b => b.classList.remove('active'));
+    target.classList.add('active');
   } else if (action === 'ob-equipment') {
     _equipmentTier = target.dataset.tier;
     document.querySelectorAll('[data-action="ob-equipment"]').forEach(b => b.classList.remove('active'));
@@ -118,18 +135,33 @@ export function handleOnboardingAction(action, target) {
     document.querySelectorAll('[data-action="ob-dist-unit"]').forEach(b => b.classList.remove('active'));
     target.classList.add('active');
   } else if (action === 'ob-notif-enable') {
-    // Daily-coach step: ask for the OS permission, then finish either way —
-    // a denial must never trap the user in onboarding. Granting arms the
-    // morning briefing reminder automatically (notifications.js _armAll).
+    // Daily-coach step: ask for the OS permission, then reveal the provisional
+    // Score either way — a denial must never trap the user in onboarding.
+    // Granting arms the morning briefing reminder (notifications.js _armAll).
     target.disabled = true;
     requestNotificationPermission()
       .catch(() => ({ granted: false }))
-      .then(() => _finish());
+      .then(() => _revealProvisionalScore());
   } else if (action === 'ob-notif-skip') {
-    _finish();
+    _revealProvisionalScore();
   } else if (action === 'ob-finish') {
     _finish();
   }
+}
+
+// V2-2 — the finale: turn the three self-reports into an instant Hybrid Score,
+// rendered in the exact card language they'll meet on Home, before they enter.
+function _revealProvisionalScore() {
+  const mount = document.getElementById('obScoreReveal');
+  if (mount) {
+    const r = provisionalScore({
+      level: _fitnessLevel,
+      frequency: _weeklyFrequency,
+      recovery: _recoveryFeel,
+    });
+    mount.innerHTML = heroHTML(r, { showAction: false });
+  }
+  _showStep(7);
 }
 
 function _finish() {

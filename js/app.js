@@ -787,7 +787,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-account')       deleteAccount();
 
   // Onboarding
-  else if (['ob-next','ob-back','ob-goal','ob-level','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish','ob-notif-enable','ob-notif-skip'].includes(action)) {
+  else if (['ob-next','ob-back','ob-goal','ob-level','ob-frequency','ob-recovery','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish','ob-notif-enable','ob-notif-skip'].includes(action)) {
     handleOnboardingAction(action, target);
   }
 
