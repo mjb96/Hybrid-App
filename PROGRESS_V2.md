@@ -275,9 +275,12 @@ Overview · full depth under Stats/expanders · curated, not configurable.
       the shared screen-kit tab bar. Removed the profile customiser entirely (button +
       3 functions + drag-drop + overlay + app wiring) — curated beats configurable, same
       call as the Home tiles. 383 tests green; both tabs verified in Chromium.
-- [ ] `[CC]` **Programs → active-program hero + a few curated rails + Browse-all.** Kill
-      the ~30-rail / ~7,900px wall; keep Recommended / Foundations / Continue on the
-      surface and move the full catalog behind an explicit Browse.
+- [x] `[CC]` **Programs → active-program hero + curated rails + Browse-all.** Discover
+      now shows the NOW-TRAINING hero + featured banner + 4 curated rails (Recommended ·
+      Helyx Picks · Highest Rated · Trending) + a "Browse all categories" chip grid,
+      instead of stacking ~25 collection rows. Verified in Chromium: the surface dropped
+      from 27 rows / ~7,400px to 5 rows / ~1,600px (~78% shorter), whole catalogue still
+      reachable via chips + Browse-all, no errors.
 - [ ] `[CC]` **Workout → one primary action + quiet overflow.** Collapse Session Overview,
       fold the two Watch-imports into one quiet control, demote Finish/Clear from loud CTAs.
 
