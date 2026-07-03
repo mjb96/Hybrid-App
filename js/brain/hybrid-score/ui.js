@@ -8,8 +8,27 @@
 // =============================================================================
 import { PILLAR_META } from './config.js';
 import { dailySeries, bucketedTrend } from './history.js';
+import { computeDials } from './dials.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// The 3 dials the 8 pillars collapse into — the human-holdable default view.
+const DIAL_COLOR = { train: '#3b82f6', recover: '#10b981', progress: '#f59e0b' };
+
+// Compact TRAIN / RECOVER / PROGRESS row. Pure; reads the pillars off `r`.
+export function dialsRow(r) {
+  const dials = computeDials(r);
+  return `<div class="hs-dials">${dials.map(d => {
+    const shown = d.score == null ? '· ·' : d.score;
+    const w = d.score == null ? 0 : d.score;
+    const c = DIAL_COLOR[d.id] || 'var(--hs-accent, #94a3b8)';
+    return `<div class="hs-dial">
+      <div class="hs-dial__val">${esc(shown)}</div>
+      <div class="hs-dial__lbl">${esc(d.label)}</div>
+      <div class="hs-dial__track"><div class="hs-dial__fill" style="width:${w}%;background:${c}"></div></div>
+    </div>`;
+  }).join('')}</div>`;
+}
 
 // Circular SVG gauge. `size` px. score null → calibrating dashes.
 export function gaugeSVG(score, color, size = 132) {
@@ -98,6 +117,7 @@ export function heroHTML(r, opts = {}) {
         ${contributor}
       </div>
     </div>
+    ${dialsRow(r)}
     ${actionRow}
   </article>`;
 }
@@ -191,6 +211,8 @@ export function detailHTML(r, state) {
       </div>
     </div>
 
+    ${dialsRow(r)}
+
     ${whyChanged}
     ${levelBar}
 
@@ -202,8 +224,10 @@ export function detailHTML(r, state) {
     <h3 class="section-header">Why your score is ${r.score} today</h3>
     <ul class="hs-drivers">${drivers || '<li class="hs-driver hs-driver--neutral">Balanced day — no single factor dominated.</li>'}</ul>
 
-    <h3 class="section-header mt-4">The eight pillars</h3>
-    <div class="hs-pillars">${pillars}</div>
+    <details class="hs-underhood">
+      <summary class="hs-underhood__summary">Under the hood · the 8 pillars</summary>
+      <div class="hs-pillars">${pillars}</div>
+    </details>
 
     ${daily.length >= 2 ? `<h3 class="section-header mt-4">Trend</h3>
     <article class="card-dark p-3">

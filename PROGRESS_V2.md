@@ -155,8 +155,16 @@ own focused surface (owner override) — the other 23 leaves collapse to 5:
 — and the §10 scorecard's first three rows hit target.
 
 ## Phase V2-2 — Make the number tellable (Month 1–2)
-- [ ] `[CC]` Rebuild the Score card: huge number + level + delta/momentum + 3 dials +
-      ONE coaching sentence (§2.1 wireframe). Keep confidence meter + E7 attribution.
+- [x] `[CC]` **Score card rebuilt around the 3 dials (§2.1 wireframe).** `dialsRow` in
+      hybrid-score/ui.js renders TRAIN / RECOVER / PROGRESS (value + accent bar) into
+      BOTH the Home hero (number + level + delta/momentum + confidence + biggest-lift +
+      3 dials + one coaching sentence) and the Score detail. The 8 pillars are now an
+      `<details>` "Under the hood" expander, collapsed by default — power one tap
+      deeper. Confidence meter + E7 attribution kept. 3 UI tests; rendered + verified in
+      Chromium (matches the wireframe). ✅
+- [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
+      (Provisional = low-confidence composite from self-reported level/frequency/
+      recovery; confidence meter already communicates the uncertainty honestly.)
 - [ ] `[CC]` Onboarding: "3 questions → provisional Score" so the wow is instant.
       (Provisional = low-confidence composite from self-reported level/frequency/
       recovery; confidence meter already communicates the uncertainty honestly.)
