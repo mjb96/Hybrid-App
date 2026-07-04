@@ -1075,6 +1075,8 @@ select.native-select {
 
 .cockpit-ex-name   { font-size: var(--text-xl); font-weight: 800; color: var(--text-white); }
 .cockpit-ex-target { font-size: var(--text-sm); color: var(--text-tertiary); font-weight: 600; margin-top: 3px; }
+/* #5 — a finished exercise's header reads as its achieved summary, in green. */
+.cockpit-exercise.completed .cockpit-ex-target { color: var(--color-green, #10b981); font-weight: 700; }
 .cockpit-ex-status {
   font-size: var(--text-sm);
   font-weight: 800;
@@ -1107,6 +1109,24 @@ select.native-select {
   display: block;
 }
 
+
+/* Coach target chip (#4 ghost targets) — the auto-progression suggestion, made
+   legible, with a one-tap "Log all" that fills every working set at target. */
+.cockpit-coach-target {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(16,185,129,0.10);
+  border: 1px solid rgba(16,185,129,0.26);
+}
+.cct-text { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary, #cbd5e1); }
+.cct-text b { color: var(--color-green, #10b981); font-weight: 800; }
+.cct-logall {
+  flex: 0 0 auto; font: inherit; font-size: 0.72rem; font-weight: 800;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  color: #05231a; background: var(--color-green, #10b981); border: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* --- 6e. Set rows --- */
 .cockpit-set-row {
@@ -4352,6 +4372,19 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   color: rgba(16,185,129,0.70);
   letter-spacing: 0.04em;
   margin-top: 3px;
+}
+
+/* Cockpit live score hook — "… train and it rises to 85", updates as you log. */
+.cockpit-hook {
+  margin: 12px 0 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(59,130,246,0.10);
+  border: 1px solid rgba(59,130,246,0.26);
+  color: var(--text-inverse, #f8fafc);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 /* Workout status badge (top-right of header) */

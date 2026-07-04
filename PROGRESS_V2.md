@@ -300,6 +300,34 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **#5 single-focus accordion.** A finished exercise's header now reads as its
+  achieved one-line summary ("✓ 3 × 9 @ 80kg", green) — updated instantly in place on
+  completion and restored to the prescription if a set is un-checked; collapsing a done
+  exercise auto-advances focus to the next unfinished one. Deliberately NOT auto-collapsing
+  on the final set tick (keeps the per-set RPE pad reachable — the prior reason it was
+  reverted). 383 tests, typecheck, smoke green; achieved summary + auto-advance + uncheck-
+  restore all verified in Chromium.
+- 2026-07-04 · **Ghost targets #4 — legible coach target + "Log all".** The per-set ghost
+  already carried the auto-progression suggestion (and one-tap-per-set existed); made it
+  discoverable with a 🎯 coach-target chip per exercise ("Target 80 × 9") and a "Log all →"
+  that fills + completes every incomplete working set at target in one tap, reusing the
+  proven one-tap path (PR/tw-tr capture, rest timer, persistence). Verified in Chromium:
+  chip shows the real suggestion; Log all took Bench Press 0 → 3 sets done with a toast.
+  383 tests, typecheck, smoke green. Next candidate: #5 single-focus accordion.
+- 2026-07-04 · **Cockpit coaching — decisive intent line + live score hook.** The cockpit
+  header now shows a consequence-first intent line (the recommendation headline, e.g.
+  "Load is low — ramp it up" — same voice as the briefing, no mechanism numbers) and a
+  forward hook ("67 today — train and it rises to 69") from `projectScore`, hidden when
+  there's no honest gain. `updateCockpitCoaching` runs on cockpit render; best-effort so
+  it never blocks logging. 383 tests, typecheck, smoke green; verified in Chromium.
+  Follow-ups on the table: ghost targets in set inputs (#4), single-focus accordion (#5).
+- 2026-07-03 · **Program detail simplified — "show what the program is".** Collapsed the
+  ~13-section marketing stack into a lean identity header (hero · stats · tags · CTA · one
+  description) + an Overview | Structure tab body. Overview = what-you'll-achieve · focus
+  bars · equipment; Structure = the weekly split + sample session. Deduped the rating
+  (was 3×), author (2×), level/equipment (2×) — dropped the social-proof + author-card +
+  duplicate-highlights blocks. Overview height 2,283 → 1,374px; verified both tabs in
+  Chromium, no dup blocks, no errors. Next (proposed): workout-cockpit ideas below.
 - 2026-07-03 · **V2-6 complete — Workout + Programs simplified.** Programs Discover went
   from a ~30-rail / 7,400px wall to the active hero + 4 curated rails + Browse-all grid
   (~1,600px, catalogue still fully reachable). Workout cockpit collapses Session Overview

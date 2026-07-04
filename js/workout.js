@@ -16,6 +16,9 @@ import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
 import { dateKey } from './dates.js';
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { generateRecommendation } from './brain/recommendations.js';
+import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 
 let _getState;
 let _getSelectedDay;
@@ -153,6 +156,16 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     }
   } catch(e) { console.warn(e); }
 
+  // #5 single-focus accordion — a finished exercise reads as a one-line achieved
+  // summary ("✓ 3 × 5 @ 100kg") instead of its target, so a collapsed card is
+  // informative at a glance and the cockpit stays focused on the current lift.
+  // Keep the pure target too, so un-checking a set restores the prescription.
+  const targetLabel = blueprintLabel;
+  if (isCompleted) {
+    const wu = appState.settings?.weightUnit || 'kg';
+    blueprintLabel = _achievedSummaryFromSets(setsArr, wu) || blueprintLabel;
+  }
+
   let historicalLineText = 'Baseline Loading Profile Verified';
   if (appState.exerciseStats?.[displayLiftName]) {
     historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + 'kg (Est. 1RM)';
@@ -188,7 +201,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   }).join('');
 
   try {
-    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, historicalLineText, setsMarkup, groupId, ssColor });
+    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, setsMarkup, groupId, ssColor });
   } catch(e) {
     exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
   }
@@ -542,6 +555,33 @@ export function renderWorkout() {
     moveRestTimerToActiveExercise();
     mountExerciseDragAndDropSystems();
   } catch(e) { console.warn(e); }
+
+  updateCockpitCoaching(appState, selectedDay, activeProgram);
+}
+
+// The cockpit's coaching voice: a decisive, consequence-first intent line (the
+// recommendation headline — same voice as the briefing, no mechanism numbers)
+// and a live forward hook ("… train and it rises to 85") that recomputes as the
+// session is logged. Best-effort: never blocks the cockpit if the engine can't run.
+export function updateCockpitCoaching(appState, selectedDay, activeProgram) {
+  const statusEl = document.getElementById('cockpitSessionStatus');
+  const hookEl   = document.getElementById('cockpitScoreHook');
+  if (!statusEl && !hookEl) return;
+  try {
+    const days    = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const program = activeProgram || getProgramById(appState.activeProgramId);
+    const model   = computeDashboardModel(appState, days, program, selectedDay);
+
+    if (statusEl) {
+      const rec = generateRecommendation(appState, days, program, selectedDay);
+      if (rec?.headline) statusEl.textContent = rec.headline;
+    }
+    if (hookEl) {
+      const line = projectionLine(projectScore(model, appState, days));
+      if (line) { hookEl.textContent = line; hookEl.style.display = ''; }
+      else { hookEl.style.display = 'none'; }
+    }
+  } catch (_) { /* coaching is best-effort */ }
 }
 
 // Stamp the calendar date the first time a day has a completed set, so the
@@ -634,6 +674,23 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
 
   _saveState(true);
   evaluateAccordionAutoFlowTransitions();
+}
+
+// Ghost targets #4 — accept the coach's suggestion for the whole exercise in one
+// tap: fill + complete every incomplete WORKING set from its ghost target,
+// reusing the exact one-tap path (PR detection, prescribed-vs-actual capture,
+// rest timer, persistence). Warm-ups and already-logged sets are left alone.
+export function logAllAtTarget(liftName) {
+  const card = document.querySelector(`.cockpit-exercise[data-liftname="${(window.CSS && CSS.escape) ? CSS.escape(liftName) : liftName}"]`);
+  if (!card) return;
+  let logged = 0;
+  Array.from(card.querySelectorAll('.cockpit-set-row')).forEach(row => {
+    if (row.classList.contains('is-complete') || row.classList.contains('type-warmup')) return;
+    const label = row.querySelector('.set-num-lbl[data-action="quick-log"]');
+    const sIdx = parseInt(row.getAttribute('data-set-index'), 10);
+    if (label && !isNaN(sIdx)) { executeOneTapQuickLog(label, liftName, sIdx); logged++; }
+  });
+  if (logged > 0) { hapticSuccess(); showToast(`Logged ${logged} set${logged > 1 ? 's' : ''} at target ✓`); }
 }
 
 export function updateInputState(inputNode) {
@@ -839,6 +896,29 @@ export function toggleGymCheckLoggingState(checkboxNode) {
   evaluateAccordionAutoFlowTransitions();
 }
 
+// Achieved one-line summary (#5). Two readers: from state sets (full render) and
+// from the live DOM rows (in-place, the moment an exercise is completed).
+function _achievedLabel(n, weights, reps, unit) {
+  const sameW = weights.every(x => x === weights[0]);
+  const sameR = reps.every(x => x === reps[0]);
+  return (sameW && sameR && weights[0] > 0)
+    ? `✓ ${n} × ${reps[0]} @ ${weights[0]}${unit}`
+    : `✓ ${n} sets · top ${Math.max(...weights)}${unit}`;
+}
+function _achievedSummaryFromSets(setsArr, unit) {
+  const working = (setsArr || []).filter(s => s?.c && s.type !== 'W');
+  if (!working.length) return '✓ Complete';
+  return _achievedLabel(working.length, working.map(s => parseFloat(s.w) || 0), working.map(s => parseInt(s.r, 10) || 0), unit);
+}
+function _achievedSummaryFromCard(card, unit) {
+  const done = Array.from(card.querySelectorAll('.cockpit-set-row'))
+    .filter(r => !r.classList.contains('type-warmup') && r.querySelector('.gym-check')?.checked);
+  if (!done.length) return '✓ Complete';
+  return _achievedLabel(done.length,
+    done.map(r => parseFloat(r.querySelector('.input-weight-node')?.value) || 0),
+    done.map(r => parseInt(r.querySelector('.input-reps-node')?.value, 10) || 0), unit);
+}
+
 export function evaluateAccordionAutoFlowTransitions() {
   const expandedCard = document.querySelector('.cockpit-exercise:not(.collapsed)');
   if (!expandedCard) return;
@@ -846,20 +926,26 @@ export function evaluateAccordionAutoFlowTransitions() {
   if (rows.length === 0) return; // a card with no sets isn't "finished"
   const finished = rows.every(r => r.querySelector('.gym-check')?.checked);
   const statusNode = expandedCard.querySelector('.cockpit-ex-status');
+  const targetNode = expandedCard.querySelector('.cockpit-ex-target');
+  const unit = _getState?.().settings?.weightUnit || 'kg';
 
   if (finished) {
     const wasCompleted = expandedCard.classList.contains('completed');
     expandedCard.classList.add('completed');
     if (statusNode) statusNode.textContent = 'DONE';
+    // Swap the target line for the achieved summary the instant it's done.
+    if (targetNode) targetNode.textContent = _achievedSummaryFromCard(expandedCard, unit);
     // Keep the card expanded after the final set so the per-set RPE pad (which
     // only appears on completed sets) stays reachable — previously the card
     // collapsed and auto-advanced the instant the last set was ticked, hiding
     // RPE before it could be entered. Move on by tapping the next exercise.
     if (!wasCompleted) showToast('Exercise Complete! ✓');
   } else {
-    // Unchecking a set after completion re-opens the exercise.
+    // Unchecking a set after completion re-opens the exercise and restores its
+    // prescription line (stashed at build time).
     expandedCard.classList.remove('completed');
     if (statusNode) statusNode.textContent = 'LOG';
+    if (targetNode && targetNode.dataset.targetLabel) targetNode.textContent = targetNode.dataset.targetLabel;
   }
 }
 
@@ -1113,13 +1199,31 @@ export function setPerSetRir(liftName, sIdx, rir) {
   }
 }
 
+// Next unfinished exercise after `fromCard` (wrapping to the top), or null when
+// every other exercise is already done.
+function _nextIncompleteCard(fromCard) {
+  const cards = Array.from(document.querySelectorAll('.cockpit-exercise'));
+  const idx = cards.indexOf(fromCard);
+  for (let i = idx + 1; i < cards.length; i++) if (!cards[i].classList.contains('completed')) return cards[i];
+  for (let i = 0; i < idx; i++) if (!cards[i].classList.contains('completed')) return cards[i];
+  return null;
+}
+
 export function toggleAccordionManual(elementNode) {
   if (!elementNode) return;
   const wasCollapsed = elementNode.classList.contains('collapsed');
+  const wasCompleted = elementNode.classList.contains('completed');
   document.querySelectorAll('.cockpit-exercise').forEach(card => card.classList.add('collapsed'));
 
   if (wasCollapsed) {
     elementNode.classList.remove('collapsed');
+  } else if (wasCompleted) {
+    // #5 single-focus auto-advance: collapsing a finished exercise moves focus to
+    // the next unfinished one rather than leaving the cockpit with nothing open.
+    // (We only advance on a deliberate collapse, never on the final set tick — the
+    // per-set RPE pad must stay reachable the moment an exercise is completed.)
+    const next = _nextIncompleteCard(elementNode);
+    if (next) next.classList.remove('collapsed');
   }
   try { moveRestTimerToActiveExercise(); } catch(e) { console.warn(e); }
 }
@@ -1390,6 +1494,7 @@ document.addEventListener('click', (e) => {
   const sIdx = parseInt(target.getAttribute('data-sidx'), 10);
 
   if (action === 'quick-log') executeOneTapQuickLog(target, liftName, sIdx);
+  else if (action === 'log-all-target') logAllAtTarget(liftName);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);

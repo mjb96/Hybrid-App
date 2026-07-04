@@ -81,7 +81,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
   </div>`;
 }
 
-export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, historicalLineText, setsMarkup, groupId = null, ssColor = null }) {
+export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, setsMarkup, groupId = null, ssColor = null }) {
   const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">STALLED</span>` : '';
   const targetStyle  = diagnostic.isStalled ? 'color: var(--accent-red); font-weight: 800;' : '';
   const ssBtnClass   = groupId ? 'btn-ss-link ss-active' : 'btn-ss-link';
@@ -96,7 +96,7 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
           <span class="cockpit-ex-name">${displaySafeName}</span>
           ${stalledBadge}
         </div>
-        <div class="cockpit-ex-target" style="${targetStyle}">${blueprintLabel}</div>
+        <div class="cockpit-ex-target" style="${targetStyle}" data-target-label="${escapeHtml(String(targetLabel || blueprintLabel))}">${blueprintLabel}</div>
       </div>
       <div class="cockpit-ex-status">${isCompleted ? 'DONE' : 'LOG'}</div>
     </div>
@@ -105,6 +105,12 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
   <div class="cockpit-body">
     <div class="local-timer-placeholder"></div>
     <span class="cockpit-history-line">⚡ ${historicalLineText}</span>
+    ${diagnostic.progression && diagnostic.progression.weight ? `
+      <div class="cockpit-coach-target">
+        <span class="cct-text">🎯 Target <b>${escapeHtml(String(diagnostic.progression.weight))} × ${escapeHtml(String(diagnostic.progression.reps))}</b></span>
+        ${isCompleted ? '' : `<button class="cct-logall tactile-scale" data-action="log-all-target">Log all →</button>`}
+      </div>
+    ` : ''}
     <div class="set-rows-list">${setsMarkup}</div>
     <div class="append-set-row">
       <button class="btn-pad-append tactile-scale btn-append-warmup" data-action="append-warmup-set" data-liftname="${safeLiftName}">+ Warmup</button>

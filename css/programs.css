@@ -1148,6 +1148,10 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   font-weight: 500;
 }
 
+/* V2-6 — Overview | Structure tab bar on the program detail (reuses .an-tab). */
+.detail-tabbar { margin: 4px 0 16px; }
+.detail-tabbody { min-height: 40px; }
+
 /* Highlights */
 .detail-highlights {
   display: flex;
