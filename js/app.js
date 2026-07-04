@@ -39,7 +39,7 @@ import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 import { initEngine, shouldSuggestDeload } from './engine.js';
 import { initHome, renderHome, openFastingDetail, answerCoachOnHome } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext, shareScoreCard } from './analytics.js';
-import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
+import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen, sharePRFromRecap } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
@@ -816,6 +816,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
   else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
   else if (action === 'close-session-recap') { closeSessionRecap(); }
+  else if (action === 'share-pr-card') { sharePRFromRecap(); }
   else if (action === 'gps-start')  { startTracking(); }
   else if (action === 'gps-pause')  { pauseTracking(); }
   else if (action === 'gps-resume') { resumeTracking(); }

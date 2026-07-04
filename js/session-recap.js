@@ -15,9 +15,22 @@ import { paceZoneColour } from './analytics/utils.js';
 import { confettiBurst } from './ui/celebration.js';
 import { hapticSuccess } from './haptics.js';
 import { MUSCLE_MAP } from './metrics/metrics-strength.js';
+import { sharePRCard, topPR } from './brain/pr-share.js';
+import { showToast } from './state.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
+
+// C6b — share the session's biggest PR as an image (from the recap Share button).
+export function sharePRFromRecap() {
+  const state = _getState?.();
+  if (!state) return;
+  const { week, day } = _recapCtx;
+  const recap = buildSessionRecap(state, week, day);
+  const pr = topPR(recap.lifts);
+  if (!pr) { showToast('No PR to share from this session'); return; }
+  sharePRCard(pr, state, { showToast });
+}
 
 // V2 — Summary | Breakdown, remembered across a single recap's open lifetime.
 let _recapTab = 'summary';
@@ -336,11 +349,13 @@ export function renderSessionRecapHTML(r, insights = [], thresholdSec = null, ta
   if (r.empty) {
     return `<div class="recap-empty">Nothing logged for this day yet.</div>`;
   }
+  const hasPR = (r.lifts || []).some(l => l.pr);
   const head = `
     <div class="recap-head">
       <div class="recap-date">${fmtDate(r.dateISO)}</div>
       <div class="recap-badges">${r.types.map(typeBadge).join('')}</div>
-    </div>`;
+    </div>
+    ${hasPR ? `<button class="recap-share-pr tactile-scale" data-action="share-pr-card" style="display:flex;align-items:center;gap:8px;justify-content:center;width:100%;margin:6px 0 4px;background:color-mix(in srgb, var(--accent-blue, #8b5cf6) 14%, transparent);border:1px solid color-mix(in srgb, var(--accent-blue, #8b5cf6) 40%, transparent);color:var(--text-inverse);border-radius:12px;padding:11px;font-weight:700;font-size:0.9rem;cursor:pointer;">🏆 Share your PR</button>` : ''}`;
   const tabBar = `
     <div class="an-tabbar recap-tabbar">
       <button class="an-tab ${tab === 'summary' ? 'an-tab--active' : ''}" data-recap-tab="summary">Summary</button>
