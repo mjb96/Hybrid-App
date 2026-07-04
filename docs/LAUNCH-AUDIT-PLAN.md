@@ -40,8 +40,29 @@ typecheck + smoke clean throughout.
 - **A4** — Quick wins: hero carousel respects `prefers-reduced-motion` + pauses on
   hover/focus; program cards show `N×/wk`. (A4a/A4c superseded by A1/A2.)
 
-**Remaining:** Phase C (onboarding goal→program, ask-the-coach, cockpit ergonomics,
-analytics hero visuals, empty states, type scale) and Phase D (god-module teardown).
+### Phase C — coach, onboarding & polish
+
+- **C1** — Onboarding starter program is now level- & equipment-aware.
+  `js/onboarding/starter-programs.js` (pure), re-ranked on the program step.
+- **C2** — Ask the coach: deterministic Q&A (train-today / why-score /
+  overtraining) from live engine data. `js/brain/coach-qa.js` (pure), chips on
+  the briefing, `answerCoachOnHome` in `home.js`.
+- **C3** — Planned deloads are explained in the Morning Briefing (reuses
+  `classifyWeek`). `morning-briefing.js` + card.
+- **C4** — Cockpit ergonomics: **C4a** rest auto-start was already present;
+  **C4b** per-side plate math on the coach-target line (`js/workout/plates.js`,
+  pure); **C4c** swipe between days (`neighborDay` in `workout-order.js`).
+- **C6b** — Shareable PR card from the session recap. `js/brain/pr-share.js`.
+- **C5 / C6a** — Substantially already in the codebase: analytics leaves already
+  have `an-hero` heroes, charts, "so what" action lines, and no-data empty states
+  with helpful copy. No measurable-value slice remained without a dedicated
+  design pass.
+- **C7 — type & spacing scale pass: DEFERRED (deliberate).** A sweeping refactor
+  across ~12k CSS lines is high-risk (app-wide layout regressions) for diffuse
+  value; the working agreements say don't refactor for tidiness before a beta.
+  Better done post-beta with design review.
+
+**Remaining:** Phase D (god-module teardown — only where it de-risks further work).
 
 ---
 
