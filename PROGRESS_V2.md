@@ -300,6 +300,13 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-03 · **Program detail simplified — "show what the program is".** Collapsed the
+  ~13-section marketing stack into a lean identity header (hero · stats · tags · CTA · one
+  description) + an Overview | Structure tab body. Overview = what-you'll-achieve · focus
+  bars · equipment; Structure = the weekly split + sample session. Deduped the rating
+  (was 3×), author (2×), level/equipment (2×) — dropped the social-proof + author-card +
+  duplicate-highlights blocks. Overview height 2,283 → 1,374px; verified both tabs in
+  Chromium, no dup blocks, no errors. Next (proposed): workout-cockpit ideas below.
 - 2026-07-03 · **V2-6 complete — Workout + Programs simplified.** Programs Discover went
   from a ~30-rail / 7,400px wall to the active hero + 4 curated rails + Browse-all grid
   (~1,600px, catalogue still fully reachable). Workout cockpit collapses Session Overview

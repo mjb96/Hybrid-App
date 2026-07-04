@@ -11,8 +11,11 @@ import { escapeHtml } from '../util.js';
 
 let _currentProgramId = null;
 let _appState = null;
+let _detailTab = 'overview';   // V2-6 — 'overview' (what/why) | 'structure' (what you'll do)
 
 export function renderProgramDetail(programId, appState) {
+  // Opening a different program always starts on Overview.
+  if (_currentProgramId !== programId) _detailTab = 'overview';
   _currentProgramId = programId;
   _appState = appState;
 
@@ -38,6 +41,49 @@ export function renderProgramDetail(programId, appState) {
   const wod = program.tags?.includes('hyrox-wod');
 
   const similarPrograms = getSimilarPrograms(program, 6);
+
+  // V2-6 — collapse the ~13-section marketing stack into a lean identity header
+  // (hero · stats · tags · CTA · one description) + an Overview | Structure tab
+  // body. Dedup: rating shows once (by the CTA), author once (in the hero),
+  // level/equipment once (stat + tag rows) — the old social-proof + author-card +
+  // duplicate-highlights blocks are gone.
+  const outcomes = program.expectedOutcomes?.length ? program.expectedOutcomes : (program.highlights || []);
+  const outcomesTitle = program.expectedOutcomes?.length ? "What you'll achieve" : 'Program highlights';
+
+  const overviewHTML = `
+    ${outcomes.length ? `
+      <div class="detail-section">
+        <div class="detail-section-title">${outcomesTitle}</div>
+        <div class="detail-outcomes">
+          ${outcomes.map(o => `<div class="detail-outcome-chip"><span class="detail-outcome-arrow">→</span> ${o}</div>`).join('')}
+        </div>
+      </div>` : ''}
+    ${program.metrics ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Training focus</div>
+        ${renderFocusBars(program.metrics)}
+      </div>` : ''}
+    ${program.equipment?.length ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Equipment</div>
+        <div class="detail-equipment">${program.equipment.map(e => `<span class="detail-equipment-chip">${formatEquipment(e)}</span>`).join('')}</div>
+      </div>` : ''}
+  `;
+
+  const structureHTML = `
+    ${!wod && (program.days || programData?.days) ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Weekly structure</div>
+        ${renderDaySplit(program.days || programData?.days)}
+      </div>` : ''}
+    ${renderSampleWorkout(program, programData, wod)}
+  `;
+
+  const detailTabBar = `
+    <div class="an-tabbar detail-tabbar">
+      <button class="an-tab ${_detailTab === 'overview' ? 'an-tab--active' : ''}" data-detail-tab="overview">Overview</button>
+      <button class="an-tab ${_detailTab === 'structure' ? 'an-tab--active' : ''}" data-detail-tab="structure">Structure</button>
+    </div>`;
 
   container.innerHTML = `
     <!-- Back + Header -->
@@ -168,111 +214,19 @@ export function renderProgramDetail(programId, appState) {
         </div>` : ''}
     </div>
 
-    <!-- Description -->
+    <!-- Description — the one-line "what it is" -->
     <div class="detail-section">
       <p class="detail-description">${escapeHtml(program.description || program.dossier?.philosophy || '')}</p>
     </div>
 
-    <!-- Highlights -->
-    ${program.highlights?.length ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Program Highlights</div>
-        <div class="detail-highlights">
-          ${program.highlights.map(h => `
-            <div class="detail-highlight-item">
-              <span class="detail-highlight-check">✓</span>
-              <span>${h}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- Sample Workout -->
-    ${renderSampleWorkout(program, programData, wod)}
-
-    <!-- Expected Outcomes -->
-    ${program.expectedOutcomes?.length ? `
-      <div class="detail-section">
-        <div class="detail-section-title">What You'll Achieve</div>
-        <div class="detail-outcomes">
-          ${program.expectedOutcomes.map(o => `
-            <div class="detail-outcome-chip">
-              <span class="detail-outcome-arrow">→</span> ${o}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- Training Focus Bars -->
-    ${program.metrics ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Training Focus</div>
-        ${renderFocusBars(program.metrics)}
-      </div>
-    ` : ''}
-
-    <!-- Social Proof -->
-    ${program.enrolledCount || program.completionRate || program.rating ? `
-      <div class="detail-social-proof">
-        ${program.enrolledCount ? `
-          <div class="social-proof-stat">
-            <div class="social-proof-value">${(program.enrolledCount || 0).toLocaleString()}</div>
-            <div class="social-proof-label">Athletes</div>
-          </div>
-        ` : ''}
-        ${program.completionRate ? `
-          <div class="social-proof-stat">
-            <div class="social-proof-value">${Math.round((program.completionRate || 0) * 100)}%</div>
-            <div class="social-proof-label">Completion Rate</div>
-          </div>
-        ` : ''}
-        <div class="social-proof-stat">
-          ${program.rating
-            ? `<div class="social-proof-value">${program.rating} <span style="color: #f59e0b">★</span></div>
-               <div class="social-proof-label">${(program.ratingCount || 0).toLocaleString()} Ratings</div>`
-            : `<div class="social-proof-value social-proof-value--muted">—</div>
-               <div class="social-proof-label">No Ratings Yet</div>`
-          }
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- Equipment -->
-    ${program.equipment?.length ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Equipment Required</div>
-        <div class="detail-equipment">
-          ${program.equipment.map(e => `<span class="detail-equipment-chip">${formatEquipment(e)}</span>`).join('')}
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- Day Split Preview (programs only — WODs have no weekly structure) -->
-    ${!wod && (program.days || programData?.days) ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Weekly Structure</div>
-        ${renderDaySplit(program.days || programData?.days)}
-      </div>
-    ` : ''}
-
-    <!-- Author -->
-    <div class="detail-section">
-      <div class="detail-author-card">
-        <div class="detail-author-icon">${category.icon}</div>
-        <div class="detail-author-info">
-          <div class="detail-author-name">${escapeHtml(program.author?.name || program.dossier?.creator || 'Unknown')}</div>
-          <div class="detail-author-type">${getAuthorTypeLabel(program.author?.type)}</div>
-        </div>
-        ${program.author?.verified ? '<span class="detail-author-verified">✓ Verified</span>' : ''}
-      </div>
-    </div>
+    <!-- Overview | Structure -->
+    ${detailTabBar}
+    <div class="detail-tabbody">${_detailTab === 'structure' ? structureHTML : overviewHTML}</div>
 
     <!-- Similar Programs -->
     ${similarPrograms.length > 0 ? `
       <div class="detail-section">
-        <div class="detail-section-title">Similar Programs</div>
+        <div class="detail-section-title">Similar programs</div>
         <div class="card-scroll-row">
           ${similarPrograms.map(p => renderProgramCard(p, 'small')).join('')}
         </div>
@@ -282,6 +236,14 @@ export function renderProgramDetail(programId, appState) {
     <!-- Bottom spacer -->
     <div style="height: 48px;"></div>
   `;
+
+  // Self-contained tab switching (re-render on switch, like the analytics/profile screens).
+  container.querySelectorAll('[data-detail-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _detailTab = btn.getAttribute('data-detail-tab');
+      renderProgramDetail(programId, appState);
+    });
+  });
 }
 
 function renderStars(rating) {
@@ -451,14 +413,6 @@ function formatEquipment(eq) {
     'kettlebell': '🔔 Kettlebell', 'sandbag': '🎒 Sandbag', 'pull-up-bar': '🔝 Pull-up Bar',
   };
   return labels[eq] || eq;
-}
-
-function getAuthorTypeLabel(type) {
-  const labels = {
-    'official': 'Helyx Official', 'coach': 'Certified Coach',
-    'community': 'Community Program', 'imported': 'Imported Program',
-  };
-  return labels[type] || type || 'Program Author';
 }
 
 export function closeProgramDetail() {
