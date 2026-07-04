@@ -31,9 +31,9 @@ export function generateLoadInsights({ atl, ctl, ratio, loadProgPct, fatigue, lo
   if (loadStatus.zone === 'danger')
     insights.push({ text: `Acute load is ${Math.round((ratio - 1) * 100)}% above your fitness baseline. Risk of overtraining injury is elevated.`, priority: 'alert', category: 'load' });
   else if (loadStatus.zone === 'high')
-    insights.push({ text: `Training load is in the high-stress zone (ACWR ${ratio}). Monitor recovery closely this week.`, priority: 'alert', category: 'load' });
+    insights.push({ text: `Your training load is running high — fatigue is starting to outpace recovery. Keep a close eye on sleep and readiness this week.`, priority: 'alert', category: 'load' });
   else if (loadStatus.zone === 'optimal' || loadStatus.zone === 'productive')
-    insights.push({ text: `Load is in the productive zone (ACWR ${ratio}). This is where adaptation happens.`, priority: 'good', category: 'load' });
+    insights.push({ text: `Your training load is in the productive zone — right where adaptation happens. Keep it here.`, priority: 'good', category: 'load' });
   else if (loadStatus.zone === 'low' || loadStatus.zone === 'detraining')
     insights.push({ text: `Acute load is well below your chronic baseline. Consider increasing weekly volume to drive adaptation.`, priority: 'info', category: 'load' });
 
@@ -178,7 +178,7 @@ export function generateRunningInsights({
     else if (vdot >= 45) cat = 'strong recreational runner';
     else if (vdot >= 38) cat = 'recreational runner';
     else                 cat = 'developing aerobic base';
-    insights.push({ text: `Estimated VDOT: ${vdot}. This places you in the ${cat} range.`, priority: 'info', category: 'running' });
+    insights.push({ text: `Your running fitness places you in the ${cat} range.`, priority: 'info', category: 'running' });
   }
 
   // HR zone balance
