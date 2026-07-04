@@ -94,3 +94,18 @@ test('degrades gracefully with an empty model/state', () => {
   assert.ok(b.greeting.startsWith('Good'));
   assert.ok(briefingToText(b).length > 0);
 });
+
+test('C3: a planned deload week carries an explanatory note', () => {
+  // WEEK_PHASE_NAMES marks week 4 as a Deload Week.
+  const b = buildMorningBriefing({ state: { currentWeek: '4', settings: {} }, model: baseModel(), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
+  assert.ok(b.deload && /deload/i.test(b.deload.note), 'deload note present on a deload week');
+  // A normal week has no deload note.
+  const normal = buildMorningBriefing({ state: { currentWeek: '5', settings: {} }, model: baseModel(), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
+  assert.equal(normal.deload, null, 'no deload note on a normal week');
+});
+
+test('C3: the program\'s own week label drives the deload note', () => {
+  const prog = { days: { wed: { title: 'X' } }, weeklyVolModifiers: { '3': { sets: 2, reps: 5, intensityLabel: 'Deload + simulation' } } };
+  const b = buildMorningBriefing({ state: { currentWeek: '3', settings: {} }, model: baseModel(), score: null, program: prog, selectedDay: 'wed', now: at(7) });
+  assert.ok(b.deload, 'program deload label triggers the note');
+});

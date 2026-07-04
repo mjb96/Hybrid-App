@@ -48,6 +48,14 @@ export function briefingCardHTML(b) {
     ? `<div class="mbrief__memory"><span class="mbrief__memory-icon">🧠</span><span class="mbrief__memory-text">${esc(b.memory)}</span></div>`
     : '';
 
+  // C3 — a planned deload, explained (not a silent lighter week).
+  const deloadRow = b.deload?.note
+    ? `<div class="mbrief__deload" style="display:flex;gap:8px;align-items:flex-start;background:color-mix(in srgb, var(--color-blue) 10%, transparent);border-radius:10px;padding:10px 12px;margin-top:8px;">
+         <span aria-hidden="true">🌙</span>
+         <span style="font-size:0.82rem;color:var(--text-secondary);line-height:1.45;">${esc(b.deload.note)}</span>
+       </div>`
+    : '';
+
   // Streak-at-stake (loss aversion) — only when a real streak is unprotected.
   const streakRow = b.streakRisk?.text
     ? `<div class="mbrief__streak mbrief__streak--${esc(b.streakRisk.tone || 'caution')}">${esc(b.streakRisk.text)}</div>`
@@ -96,6 +104,7 @@ export function briefingCardHTML(b) {
     ${sessionRow}
     ${forwardRow}
     ${missionRow}
+    ${deloadRow}
     ${memoryRow}
     ${streakRow}
     ${coachRow}
