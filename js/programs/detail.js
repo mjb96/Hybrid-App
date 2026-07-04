@@ -199,6 +199,9 @@ export function renderProgramDetail(programId, appState) {
       <button class="detail-complete-btn" data-action="customize-program" data-program-id="${programId}">
         ✏️ Customize — make an editable copy
       </button>
+      <button class="detail-complete-btn" data-action="open-compare" data-program-id="${programId}">
+        ⚖️ Compare with another program
+      </button>
       ${program.rating
         ? `<div class="detail-rating">
              ${renderStars(program.rating)}

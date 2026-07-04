@@ -6,6 +6,7 @@ import { devWarn } from './debug.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
+import { openCompareModal, closeCompareModal, pickCompareB, renderComparePicker, handleCompareSearch } from './programs/compare-ui.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { escapeHtml, programProgressPct } from './util.js';
 import { getWeekModifier } from './schema.js';
@@ -739,6 +740,10 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   else if (action === 'customize-program') customizeProgram(progId);
+  else if (action === 'open-compare') openCompareModal(progId);
+  else if (action === 'compare-pick') pickCompareB(progId);
+  else if (action === 'compare-reset') { document.getElementById('compareSearchWrap').style.display = ''; renderComparePicker(''); }
+  else if (action === 'close-compare') closeCompareModal();
 
   // New Program Library actions
   else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program'].includes(action)) {
@@ -981,6 +986,7 @@ document.addEventListener('blur', (e) => {
 
 document.addEventListener('input', (e) => {
   if (e.target.id === 'elSearchInput') handleExerciseSearch(e.target.value);
+  else if (e.target.id === 'compareSearchInput') handleCompareSearch(e.target.value);
 });
 
 document.addEventListener('keydown', (e) => {
