@@ -49,6 +49,11 @@ Active goal: Android public beta on Google Play (free at launch). See `PROGRESS.
 for the phased plan and live status. iOS/Capacitor and any billing/paywall are
 explicitly deferred — do not build them now.
 
+Product/UX source of truth: `PRODUCT_AUDIT.md` (design blueprint, laws, prioritised
+roadmap, rejected ideas) + `PRODUCT_PROGRESS.md` (live status, open UX issues, next
+sprint). Read both before product-facing work. Superseded plans live in
+`docs/archive/` — historical context only, never execute from them.
+
 ### Session protocol
 - START: read this file, `PROGRESS.md`, and `git log --oneline -15`. State in one line
   where we are and what this session will do.

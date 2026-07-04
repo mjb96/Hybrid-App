@@ -9,18 +9,16 @@ Each step points at the artifact that makes it quick.
 ## 1. Supabase (security + data)
 - [x] Apply `supabase/rls_user_data.sql` in the SQL Editor. *(done)*
 - [x] Turn OFF "Confirm email" for beta (Authentication → Providers → Email). *(done)*
-- [ ] Apply `supabase/migration_user_data_updated_at.sql` (enables multi-device
-      conflict detection).
-- [ ] **Prove RLS:** create two throwaway accounts, then run the adversarial
-      check (exact command in `supabase/README.md`). Need a `✅ PASS`.
-- [ ] Deploy the account-deletion function:
-      `supabase functions deploy delete-account`
-      (from `supabase/functions/delete-account/`). Without it, in-app deletion
-      still erases user data but leaves the auth email record.
+- [x] Apply `supabase/migration_user_data_updated_at.sql` (enables multi-device
+      conflict detection). *(done 2026-07-02)*
+- [x] **Prove RLS:** adversarial check run against the live DB — `✅ PASS`
+      (2026-07-02, `scripts/rls-adversarial-check.mjs`).
+- [x] Deploy the account-deletion function:
+      `supabase functions deploy delete-account`. *(deployed 2026-07-02)*
 
 ## 2. Crash reporting
-- [ ] Create a Sentry project; paste its DSN into `js/monitoring/sentry-config.js`
-      (`SENTRY_DSN`). Until then, crash reporting stays off.
+- [x] Sentry project created; DSN set in `js/monitoring/sentry-config.js`
+      (2026-07-02) — crash reporting is live.
 
 ## 3. Legal (health + location = extra scrutiny)
 - [ ] Fill every `{{PLACEHOLDER}}` in `docs/legal/privacy-policy.md` and
@@ -39,12 +37,12 @@ Each step points at the artifact that makes it quick.
       types (see the Health Connect note in the data-safety doc).
 
 ## 5. Signing + release build
-- [ ] Create an upload keystore (`keytool -genkey -v -keystore ...`).
-- [ ] Add GitHub repo secrets (Settings → Secrets → Actions):
-      `KEYSTORE_BASE64` (base64 of the keystore), `KEYSTORE_PASSWORD`,
-      `KEY_ALIAS`, `KEY_PASSWORD`.
-- [ ] Run **Actions → Release AAB → Run workflow**, set the version name.
-      Download the signed `.aab` artifact.
+- [x] Upload keystore + GitHub secrets + signed-AAB CI pipeline — built and
+      verified 2026-07-02 (see PROGRESS.md session log).
+- [ ] Run **Actions → Release AAB → Run workflow** for the release candidate,
+      set the version name, download the signed `.aab` artifact.
+      **Do this only after PRODUCT_AUDIT.md Sprints 1–3** — screenshots and the
+      testers' first run should show the fixed day-0 experience, not the current one.
 
 ## 6. Device testing (needs a physical Android phone)
 - [ ] GPS: track a real run with the **screen locked** — distance keeps counting,
