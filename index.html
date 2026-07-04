@@ -422,10 +422,18 @@
       <!-- Primary CTA — one tap from Home into today's logging -->
       <button class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
 
-      <!-- Quick activity — start a walk/run outside the program; logs to today -->
-      <div class="quick-activity-row mb-4" style="display:flex;gap:10px;">
+      <!-- Quick activity — start a walk/run/fast outside the program; logs to today -->
+      <div class="quick-activity-row" style="display:flex;gap:10px;">
         <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="walk" aria-label="Start a walk">🚶 Start Walk</button>
         <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="run" aria-label="Start a run">🏃 Start Run</button>
+      </div>
+      <!-- Fasting quick-action on Home (owner request): live status when a fast
+           is running, one-tap into the timer/protocols when idle. -->
+      <div class="qa-row qa-row--fasting mb-4" id="dashboardQuickActions" aria-label="Quick actions" style="grid-template-columns:1fr;margin-top:10px;">
+        <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="Start or view fast">
+          <span class="qa-icon">⏱️</span>
+          <span class="qa-text"><span class="qa-label">Start Fast</span><span class="qa-sub">Intermittent fasting</span></span>
+        </button>
       </div>
 
       <!-- Coaching alerts — surfaced (previously hidden): stall, deload, week-compare -->
@@ -491,21 +499,8 @@
 
       </div>
 
-      <!-- V2 (S4): quick actions moved off Home — fasting / check-in / weight are one tap away in Insights. -->
-      <div class="qa-row" id="dashboardQuickActions" aria-label="Quick actions" style="display:none;">
-        <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="Start or view fast">
-          <span class="qa-icon">⏱️</span>
-          <span class="qa-text"><span class="qa-label">Start Fast</span><span class="qa-sub">Intermittent fasting</span></span>
-        </button>
-        <button class="qa-btn" id="qaCheckin" data-action="open-analytics" data-context="recovery-score" aria-label="Daily wellness check-in">
-          <span class="qa-icon">📝</span>
-          <span class="qa-text"><span class="qa-label">Check-in</span><span class="qa-sub">Sleep · mood · soreness</span></span>
-        </button>
-        <button class="qa-btn" id="qaLogWeight" data-action="open-analytics" data-context="bodyweight" aria-label="Log body weight">
-          <span class="qa-icon">⚖️</span>
-          <span class="qa-text"><span class="qa-label">Log Weight</span><span class="qa-sub">Track your trend</span></span>
-        </button>
-      </div>
+      <!-- V2 (S4): check-in / weight quick actions stay off Home (one tap away in
+           Insights). Fasting was promoted back to Home above (owner request). -->
 
       <div class="app-section-heading" style="margin-top: 20px;">
         <div class="app-section-heading__title">At a Glance</div>

@@ -245,11 +245,10 @@ function updateQuickActions(model) {
   const fastBtn = document.getElementById('qaFasting');
   if (fastBtn) {
     const f = model.fasting;
-    // Quiet Home (S1d): only surface fasting when it's in use — an active fast
-    // or some history. A user who's never fasted gets a calm Home, not a nudge
-    // toward a feature they haven't chosen.
-    const inUse = f.active || (f.history?.length ?? 0) > 0;
-    fastBtn.style.display = inUse ? '' : 'none';
+    // Owner request: fasting is always one tap from Home — a live status chip
+    // while a fast runs, a "Start Fast" entry when idle. (Supersedes the earlier
+    // quiet-Home hide; fasting is a first-class feature the owner wants quick.)
+    fastBtn.style.display = '';
     const labelEl = fastBtn.querySelector('.qa-label');
     const subEl   = fastBtn.querySelector('.qa-sub');
     if (f.active) {
