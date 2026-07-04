@@ -300,6 +300,13 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **#5 single-focus accordion.** A finished exercise's header now reads as its
+  achieved one-line summary ("✓ 3 × 9 @ 80kg", green) — updated instantly in place on
+  completion and restored to the prescription if a set is un-checked; collapsing a done
+  exercise auto-advances focus to the next unfinished one. Deliberately NOT auto-collapsing
+  on the final set tick (keeps the per-set RPE pad reachable — the prior reason it was
+  reverted). 383 tests, typecheck, smoke green; achieved summary + auto-advance + uncheck-
+  restore all verified in Chromium.
 - 2026-07-04 · **Ghost targets #4 — legible coach target + "Log all".** The per-set ghost
   already carried the auto-progression suggestion (and one-tap-per-set existed); made it
   discoverable with a 🎯 coach-target chip per exercise ("Target 80 × 9") and a "Log all →"

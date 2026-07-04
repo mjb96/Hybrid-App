@@ -81,7 +81,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null)
   </div>`;
 }
 
-export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, historicalLineText, setsMarkup, groupId = null, ssColor = null }) {
+export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, setsMarkup, groupId = null, ssColor = null }) {
   const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">STALLED</span>` : '';
   const targetStyle  = diagnostic.isStalled ? 'color: var(--accent-red); font-weight: 800;' : '';
   const ssBtnClass   = groupId ? 'btn-ss-link ss-active' : 'btn-ss-link';
@@ -96,7 +96,7 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
           <span class="cockpit-ex-name">${displaySafeName}</span>
           ${stalledBadge}
         </div>
-        <div class="cockpit-ex-target" style="${targetStyle}">${blueprintLabel}</div>
+        <div class="cockpit-ex-target" style="${targetStyle}" data-target-label="${escapeHtml(String(targetLabel || blueprintLabel))}">${blueprintLabel}</div>
       </div>
       <div class="cockpit-ex-status">${isCompleted ? 'DONE' : 'LOG'}</div>
     </div>

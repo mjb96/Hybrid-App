@@ -1075,6 +1075,8 @@ select.native-select {
 
 .cockpit-ex-name   { font-size: var(--text-xl); font-weight: 800; color: var(--text-white); }
 .cockpit-ex-target { font-size: var(--text-sm); color: var(--text-tertiary); font-weight: 600; margin-top: 3px; }
+/* #5 — a finished exercise's header reads as its achieved summary, in green. */
+.cockpit-exercise.completed .cockpit-ex-target { color: var(--color-green, #10b981); font-weight: 700; }
 .cockpit-ex-status {
   font-size: var(--text-sm);
   font-weight: 800;
