@@ -4,6 +4,7 @@
 import { saveStateToLocalStorage } from './state.js';
 import { requestNotificationPermission } from './notifications.js';
 import { provisionalScore } from './onboarding/provisional-score.js';
+import { recommendStarterPrograms } from './onboarding/starter-programs.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 
 let _getState;
@@ -75,17 +76,33 @@ function _showStep(n) {
   });
 }
 
+// C1 — the picker is now level- and equipment-aware. Rank the catalog against
+// the three self-reports (goal · level · equipment) so the first program fits;
+// fall back to the curated goal list if the recommender comes back empty.
 function _renderProgramList() {
   const list = document.getElementById('obProgramList');
   if (!list) return;
-  const ids = GOAL_PROGRAMS[_selectedGoal] || [];
-  list.innerHTML = ids.map(id => {
-    const m = PROGRAM_META[id] || { name: id, desc: '' };
-    return `<button class="ob-prog-card${id === _selectedProgram ? ' active' : ''}" data-action="ob-program" data-program="${id}">
-      <span class="ob-prog-name">${m.name}</span>
-      <span class="ob-prog-desc">${m.desc}</span>
-    </button>`;
-  }).join('');
+
+  const recs = recommendStarterPrograms({
+    goal: _selectedGoal, level: _fitnessLevel, equipmentTier: _equipmentTier,
+  });
+
+  let cards;
+  if (recs.length) {
+    // Keep the current selection if it's still in the list, else pick the top.
+    if (!recs.some(p => p.id === _selectedProgram)) _selectedProgram = recs[0].id;
+    cards = recs.map(p => ({ id: p.id, name: p.name, desc: p.tagline || p.dossier?.focus || '' }));
+  } else {
+    const ids = GOAL_PROGRAMS[_selectedGoal] || [];
+    if (!ids.includes(_selectedProgram)) _selectedProgram = ids[0] || 'hybrid_engine';
+    cards = ids.map(id => ({ id, ...(PROGRAM_META[id] || { name: id, desc: '' }) }));
+  }
+
+  list.innerHTML = cards.map(c =>
+    `<button class="ob-prog-card${c.id === _selectedProgram ? ' active' : ''}" data-action="ob-program" data-program="${c.id}">
+      <span class="ob-prog-name">${c.name}</span>
+      <span class="ob-prog-desc">${c.desc}</span>
+    </button>`).join('');
 }
 
 export function handleOnboardingAction(action, target) {
@@ -95,6 +112,8 @@ export function handleOnboardingAction(action, target) {
       const name = document.getElementById('obName')?.value?.trim();
       if (!name) { document.getElementById('obName')?.focus(); return; }
     }
+    // Entering the program picker: re-rank now that level + equipment are known.
+    if (toStep === 4) _renderProgramList();
     _showStep(toStep);
   } else if (action === 'ob-back') {
     _showStep(parseInt(target.dataset.to, 10));
