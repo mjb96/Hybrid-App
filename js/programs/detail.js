@@ -196,6 +196,9 @@ export function renderProgramDetail(programId, appState) {
           Mark as Complete
         </button>
       ` : ''}
+      <button class="detail-complete-btn" data-action="customize-program" data-program-id="${programId}">
+        ✏️ Customize — make an editable copy
+      </button>
       ${program.rating
         ? `<div class="detail-rating">
              ${renderStars(program.rating)}

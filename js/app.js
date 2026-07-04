@@ -523,6 +523,19 @@ export function executeDuplicateProgram(id) {
   renderLibrary();
 }
 
+// Fork ANY program (catalog or custom) into an editable copy, then drop straight
+// into the builder. The clone is a copy — the original catalog program is never
+// mutated — so there's no shared-data hazard.
+export function customizeProgram(id) {
+  if (!id) return;
+  const newId = duplicateCustomProgram(id);
+  if (!newId) { showToast('Could not customize this program.', true); return; }
+  updateLibraryState(appState);
+  showToast('Editable copy created — customize it below');
+  switchProgramMode('builder');
+  openBuilder(newId);
+}
+
 // ==========================================
 // MODALS & SUMMARY LOGIC
 // ==========================================
@@ -725,6 +738,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-builder') openBuilder(progId);
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
+  else if (action === 'customize-program') customizeProgram(progId);
 
   // New Program Library actions
   else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program'].includes(action)) {
