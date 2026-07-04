@@ -300,6 +300,15 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **Session recap rebuilt → Summary | Breakdown (Garmin-class, our way).** The
+  recap was throwing away most of what we capture. Split it into Summary (story + essential
+  tiles + map + insights + lean lifts) and Breakdown: every set (weight × reps · RIR · type ·
+  per-set volume), lift + session totals (sets/reps/volume/avg+max HR/cals/training effect),
+  a weighted **muscle-focus** breakdown (via MUSCLE_MAP), full **run detail** tiles, an
+  **HR-zone** stacked bar, and a splits table with per-km pace + avg HR. All from data we
+  already stored — front got leaner, depth got deeper. 383 tests, typecheck, smoke green;
+  both tabs verified in Chromium on a hybrid session. Possible follow-up: apply the V2-4
+  consequence-voice to the shared insight lines (still say "ACWR 0.99 / VDOT 90").
 - 2026-07-04 · **#5 single-focus accordion.** A finished exercise's header now reads as its
   achieved one-line summary ("✓ 3 × 9 @ 80kg", green) — updated instantly in place on
   completion and restored to the prescription if a set is un-checked; collapsing a done
