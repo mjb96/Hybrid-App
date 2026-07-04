@@ -27,6 +27,22 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   (Android-only). GPS in `js/gps-tracker.js` uses web geolocation (unreliable when the
   screen locks — a problem for run tracking).
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
+- Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
+  template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)
+  — the cockpit resolves each lift's target via `getWeekModifier`→`liftTarget`
+  (`js/schema.js`/`engine.js`), so a custom program's lifts share the week modifier.
+  Program detail (`js/programs/detail.js`) has Overview | Structure | **Plan**
+  (week-by-week timeline, `timeline.js`) + commitment strip + week-stepped day
+  preview. Pure helpers: `timeline.js`, `compare.js` (`programStats`/`equipmentFit`),
+  `progression.js` (builder's per-week editor), `onboarding/starter-programs.js`.
+  "Customize" forks ANY program via `duplicateCustomProgram` (a copy — never edits
+  shared catalog data). `day.lifts` are bare strings across 150+ sites — do NOT
+  migrate to objects casually.
+- Workout cockpit: in-session **exercise swap** (`js/workout/substitutions.js` +
+  pure `applyExerciseSwap` in `workout-order.js`; re-keys the sets array to preserve
+  target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
+  between days (`neighborDay`). Coach: deterministic **ask-the-coach** Q&A
+  (`js/brain/coach-qa.js`, chips on the briefing) + PR share card (`js/brain/pr-share.js`).
 
 ## Roadmap Working Agreements
 Active goal: Android public beta on Google Play (free at launch). See `PROGRESS.md`
