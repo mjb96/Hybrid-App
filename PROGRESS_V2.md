@@ -300,6 +300,13 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **Cockpit coaching — decisive intent line + live score hook.** The cockpit
+  header now shows a consequence-first intent line (the recommendation headline, e.g.
+  "Load is low — ramp it up" — same voice as the briefing, no mechanism numbers) and a
+  forward hook ("67 today — train and it rises to 69") from `projectScore`, hidden when
+  there's no honest gain. `updateCockpitCoaching` runs on cockpit render; best-effort so
+  it never blocks logging. 383 tests, typecheck, smoke green; verified in Chromium.
+  Follow-ups on the table: ghost targets in set inputs (#4), single-focus accordion (#5).
 - 2026-07-03 · **Program detail simplified — "show what the program is".** Collapsed the
   ~13-section marketing stack into a lean identity header (hero · stats · tags · CTA · one
   description) + an Overview | Structure tab body. Overview = what-you'll-achieve · focus

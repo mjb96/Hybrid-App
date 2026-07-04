@@ -16,6 +16,9 @@ import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
 import { dateKey } from './dates.js';
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { generateRecommendation } from './brain/recommendations.js';
+import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 
 let _getState;
 let _getSelectedDay;
@@ -542,6 +545,33 @@ export function renderWorkout() {
     moveRestTimerToActiveExercise();
     mountExerciseDragAndDropSystems();
   } catch(e) { console.warn(e); }
+
+  updateCockpitCoaching(appState, selectedDay, activeProgram);
+}
+
+// The cockpit's coaching voice: a decisive, consequence-first intent line (the
+// recommendation headline — same voice as the briefing, no mechanism numbers)
+// and a live forward hook ("… train and it rises to 85") that recomputes as the
+// session is logged. Best-effort: never blocks the cockpit if the engine can't run.
+export function updateCockpitCoaching(appState, selectedDay, activeProgram) {
+  const statusEl = document.getElementById('cockpitSessionStatus');
+  const hookEl   = document.getElementById('cockpitScoreHook');
+  if (!statusEl && !hookEl) return;
+  try {
+    const days    = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const program = activeProgram || getProgramById(appState.activeProgramId);
+    const model   = computeDashboardModel(appState, days, program, selectedDay);
+
+    if (statusEl) {
+      const rec = generateRecommendation(appState, days, program, selectedDay);
+      if (rec?.headline) statusEl.textContent = rec.headline;
+    }
+    if (hookEl) {
+      const line = projectionLine(projectScore(model, appState, days));
+      if (line) { hookEl.textContent = line; hookEl.style.display = ''; }
+      else { hookEl.style.display = 'none'; }
+    }
+  } catch (_) { /* coaching is best-effort */ }
 }
 
 // Stamp the calendar date the first time a day has a completed set, so the

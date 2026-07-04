@@ -4354,6 +4354,19 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   margin-top: 3px;
 }
 
+/* Cockpit live score hook — "… train and it rises to 85", updates as you log. */
+.cockpit-hook {
+  margin: 12px 0 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(59,130,246,0.10);
+  border: 1px solid rgba(59,130,246,0.26);
+  color: var(--text-inverse, #f8fafc);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 /* Workout status badge (top-right of header) */
 .wch-badge {
   display: flex;
