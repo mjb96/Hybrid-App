@@ -5,7 +5,7 @@
 // ==========================================
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { programStats, buildComparison } from '../js/programs/compare.js';
+import { programStats, buildComparison, equipmentFit } from '../js/programs/compare.js';
 
 const strongLifts = {
   name: 'StrongLifts 5×5', durationWeeks: 12, sessionsPerWeek: 3,
@@ -58,4 +58,27 @@ test('buildComparison surfaces training-focus metrics present on either side', (
   assert.equal(strength.b, 92);
   // every emphasis row carries a value for at least one program
   assert.ok(cmp.metrics.every(m => m.a > 0 || m.b > 0));
+});
+
+// ── A2 equipment fit ──────────────────────────────────────────────────────────
+
+test('equipmentFit flags missing kit against what the athlete owns', () => {
+  const owned = { barbell: false, rack: false, dumbbells: true, cables: true, pullupBar: true, bands: true, kettlebells: false };
+  const fit = equipmentFit(['barbell', 'rack', 'dumbbells'], owned);
+  assert.deepEqual(fit.missing, ['barbell', 'rack']);
+  assert.deepEqual(fit.owned, ['dumbbells']);
+});
+
+test('equipmentFit treats unmappable kit (bench, sled) as unknown, not missing', () => {
+  const owned = { barbell: true };
+  const fit = equipmentFit(['barbell', 'bench', 'sled'], owned);
+  assert.deepEqual(fit.owned, ['barbell']);
+  assert.deepEqual(fit.unknown, ['bench', 'sled']);
+  assert.deepEqual(fit.missing, []);
+});
+
+test('equipmentFit does not red-flag anything when ownership is unknown', () => {
+  const fit = equipmentFit(['barbell', 'rack'], {}); // no equipment set
+  assert.equal(fit.missing.length, 0);
+  assert.equal(fit.unknown.length, 2);
 });

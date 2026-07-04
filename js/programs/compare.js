@@ -48,6 +48,34 @@ export function programStats(program) {
   };
 }
 
+// Map a program's equipment tokens onto the athlete's owned-equipment keys
+// (settings.equipment). Tokens with no owned-equipment equivalent (bench, sled,
+// running shoes, ergs…) are "unknown" — we don't red-flag what we can't judge.
+const EQUIP_KEY = {
+  barbell: 'barbell', rack: 'rack', dumbbells: 'dumbbells', cables: 'cables',
+  'pull-up-bar': 'pullupBar', pullups: 'pullupBar', kettlebell: 'kettlebells',
+  kettlebells: 'kettlebells', bands: 'bands', treadmill: 'treadmill',
+};
+
+/**
+ * Fit between a program's equipment needs and what the athlete owns.
+ * @param {string[]} programEquipment
+ * @param {Record<string, boolean>} [owned] settings.equipment
+ * @returns {{ owned: string[], missing: string[], unknown: string[] }}
+ */
+export function equipmentFit(programEquipment, owned = {}) {
+  const result = { owned: [], missing: [], unknown: [] };
+  const known = owned && Object.keys(owned).length > 0;
+  for (const token of (programEquipment || [])) {
+    const key = EQUIP_KEY[token];
+    if (!key) { result.unknown.push(token); continue; }
+    if (!known) { result.unknown.push(token); continue; }
+    if (owned[key]) result.owned.push(token);
+    else result.missing.push(token);
+  }
+  return result;
+}
+
 const EMPHASIS = [
   ['strengthEmphasis', 'Strength'],
   ['hypertrophyEmphasis', 'Hypertrophy'],

@@ -4,6 +4,7 @@
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { buildProgramTimeline } from './timeline.js';
+import { programStats, equipmentFit } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard } from './program-card.js';
 import { PROGRAMS } from '../constants.js';
@@ -172,6 +173,8 @@ export function renderProgramDetail(programId, appState) {
       </div>
       `}
     </div>
+
+    ${wod ? '' : renderCommitmentStrip(program, appState?.settings)}
 
     <!-- Program Tags (Difficulty + Goals) -->
     <div class="detail-tags-row">
@@ -399,6 +402,41 @@ const PLAN_KIND_COLOR = {
 const PLAN_KIND_LABEL = {
   deload: 'Deload', peak: 'Peak', taper: 'Taper', intensify: 'Intensity', build: 'Build', work: '',
 };
+
+// A2 — the commitment strip: the numbers that actually decide "can/should I do
+// this?" — total time cost, weekly working volume, and whether the athlete owns
+// the kit. Reuses the pure programStats + equipmentFit helpers.
+function renderCommitmentStrip(program, settings) {
+  const s = programStats(program);
+  const fit = equipmentFit(s.equipment, settings?.equipment);
+
+  const tiles = [];
+  if (s.totalHours) {
+    tiles.push({ v: `~${s.totalHours}h`, l: `over ${s.weeks} wks`, c: 'var(--text-inverse)' });
+  }
+  if (s.weeklySets) {
+    tiles.push({ v: `${s.weeklySets}`, l: 'sets/week', c: 'var(--text-inverse)' });
+  }
+  if (s.equipment.length) {
+    if (fit.missing.length) {
+      const names = fit.missing.map(t => t.replace(/-/g, ' ')).join(', ');
+      tiles.push({ v: `✗ ${fit.missing.length} missing`, l: names, c: '#f59e0b' });
+    } else if (fit.owned.length) {
+      tiles.push({ v: '✓ Ready', l: 'you have the kit', c: '#10b981' });
+    }
+  }
+  if (!tiles.length) return '';
+
+  return `
+    <div class="detail-commitment-strip" style="display:flex;gap:8px;margin:14px 16px 0;">
+      ${tiles.map(t => `
+        <div style="flex:1;background:var(--overlay-sm);border-radius:12px;padding:10px 12px;text-align:center;">
+          <div style="font-family:ui-monospace,monospace;font-weight:800;font-size:1.05rem;letter-spacing:-0.02em;color:${t.c};">${t.v}</div>
+          <div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-top:2px;">${escapeHtml(t.l)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
 
 function renderPlanTimeline(program) {
   const rows = buildProgramTimeline(program);
