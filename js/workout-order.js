@@ -55,6 +55,22 @@ export function orderedLiftNames(weekData, day, blueprint) {
 }
 
 /**
+ * The neighbouring day key in a fixed day list — for swipe-between-days.
+ * @param {string[]} days ordered day keys (e.g. the cockpit day pills)
+ * @param {string} current
+ * @param {number} dir  +1 = next, -1 = previous
+ * @returns {string|null} the neighbour, or null at the ends / on bad input
+ */
+export function neighborDay(days, current, dir) {
+  if (!Array.isArray(days) || !days.length) return null;
+  const i = days.indexOf(current);
+  if (i < 0) return null;
+  const j = i + (dir < 0 ? -1 : 1);
+  if (j < 0 || j >= days.length) return null;
+  return days[j];
+}
+
+/**
  * Swap one exercise for another within a day, in place. Pure data operation
  * (mutates weekData, returns a result) so the cockpit's executeSwapExercise is a
  * thin wrapper and this is unit-testable.

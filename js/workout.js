@@ -11,8 +11,9 @@ import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
-import { orderedLiftNames, applyExerciseSwap } from './workout-order.js';
+import { orderedLiftNames, applyExerciseSwap, neighborDay } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
+import { plateHint } from './workout/plates.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
@@ -201,8 +202,18 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     return buildSetRow(sData, sIdx, safeLiftName, ghostSet);
   }).join('');
 
+  // C4b — per-side plate math for the coach's target weight (barbell lifts only:
+  // skip when there's no numeric target). Bodyweight/accessory targets yield '' .
+  let plates = '';
   try {
-    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, setsMarkup, groupId, ssColor });
+    const tw = diagnostic.progression && diagnostic.progression.weight;
+    if (tw && !isNaN(Number(tw)) && Number(tw) > 0) {
+      plates = plateHint(Number(tw), appState.settings?.weightUnit || 'kg');
+    }
+  } catch (_) {}
+
+  try {
+    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, setsMarkup, groupId, ssColor, plates });
   } catch(e) {
     exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
   }
@@ -555,9 +566,42 @@ export function renderWorkout() {
     window.scrollTo(0, currentScrollY);
     moveRestTimerToActiveExercise();
     mountExerciseDragAndDropSystems();
+    _wireDaySwipe();
   } catch(e) { console.warn(e); }
 
   updateCockpitCoaching(appState, selectedDay, activeProgram);
+}
+
+// C4c — swipe left/right on the exercise list to move between workout days, a
+// native gesture expectation. Wired once; drives the existing day-pill switcher
+// so all the commit/render/state handling is reused. Ignores vertical scrolls
+// and short/slow drags so it never fights the list scroll.
+function _wireDaySwipe() {
+  const view = document.getElementById('cockpitExercisesContainer');
+  if (!view || view._swipeWired) return;
+  view._swipeWired = true;
+  let x0 = null, y0 = null, t0 = 0;
+  view.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
+  }, { passive: true });
+  view.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - x0, dy = t.clientY - y0, dt = Date.now() - t0;
+    x0 = null;
+    if (dt > 600) return;                                  // too slow to be a swipe
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // not clearly horizontal
+    _swipeToDay(dx < 0 ? 1 : -1);                          // swipe left → next day
+  }, { passive: true });
+}
+
+function _swipeToDay(dir) {
+  const pills = Array.from(document.querySelectorAll('#cockpitDaySelectorBar .day-pill'));
+  const days = pills.map(p => p.getAttribute('data-day'));
+  const target = neighborDay(days, _getSelectedDay(), dir);
+  if (!target) return;
+  const pill = pills.find(p => p.getAttribute('data-day') === target);
+  pill?.click();  // routes through the set-day action (commit + render reused)
 }
 
 // The cockpit's coaching voice: a decisive, consequence-first intent line (the

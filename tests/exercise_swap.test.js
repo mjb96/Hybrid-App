@@ -91,3 +91,15 @@ test('no-ops on a missing source or identical name', () => {
   assert.equal(applyExerciseSwap(wd, 'mon', 'Ghost Lift', 'X').reason, 'missing');
   assert.equal(applyExerciseSwap(wd, 'mon', 'Back Squat', 'Back Squat').reason, 'noop');
 });
+
+// ── C4c neighbourDay (swipe between days) ─────────────────────────────────────
+import { neighborDay } from '../js/workout-order.js';
+
+test('neighborDay walks the day list and stops at the ends', () => {
+  const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  assert.equal(neighborDay(days, 'wed', 1), 'thu');
+  assert.equal(neighborDay(days, 'wed', -1), 'tue');
+  assert.equal(neighborDay(days, 'sun', 1), null, 'no wrap past the last day');
+  assert.equal(neighborDay(days, 'mon', -1), null, 'no wrap before the first day');
+  assert.equal(neighborDay(days, 'nope', 1), null);
+});
