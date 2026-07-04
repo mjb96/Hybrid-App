@@ -37,7 +37,7 @@ import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, openFastingDetail } from './home.js';
+import { initHome, renderHome, openFastingDetail, answerCoachOnHome } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext, shareScoreCard } from './analytics.js';
 import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
@@ -723,6 +723,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
+  else if (action === 'coach-ask') answerCoachOnHome(target.getAttribute('data-q'));
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
   // Timers

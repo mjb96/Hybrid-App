@@ -74,6 +74,19 @@ export function briefingCardHTML(b) {
             ${b.session.isRest ? 'data-context="recovery-score"' : ''}
             aria-label="Today's mission: ${esc(b.mission.text)}">${missionInner}<span class="mbrief__mission-chev">›</span></button>`;
 
+  // C2 — Ask the coach: a few tap-to-answer questions, answered live from the
+  // engine numbers. Deterministic and always true of the data.
+  const chipStyle = 'background:var(--overlay-sm);border:1px solid var(--overlay-sm);color:var(--text-secondary);border-radius:99px;padding:6px 12px;font-size:0.76rem;cursor:pointer;white-space:nowrap;';
+  const askRow = `
+    <div class="mbrief__ask" style="margin-top:12px;border-top:1px solid var(--overlay-sm);padding-top:12px;">
+      <div class="mbrief__ask-chips" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="mbrief__ask-chip tactile-scale" data-action="coach-ask" data-q="train-today" style="${chipStyle}">Should I train today?</button>
+        <button class="mbrief__ask-chip tactile-scale" data-action="coach-ask" data-q="why-score" style="${chipStyle}">Why did my score move?</button>
+        <button class="mbrief__ask-chip tactile-scale" data-action="coach-ask" data-q="overtraining" style="${chipStyle}">Am I overtraining?</button>
+      </div>
+      <div class="mbrief__ask-answer" id="coachAnswer" style="margin-top:10px;font-size:0.88rem;color:var(--text-inverse);line-height:1.5;" hidden></div>
+    </div>`;
+
   return `
   <article class="mbrief" aria-label="Morning briefing">
     <div class="mbrief__head">
@@ -86,5 +99,6 @@ export function briefingCardHTML(b) {
     ${memoryRow}
     ${streakRow}
     ${coachRow}
+    ${askRow}
   </article>`;
 }
