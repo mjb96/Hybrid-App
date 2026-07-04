@@ -105,6 +105,12 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
   <div class="cockpit-body">
     <div class="local-timer-placeholder"></div>
     <span class="cockpit-history-line">⚡ ${historicalLineText}</span>
+    ${diagnostic.progression && diagnostic.progression.weight ? `
+      <div class="cockpit-coach-target">
+        <span class="cct-text">🎯 Target <b>${escapeHtml(String(diagnostic.progression.weight))} × ${escapeHtml(String(diagnostic.progression.reps))}</b></span>
+        ${isCompleted ? '' : `<button class="cct-logall tactile-scale" data-action="log-all-target">Log all →</button>`}
+      </div>
+    ` : ''}
     <div class="set-rows-list">${setsMarkup}</div>
     <div class="append-set-row">
       <button class="btn-pad-append tactile-scale btn-append-warmup" data-action="append-warmup-set" data-liftname="${safeLiftName}">+ Warmup</button>

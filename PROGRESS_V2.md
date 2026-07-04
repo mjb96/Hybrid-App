@@ -300,6 +300,13 @@ Overview · full depth under Stats/expanders · curated, not configurable.
 ## Session Log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **Ghost targets #4 — legible coach target + "Log all".** The per-set ghost
+  already carried the auto-progression suggestion (and one-tap-per-set existed); made it
+  discoverable with a 🎯 coach-target chip per exercise ("Target 80 × 9") and a "Log all →"
+  that fills + completes every incomplete working set at target in one tap, reusing the
+  proven one-tap path (PR/tw-tr capture, rest timer, persistence). Verified in Chromium:
+  chip shows the real suggestion; Log all took Bench Press 0 → 3 sets done with a toast.
+  383 tests, typecheck, smoke green. Next candidate: #5 single-focus accordion.
 - 2026-07-04 · **Cockpit coaching — decisive intent line + live score hook.** The cockpit
   header now shows a consequence-first intent line (the recommendation headline, e.g.
   "Load is low — ramp it up" — same voice as the briefing, no mechanism numbers) and a

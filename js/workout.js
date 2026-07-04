@@ -666,6 +666,23 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   evaluateAccordionAutoFlowTransitions();
 }
 
+// Ghost targets #4 — accept the coach's suggestion for the whole exercise in one
+// tap: fill + complete every incomplete WORKING set from its ghost target,
+// reusing the exact one-tap path (PR detection, prescribed-vs-actual capture,
+// rest timer, persistence). Warm-ups and already-logged sets are left alone.
+export function logAllAtTarget(liftName) {
+  const card = document.querySelector(`.cockpit-exercise[data-liftname="${(window.CSS && CSS.escape) ? CSS.escape(liftName) : liftName}"]`);
+  if (!card) return;
+  let logged = 0;
+  Array.from(card.querySelectorAll('.cockpit-set-row')).forEach(row => {
+    if (row.classList.contains('is-complete') || row.classList.contains('type-warmup')) return;
+    const label = row.querySelector('.set-num-lbl[data-action="quick-log"]');
+    const sIdx = parseInt(row.getAttribute('data-set-index'), 10);
+    if (label && !isNaN(sIdx)) { executeOneTapQuickLog(label, liftName, sIdx); logged++; }
+  });
+  if (logged > 0) { hapticSuccess(); showToast(`Logged ${logged} set${logged > 1 ? 's' : ''} at target ✓`); }
+}
+
 export function updateInputState(inputNode) {
   if (!inputNode) return;
   const appState = _getState();
@@ -1420,6 +1437,7 @@ document.addEventListener('click', (e) => {
   const sIdx = parseInt(target.getAttribute('data-sidx'), 10);
 
   if (action === 'quick-log') executeOneTapQuickLog(target, liftName, sIdx);
+  else if (action === 'log-all-target') logAllAtTarget(liftName);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
