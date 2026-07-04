@@ -14,9 +14,14 @@ import { insightsForSession } from './analytics/insights/build-insights.js';
 import { paceZoneColour } from './analytics/utils.js';
 import { confettiBurst } from './ui/celebration.js';
 import { hapticSuccess } from './haptics.js';
+import { MUSCLE_MAP } from './metrics/metrics-strength.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
+
+// V2 — Summary | Breakdown, remembered across a single recap's open lifetime.
+let _recapTab = 'summary';
+let _recapCtx = { week: null, day: null };
 
 // Epley estimated 1RM (matches the app's convention: 1-rep sets are exact).
 function e1rm(w, r) {
@@ -73,41 +78,72 @@ export function buildSessionRecap(state, week, day) {
   const dateISO  = wd.dates?.[day] || null;
 
   // ── Strength ──
-  let tonnage = 0, workingSets = 0;
+  let tonnage = 0, workingSets = 0, totalReps = 0;
   const lifts = [];
+  const muscleCredits = {};   // muscle → weighted working-set credits (primary 1, secondary 0.5)
   for (const name in dayLifts) {
     const sets = dayLifts[name];
     if (!Array.isArray(sets)) continue;
     const done = sets.filter((s) => isCompletedSet(s) && !isWarmupSet(s));
     if (!done.length) continue;
-    let liftVol = 0, bestE1 = 0, topSet = null;
+    let liftVol = 0, bestE1 = 0, topSet = null, liftReps = 0;
     done.forEach((s) => {
       liftVol += setVolume(s);
+      liftReps += parseInt(s.r, 10) || 0;
       const est = e1rm(s.w, s.r);
       if (est > bestE1) { bestE1 = est; topSet = { w: parseFloat(s.w) || 0, r: parseFloat(s.r) || 0 }; }
     });
     tonnage += liftVol;
     workingSets += done.length;
+    totalReps += liftReps;
+
+    // Full per-set list (working + warm-ups, in order) for the Breakdown grid.
+    const setList = sets
+      .filter((s) => isCompletedSet(s))
+      .map((s) => ({
+        w: parseFloat(s.w) || 0, r: parseInt(s.r, 10) || 0,
+        warmup: isWarmupSet(s), type: s.type || '',
+        rir: s.rir != null ? s.rir : (s.rpe != null ? 10 - s.rpe : null),
+        vol: Math.round(setVolume(s)),
+      }));
+
+    // Weighted muscle credits (primary 1.0, secondary 0.5) × working set count.
+    const mm = MUSCLE_MAP[name];
+    if (mm) {
+      (mm.primary || []).forEach((m) => { muscleCredits[m] = (muscleCredits[m] || 0) + done.length; });
+      (mm.secondary || []).forEach((m) => { muscleCredits[m] = (muscleCredits[m] || 0) + done.length * 0.5; });
+    }
+
     // PR: this session's best e1RM beats the lift's best in every prior session
     // (needs an established previous best — a first-ever lift isn't a "PR").
     const prior = priorBestE1rm(state, week, day, name);
     const pr = prior > 0 && bestE1 > prior + 0.5;
-    lifts.push({ name, sets: done.length, volume: Math.round(liftVol), topSet, e1rm: Math.round(bestE1), pr });
+    lifts.push({ name, sets: done.length, reps: liftReps, volume: Math.round(liftVol), topSet, e1rm: Math.round(bestE1), pr, setList });
   }
   lifts.sort((a, b) => b.volume - a.volume);
+  const muscles = Object.entries(muscleCredits)
+    .map(([muscle, credits]) => ({ muscle, credits }))
+    .sort((a, b) => b.credits - a.credits);
 
   // ── Run / walk ──
   let runOut = null;
   const runDist = run ? (parseFloat(run.dist) || 0) : 0;
   if (run && (runDist > 0 || run.time)) {
     runOut = {
-      type:   run.type === 'walk' ? 'walk' : 'run',
-      distKm: runDist,
-      time:   run.time || '',
-      pace:   pacePerKm(runDist, run.time),
-      rpe:    run.rpe || '',
-      avgHR:  run.avgHR || '',
-      splits: Array.isArray(run.splits) ? run.splits : [],
+      type:    run.type === 'walk' ? 'walk' : 'run',
+      distKm:  runDist,
+      time:    run.time || '',
+      pace:    pacePerKm(runDist, run.time),
+      rpe:     run.rpe || '',
+      avgHR:   run.avgHR || '',
+      maxHR:   run.maxHR || '',
+      cadence: run.avgCadence || run.cadence || '',
+      elev:    run.elev || '',
+      descent: run.descent || '',
+      cals:    run.cals || '',
+      te:      run.trainingEffect || run.te || '',
+      hrZones: Array.isArray(run.hrZones) ? run.hrZones : null,
+      splits:  Array.isArray(run.splits) ? run.splits : [],
     };
   }
 
@@ -120,9 +156,11 @@ export function buildSessionRecap(state, week, day) {
   // builder only assembles the session's factual summary.
   return {
     dateISO, types,
-    tonnage: Math.round(tonnage), workingSets,
-    duration: gymStats.time || '', gymRpe, gymHR: gymStats.avgHR || '',
-    lifts, run: runOut,
+    tonnage: Math.round(tonnage), workingSets, totalReps,
+    duration: gymStats.time || '', gymRpe,
+    gymHR: gymStats.avgHR || '', gymMaxHR: gymStats.maxHR || '',
+    gymCals: gymStats.cals || '', gymTE: gymStats.trainingEffect || gymStats.te || '',
+    lifts, muscles, run: runOut,
     empty: workingSets === 0 && !runOut,
   };
 }
@@ -155,95 +193,223 @@ function fmtPace(secs) {
   return `${Math.floor(secs / 60)}:${String(Math.round(secs % 60)).padStart(2, '0')}`;
 }
 
-export function renderSessionRecapHTML(r, insights = [], thresholdSec = null) {
-  if (r.empty) {
-    return `<div class="recap-empty">Nothing logged for this day yet.</div>`;
-  }
-  const tiles = [
-    r.tonnage > 0 ? statTile('Volume', `${r.tonnage.toLocaleString()} kg`) : '',
-    r.workingSets > 0 ? statTile('Working sets', r.workingSets) : '',
-    statTile('Duration', r.duration),
-    statTile('Gym RPE', r.gymRpe ? `${r.gymRpe}/10` : ''),
+const UNIT = 'kg';
+const ZONE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#f97316', '#ef4444'];
+
+function _summaryTiles(r) {
+  return [
+    r.tonnage > 0 ? statTile('Volume', `${r.tonnage.toLocaleString()} ${UNIT}`) : '',
+    r.workingSets > 0 ? statTile('Sets', r.workingSets) : '',
+    r.duration ? statTile('Duration', r.duration) : '',
+    r.gymRpe ? statTile('Gym RPE', `${r.gymRpe}/10`) : '',
     r.run ? statTile('Distance', r.run.distKm > 0 ? `${r.run.distKm.toFixed(2)} km` : '') : '',
     r.run ? statTile('Pace', r.run.pace ? `${r.run.pace} /km` : '') : '',
     r.run ? statTile('Run time', r.run.time) : '',
+    r.run && r.run.avgHR ? statTile('Avg HR', `${r.run.avgHR} bpm`) : '',
   ].join('');
+}
 
-  const liftRows = r.lifts.map((l) => `
+function _liftSummaryRows(r) {
+  return r.lifts.map((l) => `
     <div class="recap-lift">
       <div class="recap-lift__name">${esc(l.name)}${l.pr ? ` <span class="recap-pr" title="New estimated 1RM best">🏆 PR</span>` : ''}</div>
       <div class="recap-lift__detail">
-        ${l.topSet ? `${l.topSet.w} kg × ${l.topSet.r}` : `${l.sets} sets`}
-        <span class="recap-lift__e1rm">est. 1RM ${l.e1rm} kg</span>
+        ${l.topSet ? `${l.topSet.w} ${UNIT} × ${l.topSet.r}` : `${l.sets} sets`}
+        <span class="recap-lift__e1rm">est. 1RM ${l.e1rm} ${UNIT}</span>
       </div>
     </div>`).join('');
+}
 
-  // Pace-per-km bar chart: bar length is relative to the fastest split (fastest
-  // = fullest), each bar coloured by its pace zone. Falls back to plain rows if
-  // no per-km times exist.
-  let splitRows = '';
-  if (r.run && r.run.splits.length) {
-    const paces = r.run.splits.map((s, i) => ({ km: s.lap ?? i + 1, secs: parseFloat(s.time) || 0 }));
-    const timed = paces.filter((p) => p.secs > 0);
-    if (timed.length) {
-      const fastest = Math.min(...timed.map((p) => p.secs));
-      splitRows = `<div class="recap-pacechart">${paces.map((p) => {
-        const pct = p.secs > 0 ? Math.max(12, Math.round((fastest / p.secs) * 100)) : 0;
-        const col = p.secs > 0 ? paceZoneColour(p.secs, thresholdSec) : '#334155';
-        return `<div class="recap-pacerow">
-          <span class="recap-pacerow__km">${p.km}</span>
-          <span class="recap-pacerow__track"><span class="recap-pacerow__bar" style="width:${pct}%;background:${col}"></span></span>
-          <span class="recap-pacerow__val">${fmtPace(p.secs)}</span>
-        </div>`;
-      }).join('')}</div>`;
-    } else {
-      splitRows = `<div class="recap-splits">${paces.map((p) =>
-        `<div class="recap-split"><span>${p.km} km</span><span>—</span></div>`).join('')}</div>`;
-    }
+// Pace-per-km bar chart: bar length relative to the fastest split, coloured by
+// pace zone. Falls back to plain rows if no per-km times exist.
+function _paceChart(r, thresholdSec) {
+  if (!r.run || !r.run.splits.length) return '';
+  const paces = r.run.splits.map((s, i) => ({ km: s.lap ?? i + 1, secs: parseFloat(s.time) || 0 }));
+  const timed = paces.filter((p) => p.secs > 0);
+  if (!timed.length) {
+    return `<div class="recap-splits">${paces.map((p) =>
+      `<div class="recap-split"><span>${p.km} km</span><span>—</span></div>`).join('')}</div>`;
   }
+  const fastest = Math.min(...timed.map((p) => p.secs));
+  return `<div class="recap-pacechart">${paces.map((p) => {
+    const pct = p.secs > 0 ? Math.max(12, Math.round((fastest / p.secs) * 100)) : 0;
+    const col = p.secs > 0 ? paceZoneColour(p.secs, thresholdSec) : '#334155';
+    return `<div class="recap-pacerow">
+      <span class="recap-pacerow__km">${p.km}</span>
+      <span class="recap-pacerow__track"><span class="recap-pacerow__bar" style="width:${pct}%;background:${col}"></span></span>
+      <span class="recap-pacerow__val">${fmtPace(p.secs)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
 
+// ── Breakdown helpers ──
+function _setTag(s) {
+  if (s.warmup || s.type === 'W') return '<span class="rc-set__tag rc-set__tag--w">warm</span>';
+  if (s.type === 'D') return '<span class="rc-set__tag rc-set__tag--d">drop</span>';
+  if (s.type === 'F') return '<span class="rc-set__tag rc-set__tag--f">amrap</span>';
+  return '';
+}
+function _liftSetGrid(r) {
+  return r.lifts.map((l) => `
+    <div class="rc-exercise">
+      <div class="rc-exercise__head">
+        <span class="rc-exercise__name">${esc(l.name)}${l.pr ? ' 🏆' : ''}</span>
+        <span class="rc-exercise__meta">${l.sets} sets · ${l.reps} reps · ${l.volume.toLocaleString()} ${UNIT}</span>
+      </div>
+      <div class="rc-sets">
+        ${l.setList.map((s, i) => `
+          <div class="rc-set${s.warmup ? ' rc-set--warm' : ''}">
+            <span class="rc-set__n">${i + 1}</span>
+            <span class="rc-set__wr">${s.w} ${UNIT} × ${s.r}</span>
+            ${_setTag(s)}
+            ${s.rir != null ? `<span class="rc-set__rir">RIR ${s.rir}</span>` : ''}
+            <span class="rc-set__vol">${s.vol.toLocaleString()} ${UNIT}</span>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+function _sessionTotals(r) {
+  const tiles = [
+    r.workingSets > 0 ? statTile('Sets', r.workingSets) : '',
+    r.totalReps > 0 ? statTile('Reps', r.totalReps) : '',
+    r.tonnage > 0 ? statTile('Volume', `${r.tonnage.toLocaleString()} ${UNIT}`) : '',
+    r.gymHR ? statTile('Avg HR', `${r.gymHR} bpm`) : '',
+    r.gymMaxHR ? statTile('Max HR', `${r.gymMaxHR} bpm`) : '',
+    r.gymCals ? statTile('Calories', r.gymCals) : '',
+    r.gymTE ? statTile('Training effect', r.gymTE) : '',
+  ].join('');
+  return tiles ? `<div class="recap-stats">${tiles}</div>` : '';
+}
+function _muscleBar(r) {
+  if (!r.muscles || !r.muscles.length) return '';
+  const max = Math.max(...r.muscles.map((m) => m.credits)) || 1;
+  return `<div class="rc-muscles">${r.muscles.slice(0, 8).map((m) => `
+    <div class="rc-muscle">
+      <span class="rc-muscle__lbl">${esc(String(m.muscle).replace(/_/g, ' '))}</span>
+      <span class="rc-muscle__track"><span class="rc-muscle__bar" style="width:${Math.round((m.credits / max) * 100)}%"></span></span>
+      <span class="rc-muscle__v">${m.credits % 1 === 0 ? m.credits : m.credits.toFixed(1)}</span>
+    </div>`).join('')}</div>`;
+}
+function _hrZoneBar(r) {
+  const z = r.run && r.run.hrZones;
+  if (!z || !z.some((v) => v > 0)) return '';
+  const fmtZ = (s) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : `${Math.round(s)}s`);
   return `
+    <div class="recap-section-title">Heart-rate zones</div>
+    <div class="rc-hrzbar">${z.map((v, i) => (v > 0 ? `<span class="rc-hrzseg" style="flex:${v};background:${ZONE_COLORS[i]}"></span>` : '')).join('')}</div>
+    <div class="rc-hrzlabels">${z.map((v, i) => `<span class="rc-hrzlabel"><b style="color:${ZONE_COLORS[i]}">Z${i + 1}</b> ${v > 0 ? fmtZ(v) : '—'}</span>`).join('')}</div>`;
+}
+function _runTilesFull(r) {
+  if (!r.run) return '';
+  const run = r.run;
+  const tiles = [
+    run.avgHR ? statTile('Avg HR', `${run.avgHR} bpm`) : '',
+    run.maxHR ? statTile('Max HR', `${run.maxHR} bpm`) : '',
+    run.cadence ? statTile('Cadence', `${run.cadence} spm`) : '',
+    run.elev ? statTile('Elev gain', `${run.elev} m`) : '',
+    run.descent ? statTile('Elev loss', `${run.descent} m`) : '',
+    run.te ? statTile('Training effect', run.te) : '',
+    run.cals ? statTile('Calories', run.cals) : '',
+    run.rpe ? statTile('RPE', `${run.rpe}/10`) : '',
+  ].join('');
+  return tiles ? `<div class="recap-stats">${tiles}</div>` : '';
+}
+function _splitTableFull(r, thresholdSec) {
+  if (!r.run || !r.run.splits.length) return '';
+  const rows = r.run.splits.map((s, i) => {
+    const secs = parseFloat(s.time) || 0;
+    const col = secs > 0 ? paceZoneColour(secs, thresholdSec) : '#334155';
+    return `<div class="rc-split">
+      <span class="rc-split__km">${s.lap ?? i + 1}</span>
+      <span class="rc-split__pace" style="color:${col}">${fmtPace(secs)}</span>
+      <span class="rc-split__hr">${s.avgHR ? `${s.avgHR} bpm` : '—'}</span>
+    </div>`;
+  }).join('');
+  return `<div class="recap-section-title">Splits</div>
+    <div class="rc-splittable"><div class="rc-split rc-split--head"><span>KM</span><span>Pace</span><span>Avg HR</span></div>${rows}</div>`;
+}
+
+// V2 — Summary (the story + essentials) | Breakdown (every set · muscle focus ·
+// full run detail). All from data we already capture — the front got leaner, the
+// depth got deeper. `tab` selects which face to render.
+export function renderSessionRecapHTML(r, insights = [], thresholdSec = null, tab = 'summary') {
+  if (r.empty) {
+    return `<div class="recap-empty">Nothing logged for this day yet.</div>`;
+  }
+  const head = `
     <div class="recap-head">
       <div class="recap-date">${fmtDate(r.dateISO)}</div>
       <div class="recap-badges">${r.types.map(typeBadge).join('')}</div>
-    </div>
-    <div class="recap-stats">${tiles}</div>
-    ${r.run && r.run.distKm > 0 ? `<div id="recapMapContainer" class="recap-map"></div>` : ''}
-    ${insights.length ? `<div class="recap-section-title">Insights</div>
-      <ul class="recap-insights">${insights.map((i) =>
-        `<li class="recap-insight--${esc(i.priority || 'info')}">${esc(i.text)}</li>`).join('')}</ul>` : ''}
-    ${r.lifts.length ? `<div class="recap-section-title">Lifts</div>${liftRows}` : ''}
-    ${splitRows ? `<div class="recap-section-title">Pace / km</div>${splitRows}` : ''}
-  `;
+    </div>`;
+  const tabBar = `
+    <div class="an-tabbar recap-tabbar">
+      <button class="an-tab ${tab === 'summary' ? 'an-tab--active' : ''}" data-recap-tab="summary">Summary</button>
+      <button class="an-tab ${tab === 'breakdown' ? 'an-tab--active' : ''}" data-recap-tab="breakdown">Breakdown</button>
+    </div>`;
+
+  let body;
+  if (tab === 'breakdown') {
+    body = `
+      ${r.lifts.length ? `<div class="recap-section-title">Every set</div>${_liftSetGrid(r)}${_sessionTotals(r)}` : ''}
+      ${r.muscles && r.muscles.length ? `<div class="recap-section-title">Muscle focus · weighted sets</div>${_muscleBar(r)}` : ''}
+      ${r.run ? `<div class="recap-section-title">Run detail</div>${_runTilesFull(r)}${_hrZoneBar(r)}${_splitTableFull(r, thresholdSec)}` : ''}
+    `;
+  } else {
+    body = `
+      <div class="recap-stats">${_summaryTiles(r)}</div>
+      ${r.run && r.run.distKm > 0 ? `<div id="recapMapContainer" class="recap-map"></div>` : ''}
+      ${insights.length ? `<div class="recap-section-title">Insights</div>
+        <ul class="recap-insights">${insights.map((i) =>
+          `<li class="recap-insight--${esc(i.priority || 'info')}">${esc(i.text)}</li>`).join('')}</ul>` : ''}
+      ${r.lifts.length ? `<div class="recap-section-title">Lifts</div>${_liftSummaryRows(r)}` : ''}
+      ${r.run && r.run.splits.length ? `<div class="recap-section-title">Pace / km</div>${_paceChart(r, thresholdSec)}` : ''}
+    `;
+  }
+  return `${head}${tabBar}<div class="recap-tabbody">${body}</div>`;
+}
+
+// Paint the current recap tab into the panel, wire the Summary|Breakdown tabs,
+// and (Summary only) mount the GPS map. Re-run on every tab switch.
+function _paintRecap() {
+  const state = _getState?.();
+  if (!state) return null;
+  const { week, day } = _recapCtx;
+  const recap = buildSessionRecap(state, week, day);
+  let insights = [];
+  try { insights = insightsForSession(state, recap.types); } catch (_) { insights = []; }
+
+  const content = document.getElementById('sessionRecapContent');
+  if (!content) return recap;
+  content.innerHTML = renderSessionRecapHTML(recap, insights, state.thresholdPaceSeconds || null, _recapTab);
+  content.querySelectorAll('[data-recap-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => { _recapTab = btn.getAttribute('data-recap-tab'); _paintRecap(); });
+  });
+
+  // The map lives on the Summary tab (async — loads coords + Leaflet).
+  if (_recapTab === 'summary' && recap.run && recap.run.distKm > 0) {
+    try {
+      renderRunMap(week, day, recap.run.distKm, {
+        containerId: 'recapMapContainer', splits: recap.run.splits, thresholdSec: state.thresholdPaceSeconds,
+      });
+    } catch (_) { /* map is best-effort */ }
+  }
+  return recap;
 }
 
 export function openSessionRecap(week, day) {
   const state = _getState?.();
   if (!state) return;
-  const recap = buildSessionRecap(state, week, day);
-  // Insights come from the shared engine, filtered to this session's categories.
-  let insights = [];
-  try { insights = insightsForSession(state, recap.types); } catch (_) { insights = []; }
-  const content = document.getElementById('sessionRecapContent');
-  if (content) content.innerHTML = renderSessionRecapHTML(recap, insights, state.thresholdPaceSeconds || null);
+  _recapCtx = { week, day };
+  _recapTab = 'summary';
+  const recap = _paintRecap();
+
   const screen = document.getElementById('sessionRecapScreen');
   if (screen) { screen.style.display = 'block'; screen.scrollTop = 0; }
 
   // A PR deserves a moment: haptic + a short confetti burst over the recap.
   // (Reduced-motion users get the haptic + the 🏆 badge only.)
-  if (recap.lifts?.some(l => l.pr)) {
+  if (recap && recap.lifts?.some(l => l.pr)) {
     try { hapticSuccess(); confettiBurst(); } catch (_) { /* best-effort */ }
-  }
-
-  // Draw the saved GPS route for a run/walk (async — loads coords + Leaflet).
-  if (recap.run && recap.run.distKm > 0) {
-    try {
-      renderRunMap(week, day, recap.run.distKm, {
-        containerId: 'recapMapContainer',
-        splits: recap.run.splits,
-        thresholdSec: state.thresholdPaceSeconds,
-      });
-    } catch (_) { /* map is best-effort */ }
   }
 }
 

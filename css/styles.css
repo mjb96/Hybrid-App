@@ -7658,6 +7658,50 @@ input[type="text"],
 .recap-map { height: 220px; border-radius: 12px; overflow: hidden; margin: 12px 0 4px; border: 1px solid var(--border, #23272e); }
 .recap-map .leaflet-container { height: 100%; width: 100%; background: #0b0f14; }
 
+/* ── Session recap: Summary | Breakdown (V2) ── */
+.recap-tabbar { margin: 12px 0 16px; }
+.recap-tabbody { min-height: 40px; }
+
+/* Every-set grid */
+.rc-exercise { margin-bottom: 14px; }
+.rc-exercise__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.rc-exercise__name { font-size: 0.9rem; font-weight: 800; color: var(--text-inverse, #f8fafc); min-width: 0; }
+.rc-exercise__meta { flex: 0 0 auto; font-size: 0.7rem; font-weight: 700; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; }
+.rc-sets { display: flex; flex-direction: column; gap: 4px; }
+.rc-set { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; background: rgba(255,255,255,0.03); border: 1px solid var(--border, #1f242c); font-size: 0.8rem; }
+.rc-set--warm { opacity: 0.62; }
+.rc-set__n { flex: 0 0 auto; width: 18px; text-align: center; font-size: 0.68rem; font-weight: 800; color: var(--text-muted, #94a3b8); }
+.rc-set__wr { flex: 1 1 auto; font-weight: 700; color: var(--text-inverse, #f8fafc); font-variant-numeric: tabular-nums; }
+.rc-set__tag { flex: 0 0 auto; font-size: 0.58rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 6px; }
+.rc-set__tag--w { color: #f59e0b; background: rgba(245,158,11,0.12); }
+.rc-set__tag--d { color: #a78bfa; background: rgba(167,139,250,0.12); }
+.rc-set__tag--f { color: #ef4444; background: rgba(239,68,68,0.12); }
+.rc-set__rir { flex: 0 0 auto; font-size: 0.64rem; font-weight: 700; color: var(--text-muted, #94a3b8); }
+.rc-set__vol { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; color: var(--text-tertiary, #7c8aa0); font-variant-numeric: tabular-nums; }
+
+/* Muscle focus bars */
+.rc-muscles { display: flex; flex-direction: column; gap: 8px; }
+.rc-muscle { display: flex; align-items: center; gap: 10px; }
+.rc-muscle__lbl { flex: 0 0 96px; font-size: 0.74rem; font-weight: 700; color: var(--text-secondary, #cbd5e1); text-transform: capitalize; }
+.rc-muscle__track { flex: 1 1 auto; height: 8px; border-radius: 5px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.rc-muscle__bar { display: block; height: 100%; border-radius: 5px; background: var(--color-blue, #3b82f6); }
+.rc-muscle__v { flex: 0 0 auto; width: 30px; text-align: right; font-size: 0.7rem; font-weight: 800; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; }
+
+/* HR zones */
+.rc-hrzbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.06); margin-bottom: 8px; }
+.rc-hrzseg { display: block; height: 100%; }
+.rc-hrzlabels { display: flex; flex-wrap: wrap; gap: 10px; }
+.rc-hrzlabel { font-size: 0.68rem; font-weight: 700; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; }
+
+/* Full split table */
+.rc-splittable { display: flex; flex-direction: column; }
+.rc-split { display: grid; grid-template-columns: 40px 1fr 80px; gap: 8px; align-items: center; padding: 7px 4px; border-bottom: 1px solid var(--border, #1f242c); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.rc-split__km { font-weight: 800; color: var(--text-muted, #94a3b8); }
+.rc-split__pace { font-weight: 800; }
+.rc-split__hr { text-align: right; color: var(--text-secondary, #cbd5e1); font-weight: 600; }
+.rc-split--head { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted, #94a3b8); border-bottom-color: transparent; }
+.rc-split--head span:last-child { text-align: right; }
+
 /* ── Quick Activity (full-screen live tracker) ─────────────────────────── */
 #activityScreen {
   position: fixed; inset: 0; z-index: 200;
