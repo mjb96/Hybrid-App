@@ -18,7 +18,7 @@ export const COLLECTION_DEFINITIONS = [
   {
     id: 'most-popular',
     label: "Most Popular",
-    subtitle: "What everyone is training right now",
+    subtitle: "Proven, in-demand programming",
     icon: '🔥',
     filter: p => p.popularity >= 80,
     sort: (a, b) => b.enrolledCount - a.enrolledCount,
@@ -27,7 +27,7 @@ export const COLLECTION_DEFINITIONS = [
   {
     id: 'highest-rated',
     label: "Highest Rated",
-    subtitle: "Top-rated by the community",
+    subtitle: "Our highest-quality picks",
     icon: '⭐',
     filter: p => p.rating >= 4.6,
     sort: (a, b) => b.rating - a.rating || b.ratingCount - a.ratingCount,
@@ -153,7 +153,7 @@ export const COLLECTION_DEFINITIONS = [
   {
     id: 'community-favourites',
     label: "Community Favourites",
-    subtitle: "Battle-tested by thousands of athletes",
+    subtitle: "Time-tested, widely-used methods",
     icon: '👥',
     filter: p => p.ratingCount >= 600 && p.rating >= 4.4,
     sort: (a, b) => b.ratingCount - a.ratingCount,
@@ -162,7 +162,7 @@ export const COLLECTION_DEFINITIONS = [
   {
     id: 'trending',
     label: "Trending Programs",
-    subtitle: "Surging in popularity right now",
+    subtitle: "Worth a look right now",
     icon: '📈',
     filter: p => p.popularity >= 70,
     sort: (a, b) => b.popularity - a.popularity || b.enrolledCount - a.enrolledCount,
@@ -171,7 +171,7 @@ export const COLLECTION_DEFINITIONS = [
   {
     id: 'most-completed',
     label: "Most Completed",
-    subtitle: "Programs athletes actually finish",
+    subtitle: "Realistic, built to complete",
     icon: '🏆',
     filter: p => p.completionRate >= 60,
     sort: (a, b) => b.completionRate - a.completionRate,
