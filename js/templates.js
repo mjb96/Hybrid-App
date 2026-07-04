@@ -115,6 +115,7 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
     <div class="append-set-row">
       <button class="btn-pad-append tactile-scale btn-append-warmup" data-action="append-warmup-set" data-liftname="${safeLiftName}">+ Warmup</button>
       <button class="btn-pad-append tactile-scale" data-action="append-set" data-liftname="${safeLiftName}">+ Working Set</button>
+      <button class="btn-pad-append tactile-scale" data-action="swap-exercise" data-liftname="${safeLiftName}">⇄ Swap</button>
     </div>
   </div>`;
 }
