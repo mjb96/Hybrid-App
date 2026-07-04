@@ -16,6 +16,35 @@ Legend — Impact ▮▮▮▮▮ · Effort ◔ (hrs) → ● (days). AC = accep
 
 ---
 
+## ✅ Shipped (branch `claude/helyx-launch-audit-qn9cg0`)
+
+The program-experience core of the plan is built — each item its own tested,
+headlessly-verified commit. Baseline moved **383 → 413 tests**, all green;
+typecheck + smoke clean throughout.
+
+- **B1** — Customize: fork any program into an editable copy. `js/programs/detail.js`,
+  `js/state.js` (`duplicateCustomProgram` returns id, re-authors to You).
+- **B2** — Per-week progression editor in the builder (sets/reps/label/deload).
+  `js/programs/progression.js` (pure), `js/program_builder.js`.
+- **B3** — In-session exercise swap, equipment-filtered, preserves target + logged
+  sets. `js/workout/substitutions.js` (pure), `applyExerciseSwap` in
+  `js/workout-order.js`, swap modal in `js/workout.js` + `index.html`.
+- **B4** — Compare two programs side by side. `js/programs/compare.js` (pure
+  `programStats`/`equipmentFit`/`buildComparison`), `js/programs/compare-ui.js`.
+- **A1** — Week-by-week **Plan timeline** tab (the headline fix). `js/programs/timeline.js`
+  (pure), Plan tab in `detail.js`.
+- **A2** — Commitment strip (time cost · weekly volume · equipment ✓/✗) on the
+  detail page. `equipmentFit` in `compare.js`, `renderCommitmentStrip` in `detail.js`.
+- **A3** — Week-accurate day preview: a week stepper walks the block; name-only
+  lifts show the week's sets×reps. `detail.js`.
+- **A4** — Quick wins: hero carousel respects `prefers-reduced-motion` + pauses on
+  hover/focus; program cards show `N×/wk`. (A4a/A4c superseded by A1/A2.)
+
+**Remaining:** Phase C (onboarding goal→program, ask-the-coach, cockpit ergonomics,
+analytics hero visuals, empty states, type scale) and Phase D (god-module teardown).
+
+---
+
 ## Phase A — Program transparency (the mystery box) · **launch sprint**
 
 The core purchase decision. Most of the data already exists in the catalog and
