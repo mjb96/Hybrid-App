@@ -50,7 +50,10 @@ function readinessOf(model) {
 export function recordDailyScore(state, scoreResult, model, todayISO) {
   const hs = ensure(state);
   const today = todayISO || new Date().toISOString().slice(0, 10);
-  if (!scoreResult || scoreResult.score == null) return { changed: false, milestones: [] };
+  // A provisional (self-report-carried) score is a display estimate, not earned
+  // progress: never bank its XP or seed a history point from it, or the level
+  // ladder and day-over-day delta would be built on answers, not work.
+  if (!scoreResult || scoreResult.score == null || scoreResult.provisional) return { changed: false, milestones: [] };
   if (hs.lastRecordedDate === today) {
     // Already recorded today — keep the snapshot fresh (score can move intraday
     // as sessions are logged) but do NOT re-bank XP or re-fire milestones.
