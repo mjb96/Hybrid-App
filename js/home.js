@@ -11,6 +11,7 @@ import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
+import { answerCoachQuestion } from './brain/coach-qa.js';
 import { pushOvertrainingWarning, pushFastingStageNudge } from './notifications.js';
 import { reconcileStreakFreezes } from './brain/streak.js';
 import { shouldSuggestDeload } from './engine.js';
@@ -72,6 +73,33 @@ function renderHybridScoreHome(appState, model) {
 // + insight banner pair). Narrative for the day: greeting, session, mission,
 // coach line. Anchored by (and rendered directly under) the Hybrid Score hero.
 // ==========================================
+// C2 — Ask the coach. Recomputes the live context (readiness model, Hybrid Score
+// + delta, overtraining risk, today's session) and answers deterministically
+// into the briefing card. Called from the app.js action router on a chip tap.
+export function answerCoachOnHome(intent) {
+  const el = document.getElementById('coachAnswer');
+  if (!el) return;
+  try {
+    const appState = _getState();
+    const selectedDay = _getSelectedDay();
+    const days = _getDays();
+    const activeProgram = getProgramById(appState.activeProgramId);
+    const model = computeDashboardModel(appState, days, activeProgram, selectedDay);
+    const score = computeHybridScore(model, appState, days);
+    let risk = null;
+    try { risk = assessOvertrainingRisk(model, appState, days); } catch (_) {}
+    const rec = model?.rec || {};
+    const session = { isRest: rec.sessionLabel === 'Rest Day', done: rec.badge === 'Session Done', label: rec.sessionLabel };
+    const { answer } = answerCoachQuestion(intent, { model, score, risk, session });
+    el.textContent = answer;
+    el.hidden = false;
+  } catch (e) {
+    console.warn('coach Q&A failed (non-fatal):', e);
+    el.textContent = "I couldn't read your data just now — try again in a moment.";
+    el.hidden = false;
+  }
+}
+
 function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay) {
   const el = document.getElementById('morningBriefing');
   if (!el) return;

@@ -53,3 +53,58 @@ export function orderedLiftNames(weekData, day, blueprint) {
     .sort((a, b) => (a.r - b.r) || (a.i - b.i))
     .map(o => o.name);
 }
+
+/**
+ * The neighbouring day key in a fixed day list — for swipe-between-days.
+ * @param {string[]} days ordered day keys (e.g. the cockpit day pills)
+ * @param {string} current
+ * @param {number} dir  +1 = next, -1 = previous
+ * @returns {string|null} the neighbour, or null at the ends / on bad input
+ */
+export function neighborDay(days, current, dir) {
+  if (!Array.isArray(days) || !days.length) return null;
+  const i = days.indexOf(current);
+  if (i < 0) return null;
+  const j = i + (dir < 0 ? -1 : 1);
+  if (j < 0 || j >= days.length) return null;
+  return days[j];
+}
+
+/**
+ * Swap one exercise for another within a day, in place. Pure data operation
+ * (mutates weekData, returns a result) so the cockpit's executeSwapExercise is a
+ * thin wrapper and this is unit-testable.
+ *
+ * The sets array is re-keyed rather than rebuilt, so the prescribed target
+ * (each set's tw/tr) and any already-logged sets (w/r) carry across untouched;
+ * the exercise keeps its position in the day's display order; and any per-lift
+ * meta (superset grouping) moves with it.
+ *
+ * @returns {{ ok: boolean, reason?: 'noop'|'missing'|'duplicate' }}
+ */
+export function applyExerciseSwap(weekData, day, oldName, newName, blueprint) {
+  if (!oldName || !newName) return { ok: false, reason: 'missing' };
+  if (oldName === newName) return { ok: false, reason: 'noop' };
+
+  const dayLifts = weekData && weekData.lifts && weekData.lifts[day];
+  if (!dayLifts || !Array.isArray(dayLifts[oldName])) return { ok: false, reason: 'missing' };
+  if (Array.isArray(dayLifts[newName])) return { ok: false, reason: 'duplicate' };
+
+  // Re-key the sets array — this is what carries target + logged data across.
+  dayLifts[newName] = dayLifts[oldName];
+  delete dayLifts[oldName];
+
+  // Preserve position in the explicit display order (derive one if absent).
+  if (!weekData.liftOrder) weekData.liftOrder = {};
+  let order = weekData.liftOrder[day];
+  if (!Array.isArray(order) || !order.includes(oldName)) {
+    order = orderedLiftNames(weekData, day, blueprint);
+  }
+  weekData.liftOrder[day] = order.map(n => (n === oldName ? newName : n));
+
+  // Carry any per-exercise meta (e.g. superset grouping).
+  const meta = weekData.liftMeta && weekData.liftMeta[day];
+  if (meta && meta[oldName]) { meta[newName] = meta[oldName]; delete meta[oldName]; }
+
+  return { ok: true };
+}

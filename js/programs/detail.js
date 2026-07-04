@@ -3,9 +3,12 @@
 // PROGRAM DETAIL PAGE — Full-screen program detail view
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
+import { buildProgramTimeline } from './timeline.js';
+import { programStats, equipmentFit } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard } from './program-card.js';
-import { PROGRAMS } from '../constants.js';
+import { PROGRAMS, WEEK_PHASE_NAMES } from '../constants.js';
+import { getWeekModifier } from '../schema.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
 import { escapeHtml } from '../util.js';
 
@@ -79,10 +82,14 @@ export function renderProgramDetail(programId, appState) {
     ${renderSampleWorkout(program, programData, wod)}
   `;
 
+  const planHTML = renderPlanTimeline(program);
+  const hasPlan = !wod && !!planHTML;
+
   const detailTabBar = `
     <div class="an-tabbar detail-tabbar">
       <button class="an-tab ${_detailTab === 'overview' ? 'an-tab--active' : ''}" data-detail-tab="overview">Overview</button>
       <button class="an-tab ${_detailTab === 'structure' ? 'an-tab--active' : ''}" data-detail-tab="structure">Structure</button>
+      ${hasPlan ? `<button class="an-tab ${_detailTab === 'plan' ? 'an-tab--active' : ''}" data-detail-tab="plan">Plan</button>` : ''}
     </div>`;
 
   container.innerHTML = `
@@ -168,6 +175,8 @@ export function renderProgramDetail(programId, appState) {
       `}
     </div>
 
+    ${wod ? '' : renderCommitmentStrip(program, appState?.settings)}
+
     <!-- Program Tags (Difficulty + Goals) -->
     <div class="detail-tags-row">
       <span class="detail-tag detail-tag--difficulty" style="color: ${diff.color}; border-color: ${diff.color}40">
@@ -196,6 +205,12 @@ export function renderProgramDetail(programId, appState) {
           Mark as Complete
         </button>
       ` : ''}
+      <button class="detail-complete-btn" data-action="customize-program" data-program-id="${programId}">
+        ✏️ Customize — make an editable copy
+      </button>
+      <button class="detail-complete-btn" data-action="open-compare" data-program-id="${programId}">
+        ⚖️ Compare with another program
+      </button>
       ${program.rating
         ? `<div class="detail-rating">
              ${renderStars(program.rating)}
@@ -219,9 +234,13 @@ export function renderProgramDetail(programId, appState) {
       <p class="detail-description">${escapeHtml(program.description || program.dossier?.philosophy || '')}</p>
     </div>
 
-    <!-- Overview | Structure -->
+    <!-- Overview | Structure | Plan -->
     ${detailTabBar}
-    <div class="detail-tabbody">${_detailTab === 'structure' ? structureHTML : overviewHTML}</div>
+    <div class="detail-tabbody">${
+      _detailTab === 'plan' && hasPlan ? planHTML
+      : _detailTab === 'structure' ? structureHTML
+      : overviewHTML
+    }</div>
 
     <!-- Similar Programs -->
     ${similarPrograms.length > 0 ? `
@@ -374,6 +393,84 @@ function renderSampleWorkout(program, programData, wod = false) {
   `;
 }
 
+// A1 — the week-by-week plan. Renders the progression/deload arc that every
+// program already carries in weeklyVolModifiers (with a WEEK_PHASE_NAMES
+// fallback), tinted by phase so the shape of the block reads at a glance.
+const PLAN_KIND_COLOR = {
+  deload: '#22d3ee', peak: '#ef4444', taper: '#a78bfa',
+  intensify: '#f59e0b', build: '#8b5cf6', work: '#64748b',
+};
+const PLAN_KIND_LABEL = {
+  deload: 'Deload', peak: 'Peak', taper: 'Taper', intensify: 'Intensity', build: 'Build', work: '',
+};
+
+// A2 — the commitment strip: the numbers that actually decide "can/should I do
+// this?" — total time cost, weekly working volume, and whether the athlete owns
+// the kit. Reuses the pure programStats + equipmentFit helpers.
+function renderCommitmentStrip(program, settings) {
+  const s = programStats(program);
+  const fit = equipmentFit(s.equipment, settings?.equipment);
+
+  const tiles = [];
+  if (s.totalHours) {
+    tiles.push({ v: `~${s.totalHours}h`, l: `over ${s.weeks} wks`, c: 'var(--text-inverse)' });
+  }
+  if (s.weeklySets) {
+    tiles.push({ v: `${s.weeklySets}`, l: 'sets/week', c: 'var(--text-inverse)' });
+  }
+  if (s.equipment.length) {
+    if (fit.missing.length) {
+      const names = fit.missing.map(t => t.replace(/-/g, ' ')).join(', ');
+      tiles.push({ v: `✗ ${fit.missing.length} missing`, l: names, c: '#f59e0b' });
+    } else if (fit.owned.length) {
+      tiles.push({ v: '✓ Ready', l: 'you have the kit', c: '#10b981' });
+    }
+  }
+  if (!tiles.length) return '';
+
+  return `
+    <div class="detail-commitment-strip" style="display:flex;gap:8px;margin:14px 16px 0;">
+      ${tiles.map(t => `
+        <div style="flex:1;background:var(--overlay-sm);border-radius:12px;padding:10px 12px;text-align:center;">
+          <div style="font-family:ui-monospace,monospace;font-weight:800;font-size:1.05rem;letter-spacing:-0.02em;color:${t.c};">${t.v}</div>
+          <div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-top:2px;">${escapeHtml(t.l)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function renderPlanTimeline(program) {
+  const rows = buildProgramTimeline(program);
+  if (!rows.length) return '';
+
+  const items = rows.map(r => {
+    const color = PLAN_KIND_COLOR[r.kind] || PLAN_KIND_COLOR.work;
+    const tag = PLAN_KIND_LABEL[r.kind];
+    const spec = r.sets != null ? `${r.sets}×${r.reps ?? ''}` : '';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--overlay-sm);${r.deload ? 'border-left:3px solid ' + color + ';padding-left:8px;' : ''}">
+        <span style="width:38px;font-family:ui-monospace,monospace;font-size:0.72rem;color:var(--text-muted);font-variant-numeric:tabular-nums;">Wk ${r.week}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:0.82rem;color:var(--text-inverse);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.label || '—')}</span>
+            ${tag ? `<span style="font-size:0.6rem;letter-spacing:0.06em;text-transform:uppercase;color:${color};border:1px solid ${color}55;border-radius:99px;padding:1px 6px;flex-shrink:0;">${tag}</span>` : ''}
+          </div>
+          <div style="height:5px;border-radius:99px;background:var(--overlay-sm);overflow:hidden;margin-top:5px;">
+            <div style="height:100%;width:${r.volumeScore}%;background:${color};border-radius:99px;"></div>
+          </div>
+        </div>
+        ${spec ? `<span style="font-family:ui-monospace,monospace;font-size:0.72rem;color:var(--text-secondary);flex-shrink:0;">${escapeHtml(spec)}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">Week-by-week plan</div>
+      <p class="text-xs text-muted" style="margin:-6px 0 10px;">How volume and intensity move across the ${rows.length}-week block — including deloads. Bars show relative weekly working volume.</p>
+      <div class="plan-timeline">${items}</div>
+    </div>`;
+}
+
 function renderDaySplit(days) {
   if (!days) return '';
   const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -423,13 +520,24 @@ export function closeProgramDetail() {
 
 // ── Workout Preview Modal ─────────────────────────────────────────────────────
 
-export function openDayPreviewModal(dayKey, programId) {
+// A3 — the previewed day is now anchored to a WEEK. A stepper walks the block so
+// you can see how a given day's phase/volume shifts across the program (e.g. the
+// deload), instead of only ever seeing week 1.
+let _preview = { dayKey: null, programId: null, week: 1 };
+
+export function stepPreviewWeek(delta) {
+  if (!_preview.dayKey) return;
+  openDayPreviewModal(_preview.dayKey, _preview.programId, _preview.week + delta);
+}
+
+export function openDayPreviewModal(dayKey, programId, weekIndex) {
   const resolvedId = programId || _currentProgramId;
   const catalog = getCatalogEntry(resolvedId);
+  const program = getProgramById(resolvedId);
   // Prefer the catalog day (richest: carries workoutPreview), then fall back to
   // the resolved program — which covers system PROGRAMS *and* custom programs
   // (getProgramById walks customPrograms → PROGRAMS → catalog).
-  const day = catalog?.days?.[dayKey] || getProgramById(resolvedId)?.days?.[dayKey];
+  const day = catalog?.days?.[dayKey] || program?.days?.[dayKey];
   if (!day) return;
 
   const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
@@ -443,6 +551,13 @@ export function openDayPreviewModal(dayKey, programId) {
 
   if (!sheet || !backdrop) return;
 
+  const totalWeeks = Number(catalog?.durationWeeks || program?.totalWeeks) || 12;
+  const wk = Math.max(1, Math.min(totalWeeks, Number(weekIndex) || 1));
+  _preview = { dayKey, programId: resolvedId, week: wk };
+
+  const mod = getWeekModifier(catalog || program, wk);
+  const phaseLabel = (mod && mod.intensityLabel) || WEEK_PHASE_NAMES[String(wk)] || '';
+
   const dayLabels = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
 
   titleEl.textContent = day.title || dayLabels[dayKey] || dayKey;
@@ -450,15 +565,29 @@ export function openDayPreviewModal(dayKey, programId) {
   badgeEl.style.color = day.color || 'var(--accent-blue)';
   badgeEl.style.borderColor = (day.color || 'var(--accent-blue)') + '55';
 
+  // Week context bar with a stepper (only when the program spans >1 week).
+  const weekBar = totalWeeks > 1 ? `
+    <div class="wpm-weekbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--overlay-sm);border-radius:10px;padding:8px 10px;margin-bottom:12px;">
+      <button data-action="preview-week-step" data-delta="-1" aria-label="Previous week" style="background:none;border:none;color:var(--text-secondary);font-size:1.1rem;padding:2px 8px;cursor:pointer;${wk <= 1 ? 'opacity:0.3;pointer-events:none;' : ''}">‹</button>
+      <div style="text-align:center;flex:1;min-width:0;">
+        <div style="font-family:ui-monospace,monospace;font-size:0.72rem;color:var(--text-muted);">WEEK ${wk} / ${totalWeeks}</div>
+        <div style="font-size:0.82rem;color:var(--text-inverse);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(phaseLabel || '—')}</div>
+      </div>
+      <button data-action="preview-week-step" data-delta="1" aria-label="Next week" style="background:none;border:none;color:var(--text-secondary);font-size:1.1rem;padding:2px 8px;cursor:pointer;${wk >= totalWeeks ? 'opacity:0.3;pointer-events:none;' : ''}">›</button>
+    </div>` : '';
+
+  let previewHtml;
   if (day.workoutPreview?.type === 'STRENGTH') {
-    bodyEl.innerHTML = renderStrengthPreview(day.workoutPreview.exercises);
+    previewHtml = renderStrengthPreview(day.workoutPreview.exercises);
   } else if (day.workoutPreview?.type === 'RUNNING') {
-    bodyEl.innerHTML = renderRunningPreview(day.workoutPreview.phases);
+    previewHtml = renderRunningPreview(day.workoutPreview.phases);
   } else if (day.workoutPreview?.type === 'HYROX') {
-    bodyEl.innerHTML = renderHyroxPreview(day.workoutPreview);
+    previewHtml = renderHyroxPreview(day.workoutPreview);
   } else {
-    bodyEl.innerHTML = renderFallbackPreview(day);
+    previewHtml = renderFallbackPreview(day, mod);
   }
+
+  bodyEl.innerHTML = weekBar + previewHtml;
 
   backdrop.classList.add('active');
   sheet.classList.add('active');
@@ -476,10 +605,13 @@ function _parseDescExercises(desc) {
   return results;
 }
 
-function renderFallbackPreview(day) {
+function renderFallbackPreview(day, mod) {
   let html = '';
   const hasRun = day.runs && day.runs !== 'Rest';
   const hasLifts = day.lifts?.length;
+  // A3 — when the day carries no per-lift spec, show THIS week's prescription
+  // (sets × reps) from the week modifier so the name list isn't week-blind.
+  const wkSpec = (mod && mod.sets) ? `${mod.sets} × ${mod.reps ?? ''}` : '';
 
   if (hasRun) {
     html += `
@@ -511,7 +643,9 @@ function renderFallbackPreview(day) {
     } else {
       html += `
         <div class="wpm-exercise-list">
-          ${day.lifts.map(lift => `<div class="wpm-exercise-item">${lift}</div>`).join('')}
+          ${day.lifts.map(lift => `<div class="wpm-exercise-item" style="display:flex;justify-content:space-between;gap:10px;">
+            <span>${lift}</span>${wkSpec ? `<span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${wkSpec}</span>` : ''}
+          </div>`).join('')}
         </div>
       `;
       if (day.desc && day.desc !== 'Rest') {
@@ -641,6 +775,11 @@ export function handleDetailAction(action, el) {
       const dayKey   = el.getAttribute('data-day');
       const progId   = el.getAttribute('data-program-id');
       if (dayKey) openDayPreviewModal(dayKey, progId);
+      break;
+    }
+    case 'preview-week-step': {
+      const delta = parseInt(el.getAttribute('data-delta'), 10);
+      if (!isNaN(delta)) stepPreviewWeek(delta);
       break;
     }
     case 'close-day-preview':

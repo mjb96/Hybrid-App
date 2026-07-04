@@ -72,6 +72,35 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-04 · **Fresh launch audit + program-experience overhaul + two-way coach**
+  (branch `claude/helyx-launch-audit-qn9cg0`; plan in `docs/LAUNCH-AUDIT-PLAN.md`).
+  A ground-up launch-readiness audit found the app's core value — training programs
+  — was sold as a "mystery box": every program already carried a full week-by-week
+  progression in `weeklyVolModifiers` (48/55) that the UI never rendered. Shipped
+  **13 tested, headlessly-verified slices**, each its own commit:
+  **B1** Customize (fork any program → editable copy; `duplicateCustomProgram`
+  returns id, re-authors to "You"); **B2** per-week progression editor in the
+  builder (`js/programs/progression.js`); **B3** in-session exercise swap,
+  equipment-filtered, preserves target+logged sets (`js/workout/substitutions.js`,
+  `applyExerciseSwap`); **B4** compare two programs (`js/programs/compare.js`);
+  **A1** the week-by-week **Plan timeline** tab — the headline fix
+  (`js/programs/timeline.js`); **A2** commitment strip (time cost · volume ·
+  equipment ✓/✗); **A3** week-accurate day preview with a week stepper; **A4**
+  carousel reduced-motion + pause, `N×/wk` on cards; **C1** level-/equipment-aware
+  onboarding starter program (`js/onboarding/starter-programs.js`); **C2**
+  ask-the-coach deterministic Q&A on the briefing (`js/brain/coach-qa.js`); **C3**
+  deloads explained in the briefing; **C4** plate math on the coach target
+  (`js/workout/plates.js`) + swipe-between-days (C4a rest auto-start already
+  present); **C6b** shareable PR card (`js/brain/pr-share.js`). 9 new pure,
+  tested modules; zero changes to the 150+ `.lifts` string-consumers (no risky
+  migrations). Tests **383 → 437**, all green; typecheck + smoke clean throughout.
+  Deferred with rationale: C5/C6a already present in the leaves (heroes/charts/
+  so-what/empty states); **C7 type-scale refactor** deliberately deferred
+  (high-risk/low-value pre-beta). · **Next:** optional Phase D (workout.js/app.js
+  god-module teardown, only where it de-risks further work); otherwise open a PR
+  and fold these into the Play-beta build. `[You]`: device-test the swap, plate
+  hint, swipe, coach chips, PR share and onboarding pick before the beta.
+
 - 2026-07-03 · **PRODUCT_V2 execution plan** — `PROGRESS_V2.md` created: PRODUCT_V2.md's
   quarter roadmap turned into file-level, session-sized slices (V2-0 guardrails →
   V2-1 Subtract → V2-2 tellable score → V2-3 morning hook → V2-4 coach voice → V2-5

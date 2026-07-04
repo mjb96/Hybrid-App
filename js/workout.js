@@ -11,7 +11,9 @@ import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
-import { orderedLiftNames } from './workout-order.js';
+import { orderedLiftNames, applyExerciseSwap, neighborDay } from './workout-order.js';
+import { getSubstitutions } from './workout/substitutions.js';
+import { plateHint } from './workout/plates.js';
 import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
@@ -200,8 +202,18 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     return buildSetRow(sData, sIdx, safeLiftName, ghostSet);
   }).join('');
 
+  // C4b — per-side plate math for the coach's target weight (barbell lifts only:
+  // skip when there's no numeric target). Bodyweight/accessory targets yield '' .
+  let plates = '';
   try {
-    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, setsMarkup, groupId, ssColor });
+    const tw = diagnostic.progression && diagnostic.progression.weight;
+    if (tw && !isNaN(Number(tw)) && Number(tw) > 0) {
+      plates = plateHint(Number(tw), appState.settings?.weightUnit || 'kg');
+    }
+  } catch (_) {}
+
+  try {
+    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, setsMarkup, groupId, ssColor, plates });
   } catch(e) {
     exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
   }
@@ -554,9 +566,42 @@ export function renderWorkout() {
     window.scrollTo(0, currentScrollY);
     moveRestTimerToActiveExercise();
     mountExerciseDragAndDropSystems();
+    _wireDaySwipe();
   } catch(e) { console.warn(e); }
 
   updateCockpitCoaching(appState, selectedDay, activeProgram);
+}
+
+// C4c — swipe left/right on the exercise list to move between workout days, a
+// native gesture expectation. Wired once; drives the existing day-pill switcher
+// so all the commit/render/state handling is reused. Ignores vertical scrolls
+// and short/slow drags so it never fights the list scroll.
+function _wireDaySwipe() {
+  const view = document.getElementById('cockpitExercisesContainer');
+  if (!view || view._swipeWired) return;
+  view._swipeWired = true;
+  let x0 = null, y0 = null, t0 = 0;
+  view.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0]; x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
+  }, { passive: true });
+  view.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - x0, dy = t.clientY - y0, dt = Date.now() - t0;
+    x0 = null;
+    if (dt > 600) return;                                  // too slow to be a swipe
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // not clearly horizontal
+    _swipeToDay(dx < 0 ? 1 : -1);                          // swipe left → next day
+  }, { passive: true });
+}
+
+function _swipeToDay(dir) {
+  const pills = Array.from(document.querySelectorAll('#cockpitDaySelectorBar .day-pill'));
+  const days = pills.map(p => p.getAttribute('data-day'));
+  const target = neighborDay(days, _getSelectedDay(), dir);
+  if (!target) return;
+  const pill = pills.find(p => p.getAttribute('data-day') === target);
+  pill?.click();  // routes through the set-day action (commit + render reused)
 }
 
 // The cockpit's coaching voice: a decisive, consequence-first intent line (the
@@ -1292,6 +1337,81 @@ export function addExerciseToDayFromLibrary(name) {
   showToast(`Added: ${name}`);
 }
 
+// ── Exercise swap (B3) ────────────────────────────────────────────────────────
+// Re-keys the day's logged entry from the old exercise to the new one, so the
+// prescribed target and any sets already logged carry across intact, and keeps
+// the exercise in its original position in the day.
+let _swapSourceLift = null;
+
+export function openSwapModal(liftName) {
+  if (!liftName) return;
+  _swapSourceLift = liftName;
+  const modal = document.getElementById('swapExerciseModal');
+  if (!modal) return;
+  const subtitle = document.getElementById('swapSubtitle');
+  if (subtitle) subtitle.textContent = `Swapping "${liftName}" — same movement, kit you have. Your target and logged sets carry over.`;
+  _renderSwapList(liftName);
+  modal.classList.add('active');
+}
+
+export function closeSwapModal() {
+  _swapSourceLift = null;
+  document.getElementById('swapExerciseModal')?.classList.remove('active');
+}
+
+function _renderSwapList(liftName) {
+  const list = document.getElementById('swapList');
+  if (!list) return;
+  const appState = _getState();
+  const equipment = appState?.settings?.equipment || {};
+  const subs = getSubstitutions(liftName, equipment, 8);
+
+  if (subs.length === 0) {
+    list.innerHTML = `<div class="text-sm text-muted" style="padding:16px;">No direct swaps for this movement with your equipment. Use the full list below to pick any exercise.</div>`;
+    return;
+  }
+  list.innerHTML = subs.map(s => `
+    <button class="el-chip tactile-scale" data-action="swap-pick" data-exname="${s.name.replace(/"/g, '&quot;')}">
+      ${escapeHtml(s.name)}<span class="el-pr">${s.bodyweight ? 'Bodyweight' : s.equip.map(labelEquip).join(' · ')}</span>
+    </button>
+  `).join('');
+}
+
+function labelEquip(k) {
+  return ({ barbell: 'Barbell', rack: 'Rack', dumbbells: 'Dumbbells', cables: 'Cables', pullupBar: 'Pull-up bar', bands: 'Bands', kettlebells: 'Kettlebell' })[k] || k;
+}
+
+// Perform the swap: old → new, preserving the sets array (target + logged data)
+// and the exercise's position in the day. Thin wrapper over the pure
+// applyExerciseSwap so the state logic stays unit-testable.
+export function executeSwapExercise(newName) {
+  const oldName = _swapSourceLift;
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const blueprint = getProgramById(appState.activeProgramId)?.days?.[selectedDay] || {};
+
+  const res = applyExerciseSwap(appState.weeks?.[wk], selectedDay, oldName, newName, blueprint);
+  if (!res.ok) {
+    if (res.reason === 'duplicate') showToast(`${newName} is already in today's session`, true);
+    else closeSwapModal();
+    return;
+  }
+  _saveState(true);
+  closeSwapModal();
+  renderWorkout();
+  showToast(`Swapped to ${newName}`);
+}
+
+export function confirmCustomSwap() {
+  const input = document.getElementById('swapCustomInput');
+  const name = input?.value?.trim();
+  if (!name) { showToast('Type an exercise name to swap in'); return; }
+  saveNewCustomExerciseToLibrary(name);
+  if (input) input.value = '';
+  executeSwapExercise(name);
+}
+
 export function openAddExerciseModal() {
   const modal = document.getElementById('addExerciseModal');
   if (!modal) return;
@@ -1510,6 +1630,10 @@ document.addEventListener('click', (e) => {
   else if (action === 'close-add-exercise') closeAddExerciseModal();
   else if (action === 'el-pick') addExerciseToDayFromLibrary(e.target.closest('[data-action="el-pick"]')?.getAttribute('data-exname'));
   else if (action === 'confirm-add-exercise') confirmAddExercise();
+  else if (action === 'swap-exercise') openSwapModal(liftName);
+  else if (action === 'close-swap-exercise') closeSwapModal();
+  else if (action === 'swap-pick') executeSwapExercise(target.getAttribute('data-exname'));
+  else if (action === 'swap-confirm-custom') confirmCustomSwap();
   else if (action === 'open-reset-modal') openConfirmResetModal();
   else if (action === 'close-reset-modal') closeConfirmResetModal();
   else if (action === 'execute-reset') executeResetActiveDayMetrics();

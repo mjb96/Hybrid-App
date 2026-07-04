@@ -230,15 +230,19 @@ export function createCustomProgram(name, totalWeeks, focus, philosophy) {
 
 export function duplicateCustomProgram(id) {
   const source = getProgramById(id);
-  if (!source) return;
+  if (!source) return null;
   const newProg = JSON.parse(JSON.stringify(source));
   newProg.id = 'prog_' + Date.now();
   newProg.name = newProg.name + " (Copy)";
-  if(newProg.dossier) newProg.dossier.creator = "You";
-  
+  // A fork is authored by the user, not the original coach — keep it honest
+  // ("by You") and out of the verified-author UI.
+  if (newProg.dossier) newProg.dossier.creator = "You";
+  if (newProg.author) newProg.author = { name: "You", type: "custom", verified: false };
+
   if (!appState.customPrograms) appState.customPrograms = [];
   appState.customPrograms.push(newProg);
   saveStateToLocalStorage(true);
+  return newProg.id;
 }
 
 export function deleteCustomProgram(id) {

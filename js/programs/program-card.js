@@ -95,6 +95,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
           <span class="prog-card-category" style="color: ${accentColor}">${categoryLabel}</span>
           <span class="prog-card-sep">·</span>
           <span>${durationLabel}</span>
+          ${!wod && program.sessionsPerWeek ? `<span class="prog-card-sep">·</span><span>${program.sessionsPerWeek}×/wk</span>` : ''}
           ${equipTierLabel ? `<span class="prog-card-sep">·</span><span class="prog-card-equip">${equipTierLabel}</span>` : ''}
         </div>
         ${statsHTML}

@@ -6,6 +6,7 @@ import { devWarn } from './debug.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
+import { openCompareModal, closeCompareModal, pickCompareB, renderComparePicker, handleCompareSearch } from './programs/compare-ui.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { escapeHtml, programProgressPct } from './util.js';
 import { getWeekModifier } from './schema.js';
@@ -36,9 +37,9 @@ import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload } from './engine.js';
-import { initHome, renderHome, openFastingDetail } from './home.js';
+import { initHome, renderHome, openFastingDetail, answerCoachOnHome } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext, shareScoreCard } from './analytics.js';
-import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen } from './session-recap.js';
+import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen, sharePRFromRecap } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
 import {
   initWorkout, renderWorkout,
@@ -523,6 +524,19 @@ export function executeDuplicateProgram(id) {
   renderLibrary();
 }
 
+// Fork ANY program (catalog or custom) into an editable copy, then drop straight
+// into the builder. The clone is a copy — the original catalog program is never
+// mutated — so there's no shared-data hazard.
+export function customizeProgram(id) {
+  if (!id) return;
+  const newId = duplicateCustomProgram(id);
+  if (!newId) { showToast('Could not customize this program.', true); return; }
+  updateLibraryState(appState);
+  showToast('Editable copy created — customize it below');
+  switchProgramMode('builder');
+  openBuilder(newId);
+}
+
 // ==========================================
 // MODALS & SUMMARY LOGIC
 // ==========================================
@@ -709,6 +723,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
+  else if (action === 'coach-ask') answerCoachOnHome(target.getAttribute('data-q'));
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
   // Timers
@@ -725,12 +740,17 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-builder') openBuilder(progId);
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
+  else if (action === 'customize-program') customizeProgram(progId);
+  else if (action === 'open-compare') openCompareModal(progId);
+  else if (action === 'compare-pick') pickCompareB(progId);
+  else if (action === 'compare-reset') { document.getElementById('compareSearchWrap').style.display = ''; renderComparePicker(''); }
+  else if (action === 'close-compare') closeCompareModal();
 
   // New Program Library actions
   else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
-  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete'].includes(action)) {
+  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'preview-week-step', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete'].includes(action)) {
     handleDetailAction(action, target);
   }
   else if (action === 'close-active-plan-view') {
@@ -796,6 +816,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
   else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
   else if (action === 'close-session-recap') { closeSessionRecap(); }
+  else if (action === 'share-pr-card') { sharePRFromRecap(); }
   else if (action === 'gps-start')  { startTracking(); }
   else if (action === 'gps-pause')  { pauseTracking(); }
   else if (action === 'gps-resume') { resumeTracking(); }
@@ -967,6 +988,7 @@ document.addEventListener('blur', (e) => {
 
 document.addEventListener('input', (e) => {
   if (e.target.id === 'elSearchInput') handleExerciseSearch(e.target.value);
+  else if (e.target.id === 'compareSearchInput') handleCompareSearch(e.target.value);
 });
 
 document.addEventListener('keydown', (e) => {

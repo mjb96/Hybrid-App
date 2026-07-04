@@ -16,6 +16,7 @@
 // through the Hybrid Score daily recorder.
 // =============================================================================
 import { WEEK_PHASE_NAMES } from '../constants.js';
+import { classifyWeek } from '../programs/timeline.js';
 import { projectionLine } from './hybrid-score/project.js';
 import { streakRiskLine } from './streak.js';
 import { coachMemory } from './coach-memory.js';
@@ -94,6 +95,14 @@ export function buildMorningBriefing(opts = {}) {
   const phase = WEEK_PHASE_NAMES[wk] || '';
   const dayName = DAY_NAMES[selectedDay] || '';
 
+  // C3 — a planned deload is explained, not silent. Detect it from the program's
+  // own week label (falling back to the generic phase map) and carry a short,
+  // honest rationale so the lighter week reads as intent, not lost progress.
+  const weekLabel = program?.weeklyVolModifiers?.[wk]?.intensityLabel || phase || '';
+  const deload = classifyWeek(weekLabel) === 'deload'
+    ? { note: "Planned deload — lighter on purpose. Reduced volume lets your body absorb the work and adapt; this is where gains consolidate, not where they're lost." }
+    : null;
+
   const bp = program?.days?.[selectedDay] || null;
   const label = rec.sessionLabel || 'Rest Day';
   const isRest = label === 'Rest Day';
@@ -131,6 +140,7 @@ export function buildMorningBriefing(opts = {}) {
     forward,
     streakRisk,
     memory,
+    deload,
     session,
     mission: missionFor(model, session, firstSession),
     coach: {
