@@ -127,13 +127,20 @@ export function computeLoadAnalytics(state, days, maxWeek) {
   const stressTrend   = trainingStressTrend(liftLoad, runLoad, 4);
   const recovImpact   = recoveryImpactSeries(atlSeries, ctlSeries);
   const fatigue       = fatigueTrend(atlSeries, 4);
-  const loadStatus    = trainingLoadStatus(
-    atlSeries[atlSeries.length - 1] || 0,
-    ctlSeries[ctlSeries.length - 1] || 0,
-  );
 
-  const currentATL    = atlSeries[atlSeries.length - 1] || 0;
-  const currentCTL    = ctlSeries[ctlSeries.length - 1] || 0;
+  // "Current" = the athlete's current training week, not the last slot of a
+  // series padded out to the program's total weeks. Reading the last slot made
+  // ATL/CTL/ACWR collapse to "--" for anyone mid-program (weeks past today are
+  // empty), contradicting the Score, which reads the live load. Index the
+  // current week so both surfaces report the same load. (PRODUCT_AUDIT §4.4.)
+  const lastIdx       = atlSeries.length - 1;
+  const wkNum         = parseInt(state?.currentWeek, 10);
+  const ci            = Number.isFinite(wkNum) ? Math.max(0, Math.min(wkNum - 1, lastIdx)) : lastIdx;
+
+  const loadStatus    = trainingLoadStatus(atlSeries[ci] || 0, ctlSeries[ci] || 0);
+
+  const currentATL    = atlSeries[ci] || 0;
+  const currentCTL    = ctlSeries[ci] || 0;
   const currentTSB    = currentCTL - currentATL;
   const currentRatio  = currentCTL > 0 ? Math.round((currentATL / currentCTL) * 100) / 100 : 0;
 

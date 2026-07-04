@@ -32,13 +32,24 @@ function fmtPct(v)  { if (v === null || !isFinite(v)) return ''; return (v >= 0 
 function fmtKgWk(v) { if (!v || !isFinite(v)) return ''; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' kg/wk'; }
 function tone(pct)  { return pct > 0 ? '#10b981' : pct < 0 ? '#ef4444' : 'rgba(255,255,255,0.4)'; }
 
+// The current training week's index into a weekly series. Weekly series here run
+// 1..program-total-weeks, so the LAST slot is the program's final (usually
+// unlogged) week — reading it made "this week's volume" show "--" while Home
+// (which reads the current program week) showed the real number. Index the
+// current week so the two surfaces report the same fact. (PRODUCT_AUDIT §4.4.)
+function curWeekIdx(appState, seriesLen) {
+  const wk = parseInt(appState?.currentWeek, 10) || seriesLen;
+  return Math.max(0, Math.min(wk - 1, seriesLen - 1));
+}
+
 // ---- Training Load Dashboard -------------------------------------------
-function renderTrainingLoadDashboard(sa, la, weekLabels) {
+function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   const el = qs('strengthTrainingLoadDashboard');
   if (!el) return;
 
-  const volCur  = sa.volSeries[sa.volSeries.length - 1] || 0;
-  const volPrev = sa.volSeries[sa.volSeries.length - 2] || 0;
+  const ci      = curWeekIdx(appState, sa.volSeries.length);
+  const volCur  = sa.volSeries[ci] || 0;
+  const volPrev = sa.volSeries[ci - 1] || 0;
   const volPct  = volPrev > 0 ? ((volCur - volPrev) / volPrev) * 100 : null;
 
   const monthly = sa.monthlyVol;
@@ -315,7 +326,7 @@ export function renderStrengthAnalytics(data, getState, getDays) {
   section.innerHTML = screenTabBar(_strengthTab) + `<div id="strength-tab-body"></div>`;
   const body = qs('strength-tab-body');
 
-  if (_strengthTab === 'stats') _renderStrengthStats(body, data, sa, la);
+  if (_strengthTab === 'stats') _renderStrengthStats(body, data, sa, la, appState);
   else _renderStrengthOverview(body, data, sa, allInsights, appState, days, maxWeek);
 
   mountScreenTabs('analytics-strength', (tab) => {
@@ -328,8 +339,9 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 // matter + ONE synthesized insight. The depth lives one tap away in Stats.
 function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWeek) {
   const top = _topLift(data.dynamicStats);
-  const volCur  = sa.volSeries[sa.volSeries.length - 1] || 0;
-  const volPrev = sa.volSeries[sa.volSeries.length - 2] || 0;
+  const ci      = curWeekIdx(appState, sa.volSeries.length);
+  const volCur  = sa.volSeries[ci] || 0;
+  const volPrev = sa.volSeries[ci - 1] || 0;
   const volPct  = volPrev > 0 ? ((volCur - volPrev) / volPrev) * 100 : null;
   const prCount = Object.values(data.dynamicStats).filter(v =>
     v.currentEstimatedMax > 0 && Math.abs(v.currentEstimatedMax - v.allTimeMax) < 0.5).length;
@@ -367,7 +379,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
 
 // Stats: the full strength engine, one tap deeper. Absorbs the old 1RM (strength_pr)
 // and Weekly-Volume leaves so each fact lives in exactly one place.
-function _renderStrengthStats(body, data, sa, la) {
+function _renderStrengthStats(body, data, sa, la, appState) {
   body.innerHTML = `
     <div id="strengthTrainingLoadDashboard"></div>
     <div id="strengthVolumeProgressionSection"></div>
@@ -377,7 +389,7 @@ function _renderStrengthStats(body, data, sa, la) {
     <h2 class="section-header mt-2">Lift PRs · est. 1RM</h2>
     <div id="allLiftsRmContainer"></div>
   `;
-  renderTrainingLoadDashboard(sa, la, data.weekLabels);
+  renderTrainingLoadDashboard(sa, la, data.weekLabels, appState);
   renderVolumeSection(sa, data);
   renderStrengthProgression(sa, data.weekLabels);
   renderMuscleGroupAnalysis(sa);
