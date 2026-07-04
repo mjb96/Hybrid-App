@@ -144,13 +144,13 @@ export function renderProgramDetail(programId, appState) {
       </div>
       <div class="detail-stat-divider"></div>
       <div class="detail-stat">
-        <div class="detail-stat-value">${program.rating ? `${program.rating} ★` : '—'}</div>
-        <div class="detail-stat-label">Rating</div>
+        <div class="detail-stat-value">${program.sessionDurationMinutes ? program.sessionDurationMinutes.max + 'm' : '—'}</div>
+        <div class="detail-stat-label">Per Session</div>
       </div>
       <div class="detail-stat-divider"></div>
       <div class="detail-stat">
-        <div class="detail-stat-value">${program.enrolledCount ? program.enrolledCount.toLocaleString() : '—'}</div>
-        <div class="detail-stat-label">Athletes</div>
+        <div class="detail-stat-value">${{ 'full-gym': 'Full Gym', gym: 'Full Gym', home: 'Home', garage_gym: 'Garage', bodyweight: 'Bodyweight', minimal: 'Minimal' }[program.equipmentTier] || '—'}</div>
+        <div class="detail-stat-label">Equipment</div>
       </div>
       ` : `
       <div class="detail-stat">
@@ -211,22 +211,16 @@ export function renderProgramDetail(programId, appState) {
       <button class="detail-complete-btn" data-action="open-compare" data-program-id="${programId}">
         ⚖️ Compare with another program
       </button>
-      ${program.rating
-        ? `<div class="detail-rating">
-             ${renderStars(program.rating)}
-             <span class="detail-rating-value">${program.rating}</span>
-             <span class="detail-rating-count">${(program.ratingCount || 0).toLocaleString()} ratings</span>
+      ${personalRating
+        ? `<div class="detail-your-rating" data-action="rate-program" data-program-id="${programId}" role="button" tabindex="0">
+             <span class="detail-your-rating-label">Your rating</span>
+             ${renderStars(personalRating.rating)}
+             <span class="detail-rating-value">${personalRating.rating}/5</span>
            </div>`
-        : `<div class="detail-rating detail-rating--empty">
-             <span class="detail-rating-empty-text">No ratings yet</span>
-           </div>`
+        : `<button class="detail-rating detail-rating--empty" data-action="rate-program" data-program-id="${programId}">
+             <span class="detail-rating-empty-text">☆ Rate this program</span>
+           </button>`
       }
-      ${personalRating ? `
-        <div class="detail-your-rating" data-action="rate-program" data-program-id="${programId}" role="button" tabindex="0">
-          <span class="detail-your-rating-label">Your rating</span>
-          ${renderStars(personalRating.rating)}
-          <span class="detail-rating-value">${personalRating.rating}/5</span>
-        </div>` : ''}
     </div>
 
     <!-- Description — the one-line "what it is" -->

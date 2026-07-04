@@ -12,7 +12,7 @@
 // =============================================================================
 import { WEEK_PHASE_NAMES } from '../../constants.js';
 import { clamp } from '../../analytics/calculations/math-utils.js';
-import { PILLAR_WEIGHTS, PILLAR_META, scoreBand, isDeloadWeek } from './config.js';
+import { PILLAR_WEIGHTS, PILLAR_META, SCORE_BANDS, scoreBand, isDeloadWeek } from './config.js';
 import { computePillars } from './pillars.js';
 import { levelFromXp } from './levels.js';
 
@@ -66,8 +66,22 @@ export function computeHybridScore(model, state, days) {
     weights.recovery += shift * 0.5; weights.consistency += shift * 0.5;
   }
 
-  const available = Object.keys(pillars).filter(k => pillars[k].score != null);
-  if (available.length === 0) {
+  // Pillars actually backed by logged data.
+  const realKeys = Object.keys(pillars).filter(k => pillars[k].score != null);
+
+  // Provisional priors (from the onboarding self-report, persisted at finish)
+  // fill pillars that have NO real data yet, so a brand-new athlete meets their
+  // starting Score on Home — matching the reveal — instead of a punishing 0.
+  // They decay automatically: a real pillar always overrides its prior, and a
+  // prior never counts toward confidence, so the meter stays honest and the
+  // Score becomes fully "earned" as the first weeks are logged.
+  const prov = state?.hybridScore?.provisional?.pillars || null;
+  const provKeys = prov
+    ? Object.keys(prov).filter(k => weights[k] != null && pillars[k]?.score == null && typeof prov[k] === 'number')
+    : [];
+
+  const scoringKeys = [...realKeys, ...provKeys];
+  if (scoringKeys.length === 0) {
     return {
       score: null, band: scoreBand(null), hasData: false, confidence: 0,
       pillars, drivers: [], level: levelFromXp(state?.hybridScore?.xp),
@@ -79,23 +93,38 @@ export function computeHybridScore(model, state, days) {
     };
   }
 
-  const totalWeightAll = Object.values(PILLAR_WEIGHTS).reduce((a, b) => a + b, 0);
-  const availWeight = available.reduce((s, k) => s + weights[k], 0);
+  // Materialise provisional pillars so the dials + card render them; they carry a
+  // score but no `contribution` (they are not "why today" drivers — the user
+  // didn't earn them) and are flagged so history/XP skip them.
+  provKeys.forEach(k => {
+    pillars[k] = { score: clamp(Math.round(prov[k]), 0, 100), signals: ['from your onboarding answers'], provisional: true };
+  });
+  const usedProvisional = provKeys.length > 0;
 
-  // Weighted average → score. Contributions cᵢ = wᵢ′·(pillarᵢ − 50) sum to score − 50.
+  const totalWeightAll = Object.values(PILLAR_WEIGHTS).reduce((a, b) => a + b, 0);
+  const scoringWeight = scoringKeys.reduce((s, k) => s + weights[k], 0);
+
+  // Weighted average → score. Contributions cᵢ = wᵢ′·(pillarᵢ − 50) sum to score − 50
+  // (real pillars only; provisional priors move the number but aren't drivers).
   let score = 0;
   const contributions = {};
-  available.forEach(k => {
-    const wNorm = weights[k] / availWeight;
+  scoringKeys.forEach(k => {
+    const wNorm = weights[k] / scoringWeight;
     score += pillars[k].score * wNorm;
+    pillars[k].weight = Math.round(wNorm * 100);
+    if (pillars[k].provisional) return;
     contributions[k] = wNorm * (pillars[k].score - 50);
     pillars[k].contribution = Math.round(contributions[k]);
-    pillars[k].weight = Math.round(wNorm * 100);
   });
   score = clamp(Math.round(score), 0, 100);
 
-  // Confidence: how much of the model's weight is actually backed by data.
-  const confidence = Math.round((availWeight / totalWeightAll) * 100);
+  // Confidence: how much of the model's weight is backed by REAL logged data
+  // (provisional priors are deliberately excluded so it never over-claims).
+  const realWeight = realKeys.reduce((s, k) => s + weights[k], 0);
+  const confidence = Math.round((realWeight / totalWeightAll) * 100);
+
+  // Only real pillars are "why today" drivers.
+  const available = realKeys;
 
   // Additive drivers (the "why today" list), signed, ranked by magnitude.
   const drivers = available
@@ -155,18 +184,33 @@ export function computeHybridScore(model, state, days) {
 
   const level_ = levelFromXp(state?.hybridScore?.xp);
 
-  const recommendation = topOpportunity
-    ? topOpportunity.action
-    : (deload ? 'Deload week — keep it light and let fitness consolidate.'
-              : 'Everything is trending well — repeat what you did today.');
+  // Band, with a provisional floor: while the estimate is still mostly self-
+  // reported (real-data confidence is low AND priors are carrying the number),
+  // never brand a brand-new athlete "Fragile"/"At Risk" — we haven't earned that
+  // judgement. Keep the honest number; lift only the label/colour to "Building".
+  const LOW_CONFIDENCE = 40;
+  let band = scoreBand(score);
+  if (usedProvisional && confidence < LOW_CONFIDENCE) {
+    const floor = SCORE_BANDS.find(b => b.status === 'Building');
+    if (floor && score < floor.min) band = floor;
+  }
+
+  const noRealData = realKeys.length === 0;
+  const recommendation = (usedProvisional && noRealData)
+    ? 'Log your first session to turn this into your real Score.'
+    : topOpportunity
+      ? topOpportunity.action
+      : (deload ? 'Deload week — keep it light and let fitness consolidate.'
+                : 'Everything is trending well — repeat what you did today.');
 
   return {
-    score, band: scoreBand(score), hasData: true, confidence,
+    score, band, hasData: true, confidence,
+    provisional: usedProvisional,
     pillars, drivers, positives, negatives,
     topContributor, topOpportunity,
     momentum, delta, deltaBreakdown, level: level_,
     deload, returning,
-    headline: `Your Hybrid Score is ${score}`,
+    headline: (usedProvisional && noRealData) ? 'Your starting Hybrid Score' : `Your Hybrid Score is ${score}`,
     recommendation,
   };
 }

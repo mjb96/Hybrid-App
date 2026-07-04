@@ -55,8 +55,16 @@ export function consistencyPillar(model) {
   const w = model.week;
   const streak = model.streak?.current || 0;
   const avg = model.goal?.avgConsistency || 0;
-  const hasData = (w?.consistencyTotal || 0) > 0 || streak > 0 || avg > 0;
-  if (!hasData) return { score: null, signals: [] };
+
+  // No baseline to judge against AND nothing done yet → no data. This is the
+  // day-0/first-week case: a plan exists (consistencyTotal > 0) but the athlete
+  // hasn't had a chance to be consistent. Returning null (rather than a
+  // done÷planned 0) stops a brand-new user from being branded "At Risk" for
+  // work they were never given time to do; the engine's provisional prior then
+  // carries this pillar until real adherence exists.
+  const noBaseline = avg <= 0 && streak <= 0;
+  const nothingDone = (w?.consistencyDone || 0) === 0;
+  if (noBaseline && nothingDone) return { score: null, signals: [] };
 
   // E1 — de-sawtooth: `consistencyPct` is done ÷ the WHOLE week's planned work,
   // so it reads near-zero every Monday and climbs through the week. That made
@@ -80,10 +88,11 @@ export function consistencyPillar(model) {
 
   const signals = [];
   if (w.consistencyTotal > 0) {
-    const missed = w.consistencyTotal - w.consistencyDone;
-    if (w.consistencyPct >= 100) signals.push('all planned sessions done');
-    else if (missed > 0) signals.push(`${missed} planned session${missed > 1 ? 's' : ''} still open`);
-    else signals.push(`${w.consistencyPct}% of the plan done`);
+    // `consistencyTotal` is set-granular (each working set + each scheduled run),
+    // so quote the plan-completion percentage, never a raw count phrased as
+    // "sessions" (which read as a scary "89 sessions still open" on day 0).
+    if (w.consistencyPct >= 100) signals.push('all planned work done');
+    else signals.push(`${w.consistencyPct}% of this week's plan done`);
   }
   if (qPct != null && (w.qualityN || 0) >= 3) {
     if (qPct >= 95) signals.push('hitting your targets');

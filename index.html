@@ -342,7 +342,7 @@
 </head>
 <body>
 
-  <div id="authOverlay" class="auth-overlay">
+  <div id="authOverlay" class="auth-overlay" style="display:none;">
     <div class="auth-card">
       <div class="auth-brand">
         <div class="auth-brand-icon">⚡</div>
@@ -1178,6 +1178,7 @@
           <input type="text" id="obName" class="ob-input" placeholder="Your name" autocomplete="given-name">
         </div>
         <button class="ob-cta" data-action="ob-next" data-to="2">Continue →</button>
+        <button class="ob-skip" data-action="open-auth">Already have an account? Sign in</button>
       </div>
     </div>
 
@@ -1604,6 +1605,7 @@
             <span class="settings-row-label">Cloud Sync</span>
             <span class="text-xs text-muted" id="settingsAccountEmail">Checking…</span>
           </div>
+          <button class="settings-action-btn" id="settingsSignInBtn" data-action="open-auth" style="display:none;">Sign in to back up &amp; sync</button>
           <button class="settings-action-btn settings-action-btn-danger" id="settingsSignOutBtn" data-action="sign-out" style="display:none;">Sign Out</button>
           <button class="settings-action-btn settings-action-btn-danger" id="settingsDeleteAccountBtn" data-action="delete-account" style="display:none;">Delete Account &amp; Data</button>
         </div>

@@ -195,8 +195,26 @@ function _finish() {
   appState.settings.distanceUnit        = _distUnit;
   appState.settings.fitnessLevel        = _fitnessLevel;
   appState.settings.equipmentTier       = _equipmentTier;
+  appState.settings.weeklyFrequency     = _weeklyFrequency;
+  appState.settings.recoveryFeel        = _recoveryFeel;
   appState.settings.onboardingComplete  = true;
   document.documentElement.dataset.theme = appState.settings.theme || 'dark';
+
+  // Persist the provisional pillars so Home shows the SAME starting Score the
+  // reveal just promised (instead of a bare-engine 0). The engine uses these as
+  // low-confidence priors that decay as real sessions are logged; storing only
+  // the pillar sub-scores keeps it compact and data-safe.
+  try {
+    const prov = provisionalScore({
+      level: _fitnessLevel, frequency: _weeklyFrequency, recovery: _recoveryFeel,
+    });
+    const provPillars = {};
+    for (const [k, p] of Object.entries(prov.pillars || {})) {
+      if (p && typeof p.score === 'number') provPillars[k] = p.score;
+    }
+    if (!appState.hybridScore) appState.hybridScore = { history: [], xp: 0, lastRecordedDate: null };
+    appState.hybridScore.provisional = { score: prov.score, pillars: provPillars, createdAt: new Date().toISOString() };
+  } catch (_) { /* provisional is a nicety — never block finishing onboarding */ }
 
   const bw = parseFloat(document.getElementById('obBodyWeight')?.value);
   if (!isNaN(bw) && bw > 0) {

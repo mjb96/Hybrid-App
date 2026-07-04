@@ -847,6 +847,12 @@ else if (action === 'export-csv') triggerCSVExport();
     const overlay = document.getElementById('authOverlay');
     if (overlay) overlay.style.display = 'none';
   }
+  else if (action === 'open-auth') {
+    // Auth is opt-in now (no front-door wall): returning users open it to
+    // restore/sync, new users open it from Settings to back up their progress.
+    const overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.style.display = '';
+  }
   
   // Summary Modals
   else if (action === 'open-today-summary') openTodaySummaryModal();

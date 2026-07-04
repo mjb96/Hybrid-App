@@ -75,11 +75,10 @@ function scoreForUser(program, appState) {
 function getRecommendationReason(program, appState) {
   const activeProg = appState?.activeProgramId;
 
+  // Editorial curation only — no fabricated rating/enrolled/completion numbers
+  // are surfaced as reasons (the catalog values drive ranking silently).
   if (program.featured) return 'Staff Pick';
-  if (program.author.type === 'official') return 'Helyx Certified';
-  if (program.completionRate > 0.65) return `${Math.round(program.completionRate * 100)}% completion rate`;
-  if (program.rating >= 4.7) return `★ ${program.rating} rated`;
-  if (program.popularity >= 90) return `${program.enrolledCount.toLocaleString()} athletes`;
+  if (program.author?.type === 'official') return 'Helyx Certified';
 
   if (activeProg) {
     if ((activeProg.includes('strength') || activeProg.includes('nsuns')) &&

@@ -226,6 +226,95 @@ test('computeHybridScore: calibrating with an empty athlete', () => {
   assert.equal(r.confidence, 0);
 });
 
+// ---------------------------------------------------------------------------
+// Day-0 / first-run (Sprint 1.1): a brand-new athlete must never be branded
+// "At Risk"; the provisional prior carries their starting Score and decays.
+// ---------------------------------------------------------------------------
+// A fresh install: an active program (so a plan exists) with ghost sets seeded
+// but nothing logged, no history, no wellness.
+function day0State({ provisional = null } = {}) {
+  const s = {
+    currentWeek: '1',
+    settings: { fitnessLevel: 'intermediate', distanceUnit: 'km' },
+    weeks: { '1': { lifts: { mon: { 'Back Squat': [
+      { w: '', r: '', c: false }, { w: '', r: '', c: false }, { w: '', r: '', c: false },
+    ] } } } },
+  };
+  if (provisional) s.hybridScore = { history: [], xp: 0, lastRecordedDate: null, provisional };
+  return s;
+}
+
+test('consistencyPillar: no baseline + nothing done yet → null (not a punishing 0)', () => {
+  const state = day0State();
+  const model = modelFor(state);
+  assert.ok(model.week.consistencyTotal > 0, 'a plan exists (ghost sets + run)');
+  assert.equal(model.week.consistencyDone, 0);
+  const p = consistencyPillar(model);
+  assert.equal(p.score, null, 'consistency has no data to judge yet');
+});
+
+test('computeHybridScore: day-0 with a provisional prior shows the starting Score, never "At Risk"', () => {
+  const provisional = {
+    score: 65,
+    pillars: { consistency: 66, load: 66, recovery: 68, lifestyle: 66, strength: 65, endurance: 60 },
+  };
+  const state = day0State({ provisional });
+  const model = modelFor(state);
+  const r = computeHybridScore(model, state, DAYS);
+
+  assert.equal(r.hasData, true);
+  assert.equal(r.provisional, true);
+  assert.ok(r.score >= 55, `provisional score should be healthy, got ${r.score}`);
+  assert.notEqual(r.band.status, 'At Risk');
+  assert.notEqual(r.band.status, 'Fragile');
+  // Confidence stays honest — priors don't inflate it.
+  assert.ok(r.confidence < 40, `confidence should reflect zero real data, got ${r.confidence}`);
+  // No provisional pillar is a "why today" driver (nothing was earned).
+  assert.equal(r.drivers.length, 0);
+  assert.match(r.recommendation, /first session/i);
+});
+
+test('computeHybridScore: day-0 band is floored to Building even for a low provisional', () => {
+  // A conservative self-report (would otherwise land "Fragile"/"At Risk").
+  const provisional = { score: 46, pillars: { consistency: 45, load: 45, recovery: 44, lifestyle: 45 } };
+  const state = day0State({ provisional });
+  const r = computeHybridScore(modelFor(state), state, DAYS);
+  assert.equal(r.band.status, 'Building', 'never brand a calibrating new user Fragile/At Risk');
+});
+
+test('computeHybridScore: day-0 with NO provisional calibrates (never 0/At Risk)', () => {
+  const state = day0State();
+  const r = computeHybridScore(modelFor(state), state, DAYS);
+  assert.equal(r.hasData, false);
+  assert.equal(r.band.status, 'Calibrating');
+});
+
+test('computeHybridScore: provisional decays — a real pillar overrides its prior', () => {
+  const provisional = { score: 65, pillars: { consistency: 90, load: 66, recovery: 68 } };
+  // Real logged data with a genuinely LOW consistency baseline should win over
+  // the rosy provisional prior once it exists.
+  const state = makeState({ currentWeek: 4 });
+  state.hybridScore = { history: [], xp: 0, lastRecordedDate: null, provisional };
+  const model = modelFor(state);
+  const real = consistencyPillar(model);
+  assert.ok(real.score != null, 'consistency now has real data');
+  const r = computeHybridScore(model, state, DAYS);
+  // The real consistency pillar is a driver; the prior is not used for it.
+  assert.ok(r.pillars.consistency.provisional !== true, 'real consistency overrides the prior');
+  assert.ok(r.confidence > 40, 'real data lifts confidence past the provisional floor');
+});
+
+test('recordDailyScore: a provisional score is never banked (XP stays earned)', () => {
+  const provisional = { score: 65, pillars: { consistency: 66, load: 66, recovery: 68 } };
+  const state = day0State({ provisional });
+  const model = modelFor(state);
+  const r = computeHybridScore(model, state, DAYS);
+  const res = recordDailyScore(state, r, model, iso(new Date()));
+  assert.equal(res.changed, false);
+  assert.equal(state.hybridScore.xp, 0);
+  assert.equal(state.hybridScore.history.length, 0);
+});
+
 test('computeHybridScore: progressing hybrid athlete scores well with drivers', () => {
   const state = makeState();
   const model = modelFor(state);

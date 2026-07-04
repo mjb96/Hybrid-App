@@ -41,22 +41,12 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   const icon = program.icon || '📋';
   const accentColor = program.accentColor || '#8b5cf6';
 
-  // Rating shown on all cards; count only on large
-  const ratingHTML = program.rating
-    ? `<div class="prog-card-rating">
-         <span class="rating-star">★</span> ${program.rating}${isLarge && program.ratingCount ? ` <span class="rating-count">(${program.ratingCount.toLocaleString()})</span>` : ''}
-       </div>`
-    : '';
-
-  // Social proof row — large cards only
-  const statsHTML = isLarge && !wod ? (() => {
-    const parts = [];
-    if (program.enrolledCount)   parts.push(`${program.enrolledCount.toLocaleString()} athletes`);
-    if (program.completionRate)  parts.push(`${Math.round(program.completionRate * 100)}% finish`);
-    return parts.length
-      ? `<div class="prog-card-stats">${parts.join('<span class="prog-card-sep">·</span>')}</div>`
-      : '';
-  })() : '';
+  // No star ratings or "N athletes / % finish" until there are real users to
+  // count — the catalog's rating/enrolled/completion values drive curation
+  // (rails + recommendations) only, never displayed as if they were real
+  // community numbers. See PRODUCT_AUDIT §4.5.
+  const ratingHTML = '';
+  const statsHTML = '';
 
   // Author / coach attribution — large cards only, skip generic WOD entries
   const authorHTML = isLarge && program.author && program.author.name && !wod

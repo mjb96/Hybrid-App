@@ -10,11 +10,33 @@ and are **superseded** — do not execute from them.
 
 ---
 
-## Overall product rating: **6.5 / 10** (2026-07-04)
+## Overall product rating: **6.5 → ~7.2 / 10** (Sprint 1 shipped 2026-07-04)
 
 A 9/10 scoring engine and an 8/10 surface pattern, held back by a 3/10 first-run and a
-4/10 cross-surface coherence. Full scorecard in `PRODUCT_AUDIT.md` §11. The rating is
-expected to move to ~8 when Sprints 1–2 (below) ship, with **zero new features**.
+4/10 cross-surface coherence. Full scorecard in `PRODUCT_AUDIT.md` §11. **Sprint 1
+("the first two minutes") is shipped** — the day-0 trust collapse, the auth wall,
+fabricated social proof, the fasting dead-end, and the volume/ACWR integrity bugs are
+fixed. First-run and integrity are materially better; the remaining lift to ~8 is
+Sprint 2 ("one coach") coherence work.
+
+### Sprint 1 — shipped (branch `claude/fitness-app-design-audit-cedgym`)
+- **1.1** Day-0 Hybrid Score no longer renders 0/"At Risk": the consistency pillar
+  returns null before there's a baseline, the onboarding provisional score is persisted
+  and blended as a low-confidence prior that decays as real data lands, the band is
+  floored to "Building" while provisional, XP/history never bank a provisional score,
+  and the "sessions" mislabel is fixed. Home + Score detail now read 65/Building,
+  matching the reveal.
+- **1.2** No front-door auth wall: fresh installs boot into onboarding, existing local
+  users boot into the app; auth is opt-in via "Already have an account? Sign in"
+  (onboarding) and "Sign in to back up & sync" (Settings).
+- **1.3** Fabricated social proof removed from the UI (star ratings, "N ratings",
+  "N athletes", "% finish", live-community rail claims); catalog numbers kept as hidden
+  curation weights only.
+- **1.4** Fasting Insights empty state starts a fast inline (killed the unreachable-Home
+  dead-end).
+- **1.5** Weekly volume + ACWR now read the current training week, matching Home/Score
+  (was reading the program's padded final week → "--").
+- Gates: 446 tests green, typecheck, smoke; every change verified in headless Chromium.
 
 ---
 
@@ -51,7 +73,7 @@ ghost targets + "Log all".
 
 ## Current product status
 
-- **Gates:** 437/437 tests, typecheck, smoke — green (verified this audit).
+- **Gates:** 446/446 tests, typecheck, smoke — green (after Sprint 1).
 - **Security/data:** RLS applied + adversarially proven on live DB; sync divergence
   detection + conflict UI + pre-pull snapshots; Sentry live (DSN set 2026-07-02).
   `docs/LAUNCH-CHECKLIST.md` items 1–2 are DONE per `PROGRESS.md` despite unticked boxes
@@ -60,22 +82,25 @@ ghost targets + "Log all".
   user, and self-contradicting whenever surfaces narrate the same day independently.
   Evidence and mechanics: `PRODUCT_AUDIT.md` §1, §3, §4.1.
 
-## Known UX issues (open bugs, verified 2026-07-04)
+## Known UX issues (bug register)
 
-P0 — trust/correctness (beta blockers):
-1. Day-0 Hybrid Score renders **0/100 "At Risk"** ("−50 Consistency — 89 planned sessions
-   still open"); provisional reveal score never blended; sets mislabeled as sessions
-   (`js/brain/hybrid-score/pillars.js:85`).
-2. First screen is an email/password wall before any value (`index.html:345`).
+P0 — trust/correctness (beta blockers). **Sprint 1 closed 1, 2, 5, 6, and the
+volume/ACWR half of 4.** Remaining P0 (item 3 + readiness half of 4) is Sprint 2:
+1. ~~Day-0 Hybrid Score renders 0/100 "At Risk"~~ — **FIXED (1.1)**: provisional prior
+   blended, band floored to Building, consistency null before a baseline, sessions copy.
+2. ~~First screen is an auth wall~~ — **FIXED (1.2)**: onboard first, auth opt-in.
 3. Contradictory day narration: rest-day mission vs "train and it rises" projection vs
    "push it today" coach/cockpit lines; "APPLY DELOAD" offered during a deload week
    (`js/engine.js:490` uses `week % 4`, ignores the program's real deload map); Strength
    "add sets" / Recovery "block push" / Review "repeat it" insights are deload-blind.
-4. Same fact, different numbers: Home readiness 93 vs Recovery&Load 80 (load-included vs
-   load-excluded, unlabeled); Home weekly volume 9.2t vs Strength Overview "--";
-   Score detail "ACWR 0.92" vs Recovery&Load "ACWR --".
-5. Fabricated social proof shipped in the catalog (`rating: 4.8, ratingCount: 1560,
-   enrolledCount: 9200` — `js/programs/catalog/*.js`), rendered as real ratings.
+   **← Sprint 2 (the `dayVerdict()` gate).**
+4. Same fact, different numbers: ~~weekly volume 9.2t vs "--"; ACWR 0.92 vs "--"~~ —
+   **FIXED (1.5)** (current-week indexing). Remaining: Home readiness 93 vs Recovery&Load
+   80 (load-included vs load-excluded, unlabeled) — **Sprint 2.5**.
+5. ~~Fabricated social proof in the catalog UI~~ — **FIXED (1.3)**: display stripped,
+   numbers kept as hidden curation weights.
+6. ~~Fasting unreachable for never-fasted users~~ — **FIXED (1.4)**: empty state starts a
+   fast inline.
 6. Fasting is unreachable for never-fasted users: Insights empty state points to a Home
    entry that is hidden for exactly them (`js/home.js:252`).
 
@@ -103,12 +128,13 @@ DOM + CSS · type-ramp audit (deferred C7).
 
 Full tables with effort/impact in `PRODUCT_AUDIT.md` §10. Sequence is fixed:
 
-1. **Sprint 1 — "The first two minutes"** ← **NEXT.** Day-0 score fix (blend provisional,
-   never "At Risk" without data), auth after onboarding, strip fake ratings, fasting
-   dead-end, same-fact-same-number plumbing. *All P0, blocks beta.*
-2. **Sprint 2 — "One coach."** Shared `dayVerdict()` (one train/rest/deload decision +
-   one readiness number) consumed by briefing/cockpit/projection/flag; every Overview
-   insight gated by it; program-aware deload suggestions; copy pass.
+1. **Sprint 1 — "The first two minutes"** ✅ **SHIPPED (2026-07-04).** Day-0 score fix,
+   auth after onboarding, stripped fake ratings, fasting dead-end, volume/ACWR integrity.
+2. **Sprint 2 — "One coach"** ← **NEXT.** Shared `dayVerdict()` (one train/rest/deload
+   decision + one readiness number) consumed by briefing/cockpit/projection/flag; every
+   Overview insight gated by it; program-aware deload suggestions (fix `engine.js`
+   `week % 4`); label the two readiness numbers; copy pass (Biggest driver rename,
+   machine-ese lines).
 3. **Sprint 3 — "Looks like it costs money."** Icon set replaces emoji; program cover art;
    CTA hierarchy; chip/spark null-guards; band calibration; XP backfill.
 4. **Sprint 4 — Beta.** Device tests (`PROGRESS.md` `[You]` list), store screenshots taken
@@ -132,6 +158,17 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **Sprint 1 shipped — "the first two minutes" (5 commits).** Closed every
+  P0 that a first-run user or store reviewer hits: **1.1** day-0 Score (provisional prior
+  blended + decaying, band floored to Building, consistency null before a baseline, no
+  XP banked for a provisional score, sessions-not-sets copy) — Home + Score detail now
+  read 65/Building matching the reveal; **1.2** removed the front-door auth wall (onboard
+  first, sign-in opt-in from onboarding + Settings); **1.3** stripped fabricated social
+  proof from the programs UI (kept as hidden curation weights); **1.4** fasting empty
+  state starts a fast inline; **1.5** weekly volume + ACWR read the current week (were
+  reading the program's padded final week → "--"). 10 new tests (446 total), typecheck +
+  smoke green; every change verified in headless Chromium. · **Next:** Sprint 2 ("one
+  coach") — the shared `dayVerdict()` and insight-gating that kill the five-voices day.
 - 2026-07-04 · **Complete product re-audit (this document + `PRODUCT_AUDIT.md`).** Read
   all prior docs; walked every screen headlessly as new + returning user; verified the
   shipped state of all three overhaul waves. Found the two beta-blocking themes: the

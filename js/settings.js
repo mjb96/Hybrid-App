@@ -526,13 +526,16 @@ async function _syncAccountUI() {
   if (!emailEl) return;
 
   const deleteBtn = document.getElementById('settingsDeleteAccountBtn');
+  const signInBtn = document.getElementById('settingsSignInBtn');
   const user = await getCloudUser();
   if (user?.email) {
     emailEl.textContent = user.email;
+    if (signInBtn)  signInBtn.style.display  = 'none';
     if (signOutBtn) signOutBtn.style.display = 'block';
     if (deleteBtn)  deleteBtn.style.display  = 'block';
   } else {
     emailEl.textContent = 'Local only — not signed in';
+    if (signInBtn)  signInBtn.style.display  = 'block';
     if (signOutBtn) signOutBtn.style.display = 'none';
     if (deleteBtn)  deleteBtn.style.display  = 'none';
   }

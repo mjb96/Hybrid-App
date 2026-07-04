@@ -651,12 +651,16 @@ export function renderFastingAnalytics(getState) {
   const history = fs?.history ?? [];
 
   if (!history.length && !fs?.active) {
+    // Kill the dead-end: start the first fast right here (fast-start opens the
+    // fasting sheet with the protocol chips), instead of pointing at a Home
+    // entry that is hidden for exactly the users who've never fasted.
     section.innerHTML = `
       <h2 class="section-header">Fasting</h2>
       <article class="card-dark p-4 mb-3" style="text-align:center;padding:36px 20px;">
         <div style="font-size:2rem;margin-bottom:12px;">⏱️</div>
         <div style="font-size:0.95rem;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:8px;">No fasting data yet</div>
-        <div style="font-size:0.8rem;color:rgba(255,255,255,0.38);line-height:1.6;">Start your first fast from the home screen.<br>Analytics will appear here once you have data.</div>
+        <div style="font-size:0.8rem;color:rgba(255,255,255,0.38);line-height:1.6;margin-bottom:20px;">Track your fast and Helyx shows your metabolic stages, streaks and how fasting links to your recovery.</div>
+        <button class="btn-action-block btn-blue" data-action="fast-start" style="max-width:280px;margin:0 auto;">Start your first fast</button>
       </article>
     `;
     return;
