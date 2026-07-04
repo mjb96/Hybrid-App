@@ -683,10 +683,31 @@ export function renderSearchEmpty() {
 let _heroInterval = null;
 let _heroIndex = 0;
 
-function initHeroCarousel() {
+function prefersReducedMotion() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (_) { return false; }
+}
+
+// Start (or restart) autoplay — but never auto-advance for users who asked for
+// reduced motion; they still get manual dot navigation.
+function startHeroAutoplay() {
   clearInterval(_heroInterval);
-  _heroIndex = 0;
+  if (prefersReducedMotion()) return;
   _heroInterval = setInterval(advanceHero, 4000);
+}
+
+function initHeroCarousel() {
+  _heroIndex = 0;
+  startHeroAutoplay();
+  // Pause on hover/focus (a native carousel courtesy), resume on leave/blur.
+  const banner = document.querySelector('.hero-banner');
+  if (banner && !banner._pauseWired) {
+    banner._pauseWired = true;
+    banner.addEventListener('mouseenter', () => clearInterval(_heroInterval));
+    banner.addEventListener('mouseleave', startHeroAutoplay);
+    banner.addEventListener('focusin', () => clearInterval(_heroInterval));
+    banner.addEventListener('focusout', startHeroAutoplay);
+  }
 }
 
 function advanceHero() {
@@ -752,9 +773,8 @@ function jumpHeroSlide(index) {
   _heroIndex = index;
   slides[_heroIndex].classList.add('active');
   dots[_heroIndex]?.classList.add('active');
-  // Reset the auto-advance timer
-  clearInterval(_heroInterval);
-  _heroInterval = setInterval(advanceHero, 4000);
+  // Reset the auto-advance timer (respecting reduced-motion).
+  startHeroAutoplay();
 }
 
 // ── Event delegation entry point (called from app.js) ─────────────────────────
