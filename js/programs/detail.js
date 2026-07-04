@@ -7,7 +7,8 @@ import { buildProgramTimeline } from './timeline.js';
 import { programStats, equipmentFit } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard } from './program-card.js';
-import { PROGRAMS } from '../constants.js';
+import { PROGRAMS, WEEK_PHASE_NAMES } from '../constants.js';
+import { getWeekModifier } from '../schema.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
 import { escapeHtml } from '../util.js';
 
@@ -519,13 +520,24 @@ export function closeProgramDetail() {
 
 // ── Workout Preview Modal ─────────────────────────────────────────────────────
 
-export function openDayPreviewModal(dayKey, programId) {
+// A3 — the previewed day is now anchored to a WEEK. A stepper walks the block so
+// you can see how a given day's phase/volume shifts across the program (e.g. the
+// deload), instead of only ever seeing week 1.
+let _preview = { dayKey: null, programId: null, week: 1 };
+
+export function stepPreviewWeek(delta) {
+  if (!_preview.dayKey) return;
+  openDayPreviewModal(_preview.dayKey, _preview.programId, _preview.week + delta);
+}
+
+export function openDayPreviewModal(dayKey, programId, weekIndex) {
   const resolvedId = programId || _currentProgramId;
   const catalog = getCatalogEntry(resolvedId);
+  const program = getProgramById(resolvedId);
   // Prefer the catalog day (richest: carries workoutPreview), then fall back to
   // the resolved program — which covers system PROGRAMS *and* custom programs
   // (getProgramById walks customPrograms → PROGRAMS → catalog).
-  const day = catalog?.days?.[dayKey] || getProgramById(resolvedId)?.days?.[dayKey];
+  const day = catalog?.days?.[dayKey] || program?.days?.[dayKey];
   if (!day) return;
 
   const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
@@ -539,6 +551,13 @@ export function openDayPreviewModal(dayKey, programId) {
 
   if (!sheet || !backdrop) return;
 
+  const totalWeeks = Number(catalog?.durationWeeks || program?.totalWeeks) || 12;
+  const wk = Math.max(1, Math.min(totalWeeks, Number(weekIndex) || 1));
+  _preview = { dayKey, programId: resolvedId, week: wk };
+
+  const mod = getWeekModifier(catalog || program, wk);
+  const phaseLabel = (mod && mod.intensityLabel) || WEEK_PHASE_NAMES[String(wk)] || '';
+
   const dayLabels = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
 
   titleEl.textContent = day.title || dayLabels[dayKey] || dayKey;
@@ -546,15 +565,29 @@ export function openDayPreviewModal(dayKey, programId) {
   badgeEl.style.color = day.color || 'var(--accent-blue)';
   badgeEl.style.borderColor = (day.color || 'var(--accent-blue)') + '55';
 
+  // Week context bar with a stepper (only when the program spans >1 week).
+  const weekBar = totalWeeks > 1 ? `
+    <div class="wpm-weekbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--overlay-sm);border-radius:10px;padding:8px 10px;margin-bottom:12px;">
+      <button data-action="preview-week-step" data-delta="-1" aria-label="Previous week" style="background:none;border:none;color:var(--text-secondary);font-size:1.1rem;padding:2px 8px;cursor:pointer;${wk <= 1 ? 'opacity:0.3;pointer-events:none;' : ''}">‹</button>
+      <div style="text-align:center;flex:1;min-width:0;">
+        <div style="font-family:ui-monospace,monospace;font-size:0.72rem;color:var(--text-muted);">WEEK ${wk} / ${totalWeeks}</div>
+        <div style="font-size:0.82rem;color:var(--text-inverse);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(phaseLabel || '—')}</div>
+      </div>
+      <button data-action="preview-week-step" data-delta="1" aria-label="Next week" style="background:none;border:none;color:var(--text-secondary);font-size:1.1rem;padding:2px 8px;cursor:pointer;${wk >= totalWeeks ? 'opacity:0.3;pointer-events:none;' : ''}">›</button>
+    </div>` : '';
+
+  let previewHtml;
   if (day.workoutPreview?.type === 'STRENGTH') {
-    bodyEl.innerHTML = renderStrengthPreview(day.workoutPreview.exercises);
+    previewHtml = renderStrengthPreview(day.workoutPreview.exercises);
   } else if (day.workoutPreview?.type === 'RUNNING') {
-    bodyEl.innerHTML = renderRunningPreview(day.workoutPreview.phases);
+    previewHtml = renderRunningPreview(day.workoutPreview.phases);
   } else if (day.workoutPreview?.type === 'HYROX') {
-    bodyEl.innerHTML = renderHyroxPreview(day.workoutPreview);
+    previewHtml = renderHyroxPreview(day.workoutPreview);
   } else {
-    bodyEl.innerHTML = renderFallbackPreview(day);
+    previewHtml = renderFallbackPreview(day, mod);
   }
+
+  bodyEl.innerHTML = weekBar + previewHtml;
 
   backdrop.classList.add('active');
   sheet.classList.add('active');
@@ -572,10 +605,13 @@ function _parseDescExercises(desc) {
   return results;
 }
 
-function renderFallbackPreview(day) {
+function renderFallbackPreview(day, mod) {
   let html = '';
   const hasRun = day.runs && day.runs !== 'Rest';
   const hasLifts = day.lifts?.length;
+  // A3 — when the day carries no per-lift spec, show THIS week's prescription
+  // (sets × reps) from the week modifier so the name list isn't week-blind.
+  const wkSpec = (mod && mod.sets) ? `${mod.sets} × ${mod.reps ?? ''}` : '';
 
   if (hasRun) {
     html += `
@@ -607,7 +643,9 @@ function renderFallbackPreview(day) {
     } else {
       html += `
         <div class="wpm-exercise-list">
-          ${day.lifts.map(lift => `<div class="wpm-exercise-item">${lift}</div>`).join('')}
+          ${day.lifts.map(lift => `<div class="wpm-exercise-item" style="display:flex;justify-content:space-between;gap:10px;">
+            <span>${lift}</span>${wkSpec ? `<span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${wkSpec}</span>` : ''}
+          </div>`).join('')}
         </div>
       `;
       if (day.desc && day.desc !== 'Rest') {
@@ -737,6 +775,11 @@ export function handleDetailAction(action, el) {
       const dayKey   = el.getAttribute('data-day');
       const progId   = el.getAttribute('data-program-id');
       if (dayKey) openDayPreviewModal(dayKey, progId);
+      break;
+    }
+    case 'preview-week-step': {
+      const delta = parseInt(el.getAttribute('data-delta'), 10);
+      if (!isNaN(delta)) stepPreviewWeek(delta);
       break;
     }
     case 'close-day-preview':
