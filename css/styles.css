@@ -627,7 +627,12 @@ select.native-select {
    `background: none`) makes it diverge from its peers — here it punched a
    transparent hole through the default button fill and read as a dark box. By
    adding nothing, .nav-fab matches the other tabs exactly; it simply never
-   gets the .active tab state. */
+   gets the .active tab state.
+   The one intentional exception: the "+" glyph is tinted orange at full
+   opacity so the primary "start something" affordance stands out from the
+   muted tab icons. Scoped to the icon only — the "Start" label stays default. */
+.nav-fab span.icon { color: var(--color-orange); opacity: 1; }
+.nav-fab:hover span.icon { opacity: 1; }
 
 
 /* --- 5e. Modals --- */
