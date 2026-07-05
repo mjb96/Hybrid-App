@@ -12,6 +12,8 @@
 // ==========================================
 import { trainingStatus } from './briefing.js';
 import { isCompletedSet } from '../set-utils.js';
+import { classifyWeek } from '../programs/timeline.js';
+import { WEEK_PHASE_NAMES } from '../constants.js';
 
 // Has the selected day's planned session already been logged? Gym counts as done
 // when every materialised set for the day is complete (and there is at least
@@ -175,6 +177,40 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
         status: hasLoad ? status : 'Complete',
       };
     }
+  }
+
+  // Rest day → the coach voice must match the rest-day mission (recovery), never
+  // fall through to a load-based "push it today". Framed by how much fatigue is
+  // being carried. Placed before the load headlines so it always wins on rest.
+  if (!session.hasGym && !session.hasRun) {
+    const fatigued = hasLoad && tsb <= -10;
+    return {
+      severity: 'neutral',
+      badge: 'Rest Day',
+      headline: fatigued ? 'Rest day — bank the recovery' : 'Rest day — recovery is where you grow',
+      advice: fatigued
+        ? "You're carrying fatigue — keep today genuinely easy: refuel, hydrate, and protect your sleep tonight."
+        : 'Planned rest. Move easy if you like, but today the work is recovery — let the adaptation happen.',
+      sessionLabel: session.label,
+      acwr,
+      status: hasLoad ? status : 'Recovery',
+    };
+  }
+
+  // Deload training day → keep it light on purpose; don't tell the athlete to
+  // push when the week's whole intent is to absorb the work.
+  const wk = String(state?.currentWeek || '1');
+  const weekLabel = activeProgram?.weeklyVolModifiers?.[wk]?.intensityLabel || WEEK_PHASE_NAMES[wk] || '';
+  if (classifyWeek(weekLabel) === 'deload') {
+    return {
+      severity: 'neutral',
+      badge: 'Deload',
+      headline: 'Deload week — keep it light',
+      advice: 'Planned recovery week. Hit the session but hold intensity back — reduced load is what lets fitness consolidate. You grow here.',
+      sessionLabel: session.label,
+      acwr,
+      status: hasLoad ? status : 'Deload',
+    };
   }
 
   const highRpeStreak = recentRpes.filter(r => r >= 8).length;

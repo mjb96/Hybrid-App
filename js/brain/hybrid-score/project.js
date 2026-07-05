@@ -29,7 +29,13 @@ export function projectScore(model, state, days, opts = {}) {
   const w = (model && model.week) || {};
   const total = w.consistencyTotal || 0;
   const done = w.consistencyDone || 0;
-  const hasSessionToDo = completeToday && total > 0 && done < total;
+  // `total`/`done` count the WHOLE week's planned work, so "work remaining" is
+  // true even on a rest day mid-week. Gate on TODAY: a rest day (or a day whose
+  // session is already logged) has nothing to train now, so we never promise
+  // "train today and it rises" when there's nothing to train.
+  const todayIsRest = (model?.rec?.sessionLabel || '') === 'Rest Day';
+  const todayDone   = (model?.rec?.badge || '') === 'Session Done';
+  const hasSessionToDo = completeToday && !todayIsRest && !todayDone && total > 0 && done < total;
 
   // Nothing to simulate (calibrating, or no open planned session today).
   if (!current.hasData || !hasSessionToDo) {
