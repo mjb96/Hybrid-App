@@ -622,9 +622,9 @@ select.native-select {
 }
 .nav-item.active::after { opacity: 1; transform: scaleX(1); }
 
-/* Centre quick-start FAB — the raised "+" that opens the start sheet. Sits in
-   the middle grid cell; a filled accent disc so it reads as the primary action
-   without overflowing the clipped nav bar. */
+/* Centre quick-start "+" — the entry to the start sheet. Deliberately quiet: a
+   tonal disc that echoes the nav's own faint orange outline rather than a loud
+   filled accent, so it reads as one of the family and doesn't shout. */
 .nav-fab {
   display: flex;
   align-items: center;
@@ -638,20 +638,26 @@ select.native-select {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: var(--color-orange, #ff6b00);
-  color: #fff;
-  font-size: 1.85rem;
+  background: rgba(255, 107, 0, 0.10);
+  border: 1.5px solid rgba(255, 107, 0, 0.45);
+  color: var(--color-orange, #ff6b00);
+  font-size: 1.55rem;
   font-weight: 400;
   line-height: 1;
-  padding-bottom: 3px;
-  box-shadow: 0 4px 14px rgba(255, 107, 0, 0.45);
-  transition: transform var(--duration-base) var(--ease-bounce), box-shadow var(--duration-base) ease;
+  padding-bottom: 2px;
+  transition: transform var(--duration-base) var(--ease-bounce),
+              background var(--duration-base) ease,
+              border-color var(--duration-base) ease;
 }
-.nav-fab:hover .nav-fab__plus  { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(255, 107, 0, 0.55); }
-.nav-fab:active .nav-fab__plus { transform: scale(0.92); }
+.nav-fab:hover .nav-fab__plus  { background: rgba(255, 107, 0, 0.18); border-color: rgba(255, 107, 0, 0.7); }
+.nav-fab:active .nav-fab__plus { transform: scale(0.9); }
+html[data-theme="light"] .nav-fab__plus {
+  background: rgba(255, 107, 0, 0.10);
+  border-color: rgba(255, 107, 0, 0.55);
+}
 
 
 /* --- 5e. Modals --- */
