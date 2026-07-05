@@ -136,7 +136,7 @@ export const TILE_REGISTRY = [
 
   // ---- FASTING (promoted) -------------------------------------
   {
-    id: 'fasting', type: DashboardTileType.METRIC, icon: '⏱️', label: 'Fasting',
+    id: 'fasting', type: DashboardTileType.METRIC, icon: '⏱️', iconName: 'clock', label: 'Fasting',
     accentVar: '--color-amber', navTarget: 'custom:fasting', order: 0.5,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -167,7 +167,7 @@ export const TILE_REGISTRY = [
 
   // ---- READINESS (multi-signal) -------------------------------
   {
-    id: 'readiness', type: DashboardTileType.RING, icon: '❤️', label: 'Readiness',
+    id: 'readiness', type: DashboardTileType.RING, icon: '❤️', iconName: 'heart', label: 'Readiness',
     accentVar: '--color-green', navTarget: 'recovery-score', order: 1,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -191,7 +191,7 @@ export const TILE_REGISTRY = [
 
   // ---- TRAINING STATUS / FRESHNESS ----------------------------
   {
-    id: 'recovery-score', type: DashboardTileType.METRIC, icon: '🧬', label: 'Training Status',
+    id: 'recovery-score', type: DashboardTileType.METRIC, icon: '🧬', iconName: 'gauge', label: 'Training Status',
     accentVar: '--color-green', navTarget: 'training-status', order: 2,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -217,7 +217,7 @@ export const TILE_REGISTRY = [
 
   // ---- CONSISTENCY -------------------------------------------
   {
-    id: 'consistency', type: DashboardTileType.PROGRESS, icon: '🎯', label: 'Consistency',
+    id: 'consistency', type: DashboardTileType.PROGRESS, icon: '🎯', iconName: 'gauge', label: 'Consistency',
     accentVar: '--color-blue', navTarget: 'progress', order: 3,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -233,7 +233,7 @@ export const TILE_REGISTRY = [
 
   // ---- WEEKLY VOLUME -----------------------------------------
   {
-    id: 'weekly-volume', type: DashboardTileType.METRIC, icon: '📦', label: 'Weekly Volume',
+    id: 'weekly-volume', type: DashboardTileType.METRIC, icon: '📦', iconName: 'dumbbell', label: 'Weekly Volume',
     accentVar: '--color-blue', navTarget: 'weekly-volume', order: 4,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -253,7 +253,7 @@ export const TILE_REGISTRY = [
 
   // ---- BODY WEIGHT -------------------------------------------
   {
-    id: 'bodyweight', type: DashboardTileType.METRIC, icon: '⚖️', label: 'Body Weight',
+    id: 'bodyweight', type: DashboardTileType.METRIC, icon: '⚖️', iconName: 'scale', label: 'Body Weight',
     accentVar: '--color-green', navTarget: 'bodyweight', order: 5,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -281,7 +281,7 @@ export const TILE_REGISTRY = [
 
   // ---- TOP LIFTS (1RM) ---------------------------------------
   {
-    id: 'top-lifts', type: DashboardTileType.SPLIT_3, icon: '💪', label: 'Top Lifts (1RM)',
+    id: 'top-lifts', type: DashboardTileType.SPLIT_3, icon: '💪', iconName: 'dumbbell', label: 'Top Lifts (1RM)',
     accentVar: '--color-blue', navTarget: 'strength_pr', order: 6,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -298,7 +298,7 @@ export const TILE_REGISTRY = [
 
   // ---- ACTIVE FUEL -------------------------------------------
   {
-    id: 'active-fuel', type: DashboardTileType.METRIC, icon: '🔥', label: 'Active Fuel',
+    id: 'active-fuel', type: DashboardTileType.METRIC, icon: '🔥', iconName: 'flame', label: 'Active Fuel',
     accentVar: '--color-amber', navTarget: 'running', order: 7,
     renderData(appState) {
       try {
@@ -314,7 +314,7 @@ export const TILE_REGISTRY = [
 
   // ---- AVG PACE ----------------------------------------------
   {
-    id: 'avg-pace', type: DashboardTileType.METRIC, icon: '⏱️', label: 'Avg Pace',
+    id: 'avg-pace', type: DashboardTileType.METRIC, icon: '⏱️', iconName: 'activity', label: 'Avg Pace',
     accentVar: '--color-pink', navTarget: 'avg-pace', order: 8,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -368,7 +368,7 @@ export const TILE_REGISTRY = [
 
   // ---- TRAINING STREAK ---------------------------------------
   {
-    id: 'streak', type: DashboardTileType.METRIC, icon: '🔥', label: 'Training Streak',
+    id: 'streak', type: DashboardTileType.METRIC, icon: '🔥', iconName: 'flame', label: 'Training Streak',
     accentVar: '--color-amber', navTarget: 'streak', order: 10,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
@@ -393,7 +393,7 @@ export const TILE_REGISTRY = [
 
   // ---- GOAL PROGRESS -----------------------------------------
   {
-    id: 'goal-progress', type: DashboardTileType.METRIC, icon: '🏁', label: 'Goal Progress',
+    id: 'goal-progress', type: DashboardTileType.METRIC, icon: '🏁', iconName: 'mountain', label: 'Goal Progress',
     accentVar: '--color-blue', navTarget: 'goal-progress', order: 11,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
