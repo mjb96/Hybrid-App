@@ -104,7 +104,7 @@ function _renderReviewOverview(body, review) {
     ? `<article class="card-dark an-hero">
         <div class="an-hero__k">Hybrid Score · this week</div>
         <div class="an-hero__val" style="color:${color}">${arc.end}</div>
-        <div class="an-hero__delta" style="color:${color}">${arc.delta > 0 ? '+' : ''}${arc.delta} over the week</div>
+        <div class="an-hero__delta" style="color:${color}">${arc.delta === 0 ? 'Held steady this week' : `${arc.delta > 0 ? '+' : ''}${arc.delta} over the week`}</div>
         ${spark(arc.series, color)}
       </article>`
     : `<article class="card-dark an-hero">

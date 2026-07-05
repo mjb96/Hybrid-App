@@ -87,7 +87,7 @@ export function heroHTML(r, opts = {}) {
   }
 
   const contributor = r.topContributor
-    ? `<div class="hs-contrib"><span class="hs-contrib__k">Biggest lift</span><span class="hs-contrib__v">${esc(r.topContributor.label)} <b style="color:var(--color-green)">+${r.topContributor.points}</b></span></div>`
+    ? `<div class="hs-contrib"><span class="hs-contrib__k">Biggest driver</span><span class="hs-contrib__v">${esc(r.topContributor.label)} <b style="color:var(--color-green)">+${r.topContributor.points}</b></span></div>`
     : '';
 
   const actionRow = showAction
