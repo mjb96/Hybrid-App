@@ -27,15 +27,28 @@ export function mountScreenTabs(sectionId, onSwitch) {
   });
 }
 
+// The current training week's index into a weekly series padded to the
+// program's total weeks — so "this week's" number reads the current week, not
+// the (usually empty) final program week. Shared by the Overviews so they agree
+// with Home. (PRODUCT_AUDIT §4.4.)
+export function curWeekIdx(appState, seriesLen) {
+  const wk = parseInt(appState?.currentWeek, 10) || seriesLen;
+  return Math.max(0, Math.min(wk - 1, seriesLen - 1));
+}
+
 // A sparkline scaled to its own data's min/max (works for kg, km, VDOT — unlike
-// the score gauge's fixed 0–100 spark). Zeros drop to the baseline.
+// the score gauge's fixed 0–100 spark). Interior zeros drop to the baseline;
+// TRAILING zeros (future/in-progress weeks padded to program length) are trimmed
+// so the line ends on the last real data point, not a crash to the floor.
 export function spark(values, color) {
-  const nz = (values || []).filter(v => v > 0);
+  const vals = (values || []).slice();
+  while (vals.length && vals[vals.length - 1] === 0) vals.pop();
+  const nz = vals.filter(v => v > 0);
   if (nz.length < 2) return '';
-  const max = Math.max(...values), min = Math.min(...nz), span = (max - min) || 1;
+  const max = Math.max(...vals), min = Math.min(...nz), span = (max - min) || 1;
   const w = 100, h = 30;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
+  const pts = vals.map((v, i) => {
+    const x = (i / (vals.length - 1)) * w;
     const y = v > 0 ? h - ((v - min) / span) * h : h;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');

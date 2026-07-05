@@ -22,7 +22,7 @@ import {
 } from '../insights/insight-engine.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { getProgramById } from '../../state.js';
-import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
+import { screenTabBar, mountScreenTabs, spark, curWeekIdx } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 
@@ -368,7 +368,13 @@ export function renderRunningAnalytics(data, getState, getDays) {
 // trend as the spark, the two numbers that matter, and ONE synthesized insight.
 function _renderRunningOverview(body, ra, data, insights, appState) {
   const dist = ra.distSeries || [];
-  const distCur  = dist[dist.length - 1] || 0;
+  // Current training week, not the padded final program week (which is empty →
+  // "-- ↓100%"). Matches the Strength fix + Home. Delta is null-guarded so a
+  // week with no distance yet never shows a bogus "↓100% vs last week".
+  const ci       = curWeekIdx(appState, dist.length);
+  const distCur  = dist[ci] || 0;
+  const distPrev = dist[ci - 1] || 0;
+  const distDelta = distCur > 0 && distPrev > 0 ? Math.round(((distCur - distPrev) / distPrev) * 100) : null;
   const color = ra.endScore == null ? '#94a3b8'
     : ra.endScore >= 80 ? '#10b981' : ra.endScore >= 60 ? '#3b82f6'
     : ra.endScore >= 40 ? '#f59e0b' : '#ef4444';
@@ -393,7 +399,7 @@ function _renderRunningOverview(body, ra, data, insights, appState) {
   body.innerHTML = `
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: ra.distProgPct, sub: 'vs last week', color: '#3b82f6' })}
+      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distDelta, sub: 'vs last week', color: '#3b82f6' })}
       ${statCard({ label: 'Best Pace', value: fmtPace(ra.bestPace), sub: 'fastest recent run', color: '#10b981' })}
     </div>
     ${(() => {
