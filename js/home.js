@@ -326,6 +326,22 @@ export function renderHome() {
     refreshWeeklyFitnessGraph('runBarChart');
   }
 
+  // Day-aware primary CTA: on a rest day, "Go to Today's Workout" contradicts
+  // the rest-day coach right above it — route to the wellness check-in instead.
+  const primaryCta = document.getElementById('homePrimaryCta');
+  if (primaryCta) {
+    const isRest = model?.rec?.sessionLabel === 'Rest Day';
+    if (isRest) {
+      primaryCta.textContent = '📝 Log a wellness check-in';
+      primaryCta.setAttribute('data-action', 'open-wellness-checkin');
+      primaryCta.setAttribute('aria-label', 'Log a wellness check-in');
+    } else {
+      primaryCta.textContent = "🏋️ Go to Today's Workout";
+      primaryCta.setAttribute('data-action', 'start-today-workout');
+      primaryCta.setAttribute('aria-label', "Go to today's workout");
+    }
+  }
+
   const scoreResult = renderHybridScoreHome(appState, model);
   renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);

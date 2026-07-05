@@ -68,7 +68,12 @@ export function provisionalScore({ level = 'intermediate', frequency = 'some', r
     level: levelFromXp(0),          // everyone starts an Initiate; XP is earned, not claimed
     hasData: true,
     provisional: true,
-    confidence: 22,                 // self-reported, zero logged data — say so
+    confidence: 0,                  // parity with Home: computeHybridScore counts
+                                     // only logged data toward confidence, so it
+                                     // reads 0% seconds later. Showing 22% here
+                                     // (self-reported) contradicted that; the
+                                     // "Provisional — sharpens as you log" caption
+                                     // already explains the 0.
     delta: null,                    // → "New today"
     momentum: { dir: 'flat', label: 'Baseline' },
     topContributor: null,

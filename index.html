@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- Pinch-zoom left enabled (no maximum-scale / user-scalable=no): this app is
+       data-dense with sub-0.7rem labels, so blocking zoom fails accessibility and
+       store-review heuristics. Modern mobile browsers no longer double-tap-zoom
+       form fields, so nothing here needs the old lock. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Helyx</title>
 
   <link rel="manifest" href="./manifest.json">
@@ -258,7 +262,7 @@
       gap: 10px;
     }
     .week-nav-arrow {
-      width: 36px; height: 36px;
+      width: 44px; height: 44px;
       border-radius: 50%;
       background: rgba(59,130,246,0.12);
       border: 1px solid rgba(59,130,246,0.28);
@@ -420,8 +424,10 @@
       <!-- MORNING BRIEFING — the one coaching surface (greeting · session · mission · coach) -->
       <div id="morningBriefing"></div>
 
-      <!-- Primary CTA — one tap from Home into today's logging -->
-      <button class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
+      <!-- Primary CTA — one tap from Home into today's logging. Label + action
+           are set day-aware in renderHome (a rest day routes to the check-in,
+           not "Go to Today's Workout", which contradicts the rest-day coach). -->
+      <button id="homePrimaryCta" class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
 
       <!-- Starting a run / walk / fast now lives in the centre "+" nav FAB, so
            Home stays quiet. The only thing that surfaces here is a live status
@@ -524,7 +530,7 @@
         </div>
         <div class="wch-badge">
           <span class="wch-badge-dot"></span>
-          Cockpit
+          Today
         </div>
       </div>
 
@@ -748,7 +754,7 @@
       <div id="analytics-hub" class="analytics-section">
         <div class="hub-head">
           <h2 class="hub-title">Insights</h2>
-          <p class="hub-sub">Five screens — one number each, then the depth.</p>
+          <p class="hub-sub">One number each, then the depth.</p>
         </div>
 
         <div class="hub-group">
@@ -857,8 +863,8 @@
             <span style="color:#ef4444;">● Threshold+</span>
             <label class="flex gap-1 ml-auto" style="align-items:center;font-size:0.68rem;color:var(--text-muted);">
               Threshold:
-              <input type="number" id="analyticsThresholdPaceInput" placeholder="e.g. 300" style="width:56px;font-size:0.7rem;padding:2px 4px;" aria-label="Threshold pace seconds per km">
-              <span>s/km</span>
+              <input type="text" id="analyticsThresholdPaceInput" placeholder="4:30" maxlength="5" style="width:56px;font-size:0.7rem;padding:2px 4px;" aria-label="Threshold pace minutes per km">
+              <span>min/km</span>
             </label>
           </div>
           <div id="paceTrendContainer">
@@ -1702,12 +1708,17 @@
       <div class="mt-5">
         <label for="summaryDuration" class="text-xs-bold block mb-1 text-muted">Session Duration (min)</label>
         <input type="text" id="summaryDuration" inputmode="numeric" placeholder="e.g. 45 or 45:00" class="mb-4">
-        <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Confirm Gym RPE (1-10)</label>
-        <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-4">
-        <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Confirm Run RPE (1-10)</label>
-        <input type="number" id="summaryRunRPE" min="1" max="10" placeholder="e.g. 6" class="mb-4">
+        <div id="summaryGymRpeBlock">
+          <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Confirm Gym RPE (1-10)</label>
+          <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-4">
+        </div>
+        <div id="summaryRunRpeBlock">
+          <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Confirm Run RPE (1-10)</label>
+          <input type="number" id="summaryRunRPE" min="1" max="10" placeholder="e.g. 6" class="mb-4">
+        </div>
       </div>
       <button class="btn-action-block btn-blue" data-action="close-finish-modal">Save & Return Home</button>
+      <button class="btn-action-block btn-ghost mt-2" data-action="cancel-finish-modal">Cancel</button>
     </div>
   </div>
 

@@ -78,8 +78,7 @@ export function briefingCardHTML(b) {
   const missionRow = b.mission.done
     ? `<div class="mbrief__mission mbrief__mission--done">${missionInner}</div>`
     : `<button class="mbrief__mission"
-            data-action="${b.session.isRest ? 'open-analytics' : 'start-today-workout'}"
-            ${b.session.isRest ? 'data-context="recovery-score"' : ''}
+            data-action="${b.session.isRest ? 'open-wellness-checkin' : 'start-today-workout'}"
             aria-label="Today's mission: ${esc(b.mission.text)}">${missionInner}<span class="mbrief__mission-chev">›</span></button>`;
 
   // C2 — Ask the coach: a few tap-to-answer questions, answered live from the

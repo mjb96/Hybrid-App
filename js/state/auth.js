@@ -32,7 +32,13 @@ export async function loginToSupabase() {
   const pass  = document.getElementById('loginPassword')?.value;
 
   const sb = getSupabaseClient();
-  if (!sb) { showToast('Offline mode — cannot sign in.', true); return; }
+  if (!sb) {
+    // Surface it inline (not just a 2.5s toast that leaves the form looking
+    // untouched) so the user knows why nothing happened.
+    _showAuthError('authSigninError', "You're offline — connect to the internet to sign in. Your data is saved on this device.");
+    showToast('Offline — cannot sign in.', true);
+    return;
+  }
 
   _setAuthLoading('authSigninBtn', true);
   _showAuthError('authSigninError', '');
@@ -58,7 +64,11 @@ export async function signUpToSupabase() {
   const pass  = document.getElementById('signupPassword')?.value;
 
   const sb = getSupabaseClient();
-  if (!sb) { showToast('Offline mode — cannot create account.', true); return; }
+  if (!sb) {
+    _showAuthError('authSignupError', "You're offline — connect to the internet to create an account. Your data is saved on this device.");
+    showToast('Offline — cannot create account.', true);
+    return;
+  }
   if (!email || !pass) { _showAuthError('authSignupError', 'Please enter your email and a password.'); return; }
   if (pass.length < 8)  { _showAuthError('authSignupError', 'Password must be at least 8 characters.'); return; }
 

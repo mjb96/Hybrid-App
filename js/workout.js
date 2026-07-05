@@ -6,7 +6,7 @@ import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
-import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds } from './timers.js';
+import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
@@ -168,9 +168,12 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     blueprintLabel = _achievedSummaryFromSets(setsArr, wu) || blueprintLabel;
   }
 
+  // Weights are stored in the user's configured unit — label them with it, not a
+  // hardcoded "kg" (which mislabelled every number for lbs users).
+  const wUnit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
   let historicalLineText = 'Baseline Loading Profile Verified';
   if (appState.exerciseStats?.[displayLiftName]) {
-    historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + 'kg (Est. 1RM)';
+    historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + wUnit + ' (Est. 1RM)';
   }
 
   const pastWkNum = parseInt(wk, 10) - 1;
@@ -179,7 +182,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     if (pastWkData?.lifts?.[selectedDay]?.[liftName]) {
       const doneSets = pastWkData.lifts[selectedDay][liftName].filter(s => s?.c && s.w && s.r);
       if (doneSets.length > 0) {
-        historicalLineText = 'Last Session: [ ' + doneSets.map(s => escapeHtml(String(s.w)) + 'kg × ' + escapeHtml(String(s.r))).join(', ') + ' ]';
+        historicalLineText = 'Last Session: [ ' + doneSets.map(s => escapeHtml(String(s.w)) + wUnit + ' × ' + escapeHtml(String(s.r))).join(', ') + ' ]';
       }
     }
   }
@@ -469,6 +472,14 @@ export function renderWorkout() {
       // Mark the real calendar day so the selected chip and today are distinct.
       pill.classList.toggle('day-pill--today', dayKey === todayKey);
     });
+    // Centre the selected day in the horizontally-scrolling bar. On Sat/Sun the
+    // active pill is otherwise off-screen to the right — the "today" chip was
+    // invisible exactly when it mattered.
+    const selIdx = days.indexOf(selectedDay);
+    const activePill = (selIdx >= 0 && pills[selIdx]) || daySelectorBar.querySelector('.day-pill.active');
+    if (activePill && typeof activePill.scrollIntoView === 'function') {
+      try { activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); } catch (_) {}
+    }
   }
 
   // Day-appropriate primary action: the gym START button only makes sense on a
@@ -886,7 +897,11 @@ export function toggleGymCheckLoggingState(checkboxNode) {
   if (checkboxNode.checked) {
     if (parentRow) parentRow.classList.add('is-complete');
     hapticTick();
-    
+    // Auto-start the session clock on the first completed set, so the finish
+    // modal has a real duration to confirm even if the user never tapped
+    // "Start Workout" (idempotent — no-op once running).
+    try { startWorkoutTimer(); } catch (_) {}
+
     const wInput = parentRow ? parentRow.querySelector('.input-weight-node') : null;
     const rInput = parentRow ? parentRow.querySelector('.input-reps-node') : null;
     
@@ -934,7 +949,12 @@ export function toggleGymCheckLoggingState(checkboxNode) {
         if (w > 0 && r > 0) {
           const e1rm = w * (1 + r / 30);
           const prevMax = _appState.exerciseStats?.[liftName]?.allTimeMax || 0;
-          if (e1rm > prevMax + 0.01) {
+          // Only celebrate a PR against *real* prior history. The first-ever log
+          // of a lift always beats a 0 baseline, so firing "New PR" then made the
+          // trophy noise on every exercise of a new user's first session. No
+          // history ⇒ this is a baseline, not a record.
+          const hasHistory = prevMax > 0;
+          if (hasHistory && e1rm > prevMax + 0.01) {
             parentRow.classList.add('is-pr');
             hapticSuccess();
             if (!parentRow.querySelector('.pr-badge')) {
@@ -944,6 +964,8 @@ export function toggleGymCheckLoggingState(checkboxNode) {
               parentRow.appendChild(badge);
             }
             showToast(`🏆 New PR — ${liftName}!`);
+          } else if (!hasHistory) {
+            showToast(`Baseline set — ${liftName} ✓`);
           }
         }
       }
@@ -1046,20 +1068,74 @@ export function removeCustomSetRow(liftName, setIndex) {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const wk = appState.currentWeek;
-  if (appState.weeks[wk].lifts?.[selectedDay]?.[liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName].splice(setIndex, 1);
-    if (appState.weeks[wk].lifts[selectedDay][liftName].length === 0) {
-      delete appState.weeks[wk].lifts[selectedDay][liftName];
-      // Drop the now-empty exercise from the explicit display order too.
-      const order = appState.weeks[wk].liftOrder?.[selectedDay];
-      if (Array.isArray(order)) {
-        appState.weeks[wk].liftOrder[selectedDay] = order.filter(n => n !== liftName);
-      }
+  const dayLifts = appState.weeks[wk]?.lifts?.[selectedDay];
+  if (!dayLifts?.[liftName]) return;
+
+  // Snapshot BEFORE mutating so Undo can restore the exact prior state — both a
+  // single removed set and the case where removing the last set deletes the
+  // whole exercise (and its liftOrder entry). The ✕ sits ~40px from the ✓, so a
+  // fat-finger on a logged set must be recoverable, not silent data loss.
+  const priorSets  = dayLifts[liftName].map(s => ({ ...s }));
+  const priorOrder = Array.isArray(appState.weeks[wk].liftOrder?.[selectedDay])
+    ? [...appState.weeks[wk].liftOrder[selectedDay]] : null;
+
+  dayLifts[liftName].splice(setIndex, 1);
+  if (dayLifts[liftName].length === 0) {
+    delete dayLifts[liftName];
+    // Drop the now-empty exercise from the explicit display order too.
+    const order = appState.weeks[wk].liftOrder?.[selectedDay];
+    if (Array.isArray(order)) {
+      appState.weeks[wk].liftOrder[selectedDay] = order.filter(n => n !== liftName);
     }
-    _saveState(true);
-    renderWorkout();
-    showToast('Set Removed');
   }
+  _saveState(true);
+  renderWorkout();
+  _offerSetUndo({ liftName, selectedDay, wk, priorSets, priorOrder });
+}
+
+// Restore the pre-delete snapshot captured by removeCustomSetRow.
+function _restoreRemovedSet(u) {
+  const appState = _getState();
+  const week = appState.weeks?.[u.wk];
+  if (!week) return;
+  if (!week.lifts) week.lifts = {};
+  if (!week.lifts[u.selectedDay]) week.lifts[u.selectedDay] = {};
+  week.lifts[u.selectedDay][u.liftName] = u.priorSets.map(s => ({ ...s }));
+  if (u.priorOrder) {
+    if (!week.liftOrder) week.liftOrder = {};
+    week.liftOrder[u.selectedDay] = [...u.priorOrder];
+  }
+  _saveState(true);
+  renderWorkout();
+  showToast('Set restored ✓');
+}
+
+// A tappable Undo snackbar (the plain showToast has no action). Sits above the
+// bottom nav, auto-dismisses after 6s.
+let _undoSnackTimer = null;
+function _offerSetUndo(u) {
+  if (typeof document === 'undefined') return;
+  document.getElementById('setUndoSnack')?.remove();
+  if (_undoSnackTimer) { clearTimeout(_undoSnackTimer); _undoSnackTimer = null; }
+
+  const snack = document.createElement('div');
+  snack.id = 'setUndoSnack';
+  snack.setAttribute('role', 'status');
+  snack.style.cssText =
+    'position:fixed;left:50%;transform:translateX(-50%);' +
+    'bottom:calc(88px + env(safe-area-inset-bottom, 0px));z-index:9998;' +
+    'display:flex;align-items:center;gap:14px;max-width:calc(100% - 32px);' +
+    'background:#1e293b;color:#f8fafc;border:1px solid rgba(255,255,255,0.14);' +
+    'border-radius:12px;padding:11px 16px;box-shadow:0 8px 28px rgba(0,0,0,0.4);font-size:0.85rem;';
+  snack.innerHTML =
+    '<span style="flex:1;">Set removed</span>' +
+    '<button type="button" id="setUndoBtn" style="min-height:44px;background:none;border:none;' +
+    'color:#60a5fa;font-weight:800;font-size:0.85rem;cursor:pointer;padding:4px 8px;">UNDO</button>';
+  document.body.appendChild(snack);
+
+  const dismiss = () => { snack.remove(); if (_undoSnackTimer) clearTimeout(_undoSnackTimer); _undoSnackTimer = null; };
+  snack.querySelector('#setUndoBtn')?.addEventListener('click', () => { _restoreRemovedSet(u); dismiss(); });
+  _undoSnackTimer = setTimeout(dismiss, 6000);
 }
 
 export function cycleSetType(liftName, sIdx) {
@@ -1559,7 +1635,33 @@ export function openFinishSessionModal() {
   }
   if (sumGymRpeEl) sumGymRpeEl.value = appState.weeks[wk].gymRpe?.[selectedDay] || '';
   if (sumRunRpeEl) sumRunRpeEl.value = appState.weeks[wk].runs?.[selectedDay]?.rpe || '';
+
+  // Only ask for the RPE that matches what was actually done today: a run RPE
+  // prompt on a lift-only day (and vice versa) is a question with no answer.
+  // Fall back to showing both if the day is somehow empty of both signals.
+  const hasLifts = Object.values(liftsData).some(a => Array.isArray(a) && a.length > 0);
+  const runCtx = appState.weeks[wk].runs?.[selectedDay] || {};
+  const hasRun = !!(runCtx.dist || runCtx.time || runCtx.pace || runCtx.rpe);
+  const gymBlock = document.getElementById('summaryGymRpeBlock');
+  const runBlock = document.getElementById('summaryRunRpeBlock');
+  if (gymBlock && runBlock) {
+    if (hasLifts || hasRun) {
+      gymBlock.style.display = hasLifts ? '' : 'none';
+      runBlock.style.display = hasRun ? '' : 'none';
+    } else {
+      gymBlock.style.display = '';
+      runBlock.style.display = '';
+    }
+  }
+
   if (sumModalEl) sumModalEl.classList.add('active');
+}
+
+// Dismiss the finish modal WITHOUT saving/leaving — the finish flow otherwise
+// had a single "Save & Return Home" action, so an accidental Finish tap had no
+// way out. The typed values persist in the fields for when they reopen it.
+export function cancelFinishSessionModal() {
+  document.getElementById('summaryModal')?.classList.remove('active');
 }
 
 export function closeFinishSessionModal() {
@@ -1653,6 +1755,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'execute-reset') executeResetActiveDayMetrics();
   else if (action === 'open-finish-modal') openFinishSessionModal();
   else if (action === 'close-finish-modal') closeFinishSessionModal();
+  else if (action === 'cancel-finish-modal') cancelFinishSessionModal();
   else if (action === 'expand-run') document.getElementById('cockpitRunPanel')?.classList.remove('run-collapsed');
 });
 
