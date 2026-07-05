@@ -202,7 +202,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
       if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
     }
-    return buildSetRow(sData, sIdx, safeLiftName, ghostSet);
+    return buildSetRow(sData, sIdx, safeLiftName, ghostSet, wUnit);
   }).join('');
 
   // C4b — per-side plate math for the coach's target weight (barbell lifts only:
