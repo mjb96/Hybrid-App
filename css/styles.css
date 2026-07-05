@@ -622,36 +622,12 @@ select.native-select {
 }
 .nav-item.active::after { opacity: 1; transform: scaleX(1); }
 
-/* Centre quick-start FAB — the raised "+" that opens the start sheet. Sits in
-   the middle grid cell; a filled accent disc so it reads as the primary action
-   without overflowing the clipped nav bar. */
-.nav-fab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  user-select: none;
-}
-.nav-fab__plus {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: var(--color-orange, #ff6b00);
-  color: #fff;
-  font-size: 1.85rem;
-  font-weight: 400;
-  line-height: 1;
-  padding-bottom: 3px;
-  box-shadow: 0 4px 14px rgba(255, 107, 0, 0.45);
-  transition: transform var(--duration-base) var(--ease-bounce), box-shadow var(--duration-base) ease;
-}
-.nav-fab:hover .nav-fab__plus  { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(255, 107, 0, 0.55); }
-.nav-fab:active .nav-fab__plus { transform: scale(0.92); }
+/* Centre quick-start "Start" — the entry to the start sheet. It's a plain
+   .nav-item and carries NO styling of its own on purpose: any override (even
+   `background: none`) makes it diverge from its peers — here it punched a
+   transparent hole through the default button fill and read as a dark box. By
+   adding nothing, .nav-fab matches the other tabs exactly; it simply never
+   gets the .active tab state. */
 
 
 /* --- 5e. Modals --- */
