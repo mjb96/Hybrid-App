@@ -136,11 +136,12 @@ Full tables with effort/impact in `PRODUCT_AUDIT.md` §10. Sequence is fixed:
    `week % 4`); label the two readiness numbers; copy pass (Biggest driver rename,
    machine-ese lines).
 3. **Sprint 3 — "Looks like it costs money."** Icon set replaces emoji; program cover art;
-   CTA hierarchy; chip/spark null-guards; band calibration; XP backfill; **central "+"
-   quick-start on the nav bar** (Run · Walk · Fast → one raised "+", reachable from every
-   tab; removes the Home Walk/Run row + interim fasting chip → quiet Home; keep a live
-   status pill for an in-progress fast/activity). See `PRODUCT_AUDIT.md` §10 item 3.4 —
-   this supersedes the 2026-07-04 Home fasting quick-action.
+   CTA hierarchy; chip/spark null-guards; band calibration; XP backfill. **Item 3.4
+   (central "+" nav quick-start) — ✅ SHIPPED early (2026-07-04):** nav is now `Home ·
+   Workout · ⊕ · Insights · Programs`; the orange centre "+" opens a Run/Walk/Fast sheet
+   from any tab; Profile moved to an avatar tap in the Home header; Home Walk/Run row +
+   fasting chip removed (quiet Home), with a live fasting status pill kept for an active
+   fast. Verified in Chromium.
 4. **Sprint 4 — Beta.** Device tests (`PROGRESS.md` `[You]` list), store screenshots taken
    *after* Sprint 3, submit.
 

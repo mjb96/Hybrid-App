@@ -132,6 +132,14 @@ export function switchGlobalAppTab(targetViewID) {
   window.scrollTo(0, 0);
 }
 
+// Quick-start bottom sheet (the centre "+" FAB). Reachable from every tab.
+function toggleQuickStart(show) {
+  const sheet = document.getElementById('quickStartSheet');
+  const back  = document.getElementById('quickStartBackdrop');
+  if (sheet) sheet.classList.toggle('active', show);
+  if (back)  back.classList.toggle('active', show);
+}
+
 export function setCockpitActiveDay(dayKey) {
   if (activeTab === 'workout') {
     try { commitWorkoutUIState(); } catch(e) { console.warn(e); }
@@ -811,6 +819,14 @@ document.addEventListener('click', (e) => {
   else if (['ob-next','ob-back','ob-goal','ob-level','ob-frequency','ob-recovery','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish','ob-notif-enable','ob-notif-skip'].includes(action)) {
     handleOnboardingAction(action, target);
   }
+
+  // Quick-start sheet (centre "+" FAB) — start Run / Walk / Fast from any tab.
+  else if (action === 'open-quick-start')  { toggleQuickStart(true); }
+  else if (action === 'close-quick-start') { toggleQuickStart(false); }
+  else if (action === 'qs-run')  { toggleQuickStart(false); startQuickActivity('run'); }
+  else if (action === 'qs-walk') { toggleQuickStart(false); startQuickActivity('walk'); }
+  else if (action === 'qs-fast') { toggleQuickStart(false); openFastingDetail(); }
+  else if (action === 'open-profile') { switchGlobalAppTab('profile'); }
 
   // GPS Tracker
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }

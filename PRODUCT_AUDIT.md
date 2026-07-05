@@ -334,13 +334,16 @@ Remaining IA debt, all small: fold the "More" bucket (§4.4), fix the fasting de
 Redirects for absorbed leaves are in place and correct.
 
 **Central "+" quick-start (planned — see §10 item 3.4).** The three "start something
-now" actions (Run · Walk · Fast, later the quick-log family) should consolidate into a
-single raised "+" on the nav bar rather than living as buttons on Home. This is the
-native pattern (Strava/NRC/Instagram), makes starting reachable from *every* tab, and
-lets Home go fully quiet — removing the Walk/Run row and the interim Home fasting chip.
-Two rules: the "+" only ever *initiates*; an *in-progress* fast or GPS activity must
-still surface a slim persistent status pill (never bury a live timer behind a menu).
-Keep the 5 tabs — float the "+" above the bar's centre; do not drop a tab to make room.
+now" actions (Run · Walk · Fast, later the quick-log family) consolidate into a single
+raised "+" in the **centre** of the nav bar rather than living as buttons on Home. This
+is the native pattern (Strava/NRC/Instagram), makes starting reachable from *every* tab,
+and lets Home go fully quiet — removing the Walk/Run row and the interim Home fasting
+chip. Two rules: the "+" only ever *initiates*; an *in-progress* fast or GPS activity
+must still surface a slim persistent status pill (never bury a live timer behind a menu).
+**Decided layout (owner, 2026-07-04):** the bar becomes **`Home · Workout · ⊕ · Insights
+· Programs`** — 4 tabs + a centre "+". **Profile leaves the bar and is reached by tapping
+the athlete avatar in the Home header** (the universal "account" pattern); the Profile
+view itself is unchanged.
 
 ---
 
@@ -440,7 +443,7 @@ Effort: XS <1h · S ~half-day · M 1–3 days · L 1–2 weeks. All pre-beta unl
 | 3.1 | Icon set replaces emoji (nav, hub, tiles, milestones) | M |
 | 3.2 | Program cover art system; de-dupe rails; detail CTA hierarchy; commitment-strip label fix | M |
 | 3.3 | Chip/spark null-guards; strength-band calibration; XP backfill from history; onboarding program meta line; today-marker on day chips; START button matches day type | M (bundle of S/XS) |
-| 3.4 | **Central "+" quick-start on the nav bar** — consolidate Start Run · Walk · Fast (later: log-a-lift, check-in, log-weight) into a raised "+" opening a small action sheet, reachable from every tab. Removes the Home Walk/Run row + the interim Home fasting chip → truly quiet Home. Keep the live-fast / active-GPS status as a slim persistent pill (the "+" only *starts*; it never hides an in-progress timer). Keep 5 tabs; float the "+" above centre, don't drop a tab. Supersedes the 2026-07-04 Home fasting quick-action. *Why: universal reach + native feel + calm Home · Effort: M · P1.* | M |
+| 3.4 | **Central "+" quick-start on the nav bar** — consolidate Start Run · Walk · Fast (later: log-a-lift, check-in, log-weight) into a raised centre "+" opening a small action sheet, reachable from every tab. Removes the Home Walk/Run row + the interim Home fasting chip → truly quiet Home. Keep the live-fast / active-GPS status as a slim persistent pill (the "+" only *starts*; it never hides an in-progress timer). **Decided layout:** `Home · Workout · ⊕ · Insights · Programs`; **Profile moves off the bar to an avatar tap in the Home header.** Supersedes the 2026-07-04 Home fasting quick-action. *Why: universal reach + native feel + calm Home · Effort: M · P1.* | M |
 
 ### Sprint 4 — Beta + post-beta
 - Device-test list (GPS lock-screen run, notification loop, Health Connect, swap/plate/

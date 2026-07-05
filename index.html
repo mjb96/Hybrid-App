@@ -411,6 +411,7 @@
           <div class="home-week-progress__track"><div id="homeWeeklyProgressBar" class="home-week-progress__fill"></div></div>
           <span id="homeWeeklyProgressTasks" class="home-week-progress__tasks"></span>
         </div>
+        <button class="home-avatar" id="homeAvatar" data-action="open-profile" aria-label="Open your profile">?</button>
       </div>
 
       <!-- HYBRID SCORE — the signature surface; first thing the athlete sees -->
@@ -422,17 +423,14 @@
       <!-- Primary CTA — one tap from Home into today's logging -->
       <button class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
 
-      <!-- Quick activity — start a walk/run/fast outside the program; logs to today -->
-      <div class="quick-activity-row" style="display:flex;gap:10px;">
-        <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="walk" aria-label="Start a walk">🚶 Start Walk</button>
-        <button class="btn-action-block btn-ghost mt-0" style="flex:1;" data-action="quick-activity" data-type="run" aria-label="Start a run">🏃 Start Run</button>
-      </div>
-      <!-- Fasting quick-action on Home (owner request): live status when a fast
-           is running, one-tap into the timer/protocols when idle. -->
-      <div class="qa-row qa-row--fasting mb-4" id="dashboardQuickActions" aria-label="Quick actions" style="grid-template-columns:1fr;margin-top:10px;">
-        <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="Start or view fast">
+      <!-- Starting a run / walk / fast now lives in the centre "+" nav FAB, so
+           Home stays quiet. The only thing that surfaces here is a live status
+           pill while a fast is actually running (never hide an in-progress
+           timer behind a menu). -->
+      <div class="qa-row qa-row--fasting mb-4" id="dashboardQuickActions" aria-label="Active fast" style="grid-template-columns:1fr;margin-top:10px;display:none;">
+        <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="View your active fast">
           <span class="qa-icon">⏱️</span>
-          <span class="qa-text"><span class="qa-label">Start Fast</span><span class="qa-sub">Intermittent fasting</span></span>
+          <span class="qa-text"><span class="qa-label">Fasting</span><span class="qa-sub">Intermittent fasting</span></span>
         </button>
       </div>
 
@@ -1666,9 +1664,9 @@
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" aria-hidden="true">🏠</span><span>Home</span></button>
     <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" aria-hidden="true">🏋️</span><span>Workout</span></button>
+    <button class="nav-fab" data-action="open-quick-start" aria-label="Start a run, walk, or fast"><span class="nav-fab__plus" aria-hidden="true">+</span></button>
     <button class="nav-item" data-target="analytics" data-action="switch-tab"><span class="icon" aria-hidden="true">📊</span><span>Insights</span></button>
     <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" aria-hidden="true">📋</span><span>Programs</span></button>
-    <button class="nav-item" data-target="profile" data-action="switch-tab"><span class="icon" aria-hidden="true">👤</span><span>Profile</span></button>
   </nav>
 
   <!-- Program Rating Modal -->
@@ -1806,6 +1804,22 @@
     </div>
   </div>
 
+
+  <!-- Quick-start sheet — opened by the centre "+" nav FAB; start Run / Walk / Fast from any tab. -->
+  <div id="quickStartBackdrop" class="sheet-backdrop" data-action="close-quick-start"></div>
+  <div id="quickStartSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="qsTitle">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header">
+      <h3 id="qsTitle" class="bottom-sheet-title">Start</h3>
+      <button class="sheet-close-btn" data-action="close-quick-start" aria-label="Close">✕</button>
+    </div>
+    <div class="qs-grid">
+      <button class="qs-item" data-action="qs-run"  aria-label="Start a run"><span class="qs-item__icon" aria-hidden="true">🏃</span><span class="qs-item__label">Run</span></button>
+      <button class="qs-item" data-action="qs-walk" aria-label="Start a walk"><span class="qs-item__icon" aria-hidden="true">🚶</span><span class="qs-item__label">Walk</span></button>
+      <button class="qs-item" data-action="qs-fast" aria-label="Start a fast"><span class="qs-item__icon" aria-hidden="true">⏱️</span><span class="qs-item__label">Fast</span></button>
+    </div>
+    <div style="height: 16px;"></div>
+  </div>
 
   <!-- Workout Preview Modal (day detail bottom-sheet) -->
   <div id="wpmBackdrop" class="sheet-backdrop" data-action="close-day-preview"></div>

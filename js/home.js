@@ -242,23 +242,20 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
 // QUICK ACTIONS — Start/Resume Fast · Check-in · Log Weight.
 // ==========================================
 function updateQuickActions(model) {
+  const fastRow = document.getElementById('dashboardQuickActions');
   const fastBtn = document.getElementById('qaFasting');
-  if (fastBtn) {
+  if (fastRow && fastBtn) {
     const f = model.fasting;
-    // Owner request: fasting is always one tap from Home — a live status chip
-    // while a fast runs, a "Start Fast" entry when idle. (Supersedes the earlier
-    // quiet-Home hide; fasting is a first-class feature the owner wants quick.)
-    fastBtn.style.display = '';
-    const labelEl = fastBtn.querySelector('.qa-label');
-    const subEl   = fastBtn.querySelector('.qa-sub');
+    // Home is quiet: starting a fast lives in the centre "+" sheet now. The only
+    // fasting thing that surfaces on Home is a live status pill while a fast is
+    // actually running — an in-progress timer should never be buried in a menu.
+    fastRow.style.display = f.active ? '' : 'none';
     if (f.active) {
+      const labelEl = fastBtn.querySelector('.qa-label');
+      const subEl   = fastBtn.querySelector('.qa-sub');
       if (labelEl) labelEl.textContent = 'Fasting';
       if (subEl)   subEl.textContent   = `${Math.floor(f.hours)}h · ${f.zone.name}`;
       fastBtn.classList.add('qa-btn--active');
-    } else {
-      if (labelEl) labelEl.textContent = 'Start Fast';
-      if (subEl)   subEl.textContent   = f.streak > 0 ? `${f.streak}d streak` : 'Intermittent fasting';
-      fastBtn.classList.remove('qa-btn--active');
     }
   }
   const checkBtn = document.getElementById('qaCheckin');
@@ -282,6 +279,23 @@ export function renderHome() {
   const phaseEl = document.getElementById('homePhaseLabelTag');
   if (indicatorEl) indicatorEl.textContent = 'Week ' + wk;
   if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
+
+  // Home-header avatar → Profile (the avatar is Profile's entry point now that
+  // Profile has left the nav bar). Shows the photo if set, else name initials.
+  const avatarEl = document.getElementById('homeAvatar');
+  if (avatarEl) {
+    const nm = (appState.settings?.name || '').trim();
+    const url = appState.settings?.avatarDataUrl;
+    if (url) {
+      avatarEl.style.backgroundImage = `url("${url}")`;
+      avatarEl.textContent = '';
+      avatarEl.classList.add('home-avatar--img');
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = nm ? nm.split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('') : '?';
+      avatarEl.classList.remove('home-avatar--img');
+    }
+  }
 
   const activeProgram = getProgramById(appState.activeProgramId);
 
