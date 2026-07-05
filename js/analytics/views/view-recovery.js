@@ -15,6 +15,8 @@ import {
 import { statCard } from '../charts/chart-primitives.js';
 import { computeRecoveryAnalytics } from '../calculations/recovery-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
+import { computeDashboardModel } from '../../home/dashboard-model.js';
+import { getProgramById } from '../../state.js';
 import {
   computeReadiness,
   readinessStatus,
@@ -61,12 +63,13 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
   const days     = getDays();
   const recov    = computeRecoveryAnalytics(appState);
   const la       = computeLoadAnalytics(appState, days, data.weekLabels.length);
-  const lastSleep = recov.sleepData?.length ? recov.sleepData[recov.sleepData.length - 1]?.value : null;
-  const readiness = computeReadiness({
-    hrvStat: recov.hrvStat, sleepHours: lastSleep,
-    atl: la.currentATL, ctl: la.currentCTL, todayWellness: recov.todayWellness,
-  });
-  const color = readinessColor(readiness.score);
+  // Readiness comes from the ONE shared model (same number Home shows), not a
+  // second recompute from different inputs — otherwise Home and this screen
+  // disagree on the same fact (§4.4). Readiness is day-independent, so the
+  // selected day passed here doesn't affect it.
+  const model     = computeDashboardModel(appState, days, getProgramById(appState.activeProgramId), days[0] || 'mon');
+  const readiness = model.ready;
+  const color  = readiness.color || readinessColor(readiness.score);
   const status = readiness.status || readinessStatus(readiness.score);
 
   const tsb   = Math.round((la.currentCTL || 0) - (la.currentATL || 0));
