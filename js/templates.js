@@ -9,8 +9,8 @@ export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null) {
-  const ghostWeight = historicalSetData?.w || 'kg';
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg') {
+  const ghostWeight = historicalSetData?.w || weightUnit;
   const ghostReps   = historicalSetData?.r || 'reps';
   const type = sData.type || '';
 
