@@ -3337,6 +3337,15 @@ html[data-theme="light"] .rl-rpe-btn.active {
   color: var(--text-secondary);
   font-weight: 500;
 }
+.ob-prog-meta {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-orange, #ff6b00);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Light mode onboarding */
 html[data-theme="light"] .ob-input {

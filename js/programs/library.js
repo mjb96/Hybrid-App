@@ -415,16 +415,26 @@ function renderCollectionRows(container) {
     html += renderCustomProgramsSection(customPrograms);
   }
 
+  // De-dupe across the discovery rails: a program appears in at most one of
+  // Recommended / the curated rails per render, so the same card can't fill
+  // three rows on one Discover screen. (Recently-Viewed and your custom programs
+  // are a different, clearly-labelled context and stay outside this.)
+  const shown = new Set(_appState?.activeProgramId ? [_appState.activeProgramId] : []);
+
   // Personalised recommendations row. hideSeeAll: recommendations aren't a
   // static collection, so there's no valid "see all" target for them.
   if (recommendations.length > 0) {
-    html += renderCollectionRow({
-      id: 'recommended',
-      label: 'Recommended For You',
-      subtitle: 'Based on your training',
-      icon: '✨',
-      hideSeeAll: true,
-    }, recommendations.map(r => r.program), true);
+    const recPrograms = recommendations.map(r => r.program).filter(p => p && !shown.has(p.id));
+    if (recPrograms.length > 0) {
+      recPrograms.forEach(p => shown.add(p.id));
+      html += renderCollectionRow({
+        id: 'recommended',
+        label: 'Recommended For You',
+        subtitle: 'Based on your training',
+        icon: '✨',
+        hideSeeAll: true,
+      }, recPrograms, true);
+    }
   }
 
   // V2-6 — a curated few rails, not the whole catalogue. The old surface stacked
@@ -434,7 +444,10 @@ function renderCollectionRows(container) {
   for (const id of CURATED_HOME_COLLECTIONS) {
     const collection = byId.get(id);
     if (!collection || !collection.programs || collection.programs.length === 0) continue;
-    html += renderCollectionRow(collection, collection.programs);
+    const fresh = collection.programs.filter(p => p && !shown.has(p.id));
+    if (fresh.length === 0) continue;
+    fresh.forEach(p => shown.add(p.id));
+    html += renderCollectionRow(collection, fresh);
   }
 
   // Browse-all: every category is reachable here (and via the chips up top), so

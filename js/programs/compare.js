@@ -88,7 +88,7 @@ const fmtWeeks = (n) => (n ? `${n} weeks` : '—');
 const fmtDays = (n) => (n ? `${n}×/week` : '—');
 const fmtSession = (s) => (s && (s.min || s.max)) ? (s.min && s.max && s.min !== s.max ? `${s.min}–${s.max} min` : `${s.max || s.min} min`) : '—';
 const fmtHours = (n) => (n ? `~${n} h total` : '—');
-const fmtSets = (n) => (n ? `${n} sets/wk` : '—');
+const fmtSets = (n) => (n ? `~${n} sets/lift` : '—');
 
 /**
  * Build a side-by-side comparison model of two programs.
@@ -103,7 +103,7 @@ export function buildComparison(programA, programB) {
     { label: 'Frequency',     a: fmtDays(sa.daysPerWeek),   b: fmtDays(sb.daysPerWeek) },
     { label: 'Session',       a: fmtSession(sa.sessionMin), b: fmtSession(sb.sessionMin) },
     { label: 'Time cost',     a: fmtHours(sa.totalHours),   b: fmtHours(sb.totalHours) },
-    { label: 'Weekly volume', a: fmtSets(sa.weeklySets),    b: fmtSets(sb.weeklySets) },
+    { label: 'Set volume',    a: fmtSets(sa.weeklySets),    b: fmtSets(sb.weeklySets) },
     { label: 'Level',         a: sa.difficulty || '—',      b: sb.difficulty || '—' },
     { label: 'Equipment',     a: sa.equipment.join(', ') || '—', b: sb.equipment.join(', ') || '—' },
   ];
