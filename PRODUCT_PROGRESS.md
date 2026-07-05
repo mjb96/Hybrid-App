@@ -12,12 +12,29 @@ and are **superseded** — do not execute from them.
 
 ## Overall product rating: **6.5 → ~7.2 / 10** (Sprint 1 shipped 2026-07-04)
 
-A 9/10 scoring engine and an 8/10 surface pattern. **Sprints 1 and 2 are shipped**, plus
-the nav refactor (3.4). Sprint 1 fixed the first-run trust collapse + integrity bugs;
-Sprint 2 ("one coach") fixed the cross-surface incoherence — every surface now agrees on
-the day's verdict. First-run, integrity and coherence are all materially better; the
-remaining lift to a clean ~8 is Sprint 3 (the premium/native polish pass). Full scorecard
+A 9/10 scoring engine and an 8/10 surface pattern. **Sprints 1, 2 and 3 are shipped**,
+plus the nav refactor (3.4). Sprint 1 fixed the first-run trust collapse + integrity bugs;
+Sprint 2 ("one coach") fixed cross-surface incoherence; Sprint 3 was the premium/polish
+pass (icon set on the chrome, analytics null-guards, XP backfill, cockpit/day-chip fixes,
+program de-dupe + CTA + labels). First-run, integrity, coherence and premium-feel are all
+materially better. Remaining polish is a deliberate follow-up list (below). Full scorecard
 in `PRODUCT_AUDIT.md` §11.
+
+### Sprint 3 — "looks like it costs money" — shipped (2026-07-04)
+- **3.1** New `js/ui/icons.js` inline-SVG stroke set replaces emoji on the bottom nav
+  (home · dumbbell · chart · clipboard) and the Insights hub (gauge · dumbbell · activity ·
+  heart · book · clock · scale · sparkle) — one coherent system via `paintIcons()`.
+- **3.2** Programs: commitment strip "~4 sets per lift" (was "4 SETS/WEEK"); Discover rails
+  de-dupe (a program appears once); detail CTA collapses to one primary + a compact
+  Customize/Compare row; onboarding program cards gain a duration·frequency·length meta line.
+- **3.3a** Spark trims trailing zeros (no crash-to-floor); Running Weekly Distance reads the
+  current week + null-guarded delta (was "-- ↓100%").
+- **3.3b** XP backfill from logged history (an 8-week athlete now reads Builder, not
+  Initiate·28XP). Strength bands verified correct against published standards, left as-is.
+- **3.3c** Cockpit START button hidden on run/rest days; today-marker on the day chips.
+- **Deliberate follow-ups (not yet done):** program cover-art system (still emoji+gradient),
+  icon set extended to Home tiles / milestones / the quick-start sheet, VDOT-from-easy-runs
+  estimate, "More" hub-bucket fold, type-ramp audit, splash polish, dead-DOM sweep.
 
 ### Sprint 2 — "one coach" — shipped (2026-07-04)
 - **2.1** New pure `js/brain/day-verdict.js`: the day's single disposition
@@ -152,9 +169,10 @@ Full tables with effort/impact in `PRODUCT_AUDIT.md` §10. Sequence is fixed:
 2. **Sprint 2 — "One coach"** ✅ **SHIPPED (2026-07-04).** Shared `dayVerdict()`, rest/
    deload-aware projection + coach voice, program-aware deload suggestion, deload-gated
    Overview insights, one readiness number, copy pass.
-3. **Sprint 3 — "Looks like it costs money."** ← **NEXT.** Icon set replaces emoji;
-   program cover art; CTA hierarchy; chip/spark null-guards; band calibration; XP
-   backfill; cockpit START matches day type + today-marker on day chips (moved from 2.6).
+3. **Sprint 3 — "Looks like it costs money."** ✅ **SHIPPED (2026-07-04)** except the
+   deliberate follow-ups (program cover art; icon set on tiles/milestones/quick-start).
+   Icon set on nav+hub; analytics null-guards; XP backfill; cockpit START-by-day +
+   today marker; program de-dupe/CTA/label + onboarding meta.
    **Item 3.4
    (central "+" nav quick-start) — ✅ SHIPPED early (2026-07-04):** nav is now `Home ·
    Workout · ⊕ · Insights · Programs`; the orange centre "+" opens a Run/Walk/Fast sheet
@@ -182,6 +200,17 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **Sprint 3 shipped — "looks like it costs money" (5 commits).** A restrained
+  inline-SVG icon set (`js/ui/icons.js` + `paintIcons()`) replaces the emoji on the bottom
+  nav and the Insights hub — the loudest remaining "web app" signal. Plus the correctness
+  cluster: spark trailing-zero trim + Running current-week distance/delta (no "-- ↓100%"),
+  XP backfill from logged history (8-week athlete → Builder not Initiate), cockpit START
+  hidden on run/rest days + today-marker on day chips, program rail de-dupe + CTA hierarchy
+  + "~4 sets per lift" label + onboarding program meta line. Strength bands checked against
+  published standards and left correct. 453 tests / typecheck / smoke green; verified in
+  Chromium. · **Next / deliberate follow-ups:** program cover-art system, icon set on
+  tiles/milestones/quick-start, VDOT-from-easy-runs, "More"-bucket fold, type ramp, splash,
+  dead-DOM sweep. Sprints 1–3 (the beta-blocking work) are complete.
 - 2026-07-04 · **Sprint 2 shipped — "one coach" (6 commits) + nav refactor (3.4).**
   Killed the cross-surface incoherence: a shared `dayVerdict()` decides the day once, and
   the projection, coach line, deload flag and analytics insights all read it. On a deload
