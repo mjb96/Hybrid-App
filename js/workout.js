@@ -459,13 +459,27 @@ export function renderWorkout() {
   if (daySelectorBar) {
     const pills = daySelectorBar.querySelectorAll('.day-pill');
     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const todayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
     pills.forEach((pill, idx) => {
       const dayKey = days[idx];
       const dayData = activeProgram.days?.[dayKey];
       const badge = dayData?.badge || dayKey.charAt(0).toUpperCase() + dayKey.slice(1);
       const shortDay = dayKey.charAt(0).toUpperCase() + dayKey.slice(1, 3);
       pill.textContent = `${shortDay} (${badge})`;
+      // Mark the real calendar day so the selected chip and today are distinct.
+      pill.classList.toggle('day-pill--today', dayKey === todayKey);
     });
+  }
+
+  // Day-appropriate primary action: the gym START button only makes sense on a
+  // day that actually has lifts. On a run-only or rest day it's hidden (the run
+  // panel carries its own Start/Track), so "Start Workout" never sits above
+  // "No lifting scheduled today".
+  const startBtn = document.getElementById('startWorkoutBtn');
+  if (startBtn) {
+    const hasGymToday = Array.isArray(homeBlueprint.lifts) && homeBlueprint.lifts.length > 0;
+    const timerRunning = getWorkoutElapsedSeconds() > 0;
+    startBtn.style.display = (hasGymToday && !timerRunning) ? '' : 'none';
   }
 
   if (!exercisesContainer) return;

@@ -5,6 +5,13 @@
 // delta chip + optional sparkline + optional one-line brain insight.
 // =============================================================================
 import { DashboardTileType } from '../dashboard.js';
+import { icon as svgIcon } from '../ui/icons.js';
+
+// A tile's header mark: the SVG glyph when the def names one (iconName), else
+// its emoji fallback — so tiles adopt the icon set without a big-bang rewrite.
+function tileIcon(config) {
+  return config.iconName ? svgIcon(config.iconName, { size: 16, cls: 'tile-ic' }) : (config.icon || '');
+}
 
 export function renderTileError(label) {
   return `
@@ -58,7 +65,7 @@ export function renderMetricTile(config, data) {
     : '';
   const heroColor = data.state === 'empty' ? 'var(--text-secondary)' : 'var(--text-primary)';
   return `
-    <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
+    <div class="card-icon-title" style="color:${accentColor};"><span>${tileIcon(config)}</span> ${config.label}</div>
     <div class="tile-body">
       <div class="tile-hero-row">
         <div class="font-heavy tile-hero" style="font-size:1.3rem;line-height:1.05;color:${heroColor};">${data.hero ?? '--'}</div>
@@ -79,7 +86,7 @@ export function renderRingTile(config, data) {
   const trackColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
   const grad = `conic-gradient(${ringColor} ${pct}%, ${trackColor} 0)`;
   return `
-    <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
+    <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${tileIcon(config)}</span> ${config.label}</div>
     <div class="ring-tile-grid">
       <div class="readiness-ring green" style="background:${grad};">
         <div class="readiness-ring-inner">
@@ -104,7 +111,7 @@ export function renderSplit3Tile(config, data) {
     </div>
   `).join('');
   return `
-    <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
+    <div class="card-icon-title" style="color:${accentColor};"><span>${tileIcon(config)}</span> ${config.label}</div>
     <div class="tile-body">${rows}</div>
     ${insightLine(data.insight)}
   `;
@@ -112,7 +119,7 @@ export function renderSplit3Tile(config, data) {
 
 export function renderRatioBarTile(config, data) {
   return `
-    <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${config.icon}</span> ${config.label}</div>
+    <div class="card-icon-title" style="color:var(${config.accentVar});"><span>${tileIcon(config)}</span> ${config.label}</div>
     <div class="tile-body">
       <div class="font-heavy text-inverse mb-1" style="font-size:0.95rem;">${data.label || '0% / 0%'}</div>
       <div class="ratio-bar-track mb-1" style="height:6px;border-radius:3px;">
@@ -129,7 +136,7 @@ export function renderProgressTile(config, data) {
   const accentColor = `var(${config.accentVar})`;
   const pct = data.total > 0 ? Math.round((data.done / data.total) * 100) : 0;
   return `
-    <div class="card-icon-title" style="color:${accentColor};"><span>${config.icon}</span> ${config.label}</div>
+    <div class="card-icon-title" style="color:${accentColor};"><span>${tileIcon(config)}</span> ${config.label}</div>
     <div class="tile-body">
       <div class="tile-hero-row">
         <div class="font-heavy text-inverse" style="font-size:1.3rem;line-height:1.05;">

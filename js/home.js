@@ -8,6 +8,7 @@ import { projectScore } from './brain/hybrid-score/project.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
+import { dayVerdict } from './brain/day-verdict.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
@@ -242,24 +243,20 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
 // QUICK ACTIONS — Start/Resume Fast · Check-in · Log Weight.
 // ==========================================
 function updateQuickActions(model) {
+  const fastRow = document.getElementById('dashboardQuickActions');
   const fastBtn = document.getElementById('qaFasting');
-  if (fastBtn) {
+  if (fastRow && fastBtn) {
     const f = model.fasting;
-    // Quiet Home (S1d): only surface fasting when it's in use — an active fast
-    // or some history. A user who's never fasted gets a calm Home, not a nudge
-    // toward a feature they haven't chosen.
-    const inUse = f.active || (f.history?.length ?? 0) > 0;
-    fastBtn.style.display = inUse ? '' : 'none';
-    const labelEl = fastBtn.querySelector('.qa-label');
-    const subEl   = fastBtn.querySelector('.qa-sub');
+    // Home is quiet: starting a fast lives in the centre "+" sheet now. The only
+    // fasting thing that surfaces on Home is a live status pill while a fast is
+    // actually running — an in-progress timer should never be buried in a menu.
+    fastRow.style.display = f.active ? '' : 'none';
     if (f.active) {
+      const labelEl = fastBtn.querySelector('.qa-label');
+      const subEl   = fastBtn.querySelector('.qa-sub');
       if (labelEl) labelEl.textContent = 'Fasting';
       if (subEl)   subEl.textContent   = `${Math.floor(f.hours)}h · ${f.zone.name}`;
       fastBtn.classList.add('qa-btn--active');
-    } else {
-      if (labelEl) labelEl.textContent = 'Start Fast';
-      if (subEl)   subEl.textContent   = f.streak > 0 ? `${f.streak}d streak` : 'Intermittent fasting';
-      fastBtn.classList.remove('qa-btn--active');
     }
   }
   const checkBtn = document.getElementById('qaCheckin');
@@ -283,6 +280,23 @@ export function renderHome() {
   const phaseEl = document.getElementById('homePhaseLabelTag');
   if (indicatorEl) indicatorEl.textContent = 'Week ' + wk;
   if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
+
+  // Home-header avatar → Profile (the avatar is Profile's entry point now that
+  // Profile has left the nav bar). Shows the photo if set, else name initials.
+  const avatarEl = document.getElementById('homeAvatar');
+  if (avatarEl) {
+    const nm = (appState.settings?.name || '').trim();
+    const url = appState.settings?.avatarDataUrl;
+    if (url) {
+      avatarEl.style.backgroundImage = `url("${url}")`;
+      avatarEl.textContent = '';
+      avatarEl.classList.add('home-avatar--img');
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = nm ? nm.split(/\s+/).map(w => w[0].toUpperCase()).slice(0, 2).join('') : '?';
+      avatarEl.classList.remove('home-avatar--img');
+    }
+  }
 
   const activeProgram = getProgramById(appState.activeProgramId);
 
@@ -329,7 +343,10 @@ export function renderHome() {
   if (deloadCard) {
     const alreadyDismissed = appState._deloadDismissedWeek === appState.currentWeek;
     const alreadyApplied   = appState.deloadApplied === appState.currentWeek;
-    if (overtrainingShowing) {
+    // Never suggest a deload during a week that already IS a deload — you can't
+    // be told to deload while deloading (the briefing already explains it).
+    const inDeloadWeek = dayVerdict(model, appState, activeProgram, selectedDay).isDeloadWeek;
+    if (overtrainingShowing || inDeloadWeek) {
       deloadCard.style.display = 'none';
     } else if (!alreadyDismissed && !alreadyApplied) {
       try {

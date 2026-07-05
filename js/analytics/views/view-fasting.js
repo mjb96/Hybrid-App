@@ -692,7 +692,13 @@ function _tabBar(active) {
 // Overview: the ring-led hero, current fast, the daily insights, and the ONE
 // fasting×recovery line — the hybrid-athlete angle a pure fasting app can't give.
 function _renderOverviewTab(body, calcs, insights) {
+  // When no fast is running, always offer to start one right here — otherwise a
+  // returning faster (who has history, so the empty state no longer shows) has
+  // no way to begin a new fast from this screen. (PRODUCT_AUDIT §4.7.)
+  const startCTA = calcs.active ? '' :
+    `<button class="btn-action-block btn-blue mb-3" data-action="fast-start">⏱️ Start a fast</button>`;
   body.innerHTML = `
+    ${startCTA}
     <h2 class="section-header">Fasting Score</h2>
     <div id="fa-score"></div>
     ${calcs.active ? '<h2 class="section-header">Current Fast</h2><div id="fa-active-fast"></div>' : ''}

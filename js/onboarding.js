@@ -1,7 +1,7 @@
 // ==========================================
 // ONBOARDING FLOW
 // ==========================================
-import { saveStateToLocalStorage } from './state.js';
+import { saveStateToLocalStorage, getProgramById } from './state.js';
 import { requestNotificationPermission } from './notifications.js';
 import { provisionalScore } from './onboarding/provisional-score.js';
 import { recommendStarterPrograms } from './onboarding/starter-programs.js';
@@ -87,21 +87,32 @@ function _renderProgramList() {
     goal: _selectedGoal, level: _fitnessLevel, equipmentTier: _equipmentTier,
   });
 
+  // The one line that shapes week 1: duration · frequency · session length. From
+  // the program object (recs) or a catalog lookup (fallback list).
+  const metaLine = (p) => {
+    if (!p) return '';
+    const wk = p.durationWeeks || p.totalWeeks;
+    const sd = p.sessionDurationMinutes;
+    return [wk ? `${wk} wks` : '', p.sessionsPerWeek ? `${p.sessionsPerWeek}×/wk` : '', sd?.max ? `~${sd.max} min` : '']
+      .filter(Boolean).join(' · ');
+  };
+
   let cards;
   if (recs.length) {
     // Keep the current selection if it's still in the list, else pick the top.
     if (!recs.some(p => p.id === _selectedProgram)) _selectedProgram = recs[0].id;
-    cards = recs.map(p => ({ id: p.id, name: p.name, desc: p.tagline || p.dossier?.focus || '' }));
+    cards = recs.map(p => ({ id: p.id, name: p.name, desc: p.tagline || p.dossier?.focus || '', meta: metaLine(p) }));
   } else {
     const ids = GOAL_PROGRAMS[_selectedGoal] || [];
     if (!ids.includes(_selectedProgram)) _selectedProgram = ids[0] || 'hybrid_engine';
-    cards = ids.map(id => ({ id, ...(PROGRAM_META[id] || { name: id, desc: '' }) }));
+    cards = ids.map(id => ({ id, ...(PROGRAM_META[id] || { name: id, desc: '' }), meta: metaLine(getProgramById(id)) }));
   }
 
   list.innerHTML = cards.map(c =>
     `<button class="ob-prog-card${c.id === _selectedProgram ? ' active' : ''}" data-action="ob-program" data-program="${c.id}">
       <span class="ob-prog-name">${c.name}</span>
       <span class="ob-prog-desc">${c.desc}</span>
+      ${c.meta ? `<span class="ob-prog-meta">${c.meta}</span>` : ''}
     </button>`).join('');
 }
 

@@ -33,6 +33,7 @@ import {
 } from './state.js';
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
+import { paintIcons } from './ui/icons.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -130,6 +131,14 @@ export function switchGlobalAppTab(targetViewID) {
   
   hydrateCurrentView();
   window.scrollTo(0, 0);
+}
+
+// Quick-start bottom sheet (the centre "+" FAB). Reachable from every tab.
+function toggleQuickStart(show) {
+  const sheet = document.getElementById('quickStartSheet');
+  const back  = document.getElementById('quickStartBackdrop');
+  if (sheet) sheet.classList.toggle('active', show);
+  if (back)  back.classList.toggle('active', show);
 }
 
 export function setCockpitActiveDay(dayKey) {
@@ -812,6 +821,14 @@ document.addEventListener('click', (e) => {
     handleOnboardingAction(action, target);
   }
 
+  // Quick-start sheet (centre "+" FAB) — start Run / Walk / Fast from any tab.
+  else if (action === 'open-quick-start')  { toggleQuickStart(true); }
+  else if (action === 'close-quick-start') { toggleQuickStart(false); }
+  else if (action === 'qs-run')  { toggleQuickStart(false); startQuickActivity('run'); }
+  else if (action === 'qs-walk') { toggleQuickStart(false); startQuickActivity('walk'); }
+  else if (action === 'qs-fast') { toggleQuickStart(false); openFastingDetail(); }
+  else if (action === 'open-profile') { switchGlobalAppTab('profile'); }
+
   // GPS Tracker
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
   else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
@@ -1290,6 +1307,7 @@ if (typeof window !== 'undefined') {
 async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
+    paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
     initSyncConflictUI();
     initSessionRecap(() => appState);
     // Recap entry points: after finishing a session, and tapping a logged day.

@@ -239,6 +239,17 @@ export function generateRecoveryInsights({
 }
 
 // Combine all insights and rank by priority (alerts first, then good, then info).
+// The one insight a deload week should show, so an Overview never nags "add
+// sets / push / progressive overload" while the whole plan is to back off. Used
+// by the Strength/Running/Recovery Overviews when the current week is a deload.
+export function deloadInsight() {
+  return {
+    text: "Deload week — lighter on purpose. Lower volume is the plan right now; don't chase sets. Reduced load is exactly what lets your fitness consolidate.",
+    priority: 'info',
+    category: 'deload',
+  };
+}
+
 export function rankInsights(allInsights) {
   const order = { alert: 0, good: 1, info: 2 };
   return allInsights

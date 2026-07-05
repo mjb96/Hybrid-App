@@ -18,8 +18,11 @@ import {
   generateLoadInsights,
   rankInsights,
   renderInsightsHTML,
+  deloadInsight,
 } from '../insights/insight-engine.js';
-import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
+import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
+import { getProgramById } from '../../state.js';
+import { screenTabBar, mountScreenTabs, spark, curWeekIdx } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 
@@ -353,7 +356,7 @@ export function renderRunningAnalytics(data, getState, getDays) {
   const body = qs('running-tab-body');
 
   if (_runningTab === 'stats') _renderRunningStats(body, ra, la, data);
-  else _renderRunningOverview(body, ra, data, allInsights);
+  else _renderRunningOverview(body, ra, data, allInsights, appState);
 
   mountScreenTabs('analytics-running', (tab) => {
     _runningTab = tab;
@@ -363,9 +366,15 @@ export function renderRunningAnalytics(data, getState, getDays) {
 
 // Overview: VDOT (running fitness) as the headline number, its weekly distance
 // trend as the spark, the two numbers that matter, and ONE synthesized insight.
-function _renderRunningOverview(body, ra, data, insights) {
+function _renderRunningOverview(body, ra, data, insights, appState) {
   const dist = ra.distSeries || [];
-  const distCur  = dist[dist.length - 1] || 0;
+  // Current training week, not the padded final program week (which is empty →
+  // "-- ↓100%"). Matches the Strength fix + Home. Delta is null-guarded so a
+  // week with no distance yet never shows a bogus "↓100% vs last week".
+  const ci       = curWeekIdx(appState, dist.length);
+  const distCur  = dist[ci] || 0;
+  const distPrev = dist[ci - 1] || 0;
+  const distDelta = distCur > 0 && distPrev > 0 ? Math.round(((distCur - distPrev) / distPrev) * 100) : null;
   const color = ra.endScore == null ? '#94a3b8'
     : ra.endScore >= 80 ? '#10b981' : ra.endScore >= 60 ? '#3b82f6'
     : ra.endScore >= 40 ? '#f59e0b' : '#ef4444';
@@ -390,10 +399,13 @@ function _renderRunningOverview(body, ra, data, insights) {
   body.innerHTML = `
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: ra.distProgPct, sub: 'vs last week', color: '#3b82f6' })}
+      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distDelta, sub: 'vs last week', color: '#3b82f6' })}
       ${statCard({ label: 'Best Pace', value: fmtPace(ra.bestPace), sub: 'fastest recent run', color: '#10b981' })}
     </div>
-    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+    ${(() => {
+      const shown = isProgramDeloadWeek(appState, getProgramById(appState?.activeProgramId)) ? [deloadInsight()] : insights.slice(0, 1);
+      return shown[0] ? renderInsightsHTML(shown, 1) : '';
+    })()}
   `;
 }
 

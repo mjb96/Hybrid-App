@@ -19,9 +19,12 @@ import {
   generateLoadInsights,
   rankInsights,
   renderInsightsHTML,
+  deloadInsight,
 } from '../insights/insight-engine.js';
 import { isCompletedSet } from '../../set-utils.js';
-import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
+import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
+import { getProgramById } from '../../state.js';
+import { esc, screenTabBar, mountScreenTabs, spark as _spark, curWeekIdx } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -32,15 +35,6 @@ function fmtPct(v)  { if (v === null || !isFinite(v)) return ''; return (v >= 0 
 function fmtKgWk(v) { if (!v || !isFinite(v)) return ''; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' kg/wk'; }
 function tone(pct)  { return pct > 0 ? '#10b981' : pct < 0 ? '#ef4444' : 'rgba(255,255,255,0.4)'; }
 
-// The current training week's index into a weekly series. Weekly series here run
-// 1..program-total-weeks, so the LAST slot is the program's final (usually
-// unlogged) week — reading it made "this week's volume" show "--" while Home
-// (which reads the current program week) showed the real number. Index the
-// current week so the two surfaces report the same fact. (PRODUCT_AUDIT §4.4.)
-function curWeekIdx(appState, seriesLen) {
-  const wk = parseInt(appState?.currentWeek, 10) || seriesLen;
-  return Math.max(0, Math.min(wk - 1, seriesLen - 1));
-}
 
 // ---- Training Load Dashboard -------------------------------------------
 function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
@@ -367,13 +361,18 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     </article>`;
   }
 
+  // On a deload week, show the deload line — never "below effective volume, add
+  // sets", which is exactly the plan and would contradict the coach (§2.2).
+  const shownInsights = isProgramDeloadWeek(appState, getProgramById(appState.activeProgramId))
+    ? [deloadInsight()] : insights.slice(0, 1);
+
   body.innerHTML = `
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volPct, sub: 'vs last week', color: '#8b5cf6' })}
       ${statCard({ label: 'PRs This Week', value: String(prCount), sub: prCount === 1 ? 'lift at a new best' : 'lifts at a new best', color: '#10b981' })}
     </div>
-    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+    ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}
   `;
 }
 

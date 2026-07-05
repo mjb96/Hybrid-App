@@ -6,7 +6,8 @@ import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from 
 import { buildProgramTimeline } from './timeline.js';
 import { programStats, equipmentFit } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
-import { renderProgramCard } from './program-card.js';
+import { renderProgramCard, coverGlyphFor } from './program-card.js';
+import { icon as svgIcon } from '../ui/icons.js';
 import { PROGRAMS, WEEK_PHASE_NAMES } from '../constants.js';
 import { getWeekModifier } from '../schema.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
@@ -117,7 +118,7 @@ export function renderProgramDetail(programId, appState) {
     <!-- Hero -->
     <div class="detail-hero"
          style="background: linear-gradient(165deg, ${program.coverGradient?.[0] || '#1a0e2e'}, ${program.coverGradient?.[1] || '#0d1b2a'})">
-      <div class="detail-hero-icon">${program.icon || '📋'}</div>
+      <div class="detail-hero-icon" aria-hidden="true">${svgIcon(coverGlyphFor(program), { size: 72 })}</div>
       <div class="detail-hero-content">
         <span class="detail-category-badge" style="background: ${program.accentColor || category.color}22; color: ${program.accentColor || category.color}; border-color: ${program.accentColor || category.color}40">
           ${category.icon} ${category.label}
@@ -205,12 +206,10 @@ export function renderProgramDetail(programId, appState) {
           Mark as Complete
         </button>
       ` : ''}
-      <button class="detail-complete-btn" data-action="customize-program" data-program-id="${programId}">
-        ✏️ Customize — make an editable copy
-      </button>
-      <button class="detail-complete-btn" data-action="open-compare" data-program-id="${programId}">
-        ⚖️ Compare with another program
-      </button>
+      <div class="detail-cta-secondary" style="display:flex;gap:8px;margin-top:8px;">
+        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="customize-program" data-program-id="${programId}">✏️ Customize</button>
+        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="open-compare" data-program-id="${programId}">⚖️ Compare</button>
+      </div>
       ${personalRating
         ? `<div class="detail-your-rating" data-action="rate-program" data-program-id="${programId}" role="button" tabindex="0">
              <span class="detail-your-rating-label">Your rating</span>
@@ -410,7 +409,9 @@ function renderCommitmentStrip(program, settings) {
     tiles.push({ v: `~${s.totalHours}h`, l: `over ${s.weeks} wks`, c: 'var(--text-inverse)' });
   }
   if (s.weeklySets) {
-    tiles.push({ v: `${s.weeklySets}`, l: 'sets/week', c: 'var(--text-inverse)' });
+    // This is the week modifier's sets-per-lift, not total weekly sets — label
+    // it honestly (a 5-day program obviously isn't "4 sets a week").
+    tiles.push({ v: `~${s.weeklySets}`, l: 'sets per lift', c: 'var(--text-inverse)' });
   }
   if (s.equipment.length) {
     if (fit.missing.length) {

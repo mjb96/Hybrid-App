@@ -152,7 +152,7 @@ export function recoveryPillar(model, state) {
   if (c.hrv != null && c.hrv < 50) signals.push('HRV suppressed');
   if (c.restingHr != null && c.restingHr < 50) signals.push('resting HR elevated');
   if (hasLoad && model.load.tsb <= -15) signals.push('high fatigue');
-  if (!signals.length) signals.push(r?.status ? r.status.toLowerCase() + ' recovery' : 'recovering');
+  if (!signals.length) signals.push(score >= 70 ? 'well recovered' : score >= 45 ? 'recovering steadily' : 'recovery is low');
   return { score: round(score), signals };
 }
 

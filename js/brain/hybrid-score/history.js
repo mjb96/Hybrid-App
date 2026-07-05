@@ -10,8 +10,24 @@
 //   { history: [{date, score, level}], xp, lastRecordedDate }
 // =============================================================================
 import { xpForDay, levelFromXp } from './levels.js';
+import { loggedDateSet } from '../../analytics/logged-days.js';
 
 const MAX_HISTORY = 400; // ~13 months of daily snapshots
+const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+// One-time XP backfill from already-logged history, so a returning athlete isn't
+// stuck at Initiate just because daily scoring only began today. Grants a
+// modest, honest amount per prior training day (less than a live day, which also
+// earns a score bonus). Idempotent — runs once, then normal daily XP takes over.
+function backfillXp(state) {
+  const hs = state.hybridScore;
+  if (!hs || hs._xpBackfilled) return;
+  hs._xpBackfilled = true;
+  try {
+    const priorDays = loggedDateSet(state, WEEK_DAYS).size;
+    hs.xp = Math.max(hs.xp || 0, priorDays * 15);
+  } catch (_) { /* backfill is a nicety — never block scoring */ }
+}
 
 function ensure(state) {
   if (!state.hybridScore) state.hybridScore = { history: [], xp: 0, lastRecordedDate: null };
@@ -49,6 +65,7 @@ function readinessOf(model) {
 
 export function recordDailyScore(state, scoreResult, model, todayISO) {
   const hs = ensure(state);
+  backfillXp(state);   // one-time, before any level comparison below
   const today = todayISO || new Date().toISOString().slice(0, 10);
   // A provisional (self-report-carried) score is a display estimate, not earned
   // progress: never bank its XP or seed a history point from it, or the level
@@ -102,6 +119,8 @@ export function recordDailyScore(state, scoreResult, model, todayISO) {
 
 // Current career level from banked XP.
 export function currentLevel(state) {
+  if (state && !state.hybridScore) state.hybridScore = { history: [], xp: 0, lastRecordedDate: null };
+  backfillXp(state);   // ensure a returning athlete's history counts even before Home renders
   return levelFromXp(state?.hybridScore?.xp || 0);
 }
 

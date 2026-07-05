@@ -479,16 +479,15 @@ export function shouldSuggestDeload() {
   if (!state) return { suggest: false, reason: '' };
 
   const { atl = 0, ctl = 0 } = state.loadMetrics || {};
-  const week = parseInt(state.currentWeek, 10) || 1;
 
-  // ACWR > 1.3 → injury-risk zone
+  // The card is for an *unscheduled* overreach — load spiking faster than you're
+  // recovering. Scheduled deloads already live in the program (and are explained
+  // in the briefing), so we no longer fire a generic every-4th-week suggestion
+  // (which used to pop "Apply deload" during weeks that were already deloads).
+  // The caller additionally suppresses this whenever the current week IS a
+  // deload — you can't be told to deload while deloading.
   if (ctl > 0 && atl / ctl > 1.3) {
-    return { suggest: true, reason: `Acute:Chronic ratio is elevated (${(atl / ctl).toFixed(2)}). A deload week will protect against overuse injury.` };
-  }
-
-  // Every 4th week is a scheduled deload (classic 3:1 block structure)
-  if (week > 3 && week % 4 === 0) {
-    return { suggest: true, reason: `Week ${week} is a scheduled deload in your current training block.` };
+    return { suggest: true, reason: "Your load is climbing faster than you're recovering. An easier week now protects against overuse — you'll come back stronger." };
   }
 
   return { suggest: false, reason: '' };

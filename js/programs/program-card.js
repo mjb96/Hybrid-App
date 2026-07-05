@@ -7,9 +7,29 @@
 import { CATEGORIES, DIFFICULTY_LABELS } from './catalog.js';
 import { isBookmarked, isProgramCompleted, appState } from '../state.js';
 import { escapeHtml } from '../util.js';
+import { icon as svgIcon } from '../ui/icons.js';
 
 export function isWod(program) {
   return program.tags?.includes('hyrox-wod');
+}
+
+// The modality glyph for a program's cover art — a designed watermark instead of
+// a random emoji, so the whole catalogue reads as one system.
+const COVER_GLYPHS = {
+  strength: 'dumbbell', powerlifting: 'dumbbell', hypertrophy: 'dumbbell', bodybuilding: 'dumbbell',
+  running: 'run', endurance: 'run', triathlon: 'run',
+  hybrid: 'bolt',
+  hyrox: 'flame', functional: 'flame', conditioning: 'flame', tactical: 'flame',
+  fitness: 'mountain', general: 'mountain', mobility: 'mountain',
+};
+export function coverGlyphFor(program) {
+  const cat = String(program?.category || '').toLowerCase();
+  if (COVER_GLYPHS[cat]) return COVER_GLYPHS[cat];
+  const tags = (program?.tags || []).map(t => String(t).toLowerCase());
+  if (tags.some(t => /hyrox|wod|functional|conditioning/.test(t))) return 'flame';
+  if (tags.some(t => /run|endurance|5k|10k|marathon|triathlon/.test(t))) return 'run';
+  if (tags.some(t => /strength|power|hypertrophy|bodybuild/.test(t))) return 'dumbbell';
+  return 'bolt';
 }
 
 const EQUIP_TIER_LABELS = {
@@ -38,7 +58,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   // so the shared card renderer never throws on a missing gradient/icon/accent.
   const cover = Array.isArray(program.coverGradient) && program.coverGradient.length >= 2
     ? program.coverGradient : ['#1a0e2e', '#0d1b2a'];
-  const icon = program.icon || '📋';
+  const coverGlyph = svgIcon(coverGlyphFor(program), { size: 96, cls: 'prog-card-glyph__svg' });
   const accentColor = program.accentColor || '#8b5cf6';
 
   // No star ratings or "N athletes / % finish" until there are real users to
@@ -62,7 +82,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
          data-program-id="${program.id}">
       <div class="prog-card-cover"
            style="background: linear-gradient(145deg, ${cover[0]}, ${cover[1]})">
-        <div class="prog-card-icon">${icon}</div>
+        <div class="prog-card-glyph" aria-hidden="true">${coverGlyph}</div>
         <div class="prog-card-badges">
           ${isActive ? '<span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}
           ${completed && !isActive ? '<span class="prog-badge prog-badge--completed">DONE</span>' : ''}

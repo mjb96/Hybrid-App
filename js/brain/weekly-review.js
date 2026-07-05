@@ -11,6 +11,7 @@
 // =============================================================================
 import { computeDashboardModel } from '../home/dashboard-model.js';
 import { weeklyE1rmByLift } from '../metrics/metrics-strength.js';
+import { isProgramDeloadWeek } from './day-verdict.js';
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -60,12 +61,17 @@ function scoreArc(state) {
 
 // ONE focus for next week, priority-ordered and honest: the biggest fixable
 // thing first, praise only when everything genuinely held up.
-export function pickWeeklyFocus({ consistencyPct, hasPlan, acwr, distance, volumeDeltaPct }) {
+export function pickWeeklyFocus({ consistencyPct, hasPlan, acwr, distance, volumeDeltaPct, isDeload }) {
   if (hasPlan && consistencyPct < 70) {
     return { area: 'Consistency', text: 'Hit every planned session next week — adherence moves your Hybrid Score most.' };
   }
   if (acwr >= 1.3) {
     return { area: 'Recovery', text: 'Load is running hot — ease volume back toward the productive zone and protect sleep.' };
+  }
+  // A deload week's lower volume is the plan — pre-empt the "volume dipped,
+  // rebuild" / "repeat it, progressive overload" lines that would contradict it.
+  if (isDeload) {
+    return { area: 'Deload', text: "Deload week — lighter by design. Don't chase volume; let the work you've banked consolidate and come back fresh." };
   }
   if (distance <= 0) {
     return { area: 'Endurance', text: 'No running logged this week — get at least one easy Zone 2 run in.' };
@@ -104,6 +110,7 @@ export function buildWeeklyReview(state, days, program) {
     acwr: model.load.hasData ? model.load.acwr : 0,
     distance: dist.current,
     volumeDeltaPct,
+    isDeload: isProgramDeloadWeek(state, program),
   });
 
   return {
