@@ -6,7 +6,8 @@ import { getHomeCollections, filterByCategory, getCollectionDef } from './collec
 import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
-import { renderProgramCard, isWod } from './program-card.js';
+import { renderProgramCard, isWod, coverGlyphFor } from './program-card.js';
+import { icon as svgIcon } from '../ui/icons.js';
 import { toggleBookmark, recordRecentlyViewed, getProgramById, saveStateToLocalStorage } from '../state.js';
 import { escapeHtml, programProgressPct } from '../util.js';
 
@@ -544,7 +545,7 @@ function renderHeroBanner(programs) {
          data-action="open-program-detail"
          data-program-id="${p.id}">
       <div class="hero-slide-overlay"></div>
-      <div class="hero-slide-icon">${p.icon}</div>
+      <div class="hero-slide-icon" aria-hidden="true">${svgIcon(coverGlyphFor(p), { size: 104 })}</div>
       <div class="hero-slide-content">
         <span class="hero-badge">${CATEGORIES[p.category]?.label || p.category}</span>
         <h2 class="hero-title">${p.name}</h2>

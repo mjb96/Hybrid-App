@@ -26,6 +26,11 @@ const PATHS = Object.freeze({
   sparkle:   '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>',
   plus:      '<path d="M12 5v14M5 12h14"/>',
   user:      '<circle cx="12" cy="8" r="3.5"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
+  // Program-modality marks (used on cover art).
+  bolt:      '<path d="M13 3 5 13h5l-2 8 9-11h-5l1-7z"/>',
+  flame:     '<path d="M12 22a6 6 0 0 0 6-6c0-4-3-6.5-4.5-9.5C13 8 11.5 9 11 11c-1-.5-1.5-1.5-1.5-3C7.5 10 6 13 6 16a6 6 0 0 0 6 6z"/>',
+  run:       '<circle cx="14" cy="5" r="2"/><path d="M6.5 21l3-6 3.5 2 1.5 4M9.5 15l-1.5-4 4-3 3 3 2.5.5"/>',
+  mountain:  '<path d="M3 20 10 7l4 6.5 2-3 5 9.5z"/>',
 });
 
 /**

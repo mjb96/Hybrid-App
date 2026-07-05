@@ -316,12 +316,13 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 
 .hero-slide-icon {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  font-size: 2.2rem;
-  filter: drop-shadow(0 0 20px rgba(255,255,255,0.15));
-  opacity: 0.7;
+  top: 14px;
+  right: 10px;
+  color: #fff;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 18px rgba(0,0,0,0.3));
 }
+.hero-slide-icon svg { width: 104px; height: 104px; display: block; }
 
 .hero-slide-content { position: relative; z-index: 1; }
 
@@ -575,18 +576,18 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   justify-content: space-between;
 }
 
-.prog-card-icon {
+/* Cover art: a large modality glyph watermark in the corner, not a centred
+   emoji — so the whole catalogue reads as one designed system. */
+.prog-card-glyph {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -55%);
-  font-size: 2.4rem;
-  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.3));
-  opacity: 0.85;
+  right: -12px;
+  bottom: -16px;
+  color: rgba(255,255,255,0.9);
   pointer-events: none;
+  filter: drop-shadow(0 2px 14px rgba(0,0,0,0.28));
 }
-
-.prog-card--small .prog-card-icon { font-size: 2rem; }
+.prog-card-glyph__svg { width: 96px; height: 96px; display: block; }
+.prog-card--small .prog-card-glyph__svg { width: 84px; height: 84px; }
 
 .prog-card-badges {
   position: absolute;
@@ -925,12 +926,12 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 
 .detail-hero-icon {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  font-size: 3.5rem;
-  opacity: 0.35;
-  filter: blur(0.5px);
+  top: 18px;
+  right: 18px;
+  color: #fff;
+  opacity: 0.4;
 }
+.detail-hero-icon svg { width: 72px; height: 72px; display: block; }
 
 .detail-hero-content { position: relative; z-index: 1; }
 
