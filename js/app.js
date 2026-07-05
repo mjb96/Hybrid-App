@@ -33,6 +33,7 @@ import {
 } from './state.js';
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
+import { paintIcons } from './ui/icons.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -1306,6 +1307,7 @@ if (typeof window !== 'undefined') {
 async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
+    paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
     initSyncConflictUI();
     initSessionRecap(() => appState);
     // Recap entry points: after finishing a session, and tapping a logged day.
