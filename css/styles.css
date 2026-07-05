@@ -3900,6 +3900,17 @@ html[data-theme="light"] .home-week-progress__track { background: rgba(0,0,0,0.1
   box-shadow: 0 3px 14px rgba(99,102,241,0.42) !important;
   transform: none !important;
 }
+/* The real calendar day — a small accent dot, distinct from the selected pill. */
+.day-pill--today:not(.active) { border-color: var(--color-orange, #ff6b00) !important; }
+.day-pill--today::before {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--color-orange, #ff6b00);
+  margin-right: 5px;
+  vertical-align: middle;
+}
 
 /* --- Start workout button upgrade --- */
 #startWorkoutBtn.btn-green {
