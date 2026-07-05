@@ -12,12 +12,36 @@ and are **superseded** — do not execute from them.
 
 ## Overall product rating: **6.5 → ~7.2 / 10** (Sprint 1 shipped 2026-07-04)
 
-A 9/10 scoring engine and an 8/10 surface pattern, held back by a 3/10 first-run and a
-4/10 cross-surface coherence. Full scorecard in `PRODUCT_AUDIT.md` §11. **Sprint 1
-("the first two minutes") is shipped** — the day-0 trust collapse, the auth wall,
-fabricated social proof, the fasting dead-end, and the volume/ACWR integrity bugs are
-fixed. First-run and integrity are materially better; the remaining lift to ~8 is
-Sprint 2 ("one coach") coherence work.
+A 9/10 scoring engine and an 8/10 surface pattern. **Sprints 1 and 2 are shipped**, plus
+the nav refactor (3.4). Sprint 1 fixed the first-run trust collapse + integrity bugs;
+Sprint 2 ("one coach") fixed the cross-surface incoherence — every surface now agrees on
+the day's verdict. First-run, integrity and coherence are all materially better; the
+remaining lift to a clean ~8 is Sprint 3 (the premium/native polish pass). Full scorecard
+in `PRODUCT_AUDIT.md` §11.
+
+### Sprint 2 — "one coach" — shipped (2026-07-04)
+- **2.1** New pure `js/brain/day-verdict.js`: the day's single disposition
+  (mode train|rest|deload|recover|done, isDeloadWeek, readiness, canProjectGain),
+  computed once and read by the other surfaces instead of each re-deriving it.
+- **2.4** `projectScore` is rest-aware — "train today and it rises to X" no longer fires
+  on a rest day (it was reading the whole week's remaining sets).
+- **coach voice** `generateRecommendation` gained rest-day + deload branches, so the coach
+  line matches the mission ("Rest day — recovery" / "Deload week — keep it light") instead
+  of "push it today". Fixes the briefing card, cockpit header and push at once.
+- **2.3** Deload suggestion is program-aware (dropped the `week%4` heuristic) and gated on
+  `isDeloadWeek` — no more "Apply deload" card during a deload week.
+- **2.2** All four analytics Overviews (Strength/Running/Recovery/Review) show a
+  deload-consistent insight on a deload week instead of "add sets / push / repeat it".
+- **2.5** One readiness number — the Recovery & Load screen reads the shared `model.ready`
+  (was recomputing its own → 93 vs 80).
+- **2.6** Copy: "Biggest lift"→"Biggest driver"; "ready recovery"→"well recovered";
+  "0 over the week"→"Held steady this week".
+- Gates: 453 tests green, typecheck, smoke; verified in Chromium on the seeded deload
+  rest day (briefing, mission, coach line, cockpit header, insights all agree).
+- **Deferred to Sprint 3.3** (they're UX, not copy): cockpit START button matching the
+  day type on no-lift days; today-marker on the day chips.
+
+### Sprint 1 — "the first two minutes" — shipped (2026-07-04)
 
 ### Sprint 1 — shipped (branch `claude/fitness-app-design-audit-cedgym`)
 - **1.1** Day-0 Hybrid Score no longer renders 0/"At Risk": the consistency pillar
@@ -73,7 +97,7 @@ ghost targets + "Log all".
 
 ## Current product status
 
-- **Gates:** 446/446 tests, typecheck, smoke — green (after Sprint 1).
+- **Gates:** 453/453 tests, typecheck, smoke — green (after Sprint 2).
 - **Security/data:** RLS applied + adversarially proven on live DB; sync divergence
   detection + conflict UI + pre-pull snapshots; Sentry live (DSN set 2026-07-02).
   `docs/LAUNCH-CHECKLIST.md` items 1–2 are DONE per `PROGRESS.md` despite unticked boxes
@@ -84,25 +108,20 @@ ghost targets + "Log all".
 
 ## Known UX issues (bug register)
 
-P0 — trust/correctness (beta blockers). **Sprint 1 closed 1, 2, 5, 6, and the
-volume/ACWR half of 4.** Remaining P0 (item 3 + readiness half of 4) is Sprint 2:
+P0 — trust/correctness (beta blockers). **All P0s are now closed (Sprints 1 + 2).**
 1. ~~Day-0 Hybrid Score renders 0/100 "At Risk"~~ — **FIXED (1.1)**: provisional prior
    blended, band floored to Building, consistency null before a baseline, sessions copy.
 2. ~~First screen is an auth wall~~ — **FIXED (1.2)**: onboard first, auth opt-in.
-3. Contradictory day narration: rest-day mission vs "train and it rises" projection vs
-   "push it today" coach/cockpit lines; "APPLY DELOAD" offered during a deload week
-   (`js/engine.js:490` uses `week % 4`, ignores the program's real deload map); Strength
-   "add sets" / Recovery "block push" / Review "repeat it" insights are deload-blind.
-   **← Sprint 2 (the `dayVerdict()` gate).**
-4. Same fact, different numbers: ~~weekly volume 9.2t vs "--"; ACWR 0.92 vs "--"~~ —
-   **FIXED (1.5)** (current-week indexing). Remaining: Home readiness 93 vs Recovery&Load
-   80 (load-included vs load-excluded, unlabeled) — **Sprint 2.5**.
+3. ~~Contradictory day narration (rest-mission vs "train and it rises" vs "push it today";
+   "Apply deload" during a deload week; deload-blind Overview insights)~~ — **FIXED
+   (2.1–2.4, 2.2)**: shared `dayVerdict()`; rest-aware projection + coach; program-aware
+   deload suggestion; deload-gated Overview insights.
+4. ~~Same fact, different numbers: volume 9.2t vs "--"; ACWR 0.92 vs "--"~~ — **FIXED
+   (1.5)**; ~~Home readiness 93 vs Recovery&Load 80~~ — **FIXED (2.5)** (shared model.ready).
 5. ~~Fabricated social proof in the catalog UI~~ — **FIXED (1.3)**: display stripped,
    numbers kept as hidden curation weights.
 6. ~~Fasting unreachable for never-fasted users~~ — **FIXED (1.4)**: empty state starts a
-   fast inline.
-6. Fasting is unreachable for never-fasted users: Insights empty state points to a Home
-   entry that is hidden for exactly them (`js/home.js:252`).
+   fast inline (+ Home quick-action / centre "+" via 3.4).
 
 P1 — quality:
 7. "BIGGEST LIFT" label means biggest score driver; reads as barbell lift.
@@ -130,13 +149,13 @@ Full tables with effort/impact in `PRODUCT_AUDIT.md` §10. Sequence is fixed:
 
 1. **Sprint 1 — "The first two minutes"** ✅ **SHIPPED (2026-07-04).** Day-0 score fix,
    auth after onboarding, stripped fake ratings, fasting dead-end, volume/ACWR integrity.
-2. **Sprint 2 — "One coach"** ← **NEXT.** Shared `dayVerdict()` (one train/rest/deload
-   decision + one readiness number) consumed by briefing/cockpit/projection/flag; every
-   Overview insight gated by it; program-aware deload suggestions (fix `engine.js`
-   `week % 4`); label the two readiness numbers; copy pass (Biggest driver rename,
-   machine-ese lines).
-3. **Sprint 3 — "Looks like it costs money."** Icon set replaces emoji; program cover art;
-   CTA hierarchy; chip/spark null-guards; band calibration; XP backfill. **Item 3.4
+2. **Sprint 2 — "One coach"** ✅ **SHIPPED (2026-07-04).** Shared `dayVerdict()`, rest/
+   deload-aware projection + coach voice, program-aware deload suggestion, deload-gated
+   Overview insights, one readiness number, copy pass.
+3. **Sprint 3 — "Looks like it costs money."** ← **NEXT.** Icon set replaces emoji;
+   program cover art; CTA hierarchy; chip/spark null-guards; band calibration; XP
+   backfill; cockpit START matches day type + today-marker on day chips (moved from 2.6).
+   **Item 3.4
    (central "+" nav quick-start) — ✅ SHIPPED early (2026-07-04):** nav is now `Home ·
    Workout · ⊕ · Insights · Programs`; the orange centre "+" opens a Run/Walk/Fast sheet
    from any tab; Profile moved to an avatar tap in the Home header; Home Walk/Run row +
@@ -163,6 +182,17 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-04 · **Sprint 2 shipped — "one coach" (6 commits) + nav refactor (3.4).**
+  Killed the cross-surface incoherence: a shared `dayVerdict()` decides the day once, and
+  the projection, coach line, deload flag and analytics insights all read it. On a deload
+  rest day the briefing, mission, coach line, cockpit header and every Overview now agree
+  ("rest/recover/keep it light") — no more "train and it rises", "push it today" or "Apply
+  deload" during a deload. Readiness is one shared number (Home == Recovery). Copy pass
+  (Biggest driver / well recovered / held steady). Also shipped the centre-"+" nav (3.4):
+  Home · Workout · ⊕ · Insights · Programs, Profile → avatar, quiet Home + live fast pill.
+  453 tests / typecheck / smoke green; verified in Chromium. · **Next:** Sprint 3 (premium
+  polish — icon set replacing emoji, program cover art, CTA hierarchy, null-guards, band
+  calibration, XP backfill, cockpit START-by-day + day-chip today marker).
 - 2026-07-04 · **Sprint 1 shipped — "the first two minutes" (5 commits).** Closed every
   P0 that a first-run user or store reviewer hits: **1.1** day-0 Score (provisional prior
   blended + decaying, band floored to Building, consistency null before a baseline, no
