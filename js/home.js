@@ -8,6 +8,7 @@ import { projectScore } from './brain/hybrid-score/project.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
+import { dayVerdict } from './brain/day-verdict.js';
 import { briefingCardHTML } from './home/morning-briefing-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
@@ -342,7 +343,10 @@ export function renderHome() {
   if (deloadCard) {
     const alreadyDismissed = appState._deloadDismissedWeek === appState.currentWeek;
     const alreadyApplied   = appState.deloadApplied === appState.currentWeek;
-    if (overtrainingShowing) {
+    // Never suggest a deload during a week that already IS a deload — you can't
+    // be told to deload while deloading (the briefing already explains it).
+    const inDeloadWeek = dayVerdict(model, appState, activeProgram, selectedDay).isDeloadWeek;
+    if (overtrainingShowing || inDeloadWeek) {
       deloadCard.style.display = 'none';
     } else if (!alreadyDismissed && !alreadyApplied) {
       try {
