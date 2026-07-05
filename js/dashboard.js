@@ -288,11 +288,11 @@ export const TILE_REGISTRY = [
         const { sq, bp, dl, total } = model.big3;
         const fmt = v => v > 0 ? `${Math.round(v)} kg` : '-- kg';
         return {
-          rows: [{ label: 'SQ', value: fmt(sq) }, { label: 'BP', value: fmt(bp) }, { label: 'DL', value: fmt(dl) }],
+          rows: [{ label: 'Squat', value: fmt(sq) }, { label: 'Bench', value: fmt(bp) }, { label: 'Deadlift', value: fmt(dl) }],
           insight: total > 0 ? `Estimated big-3 total: ${total} kg` : '',
           state: total > 0 ? 'loaded' : 'empty',
         };
-      } catch { return { rows: [{ label: 'SQ', value: '--' }, { label: 'BP', value: '--' }, { label: 'DL', value: '--' }], state: 'error' }; }
+      } catch { return { rows: [{ label: 'Squat', value: '--' }, { label: 'Bench', value: '--' }, { label: 'Deadlift', value: '--' }], state: 'error' }; }
     },
   },
 

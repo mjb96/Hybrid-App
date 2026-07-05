@@ -20,6 +20,65 @@ program de-dupe + CTA + labels). First-run, integrity, coherence and premium-fee
 materially better. Remaining polish is a deliberate follow-up list (below). Full scorecard
 in `PRODUCT_AUDIT.md` §11.
 
+### Sprint 4 — "skeptical first-time user" UX audit — shipped (2026-07-05)
+A fresh-eyes walkthrough at phone size (Chromium, Pixel viewport) surfaced 13 issues
+across first-run, the three core flows, error states and mobile. All fixed on branch
+`claude/app-ux-audit-vv16uq`. Gates: 455 tests green (+2 new), typecheck, smoke, and a
+13-point Playwright behavioural re-verification.
+
+- **Preview ≠ prescription (2.2 · blocker).** Program-detail "Sample Session" and the
+  week-stepped day-preview modal now render each lift's target via the same
+  `liftTarget(desc, name, mod)` the cockpit uses (inline `(4×8–10)` spec if the program
+  carries one, else the week modifier). Dropped the hand-written `workoutPreview`
+  sets/reps/RPE/rest columns that promised a per-lift prescription the engine never
+  delivers (Helyx Foundations detail said "Bench 4×6–8"; cockpit gave a uniform 3×8).
+- **Target label ≠ row count (2.1 · blocker).** `reseedActiveProgramIntoWeek` now
+  re-prescribes *unlogged* blueprint lifts (not just missing ones), and onboarding
+  `_finish` reseeds every materialised week — so week 1 (seeded at boot under the default
+  program) matches the chosen program's target. Fixes "Target: 3 × 8" over 4 rows. New
+  regression test `tests/reseed_prescription.test.js`.
+- **Set delete had no undo (5.3 · data-loss).** The row ✕ now shows an Undo snackbar
+  (6s, above the nav) restoring the exact pre-delete snapshot — including the case where
+  removing the last set deletes the whole exercise + its liftOrder entry.
+- **"Suppressed" recovery on zero data (5.1).** With no signals `computeReadiness`
+  returns `score: null` → the Recovery Stats hero now reads a neutral "No signal yet"
+  instead of alarm-orange "Suppressed — below normal". (Overview already showed "No Data".)
+- **Mis-fired welcome celebration (2.6).** `onboarding:finished` now lands on Home
+  immediately, consuming `_justOnboarded` there — the confetti no longer fires a session
+  later, stacked over the workout recap.
+- **First-set PR spam (2.3).** "🏆 New PR" only fires against real prior history
+  (`prevMax > 0`); the first log of a lift shows "Baseline set ✓" instead of a trophy.
+- **Rest-day CTA + mission (1.3, 2.7).** The Home primary button is day-aware — on a rest
+  day it becomes "📝 Log a wellness check-in" (was "Go to Today's Workout", contradicting
+  the rest-day coach). The rest-day mission and CTA deep-link straight to the wellness
+  form (`open-wellness-checkin` → scrolls `#wellnessFormSection`) instead of dumping the
+  user at the top of the recovery screen.
+- **Builder clarity (2.8–2.10).** Day cards gained visible "Day name" / "Run / cardio"
+  labels (both fields previously showed a bare "Rest" and looked identical); a
+  "✓ Changes save automatically" reassurance; new custom programs seed an empty phase
+  label so the builder shows the "Phase label (e.g. Build, Peak)" placeholder instead of
+  "Custom Block" ×12.
+- **Finish modal (2.5).** Added a Cancel button (was save-or-nothing); the Run RPE row is
+  hidden on lift-only days (and Gym RPE on run-only days); duration prefill from the
+  session timer confirmed working.
+- **Auto-start session timer (2.4).** First completed set starts the duration clock
+  (idempotent), so the finish modal always has a real duration to confirm.
+- **Mobile (6).** Re-enabled pinch-zoom (dropped `user-scalable=no`/`maximum-scale`);
+  bumped sub-44px tap targets (RIR/type pills, run-logger RPE, week-nav arrows, wellness
+  ratings); the day selector now scroll-centres the selected day (the "today" chip was
+  off-screen on Sat/Sun); toasts capped to a centred max-width so long PR lines don't
+  span edge-to-edge.
+- **Consistency & copy (1.1, 4, 5.2, 2.12).** Provisional-score reveal now shows the same
+  0% confidence Home will (was 22% → contradiction); cockpit history/PR lines respect the
+  lbs unit (were hardcoded "kg"); offline sign-in/sign-up show an inline error, not just a
+  toast; "DB Reject: <raw>" → "Couldn't sync to cloud — saved on this device."; analytics
+  threshold-pace input harmonised to mm:ss (matching Settings, was seconds); hub subtitle
+  "Five screens…" → "One number each, then the depth." (there are eight); "Cockpit" badge
+  → "Today"; Top-Lifts tile spells out Squat/Bench/Deadlift.
+- **Deliberate defer:** gating the "Initiate/Builder" rank chip off day-0 surfaces — the
+  ranks are a legitimate gamification signal and the change touches the tested score hero;
+  left for a scoring-hero pass.
+
 ### Sprint 3 — "looks like it costs money" — shipped (2026-07-04)
 - **3.1** New `js/ui/icons.js` inline-SVG stroke set replaces emoji on the bottom nav
   (home · dumbbell · chart · clipboard) and the Insights hub (gauge · dumbbell · activity ·
@@ -165,6 +224,33 @@ P2/P3 — polish: week-nav shown on non-week screens · "More" hub bucket · day
 dashes · VDOT empty for easy-pace runners · splash/boot flash · dead `#tileCustomiserSheet`
 DOM + CSS · type-ramp audit (deferred C7).
 
+### Sprint 4 UX audit (2026-07-05) — bug register (all fixed unless noted)
+P0/blockers:
+- ~~Program-detail preview promised a per-lift prescription (Bench 4×6–8) the cockpit
+  never delivers (uniform 3×8)~~ — **FIXED (S4 2.2)**: previews render from `liftTarget`.
+- ~~"Target: 3 × 8" over 4 set rows on the first exercise after onboarding~~ — **FIXED
+  (S4 2.1)**: reseed re-prescribes unlogged lifts; onboarding reseeds week 1. Regression
+  test added.
+- ~~Set delete was instant + silent (data loss)~~ — **FIXED (S4 5.3)**: Undo snackbar.
+P1/quality:
+- ~~Recovery reads "Suppressed — below normal" on zero data~~ — **FIXED (S4 5.1)**: neutral
+  "No signal yet".
+- ~~Welcome celebration fires a session late, over the recap~~ — **FIXED (S4 2.6)**.
+- ~~"New PR" fires on every first-ever set~~ — **FIXED (S4 2.3)**: baseline copy, PR needs
+  history.
+- ~~Rest-day Home CTA says "Go to Today's Workout"; rest mission dead-ends at recovery
+  top~~ — **FIXED (S4 1.3/2.7)**: day-aware CTA + deep-link to the check-in form.
+- ~~Builder day cards = two identical "Rest" inputs; no save affordance~~ — **FIXED
+  (S4 2.8–2.10)**.
+- ~~Finish modal: no Cancel; run RPE asked on lift days~~ — **FIXED (S4 2.5)**.
+- ~~Pinch-zoom disabled; sub-44px tap targets; day chip off-screen on Sat/Sun~~ — **FIXED
+  (S4 6)**.
+- ~~Provisional confidence 22% vs Home 0%; cockpit "kg" hardcoded; offline sign-in toast
+  only; "DB Reject" copy; threshold pace in two units; false "Five screens" hub copy;
+  "Cockpit" badge; SQ/BP/DL~~ — **FIXED (S4 1.1/4/5.2/2.12)**.
+- **DEFERRED:** gate the "Initiate/Builder" rank chip off day-0 surfaces (touches the
+  tested score hero; ranks are a legitimate signal) — a scoring-hero pass, not this sprint.
+
 ---
 
 ## Current roadmap & next recommended sprint
@@ -207,6 +293,20 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-05 · **Sprint 4 shipped — skeptical first-time-user UX audit.** A fresh-eyes
+  phone-size walkthrough (Chromium/Pixel) found 13 issues; all fixed on
+  `claude/app-ux-audit-vv16uq`. Two correctness blockers: program-detail previews now
+  render from the same `liftTarget` the cockpit uses (no more "detail says 4×6–8, cockpit
+  gives 3×8"), and reseed re-prescribes unlogged lifts so the "Target: 3 × 8 / 4 rows"
+  mismatch is gone (+ onboarding reseeds week 1; new regression test). Plus: Undo for set
+  delete, neutral "No signal yet" recovery on zero data, welcome celebration fires on Home
+  (not over the recap), baseline-not-PR on first logs, day-aware rest CTA + check-in
+  deep-link, labelled builder inputs, finish-modal Cancel + run-RPE gating, auto-start
+  timer, pinch-zoom re-enabled + 44px tap targets + day-chip auto-scroll, and a copy pass
+  (confidence parity, lbs units, offline inline errors, mm:ss threshold pace, hub/Cockpit/
+  SQ-BP-DL wording). 455 tests / typecheck / smoke green; 13-point Playwright re-verify. ·
+  **Next:** gate the rank chip off day-0 (scoring-hero pass); the standing Sprint-3
+  follow-ups (VDOT-from-easy-runs, "More" fold, type ramp, splash) remain.
 - 2026-07-04 · **Sprint 3 shipped — "looks like it costs money" (5 commits).** A restrained
   inline-SVG icon set (`js/ui/icons.js` + `paintIcons()`) replaces the emoji on the bottom
   nav and the Insights hub — the loudest remaining "web app" signal. Plus the correctness

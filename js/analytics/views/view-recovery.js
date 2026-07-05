@@ -187,11 +187,19 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
 
   const readColor = readinessColor(readiness.score);
 
-  // Map readiness to athlete-friendly primary status
-  const primaryStatus = recov.nsStatus?.status
-    || (readiness.score >= 75 ? 'Primed' : readiness.score >= 50 ? 'Balanced' : 'Suppressed');
-  const primaryTone   = recov.nsStatus?.tone
-    || (readiness.score >= 75 ? 'progress' : readiness.score >= 50 ? 'neutral' : 'caution');
+  // Map readiness to athlete-friendly primary status. With zero signals logged,
+  // computeReadiness returns score: null — that's "no data", NOT low recovery.
+  // Show a neutral "No signal yet" so a brand-new user isn't told their recovery
+  // is Suppressed (alarm-orange) before they've logged anything.
+  const noSignal = readiness.score === null;
+  const primaryStatus = noSignal
+    ? 'No signal yet'
+    : (recov.nsStatus?.status
+       || (readiness.score >= 75 ? 'Primed' : readiness.score >= 50 ? 'Balanced' : 'Suppressed'));
+  const primaryTone   = noSignal
+    ? 'neutral'
+    : (recov.nsStatus?.tone
+       || (readiness.score >= 75 ? 'progress' : readiness.score >= 50 ? 'neutral' : 'caution'));
   const statusColor   = primaryTone === 'progress' ? '#10b981' : primaryTone === 'caution' ? '#f59e0b' : primaryTone === 'warning' ? '#ef4444' : '#94a3b8';
 
   // Generate insights
@@ -385,6 +393,9 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
 }
 
 function _recoveryStatusWhy(status, recov, la) {
+  if (status === 'No signal yet') {
+    return 'Log a wellness check-in or a session to generate readiness';
+  }
   if (status === 'Primed') {
     return recov.nsStatus ? 'HRV elevated above baseline — nervous system recovered' : 'Readiness signals are positive';
   }
@@ -583,7 +594,7 @@ function _renderWellnessForm(formParent, getState, getDays, data) {
     let html = '';
     for (let i = 1; i <= max; i++) {
       const active = (current || 0) === i ? 'background:rgba(59,130,246,0.35);color:#fff;border-color:#3b82f6;' : '';
-      html += `<button class="btn-pad text-sm" style="min-width:36px;padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;${active}" data-wellness="${name}" data-val="${i}">${i}</button>`;
+      html += `<button class="btn-pad text-sm" style="min-width:44px;min-height:44px;padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;${active}" data-wellness="${name}" data-val="${i}">${i}</button>`;
     }
     return html;
   };

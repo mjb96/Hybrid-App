@@ -53,7 +53,18 @@ export function initAnalytics(getStateFn, getDaysFn) {
 export function saveThresholdPace(val) {
   if (!_getState) return;
   const appState = _getState();
-  appState.thresholdPaceSeconds = parseInt(val, 10) || 0;
+  // Accept mm:ss (matching the Settings threshold-pace field) so the same
+  // setting isn't asked for in two different units. A bare integer is still
+  // read as legacy seconds.
+  const s = String(val || '').trim();
+  let secs;
+  if (s.includes(':')) {
+    const parts = s.split(':');
+    secs = (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+  } else {
+    secs = parseInt(s, 10) || 0;
+  }
+  appState.thresholdPaceSeconds = secs;
   saveStateToLocalStorage(true);
   renderAnalytics();
 }

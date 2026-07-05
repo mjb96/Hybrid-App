@@ -88,6 +88,14 @@ document.addEventListener('app:storage-loaded', () => {
   }
 });
 
+document.addEventListener('onboarding:finished', () => {
+  // Land on Home immediately so the Morning Briefing renders now and consumes
+  // the _justOnboarded flag here — otherwise the welcome celebration fires
+  // lazily on whatever Home render happens next (e.g. after the first workout),
+  // stacking confetti over the session recap.
+  try { switchGlobalAppTab('home'); } catch (err) { console.warn('Post-onboarding home landing failed.', err); }
+});
+
 document.addEventListener('app:library-updated', () => {
   try {
     updateLibraryState(appState);
@@ -108,9 +116,16 @@ document.addEventListener('app:navigate', (e) => {
 
 let _activePlanDisplayWeek = null;
 
-export function openAnalyticsView(context) {
+export function openAnalyticsView(context, scrollToId) {
   setAnalyticsContext(context);
   switchGlobalAppTab('analytics');
+  // Optional deep-link to a sub-section (e.g. the rest-day mission → the wellness
+  // check-in form, which otherwise sits several screens below the recovery hero).
+  if (scrollToId) {
+    setTimeout(() => {
+      try { document.getElementById(scrollToId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+    }, 60);
+  }
 }
 
 export function switchGlobalAppTab(targetViewID) {
@@ -728,6 +743,7 @@ document.addEventListener('click', (e) => {
     switchGlobalAppTab(tgt);
   }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
+  else if (action === 'open-wellness-checkin') openAnalyticsView('recovery-score', 'wellnessFormSection');
   else if (action === 'share-score-card') shareScoreCard();
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));

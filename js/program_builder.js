@@ -64,6 +64,7 @@ function renderBuilderUI(program) {
       <h2 class="text-xl font-heavy text-inverse">${escapeHtml(program.name || 'Custom Program')}</h2>
       <p class="text-sm text-muted">${escapeHtml(program.dossier?.focus || 'Custom Program')} · ${program.totalWeeks || 12} weeks</p>
       <p class="text-xs text-muted" style="margin-top:8px;">Add the lifts you want to train on each day, then set how sets &amp; reps progress week to week below. Leave a day on "Rest" with no lifts for a rest day.</p>
+      <p class="text-xs text-muted" style="margin-top:6px;opacity:0.85;">✓ Changes save automatically as you type.</p>
     </div>
     <div id="builderDaysContainer">
       ${DAYS.map(d => renderDayCard(program, d)).join('')}
@@ -114,11 +115,13 @@ function renderDayCard(program, dayKey) {
       </div>
 
       <div class="mb-2">
-        <input type="text" value="${escapeHtml(day.title || '')}" data-action="b-day-title" data-day="${dayKey}" placeholder="Session title (e.g. Push Day)" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--accent-blue); padding: 6px; border-radius: 4px; font-size: 0.85rem;">
+        <label class="block text-muted" style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Day name</label>
+        <input type="text" value="${escapeHtml(day.title || '')}" data-action="b-day-title" data-day="${dayKey}" placeholder="e.g. Push Day — or 'Rest' for a rest day" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--accent-blue); padding: 6px; border-radius: 4px; font-size: 0.85rem;">
       </div>
 
       <div class="mb-3">
-        <input type="text" value="${escapeHtml(day.runs || 'Rest')}" data-action="b-day-runs" data-day="${dayKey}" placeholder="Run target (e.g. 5km Easy) or Rest" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--accent-cyan); padding: 6px; border-radius: 4px; font-size: 0.8rem;">
+        <label class="block text-muted" style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Run / cardio <span style="font-weight:400;text-transform:none;letter-spacing:0;">— leave "Rest" for none</span></label>
+        <input type="text" value="${escapeHtml(day.runs || 'Rest')}" data-action="b-day-runs" data-day="${dayKey}" placeholder="e.g. 5km Easy — or 'Rest'" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--accent-cyan); padding: 6px; border-radius: 4px; font-size: 0.8rem;">
       </div>
 
       <div class="flex-col gap-2 mb-3">

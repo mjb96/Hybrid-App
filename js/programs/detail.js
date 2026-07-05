@@ -10,6 +10,7 @@ import { renderProgramCard, coverGlyphFor } from './program-card.js';
 import { icon as svgIcon } from '../ui/icons.js';
 import { PROGRAMS, WEEK_PHASE_NAMES } from '../constants.js';
 import { getWeekModifier } from '../schema.js';
+import { liftTarget } from '../engine.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
 import { escapeHtml } from '../util.js';
 
@@ -326,16 +327,26 @@ function renderSampleWorkout(program, programData, wod = false) {
   let bodyHtml = '';
 
   if (preview?.type === 'STRENGTH' && preview.exercises?.length) {
-    const shown = preview.exercises.slice(0, 5);
-    const extra = preview.exercises.length - shown.length;
+    // Show the SAME target the cockpit prescribes — liftTarget resolves an
+    // inline "(4×8–10)" spec when the program carries one, else the week-1
+    // modifier's uniform sets×reps. Reading the hand-written workoutPreview
+    // sets/reps would promise a per-lift prescription the engine never
+    // delivers. Names come from day.lifts (what the cockpit renders).
+    const mod1 = getWeekModifier(program, 1) || {};
+    const names = (chosenDay.lifts?.length ? chosenDay.lifts : preview.exercises.map(e => e.exercise))
+      .filter(n => typeof n === 'string' && n.trim());
+    const shown = names.slice(0, 5);
+    const extra = names.length - shown.length;
     bodyHtml = `
       <div class="sample-exercise-list">
-        ${shown.map(ex => `
+        ${shown.map(name => {
+          const t = liftTarget(chosenDay.desc, name, mod1);
+          return `
           <div class="sample-exercise-row">
-            <span class="sample-ex-name">${ex.exercise}</span>
-            <span class="sample-ex-prescription">${ex.sets} × ${ex.reps}</span>
-          </div>
-        `).join('')}
+            <span class="sample-ex-name">${escapeHtml(name)}</span>
+            <span class="sample-ex-prescription">${t.sets} × ${t.reps}</span>
+          </div>`;
+        }).join('')}
         ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
       </div>`;
   } else if (preview?.type === 'RUNNING' && preview.phases?.length) {
@@ -573,7 +584,7 @@ export function openDayPreviewModal(dayKey, programId, weekIndex) {
 
   let previewHtml;
   if (day.workoutPreview?.type === 'STRENGTH') {
-    previewHtml = renderStrengthPreview(day.workoutPreview.exercises);
+    previewHtml = renderStrengthPreview(day, mod, day.workoutPreview.exercises);
   } else if (day.workoutPreview?.type === 'RUNNING') {
     previewHtml = renderRunningPreview(day.workoutPreview.phases);
   } else if (day.workoutPreview?.type === 'HYROX') {
@@ -657,23 +668,31 @@ export function closeDayPreviewModal() {
   document.getElementById('wpmSheet')?.classList.remove('active');
 }
 
-function renderStrengthPreview(exercises) {
-  if (!exercises?.length) return '<p class="wpm-empty">No exercises listed.</p>';
+// Prescription-truthful: renders the SAME sets×reps the cockpit will show for
+// THIS week via liftTarget(desc, name, mod) — an inline "(4×8–10)" spec when the
+// program carries one, otherwise the week modifier's uniform target. Reading the
+// hand-written workoutPreview sets/reps/RPE/rest instead promised a per-lift
+// prescription the engine never delivers, and the columns never changed as you
+// stepped weeks. RPE/Rest columns dropped (the engine produces neither).
+function renderStrengthPreview(day, mod, fallbackExercises) {
+  const names = (day?.lifts?.length ? day.lifts : (fallbackExercises || []).map(e => e.exercise))
+    .filter(n => typeof n === 'string' && n.trim());
+  if (!names.length) return '<p class="wpm-empty">No exercises listed.</p>';
   return `
     <div class="wpm-type-label wpm-type-label--strength">🏋️ Strength Session</div>
-    <div class="wpm-strength-grid">
+    <div class="wpm-strength-grid wpm-strength-grid--compact">
       <div class="wpm-grid-header">
-        <span>Exercise</span><span>Sets</span><span>Reps</span><span>RPE</span><span>Rest</span>
+        <span>Exercise</span><span>Sets</span><span>Reps</span>
       </div>
-      ${exercises.map(ex => `
+      ${names.map(name => {
+        const t = liftTarget(day?.desc, name, mod || {});
+        return `
         <div class="wpm-grid-row">
-          <span class="wpm-ex-name">${ex.exercise}</span>
-          <span class="wpm-ex-val">${ex.sets}</span>
-          <span class="wpm-ex-val">${ex.reps}</span>
-          <span class="wpm-ex-val wpm-rpe" data-rpe="${ex.rpe}">${ex.rpe}</span>
-          <span class="wpm-ex-val wpm-rest">${ex.rest}</span>
-        </div>
-      `).join('')}
+          <span class="wpm-ex-name">${escapeHtml(name)}</span>
+          <span class="wpm-ex-val">${t.sets}</span>
+          <span class="wpm-ex-val">${t.reps}</span>
+        </div>`;
+      }).join('')}
     </div>
   `;
 }

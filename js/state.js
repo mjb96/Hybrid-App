@@ -219,7 +219,10 @@ export function createCustomProgram(name, totalWeeks, focus, philosophy) {
   });
   
   for(let i = 1; i <= newProg.totalWeeks; i++) {
-    newProg.weeklyVolModifiers[i.toString()] = { sets: 3, reps: 10, intensityLabel: "Custom Block" };
+    // Empty label → the builder shows the "Phase label (e.g. Build, Peak)"
+    // placeholder instead of a meaningless "Custom Block" repeated down every
+    // week (which read as "why are all 12 rows identical?").
+    newProg.weeklyVolModifiers[i.toString()] = { sets: 3, reps: 10, intensityLabel: "" };
   }
   
   if (!appState.customPrograms) appState.customPrograms = [];
@@ -370,9 +373,14 @@ export function reseedActiveProgramIntoWeek(wk) {
       if (blueprintLifts.includes(liftName)) continue;
       if (!liftHasLoggedData(existing[liftName])) delete existing[liftName];
     }
-    // 2. Seed any new blueprint lift that isn't already present.
+    // 2. Seed new blueprint lifts, AND re-prescribe kept-but-unlogged ones so an
+    //    unlogged lift's row count always matches THIS program+week's target.
+    //    Without the re-prescribe, a lift shared by both programs (e.g. "Bench
+    //    Press") keeps the *old* program's set count while the cockpit label
+    //    recomputes to the new one — the "Target: 3 × 8 but 4 rows" bug. Logged
+    //    sets are never touched (liftHasLoggedData guard).
     blueprintLifts.forEach(liftName => {
-      if (!existing[liftName]) {
+      if (!existing[liftName] || !liftHasLoggedData(existing[liftName])) {
         existing[liftName] = prescribeSetsForLift(wk, d, liftName, program.days[d]?.desc, weekModifier);
       }
     });
@@ -510,7 +518,9 @@ async function cloudSave(suppressToast) {
     if (!suppressToast) showToast('Session Saved to Cloud ✓');
   } catch (err) {
     console.error('Supabase Save Error:', err);
-    if (!suppressToast) showToast('DB Reject: ' + (err.message || 'Unknown error').substring(0, 40), true);
+    // Plain-language, reassuring — the edit is already safe in localStorage; the
+    // raw "DB Reject: <error>" read as data loss to a non-technical user.
+    if (!suppressToast) showToast("Couldn't sync to cloud — saved on this device.", true);
   }
 }
 
