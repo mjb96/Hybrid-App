@@ -207,6 +207,16 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-05 · **Nav "+" polish — centre entry now matches the nav bar (2 commits).**
+  The centre quick-start "+" read as a loud orange disc ("sticks out like dogs balls").
+  Toned it to a muted `.nav-item` peer with a "+" glyph and "Start" label, then found the
+  first pass still diverged: a leftover `.nav-fab { background: none; }` punched a
+  transparent hole through the default button fill, so Start rendered as a dark box with a
+  border. Fix: `.nav-fab` now carries no styling of its own — a plain non-active `.nav-item`
+  that matches Home/Workout/Insights/Programs byte-for-byte. Verified with a clipped nav
+  screenshot in headless Chromium; test/typecheck/smoke green. · **Next:** the deliberate
+  follow-up list below (all non-blocking); otherwise Sprint 4 is a `[You]` gate (device
+  tests, store screenshots, submit).
 - 2026-07-04 · **Sprint 3 shipped — "looks like it costs money" (5 commits).** A restrained
   inline-SVG icon set (`js/ui/icons.js` + `paintIcons()`) replaces the emoji on the bottom
   nav and the Insights hub — the loudest remaining "web app" signal. Plus the correctness
