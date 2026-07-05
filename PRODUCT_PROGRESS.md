@@ -35,9 +35,13 @@ in `PRODUCT_AUDIT.md` §11.
 - **3.2b** Program cover-art system: a modality glyph watermark (bolt/dumbbell/run/flame/
   mountain) over the program gradient replaces the emoji on cards, the featured hero banner
   and the detail hero — the catalogue now reads as one designed system.
-- **Deliberate follow-ups (not yet done):** icon set extended to Home tiles / milestones /
-  quick-start sheet / program filter chips, VDOT-from-easy-runs estimate, "More" hub-bucket
-  fold, type-ramp audit, splash polish, dead-DOM sweep.
+- **3.1 follow-up** Icon set extended to the Home tile headers (heart/dumbbell/activity,
+  accent-coloured), and the dead tile-customiser DOM+CSS swept.
+- **Deliberate keeps (not bugs):** category filter chips + celebratory milestone badges stay
+  emoji (legitimate friendly accents, not functional chrome); the quick-start sheet keeps its
+  Run/Walk/Fast emoji for now (a walker glyph wants a dedicated design pass).
+- **Genuine follow-ups (not yet done):** VDOT-from-easy-runs estimate, "More" hub-bucket fold,
+  type-ramp audit, splash polish.
 
 ### Sprint 2 — "one coach" — shipped (2026-07-04)
 - **2.1** New pure `js/brain/day-verdict.js`: the day's single disposition
