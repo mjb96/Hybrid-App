@@ -32,9 +32,12 @@ in `PRODUCT_AUDIT.md` §11.
 - **3.3b** XP backfill from logged history (an 8-week athlete now reads Builder, not
   Initiate·28XP). Strength bands verified correct against published standards, left as-is.
 - **3.3c** Cockpit START button hidden on run/rest days; today-marker on the day chips.
-- **Deliberate follow-ups (not yet done):** program cover-art system (still emoji+gradient),
-  icon set extended to Home tiles / milestones / the quick-start sheet, VDOT-from-easy-runs
-  estimate, "More" hub-bucket fold, type-ramp audit, splash polish, dead-DOM sweep.
+- **3.2b** Program cover-art system: a modality glyph watermark (bolt/dumbbell/run/flame/
+  mountain) over the program gradient replaces the emoji on cards, the featured hero banner
+  and the detail hero — the catalogue now reads as one designed system.
+- **Deliberate follow-ups (not yet done):** icon set extended to Home tiles / milestones /
+  quick-start sheet / program filter chips, VDOT-from-easy-runs estimate, "More" hub-bucket
+  fold, type-ramp audit, splash polish, dead-DOM sweep.
 
 ### Sprint 2 — "one coach" — shipped (2026-07-04)
 - **2.1** New pure `js/brain/day-verdict.js`: the day's single disposition
@@ -208,9 +211,11 @@ _Newest first: date · what changed · what's next._
   hidden on run/rest days + today-marker on day chips, program rail de-dupe + CTA hierarchy
   + "~4 sets per lift" label + onboarding program meta line. Strength bands checked against
   published standards and left correct. 453 tests / typecheck / smoke green; verified in
-  Chromium. · **Next / deliberate follow-ups:** program cover-art system, icon set on
-  tiles/milestones/quick-start, VDOT-from-easy-runs, "More"-bucket fold, type ramp, splash,
-  dead-DOM sweep. Sprints 1–3 (the beta-blocking work) are complete.
+  Chromium. Then the **program cover-art system** (3.2b): a modality glyph watermark over the
+  program gradient replaces the emoji on cards / hero banner / detail hero. · **Next /
+  deliberate follow-ups:** icon set on tiles/milestones/quick-start/filter-chips,
+  VDOT-from-easy-runs, "More"-bucket fold, type ramp, splash, dead-DOM sweep. Sprints 1–3
+  (the beta-blocking work + the premium pass) are complete.
 - 2026-07-04 · **Sprint 2 shipped — "one coach" (6 commits) + nav refactor (3.4).**
   Killed the cross-surface incoherence: a shared `dayVerdict()` decides the day once, and
   the projection, coach line, deload flag and analytics insights all read it. On a deload
