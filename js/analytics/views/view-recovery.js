@@ -27,7 +27,9 @@ import {
   generateLoadInsights,
   rankInsights,
   renderInsightsHTML,
+  deloadInsight,
 } from '../insights/insight-engine.js';
+import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { screenTabBar, mountScreenTabs } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
@@ -92,7 +94,10 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
       ${statCard({ label: 'Form (TSB)', value: String(tsb), sub: tsb >= 0 ? 'fresh / peaking' : 'carrying fatigue', color: '#3b82f6' })}
       ${statCard({ label: 'Load Ratio (ACWR)', value: ratio, sub: ratioStatus, color: '#f59e0b' })}
     </div>
-    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+    ${(() => {
+      const shown = isProgramDeloadWeek(appState, getProgramById(appState.activeProgramId)) ? [deloadInsight()] : insights.slice(0, 1);
+      return shown[0] ? renderInsightsHTML(shown, 1) : '';
+    })()}
   `;
   const ringEl = qs('recoveryReadinessRing');
   if (ringEl) renderReadinessRingLarge(ringEl, readiness.score, status, color);

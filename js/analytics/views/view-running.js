@@ -18,7 +18,10 @@ import {
   generateLoadInsights,
   rankInsights,
   renderInsightsHTML,
+  deloadInsight,
 } from '../insights/insight-engine.js';
+import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
+import { getProgramById } from '../../state.js';
 import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
 
 function qs(id) { return document.getElementById(id); }
@@ -353,7 +356,7 @@ export function renderRunningAnalytics(data, getState, getDays) {
   const body = qs('running-tab-body');
 
   if (_runningTab === 'stats') _renderRunningStats(body, ra, la, data);
-  else _renderRunningOverview(body, ra, data, allInsights);
+  else _renderRunningOverview(body, ra, data, allInsights, appState);
 
   mountScreenTabs('analytics-running', (tab) => {
     _runningTab = tab;
@@ -363,7 +366,7 @@ export function renderRunningAnalytics(data, getState, getDays) {
 
 // Overview: VDOT (running fitness) as the headline number, its weekly distance
 // trend as the spark, the two numbers that matter, and ONE synthesized insight.
-function _renderRunningOverview(body, ra, data, insights) {
+function _renderRunningOverview(body, ra, data, insights, appState) {
   const dist = ra.distSeries || [];
   const distCur  = dist[dist.length - 1] || 0;
   const color = ra.endScore == null ? '#94a3b8'
@@ -393,7 +396,10 @@ function _renderRunningOverview(body, ra, data, insights) {
       ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: ra.distProgPct, sub: 'vs last week', color: '#3b82f6' })}
       ${statCard({ label: 'Best Pace', value: fmtPace(ra.bestPace), sub: 'fastest recent run', color: '#10b981' })}
     </div>
-    ${insights[0] ? renderInsightsHTML(insights.slice(0, 1), 1) : ''}
+    ${(() => {
+      const shown = isProgramDeloadWeek(appState, getProgramById(appState?.activeProgramId)) ? [deloadInsight()] : insights.slice(0, 1);
+      return shown[0] ? renderInsightsHTML(shown, 1) : '';
+    })()}
   `;
 }
 

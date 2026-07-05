@@ -68,6 +68,16 @@ test('pickWeeklyFocus: priority order', () => {
   assert.equal(pickWeeklyFocus({ consistencyPct: 90, hasPlan: true, acwr: 0.9, distance: 10, volumeDeltaPct: 5 }).area, 'Momentum');
 });
 
+test('pickWeeklyFocus: a deload week overrides the volume-dip / momentum praise', () => {
+  // Lower volume on a deload would otherwise read as "volume dipped, rebuild" —
+  // the deload branch pre-empts it so the review agrees with the coach.
+  const f = pickWeeklyFocus({ consistencyPct: 90, hasPlan: true, acwr: 0.9, distance: 10, volumeDeltaPct: -20, isDeload: true });
+  assert.equal(f.area, 'Deload');
+  assert.doesNotMatch(f.text, /progressive overload|rebuild/i);
+  // But a genuine safety flag (hot load) still wins over the deload framing.
+  assert.equal(pickWeeklyFocus({ consistencyPct: 90, hasPlan: true, acwr: 1.5, distance: 10, volumeDeltaPct: -20, isDeload: true }).area, 'Recovery');
+});
+
 test('reviewToText: numbers-first share copy with unit conversion', () => {
   const r = buildWeeklyReview(makeState(), DAYS, PROGRAM);
   const txt = reviewToText(r, 'km');

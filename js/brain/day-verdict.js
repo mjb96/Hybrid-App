@@ -56,3 +56,15 @@ export function dayVerdict(model, state, program, selectedDay) {
 
   return { mode, isDeloadWeek, isRestDay, sessionDone, readiness, readinessLabel, canProjectGain, weekLabel };
 }
+
+/**
+ * Is the athlete's CURRENT program week a deload? A light standalone check for
+ * surfaces (analytics Overviews) that only need the week disposition, without
+ * building the whole dashboard model.
+ * @param {any} state @param {any} program
+ */
+export function isProgramDeloadWeek(state, program) {
+  const wk = String(state?.currentWeek || '1');
+  const label = program?.weeklyVolModifiers?.[wk]?.intensityLabel || WEEK_PHASE_NAMES[wk] || '';
+  return classifyWeek(label) === 'deload';
+}
