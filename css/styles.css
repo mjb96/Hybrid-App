@@ -1784,6 +1784,19 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 .qs-item:hover  { border-color: var(--color-orange, #ff6b00); background: rgba(255,107,0,0.08); }
 .qs-item:active { transform: scale(0.96); }
 
+/* Workout is the app's core action, so it leads the sheet as a full-width tile
+   above the Run / Walk / Fast row rather than sharing their weight. */
+.qs-item--primary {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  gap: 12px;
+  padding: 16px 20px;
+  border-color: rgba(16,185,129,0.45);
+  background: rgba(16,185,129,0.10);
+  color: var(--color-green, #10b981);
+}
+.qs-item--primary:hover { border-color: var(--color-green, #10b981); background: rgba(16,185,129,0.16); }
+
 
 /* --- Edit button in At a Glance header --- */
 .tile-customise-btn {

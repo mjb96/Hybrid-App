@@ -840,6 +840,7 @@ document.addEventListener('click', (e) => {
   // Quick-start sheet (centre "+" FAB) — start Run / Walk / Fast from any tab.
   else if (action === 'open-quick-start')  { toggleQuickStart(true); }
   else if (action === 'close-quick-start') { toggleQuickStart(false); }
+  else if (action === 'qs-workout') { toggleQuickStart(false); launchActiveWorkoutCockpit(); }
   else if (action === 'qs-run')  { toggleQuickStart(false); startQuickActivity('run'); }
   else if (action === 'qs-walk') { toggleQuickStart(false); startQuickActivity('walk'); }
   else if (action === 'qs-fast') { toggleQuickStart(false); openFastingDetail(); }
