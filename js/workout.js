@@ -1734,6 +1734,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
+  else if (action === 'toggle-set-adv') target.closest('.cockpit-set-row')?.classList.toggle('adv-open');
   else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
   else if (action === 'cycle-load') cycleSetLoad(liftName, sIdx);
   else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
