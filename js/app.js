@@ -1321,6 +1321,21 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// Enforce declared min/max on number inputs (e.g. RPE fields carry max="10").
+// Browsers don't clamp type=number on their own, so a stray "50" RPE would sail
+// through and skew analytics. This bites only when a value exceeds the declared
+// bound, so normal typing is untouched.
+// Only clamp the upper bound on input: a value above max is invalid no matter
+// what's typed next. Min is deliberately NOT clamped here — a partial entry like
+// "1" toward "150" is smaller than a min of 30 and would be snapped away
+// mid-typing. Low bounds are enforced on commit by the readers instead.
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement) || t.type !== 'number' || t.value === '' || t.max === '') return;
+  const v = parseFloat(t.value);
+  if (!Number.isNaN(v) && v > parseFloat(t.max)) t.value = t.max;
+});
+
 // Persistent offline indicator — reflects connectivity so the user knows their
 // logging still works (and stays on-device) while the network is down.
 function initOfflineIndicator() {
