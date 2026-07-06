@@ -251,6 +251,23 @@ P1/quality:
 - **DEFERRED:** gate the "Initiate/Builder" rank chip off day-0 surfaces (touches the
   tested score hero; ranks are a legitimate signal) — a scoring-hero pass, not this sprint.
 
+### "Logged a few workouts" UX audit (2026-07-06) — deferred follow-ups
+Raised + logged during the 2026-07-06 audit-fix batch (see Session log). These were held
+back deliberately because they're refactors/product decisions, not quick fixes:
+- [ ] **Unify the two run-entry UIs** — the cockpit run panel (numeric 1–10 RPE, GPS +
+  watch import, for today's scheduled run) and the Log-Run modal (RPE buttons 6–10, any
+  day) duplicate the same task with different fields/controls. Converge on one form/field
+  set + one RPE representation. Scope this first of the two.
+- [ ] **Run model: log against a calendar date, not the program week.** The Log-Run modal
+  writes to `currentWeek` + a weekday, so a run can land in an unexpected program week and
+  silently mismatch the calendar. Move run logging to a real date key.
+- [ ] **Onboarding step 3 density** — four questions (level · frequency · recovery ·
+  equipment) on one screen. Only split if a test shows the density hurts completion;
+  splitting trades density for more taps, so measure before changing.
+- [ ] **Dense-tile text truncation** — sub-0.6rem `nowrap`+ellipsis labels on Home tiles /
+  quick-actions clip on narrow phones. Currently intentional; revisit if it bites real
+  content (e.g. allow wrap on the worst offenders).
+
 ---
 
 ## Current roadmap & next recommended sprint
