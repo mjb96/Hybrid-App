@@ -60,6 +60,11 @@ export function getCloudPullBackup(storage = _defaultStorage()) {
   }
 }
 
+// Drop the pre-cloud-pull snapshot (after the user recovers or dismisses it).
+export function clearCloudPullBackup(storage = _defaultStorage()) {
+  try { storage?.removeItem(CLOUD_BACKUP_KEY); } catch { /* ignore */ }
+}
+
 // Base state configuration
 /** @type {import('./types').AppState} */
 export let appState = {
@@ -735,6 +740,8 @@ export async function pullEngineDataFromStorage() {
     defaultDays: DEFAULT_DAYS,
     migrate:     migrateState,
     storageKey:  STORAGE_KEY,
+    getCloudBackup:   getCloudPullBackup,
+    clearCloudBackup: clearCloudPullBackup,
   });
 
   try {

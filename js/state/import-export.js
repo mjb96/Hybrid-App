@@ -11,14 +11,53 @@ let _DEFAULT_DAYS   = null;
 let _onImportSuccess = null;
 let _migrate        = (s) => s;
 let _storageKey     = 'hybrid_engine_v2_state';
+let _getCloudBackup   = () => null;
+let _clearCloudBackup = () => {};
 
-export function initImportExport({ getState, setState, saveState, defaultDays, migrate, storageKey }) {
+export function initImportExport({ getState, setState, saveState, defaultDays, migrate, storageKey, getCloudBackup, clearCloudBackup }) {
   _getState     = getState;
   _setState     = setState;
   _saveState    = saveState;
   _DEFAULT_DAYS = defaultDays;
   if (typeof migrate === 'function') _migrate = migrate;
   if (storageKey) _storageKey = storageKey;
+  if (typeof getCloudBackup === 'function')   _getCloudBackup = getCloudBackup;
+  if (typeof clearCloudBackup === 'function') _clearCloudBackup = clearCloudBackup;
+}
+
+// True when a pre-sync (pre-cloud-pull) local snapshot exists and holds real
+// training history — i.e. this device's data was overwritten by the cloud copy
+// on a login/load and is recoverable.
+export function hasCloudPullSnapshot() {
+  const b = _getCloudBackup();
+  return !!(b && b.state && b.state.weeks && Object.keys(b.state.weeks).length > 0);
+}
+
+export function cloudPullSnapshotSavedAt() {
+  return _getCloudBackup()?.savedAt || null;
+}
+
+// Restore the pre-sync snapshot over the current (cloud-loaded) state. Same
+// migrate → setState → save → rerender path as a file import, so the recovered
+// data is upgraded and immediately pushed back up to the cloud.
+export function recoverCloudPullSnapshot() {
+  const backup = _getCloudBackup();
+  const snap = backup?.state;
+  if (!snap || !snap.weeks || Object.keys(snap.weeks).length === 0) {
+    showToast('No recoverable snapshot found.', true);
+    return false;
+  }
+  _backupCurrentState(); // keep an undo point for the cloud state we're leaving
+  const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
+  const merged = _migrate({ ...base, ...snap });
+  if (!merged.customExercises) merged.customExercises = [];
+  if (!merged.customPrograms)  merged.customPrograms  = [];
+  _setState(merged);
+  _saveState(false); // not suppressed: pushes the recovered data to the cloud
+  _clearCloudBackup();
+  if (_onImportSuccess) _onImportSuccess();
+  showToast('Recovered this device’s data ✓');
+  return true;
 }
 
 // Snapshot the current persisted state before a destructive import/restore so a

@@ -63,7 +63,7 @@ import {
   saveName, saveBodyWeight, setWeightUnit,
   setProgressionIncrement, setDistanceUnit, setTheme, stepCurrentWeek, setAutoAdvanceWeek,
   saveThresholdPace as saveSettingsThresholdPace,
-  exportData, triggerImport, handleImportFile, confirmResetAllData,
+  exportData, triggerImport, handleImportFile, confirmResetAllData, recoverPreSyncSnapshot,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
@@ -822,6 +822,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'export-data') exportData();
   else if (action === 'import-data') triggerImport();
   else if (action === 'reset-all-data') confirmResetAllData();
+  else if (action === 'recover-presync-snapshot') recoverPreSyncSnapshot();
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
   else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));

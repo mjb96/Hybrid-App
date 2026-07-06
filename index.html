@@ -1193,7 +1193,7 @@
 
       <div class="rl-actions">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-run-logger">Cancel</button>
-        <button class="btn-action-block btn-indigo mt-0" data-action="save-run-log">Save Run</button>
+        <button class="btn-action-block btn-blue mt-0" data-action="save-run-log">Save Run</button>
       </div>
     </div>
   </div>
@@ -1591,6 +1591,8 @@
         <!-- Data -->
         <div class="settings-section">
           <div class="settings-section-label">Data &amp; Backups</div>
+          <button class="settings-action-btn settings-action-btn-recover" id="settingsRecoverSnapshotBtn" data-action="recover-presync-snapshot" style="display:none;">↩︎ Recover this device’s data</button>
+          <div class="settings-hint" id="settingsRecoverSnapshotHint" style="display:none;">A newer cloud backup replaced this device’s data on sign-in. Restore what was on this device before that.</div>
           <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
           <button class="settings-action-btn" data-action="export-csv">Export Spreadsheet (CSV)</button>
           <button class="settings-action-btn" data-action="import-data">Import Backup File</button>

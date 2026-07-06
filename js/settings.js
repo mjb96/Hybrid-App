@@ -29,6 +29,7 @@ import { showToast } from './state.js';
 import { rearmReminder, notificationsGranted } from './notifications.js';
 import { getCloudUser, signOutSupabase, deleteAccount as authDeleteAccount } from './state/auth.js';
 import { confirmModal } from './ui/confirm-modal.js';
+import { hasCloudPullSnapshot, recoverCloudPullSnapshot } from './state/import-export.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect } from './health/health-bridge.js';
 
 let _getState;
@@ -65,6 +66,14 @@ function _syncSettingsUI() {
   if (!_getState) return;
   const appState = _getState();
   const s = appState.settings || {};
+
+  // Show the pre-sync recovery affordance only when a recoverable snapshot of
+  // this device's data exists (i.e. a cloud copy overwrote it on sign-in).
+  const recoverBtn  = document.getElementById('settingsRecoverSnapshotBtn');
+  const recoverHint = document.getElementById('settingsRecoverSnapshotHint');
+  const canRecover  = hasCloudPullSnapshot();
+  if (recoverBtn)  recoverBtn.style.display  = canRecover ? '' : 'none';
+  if (recoverHint) recoverHint.style.display = canRecover ? '' : 'none';
 
   const nameInput = document.getElementById('settingsNameInput');
   if (nameInput) nameInput.value = s.name || '';
@@ -571,6 +580,19 @@ export function exportData() {
 
 export function triggerImport() {
   document.getElementById('settingsImportFile')?.click();
+}
+
+// Recover the pre-sync snapshot of this device's data (see import-export.js).
+// Confirmed because it overwrites the currently-loaded (cloud) state.
+export async function recoverPreSyncSnapshot() {
+  if (!hasCloudPullSnapshot()) { showToast('No recoverable snapshot found.', true); return; }
+  const ok = await confirmModal({
+    title: 'Recover this device’s data?',
+    message: 'This replaces the currently loaded data with what was on this device before it last synced from the cloud, and pushes it back up.',
+    confirmLabel: 'Recover',
+  });
+  if (!ok) return;
+  if (recoverCloudPullSnapshot()) _syncSettingsUI();
 }
 
 export function handleImportFile(file) {
