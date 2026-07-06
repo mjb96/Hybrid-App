@@ -40,6 +40,28 @@
   
   <style>
     .hidden-input { display: none; }
+
+    /* Offline indicator pill — fixed just above the bottom nav. */
+    .offline-indicator {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #fcd34d;
+      background: rgba(30, 27, 12, 0.94);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
+    .offline-indicator[hidden] { display: none; }
+    .offline-indicator__dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
     
     .focus-header-text { font-size: 1.25rem; font-weight: 800; color: var(--text-inverse); letter-spacing: -0.5px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .card-icon-title { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -400,6 +422,13 @@
   </div>
   
   <div class="toast-system" id="sysToast" role="alert" aria-live="assertive">Session Saved ✓</div>
+
+  <!-- Persistent offline indicator — reassures that logging still works and data
+       is saved on-device while the network is down. Hidden while online. -->
+  <div id="offlineIndicator" class="offline-indicator" role="status" aria-live="polite" hidden>
+    <span class="offline-indicator__dot" aria-hidden="true"></span>
+    Offline — changes save on this device
+  </div>
 
   <main id="app-root">
 

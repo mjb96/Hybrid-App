@@ -1321,10 +1321,22 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// Persistent offline indicator — reflects connectivity so the user knows their
+// logging still works (and stays on-device) while the network is down.
+function initOfflineIndicator() {
+  const el = document.getElementById('offlineIndicator');
+  if (!el) return;
+  const sync = () => { el.hidden = navigator.onLine; };
+  window.addEventListener('online', sync);
+  window.addEventListener('offline', sync);
+  sync();
+}
+
 async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
+    initOfflineIndicator();
     initSyncConflictUI();
     initSessionRecap(() => appState);
     // Recap entry points: after finishing a session, and tapping a logged day.
