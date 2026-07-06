@@ -912,6 +912,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const sIdx = Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow);
       
+      // 1) Prefer this set's *real* value from last week.
       const pastWkNum = parseInt(wk, 10) - 1;
       if (pastWkNum >= 1 && appState.weeks && liftName) {
         const historicalSet = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName]?.[sIdx];
@@ -920,8 +921,22 @@ export function toggleGymCheckLoggingState(checkboxNode) {
           if (!rInput.value) rInput.value = historicalSet.r;
         }
       }
-      if (!wInput.value) wInput.value = "40";
-      if (!rInput.value) rInput.value = "10";
+      // 2) Otherwise fall back to the visible ghost/target shown in the field —
+      //    but only when it's an actual number. Never invent an arbitrary load.
+      const wGhost = parseFloat(wInput.placeholder);
+      const rGhost = parseInt(rInput.placeholder, 10);
+      if (!wInput.value && Number.isFinite(wGhost)) wInput.value = String(wGhost);
+      if (!rInput.value && Number.isFinite(rGhost)) rInput.value = String(rGhost);
+
+      // 3) Still blank ⇒ there's nothing honest to log. Bounce the tick and ask
+      //    for the numbers rather than silently recording a fabricated 40×10.
+      if (!wInput.value || !rInput.value) {
+        checkboxNode.checked = false;
+        parentRow.classList.remove('is-complete');
+        showToast('Enter weight & reps first', true);
+        (!wInput.value ? wInput : rInput).focus();
+        return;
+      }
     }
 
     try {
