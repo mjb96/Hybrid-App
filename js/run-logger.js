@@ -6,7 +6,17 @@ import { dateKey } from './dates.js';
 
 let _getState;
 
+// When Save would overwrite a run already logged for the chosen day, we require a
+// second tap to confirm. Keyed by day so switching days re-arms the guard.
+let _pendingOverwriteDay = null;
+
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+function _resetOverwriteGuard() {
+  _pendingOverwriteDay = null;
+  const btn = document.querySelector('#runLoggerModal [data-action="save-run-log"]');
+  if (btn) btn.textContent = 'Save Run';
+}
 
 export function initRunLogger(getStateFn) {
   _getState = getStateFn;
@@ -28,6 +38,7 @@ export function openRunLogger() {
     if (el) el.value = '';
   });
   document.querySelectorAll('[data-action="rl-rpe"]').forEach(b => b.classList.remove('active'));
+  _resetOverwriteGuard();
 
   const unit = _getState?.().settings?.distanceUnit || 'km';
   const badge = document.getElementById('rlDistUnit');
@@ -66,6 +77,18 @@ export function saveManualRun() {
   if (!appState.weeks[wk]) return;
   if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
 
+  // Don't silently clobber a run already logged for this day — confirm with a
+  // second tap first.
+  const existing = appState.weeks[wk].runs[activeDay];
+  const existingHasData = existing && (existing.dist || existing.time || existing.pace || existing.rpe);
+  if (existingHasData && _pendingOverwriteDay !== activeDay) {
+    _pendingOverwriteDay = activeDay;
+    showToast('A run is already logged for this day — tap again to replace it', true);
+    const btn = modal?.querySelector('[data-action="save-run-log"]');
+    if (btn) btn.textContent = 'Replace existing run';
+    return;
+  }
+
   appState.weeks[wk].runs[activeDay] = {
     dist: distKm.toFixed(2),
     time,
@@ -84,6 +107,7 @@ export function saveManualRun() {
 
   saveStateToLocalStorage(true);
   document.dispatchEvent(new Event('app:storage-loaded'));
+  _resetOverwriteGuard();
   closeRunLogger();
   showToast('Run logged ✓');
 }
