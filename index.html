@@ -283,6 +283,7 @@
     }
     .week-nav-arrow:not(:disabled):active { background: rgba(59,130,246,0.28); }
     .week-nav-center { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+    .week-nav-eyebrow { font-size: 0.55rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted, #94a3b8); }
     .week-nav-label  { font-size: 0.9rem; font-weight: 700; color: var(--text-inverse, #f8fafc); letter-spacing: -0.2px; }
     .week-nav-dates  { font-size: 0.68rem; color: var(--text-muted, #94a3b8); }
 
@@ -744,6 +745,7 @@
       <div id="analyticsWeekNav" class="week-nav-bar">
         <button id="weekNavPrev" class="week-nav-arrow" aria-label="Previous week" disabled>&#8592;</button>
         <div class="week-nav-center">
+          <span class="week-nav-eyebrow">Viewing</span>
           <span id="weekNavLabel" class="week-nav-label">Week 1 · Current</span>
           <span id="weekNavDates" class="week-nav-dates"></span>
         </div>
@@ -792,7 +794,7 @@
       </div>
 
       <div id="analytics-strength" class="analytics-section">
-        <h2 class="section-header">Strength Analytics</h2>
+        <h2 class="section-header">Strength</h2>
         
         <div class="grid-2-col gap-2 mb-4">
           <article class="card-dark flex-col flex-center p-2" style="border: 1px solid rgba(59,130,246,0.35);">
@@ -838,7 +840,7 @@
       </div>
 
       <div id="analytics-running" class="analytics-section">
-        <h2 class="section-header">Running Analytics</h2>
+        <h2 class="section-header">Running</h2>
 
         <div class="grid-3-col gap-2 mb-2">
           <article class="card-dark flex-col flex-center p-2" style="border: 1px solid rgba(34,211,238,0.35);">
@@ -896,7 +898,7 @@
       </div>
 
       <div id="analytics-recovery" class="analytics-section">
-        <h2 class="section-header">Recovery Analytics</h2>
+        <h2 class="section-header">Recovery &amp; Load</h2>
         <h2 class="section-header mt-2">Fatigue Trend (Avg RPE)</h2>
         <article class="card-dark p-3 mb-4">
           <div class="flex gap-4 mb-2" style="align-items:center;font-size:0.68rem;">
@@ -909,7 +911,7 @@
       </div>
 
       <div id="analytics-bodyweight" class="analytics-section">
-        <h2 class="section-header">Body Weight Tracking</h2>
+        <h2 class="section-header">Body Weight</h2>
         <article class="card-dark p-3 mb-4">
           <div class="flex gap-2 mb-3" style="align-items:center;">
             <input type="number" step="0.1" id="analyticsBwInput" placeholder="Today's weight (kg)" style="flex:1;" aria-label="Body weight kg">
