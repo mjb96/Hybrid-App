@@ -90,9 +90,24 @@ export function computeDashboardModel(state, days, program, selectedDay) {
 
   const idx = wkNum - 1;
   const volCurrent  = volumeSeries[idx]   || 0;
-  const volPrev     = volumeSeries[idx - 1] || 0;
   const distCurrent = distanceSeries[idx]   || 0;
-  const distPrev    = distanceSeries[idx - 1] || 0;
+
+  // Fair week-over-week: an in-progress week must be judged against the SAME
+  // weekdays last week, not last week's finished total. Otherwise day one of a
+  // new week always reads as a volume/distance drop (partial vs full). We sum the
+  // previous week only over the days already trained/run this week — a
+  // "same point in the week" pace comparison. Falls through to a full-week vs
+  // full-week compare naturally once every trained day has been logged.
+  const curWkData  = weeks[wk];
+  const prevWkData = weeks[String(wkNum - 1)];
+  const paceMatchedPrev = (valueFn) => {
+    if (!prevWkData) return 0;
+    return days.reduce((sum, d) => (valueFn(curWkData, d) > 0 ? sum + valueFn(prevWkData, d) : sum), 0);
+  };
+  const liftVolOf = (wd, d) => dayVolume(wd?.lifts?.[d]);
+  const runDistOf = (wd, d) => parseFloat(wd?.runs?.[d]?.dist) || 0;
+  const volPrev  = paceMatchedPrev(liftVolOf);
+  const distPrev = paceMatchedPrev(runDistOf);
 
   // ---- EWMA load / freshness ---------------------------------------------
   const lm = state?.loadMetrics || {};

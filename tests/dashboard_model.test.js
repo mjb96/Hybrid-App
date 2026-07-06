@@ -65,6 +65,32 @@ test('weekly volume + delta reflect completed tonnage growth', () => {
   assert.equal(m.week.volume.delta.good, true);
 });
 
+test('an in-progress week is compared to the SAME weekdays last week, not last week\'s full total', () => {
+  // Last week trained Mon/Wed/Fri (3000 kg total). This week is day one: only
+  // Monday logged, at the same tonnage as last Monday. It must read flat — not
+  // "down" against last week's finished total.
+  const set = (w, r) => [{ w: String(w), r: String(r), c: true }];
+  const state = {
+    currentWeek: '2',
+    healthConnect: { connected: false, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [] },
+    wellnessLog: [],
+    weeks: {
+      '1': { lifts: { mon: { Squat: set(100, 10) }, wed: { Bench: set(100, 10) }, fri: { Dead: set(100, 10) } }, runs: {} },
+      '2': { lifts: { mon: { Squat: set(100, 10) } }, runs: {} },
+    },
+  };
+  const m = computeDashboardModel(state, DAYS, PROGRAM, 'mon');
+  assert.equal(m.week.volume.current, 1000);
+  assert.equal(m.week.volume.prev, 1000, 'previous week counted only through Monday (same point in the week)');
+  assert.equal(m.week.volume.delta.dir, 'flat');
+
+  // And a genuinely lighter Monday still surfaces as down — the fix only removes
+  // the partial-vs-full artifact, not real regressions.
+  state.weeks['2'].lifts.mon.Squat = set(80, 10); // 800 vs last Monday's 1000
+  const m2 = computeDashboardModel(state, DAYS, PROGRAM, 'mon');
+  assert.equal(m2.week.volume.delta.dir, 'down');
+});
+
 test('weekly consistency drives the header progress (done/total/pct)', () => {
   const m = computeDashboardModel(fixture(), DAYS, PROGRAM, 'mon');
   // Week 2: Sat run scheduled + logged (1/1) and 2 completed squat sets (2/2).
