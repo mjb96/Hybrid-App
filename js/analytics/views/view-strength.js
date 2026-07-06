@@ -22,6 +22,7 @@ import {
   deloadInsight,
 } from '../insights/insight-engine.js';
 import { isCompletedSet } from '../../set-utils.js';
+import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { getProgramById } from '../../state.js';
 import { esc, screenTabBar, mountScreenTabs, spark as _spark, curWeekIdx } from './screen-kit.js';
@@ -367,6 +368,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     ? [deloadInsight()] : insights.slice(0, 1);
 
   body.innerHTML = `
+    ${_thisWeekSessionsStripHTML(appState, days)}
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volPct, sub: 'vs last week', color: '#8b5cf6' })}
@@ -374,6 +376,37 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     </div>
     ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}
   `;
+}
+
+// "This week's sessions" strip — a tappable chip per trained day this week, in
+// weekday order, opening the session-detail modal (which shows a vs-last-week
+// comparison). The one-tap route from Strength insights into "last week's Push
+// vs this week's Push".
+const _DAY_ABBR = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+function _thisWeekSessionsStripHTML(appState, days) {
+  const wk = String(appState.currentWeek || '1');
+  const weekData = (appState.weeks || {})[wk];
+  if (!weekData) return '';
+  const program = getProgramById(appState.activeProgramId);
+  const unit = appState.settings?.weightUnit || 'kg';
+
+  const chips = [];
+  (days || []).forEach(d => {
+    const { totalVolume } = summarizeSessionLifts(weekData, d);
+    if (totalVolume <= 0) return; // only days with logged lifting
+    const title = program?.days?.[d]?.title || 'Workout';
+    chips.push(`<button class="sw-session-chip" data-action="open-session-detail" data-week="${wk}" data-day="${d}" data-datelabel="Week ${wk} · ${esc(title)}">
+      <span class="sw-session-chip__day">${_DAY_ABBR[d] || esc(d)}</span>
+      <span class="sw-session-chip__title">${esc(title)}</span>
+      <span class="sw-session-chip__vol">${Math.round(totalVolume)} ${esc(unit)} vol</span>
+    </button>`);
+  });
+  if (!chips.length) return '';
+  return `<div class="sw-sessions">
+    <div class="sw-sessions__title">This week's sessions</div>
+    <div class="sw-sessions__row">${chips.join('')}</div>
+    <div class="sw-sessions__hint">Tap a session to see it and compare with last week.</div>
+  </div>`;
 }
 
 // Stats: the full strength engine, one tap deeper. Absorbs the old 1RM (strength_pr)

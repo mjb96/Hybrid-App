@@ -5901,6 +5901,48 @@ html[data-theme="light"] .profile-pr-set-goal-btn { border-color: rgba(0,0,0,0.1
 html[data-theme="light"] .profile-pr-trend--up   { color: #059669; }
 html[data-theme="light"] .profile-pr-trend--down { color: #e11d48; }
 
+/* ── Session detail: "vs last week" comparison ─────────────────────────────── */
+.sds-cmp-total {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 10px; margin-bottom: 8px;
+  background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.22); border-radius: 10px;
+}
+.sds-cmp-total-lbl { font-size: 0.7rem; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.sds-cmp-total-val { font-size: 0.86rem; font-weight: 800; color: var(--text-primary, #f8fafc); }
+.sds-cmp-total-prev { font-weight: 600; color: var(--text-faint); }
+.sds-cmp-row { padding: 7px 10px; margin-bottom: 6px; background: var(--overlay-sm); border: 1px solid var(--border-default); border-radius: 10px; }
+html[data-theme="light"] .sds-cmp-row { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+.sds-cmp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+.sds-cmp-name { font-size: 0.8rem; font-weight: 700; color: var(--text-primary, #f8fafc); }
+.sds-cmp-chips { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.sds-cmp-delta { font-size: 0.62rem; font-weight: 800; white-space: nowrap; padding: 2px 7px; border-radius: 999px; }
+.sds-cmp-delta--up   { color: #10b981; background: rgba(16,185,129,0.14); }
+.sds-cmp-delta--down { color: #ef4444; background: rgba(239,68,68,0.14); }
+.sds-cmp-delta--flat { color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.06); }
+html[data-theme="light"] .sds-cmp-delta--flat { background: rgba(0,0,0,0.05); }
+.sds-cmp-body { display: flex; flex-direction: column; gap: 1px; }
+.sds-cmp-this { font-size: 0.74rem; color: var(--text-secondary, #cbd5e1); }
+.sds-cmp-prev { font-size: 0.72rem; color: var(--text-faint); }
+
+/* ── Strength insights: "this week's sessions" strip ──────────────────────── */
+.sw-sessions { margin-bottom: 14px; }
+.sw-sessions__title { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 8px; }
+.sw-sessions__row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.sw-sessions__row::-webkit-scrollbar { display: none; }
+.sw-session-chip {
+  flex: 0 0 auto; min-width: 116px; text-align: left; cursor: pointer;
+  background: var(--overlay-sm); border: 1px solid var(--border-default); border-radius: 12px; padding: 9px 11px;
+  display: flex; flex-direction: column; gap: 2px;
+  transition: border-color var(--duration-fast, 0.15s) ease, transform var(--duration-fast, 0.15s) ease;
+}
+.sw-session-chip:active { transform: scale(0.97); }
+@media (hover: hover) { .sw-session-chip:hover { border-color: rgba(59,130,246,0.5); } }
+html[data-theme="light"] .sw-session-chip { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+.sw-session-chip__day { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.sw-session-chip__title { font-size: 0.82rem; font-weight: 800; color: var(--text-primary, #f8fafc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-session-chip__vol { font-size: 0.68rem; color: var(--text-secondary, #cbd5e1); font-variant-numeric: tabular-nums; }
+.sw-sessions__hint { font-size: 0.6rem; color: var(--text-faint); margin-top: 6px; }
+
 
 /* ==========================================
    GPS RUN TRACKER PANELS

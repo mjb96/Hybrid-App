@@ -8,6 +8,7 @@ import { showToast } from './state.js';
 import { computeStreak } from './home/dashboard-model.js';
 import { levelFromXp } from './brain/hybrid-score/levels.js';
 import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
+import { compareSessionToPrevWeek } from './analytics/calculations/session-compare.js';
 
 // V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
 // the full depth. Fixed, curated order — the doctrine is "simple front, powerful
@@ -473,6 +474,51 @@ import {
 
 // ── Session detail modal ──────────────────────────────────────────────────────
 
+// Compact "this session vs the same weekday last week" block for the session
+// detail modal. Top set (weight × reps) + total tonnage per exercise, with
+// deltas. Returns '' when there's no previous-week session to compare against.
+function _sessionCompareHTML(state, week, day, weightUnit) {
+  const cmp = compareSessionToPrevWeek(state.weeks || {}, week, day);
+  if (!cmp.hasPrev || cmp.rows.length === 0) return '';
+  const u = weightUnit;
+  const kg = (n) => `${Math.round(n)} ${u}`;
+
+  const deltaChip = (val, suffix) => {
+    if (val == null) return '';
+    const up = val > 0, flat = val === 0;
+    const cls = flat ? 'sds-cmp-delta--flat' : up ? 'sds-cmp-delta--up' : 'sds-cmp-delta--down';
+    const arrow = flat ? '·' : up ? '▲' : '▼';
+    return `<span class="sds-cmp-delta ${cls}">${arrow} ${up ? '+' : ''}${Math.round(val * 100) / 100}${suffix}</span>`;
+  };
+
+  const setStr = (s) => s ? `${s.topWeight} ${u} × ${s.topReps} · ${kg(s.volume)}` : '—';
+
+  const rows = cmp.rows.map(r => {
+    let chips = '';
+    if (r.cur && r.prev) chips = deltaChip(r.topWeightDelta, ` ${u} top`) + deltaChip(r.volumeDelta, ` ${u} vol`);
+    else if (r.cur && !r.prev) chips = `<span class="sds-cmp-delta sds-cmp-delta--up">New this week</span>`;
+    else if (!r.cur && r.prev) chips = `<span class="sds-cmp-delta sds-cmp-delta--flat">Not trained this week</span>`;
+    return `<div class="sds-cmp-row">
+      <div class="sds-cmp-head"><span class="sds-cmp-name">${_esc(r.name)}</span><span class="sds-cmp-chips">${chips}</span></div>
+      <div class="sds-cmp-body">
+        <span class="sds-cmp-this">This: ${setStr(r.cur)}</span>
+        <span class="sds-cmp-prev">Last: ${setStr(r.prev)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalChip = deltaChip(cmp.totalDelta, ` ${u}`);
+  return `<div class="sds-section sds-cmp">
+    <div class="sds-section-title">vs last week · Week ${cmp.prevWeek}</div>
+    <div class="sds-cmp-total">
+      <span class="sds-cmp-total-lbl">Total volume</span>
+      <span class="sds-cmp-total-val">${kg(cmp.totalCur)} <span class="sds-cmp-total-prev">vs ${kg(cmp.totalPrev)}</span></span>
+      ${totalChip}
+    </div>
+    ${rows}
+  </div>`;
+}
+
 function openSessionDetailModal(el) {
   if (!_getState) return;
   const week      = el.getAttribute('data-week');
@@ -569,6 +615,9 @@ function openSessionDetailModal(el) {
         if (gymRpe)         html += `<div class="sds-stat-row"><span class="sds-stat-label">Session RPE</span><span class="sds-stat-value">${_esc(gymRpe)} / 10</span></div>`;
         html += `</div>`;
       }
+
+      // ── vs last week (same weekday) ───────────────────────────────────────
+      html += _sessionCompareHTML(state, week, day, weightUnit);
     }
 
     // ── Run ───────────────────────────────────────────────────────────────────
