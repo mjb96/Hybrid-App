@@ -903,26 +903,30 @@
           </div>
         </article>
 
-        <h2 class="section-header mt-4">Heart Rate Zones (Time in Zone)</h2>
-        <article class="card-dark p-3 mb-4">
-          <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
-            <span style="color:#22d3ee;">● Z1</span>
-            <span style="color:#10b981;">● Z2</span>
-            <span style="color:#f59e0b;">● Z3</span>
-            <span style="color:#f97316;">● Z4</span>
-            <span style="color:#ef4444;">● Z5</span>
-          </div>
-          <div id="hrZonesChartContainer">
-            <p style="color:var(--text-muted);font-size:0.75rem;">Import .FIT data to view HR zones.</p>
-          </div>
-        </article>
+        <details class="watch-analytics-group mt-4">
+          <summary class="watch-analytics-summary">⌚ From your watch — HR zones &amp; cadence <span class="watch-analytics-hint">(needs a .FIT import)</span></summary>
 
-        <h2 class="section-header mt-4">Running Cadence Trend</h2>
-        <article class="card-dark p-3 mb-4">
-          <div id="cadenceChartContainer">
-            <p style="color:var(--text-muted);font-size:0.75rem;">Import .FIT data to view cadence.</p>
-          </div>
-        </article>
+          <h2 class="section-header mt-3">Heart Rate Zones (Time in Zone)</h2>
+          <article class="card-dark p-3 mb-4">
+            <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
+              <span style="color:#22d3ee;">● Z1</span>
+              <span style="color:#10b981;">● Z2</span>
+              <span style="color:#f59e0b;">● Z3</span>
+              <span style="color:#f97316;">● Z4</span>
+              <span style="color:#ef4444;">● Z5</span>
+            </div>
+            <div id="hrZonesChartContainer">
+              <p style="color:var(--text-muted);font-size:0.75rem;">Import a .FIT file from a run to view your time in each heart-rate zone.</p>
+            </div>
+          </article>
+
+          <h2 class="section-header mt-4">Running Cadence Trend</h2>
+          <article class="card-dark p-3 mb-4">
+            <div id="cadenceChartContainer">
+              <p style="color:var(--text-muted);font-size:0.75rem;">Import a .FIT file from a run to view your cadence trend.</p>
+            </div>
+          </article>
+        </details>
 
       </div>
 
