@@ -129,6 +129,7 @@ function renderDayCard(program, dayKey) {
       </div>
 
       <button class="btn-pad" style="font-size: 0.75rem;" data-action="b-add-lift" data-day="${dayKey}">+ Add Lift</button>
+      ${lifts.length ? `<p class="text-xs text-muted" style="margin-top:8px;opacity:0.85;">Sets &amp; reps for these lifts are set per week in <strong>Weekly progression</strong> below — not per lift.</p>` : ''}
     </div>
   `;
 }
@@ -246,7 +247,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'b-week-deload') toggleWeekDeload(target.getAttribute('data-wk'));
 });
 
-document.addEventListener('change', (e) => {
+// Listen on `input` (not `change`) so edits persist per keystroke — this is what
+// makes the "changes save automatically as you type" promise literally true, and
+// stops the last field being lost if the app is backgrounded before a blur fires.
+// None of these handlers re-render, so the focused input is never disturbed.
+document.addEventListener('input', (e) => {
   const target = e.target.closest('#builderViewContainer [data-action]');
   if (!target) return;
 
