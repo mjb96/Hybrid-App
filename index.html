@@ -40,6 +40,28 @@
   
   <style>
     .hidden-input { display: none; }
+
+    /* Offline indicator pill — fixed just above the bottom nav. */
+    .offline-indicator {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #fcd34d;
+      background: rgba(30, 27, 12, 0.94);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    }
+    .offline-indicator[hidden] { display: none; }
+    .offline-indicator__dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
     
     .focus-header-text { font-size: 1.25rem; font-weight: 800; color: var(--text-inverse); letter-spacing: -0.5px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .card-icon-title { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -283,6 +305,7 @@
     }
     .week-nav-arrow:not(:disabled):active { background: rgba(59,130,246,0.28); }
     .week-nav-center { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+    .week-nav-eyebrow { font-size: 0.55rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted, #94a3b8); }
     .week-nav-label  { font-size: 0.9rem; font-weight: 700; color: var(--text-inverse, #f8fafc); letter-spacing: -0.2px; }
     .week-nav-dates  { font-size: 0.68rem; color: var(--text-muted, #94a3b8); }
 
@@ -399,6 +422,13 @@
   </div>
   
   <div class="toast-system" id="sysToast" role="alert" aria-live="assertive">Session Saved ✓</div>
+
+  <!-- Persistent offline indicator — reassures that logging still works and data
+       is saved on-device while the network is down. Hidden while online. -->
+  <div id="offlineIndicator" class="offline-indicator" role="status" aria-live="polite" hidden>
+    <span class="offline-indicator__dot" aria-hidden="true"></span>
+    Offline — changes save on this device
+  </div>
 
   <main id="app-root">
 
@@ -744,6 +774,7 @@
       <div id="analyticsWeekNav" class="week-nav-bar">
         <button id="weekNavPrev" class="week-nav-arrow" aria-label="Previous week" disabled>&#8592;</button>
         <div class="week-nav-center">
+          <span class="week-nav-eyebrow">Viewing</span>
           <span id="weekNavLabel" class="week-nav-label">Week 1 · Current</span>
           <span id="weekNavDates" class="week-nav-dates"></span>
         </div>
@@ -792,7 +823,7 @@
       </div>
 
       <div id="analytics-strength" class="analytics-section">
-        <h2 class="section-header">Strength Analytics</h2>
+        <h2 class="section-header">Strength</h2>
         
         <div class="grid-2-col gap-2 mb-4">
           <article class="card-dark flex-col flex-center p-2" style="border: 1px solid rgba(59,130,246,0.35);">
@@ -838,7 +869,7 @@
       </div>
 
       <div id="analytics-running" class="analytics-section">
-        <h2 class="section-header">Running Analytics</h2>
+        <h2 class="section-header">Running</h2>
 
         <div class="grid-3-col gap-2 mb-2">
           <article class="card-dark flex-col flex-center p-2" style="border: 1px solid rgba(34,211,238,0.35);">
@@ -872,31 +903,35 @@
           </div>
         </article>
 
-        <h2 class="section-header mt-4">Heart Rate Zones (Time in Zone)</h2>
-        <article class="card-dark p-3 mb-4">
-          <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
-            <span style="color:#22d3ee;">● Z1</span>
-            <span style="color:#10b981;">● Z2</span>
-            <span style="color:#f59e0b;">● Z3</span>
-            <span style="color:#f97316;">● Z4</span>
-            <span style="color:#ef4444;">● Z5</span>
-          </div>
-          <div id="hrZonesChartContainer">
-            <p style="color:var(--text-muted);font-size:0.75rem;">Import .FIT data to view HR zones.</p>
-          </div>
-        </article>
+        <details class="watch-analytics-group mt-4">
+          <summary class="watch-analytics-summary">⌚ From your watch — HR zones &amp; cadence <span class="watch-analytics-hint">(needs a .FIT import)</span></summary>
 
-        <h2 class="section-header mt-4">Running Cadence Trend</h2>
-        <article class="card-dark p-3 mb-4">
-          <div id="cadenceChartContainer">
-            <p style="color:var(--text-muted);font-size:0.75rem;">Import .FIT data to view cadence.</p>
-          </div>
-        </article>
+          <h2 class="section-header mt-3">Heart Rate Zones (Time in Zone)</h2>
+          <article class="card-dark p-3 mb-4">
+            <div class="flex gap-3 mb-2 font-bold" style="font-size:0.65rem;">
+              <span style="color:#22d3ee;">● Z1</span>
+              <span style="color:#10b981;">● Z2</span>
+              <span style="color:#f59e0b;">● Z3</span>
+              <span style="color:#f97316;">● Z4</span>
+              <span style="color:#ef4444;">● Z5</span>
+            </div>
+            <div id="hrZonesChartContainer">
+              <p style="color:var(--text-muted);font-size:0.75rem;">Import a .FIT file from a run to view your time in each heart-rate zone.</p>
+            </div>
+          </article>
+
+          <h2 class="section-header mt-4">Running Cadence Trend</h2>
+          <article class="card-dark p-3 mb-4">
+            <div id="cadenceChartContainer">
+              <p style="color:var(--text-muted);font-size:0.75rem;">Import a .FIT file from a run to view your cadence trend.</p>
+            </div>
+          </article>
+        </details>
 
       </div>
 
       <div id="analytics-recovery" class="analytics-section">
-        <h2 class="section-header">Recovery Analytics</h2>
+        <h2 class="section-header">Recovery &amp; Load</h2>
         <h2 class="section-header mt-2">Fatigue Trend (Avg RPE)</h2>
         <article class="card-dark p-3 mb-4">
           <div class="flex gap-4 mb-2" style="align-items:center;font-size:0.68rem;">
@@ -909,7 +944,7 @@
       </div>
 
       <div id="analytics-bodyweight" class="analytics-section">
-        <h2 class="section-header">Body Weight Tracking</h2>
+        <h2 class="section-header">Body Weight</h2>
         <article class="card-dark p-3 mb-4">
           <div class="flex gap-2 mb-3" style="align-items:center;">
             <input type="number" step="0.1" id="analyticsBwInput" placeholder="Today's weight (kg)" style="flex:1;" aria-label="Body weight kg">
@@ -1158,7 +1193,7 @@
 
       <div class="rl-actions">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-run-logger">Cancel</button>
-        <button class="btn-action-block btn-indigo mt-0" data-action="save-run-log">Save Run</button>
+        <button class="btn-action-block btn-blue mt-0" data-action="save-run-log">Save Run</button>
       </div>
     </div>
   </div>
@@ -1556,6 +1591,8 @@
         <!-- Data -->
         <div class="settings-section">
           <div class="settings-section-label">Data &amp; Backups</div>
+          <button class="settings-action-btn settings-action-btn-recover" id="settingsRecoverSnapshotBtn" data-action="recover-presync-snapshot" style="display:none;">↩︎ Recover this device’s data</button>
+          <div class="settings-hint" id="settingsRecoverSnapshotHint" style="display:none;">A newer cloud backup replaced this device’s data on sign-in. Restore what was on this device before that.</div>
           <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
           <button class="settings-action-btn" data-action="export-csv">Export Spreadsheet (CSV)</button>
           <button class="settings-action-btn" data-action="import-data">Import Backup File</button>
@@ -1781,7 +1818,7 @@
 <div class="modal-overlay" id="createProgramModal" role="dialog" aria-modal="true" aria-labelledby="createProgramTitle">
     <div class="modal-content">
       <h2 id="createProgramTitle" class="text-2xl font-heavy text-inverse mb-1">Create Custom Program</h2>
-      <p class="text-sm text-muted mb-4">Scaffold a new blank program schema.</p>
+      <p class="text-sm text-muted mb-4">Start a blank program you can shape day by day.</p>
       
       <label class="text-xs-bold block mb-1 text-muted">PROGRAM NAME</label>
       <input type="text" id="cpInputName" placeholder="e.g. Winter Bulk Split" class="mb-3">
@@ -1825,6 +1862,7 @@
       <button class="sheet-close-btn" data-action="close-quick-start" aria-label="Close">✕</button>
     </div>
     <div class="qs-grid">
+      <button class="qs-item qs-item--primary" data-action="qs-workout" aria-label="Start today's workout"><span class="qs-item__icon" aria-hidden="true">🏋️</span><span class="qs-item__label">Workout</span></button>
       <button class="qs-item" data-action="qs-run"  aria-label="Start a run"><span class="qs-item__icon" aria-hidden="true">🏃</span><span class="qs-item__label">Run</span></button>
       <button class="qs-item" data-action="qs-walk" aria-label="Start a walk"><span class="qs-item__icon" aria-hidden="true">🚶</span><span class="qs-item__label">Walk</span></button>
       <button class="qs-item" data-action="qs-fast" aria-label="Start a fast"><span class="qs-item__icon" aria-hidden="true">⏱️</span><span class="qs-item__label">Fast</span></button>

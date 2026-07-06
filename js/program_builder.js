@@ -129,6 +129,7 @@ function renderDayCard(program, dayKey) {
       </div>
 
       <button class="btn-pad" style="font-size: 0.75rem;" data-action="b-add-lift" data-day="${dayKey}">+ Add Lift</button>
+      ${lifts.length ? `<p class="text-xs text-muted" style="margin-top:8px;opacity:0.85;">Sets &amp; reps for these lifts are set per week in <strong>Weekly progression</strong> below — not per lift.</p>` : ''}
     </div>
   `;
 }
@@ -136,14 +137,15 @@ function renderDayCard(program, dayKey) {
 function renderLiftRow(dayKey, name, i, count) {
   const upDisabled = i === 0;
   const downDisabled = i === count - 1;
+  const arrowStyle = 'width:34px;min-width:34px;height:28px;padding:0;font-size:0.75rem;display:flex;align-items:center;justify-content:center;';
   return `
     <div class="flex gap-2 align-center">
       <div class="flex-col" style="justify-content: center; gap: 4px;">
-        <button class="btn-pad tactile-scale" style="padding: 2px 6px; font-size: 0.6rem; min-width: 0;${upDisabled ? 'opacity:0.3;' : ''}" data-action="b-move-up" data-day="${dayKey}" data-i="${i}" ${upDisabled ? 'disabled' : ''}>▲</button>
-        <button class="btn-pad tactile-scale" style="padding: 2px 6px; font-size: 0.6rem; min-width: 0;${downDisabled ? 'opacity:0.3;' : ''}" data-action="b-move-down" data-day="${dayKey}" data-i="${i}" ${downDisabled ? 'disabled' : ''}>▼</button>
+        <button class="btn-pad tactile-scale" aria-label="Move up" style="${arrowStyle}${upDisabled ? 'opacity:0.3;' : ''}" data-action="b-move-up" data-day="${dayKey}" data-i="${i}" ${upDisabled ? 'disabled' : ''}>▲</button>
+        <button class="btn-pad tactile-scale" aria-label="Move down" style="${arrowStyle}${downDisabled ? 'opacity:0.3;' : ''}" data-action="b-move-down" data-day="${dayKey}" data-i="${i}" ${downDisabled ? 'disabled' : ''}>▼</button>
       </div>
       <input type="text" value="${escapeHtml(name || '')}" data-action="b-lift-name" data-day="${dayKey}" data-i="${i}" placeholder="Exercise name" style="flex: 2;">
-      <button class="btn-pad" style="padding: 4px; color: var(--accent-red);" data-action="b-remove-lift" data-day="${dayKey}" data-i="${i}">✕</button>
+      <button class="btn-pad" aria-label="Remove lift" style="width:38px;min-width:38px;height:38px;padding:0;color: var(--accent-red);" data-action="b-remove-lift" data-day="${dayKey}" data-i="${i}">✕</button>
     </div>
   `;
 }
@@ -246,7 +248,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'b-week-deload') toggleWeekDeload(target.getAttribute('data-wk'));
 });
 
-document.addEventListener('change', (e) => {
+// Listen on `input` (not `change`) so edits persist per keystroke — this is what
+// makes the "changes save automatically as you type" promise literally true, and
+// stops the last field being lost if the app is backgrounded before a blur fires.
+// None of these handlers re-render, so the focused input is never disturbed.
+document.addEventListener('input', (e) => {
   const target = e.target.closest('#builderViewContainer [data-action]');
   if (!target) return;
 

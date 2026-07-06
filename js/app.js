@@ -63,7 +63,7 @@ import {
   saveName, saveBodyWeight, setWeightUnit,
   setProgressionIncrement, setDistanceUnit, setTheme, stepCurrentWeek, setAutoAdvanceWeek,
   saveThresholdPace as saveSettingsThresholdPace,
-  exportData, triggerImport, handleImportFile, confirmResetAllData,
+  exportData, triggerImport, handleImportFile, confirmResetAllData, recoverPreSyncSnapshot,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
@@ -822,6 +822,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'export-data') exportData();
   else if (action === 'import-data') triggerImport();
   else if (action === 'reset-all-data') confirmResetAllData();
+  else if (action === 'recover-presync-snapshot') recoverPreSyncSnapshot();
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
   else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));
@@ -840,6 +841,7 @@ document.addEventListener('click', (e) => {
   // Quick-start sheet (centre "+" FAB) — start Run / Walk / Fast from any tab.
   else if (action === 'open-quick-start')  { toggleQuickStart(true); }
   else if (action === 'close-quick-start') { toggleQuickStart(false); }
+  else if (action === 'qs-workout') { toggleQuickStart(false); launchActiveWorkoutCockpit(); }
   else if (action === 'qs-run')  { toggleQuickStart(false); startQuickActivity('run'); }
   else if (action === 'qs-walk') { toggleQuickStart(false); startQuickActivity('walk'); }
   else if (action === 'qs-fast') { toggleQuickStart(false); openFastingDetail(); }
@@ -1320,10 +1322,37 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// Enforce declared min/max on number inputs (e.g. RPE fields carry max="10").
+// Browsers don't clamp type=number on their own, so a stray "50" RPE would sail
+// through and skew analytics. This bites only when a value exceeds the declared
+// bound, so normal typing is untouched.
+// Only clamp the upper bound on input: a value above max is invalid no matter
+// what's typed next. Min is deliberately NOT clamped here — a partial entry like
+// "1" toward "150" is smaller than a min of 30 and would be snapped away
+// mid-typing. Low bounds are enforced on commit by the readers instead.
+document.addEventListener('input', (e) => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement) || t.type !== 'number' || t.value === '' || t.max === '') return;
+  const v = parseFloat(t.value);
+  if (!Number.isNaN(v) && v > parseFloat(t.max)) t.value = t.max;
+});
+
+// Persistent offline indicator — reflects connectivity so the user knows their
+// logging still works (and stays on-device) while the network is down.
+function initOfflineIndicator() {
+  const el = document.getElementById('offlineIndicator');
+  if (!el) return;
+  const sync = () => { el.hidden = navigator.onLine; };
+  window.addEventListener('online', sync);
+  window.addEventListener('offline', sync);
+  sync();
+}
+
 async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
+    initOfflineIndicator();
     initSyncConflictUI();
     initSessionRecap(() => appState);
     // Recap entry points: after finishing a session, and tapping a logged day.

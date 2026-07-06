@@ -41,6 +41,7 @@
 
 .hs-hero__side { flex: 1 1 0%; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .hs-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.hs-provisional { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; color: #f59e0b; background: rgba(245,158,11,.14); }
 .hs-delta, .hs-momentum { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .hs-delta--up { color: #10b981; background: rgba(16,185,129,.14); }
 .hs-delta--down { color: #ef4444; background: rgba(239,68,68,.14); }

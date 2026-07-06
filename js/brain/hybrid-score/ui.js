@@ -109,7 +109,7 @@ export function heroHTML(r, opts = {}) {
     <div class="hs-hero__body">
       <div class="hs-gauge">${gauge}<div class="hs-status" style="color:${color}">${esc(r.band.status)}</div></div>
       <div class="hs-hero__side">
-        <div class="hs-chips">${deltaChip(r.delta)} ${momentumChip(r.momentum)}</div>
+        <div class="hs-chips">${r.confidence < 50 ? '<span class="hs-provisional" title="Still calibrating — your score sharpens as you log more sessions and check-ins">Provisional</span>' : ''}${deltaChip(r.delta)} ${momentumChip(r.momentum)}</div>
         <div class="hs-confidence" title="How much of the model your data currently covers">
           <div class="hs-confidence__row"><span>Confidence</span><span>${r.confidence}%</span></div>
           <div class="hs-confidence__track"><div class="hs-confidence__fill" style="width:${r.confidence}%"></div></div>

@@ -15,7 +15,6 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   const type = sData.type || '';
 
   const numLabels  = { '': `S${sIdx + 1}`, 'W': 'W', 'D': 'D', 'F': 'F' };
-  const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
   const typeClass  = type === 'W' ? 'type-warmup' : type === 'D' ? 'type-dropset' : type === 'F' ? 'type-amrap' : '';
 
   // Single "load" chip: one control cycling Weighted → Bodyweight → band tiers,
@@ -24,22 +23,19 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   const loadLabels = { '': 'Weighted', 'BW': 'Bodyweight', 'L': '🟢 Light band', 'M': '🟡 Med band', 'H': '🔴 Heavy band' };
   const loadCls = loadState === '' ? 'weighted' : loadState === 'BW' ? 'bw' : loadState;
 
+  // Full-word type label for the (now roomier) expander, vs the terse column badge.
+  const typeFullLabels = { '': 'Working set', 'W': 'Warm-up', 'D': 'Drop set', 'F': 'AMRAP (max reps)' };
+
   return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}">
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
     <div class="set-num-lbl tactile-scale"
          data-action="quick-log"
          data-liftname="${safeLiftName}"
          data-sidx="${sIdx}"
-         title="One-Tap Quick Log (Uses Ghost Targets)"
+         title="Tap to log this set at its target"
+         aria-label="Log set ${sIdx + 1} at target"
          style="cursor:pointer; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); text-align: center;">
          ${numLabels[type]}
-    </div>
-    <div class="type-pill tactile-scale"
-         data-action="cycle-set-type"
-         data-liftname="${safeLiftName}"
-         data-sidx="${sIdx}"
-         title="Tap to cycle: Set → Warmup → Drop → AMRAP">
-         ${pillLabels[type]}
     </div>
     <div>
       <input type="number" class="input-weight-node" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(String(sData.w || ''))}">
@@ -53,13 +49,19 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
         <span class="gym-check-icon">✓</span>
       </label>
     </div>
-    <div>
-      <button class="btn-set-delete tactile-scale"
-        data-action="remove-set"
-        data-liftname="${safeLiftName}"
-        data-sidx="${sIdx}">✕</button>
-    </div>
-    <div class="load-pad-row">
+    <button class="btn-set-more tactile-scale"
+            data-action="toggle-set-adv"
+            aria-label="Set options"
+            title="Set type, load & remove">⋯</button>
+
+    <div class="set-adv-row">
+      <button class="type-pill tactile-scale"
+           data-action="cycle-set-type"
+           data-liftname="${safeLiftName}"
+           data-sidx="${sIdx}"
+           title="Tap to cycle: Working → Warm-up → Drop → AMRAP">
+           ${typeFullLabels[type]}
+      </button>
       <button class="btn-load tactile-scale load-${loadCls}"
               data-action="cycle-load"
               data-liftname="${safeLiftName}"
@@ -67,9 +69,13 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
               title="Tap to set load: Weighted → Bodyweight → Light → Medium → Heavy band. Bodyweight/band auto-fill the weight for volume; edit it to add or assist.">
         ${loadLabels[loadState]}
       </button>
+      <button class="btn-set-delete tactile-scale"
+        data-action="remove-set"
+        data-liftname="${safeLiftName}"
+        data-sidx="${sIdx}">✕ Remove set</button>
     </div>
     ${type === 'W' ? '' : `<div class="rpe-pad-row">
-      <span class="rpe-pad-label">RIR</span>
+      <span class="rpe-pad-label" title="Reps in reserve — how many more reps you could have done">Reps left</span>
       ${(() => {
         // Reps in reserve. Prefer a stored RIR; fall back to legacy per-set RPE
         // (RIR = 10 − RPE) so older logs still show their selection. Warm-ups are
@@ -111,6 +117,13 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
         ${isCompleted ? '' : `<button class="cct-logall tactile-scale" data-action="log-all-target">Log all →</button>`}
       </div>
     ` : ''}
+    ${setsMarkup ? `<div class="set-rows-head" aria-hidden="true">
+      <span></span>
+      <span class="srh-lbl">Weight</span>
+      <span class="srh-lbl">Reps</span>
+      <span class="srh-lbl">Done</span>
+      <span></span>
+    </div>` : ''}
     <div class="set-rows-list">${setsMarkup}</div>
     <div class="append-set-row">
       <button class="btn-pad-append tactile-scale btn-append-warmup" data-action="append-warmup-set" data-liftname="${safeLiftName}">+ Warmup</button>

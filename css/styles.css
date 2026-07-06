@@ -1145,13 +1145,63 @@ select.native-select {
 /* --- 6e. Set rows --- */
 .cockpit-set-row {
   display: grid;
-  grid-template-columns: 28px 40px 1fr 1fr 40px 40px;
+  grid-template-columns: 28px 1fr 1fr 40px 34px;
   gap: var(--space-3);
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid var(--overlay-sm);
   position: relative;
 }
+
+/* Column header so the two bare number fields are never ambiguous. Mirrors the
+   set-row grid so the labels sit over the weight / reps / done columns. */
+.set-rows-head {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 40px 34px;
+  gap: var(--space-3);
+  padding: 0 0 2px;
+}
+.srh-lbl {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* Per-set "⋯" toggle → reveals the set-type / load / remove controls that used
+   to crowd every row. Collapsed by default so the common path is just
+   weight · reps · ✓. */
+.btn-set-more {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-faint);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.btn-set-more:hover { color: var(--text-strong); border-color: rgba(255,255,255,0.25); }
+.cockpit-set-row.adv-open .btn-set-more { color: var(--color-blue); border-color: rgba(59,130,246,0.5); }
+
+.set-adv-row {
+  grid-column: 1 / -1;
+  display: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 2px 2px;
+}
+.cockpit-set-row.adv-open .set-adv-row { display: flex; }
 .cockpit-set-row.is-complete {
   background: linear-gradient(90deg, var(--green-alpha), transparent);
 }
@@ -1219,19 +1269,21 @@ input[type="checkbox"].gym-check:checked ~ .gym-check-icon { opacity: 1; }
   background: transparent;
   border: 1px solid rgba(239, 68, 68, 0.18);
   color: var(--color-red);
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.68rem;
   font-weight: 800;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   cursor: pointer;
+  white-space: nowrap;
   transition:
     background var(--duration-fast) ease,
     box-shadow var(--duration-fast) ease;
-  margin: 0 auto;
+  margin-left: auto;
   user-select: none;
 }
 .btn-set-delete:active {
@@ -1732,6 +1784,19 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 .qs-item:hover  { border-color: var(--color-orange, #ff6b00); background: rgba(255,107,0,0.08); }
 .qs-item:active { transform: scale(0.96); }
 
+/* Workout is the app's core action, so it leads the sheet as a full-width tile
+   above the Run / Walk / Fast row rather than sharing their weight. */
+.qs-item--primary {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  gap: 12px;
+  padding: 16px 20px;
+  border-color: rgba(16,185,129,0.45);
+  background: rgba(16,185,129,0.10);
+  color: var(--color-green, #10b981);
+}
+.qs-item--primary:hover { border-color: var(--color-green, #10b981); background: rgba(16,185,129,0.16); }
+
 
 /* --- Edit button in At a Glance header --- */
 .tile-customise-btn {
@@ -1865,16 +1930,18 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
 }
 
 /* ---- Set type styles ---- */
+/* Lives inside the per-set "⋯" expander now, so it can carry a full word and a
+   pill shape instead of a cramped 40px column badge. */
 .type-pill {
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 800;
   text-align: center;
-  padding: 8px 2px;
-  min-height: 36px;
-  display: flex;
+  padding: 6px 12px;
+  min-height: 32px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 999px;
   background: rgba(59,130,246,0.08);
   color: var(--text-faint);
   border: 1px solid rgba(59,130,246,0.15);
@@ -1882,6 +1949,7 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
   user-select: none;
   letter-spacing: 0.02em;
   line-height: 1;
+  white-space: nowrap;
   transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 .cockpit-set-row.type-warmup { opacity: 0.72; }
@@ -1991,7 +2059,7 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
    PER-SET RPE
    ========================================================================== */
 .rpe-pad-row {
-  grid-column: span 6;
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 4px;
