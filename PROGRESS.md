@@ -72,6 +72,37 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-10 · **Security & hardening audit — 11-point implementation pass**
+  (branch `claude/helyx-security-audit-diww1o`; full log in
+  `docs/SECURITY_AUDIT_2026-07.md`). Eight tested commits:
+  (1) **WebView/SW/repro** — strict CSP (`script-src 'self' https://cdn.jsdelivr.net`,
+  `object-src none`, scoped `connect-src`), Leaflet bundled (`js/vendor/leaflet`),
+  Supabase exact-pinned + **SRI**, Sentry pinned; Kotlin `BridgeSafe.callbackId`
+  sanitiser + WebView debug gated to debug builds; SW precache **generated from
+  the real import graph** (`scripts/module-graph.mjs`/`gen-precache.mjs`, +14
+  reachable-but-uncached modules), atomic install + validated activate;
+  `package-lock` committed. (2) **Truthful deletion** — `performAccountDeletion`
+  reports `ok:true` only when the auth identity is confirmed gone, wipes route
+  IndexedDB, stays signed-in for retry on partial failure. (3) **Route
+  portability** — versioned export envelope carries GPS routes (validated,
+  size-capped), backward-compatible import; fixed the dead-`hybridAppState`-key
+  import/reset no-op bug. (4) **Persistence** — debounced localStorage writes on
+  workout keystrokes (critical events still immediate; flush on pagehide).
+  (5) **Health language** — removed "prevents injury"; in-feature not-medical
+  notices. (6) **Attribution** — removed false "Verified creator" on named
+  coaches; centralised neutral wording. (7) **CI/packaging** — production
+  asset **allowlist** stager (no more docs/SQL/audits in the APK), fixed
+  false-green tests (`window.scrollTo`), smoke fails on console errors, Android
+  CI (lint/test/build), version aligned on `APP_VERSION`. (8) **a11y** — button/
+  input names, dialog semantics, focus restore, WebView pinch-zoom enabled.
+  Tests **468 → 512** (all green); typecheck + precache + smoke green. New
+  tests: precache_manifest, bridge_input, route_portability, persistence_debounce,
+  attribution, web_root_allowlist, accessibility, +8 deletion scenarios; Android
+  `BridgeSafeTest`. · **`[You]`:** deploy the `delete-account` edge fn for full
+  auth-record removal; run `gradle wrapper` once to restore the wrapper jar;
+  device-test GPS/Health/notifications/zoom under the new CSP; real-browser E2E +
+  offline-PWA test still to author.
+
 - 2026-07-10 · **New home-gym program · analytics week-nav fix · run-logging integrity**
   (branch `claude/home-gym-strength-size-j4oaw3`). Three shipped, each tested + committed.
   (1) **5-Day Home Gym Strength + Size Rebuild** added to the hypertrophy catalog — a
