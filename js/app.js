@@ -56,7 +56,7 @@ import {
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
-import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun, handleRunLoggerRpeClick } from './run-logger.js';
+import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun } from './run-logger.js';
 import { initOnboarding, shouldShowOnboarding, startOnboarding, handleOnboardingAction } from './onboarding.js';
 import {
   initSettings, openSettings, closeSettings,
@@ -869,8 +869,6 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-run-logger') openRunLogger();
   else if (action === 'close-run-logger') closeRunLogger();
   else if (action === 'save-run-log')    saveManualRun();
-  else if (action === 'rl-day')          { document.querySelectorAll('[data-action="rl-day"]').forEach(b => b.classList.remove('active')); target.classList.add('active'); }
-  else if (action === 'rl-rpe')          handleRunLoggerRpeClick(target);
 
   // Export & Data
 else if (action === 'export-csv') triggerCSVExport();
