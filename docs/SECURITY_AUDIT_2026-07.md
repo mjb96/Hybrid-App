@@ -89,7 +89,21 @@ could not be completed in this environment say so with the concrete reason.
   Deferred with the reason; the smoke (real module graph) + unit + manifest
   tests cover the same code paths headlessly.
 
-## 9. Accessibility — (pending)
+## 9. Accessibility — 🟡
+- Icon-only buttons (search-clear, week stepper, rating stars) got aria-labels;
+  key interactive inputs (auth, run/gym entry, search, date, FIT/backup file
+  pickers) got accessible names. Zero icon-only buttons remain without a name.
+- All `role="dialog"` now declare `aria-modal` + a label (fixed settingsPanel).
+- Confirm modal restores focus to the triggering element on close (no
+  keyboard/SR dead-end); it already had role/aria-modal + Escape.
+- **Android WebView zoom ENABLED** (`setSupportZoom(true)` + built-in zoom,
+  controls hidden) — it previously disabled pinch-zoom, blocking low-vision
+  users despite the zoom-friendly viewport.
+- Tests: `tests/accessibility.test.js` (button names, input names, dialog
+  semantics, zoom-permissive viewport) lock these against regression.
+- ⏸ Full audit of every screen (contrast ratios, colour-only status, keyboard
+  traps, touch-target sizes) not exhaustively completed — needs a real
+  browser/AT pass; the static guard covers the highest-impact structural gaps.
 
 ## 10. Android release packaging — ✅ (packaging) / 🟡 (wrapper)
 - **Explicit production allowlist** (`scripts/stage-web-root.mjs`) replaces the

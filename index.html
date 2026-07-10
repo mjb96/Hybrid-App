@@ -415,11 +415,11 @@
       <div class="auth-panel" id="authPanelSignin">
         <div class="auth-field">
           <label class="auth-label">Email</label>
-          <input type="email" id="loginEmail" class="auth-input" placeholder="you@example.com" autocomplete="email">
+          <input type="email" id="loginEmail" aria-label="Email" class="auth-input" placeholder="you@example.com" autocomplete="email">
         </div>
         <div class="auth-field">
           <label class="auth-label">Password</label>
-          <input type="password" id="loginPassword" class="auth-input" placeholder="••••••••" autocomplete="current-password">
+          <input type="password" id="loginPassword" aria-label="Password" class="auth-input" placeholder="••••••••" autocomplete="current-password">
         </div>
         <div class="auth-error" id="authSigninError" style="display:none"></div>
         <button class="auth-submit" data-action="login-supabase" id="authSigninBtn">
@@ -431,11 +431,11 @@
       <div class="auth-panel" id="authPanelSignup" style="display:none">
         <div class="auth-field">
           <label class="auth-label">Email</label>
-          <input type="email" id="signupEmail" class="auth-input" placeholder="you@example.com" autocomplete="email">
+          <input type="email" id="signupEmail" aria-label="Email" class="auth-input" placeholder="you@example.com" autocomplete="email">
         </div>
         <div class="auth-field">
           <label class="auth-label">Password</label>
-          <input type="password" id="signupPassword" class="auth-input" placeholder="Min. 8 characters" autocomplete="new-password">
+          <input type="password" id="signupPassword" aria-label="Password (minimum 8 characters)" class="auth-input" placeholder="Min. 8 characters" autocomplete="new-password">
         </div>
         <div class="auth-error" id="authSignupError" style="display:none"></div>
         <div class="auth-success" id="authSignupSuccess" style="display:none">
@@ -691,14 +691,14 @@
         <p class="workout-run-desc" id="cockpitRunSpecs">Loading target distance parameters...</p>
 
         <div class="run-grid-inputs mb-2">
-          <label><span class="set-num-lbl block mb-1" id="runDistUnitLabel">Dist KM</span><input type="number" step="0.01" id="runInputDist" placeholder="0.00"></label>
-          <label><span class="set-num-lbl block mb-1">Time</span><input type="text" id="runInputTime" placeholder="00:00"></label>
-          <label><span class="set-num-lbl block mb-1">RPE</span><input type="number" id="runInputRpeCockpit" placeholder="1-10" max="10"></label>
+          <label><span class="set-num-lbl block mb-1" id="runDistUnitLabel">Dist KM</span><input type="number" step="0.01" id="runInputDist" aria-label="Run distance" placeholder="0.00"></label>
+          <label><span class="set-num-lbl block mb-1">Time</span><input type="text" id="runInputTime" aria-label="Run time" placeholder="00:00"></label>
+          <label><span class="set-num-lbl block mb-1">RPE</span><input type="number" id="runInputRpeCockpit" aria-label="Run effort (RPE 1-10)" placeholder="1-10" max="10"></label>
         </div>
 
         <div class="run-pace-row mb-3" id="runPaceRow">
           <span class="run-pace-label">AVG PACE</span>
-          <input type="text" id="runInputPace" class="run-pace-input" placeholder="—:—— /km" autocomplete="off">
+          <input type="text" id="runInputPace" aria-label="Run pace" class="run-pace-input" placeholder="—:—— /km" autocomplete="off">
           <span class="run-pace-unit" id="runPaceUnit">/km</span>
         </div>
 
@@ -734,7 +734,7 @@
             <div class="fit-import-tile__sub">Garmin · Apple Watch · .FIT file</div>
           </div>
           <div class="fit-import-tile__arrow">›</div>
-          <input type="file" id="fitUpload" accept=".fit" class="hidden-input">
+          <input type="file" id="fitUpload" aria-label="Import FIT run file" accept=".fit" class="hidden-input">
         </label>
         </div><!-- /.run-body-content -->
 
@@ -760,7 +760,7 @@
 
         <div id="gymStatsRow" style="display: none; padding-bottom: 12px; margin-bottom: 8px;">
           <div class="run-grid-inputs mb-2" style="grid-template-columns: repeat(4, 1fr);">
-            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" placeholder="e.g. 45 or 45:00" inputmode="numeric" style="text-align: center;"></label>
+            <label><span class="set-num-lbl block mb-1 text-main">Time</span><input type="text" id="gymInputTime" aria-label="Gym session time" placeholder="e.g. 45 or 45:00" inputmode="numeric" style="text-align: center;"></label>
             <label><span class="set-num-lbl block mb-1 text-accent-pink">Avg HR</span><input type="text" id="gymInputAvgHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
             <label><span class="set-num-lbl block mb-1 text-accent-pink">Max HR</span><input type="text" id="gymInputMaxHR" placeholder="--" readonly style="text-align: center; color:#22d3ee;"></label>
             <label><span class="set-num-lbl block mb-1 text-accent-green">Cals</span><input type="text" id="gymInputCals" placeholder="--" readonly style="text-align: center; color:#10b981;"></label>
@@ -787,7 +787,7 @@
             <div class="fit-import-tile__sub">Garmin · Apple Watch · .FIT file</div>
           </div>
           <div class="fit-import-tile__arrow">›</div>
-          <input type="file" id="fitGymUpload" accept=".fit" class="hidden-input">
+          <input type="file" id="fitGymUpload" aria-label="Import FIT gym file" accept=".fit" class="hidden-input">
         </label>
       </details>
 
@@ -1019,8 +1019,8 @@
             <svg class="search-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
-            <input type="text" id="progSearchInput" placeholder="Search programs, goals, coaches..." autocomplete="off" autocorrect="off" spellcheck="false">
-            <button id="progSearchClear">✕</button>
+            <input type="text" id="progSearchInput" aria-label="Search programs" placeholder="Search programs, goals, coaches..." autocomplete="off" autocorrect="off" spellcheck="false">
+            <button id="progSearchClear" aria-label="Clear search">✕</button>
           </div>
         </div>
 
@@ -1173,7 +1173,7 @@
       <div class="rl-fields">
         <div class="rl-field-row">
           <label class="rl-label" for="rlDate">Date</label>
-          <input type="date" id="rlDate" class="rl-input">
+          <input type="date" id="rlDate" aria-label="Run date" class="rl-input">
         </div>
         <div class="rl-field-row">
           <label class="rl-label">Distance</label>
@@ -1381,7 +1381,7 @@
 
   <!-- Settings Panel -->
   <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
-    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-label="Settings">
 
       <div class="settings-header">
         <div class="settings-profile-hero">
@@ -1499,9 +1499,9 @@
           <div class="settings-row">
             <label class="settings-row-label">Current Week</label>
             <div class="week-stepper">
-              <button class="week-stepper-btn" data-action="week-step" data-delta="-1">−</button>
+              <button class="week-stepper-btn" data-action="week-step" data-delta="-1" aria-label="Previous week">−</button>
               <span class="week-stepper-val" id="settingsCurrentWeek">1</span>
-              <button class="week-stepper-btn" data-action="week-step" data-delta="1">+</button>
+              <button class="week-stepper-btn" data-action="week-step" data-delta="1" aria-label="Next week">+</button>
             </div>
           </div>
           <div class="settings-row">
@@ -1618,7 +1618,7 @@
           <button class="settings-action-btn" data-action="export-data">Export Training Data (JSON)</button>
           <button class="settings-action-btn" data-action="export-csv">Export Spreadsheet (CSV)</button>
           <button class="settings-action-btn" data-action="import-data">Import Backup File</button>
-          <input type="file" id="settingsImportFile" accept=".json" class="hidden-input">
+          <input type="file" id="settingsImportFile" aria-label="Choose backup file to import" accept=".json" class="hidden-input">
           <p class="settings-hint">Your GPS run routes stay on this device — they are <strong>not</strong> uploaded to the cloud. The JSON export is your route backup: it includes every route, so use it to move your data (routes included) to a new device.</p>
           <button class="settings-action-btn settings-action-btn-danger" data-action="reset-all-data">Reset All Data</button>
         </div>
@@ -1741,11 +1741,11 @@
       <h2 id="ratingModalTitle" class="text-2xl font-heavy text-inverse mb-1">Rate This Program</h2>
       <p class="text-lg text-muted mb-4" id="ratingModalProgramName"></p>
       <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;" id="ratingStars">
-        <button class="rating-star" data-action="rating-star" data-rating="1" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
-        <button class="rating-star" data-action="rating-star" data-rating="2" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
-        <button class="rating-star" data-action="rating-star" data-rating="3" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
-        <button class="rating-star" data-action="rating-star" data-rating="4" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
-        <button class="rating-star" data-action="rating-star" data-rating="5" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="1" aria-label="Rate 1 star" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="2" aria-label="Rate 2 stars" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="3" aria-label="Rate 3 stars" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="4" aria-label="Rate 4 stars" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
+        <button class="rating-star" data-action="rating-star" data-rating="5" aria-label="Rate 5 stars" style="font-size:2rem;background:none;border:none;cursor:pointer;opacity:0.4;color:rgba(255,255,255,0.5);">★</button>
       </div>
       <textarea id="ratingReviewText" placeholder="Optional: write a short review…" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:inherit;font-family:inherit;font-size:0.9rem;padding:10px 12px;resize:vertical;min-height:80px;box-sizing:border-box;margin-bottom:16px;"></textarea>
       <button class="btn-action-block btn-blue" data-action="submit-program-rating">Save Rating</button>

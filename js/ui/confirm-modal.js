@@ -55,6 +55,12 @@ export function confirmModal(opts = {}) {
   ensureStyles();
 
   return new Promise((resolve) => {
+    // Remember what had focus so we can restore it when the dialog closes —
+    // otherwise focus falls back to the document top (a screen-reader/keyboard
+    // dead-end).
+    const prevFocus = /** @type {HTMLElement|null} */ (
+      typeof document !== 'undefined' ? document.activeElement : null
+    );
     const overlay = document.createElement('div');
     overlay.className = 'cmodal-overlay';
     overlay.setAttribute('role', 'dialog');
@@ -77,7 +83,12 @@ export function confirmModal(opts = {}) {
       done = true;
       document.removeEventListener('keydown', onKey);
       overlay.classList.remove('cmodal--in');
-      const finish = () => { overlay.remove(); resolve(result); };
+      const finish = () => {
+        overlay.remove();
+        // Restore focus to the trigger element for keyboard/screen-reader users.
+        try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch { /* ignore */ }
+        resolve(result);
+      };
       // Respect reduced-motion (no transitionend fires when transition:none).
       setTimeout(finish, 200);
     };
