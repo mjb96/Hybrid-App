@@ -47,7 +47,15 @@ before(async () => {
     dispatchEvent: noop, readyState: 'complete', body: makeEl('body'), documentElement: makeEl('html'),
   };
   globalThis.window = { addEventListener: noop, removeEventListener: noop, supabase: undefined,
-    location: { reload: noop, href: '' }, matchMedia: () => ({ matches: false, addEventListener: noop }) };
+    location: { reload: noop, href: '' }, matchMedia: () => ({ matches: false, addEventListener: noop }),
+    // Complete the browser-API surface the render path touches — a missing
+    // scrollTo used to throw a swallowed "window.scrollTo is not a function"
+    // while the test still passed (a false green).
+    scrollTo: noop, scroll: noop, scrollBy: noop, scrollY: 0, scrollX: 0,
+    requestAnimationFrame: (cb) => { cb && cb(0); return 0; }, cancelAnimationFrame: noop,
+    getComputedStyle: () => ({ display: 'block', getPropertyValue: () => '' }) };
+  globalThis.scrollTo = noop;
+  globalThis.requestAnimationFrame = (cb) => { cb && cb(0); return 0; };
   globalThis.CSS = { escape: (s) => String(s) };
   globalThis.getComputedStyle = () => ({ display: 'block' });
   globalThis.localStorage = { s: {}, getItem(k) { return this.s[k] ?? null; }, setItem(k, v) { this.s[k] = String(v); }, removeItem(k) { delete this.s[k]; } };

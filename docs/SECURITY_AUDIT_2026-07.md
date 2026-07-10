@@ -74,9 +74,39 @@ could not be completed in this environment say so with the concrete reason.
 - Tests: `tests/attribution.test.js` (incl. a scan proving NO catalog program
   renders "verified/endorsed" wording).
 ## 7. Persistence performance — (pending)
-## 8. Automated testing & CI — (pending)
+## 8. Automated testing & CI — 🟡
+- **Fixed false greens:** tests emitted swallowed `window.scrollTo is not a
+  function` + `localStorage is not defined` while passing. Completed the DOM
+  mocks so those no longer occur; smoke now FAILS on unexpected console errors /
+  unhandled rejections (allowlisting only the known mock messages).
+- CI (`test.yml`) adds `precache:check`; new `android.yml` runs JVM unit tests
+  (incl. `BridgeSafeTest`), Android Lint, and a debug build on PRs. Node pinned
+  to 20 across all workflows.
+- New manifest/allowlist tests (`precache_manifest`, `web_root_allowlist`) run in
+  the normal `npm test`.
+- ⏸ Real-browser E2E + offline-PWA browser test: NOT added — no wired
+  browser-driver harness in this environment to author+verify them honestly.
+  Deferred with the reason; the smoke (real module graph) + unit + manifest
+  tests cover the same code paths headlessly.
+
 ## 9. Accessibility — (pending)
-## 10. Android release packaging — 🟡 (debug flag done; asset allowlist pending)
-## 11. Dependency reproducibility — 🟡
+
+## 10. Android release packaging — ✅ (packaging) / 🟡 (wrapper)
+- **Explicit production allowlist** (`scripts/stage-web-root.mjs`) replaces the
+  broad rsync that copied docs/SQL/audits/tests/config into the APK + Pages site.
+  Used by both `release-aab.yml` and `pages.yml`; enforced by
+  `tests/web_root_allowlist.test.js`. (Gradle's `copyWebAssets` was already an
+  allowlist; the leak was the workflow rsync layered on top of it.)
+- WebView content-debugging disabled in release (Item 1); release keeps
+  `isMinifyEnabled` + ProGuard.
+- Version info aligned (Settings/export/Sentry all read `APP_VERSION`); see
+  `docs/versioning.md`.
+- ⏸ **Gradle wrapper jar** still missing — can't fetch it offline; documented as
+  a one-time `[You]` `gradle wrapper` step. CI unaffected (uses setup-gradle).
+- ⏸ Clean release build from fresh checkout: not run here (no Android SDK in the
+  audit env); `android.yml` performs it in CI.
+
+## 11. Dependency reproducibility — ✅
 - `package-lock.json` un-ignored + committed; production libs pinned to exact
-  versions in `package.json`; `engines.node` documented.
+  versions; `engines.node` set. Toolchain matrix + update guidance in
+  `docs/versioning.md`; CI uses the documented Node/JDK/Gradle/SDK versions.

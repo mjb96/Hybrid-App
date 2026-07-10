@@ -37,17 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Stage the web root
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Stage the web root (explicit production allowlist)
         run: |
-          mkdir -p _site
-          rsync -a \
-            --exclude='.git' --exclude='.github' --exclude='_site' \
-            --exclude='android' --exclude='node_modules' \
-            --exclude='tests' --exclude='scripts' --exclude='docs' \
-            --exclude='supabase' \
-            --exclude='package.json' --exclude='package-lock.json' \
-            --exclude='jsconfig.json' \
-            ./ _site/
+          # Same allowlist as the Android build — never publishes docs, SQL,
+          # audits, tests, or dev config to the public site.
+          node scripts/stage-web-root.mjs _site
           touch _site/.nojekyll
 
       - uses: actions/configure-pages@v5

@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initOnboarding, shouldShowOnboarding } from '../js/onboarding.js';
+
+// Returning-user path stamps onboardingComplete and persists it, which reaches
+// localStorage. Provide a stub so that write succeeds silently instead of
+// logging a swallowed "localStorage is not defined" (a false-green noise line).
+globalThis.localStorage = globalThis.localStorage || {
+  s: {}, getItem(k) { return this.s[k] ?? null; }, setItem(k, v) { this.s[k] = String(v); }, removeItem(k) { delete this.s[k]; },
+};
+
+const { initOnboarding, shouldShowOnboarding } = await import('../js/onboarding.js');
 
 // Drive shouldShowOnboarding with a stubbed state getter.
 const withState = (s) => { initOnboarding(() => s); return shouldShowOnboarding(); };

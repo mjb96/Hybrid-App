@@ -28,8 +28,11 @@ jobs:
       - name: Type-check (tsc on // @ts-check files)
         run: npm run typecheck
 
+      - name: Service-worker precache manifest is up to date
+        run: npm run precache:check
+
       - name: Unit tests
         run: npm test
 
-      - name: Module-graph smoke test
+      - name: Module-graph smoke test (fails on unexpected console errors)
         run: npm run smoke

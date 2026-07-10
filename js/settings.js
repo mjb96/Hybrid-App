@@ -39,6 +39,10 @@ let _getState;
 
 export function initSettings(getStateFn) {
   _getState = getStateFn;
+  // Single source of truth for the displayed version (aligns with package.json
+  // + Android versionName). No hardcoded string to drift out of date.
+  const vEl = document.getElementById('settingsAppVersion');
+  if (vEl) vEl.textContent = `Helyx v${APP_VERSION}`;
 }
 
 // ==========================================
