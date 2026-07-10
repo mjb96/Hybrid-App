@@ -5,6 +5,7 @@
 // =============================================================================
 import { getSupabaseClient } from './supabase.js';
 import { showToast } from '../toast.js';
+import { clearRouteDatabase } from '../db.js';
 
 let _onLoginSuccess = null;
 
@@ -140,38 +141,84 @@ export function clearHelyxLocalData(storage = (typeof localStorage !== 'undefine
   return toRemove.length;
 }
 
-// Permanently delete the signed-in user's account + data. Prefers the
-// `delete-account` edge function (which also removes the auth user via
-// service_role — see supabase/functions/delete-account). Falls back to a
-// direct row delete (RLS permits own-row delete) if the function isn't
-// deployed, so the user's *data* is always erased even before [You] deploy it.
-// Always clears local data and signs out.
-export async function deleteAccount() {
-  const sb = getSupabaseClient();
-  if (!sb) return { ok: false, reason: 'offline' };
+// A Supabase functions error means "auth identity not confirmed deleted". A
+// missing/undeployed function (404 or fetch failure) is distinguished from a
+// runtime failure so the UI can word the two cases correctly.
+function _functionUnavailable(error) {
+  if (!error) return false;
+  const status = error?.context?.status ?? error?.status;
+  if (status === 404) return true;
+  return error?.name === 'FunctionsFetchError' || error?.name === 'FunctionsRelayError';
+}
+
+// Testable core of account deletion. Side effects (local wipe, IndexedDB wipe)
+// are injected so the seven deletion scenarios can be unit-tested without a
+// browser. Returns an HONEST result — `ok` is true ONLY when the auth identity
+// is confirmed removed; otherwise it reports exactly what was and wasn't done.
+//
+// Contract:
+//   { ok:true,  authDeleted:true,  dataDeleted:true }                full success
+//   { ok:false, reason:'offline' }                                   no client
+//   { ok:false, reason:'not-signed-in' }                             no session
+//   { ok:false, reason:'function-unavailable', dataDeleted:bool }    server fn missing
+//   { ok:false, reason:'auth-delete-failed',   dataDeleted:bool }    fn ran, failed
+export async function performAccountDeletion({ sb, clearLocal, clearIndexed }) {
+  if (!sb) return { ok: false, reason: 'offline', authDeleted: false, dataDeleted: false };
 
   let uid = null;
   try {
     const { data } = await sb.auth.getSession();
     uid = data?.session?.user?.id || null;
   } catch { /* ignore */ }
-  if (!uid) return { ok: false, reason: 'not-signed-in' };
+  if (!uid) return { ok: false, reason: 'not-signed-in', authDeleted: false, dataDeleted: false };
 
+  // 1) The privileged edge function removes BOTH the auth user (service_role)
+  //    and the data row. This is the only path that can delete the identity.
   let authDeleted = false;
+  let fnError = null;
   try {
     const { error } = await sb.functions.invoke('delete-account');
-    if (!error) authDeleted = true;
-  } catch { /* function not deployed — fall back below */ }
-
-  if (!authDeleted) {
-    // At minimum, erase the user's data row (the sensitive part).
-    try { await sb.from('user_data').delete().eq('user_id', uid); } catch { /* ignore */ }
+    if (!error) authDeleted = true; else fnError = error;
+  } catch (e) {
+    fnError = e;
   }
 
-  clearHelyxLocalData();
-  try { await sb.auth.signOut(); } catch { /* ignore */ }
+  if (authDeleted) {
+    // Only now — identity confirmed gone — is it safe to wipe the device.
+    await _run(clearLocal);
+    await _run(clearIndexed);
+    try { await sb.auth.signOut(); } catch { /* ignore */ }
+    return { ok: true, authDeleted: true, dataDeleted: true };
+  }
 
-  return { ok: true, authDeleted };
+  // 2) Auth NOT deleted. Still erase the sensitive cloud DATA row (RLS permits
+  //    own-row delete), but DO NOT wipe local or sign out — keep the user signed
+  //    in so a retry can finish, and so we can show an accurate message. Never
+  //    claim the account was deleted.
+  let dataDeleted = false;
+  try {
+    const { error } = await sb.from('user_data').delete().eq('user_id', uid);
+    if (!error) dataDeleted = true;
+  } catch { /* ignore — report dataDeleted:false */ }
+
+  return {
+    ok: false,
+    authDeleted: false,
+    dataDeleted,
+    reason: _functionUnavailable(fnError) ? 'function-unavailable' : 'auth-delete-failed',
+  };
+}
+
+async function _run(fn) { try { await fn?.(); } catch { /* best-effort side effect */ } }
+
+// Permanently delete the signed-in user's account + data. Thin wrapper wiring
+// the real Supabase client and the local/IndexedDB wipes into the tested core.
+export async function deleteAccount() {
+  return performAccountDeletion({
+    sb: getSupabaseClient(),
+    clearLocal: () => clearHelyxLocalData(),
+    clearIndexed: () => clearRouteDatabase(),
+  });
 }
 
 export async function signOutSupabase() {

@@ -503,7 +503,12 @@ export function signOut() {
   signOutSupabase();
 }
 
+// Guard against a double-tap firing two deletions concurrently.
+let _deleteInFlight = false;
+
 export async function deleteAccount() {
+  if (_deleteInFlight) return;
+
   const ok = await confirmModal({
     title: 'Delete your account?',
     message: 'This permanently deletes your account and ALL synced data. It cannot be undone.\n\nConsider exporting your data first (Settings → Export).',
@@ -511,20 +516,39 @@ export async function deleteAccount() {
   });
   if (!ok) return;
 
+  _deleteInFlight = true;
+  const btn = document.getElementById('settingsDeleteAccountBtn');
+  if (btn) btn.disabled = true;
+
   showToast('Deleting account…');
   try {
     const res = await authDeleteAccount();
     if (res.ok) {
-      showToast('Account and data deleted.');
+      // Only reached when the auth identity is confirmed removed.
+      showToast('Account and all data deleted.');
       setTimeout(() => { try { window.location.reload(); } catch (_) {} }, 900);
-    } else {
-      const msg = res.reason === 'not-signed-in' ? 'You are not signed in.'
-        : res.reason === 'offline' ? 'Offline — connect and try again.'
-        : 'Could not delete account. Please try again.';
-      showToast(msg, true);
+      return; // keep the button disabled through the reload
     }
+
+    // Honest, non-technical messaging for each partial/failed outcome. When the
+    // login still exists we keep the user signed in so a retry can finish.
+    const msg =
+      res.reason === 'not-signed-in' ? 'You are not signed in.'
+      : res.reason === 'offline' ? 'You are offline. Reconnect and try again to delete your account.'
+      : res.reason === 'function-unavailable'
+        ? (res.dataDeleted
+            ? 'Your data was removed, but your account login could not be deleted yet. Please try again shortly.'
+            : 'Account deletion is temporarily unavailable. Please try again shortly.')
+      : /* auth-delete-failed */
+        (res.dataDeleted
+          ? 'Your data was removed, but we could not fully delete your account. Please try again.'
+          : 'We could not delete your account. Please try again.');
+    showToast(msg, true);
   } catch (_) {
-    showToast('Could not delete account. Please try again.', true);
+    showToast('We could not delete your account. Please try again.', true);
+  } finally {
+    _deleteInFlight = false;
+    if (btn) btn.disabled = false;
   }
 }
 

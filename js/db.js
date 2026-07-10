@@ -2,6 +2,29 @@ const DB_NAME = 'HybridTrainingDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'runMaps';
 
+// Delete the entire IndexedDB database holding GPS route coordinates. Used by
+// account/data deletion — routes are sensitive location data and must not
+// survive a "delete everything" action. Resolves true on success, false if
+// IndexedDB is unavailable or the delete is blocked/errors (caller decides how
+// to report). Never rejects, so a deletion flow can't hang on it.
+export function clearRouteDatabase() {
+  return new Promise((resolve) => {
+    if (typeof indexedDB === 'undefined' || !indexedDB?.deleteDatabase) { resolve(false); return; }
+    let settled = false;
+    const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+    try {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => done(true);
+      req.onerror = () => done(false);
+      // If another tab holds the DB open the delete is deferred ("blocked");
+      // don't wait forever — report false so the caller can surface a partial.
+      req.onblocked = () => done(false);
+    } catch {
+      done(false);
+    }
+  });
+}
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
