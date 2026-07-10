@@ -37,7 +37,24 @@ could not be completed in this environment say so with the concrete reason.
 - Tests: `tests/precache_manifest.test.js` (reachable ⊆ cached; generator not
   drifted; SW keeps old cache on partial install). CI: `npm run precache:check`.
 
-## 4. GPS routes in export/import — (pending)
+## 4. GPS routes in export/import — ✅
+- Routes live in IndexedDB (`HybridTrainingDB/runMaps`, "week_day" keys), not
+  appState, so JSON export dropped them and import never restored them.
+- Versioned export envelope (`js/state/route-portability.js`, `format`+`version`)
+  now carries `state` + validated `routes`; `parseImport` accepts BOTH the
+  envelope AND legacy raw-appState exports (backward-compatible).
+- `db.js` `getAllRoutes`/`putRoutes` dump+restore routes; import is idempotent by
+  key (no duplicates on re-import). `sanitizeRoutes` validates lat/lng bounds,
+  strips extra fields, caps points-per-route and route-count (malformed/huge
+  payloads can't crash import or bloat storage).
+- **Also fixed two silent bugs:** `handleImportFile` and `confirmResetAllData`
+  read/wrote a dead `hybridAppState` key (real key is `hybrid_engine_v2_state`),
+  so import AND reset were no-ops. Now use `STORAGE_KEY` (+ pre-import backup).
+- **Cloud-sync decision:** routes are intentionally NOT cloud-synced (large +
+  sensitive location data); disclosed in Settings, with JSON export as the
+  route-backup / device-migration mechanism.
+- Tests: `tests/route_portability.test.js` (round-trip, legacy, missing routes,
+  duplicate import, malformed, oversized, coord-range).
 ## 5. Health/readiness language — (pending)
 ## 6. Creator attribution — (pending)
 ## 7. Persistence performance — (pending)

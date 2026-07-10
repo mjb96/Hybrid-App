@@ -64,6 +64,54 @@ export async function getMapFromDB(week, day) {
   });
 }
 
+// Dump every stored route as { "week_day": [[lat,lng],…] } for export/backup.
+// Resolves {} if IndexedDB is unavailable so export never fails on it.
+export async function getAllRoutes() {
+  if (typeof indexedDB === 'undefined') return {};
+  let db;
+  try { db = await openDB(); } catch { return {}; }
+  return new Promise((resolve) => {
+    /** @type {Record<string, any>} */
+    const out = {};
+    try {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.openCursor();
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) { out[String(cursor.key)] = cursor.value; cursor.continue(); }
+        else resolve(out);
+      };
+      req.onerror = () => resolve(out);
+    } catch { resolve(out); }
+  });
+}
+
+// Restore routes from an export. Keyed by "week_day" so re-importing the same
+// file is idempotent (no duplicate routes) — it overwrites the same key rather
+// than appending. Returns the number written. `coords` are already validated by
+// sanitizeRoutes before this is called.
+export async function putRoutes(routes) {
+  if (typeof indexedDB === 'undefined' || !routes) return 0;
+  const entries = Object.entries(routes);
+  if (entries.length === 0) return 0;
+  let db;
+  try { db = await openDB(); } catch { return 0; }
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      for (const [key, coords] of entries) {
+        const [week, day] = key.split('_');
+        // Store under the same "week_day" key format saveMapToDB uses.
+        store.put(coords, `${week}_${day}`);
+      }
+      tx.oncomplete = () => resolve(entries.length);
+      tx.onerror = () => resolve(0);
+    } catch { resolve(0); }
+  });
+}
+
 export async function deleteMapFromDB(week, day) {
   const db = await openDB();
   return new Promise((resolve, reject) => {

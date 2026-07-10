@@ -3,6 +3,10 @@
 // SYSTEM METADATA & TRAINING ARCHITECTURE (GLOBAL DATA LAYER)
 // ====================================================================
 
+// Single source of truth for the user-facing app version. Keep in lockstep with
+// package.json "version" and android versionName (see docs/versioning.md).
+export const APP_VERSION = '1.0.0';
+
 export const CONFIG = {
   stallSetReductionModifier: 0.8,
   weightIncrement: 2.5,

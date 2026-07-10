@@ -20,7 +20,7 @@ import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './s
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
 
-const STORAGE_KEY = 'hybrid_engine_v2_state';
+export const STORAGE_KEY = 'hybrid_engine_v2_state';
 
 // Recovery point written just before a cloud pull overwrites local state. The
 // cloud sync is last-write-wins with no merge, so a stale/empty device could
