@@ -8,6 +8,7 @@ import { CATEGORIES, DIFFICULTY_LABELS } from './catalog.js';
 import { isBookmarked, isProgramCompleted, appState } from '../state.js';
 import { escapeHtml } from '../util.js';
 import { icon as svgIcon } from '../ui/icons.js';
+import { programAttribution } from './attribution.js';
 
 export function isWod(program) {
   return program.tags?.includes('hyrox-wod');
@@ -68,11 +69,12 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   const ratingHTML = '';
   const statsHTML = '';
 
-  // Author / coach attribution — large cards only, skip generic WOD entries
-  const authorHTML = isLarge && program.author && program.author.name && !wod
+  // Author / source attribution — large cards only, skip generic WOD entries.
+  // Neutral wording only (see programAttribution); NO "verified creator" badge.
+  const _attr = (isLarge && !wod) ? programAttribution(program) : null;
+  const authorHTML = _attr
     ? `<div class="prog-card-author">
-         <span class="prog-card-author-name">by ${escapeHtml(program.author.name)}</span>
-         ${program.author.verified ? '<span class="prog-card-verified" title="Verified creator">✓</span>' : ''}
+         <span class="prog-card-author-name">${escapeHtml(_attr.text)}</span>
        </div>`
     : '';
 

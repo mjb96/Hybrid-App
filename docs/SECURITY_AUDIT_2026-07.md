@@ -55,8 +55,24 @@ could not be completed in this environment say so with the concrete reason.
   route-backup / device-migration mechanism.
 - Tests: `tests/route_portability.test.js` (round-trip, legacy, missing routes,
   duplicate import, malformed, oversized, coord-range).
-## 5. Health/readiness language — (pending)
-## 6. Creator attribution — (pending)
+## 5. Health/readiness language — ✅
+- Removed the one absolute medical claim ("This prevents injury.", risk.js) →
+  advisory "…may help reduce injury risk… This isn't a medical diagnosis."
+- Other coaching copy already used advisory wording ("consider", "keep it easy").
+- Added subtle, non-alarming fitness-not-medical notices IN-FEATURE: the
+  acknowledge-required overtraining card and the readiness/recovery hero (which
+  already surface the contributing signals + note that readiness is an estimate).
+
+## 6. Creator attribution — ✅
+- Real named coaches (Wendler, Rippetoe, nSuns, GZCL, Candito, StrongLifts…)
+  were flagged "Verified creator ✓", falsely implying endorsement. There is no
+  verification mechanism.
+- New `js/programs/attribution.js` is the single source of truth: official →
+  "by Helyx", coach → "Inspired by {name}", community → "Community program ·
+  inspired by {name}", structural blocks → none. The legacy `author.verified`
+  boolean is now ignored everywhere; the ✓ badge + its CSS are removed.
+- Tests: `tests/attribution.test.js` (incl. a scan proving NO catalog program
+  renders "verified/endorsed" wording).
 ## 7. Persistence performance — (pending)
 ## 8. Automated testing & CI — (pending)
 ## 9. Accessibility — (pending)

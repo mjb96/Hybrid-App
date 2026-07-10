@@ -7,6 +7,7 @@ import { buildProgramTimeline } from './timeline.js';
 import { programStats, equipmentFit } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, coverGlyphFor } from './program-card.js';
+import { programAttribution } from './attribution.js';
 import { icon as svgIcon } from '../ui/icons.js';
 import { PROGRAMS, WEEK_PHASE_NAMES } from '../constants.js';
 import { getWeekModifier } from '../schema.js';
@@ -17,6 +18,16 @@ import { escapeHtml } from '../util.js';
 let _currentProgramId = null;
 let _appState = null;
 let _detailTab = 'overview';   // V2-6 — 'overview' (what/why) | 'structure' (what you'll do)
+
+// Neutral origin line for the detail hero. Uses the centralised attribution
+// mapping; falls back to a dossier creator name as "Inspired by …". Never
+// implies verification/endorsement.
+function _detailAttribution(program) {
+  const attr = programAttribution(program);
+  if (attr) return attr.text;
+  const creator = program?.dossier?.creator && String(program.dossier.creator).trim();
+  return creator ? `Inspired by ${creator}` : '';
+}
 
 export function renderProgramDetail(programId, appState) {
   // Opening a different program always starts on Overview.
@@ -126,9 +137,7 @@ export function renderProgramDetail(programId, appState) {
         </span>
         <h1 class="detail-title">${escapeHtml(program.name)}</h1>
         <p class="detail-tagline">${escapeHtml(program.tagline || program.dossier?.philosophy?.slice(0, 100) || '')}</p>
-        <div class="detail-author">by ${escapeHtml(program.author?.name || program.dossier?.creator || 'Unknown')}
-          ${program.author?.verified ? ' <span class="detail-verified">✓</span>' : ''}
-        </div>
+        <div class="detail-author">${escapeHtml(_detailAttribution(program))}</div>
       </div>
     </div>
 

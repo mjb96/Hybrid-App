@@ -666,12 +666,6 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   text-overflow: ellipsis;
 }
 
-.prog-card-verified {
-  color: var(--color-blue);
-  font-size: 0.55rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
 
 /* Social proof row (athletes + completion rate) */
 .prog-card-stats {
@@ -970,12 +964,6 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   font-weight: 600;
 }
 
-.detail-verified {
-  display: inline-block;
-  color: var(--color-green);
-  font-size: 0.65rem;
-  margin-left: 2px;
-}
 
 /* Stats Row */
 .detail-stats-row {
@@ -2045,9 +2033,6 @@ html[data-theme="light"] .prog-card--large .prog-card-name {
 html[data-theme="light"] .prog-card--small .prog-card-meta,
 html[data-theme="light"] .prog-card--large .prog-card-meta {
   color: rgba(0,0,0,0.40) !important;
-}
-html[data-theme="light"] .prog-card-verified {
-  color: #2563eb !important;
 }
 html[data-theme="light"] .prog-card--active {
   border-color: rgba(99,102,241,0.35) !important;

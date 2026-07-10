@@ -113,7 +113,7 @@ export function assessOvertrainingRisk(model, state, days = ['mon','tue','wed','
     const lead = signals.slice(0, 2).map(s => s.label.toLowerCase()).join(' + ');
     advice = deloadPlanned
       ? `Several fatigue signals are stacked (${lead}). You've deloaded this week — hold the reduced load, prioritise sleep, and don't add sessions.`
-      : `Several fatigue signals are stacked (${lead}). Take a deload week now — reduce volume, keep intensity easy, and protect sleep. This prevents injury; it isn't lost progress.`;
+      : `Several fatigue signals are stacked (${lead}). Consider a deload week — reduce volume, keep intensity easy, and protect sleep. Easing off when stress is elevated may help reduce injury risk, and a deload isn't lost progress. This isn't a medical diagnosis.`;
   } else if (level === 'watch') {
     headline = 'Fatigue building';
     advice = `Early fatigue signs (${signals.map(s => s.label.toLowerCase()).join(', ')}). Hold planned volume this week and watch recovery — no extra sessions.`;
