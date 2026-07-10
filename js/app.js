@@ -19,6 +19,7 @@ import {
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
   saveStateToLocalStorage,
+  scheduleLocalSave,
   pullEngineDataFromStorage,
   triggerCSVExport,
   setImportSuccessCallback,
@@ -1101,7 +1102,7 @@ initEngine(getState, getDays);
 initHome(getState, getSelectedDay, getDays);
 initAnalytics(getState, getDays);
 initDragDrop(getState, getSelectedDay, saveState);
-initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab);
+initWorkout(getState, getSelectedDay, getDays, saveState, switchGlobalAppTab, scheduleLocalSave);
 initSettings(getState);
 initRunLogger(getState);
 initOnboarding(getState);
