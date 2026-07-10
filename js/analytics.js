@@ -39,7 +39,7 @@ export function shareScoreCard() {
   shareHybridScoreCard(result, st, { showToast });
 }
 
-export function setAnalyticsContext(ctx) { _analyticsContext = ctx || 'weekly-summary'; }
+export function setAnalyticsContext(ctx) { _analyticsContext = ctx || 'weekly-summary'; resetWeekNav(); }
 
 export function initAnalytics(getStateFn, getDaysFn) {
   _getState = getStateFn;

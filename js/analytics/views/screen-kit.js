@@ -8,6 +8,8 @@
 // headline sparkline, and small helpers.
 // =============================================================================
 
+import { getSelectedWeek } from '../week-nav.js';
+
 export const esc = (s) => String(s == null ? '' : s)
   .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -27,12 +29,16 @@ export function mountScreenTabs(sectionId, onSwitch) {
   });
 }
 
-// The current training week's index into a weekly series padded to the
-// program's total weeks — so "this week's" number reads the current week, not
-// the (usually empty) final program week. Shared by the Overviews so they agree
-// with Home. (PRODUCT_AUDIT §4.4.)
+// The selected training week's index into a weekly series padded to the
+// program's total weeks. Follows the week navigator (week-nav.js): with no
+// offset it reads the current training week — so "this week's" number agrees
+// with Home — but once the user steps back through the navigator the stat cards
+// track the week they're viewing instead of staying pinned to the current week.
+// Falls back to the last populated week when currentWeek is unset.
+// (PRODUCT_AUDIT §4.4.)
 export function curWeekIdx(appState, seriesLen) {
-  const wk = parseInt(appState?.currentWeek, 10) || seriesLen;
+  const hasCur = (parseInt(appState?.currentWeek, 10) || 0) > 0;
+  const wk = hasCur ? getSelectedWeek(appState.currentWeek) : seriesLen;
   return Math.max(0, Math.min(wk - 1, seriesLen - 1));
 }
 
