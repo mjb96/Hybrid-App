@@ -1,183 +1,235 @@
 // ==========================================
 // SERVICE WORKER (sw.js)
+// ------------------------------------------
+// Offline strategy:
+//  - REQUIRED_ASSETS are cached ATOMICALLY (cache.addAll). If any single one
+//    fails to download, the whole install rejects and the PREVIOUS working
+//    cache is kept — the user is never left on a half-updated app.
+//  - OPTIONAL_ASSETS (icons, map marker sprites) are best-effort and never
+//    block activation.
+//  - On activate we VALIDATE that the new cache actually holds every required
+//    asset before deleting older caches, so an interrupted install can't purge
+//    the last good version (no mixed-version app).
+//
+// REQUIRED_ASSETS is generated from the real ES-module import graph by
+// scripts/gen-precache.mjs and enforced in CI by scripts/check-precache.mjs
+// (a node --test), so a newly-added, offline-reachable module can never again
+// be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v92';
+const CACHE_NAME = 'helyx-v93';
 
-const LOCAL_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon-512.png',
-  './css/analytics.css',
-  './css/hybrid-score.css',
-  './css/programs.css',
-  './css/styles.css',
-  './js/analytics.js',
-  './js/analytics/calculations/load-calcs.js',
-  './js/analytics/calculations/math-utils.js',
-  './js/analytics/calculations/recovery-calcs.js',
-  './js/analytics/calculations/running-calcs.js',
-  './js/analytics/calculations/strength-calcs.js',
-  './js/analytics/calculations/volume-landmarks.js',
-  './js/analytics/charts.js',
-  './js/analytics/charts/chart-primitives.js',
-  './js/analytics/charts/fasting-charts.js',
-  './js/analytics/charts/load-charts.js',
-  './js/analytics/charts/recovery-charts.js',
-  './js/analytics/charts/running-charts.js',
-  './js/analytics/charts/strength-charts.js',
-  './js/analytics/insights/build-insights.js',
-  './js/analytics/insights/insight-engine.js',
-  './js/analytics/logged-days.js',
-  './js/analytics/scoring/readiness-scoring.js',
-  './js/analytics/utils.js',
-  './js/analytics/views/screen-kit.js',
-  './js/analytics/views/view-bodyweight.js',
-  './js/analytics/views/view-fasting.js',
-  './js/analytics/views/view-monthly-report.js',
-  './js/analytics/views/view-progress.js',
-  './js/analytics/views/view-projections.js',
-  './js/analytics/views/view-recovery.js',
-  './js/analytics/views/view-running.js',
-  './js/analytics/views/view-strength.js',
-  './js/analytics/views/view-weekly-review.js',
-  './js/analytics/week-nav.js',
-  './js/app.js',
-  './js/athlete-profile.js',
-  './js/brain/briefing.js',
-  './js/brain/coach-memory.js',
-  './js/brain/hybrid-score/config.js',
-  './js/brain/hybrid-score/dials.js',
-  './js/brain/hybrid-score/history.js',
-  './js/brain/hybrid-score/hybrid-score.js',
-  './js/brain/hybrid-score/project.js',
-  './js/brain/hybrid-score/share-card.js',
-  './js/brain/hybrid-score/levels.js',
-  './js/brain/hybrid-score/pillars.js',
-  './js/brain/hybrid-score/ui.js',
-  './js/brain/load_models.js',
-  './js/brain/monthly-report.js',
-  './js/brain/morning-briefing.js',
-  './js/brain/predictions.js',
-  './js/brain/recommendations.js',
-  './js/brain/risk.js',
-  './js/brain/streak.js',
-  './js/brain/weekly-review.js',
-  './js/constants.js',
-  './js/dashboard.js',
-  './js/dates.js',
-  './js/db.js',
-  './js/debug.js',
-  './js/dragdrop.js',
-  './js/engine.js',
-  './js/fasting.js',
-  './js/fasting/fasting-achievements.js',
-  './js/fasting/fasting-actions.js',
-  './js/fasting/fasting-calcs.js',
-  './js/fasting/fasting-insights.js',
-  './js/fasting/fasting-nudge.js',
-  './js/fasting/fasting-ring.js',
-  './js/garmin.js',
-  './js/gps-tracker.js',
-  './js/gps/native-bridge.js',
-  './js/haptics.js',
-  './js/health/health-bridge.js',
-  './js/home.js',
-  './js/home/activity-calendar.js',
-  './js/home/dashboard-model.js',
-  './js/home/fasting-card.js',
-  './js/home/morning-briefing-card.js',
-  './js/home/tile-renderers.js',
-  './js/home/weekly-fitness-graph.js',
-  './js/metrics/metrics-load.js',
-  './js/metrics/metrics-running.js',
-  './js/metrics/metrics-strength.js',
-  './js/monitoring/sentry-config.js',
-  './js/monitoring/sentry.js',
-  './js/notifications.js',
-  './js/onboarding.js',
-  './js/onboarding/provisional-score.js',
-  './js/profile-stats.js',
-  './js/program_builder.js',
-  './js/programs/catalog.js',
-  './js/programs/catalog/fitness.js',
-  './js/programs/catalog/hybrid.js',
-  './js/programs/catalog/hypertrophy.js',
-  './js/programs/catalog/hyrox.js',
-  './js/programs/catalog/running.js',
-  './js/programs/catalog/strength.js',
-  './js/programs/collections.js',
-  './js/programs/detail.js',
-  './js/programs/library.js',
-  './js/programs/program-card.js',
-  './js/programs/recommendations.js',
-  './js/programs/search.js',
-  './js/run-logger.js',
-  './js/schema.js',
-  './js/session-recap.js',
-  './js/set-utils.js',
-  './js/settings.js',
-  './js/state.js',
-  './js/state/auth.js',
-  './js/state/import-export.js',
-  './js/state/migrations.js',
-  './js/state/supabase.js',
-  './js/state/sync-conflict-ui.js',
-  './js/state/sync-guard.js',
-  './js/templates.js',
-  './js/timers.js',
-  './js/toast.js',
-  './js/ui/celebration.js',
-  './js/ui/confirm-modal.js',
-  './js/ui/leaflet-loader.js',
-  './js/ui/render.js',
-  './js/ui/sortable.js',
-  './js/util.js',
-  './js/workout-map.js',
-  './js/workout-order.js',
-  './js/workout.js',
+// GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
+const REQUIRED_ASSETS = [
+  "./",
+  "./css/analytics.css",
+  "./css/hybrid-score.css",
+  "./css/programs.css",
+  "./css/styles.css",
+  "./index.html",
+  "./js/analytics.js",
+  "./js/analytics/calculations/load-calcs.js",
+  "./js/analytics/calculations/math-utils.js",
+  "./js/analytics/calculations/recovery-calcs.js",
+  "./js/analytics/calculations/running-calcs.js",
+  "./js/analytics/calculations/session-compare.js",
+  "./js/analytics/calculations/strength-calcs.js",
+  "./js/analytics/calculations/volume-landmarks.js",
+  "./js/analytics/charts.js",
+  "./js/analytics/charts/chart-primitives.js",
+  "./js/analytics/charts/fasting-charts.js",
+  "./js/analytics/charts/load-charts.js",
+  "./js/analytics/charts/recovery-charts.js",
+  "./js/analytics/charts/running-charts.js",
+  "./js/analytics/charts/strength-charts.js",
+  "./js/analytics/insights/build-insights.js",
+  "./js/analytics/insights/insight-engine.js",
+  "./js/analytics/logged-days.js",
+  "./js/analytics/scoring/readiness-scoring.js",
+  "./js/analytics/utils.js",
+  "./js/analytics/views/screen-kit.js",
+  "./js/analytics/views/view-bodyweight.js",
+  "./js/analytics/views/view-fasting.js",
+  "./js/analytics/views/view-monthly-report.js",
+  "./js/analytics/views/view-progress.js",
+  "./js/analytics/views/view-projections.js",
+  "./js/analytics/views/view-recovery.js",
+  "./js/analytics/views/view-running.js",
+  "./js/analytics/views/view-strength.js",
+  "./js/analytics/views/view-weekly-review.js",
+  "./js/analytics/week-nav.js",
+  "./js/app.js",
+  "./js/athlete-profile.js",
+  "./js/brain/briefing.js",
+  "./js/brain/coach-memory.js",
+  "./js/brain/coach-qa.js",
+  "./js/brain/day-verdict.js",
+  "./js/brain/hybrid-score/config.js",
+  "./js/brain/hybrid-score/dials.js",
+  "./js/brain/hybrid-score/history.js",
+  "./js/brain/hybrid-score/hybrid-score.js",
+  "./js/brain/hybrid-score/levels.js",
+  "./js/brain/hybrid-score/pillars.js",
+  "./js/brain/hybrid-score/project.js",
+  "./js/brain/hybrid-score/share-card.js",
+  "./js/brain/hybrid-score/ui.js",
+  "./js/brain/load_models.js",
+  "./js/brain/monthly-report.js",
+  "./js/brain/morning-briefing.js",
+  "./js/brain/pr-share.js",
+  "./js/brain/predictions.js",
+  "./js/brain/recommendations.js",
+  "./js/brain/risk.js",
+  "./js/brain/streak.js",
+  "./js/brain/weekly-review.js",
+  "./js/constants.js",
+  "./js/dashboard.js",
+  "./js/dates.js",
+  "./js/db.js",
+  "./js/debug.js",
+  "./js/dragdrop.js",
+  "./js/engine.js",
+  "./js/fasting.js",
+  "./js/fasting/fasting-achievements.js",
+  "./js/fasting/fasting-actions.js",
+  "./js/fasting/fasting-calcs.js",
+  "./js/fasting/fasting-insights.js",
+  "./js/fasting/fasting-nudge.js",
+  "./js/fasting/fasting-ring.js",
+  "./js/garmin.js",
+  "./js/gps-tracker.js",
+  "./js/gps/native-bridge.js",
+  "./js/haptics.js",
+  "./js/health/health-bridge.js",
+  "./js/home.js",
+  "./js/home/activity-calendar.js",
+  "./js/home/dashboard-model.js",
+  "./js/home/fasting-card.js",
+  "./js/home/morning-briefing-card.js",
+  "./js/home/tile-renderers.js",
+  "./js/home/weekly-fitness-graph.js",
+  "./js/metrics/metrics-load.js",
+  "./js/metrics/metrics-running.js",
+  "./js/metrics/metrics-strength.js",
+  "./js/monitoring/sentry-config.js",
+  "./js/monitoring/sentry.js",
+  "./js/notifications.js",
+  "./js/onboarding.js",
+  "./js/onboarding/provisional-score.js",
+  "./js/onboarding/starter-programs.js",
+  "./js/profile-stats.js",
+  "./js/program_builder.js",
+  "./js/programs/catalog.js",
+  "./js/programs/catalog/fitness.js",
+  "./js/programs/catalog/hybrid.js",
+  "./js/programs/catalog/hypertrophy.js",
+  "./js/programs/catalog/hyrox.js",
+  "./js/programs/catalog/running.js",
+  "./js/programs/catalog/strength.js",
+  "./js/programs/collections.js",
+  "./js/programs/compare-ui.js",
+  "./js/programs/compare.js",
+  "./js/programs/detail.js",
+  "./js/programs/library.js",
+  "./js/programs/program-card.js",
+  "./js/programs/progression.js",
+  "./js/programs/recommendations.js",
+  "./js/programs/search.js",
+  "./js/programs/timeline.js",
+  "./js/run-logger.js",
+  "./js/schema.js",
+  "./js/session-recap.js",
+  "./js/set-utils.js",
+  "./js/settings.js",
+  "./js/state.js",
+  "./js/state/auth.js",
+  "./js/state/import-export.js",
+  "./js/state/migrations.js",
+  "./js/state/supabase.js",
+  "./js/state/sync-conflict-ui.js",
+  "./js/state/sync-guard.js",
+  "./js/sw-reload.js",
+  "./js/templates.js",
+  "./js/timers.js",
+  "./js/toast.js",
+  "./js/ui/celebration.js",
+  "./js/ui/confirm-modal.js",
+  "./js/ui/icons.js",
+  "./js/ui/leaflet-loader.js",
+  "./js/ui/render.js",
+  "./js/ui/sortable.js",
+  "./js/util.js",
+  "./js/util/bridge-callback-id.js",
+  "./js/vendor/leaflet/leaflet.css",
+  "./js/vendor/leaflet/leaflet.js",
+  "./js/workout-map.js",
+  "./js/workout-order.js",
+  "./js/workout.js",
+  "./js/workout/plates.js",
+  "./js/workout/substitutions.js",
+  "./manifest.json",
 ];
 
+const OPTIONAL_ASSETS = [
+  "./icon-512.png",
+  "./js/vendor/leaflet/images/marker-icon.png",
+  "./js/vendor/leaflet/images/marker-icon-2x.png",
+  "./js/vendor/leaflet/images/marker-shadow.png",
+  "./js/vendor/leaflet/images/layers.png",
+  "./js/vendor/leaflet/images/layers-2x.png",
+];
+
+// Third-party libraries pinned + integrity-checked in index.html. Best-effort
+// cache so auth works offline after the first successful load; a CORS/network
+// miss here never fails the install.
 const CDN_ASSETS = [
-  new Request('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', { mode: 'cors' }),
-  new Request('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', { mode: 'cors' }),
-  new Request('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', { mode: 'cors' }),
+  new Request('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js', { mode: 'cors' }),
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Pre-caching offline assets');
-      const all = [...LOCAL_ASSETS, ...CDN_ASSETS];
-      return Promise.allSettled(
-        all.map((asset) =>
-          cache.add(asset).catch((err) =>
-            console.warn('[Service Worker] Failed to cache:', typeof asset === 'string' ? asset : asset.url, err)
-          )
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Atomic — rejects (and aborts the install, keeping the old cache) if any
+    // required asset can't be fetched.
+    await cache.addAll(REQUIRED_ASSETS);
+    // Optional + CDN: best-effort, never block activation.
+    await Promise.allSettled(
+      [...OPTIONAL_ASSETS, ...CDN_ASSETS].map((a) =>
+        cache.add(a).catch((err) =>
+          console.warn('[SW] optional asset skipped:', typeof a === 'string' ? a : a.url, err)
         )
-      );
-    })
-  );
+      )
+    );
+    // Only take over fast once the required set is guaranteed present.
+    await self.skipWaiting();
+  })());
 });
+
+// Confirm the freshly-installed cache holds every required asset before we trust
+// it enough to delete the previous one.
+async function cacheIsComplete(cache) {
+  for (const asset of REQUIRED_ASSETS) {
+    const hit = await cache.match(asset);
+    if (!hit) return false;
+  }
+  return true;
+}
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            console.log('[Service Worker] Deleting old cache:', cache);
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    if (await cacheIsComplete(cache)) {
+      // Safe to purge older versions — the replacement is complete + validated.
+      const names = await caches.keys();
+      await Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)));
+    } else {
+      console.warn('[SW] new cache incomplete — keeping previous cache(s) to avoid a mixed-version app');
+    }
+    await self.clients.claim();
+  })());
 });
 
-// Network-first for JS modules so bug fixes reach users immediately;
-// fall back to cache only when offline; re-throw if cache is also empty.
+// Network-first for JS modules so bug fixes reach users immediately; fall back
+// to cache only when offline; re-throw if cache is also empty.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -202,7 +254,7 @@ self.addEventListener('fetch', (event) => {
         )
     );
   } else {
-    // Cache-first for everything else (HTML, CSS, icons, CDN)
+    // Cache-first for everything else (HTML, CSS, icons, fonts, CDN).
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {

@@ -152,6 +152,10 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
+        // Remote WebView debugging (chrome://inspect) is a release-time attack
+        // surface — enable it ONLY in debuggable builds.
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+
         webView.apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true

@@ -7,10 +7,15 @@
 // in <head> put it on the critical boot path: if unpkg was slow or unreachable,
 // the whole app waited on it before first paint. This fetches it the moment a
 // map is actually needed, caches the promise, and lets boot proceed regardless.
+//
+// SECURITY: Leaflet is now bundled with the app (js/vendor/leaflet/, pinned to
+// the exact version in package.json) rather than pulled from a third-party CDN,
+// so no remote script executes in the privileged Android WebView and maps work
+// fully offline. The loader is otherwise unchanged (still lazy, still cached).
 // =============================================================================
 
-const CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const JS_URL  = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+const CSS_URL = './js/vendor/leaflet/leaflet.css';
+const JS_URL  = './js/vendor/leaflet/leaflet.js';
 
 let _promise = null;
 
