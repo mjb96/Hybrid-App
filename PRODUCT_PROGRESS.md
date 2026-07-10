@@ -254,13 +254,18 @@ P1/quality:
 ### "Logged a few workouts" UX audit (2026-07-06) — deferred follow-ups
 Raised + logged during the 2026-07-06 audit-fix batch (see Session log). These were held
 back deliberately because they're refactors/product decisions, not quick fixes:
-- [ ] **Unify the two run-entry UIs** — the cockpit run panel (numeric 1–10 RPE, GPS +
-  watch import, for today's scheduled run) and the Log-Run modal (RPE buttons 6–10, any
-  day) duplicate the same task with different fields/controls. Converge on one form/field
-  set + one RPE representation. Scope this first of the two.
-- [ ] **Run model: log against a calendar date, not the program week.** The Log-Run modal
-  writes to `currentWeek` + a weekday, so a run can land in an unexpected program week and
-  silently mismatch the calendar. Move run logging to a real date key.
+- [~] **Unify the two run-entry UIs** — RPE representation converged: the Log-Run modal now
+  uses the SAME numeric 1–10 RPE control as the cockpit run panel (2026-07-10), dropping the
+  6–10 button row. Remaining: the modal is still a lighter field subset than the cockpit (no
+  pace/maxHR/cals) — acceptable for a quick logger; only merge into one shared component if it
+  proves worth the churn.
+- [x] **Run model: log against a calendar date, not the program week** (2026-07-10). The
+  Log-Run modal's weekday picker is replaced by a real date input (default today, capped at
+  today). On save the date maps to the correct program week + weekday via `resolveDateToSlot`
+  (a tested, bounded-search inverse of `resolveSlotDate` in `logged-days.js`), the target week
+  bucket is materialised with `verifyWeekStorageSchema`, and the slot is stamped with the run's
+  ACTUAL date instead of "today". Runs can no longer land in an unexpected week or mis-date the
+  calendar; past runs are now loggable. 3 new round-trip/rejection tests; jsdom-verified end to end.
 - [ ] **Onboarding step 3 density** — four questions (level · frequency · recovery ·
   equipment) on one screen. Only split if a test shows the density hurts completion;
   splitting trades density for more taps, so measure before changing.

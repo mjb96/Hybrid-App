@@ -10,6 +10,7 @@
 import { dayVolume, isCompletedSet } from '../set-utils.js';
 
 const num = (v) => parseFloat(v) || 0;
+const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 // A day "has training" if any set was completed (matching the streak/calendar
 // definition) or a run distance was logged. Warm-up-only completions still
@@ -32,6 +33,25 @@ export function resolveSlotDate(state, weekNum, dayIdx, storedDate) {
   const approx = new Date(base);
   approx.setDate(base.getDate() - ((curWk - (weekNum || 1)) * 7) + dayIdx);
   return approx.toISOString().slice(0, 10);
+}
+
+// Inverse of resolveSlotDate: map a real calendar date (YYYY-MM-DD) back to the
+// program slot it belongs to → { weekNum, dayIdx, day }. Implemented as a bounded
+// search over resolveSlotDate (current week down to week 1) so it stays exactly
+// consistent with the canonical resolver regardless of timezone/DST math. Returns
+// null when the date falls before the program's first week (or is invalid), so
+// callers can reject it instead of writing to a phantom week.
+export function resolveDateToSlot(state, dateISO) {
+  if (!dateISO) return null;
+  const curWk = parseInt(state?.currentWeek, 10) || 1;
+  for (let weekNum = curWk; weekNum >= 1; weekNum--) {
+    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+      if (resolveSlotDate(state, weekNum, dayIdx, null) === dateISO) {
+        return { weekNum, dayIdx, day: DAY_ORDER[dayIdx] };
+      }
+    }
+  }
+  return null;
 }
 
 // Invoke `cb` once per day that has completed lifting OR a logged run, with a

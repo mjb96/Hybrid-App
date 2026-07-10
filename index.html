@@ -1139,17 +1139,11 @@
         <button class="settings-close-btn" data-action="close-run-logger" aria-label="Close">✕</button>
       </div>
 
-      <div class="rl-day-row">
-        <button class="rl-day-btn" data-action="rl-day" data-day="mon">Mon</button>
-        <button class="rl-day-btn" data-action="rl-day" data-day="tue">Tue</button>
-        <button class="rl-day-btn" data-action="rl-day" data-day="wed">Wed</button>
-        <button class="rl-day-btn" data-action="rl-day" data-day="thu">Thu</button>
-        <button class="rl-day-btn" data-action="rl-day" data-day="fri">Fri</button>
-        <button class="rl-day-btn" data-action="rl-day" data-day="sat">Sat</button>
-        <button class="rl-day-btn" data-action="rl-day" data-day="sun">Sun</button>
-      </div>
-
       <div class="rl-fields">
+        <div class="rl-field-row">
+          <label class="rl-label" for="rlDate">Date</label>
+          <input type="date" id="rlDate" class="rl-input">
+        </div>
         <div class="rl-field-row">
           <label class="rl-label">Distance</label>
           <div class="rl-input-unit">
@@ -1162,13 +1156,10 @@
           <input type="text" id="rlTime" class="rl-input" placeholder="mm:ss" inputmode="numeric">
         </div>
         <div class="rl-field-row">
-          <label class="rl-label">RPE</label>
-          <div class="rl-rpe-row">
-            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="6">6</button>
-            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="7">7</button>
-            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="8">8</button>
-            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="9">9</button>
-            <button class="rl-rpe-btn" data-action="rl-rpe" data-rpe="10">10</button>
+          <label class="rl-label" for="rlRpe">RPE</label>
+          <div class="rl-input-unit">
+            <input type="number" id="rlRpe" class="rl-input" placeholder="1–10" min="1" max="10" step="0.5" inputmode="decimal">
+            <span class="rl-unit-badge">/10</span>
           </div>
         </div>
         <div class="rl-field-row">

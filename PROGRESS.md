@@ -72,6 +72,25 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-10 · **New home-gym program · analytics week-nav fix · run-logging integrity**
+  (branch `claude/home-gym-strength-size-j4oaw3`). Three shipped, each tested + committed.
+  (1) **5-Day Home Gym Strength + Size Rebuild** added to the hypertrophy catalog — a
+  powerbuilding split (barbell/rack/DBs/bands, 10 weeks) whose per-lift sets×reps are carried
+  as inline `(4×5-8)` specs in each day's `desc`, so `liftTarget` resolves the exact
+  prescription the cockpit, Structure sample and day-preview all render (all 32 lifts verified
+  to resolve, none falling back). (2) **Strength/Running insights week navigator** now actually
+  drives the stat cards: `curWeekIdx` reads `getSelectedWeek()` (with no offset it still equals
+  the current week, so Home agreement holds) — Weekly Volume/distance were previously pinned to
+  the current week no matter which week you scrolled to. Also called the imported-but-unused
+  `resetWeekNav()` on context change so a stale offset can't leak between screens. (3) **Run
+  logging → calendar date** (the last integrity code item): the Log-Run modal's weekday picker
+  became a real date input; runs route to the correct week+day via a tested `resolveDateToSlot`
+  and are stamped with their true date, not "today" — see PRODUCT_PROGRESS deferred-follow-ups.
+  Run-entry RPE representation converged on the cockpit's numeric control. Tests 465 → 468;
+  typecheck + smoke green; run-logger + week-nav both exercised end-to-end in a headless mock.
+  · **Next:** `[You]` device-test the new program + run logger; remaining product follow-ups
+  are onboarding-step-3 density and dense-tile truncation (both "measure before changing").
+
 - 2026-07-04 · **Fresh launch audit + program-experience overhaul + two-way coach**
   (branch `claude/helyx-launch-audit-qn9cg0`; plan in `docs/LAUNCH-AUDIT-PLAN.md`).
   A ground-up launch-readiness audit found the app's core value — training programs
