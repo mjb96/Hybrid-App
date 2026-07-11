@@ -108,6 +108,21 @@ export function recoveryMetrics(state, days) {
   return { hasData: true, score, recommendation };
 }
 
+// Form/TSB (training-stress balance = fitness − fatigue) for the Recovery leaf's
+// stat card. TSB is only meaningful once real training-load history exists; with
+// no data currentCTL is 0 and TSB collapses to 0, which must NOT be shown as a
+// confident "0 · fresh / peaking" verdict. Returns a neutral empty state instead,
+// mirroring the ACWR card and the Stats-tab TSB. Pure + unit-tested.
+export function formatFormTSB(currentCTL, currentATL) {
+  const hasData = (Number(currentCTL) || 0) > 0;
+  if (!hasData) return { value: '--', sub: 'Log training to build this' };
+  const tsb = Math.round((Number(currentCTL) || 0) - (Number(currentATL) || 0));
+  return {
+    value: tsb > 0 ? `+${tsb}` : String(tsb),
+    sub: tsb >= 0 ? 'fresh / peaking' : 'carrying fatigue',
+  };
+}
+
 // Streak view derived from stored streakData. Detects broken streaks (last
 // activity > 1 day ago). Uses UTC dates to match how lastActivityDate is stored.
 export function streakView(streakData) {

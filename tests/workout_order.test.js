@@ -7,7 +7,7 @@
 // ==========================================
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { orderedLiftNames } from '../js/workout-order.js';
+import { orderedLiftNames, pickInheritedSet } from '../js/workout-order.js';
 
 const blueprint = { lifts: ['Back Squat', 'Bench Press', 'Barbell Row', 'Lateral Raise'] };
 
@@ -74,4 +74,50 @@ test('empty / missing day is safe', () => {
 test('non-array values are ignored', () => {
   const wd = { lifts: { mon: { 'Back Squat': [{ w: '60' }], junk: 'nope' } } };
   assert.deepEqual(orderedLiftNames(wd, 'mon', blueprint), ['Back Squat']);
+});
+
+// ── Straight-set inheritance (pickInheritedSet) ───────────────────────────────
+// A tired lifter doing 3×8 at one weight — and a brand-new user with no coach
+// target or history — should carry the previous set's numbers forward instead of
+// re-typing (or, previously, one-tap logging a fabricated 40×10).
+
+test('pickInheritedSet carries the nearest earlier completed set forward', () => {
+  const sets = [
+    { type: '', w: '42.5', r: '8', done: true },
+    { type: '', w: '', r: '', done: false },
+    { type: '', w: '', r: '', done: false },
+  ];
+  assert.deepEqual(pickInheritedSet(sets, 1), { w: '42.5', r: '8' });
+  assert.deepEqual(pickInheritedSet(sets, 2), { w: '42.5', r: '8' });
+});
+
+test('pickInheritedSet prefers the most recent completed set, not the first', () => {
+  const sets = [
+    { type: '', w: '40', r: '8', done: true },
+    { type: '', w: '45', r: '6', done: true },
+    { type: '', w: '', r: '', done: false },
+  ];
+  assert.deepEqual(pickInheritedSet(sets, 2), { w: '45', r: '6' });
+});
+
+test('pickInheritedSet returns null when there is nothing to inherit', () => {
+  assert.equal(pickInheritedSet([{ type: '', w: '', r: '', done: false }], 0), null); // first set
+  assert.equal(pickInheritedSet([{ w: '50', r: '5', done: false }, {}], 1), null);   // prior not completed
+  assert.equal(pickInheritedSet([{ w: '', r: '', done: true }, {}], 1), null);        // prior completed but blank
+  assert.equal(pickInheritedSet(null, 2), null);
+});
+
+test('pickInheritedSet does not cross warm-up and working sets', () => {
+  const sets = [
+    { type: 'W', w: '20', r: '10', done: true }, // warm-up
+    { type: '',  w: '',   r: '',   done: false }, // working — must NOT inherit the warm-up
+  ];
+  assert.equal(pickInheritedSet(sets, 1), null);
+  // …but a working set inherits an earlier completed working set past a warm-up.
+  const sets2 = [
+    { type: 'W', w: '20', r: '10', done: true },
+    { type: '',  w: '60', r: '5',  done: true },
+    { type: '',  w: '',   r: '',   done: false },
+  ];
+  assert.deepEqual(pickInheritedSet(sets2, 2), { w: '60', r: '5' });
 });

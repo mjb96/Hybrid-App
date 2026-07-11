@@ -11,7 +11,7 @@ import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
-import { orderedLiftNames, applyExerciseSwap, neighborDay } from './workout-order.js';
+import { orderedLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
 import { deleteMapFromDB } from './db.js';
@@ -32,6 +32,24 @@ function _numericPlaceholder(inputNode) {
   const ph = inputNode?.getAttribute?.('placeholder');
   const n = ph == null ? NaN : parseFloat(ph);
   return isNaN(n) ? null : n;
+}
+
+// Straight-set convenience: read this exercise's set rows from the live DOM and
+// delegate to the pure `pickInheritedSet` — the nearest earlier completed set of
+// the same kind fills the value only (never the placeholder), so an inherited set
+// is never banked as a "prescribed target" and true-adherence stays honest.
+function _inheritedSetFromSession(exCard, parentRow) {
+  if (!exCard || !parentRow) return null;
+  const rows = Array.from(exCard.querySelectorAll('.cockpit-set-row'));
+  const idx = rows.indexOf(parentRow);
+  if (idx < 0) return null;
+  const sets = rows.map(row => ({
+    type: row.classList.contains('type-warmup') ? 'W' : '',
+    w: row.querySelector('.input-weight-node')?.value || '',
+    r: row.querySelector('.input-reps-node')?.value || '',
+    done: !!row.querySelector('.gym-check')?.checked,
+  }));
+  return pickInheritedSet(sets, idx);
 }
 
 // ── Distance-unit helpers ──────────────────────────────────────────────────────
@@ -175,7 +193,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   // Weights are stored in the user's configured unit — label them with it, not a
   // hardcoded "kg" (which mislabelled every number for lbs users).
   const wUnit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
-  let historicalLineText = 'Baseline Loading Profile Verified';
+  let historicalLineText = 'First time logging this — today sets your baseline';
   if (appState.exerciseStats?.[displayLiftName]) {
     historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + wUnit + ' (Est. 1RM)';
   }
@@ -703,14 +721,30 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
     if (pastWkNum >= 1 && appState.weeks) {
       const historicalSet = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName]?.[sIdx];
       if (historicalSet && historicalSet.w && historicalSet.r) {
-        targetW = historicalSet.w;
-        targetR = historicalSet.r;
+        if (!targetW) targetW = historicalSet.w;
+        if (!targetR) targetR = historicalSet.r;
       }
     }
   }
 
-  if (!targetW) targetW = "40";
-  if (!targetR) targetR = "10";
+  // Carry forward the athlete's own earlier set this session (straight sets), so
+  // one-tapping S2–S3 copies S1 instead of inventing numbers.
+  if (!targetW || !targetR) {
+    const inh = _inheritedSetFromSession(parentRow.closest('.cockpit-exercise'), parentRow);
+    if (inh) {
+      if (!targetW) targetW = inh.w;
+      if (!targetR) targetR = inh.r;
+    }
+  }
+
+  // Nothing honest to log (no typed value, no ghost, no history, no prior set) —
+  // ask for the numbers rather than fabricating a 40×10. Matches the manual-tick
+  // path, which bounces the same way instead of inventing a load.
+  if (!targetW || !targetR) {
+    showToast('Enter weight & reps first', true);
+    (!targetW ? wInput : rInput).focus();
+    return;
+  }
 
   wInput.value = targetW;
   rInput.value = targetR;
@@ -929,7 +963,17 @@ export function toggleGymCheckLoggingState(checkboxNode) {
           if (!rInput.value) rInput.value = historicalSet.r;
         }
       }
-      // 2) Otherwise fall back to the visible ghost/target shown in the field —
+      // 2) Otherwise carry forward the athlete's own earlier set this session —
+      //    straight-set logging (3×8 at one weight) without re-typing, and the
+      //    only fill a brand-new user with no coach target/history can get.
+      if (!wInput.value || !rInput.value) {
+        const inh = _inheritedSetFromSession(exCard, parentRow);
+        if (inh) {
+          if (!wInput.value) wInput.value = inh.w;
+          if (!rInput.value) rInput.value = inh.r;
+        }
+      }
+      // 3) Otherwise fall back to the visible ghost/target shown in the field —
       //    but only when it's an actual number. Never invent an arbitrary load.
       const wGhost = parseFloat(wInput.placeholder);
       const rGhost = parseInt(rInput.placeholder, 10);

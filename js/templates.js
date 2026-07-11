@@ -38,10 +38,10 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
          ${numLabels[type]}
     </div>
     <div>
-      <input type="number" class="input-weight-node" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(String(sData.w || ''))}">
+      <input type="number" inputmode="decimal" class="input-weight-node" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(String(sData.w || ''))}">
     </div>
     <div>
-      <input type="number" class="input-reps-node" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
+      <input type="number" inputmode="numeric" class="input-reps-node" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
     </div>
     <div class="gym-check-container">
       <label class="gym-check-wrap">

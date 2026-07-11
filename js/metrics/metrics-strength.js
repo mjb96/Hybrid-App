@@ -12,6 +12,23 @@ function e1rm(weight, reps) {
   return weight * (1 + reps / 30);
 }
 
+/**
+ * Is a lift a genuine PR this week — a NEW best that beats prior history — rather
+ * than a first-ever baseline? Mirrors the cockpit rule (a PR needs prior history;
+ * the first log of a lift is a "baseline", not a trophy) so analytics and the
+ * cockpit agree. Needs a stat carrying priorBestMax (best e1RM before this week).
+ * @param {{currentEstimatedMax?:number, allTimeMax?:number, priorBestMax?:number}} stat
+ */
+export function isWeeklyPR(stat) {
+  if (!stat) return false;
+  const cur   = stat.currentEstimatedMax || 0;
+  const all   = stat.allTimeMax || 0;
+  const prior = stat.priorBestMax || 0;
+  // Must have prior history (else it's a baseline) AND this week must hold the
+  // all-time best (the current-week max is the top e1RM on record).
+  return cur > 0 && prior > 0 && cur >= all - 0.01;
+}
+
 function isCompleted(s) {
   return s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
 }
