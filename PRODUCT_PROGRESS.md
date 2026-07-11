@@ -315,6 +315,24 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-11 (cont.) · **UX audit — analytics honesty & coherence** (same branch
+  `claude/helyx-ux-audit-6g6r4q`). Continued the real-browser pass into the returning-user
+  analytics (logged a full session, then read the leaves). Two fixes: **(Medium) honest FORM
+  (TSB) empty state** — with no training-load data the Recovery leaf showed a confident
+  "0 · fresh / peaking" while its sibling Readiness/ACWR cards showed "No Data"/"--"; new pure
+  `formatFormTSB` returns "-- · Log training to build this" until real load history, and a
+  signed TSB once there is. **(Medium) a baseline is not a PR** — the Strength leaf counted
+  first-ever logs as "PRs this week / lifts at a new best", contradicting the cockpit's
+  Sprint-4 "Baseline set, not a trophy" rule; added `priorBestMax` (best e1RM before the
+  current week) to the analytics strength stats + a pure `isWeeklyPR(stat)` (requires prior
+  history) now used by the PRs-This-Week tile, the all-lifts PR count and the per-row NEW PR
+  badge — so a first-ever session reads 0 PRs, matching the cockpit. (Progression sub-view was
+  already safe — it only lists lifts with ≥2 weeks.) `formatFormTSB` shipped in the prior
+  commit (519 → 523); `isWeeklyPR` ×4 here (**523 → 527**); typecheck + smoke + precache green;
+  both fixes re-verified in the real browser. · **Next:** tap-to-explain layer for
+  VDOT/e1RM/ACWR; home-gym-aware onboarding equipment default; Profile "Lifetime" tiles →
+  icon set (currently emoji); extend set inheritance to coached programs.
+
 - 2026-07-11 · **Real-browser UX audit — logging speed + running-program coherence**
   (branch `claude/helyx-ux-audit-6g6r4q`; full write-up in `USER_EXPERIENCE_AUDIT.md`).
   Drove the app for real in headless Chromium at Pixel size through onboarding → set-by-set

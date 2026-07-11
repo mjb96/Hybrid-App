@@ -22,6 +22,7 @@ import {
   deloadInsight,
 } from '../insights/insight-engine.js';
 import { isCompletedSet } from '../../set-utils.js';
+import { isWeeklyPR } from '../../metrics/metrics-strength.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { getProgramById } from '../../state.js';
@@ -338,8 +339,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
   const volCur  = sa.volSeries[ci] || 0;
   const volPrev = sa.volSeries[ci - 1] || 0;
   const volPct  = volPrev > 0 ? ((volCur - volPrev) / volPrev) * 100 : null;
-  const prCount = Object.values(data.dynamicStats).filter(v =>
-    v.currentEstimatedMax > 0 && Math.abs(v.currentEstimatedMax - v.allTimeMax) < 0.5).length;
+  const prCount = Object.values(data.dynamicStats).filter(isWeeklyPR).length;
 
   let hero;
   if (top) {
@@ -440,14 +440,14 @@ export function render1RMList(container, dynamicStats) {
     return;
   }
 
-  const prCount  = entries.filter(([, v]) => v.currentEstimatedMax > 0 && Math.abs(v.currentEstimatedMax - v.allTimeMax) < 0.5).length;
+  const prCount  = entries.filter(([, v]) => isWeeklyPR(v)).length;
   const maxAllTime = entries[0][1].allTimeMax;
 
   const rows = entries.map(([name, statData]) => {
     const pct  = Math.min(100, Math.max(5, Math.round((statData.allTimeMax / maxAllTime) * 100)));
     const cur  = statData.currentEstimatedMax || 0;
     const prev = statData.previousWeekMax || 0;
-    const isCurrentWeekPR = cur > 0 && Math.abs(cur - statData.allTimeMax) < 0.5;
+    const isCurrentWeekPR = isWeeklyPR(statData);
 
     const badge = isCurrentWeekPR
       ? `<span style="font-size:0.7rem;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid #10b981;border-radius:4px;padding:2px 6px;margin-left:6px;">PR</span>`

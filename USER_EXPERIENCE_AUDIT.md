@@ -60,6 +60,11 @@ confident "0 · fresh / peaking"** — a computed-looking verdict with nothing b
 (see §3). **VDOT** itself is never *defined* for a lay user — paired with "Running fitness"
 as a subtitle, which softens it. Deferred (a tooltip pass), not a blocker.
 
+With a session logged, the Strength leaf reads well (this-week session, top-lift e1RM,
+weekly volume) — **but** "PRS THIS WEEK: 2 · lifts at a new best" counted two *first-ever*
+logs as PRs, contradicting the cockpit, which deliberately calls a first log a **"Baseline
+set", not a trophy** (the Sprint-4 anti-spam rule). Same event, two verdicts. Fixed (§3).
+
 ### 7. Health Connect — not re-tested here (Android-native bridge; covered by prior work).
 
 ### 8. Running & GPS — not exercised in-browser (web geolocation unavailable headless;
@@ -78,9 +83,10 @@ Folded a small native-keyboard fix into the logging change (`inputmode`).
 | 2 | **High** | New user / no-history exercise: straight sets required **re-typing every field** — no inheritance from the set you just did; one-tap couldn't work at all | **Fixed** |
 | 3 | Medium | Running-only programs showed **"~1 sets per lift"** and **"1×8" volume badges** — meaningless strength vocabulary on a run block | **Fixed** |
 | 4 | Medium | Recovery leaf with no data: FORM (TSB) showed a confident **"0 · fresh / peaking"** while its two sibling cards honestly showed "No Data"/"--" — a misleading computed verdict | **Fixed** |
-| 5 | Low | Cockpit's first-time banner read **"Baseline Loading Profile Verified"** — machine jargon on a new user's first exercise | **Fixed** |
-| 6 | Low | Weight/reps inputs had no `inputmode` (marginal mobile-keyboard nicety) | **Fixed** |
-| 7 | Low | Onboarding equipment defaults to Full Gym; VDOT undefined; Profile "Lifetime" tiles still emoji; onboarding card vertical centring | Deferred |
+| 5 | Medium | Strength leaf counted **first-ever baselines as "PRs this week"** — contradicting the cockpit's "Baseline set, not a PR" rule (same event, two verdicts) | **Fixed** |
+| 6 | Low | Cockpit's first-time banner read **"Baseline Loading Profile Verified"** — machine jargon on a new user's first exercise | **Fixed** |
+| 7 | Low | Weight/reps inputs had no `inputmode` (marginal mobile-keyboard nicety) | **Fixed** |
+| 8 | Low | Onboarding equipment defaults to Full Gym; VDOT undefined; Profile "Lifetime" tiles still emoji; onboarding card vertical centring | Deferred |
 
 ---
 
@@ -111,10 +117,17 @@ Extracted a pure, unit-tested `formatFormTSB(currentCTL, currentATL)` in
 Recovery-leaf cards (Readiness, Form, Load Ratio) now agree there's no data yet. When data
 exists it shows a **signed** TSB (+8 / -13), matching the Stats-tab card.
 
-**D. Plain-language first-exercise banner (first-use clarity).**
+**D. A baseline is not a PR (analytics ↔ cockpit coherence).**
+Added `priorBestMax` (best e1RM from any week before the current one) to the analytics
+strength stats and a pure, unit-tested `isWeeklyPR(stat)` in `js/metrics/metrics-strength.js`
+that requires prior history. The "PRs This Week" tile, the all-lifts PR count and the per-row
+"NEW PR" badge all use it now, so a first-ever log reads as a baseline (0 PRs) — matching the
+cockpit. (The Progression sub-view was already safe: it only lists lifts with ≥2 weeks.)
+
+**E. Plain-language first-exercise banner (first-use clarity).**
 "Baseline Loading Profile Verified" → **"First time logging this — today sets your baseline"**.
 
-**E. Native keyboards (native feel).** Weight input `inputmode="decimal"`, reps
+**F. Native keyboards (native feel).** Weight input `inputmode="decimal"`, reps
 `inputmode="numeric"`.
 
 ---
@@ -139,6 +152,7 @@ exists it shows a **signed** TSB (+8 / -13), matching the Stats-tab card.
 | Couch-to-5K commitment strip | "~1 · SETS PER LIFT" | "3× · RUNS PER WEEK" |
 | Couch-to-5K Plan timeline row | "Week 1: 8×(60s run/90s walk) … **1×8**" | "Week 1: 8×(60s run/90s walk)" (no phantom badge) |
 | Recovery leaf, no data | FORM (TSB) "0 · fresh / peaking" (beside "No Data" / "--") | FORM (TSB) "-- · Log training to build this" (all three agree) |
+| Strength leaf, first-ever session | "PRS THIS WEEK: 2 · lifts at a new best" | "PRS THIS WEEK: 0" (baselines aren't PRs — matches the cockpit) |
 | First exercise, no history | "Baseline Loading Profile Verified" | "First time logging this — today sets your baseline" |
 | Weight/reps field focus (mobile) | Generic numeric keyboard | Decimal / numeric keypad |
 
@@ -153,11 +167,13 @@ exists it shows a **signed** TSB (+8 / -13), matching the Stats-tab card.
 - `tests/metrics_load.test.js` (+4): `formatFormTSB` — neutral "--" empty state on zero/
   null load data; signed positive (fresh) / negative (fatigue) form once data exists; bare
   "0" (not "+0") at exact balance.
+- `tests/metrics_strength.test.js` (+4): `isWeeklyPR` — a first-ever baseline is not a PR;
+  a genuine new best over prior history is; a below-record week isn't; guards no-data/null.
 
-**Suite: 512 → 523 node tests, all pass. typecheck ✓, smoke ✓, precache ✓.** Each behaviour
+**Suite: 512 → 527 node tests, all pass. typecheck ✓, smoke ✓, precache ✓.** Each behaviour
 change was also re-verified end-to-end in the real browser (inheritance on both paths, the
-honest bounce, the running-program strip/timeline, reload survival, and the Recovery-leaf
-empty state).
+honest bounce, the running-program strip/timeline, reload survival, the Recovery-leaf empty
+state, and "PRs This Week" reading 0 on a first-ever session).
 
 ---
 
@@ -175,7 +191,7 @@ empty state).
 - Workout logging: **8.5** (was ~7.5 for straight-set/new-user friction) — now fast, honest, forgiving.
 - Program browsing: **8** — rich and premium; running metadata now coherent.
 - Home screen: **8.5** — glanceable, one voice, on-brand Garmin direction.
-- Analytics: **7.5** — deep and mostly explained; empty states now honest; a couple of undefined terms (VDOT) remain.
+- Analytics: **8** — deep, honest empty states, and PR/baseline now coherent with the cockpit; a couple of undefined terms (VDOT) remain.
 - Settings: **7.5** — organised, destructive actions separated (not deeply re-audited here).
 - Native-app feel: **8** — real transitions, icon set, safe areas, timers, haptics; `inputmode` added.
 - Overall retention potential: **8**.
