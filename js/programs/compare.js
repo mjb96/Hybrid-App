@@ -10,6 +10,19 @@
 // page's time-cost / weekly-volume / equipment strip.
 // =============================================================================
 
+/**
+ * Does the program prescribe any barbell/dumbbell work at all? Running- and
+ * endurance-only programs carry `weeklyVolModifiers.sets/reps` purely to hold an
+ * `intensityLabel` (the real run prescription) — so "sets × reps" and "sets per
+ * lift" are meaningless for them. Detect the lift-less case by the days: a run
+ * program's days are all `lifts: []`.
+ */
+export function programHasLifts(program) {
+  const days = program?.days;
+  if (!days || typeof days !== 'object') return false;
+  return Object.values(days).some(d => Array.isArray(d?.lifts) && d.lifts.length > 0);
+}
+
 /** Average working sets prescribed across a program's weeks, or null. */
 function avgWeeklySets(program) {
   const mods = program?.weeklyVolModifiers;
@@ -42,6 +55,7 @@ export function programStats(program) {
     sessionMin,
     totalHours,
     weeklySets: avgWeeklySets(program),
+    hasLifts: programHasLifts(program),
     difficulty: program?.difficulty || null,
     equipment: Array.isArray(program?.equipment) ? program.equipment : [],
     metrics: program?.metrics || null,
@@ -103,7 +117,7 @@ export function buildComparison(programA, programB) {
     { label: 'Frequency',     a: fmtDays(sa.daysPerWeek),   b: fmtDays(sb.daysPerWeek) },
     { label: 'Session',       a: fmtSession(sa.sessionMin), b: fmtSession(sb.sessionMin) },
     { label: 'Time cost',     a: fmtHours(sa.totalHours),   b: fmtHours(sb.totalHours) },
-    { label: 'Set volume',    a: fmtSets(sa.weeklySets),    b: fmtSets(sb.weeklySets) },
+    { label: 'Set volume',    a: fmtSets(sa.hasLifts ? sa.weeklySets : null),    b: fmtSets(sb.hasLifts ? sb.weeklySets : null) },
     { label: 'Level',         a: sa.difficulty || '—',      b: sb.difficulty || '—' },
     { label: 'Equipment',     a: sa.equipment.join(', ') || '—', b: sb.equipment.join(', ') || '—' },
   ];

@@ -4,7 +4,7 @@
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { buildProgramTimeline } from './timeline.js';
-import { programStats, equipmentFit } from './compare.js';
+import { programStats, equipmentFit, programHasLifts } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, coverGlyphFor } from './program-card.js';
 import { programAttribution } from './attribution.js';
@@ -428,10 +428,16 @@ function renderCommitmentStrip(program, settings) {
   if (s.totalHours) {
     tiles.push({ v: `~${s.totalHours}h`, l: `over ${s.weeks} wks`, c: 'var(--text-inverse)' });
   }
-  if (s.weeklySets) {
+  if (s.weeklySets && s.hasLifts) {
     // This is the week modifier's sets-per-lift, not total weekly sets — label
-    // it honestly (a 5-day program obviously isn't "4 sets a week").
+    // it honestly (a 5-day program obviously isn't "4 sets a week"). Only shown
+    // for programs that actually lift; a run block's sets/reps are an internal
+    // volume hack, not a prescription (the real one lives in the day/plan label).
     tiles.push({ v: `~${s.weeklySets}`, l: 'sets per lift', c: 'var(--text-inverse)' });
+  } else if (s.daysPerWeek && !s.hasLifts) {
+    // Running/endurance block: show the session cadence instead of a phantom
+    // "sets per lift" so the strip still reads as three honest decision numbers.
+    tiles.push({ v: `${s.daysPerWeek}×`, l: 'runs per week', c: 'var(--text-inverse)' });
   }
   if (s.equipment.length) {
     if (fit.missing.length) {
@@ -458,10 +464,14 @@ function renderPlanTimeline(program) {
   const rows = buildProgramTimeline(program);
   if (!rows.length) return '';
 
+  // A run block's weekly sets/reps are an internal volume hack (sets:1) — the real
+  // per-week prescription is the row label ("Week 3: 2×(90s run/90s walk…)"), so
+  // suppress the meaningless "1×8" badge on lift-less programs.
+  const showSpec = programHasLifts(program);
   const items = rows.map(r => {
     const color = PLAN_KIND_COLOR[r.kind] || PLAN_KIND_COLOR.work;
     const tag = PLAN_KIND_LABEL[r.kind];
-    const spec = r.sets != null ? `${r.sets}×${r.reps ?? ''}` : '';
+    const spec = (showSpec && r.sets != null) ? `${r.sets}×${r.reps ?? ''}` : '';
     return `
       <div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--overlay-sm);${r.deload ? 'border-left:3px solid ' + color + ';padding-left:8px;' : ''}">
         <span style="width:38px;font-family:ui-monospace,monospace;font-size:0.72rem;color:var(--text-muted);font-variant-numeric:tabular-nums;">Wk ${r.week}</span>

@@ -315,6 +315,30 @@ is binding until a new full audit says otherwise.
 ## Session log
 _Newest first: date · what changed · what's next._
 
+- 2026-07-11 · **Real-browser UX audit — logging speed + running-program coherence**
+  (branch `claude/helyx-ux-audit-6g6r4q`; full write-up in `USER_EXPERIENCE_AUDIT.md`).
+  Drove the app for real in headless Chromium at Pixel size through onboarding → set-by-set
+  logging → mid-session reload → programs → analytics. Confirmed data safety holds (a
+  logged set survives a page reload) and shipped four fixes, each tested:
+  **(1, High) straight-set inheritance + killed a 40×10 fabrication** — completing an empty
+  set with no coach target/history now carries forward the athlete's own nearest earlier
+  completed set (same kind; warm-ups don't cross working sets), in BOTH the manual-tick and
+  one-tap quick-log paths; the quick-log path previously logged a fabricated 40×10 instead of
+  bouncing like the manual path — it now bounces honestly. The fill sets the input value only
+  (never the placeholder), so E5 true-adherence is untouched (verified: no phantom `tw`/`tr`).
+  Core logic is a pure, unit-tested `pickInheritedSet` in `js/workout-order.js`.
+  **(2, Medium) running programs no longer wear strength clothing** — new pure
+  `programHasLifts`/`programStats.hasLifts`; lift-less programs show "N× runs per week"
+  instead of "~1 sets per lift", suppress the meaningless "1×8" Plan-timeline badge (the row
+  label already carries the real run prescription), and read "—" for Set volume in compare.
+  **(3, Low) plain-language cockpit banner** — "Baseline Loading Profile Verified" →
+  "First time logging this — today sets your baseline". **(4, Low) native keyboards** —
+  `inputmode="decimal"` (weight) / `"numeric"` (reps). Tests **512 → 519** (all green);
+  typecheck + smoke + precache green; every change re-verified in the real browser. ·
+  **Next:** extend inheritance to coached programs (ghost the athlete's actual S1 over a
+  stale plan number); a tap-to-explain layer for VDOT/e1RM/ACWR; home-gym-aware onboarding
+  equipment default.
+
 - 2026-07-06 · **UX audit-fix batch — "logged a few workouts" pass** (branch
   `claude/workout-app-ux-audit-5ejlcx`). Fixed the audit findings in reviewable slices:
   **(logging)** decluttered the workout set row to weight·reps·✓·⋯ with the set-type/load/

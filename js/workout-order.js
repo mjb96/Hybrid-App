@@ -71,6 +71,37 @@ export function neighborDay(days, current, dir) {
 }
 
 /**
+ * Straight-set inheritance: given an exercise's sets and the index of the one
+ * being logged, return the {w, r} of the nearest *earlier completed* set of the
+ * same kind (warm-up vs working), or null. So a lifter doing 3×8 at one weight —
+ * and a brand-new user with no coach target or history at all — can tick/one-tap
+ * later sets to carry the first set's numbers forward instead of re-typing.
+ *
+ * Warm-ups and working sets don't cross-inherit (different loads). This is a fill
+ * convenience only: callers set the input value, never the prescribed target, so
+ * an inherited set is never mistaken for plan adherence.
+ *
+ * @param {{type?:string, w?:string|number, r?:string|number, done?:boolean}[]} sets
+ * @param {number} idx
+ * @returns {{ w: string, r: string } | null}
+ */
+export function pickInheritedSet(sets, idx) {
+  if (!Array.isArray(sets) || idx <= 0) return null;
+  const isWarmup = (s) => (s?.type || '') === 'W';
+  const target = sets[idx];
+  if (!target) return null;
+  for (let j = idx - 1; j >= 0; j--) {
+    const prev = sets[j];
+    if (!prev) continue;
+    if (isWarmup(prev) !== isWarmup(target)) continue;
+    if (prev.done && prev.w != null && prev.w !== '' && prev.r != null && prev.r !== '') {
+      return { w: String(prev.w), r: String(prev.r) };
+    }
+  }
+  return null;
+}
+
+/**
  * Swap one exercise for another within a day, in place. Pure data operation
  * (mutates weekData, returns a result) so the cockpit's executeSwapExercise is a
  * thin wrapper and this is unit-testable.
