@@ -56,6 +56,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/views/view-running.js",
   "./js/analytics/views/view-strength.js",
   "./js/analytics/views/view-weekly-review.js",
+  "./js/analytics/week-chart-model.js",
   "./js/analytics/week-nav.js",
   "./js/app.js",
   "./js/athlete-profile.js",

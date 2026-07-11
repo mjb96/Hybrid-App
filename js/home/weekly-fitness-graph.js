@@ -1,20 +1,23 @@
 // ==========================================
-// WEEKLY FITNESS GRAPH — Garmin Connect-style
-// Renders inside the In Focus carousel cards.
+// WEEKLY FITNESS GRAPH — the home-screen "In Focus" weekly bar chart.
+//
+// Seven daily bars for the selected week (Mon–Sun), a clear week-range label,
+// prev/next navigation, an honest week-to-week comparison, and a tap target
+// into the matching analytics detail view. Clean + glanceable, Helyx-styled.
+//
+// ALL numbers come from the shared `buildWeekChart` model (analytics/
+// week-chart-model.js) — the graph never computes analytics itself, so it can
+// never diverge from the detail views. This component only formats + renders.
 // ==========================================
-import { isCompletedSet } from '../set-utils.js';
+import { buildWeekChart, STRENGTH_METRICS, RUNNING_METRICS, DAY_KEYS } from '../analytics/week-chart-model.js';
 
-const DAY_KEYS  = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const CHART_H   = 120;  // bars area height in px
-const Y_STEPS   = 4;    // intervals between Y-axis labels (5 labels total)
+const CHART_H = 120;  // bars area height in px
+const Y_STEPS = 4;    // intervals between Y-axis labels (5 labels total)
 
 // Singleton registry — one instance per container id
 const _registry = {};
 
-/**
- * Create and mount a WeeklyFitnessGraph inside `containerId`.
- * Safe to call multiple times; re-mounts if the container was cleared.
- */
+/** Create and mount a WeeklyFitnessGraph inside `containerId`. Idempotent. */
 export function initWeeklyFitnessGraph(containerId, type, getStateFn) {
   let graph = _registry[containerId];
   if (!graph) {
@@ -43,31 +46,30 @@ document.addEventListener('click', e => {
 
 class WeeklyFitnessGraph {
   /**
-   * @param {string}            containerId  DOM element id to render into
+   * @param {string} containerId  DOM element id to render into
    * @param {'strength'|'running'} type
-   * @param {() => object}      getState     returns current appState
+   * @param {() => object} getState  returns current appState
    */
   constructor(containerId, type, getState) {
     this.containerId  = containerId;
-    this.type         = type;
+    this.type         = type === 'running' ? 'running' : 'strength';
     this.getState     = getState;
-    this.weekOffset   = 0;    // 0 = current week, -1 = last week, …
-    this.activeMetric = type === 'strength' ? 'time' : 'distance';
+    this.weekOffset   = 0; // 0 = current week, -1 = last week, …
+    const catalog     = this.type === 'strength' ? STRENGTH_METRICS : RUNNING_METRICS;
+    this.activeMetric = Object.keys(catalog)[0]; // sets / distance
     this._container   = null;
-    this._workouts    = {};   // workoutId → workout object (for modal)
+    this._weekData    = null; // raw stored week (for the tap-to-detail modal)
   }
 
-  // ── Mount / update ────────────────────────────────────────────────────────
+  // ── Mount / update ──────────────────────────────────────────────────────
 
   mount() {
     this._container = document.getElementById(this.containerId);
     if (!this._container) return;
 
-    // Expand the container and switch to block layout so the .wfg child fills
-    // the full card width (the default flex row context would shrink it).
     this._container.style.cssText = 'display:block;height:auto;min-height:0;overflow:visible;';
 
-    // Hide the legacy large-number hero / sub-text elements
+    // Hide the legacy large-number hero / sub-text elements the graph replaces.
     const heroId = this.type === 'strength' ? 'focusStrengthHero' : 'focusRunHero';
     const subId  = this.type === 'strength' ? 'focusStrengthSub'  : 'focusRunSub';
     [heroId, subId].forEach(id => {
@@ -75,14 +77,12 @@ class WeeklyFitnessGraph {
       if (el) el.style.display = 'none';
     });
 
-    // One-time container-level listener — stops propagation so the parent
-    // card's data-action="open-analytics" doesn't fire on chart clicks.
     if (!this._container._wfgBound) {
       this._container._wfgBound = true;
       this._container.addEventListener('click', e => {
         const el = e.target.closest('[data-wfg-action]');
         if (!el) return;
-        e.stopPropagation();
+        e.stopPropagation(); // don't trigger the card's open-analytics
         this._handleAction(el);
       });
     }
@@ -90,7 +90,7 @@ class WeeklyFitnessGraph {
     this._render();
   }
 
-  // ── Internal action dispatcher ────────────────────────────────────────────
+  // ── Action dispatcher ────────────────────────────────────────────────────
 
   _handleAction(el) {
     switch (el.getAttribute('data-wfg-action')) {
@@ -105,149 +105,206 @@ class WeeklyFitnessGraph {
         this._render();
         break;
       case 'bar-click':
-        this._openModal(el.getAttribute('data-wfg-date'));
+        this._openModal(el.getAttribute('data-wfg-day'));
+        break;
+      case 'open-detail':
+        this._openDetail();
         break;
     }
   }
 
-  // ── Core render ───────────────────────────────────────────────────────────
+  _openDetail() {
+    // Route to the matching analytics detail view via the app's action router.
+    const cta = document.createElement('button');
+    cta.setAttribute('data-action', 'open-analytics');
+    cta.setAttribute('data-context', this.type);
+    cta.style.display = 'none';
+    document.body.appendChild(cta);
+    cta.click();
+    cta.remove();
+  }
+
+  // ── Core render ──────────────────────────────────────────────────────────
 
   _render() {
     if (!this._container) return;
+    const appState = this.getState?.() || {};
+    const settings = appState.settings || {};
 
-    const appState = this.getState?.();
-    const weekNum  = this._targetWeekNum(appState);
-    const dates    = this._windowDates(appState);
-    const workouts = this._loadData(dates, appState);
-
-    // Cache by workoutId (always unique) for bar-click → modal lookup
-    this._workouts = {};
-    workouts.forEach(w => { this._workouts[w.workoutId] = w; });
-
-    const prefix = this.type === 'strength' ? 'gym' : 'run';
-    const values = DAY_KEYS.map(dk => {
-      const w = this._workouts[`${prefix}-${weekNum}-${dk}`];
-      return w ? this._metricVal(w) : 0;
+    const chart = buildWeekChart(appState, {
+      type: this.type,
+      metric: this.activeMetric,
+      weekOffset: this.weekOffset,
     });
-    const maxVal = Math.max(...values, 1);
+    // Keep raw week data for the tap-to-detail modal.
+    this._weekData = (appState.weeks || {})[String(chart.weekNum)] || null;
+
+    // Respect the user's week-start preference for DISPLAY ordering only.
+    const sunFirst = (settings.weekStartDay === 'sun');
+    const order = sunFirst ? ['sun', ...DAY_KEYS.slice(0, 6)] : DAY_KEYS;
+    const orderedDays = order.map(dk => chart.days.find(d => d.dayKey === dk));
+
+    const values = orderedDays.map(d => d.value);
+    const maxVal = Math.max(...values, this.activeMetric === 'sets' ? 4 : 1);
     const yStep  = maxVal / Y_STEPS;
-    const total  = values.reduce((a, b) => a + b, 0);
-    const avg    = total / 7;
 
-    const tabs    = this._tabs();
-    const canBack = this.weekOffset > -((parseInt(appState?.currentWeek, 10) || 1) - 1);
+    const currentWeekNum = parseInt(appState.currentWeek, 10) || 1;
+    const canBack = chart.weekNum > 1;
     const canFwd  = this.weekOffset < 0;
-    const nonNullDates = dates.filter(Boolean).sort();
-    const rangeStr = nonNullDates.length > 0
-      ? this._rangeLabel(nonNullDates[0], nonNullDates[nonNullDates.length - 1])
-      : `Week ${weekNum}`;
-    const mLabel = tabs.find(t => t.key === this.activeMetric)?.label || '';
 
-    // Y-axis labels — rendered bottom-to-top so flex-direction:column-reverse
-    // displays them at 0%, 25%, 50%, 75%, 100% from the bottom.
+    const rangeStr = this._rangeLabel(chart);
+    const mInfo    = chart.metricInfo;
+
+    // Y-axis labels (bottom-to-top via column-reverse in CSS).
     const yLabelsHTML = Array.from({ length: Y_STEPS + 1 }, (_, i) =>
-      `<span class="wfg-yl">${this._fmtY(yStep * i)}</span>`
+      `<span class="wfg-yl">${this._fmtY(yStep * i, settings)}</span>`
     ).join('');
 
-    // Grid lines at matching percentages
     const gridHTML = Array.from({ length: Y_STEPS + 1 }, (_, i) =>
       `<div class="wfg-gl" style="bottom:${(i / Y_STEPS) * 100}%"></div>`
     ).join('');
 
-    // Day columns (bars)
-    const barsHTML = DAY_KEYS.map((dk, i) => {
-      const workoutId = `${prefix}-${weekNum}-${dk}`;
-      const w   = this._workouts[workoutId];
-      const val = values[i];
+    // Bars.
+    const barsHTML = orderedDays.map((d, i) => {
+      const val  = values[i];
       const barH = val > 0 ? Math.max(Math.round((val / maxVal) * CHART_H), 4) : 0;
-      return `<div class="wfg-dc">${w && barH > 0
-        ? `<button class="wfg-bb"
-                   data-wfg-action="bar-click"
-                   data-wfg-date="${workoutId}"
-                   title="${this._fmtFull(val)}">
-             <div class="wfg-b wfg-b--${this.type}" style="height:${barH}px"></div>
-           </button>`
-        : `<div class="wfg-empty"></div>`
-      }</div>`;
-    }).join('');
-
-    // X-axis (dots + first/last date labels)
-    const xHTML = DAY_KEYS.map((dk, i) => {
-      const workoutId = `${prefix}-${weekNum}-${dk}`;
-      const active = !!this._workouts[workoutId];
-      const lbl    = (i === 0 || i === 6) ? this._fmtDate(dates[i]) : '';
-      return `<div class="wfg-xd">
-        <div class="wfg-dot${active ? ' wfg-dot--on' : ''}"></div>
-        <span class="wfg-xl">${lbl}</span>
+      const aria = this._barAria(d, settings);
+      const cls  = 'wfg-b wfg-b--' + this.type + (d.isToday ? ' wfg-b--today' : '');
+      if (d.hasData && barH > 0) {
+        return `<div class="wfg-dc${d.isToday ? ' wfg-dc--today' : ''}">
+          <button class="wfg-bb" data-wfg-action="bar-click" data-wfg-day="${d.dayKey}"
+                  aria-label="${aria}" title="${this._fmtFull(val, settings)}">
+            <div class="${cls}" style="height:${barH}px"></div>
+          </button>
+        </div>`;
+      }
+      return `<div class="wfg-dc${d.isToday ? ' wfg-dc--today' : ''}">
+        <div class="wfg-empty" role="img" aria-label="${aria}"></div>
       </div>`;
     }).join('');
 
-    // Metric tabs
-    const tabsHTML = tabs.map(t =>
-      `<button class="wfg-tab${t.key === this.activeMetric ? ' wfg-tab--on' : ''}"
-               data-wfg-action="set-metric"
-               data-wfg-metric="${t.key}">${t.label}</button>`
+    // X-axis: concise day letters + activity dot + today marker.
+    const xHTML = orderedDays.map(d =>
+      `<div class="wfg-xd">
+        <div class="wfg-dot${d.hasData ? ' wfg-dot--on' : ''}${d.isToday ? ' wfg-dot--today' : ''}"></div>
+        <span class="wfg-xl${d.isToday ? ' wfg-xl--today' : ''}">${d.dayLabel}</span>
+      </div>`
     ).join('');
+
+    // Metric tabs (only render the switch when there is more than one metric).
+    const catalog = this.type === 'strength' ? STRENGTH_METRICS : RUNNING_METRICS;
+    const tabs = Object.values(catalog);
+    const tabsHTML = tabs.length > 1 ? `<div class="wfg-tabs" role="tablist">${tabs.map(t =>
+      `<button class="wfg-tab${t.key === this.activeMetric ? ' wfg-tab--on' : ''}"
+               role="tab" aria-selected="${t.key === this.activeMetric}"
+               data-wfg-action="set-metric" data-wfg-metric="${t.key}">${t.short}</button>`
+    ).join('')}</div>` : '';
+
+    const totalStr = this._fmtFull(chart.total, settings);
+    const compHTML = this._comparisonHTML(chart, settings);
+    const summaryAria = this._chartSummaryAria(chart, orderedDays, settings, rangeStr);
 
     this._container.innerHTML = `
 <div class="wfg">
   <div class="wfg-nav">
-    <button class="wfg-arrow" data-wfg-action="nav-prev" ${canBack ? '' : 'disabled'}>‹</button>
+    <button class="wfg-arrow" data-wfg-action="nav-prev" ${canBack ? '' : 'disabled'}
+            aria-label="Previous week">‹</button>
     <span class="wfg-range">${rangeStr}</span>
-    <button class="wfg-arrow" data-wfg-action="nav-next" ${canFwd ? '' : 'disabled'}>›</button>
+    <button class="wfg-arrow" data-wfg-action="nav-next" ${canFwd ? '' : 'disabled'}
+            aria-label="Next week">›</button>
   </div>
-  <div class="wfg-tabs">${tabsHTML}</div>
+  ${tabsHTML}
   <div class="wfg-chart-row">
-    <div class="wfg-y" style="height:${CHART_H}px">${yLabelsHTML}</div>
+    <div class="wfg-y" style="height:${CHART_H}px" aria-hidden="true">${yLabelsHTML}</div>
     <div class="wfg-right">
-      <div class="wfg-plot" style="height:${CHART_H}px">
+      <div class="wfg-plot" style="height:${CHART_H}px" role="img" aria-label="${summaryAria}">
         ${gridHTML}
         <div class="wfg-bars">${barsHTML}</div>
       </div>
-      <div class="wfg-xaxis">${xHTML}</div>
+      <div class="wfg-xaxis" aria-hidden="true">${xHTML}</div>
     </div>
   </div>
-  <div class="wfg-footer">
-    <div class="wfg-stat">
-      <span class="wfg-stl">Total ${mLabel}</span>
-      <span class="wfg-stv">${this._fmtFull(total)}</span>
+  <div class="wfg-summary">
+    <div class="wfg-total">
+      <span class="wfg-total-v">${totalStr}</span>
+      <span class="wfg-total-l">${chart.isCurrentWeek ? 'this week' : mInfo.label.toLowerCase()}</span>
     </div>
-    <div class="wfg-stat wfg-stat--r">
-      <span class="wfg-stl">Avg Daily</span>
-      <span class="wfg-stv">${this._fmtFull(avg)}</span>
-    </div>
+    ${compHTML}
   </div>
+  <button class="wfg-detail-link" data-wfg-action="open-detail"
+          aria-label="Open ${this.type === 'strength' ? 'strength' : 'running'} analytics">
+    View ${this.type === 'strength' ? 'strength' : 'running'} details ›
+  </button>
 </div>`;
   }
 
-  // ── Workout summary modal ─────────────────────────────────────────────────
+  // ── Comparison line ──────────────────────────────────────────────────────
 
-  _openModal(workoutId) {
-    const w = this._workouts[workoutId];
-    if (!w) return;
+  _comparisonHTML(chart, settings) {
+    const c = chart.comparison;
+    if (!c.isComparable) {
+      // Honest, non-numeric messages (no fabricated %).
+      const extra = (c.absoluteChange && c.direction === 'up')
+        ? ` (+${this._fmtDelta(c.absoluteChange, settings)})` : '';
+      return `<div class="wfg-compare wfg-compare--muted">${c.message}${extra}</div>`;
+    }
+    const arrow = c.direction === 'up' ? '▲' : c.direction === 'down' ? '▼' : '■';
+    const word  = c.direction === 'up' ? 'Up' : c.direction === 'down' ? 'Down' : 'Level';
+    const cls   = c.direction === 'up' ? 'wfg-compare--up'
+                : c.direction === 'down' ? 'wfg-compare--down' : 'wfg-compare--flat';
+    const pct   = Math.abs(c.percentageChange);
+    const abs   = this._fmtDelta(Math.abs(c.absoluteChange), settings);
+    const aria  = `${word} ${pct}%, ${c.direction === 'down' ? 'minus' : 'plus'} ${abs}, ${c.comparisonLabel}`;
+    return `<div class="wfg-compare ${cls}" aria-label="${aria}">
+      <span class="wfg-compare-badge"><span aria-hidden="true">${arrow}</span> ${pct}%</span>
+      <span class="wfg-compare-label">${c.comparisonLabel}</span>
+    </div>`;
+  }
 
+  // ── Accessible label builders ────────────────────────────────────────────
+
+  _barAria(d, settings) {
+    const dayName = d.dayFull + (d.isToday ? ' (today)' : '');
+    if (!d.hasData) return `${dayName}, no activity`;
+    return `${dayName}, ${this._fmtFull(d.value, settings)}`;
+  }
+
+  _chartSummaryAria(chart, orderedDays, settings, rangeStr) {
+    const parts = orderedDays.map(d =>
+      d.hasData ? `${d.dayFull} ${this._fmtFull(d.value, settings)}` : `${d.dayFull} none`);
+    const c = chart.comparison;
+    const compStr = c.isComparable
+      ? `${c.direction === 'up' ? 'up' : c.direction === 'down' ? 'down' : 'level'} ${Math.abs(c.percentageChange)}% ${c.comparisonLabel}`
+      : c.message;
+    return `${chart.metricInfo.label}, week of ${rangeStr}. `
+      + `${parts.join(', ')}. Total ${this._fmtFull(chart.total, settings)}. ${compStr}.`;
+  }
+
+  // ── Tap-to-detail modal (per-day session summary) ────────────────────────
+
+  _openModal(dayKey) {
     const modal   = document.getElementById('wfgModal');
     const content = document.getElementById('wfgModalContent');
     if (!modal || !content) return;
+    const appState = this.getState?.() || {};
+    const settings = appState.settings || {};
+    const wd = this._weekData;
+    const date = wd?.dates?.[dayKey] || null;
 
-    const MN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const DN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MN = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const DN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let dateLine = '';
-    if (w.date) {
-      const [y, mo, d] = w.date.split('-').map(Number);
-      const dow = DN[new Date(`${w.date}T12:00:00`).getDay()];
+    if (date) {
+      const [y, mo, d] = date.split('-').map(Number);
+      const dow = DN[new Date(`${date}T12:00:00`).getDay()];
       dateLine = `<p class="wfg-mdate">${dow}, ${d} ${MN[mo]} ${y}</p>`;
     }
 
     const icon  = this.type === 'strength' ? '🏋️' : '🏃';
     const title = this.type === 'strength' ? 'Gym Session' : 'Run Session';
-
-    const stats    = this._modalStats(w);
+    const stats = this._modalStats(dayKey, wd, settings);
     const statsHTML = stats.map(s =>
-      `<div class="wfg-ms">
-         <span class="wfg-msl">${s.label}</span>
-         <span class="wfg-msv">${s.value}</span>
-       </div>`
+      `<div class="wfg-ms"><span class="wfg-msl">${s.label}</span><span class="wfg-msv">${s.value}</span></div>`
     ).join('');
 
     content.innerHTML = `
@@ -257,115 +314,49 @@ class WeeklyFitnessGraph {
       <div class="wfg-mstats">${statsHTML || '<p class="wfg-mempty">No detailed stats recorded.</p>'}</div>
       <button class="wfg-mclose" data-wfg-action="close-modal">Done</button>
     `;
-
     modal.classList.add('wfg-modal--open');
   }
 
-  _modalStats(w) {
+  _modalStats(dayKey, wd, settings) {
     const stats = [];
-    const add   = (label, value) => { if (value) stats.push({ label, value }); };
-    const raw   = w.rawStats || {};
+    const add = (label, value) => { if (value) stats.push({ label, value }); };
 
     if (this.type === 'strength') {
-      if (w.durationSeconds > 0) add('Duration',        this._fmtFullTime(w.durationSeconds));
-      if (w.calories > 0)         add('Calories',        `${w.calories} kcal`);
-      if (raw.avgHR > 0)          add('Avg HR',          `${Math.round(raw.avgHR)} bpm`);
-      if (raw.maxHR > 0)          add('Max HR',          `${Math.round(raw.maxHR)} bpm`);
-      if (raw.trainingEffect)     add('Training Effect', String(raw.trainingEffect));
-      if (raw.estimatedSets)      add('Sets Logged',     String(raw.estimatedSets));
-    } else {
-      if (w.distanceKm > 0)       add('Distance', `${w.distanceKm.toFixed(2)} km`);
-      if (w.durationSeconds > 0)  add('Time',     this._fmtFullTime(w.durationSeconds));
-      if (w.distanceKm > 0 && w.durationSeconds > 0) {
-        const pps  = w.durationSeconds / w.distanceKm;
-        const pm   = Math.floor(pps / 60);
-        const ps   = Math.round(pps % 60);
-        add('Avg Pace', `${pm}:${String(ps).padStart(2, '0')} /km`);
+      // Working sets + volume come from the same shared definition as the bars.
+      let sets = 0, vol = 0;
+      const lifts = wd?.lifts?.[dayKey] || {};
+      for (const l in lifts) {
+        if (!Array.isArray(lifts[l])) continue;
+        lifts[l].forEach(s => {
+          const done = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+          const warm = s.type === 'W' || s.isWarmup;
+          if (done && !warm) { sets++; vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
+        });
       }
-      if (w.ascentM > 0)          add('Elevation Gain', `${Math.round(w.ascentM)} m`);
-      if (w.calories > 0)         add('Calories',       `${w.calories} kcal`);
-      if (raw.avgHR > 0)          add('Avg HR',         `${Math.round(raw.avgHR)} bpm`);
-      if (raw.rpe)                add('RPE',            `${raw.rpe} / 10`);
-      if (raw.notes)              add('Notes',          raw.notes);
+      add('Working Sets', sets > 0 ? String(sets) : '');
+      add('Volume', vol > 0 ? `${Math.round(vol).toLocaleString()} ${settings.weightUnit || 'kg'}` : '');
+      const gs = wd?.gymStats?.[dayKey];
+      if (gs) {
+        const secs = this._parseTime(gs.time);
+        if (secs > 0) add('Duration', this._fmtTime(secs));
+        if (parseFloat(gs.cals) > 0) add('Calories', `${Math.round(parseFloat(gs.cals))} kcal`);
+        if (parseFloat(gs.avgHR) > 0) add('Avg HR', `${Math.round(parseFloat(gs.avgHR))} bpm`);
+      }
+    } else {
+      const run = wd?.runs?.[dayKey] || {};
+      const distKm = parseFloat(run.dist) || 0;
+      const secs   = this._parseTime(run.time);
+      if (distKm > 0) add('Distance', this._fmtDistance(distKm, settings));
+      if (secs > 0)   add('Time', this._fmtTime(secs));
+      if (distKm > 0 && secs > 0) add('Avg Pace', this._fmtPace(distKm, secs, settings));
+      if (parseFloat(run.elev) > 0) add('Elevation', `${Math.round(parseFloat(run.elev))} m`);
+      if (parseFloat(run.cals) > 0) add('Calories', `${Math.round(parseFloat(run.cals))} kcal`);
+      if (parseFloat(run.avgHR) > 0) add('Avg HR', `${Math.round(parseFloat(run.avgHR))} bpm`);
     }
     return stats;
   }
 
-  // ── Date helpers ──────────────────────────────────────────────────────────
-
-  _windowDates(appState) {
-    const weekNum  = this._targetWeekNum(appState);
-    const weekData = appState?.weeks?.[String(weekNum)];
-    const stored   = weekData?.dates || {};
-    return DAY_KEYS.map(dk => stored[dk] || null);
-  }
-
-  _targetWeekNum(appState) {
-    const current = parseInt(appState?.currentWeek, 10) || 1;
-    return Math.max(1, current + this.weekOffset);
-  }
-
-  // ── Data loading ──────────────────────────────────────────────────────────
-
-  _loadData(dates, appState) {
-    const weekNum  = this._targetWeekNum(appState);
-    const weekData = appState?.weeks?.[String(weekNum)];
-    const result   = [];
-
-    DAY_KEYS.forEach((dayKey, i) => {
-      const dateStr = dates[i];
-
-      if (this.type === 'strength') {
-        const gs = weekData?.gymStats?.[dayKey];
-        if (gs && (gs.time || parseFloat(gs.cals) > 0)) {
-          result.push({
-            date: dateStr,
-            durationSeconds: this._parseTime(gs.time),
-            calories: Math.round(parseFloat(gs.cals) || 0),
-            workoutId: `gym-${weekNum}-${dayKey}`,
-            rawStats: gs,
-          });
-        } else {
-          // Estimate from completed sets when no FIT data was imported
-          const lifts = weekData?.lifts?.[dayKey];
-          if (lifts) {
-            let sets = 0;
-            for (const l in lifts) {
-              if (Array.isArray(lifts[l])) {
-                lifts[l].forEach(s => {
-                  if (isCompletedSet(s)) sets++;
-                });
-              }
-            }
-            if (sets > 0) {
-              result.push({
-                date: dateStr,
-                durationSeconds: sets * 180,   // ~3 min per set
-                calories: sets * 12,
-                workoutId: `gym-${weekNum}-${dayKey}`,
-                rawStats: { estimatedSets: sets },
-              });
-            }
-          }
-        }
-      } else {
-        const run = weekData?.runs?.[dayKey];
-        if (run && (parseFloat(run.dist) > 0 || run.time)) {
-          result.push({
-            date: dateStr,
-            durationSeconds: this._parseTime(run.time),
-            distanceKm: parseFloat(run.dist) || 0,
-            ascentM: parseFloat(run.elev) || 0,
-            calories: Math.round(parseFloat(run.cals) || 0),
-            workoutId: `run-${weekNum}-${dayKey}`,
-            rawStats: run,
-          });
-        }
-      }
-    });
-
-    return result;
-  }
+  // ── Formatting helpers ───────────────────────────────────────────────────
 
   _parseTime(str) {
     if (!str) return 0;
@@ -376,61 +367,7 @@ class WeeklyFitnessGraph {
     return parseInt(str, 10) || 0;
   }
 
-  // ── Metric helpers ────────────────────────────────────────────────────────
-
-  _tabs() {
-    return this.type === 'strength'
-      ? [
-          { key: 'time',     label: 'Time' },
-          { key: 'calories', label: 'Calories' },
-        ]
-      : [
-          { key: 'distance', label: 'Distance' },
-          { key: 'time',     label: 'Time' },
-          { key: 'ascent',   label: 'Ascent' },
-          { key: 'calories', label: 'Calories' },
-        ];
-  }
-
-  _metricVal(w) {
-    switch (this.activeMetric) {
-      case 'time':     return w.durationSeconds || 0;
-      case 'calories': return w.calories || 0;
-      case 'distance': return w.distanceKm || 0;
-      case 'ascent':   return w.ascentM || 0;
-      default:         return 0;
-    }
-  }
-
-  // Y-axis label — abbreviated (no seconds)
-  _fmtY(val) {
-    switch (this.activeMetric) {
-      case 'time': {
-        const h = Math.floor(val / 3600);
-        const m = Math.floor((val % 3600) / 60);
-        return h > 0
-          ? `${h}:${String(m).padStart(2, '0')}`
-          : `${m}:${String(Math.floor(val % 60)).padStart(2, '0')}`;
-      }
-      case 'calories': return Math.round(val).toString();
-      case 'distance': return parseFloat(val).toFixed(1);
-      case 'ascent':   return Math.round(val).toString();
-      default:         return Math.round(val).toString();
-    }
-  }
-
-  // Full formatted value (used in footer and tooltips)
-  _fmtFull(val) {
-    switch (this.activeMetric) {
-      case 'time':     return this._fmtFullTime(val);
-      case 'calories': return `${Math.round(val)} cal`;
-      case 'distance': return `${parseFloat(val).toFixed(1)} km`;
-      case 'ascent':   return `${Math.round(val)} m`;
-      default:         return Math.round(val).toString();
-    }
-  }
-
-  _fmtFullTime(secs) {
+  _fmtTime(secs) {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = Math.floor(secs % 60);
@@ -439,20 +376,69 @@ class WeeklyFitnessGraph {
       : `${m}:${String(s).padStart(2, '0')}`;
   }
 
-  _fmtDate(dateStr) {
-    if (!dateStr) return '';
-    const [, mo, d] = dateStr.split('-').map(Number);
-    return `${d}/${mo}`;
+  _fmtDistance(km, settings) {
+    const mi = (settings.distanceUnit === 'mi');
+    const val = mi ? km * 0.621371 : km;
+    return `${val.toFixed(1)} ${mi ? 'mi' : 'km'}`;
   }
 
-  _rangeLabel(startStr, endStr) {
-    if (!startStr) return '';
-    const [, m1, d1] = startStr.split('-').map(Number);
-    const M = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    if (!endStr || startStr === endStr) return `${d1} ${M[m1]}`;
-    const [, m2, d2] = endStr.split('-').map(Number);
-    return m1 === m2
-      ? `${d1}–${d2} ${M[m1]}`
-      : `${d1} ${M[m1]} – ${d2} ${M[m2]}`;
+  _fmtPace(km, secs, settings) {
+    const mi = (settings.distanceUnit === 'mi');
+    const dist = mi ? km * 0.621371 : km;
+    if (dist <= 0) return '';
+    const pps = secs / dist;
+    const pm = Math.floor(pps / 60);
+    const ps = Math.round(pps % 60);
+    return `${pm}:${String(ps).padStart(2, '0')} /${mi ? 'mi' : 'km'}`;
+  }
+
+  // Y-axis abbreviated label.
+  _fmtY(val, settings) {
+    switch (this.activeMetric) {
+      case 'sets':     return Math.round(val).toString();
+      case 'volume':   return val >= 1000 ? (val / 1000).toFixed(1) + 'k' : Math.round(val).toString();
+      case 'duration': {
+        const h = Math.floor(val / 3600);
+        const m = Math.floor((val % 3600) / 60);
+        return h > 0 ? `${h}:${String(m).padStart(2, '0')}` : `${m}m`;
+      }
+      case 'distance': {
+        const mi = (settings.distanceUnit === 'mi');
+        return (mi ? val * 0.621371 : val).toFixed(1);
+      }
+      default: return Math.round(val).toString();
+    }
+  }
+
+  // Full formatted value with unit (footer, tooltips, aria).
+  _fmtFull(val, settings) {
+    switch (this.activeMetric) {
+      case 'sets':     return `${Math.round(val)} ${Math.round(val) === 1 ? 'set' : 'sets'}`;
+      case 'volume':   return `${Math.round(val).toLocaleString()} ${settings.weightUnit || 'kg'}`;
+      case 'duration': return this._fmtTime(val);
+      case 'distance': return this._fmtDistance(val, settings);
+      default:         return String(Math.round(val));
+    }
+  }
+
+  // Absolute-change label (no sign; caller adds direction).
+  _fmtDelta(val, settings) {
+    switch (this.activeMetric) {
+      case 'sets':     return `${Math.round(val)} ${Math.round(val) === 1 ? 'set' : 'sets'}`;
+      case 'volume':   return `${Math.round(val).toLocaleString()} ${settings.weightUnit || 'kg'}`;
+      case 'duration': return this._fmtTime(val);
+      case 'distance': return this._fmtDistance(val, settings);
+      default:         return String(Math.round(val));
+    }
+  }
+
+  _rangeLabel(chart) {
+    if (chart.isCurrentWeek && !chart.startDate) return 'This week';
+    if (!chart.startDate) return `Week ${chart.weekNum}`;
+    const M = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const [, m1, d1] = chart.startDate.split('-').map(Number);
+    const [, m2, d2] = (chart.endDate || chart.startDate).split('-').map(Number);
+    const range = m1 === m2 ? `${d1}–${d2} ${M[m1]}` : `${d1} ${M[m1]} – ${d2} ${M[m2]}`;
+    return chart.isCurrentWeek ? `${range} · This week` : range;
   }
 }

@@ -72,6 +72,25 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-11 · **Analytics verification + In Focus weekly graph**
+  (branch `claude/helyx-analytics-verification-lpc8ma`; full log in
+  `docs/ANALYTICS_VERIFICATION_2026-07.md`). Traced stored-data→display for every
+  major analytics value. Built a single shared, tested model
+  (`js/analytics/week-chart-model.js`) as the source of truth for the home In
+  Focus graph, and rewrote `js/home/weekly-fitness-graph.js` to consume it (no
+  more UI-side calculation). **Fixed:** the graph fabricated strength "Time"
+  (`sets×180s`) / "Calories" — removed; strength now shows honest **Working Sets**
+  (default), **Volume**, and real FIT **Time**. Added an honest, labelled
+  week-to-week comparison — *live* "vs same point last week" (elapsed-matched) for
+  the current week, *completed* "vs previous week" for past weeks — with zero-safe
+  percentages (never `Infinity`/`NaN`). Un-hid the In Focus section on Home; per-bar
+  accessible labels, today highlight, unit-aware, light/dark verified in Chromium.
+  26 new tests (553 total) / typecheck / precache / smoke all green; math proven
+  against hand-calculated fixtures via `scripts/analytics-verify.mjs`. · Next:
+  `[You]` device-test the graph (touch targets, safe areas); optional follow-up to
+  align the strength detail view's "vs last week" label with the honest elapsed
+  comparison.
+
 - 2026-07-10 · **Security & hardening audit — 11-point implementation pass**
   (branch `claude/helyx-security-audit-diww1o`; full log in
   `docs/SECURITY_AUDIT_2026-07.md`). Eight tested commits:
