@@ -98,6 +98,7 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
       const shown = isProgramDeloadWeek(appState, getProgramById(appState.activeProgramId)) ? [deloadInsight()] : insights.slice(0, 1);
       return shown[0] ? renderInsightsHTML(shown, 1) : '';
     })()}
+    <p class="text-muted" style="font-size:0.66rem;line-height:1.4;margin:12px 2px 0;opacity:0.75;">Readiness combines your logged training load with any sleep/HRV data you provide. It may help you spot elevated stress or under-recovery, but it's an estimate — not a medical assessment.</p>
   `;
   const ringEl = qs('recoveryReadinessRing');
   if (ringEl) renderReadinessRingLarge(ringEl, readiness.score, status, color);

@@ -89,8 +89,9 @@ class NotifyBridge(
 
     @JavascriptInterface
     fun requestPermission(callbackId: String) {
-        if (hasPermission()) { resolve(callbackId, true); return }
-        pendingCallbackId.set(callbackId)
+        val safeId = BridgeSafe.callbackId(callbackId) ?: return
+        if (hasPermission()) { resolve(safeId, true); return }
+        pendingCallbackId.set(safeId)
         webView.post { requestOsPermission() }
     }
 
@@ -118,10 +119,11 @@ class NotifyBridge(
     }
 
     private fun resolve(id: String, granted: Boolean) {
+        val safe = BridgeSafe.callbackId(id) ?: return
         webView.post {
             webView.evaluateJavascript(
-                "if(window.__notifCB&&window.__notifCB['$id'])" +
-                "{window.__notifCB['$id']('$granted');delete window.__notifCB['$id'];}",
+                "if(window.__notifCB&&window.__notifCB['$safe'])" +
+                "{window.__notifCB['$safe']('$granted');delete window.__notifCB['$safe'];}",
                 null,
             )
         }

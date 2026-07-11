@@ -32,6 +32,11 @@ jobs:
         with:
           fetch-depth: 0   # full history so VERSION_CODE = commit count is stable
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -48,16 +53,9 @@ jobs:
 
       - name: Copy PWA into Android assets
         run: |
-          mkdir -p android/app/src/main/assets/www
-          rsync -av \
-            --exclude='.git' \
-            --exclude='android' \
-            --exclude='node_modules' \
-            --exclude='tests' \
-            --exclude='scripts' \
-            --exclude='.github' \
-            --exclude='package*.json' \
-            . android/app/src/main/assets/www/
+          # Explicit production allowlist (scripts/stage-web-root.mjs) — ships
+          # ONLY runtime assets, never docs/SQL/audits/tests/config into the APK.
+          node scripts/stage-web-root.mjs android/app/src/main/assets/www
 
       - name: Decode signing keystore
         env:

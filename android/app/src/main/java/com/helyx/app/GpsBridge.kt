@@ -40,8 +40,10 @@ class GpsBridge(
 
     @JavascriptInterface
     fun requestLocationPermission(callbackId: String) {
-        if (hasLocationPermission()) { resolvePermCallback(callbackId, true); return }
-        pendingPermCallbackId.set(callbackId)
+        // Validate the id before it is ever echoed into evaluateJavascript.
+        val safeId = BridgeSafe.callbackId(callbackId) ?: return
+        if (hasLocationPermission()) { resolvePermCallback(safeId, true); return }
+        pendingPermCallbackId.set(safeId)
         webView.post { requestLocationPermission.invoke() }
     }
 
@@ -80,10 +82,13 @@ class GpsBridge(
     }
 
     private fun resolvePermCallback(id: String, granted: Boolean) {
+        // id is already validated (BridgeSafe.callbackId); guard again so no
+        // future caller can bypass sanitisation.
+        val safe = BridgeSafe.callbackId(id) ?: return
         webView.post {
             webView.evaluateJavascript(
-                "if(window.__gpsCB&&window.__gpsCB['$id'])" +
-                "{window.__gpsCB['$id']('$granted');delete window.__gpsCB['$id'];}",
+                "if(window.__gpsCB&&window.__gpsCB['$safe'])" +
+                "{window.__gpsCB['$safe']('$granted');delete window.__gpsCB['$safe'];}",
                 null,
             )
         }

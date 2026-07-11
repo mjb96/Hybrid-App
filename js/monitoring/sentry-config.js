@@ -8,5 +8,8 @@
 // =============================================================================
 export const SENTRY_DSN = 'https://ebeda354909c9ebb5d9b5d7b22537db1@o4511663726329856.ingest.de.sentry.io/4511663733080144';
 
-// Bump when you cut a release so Sentry can group issues by version.
-export const SENTRY_RELEASE = 'helyx@web';
+// Release identifier for grouping crashes by version. Derived from the single
+// APP_VERSION source so Sentry releases stay aligned with package.json + the
+// Android versionName instead of drifting on a hand-edited string.
+import { APP_VERSION } from '../constants.js';
+export const SENTRY_RELEASE = `helyx@${APP_VERSION}`;

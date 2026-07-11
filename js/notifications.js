@@ -19,6 +19,7 @@ import { projectScore } from './brain/hybrid-score/project.js';
 import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.js';
 import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
 import { maybePushFastingNudge } from './fasting/fasting-nudge.js';
+import { makeBridgeCallbackId } from './util/bridge-callback-id.js';
 
 let _reminderTimer = null;
 let _weeklySummaryTimer = null;
@@ -79,7 +80,7 @@ export function requestNotificationPermission() {
   if (b && typeof b.requestPermission === 'function') {
     return new Promise((resolve) => {
       if (!window.__notifCB) window.__notifCB = {};
-      const id = 'n_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+      const id = makeBridgeCallbackId('n');
       const timer = setTimeout(() => {
         if (window.__notifCB[id]) { delete window.__notifCB[id]; resolve({ granted: notificationsGranted() }); }
       }, 120000);

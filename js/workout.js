@@ -108,13 +108,17 @@ function _detectRunType(str) {
 let _getDays;
 let _saveState;
 let _switchTab;
+let _scheduleSave;
 
-export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn) {
+export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn) {
   _getState = getStateFn;
   _getSelectedDay = getSelectedDayFn;
   _getDays = getDaysFn;
   _saveState = saveStateFn;
   _switchTab = switchTabFn;
+  // Debounced local persist for rapid keystrokes; falls back to the immediate
+  // save if a caller didn't wire it (keeps behaviour safe by default).
+  _scheduleSave = scheduleSaveFn || (() => saveStateFn(true));
 }
 
 // ==========================================
@@ -794,7 +798,11 @@ export function updateInputState(inputNode) {
     setObj.r = inputNode.value;
     if (ph != null && setObj.tr == null) setObj.tr = ph;
   }
-  _saveState(true);
+  // High-frequency keystroke path: debounce the local write instead of
+  // serialising the whole state on every digit. Set-completion, quick-log and
+  // finish still persist immediately (they use _saveState). A backgrounded app
+  // flushes any pending write (state.js pagehide/visibilitychange).
+  _scheduleSave();
 }
 
 export function commitWorkoutUIState() {

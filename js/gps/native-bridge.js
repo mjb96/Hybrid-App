@@ -8,6 +8,7 @@
 //
 // Everything window-touching is lazy so this module imports cleanly in Node.
 // ==========================================
+import { makeBridgeCallbackId } from '../util/bridge-callback-id.js';
 
 function _bridge() {
   if (typeof window === 'undefined') return null;
@@ -61,7 +62,7 @@ export function ensureLocationPermission() {
   if (b.hasLocationPermission()) return Promise.resolve(true);
   return new Promise((resolve) => {
     if (!window.__gpsCB) window.__gpsCB = {};
-    const id = 'perm_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    const id = makeBridgeCallbackId('perm');
     // Native never answering (dialog dismissed by process death) must not hang
     // the Start button forever.
     const timer = setTimeout(() => {

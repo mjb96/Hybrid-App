@@ -1,7 +1,10 @@
 // ==========================================
 // SETTINGS
 // ==========================================
-import { saveStateToLocalStorage } from './state.js';
+import { saveStateToLocalStorage, STORAGE_KEY } from './state.js';
+import { getAllRoutes, putRoutes, clearRouteDatabase } from './db.js';
+import { wrapExport, parseImport } from './state/route-portability.js';
+import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 
 // Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
@@ -36,6 +39,10 @@ let _getState;
 
 export function initSettings(getStateFn) {
   _getState = getStateFn;
+  // Single source of truth for the displayed version (aligns with package.json
+  // + Android versionName). No hardcoded string to drift out of date.
+  const vEl = document.getElementById('settingsAppVersion');
+  if (vEl) vEl.textContent = `Helyx v${APP_VERSION}`;
 }
 
 // ==========================================
@@ -503,7 +510,12 @@ export function signOut() {
   signOutSupabase();
 }
 
+// Guard against a double-tap firing two deletions concurrently.
+let _deleteInFlight = false;
+
 export async function deleteAccount() {
+  if (_deleteInFlight) return;
+
   const ok = await confirmModal({
     title: 'Delete your account?',
     message: 'This permanently deletes your account and ALL synced data. It cannot be undone.\n\nConsider exporting your data first (Settings → Export).',
@@ -511,20 +523,39 @@ export async function deleteAccount() {
   });
   if (!ok) return;
 
+  _deleteInFlight = true;
+  const btn = document.getElementById('settingsDeleteAccountBtn');
+  if (btn) btn.disabled = true;
+
   showToast('Deleting account…');
   try {
     const res = await authDeleteAccount();
     if (res.ok) {
-      showToast('Account and data deleted.');
+      // Only reached when the auth identity is confirmed removed.
+      showToast('Account and all data deleted.');
       setTimeout(() => { try { window.location.reload(); } catch (_) {} }, 900);
-    } else {
-      const msg = res.reason === 'not-signed-in' ? 'You are not signed in.'
-        : res.reason === 'offline' ? 'Offline — connect and try again.'
-        : 'Could not delete account. Please try again.';
-      showToast(msg, true);
+      return; // keep the button disabled through the reload
     }
+
+    // Honest, non-technical messaging for each partial/failed outcome. When the
+    // login still exists we keep the user signed in so a retry can finish.
+    const msg =
+      res.reason === 'not-signed-in' ? 'You are not signed in.'
+      : res.reason === 'offline' ? 'You are offline. Reconnect and try again to delete your account.'
+      : res.reason === 'function-unavailable'
+        ? (res.dataDeleted
+            ? 'Your data was removed, but your account login could not be deleted yet. Please try again shortly.'
+            : 'Account deletion is temporarily unavailable. Please try again shortly.')
+      : /* auth-delete-failed */
+        (res.dataDeleted
+          ? 'Your data was removed, but we could not fully delete your account. Please try again.'
+          : 'We could not delete your account. Please try again.');
+    showToast(msg, true);
   } catch (_) {
-    showToast('Could not delete account. Please try again.', true);
+    showToast('We could not delete your account. Please try again.', true);
+  } finally {
+    _deleteInFlight = false;
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -566,16 +597,22 @@ export function saveThresholdPace() {
 // ==========================================
 // DATA EXPORT / IMPORT / RESET
 // ==========================================
-export function exportData() {
+export async function exportData() {
   const appState = _getState();
-  const blob = new Blob([JSON.stringify(appState, null, 2)], { type: 'application/json' });
+  // Include GPS routes (they live in IndexedDB, not appState) in a versioned
+  // envelope so export is a complete, restorable backup.
+  let routes = {};
+  try { routes = await getAllRoutes(); } catch { /* routes optional in export */ }
+  const payload = wrapExport(appState, routes, { appVersion: APP_VERSION });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
   a.download = `helyx-training-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast('Data exported ✓');
+  const n = Object.keys(routes).length;
+  showToast(n ? `Data exported ✓ (${n} route${n === 1 ? '' : 's'})` : 'Data exported ✓');
 }
 
 export function triggerImport() {
@@ -598,14 +635,33 @@ export async function recoverPreSyncSnapshot() {
 export function handleImportFile(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
+    let parsed;
+    try { parsed = JSON.parse(e.target.result); }
+    catch { showToast('Import failed: not a valid file', true); return; }
+
+    // Accepts BOTH the versioned envelope (with routes) AND legacy raw-appState
+    // exports, and validates the shape before touching stored data.
+    const result = parseImport(parsed);
+    if (!result) { showToast('Import failed: unrecognised file', true); return; }
+
     try {
-      const imported = JSON.parse(e.target.result);
-      localStorage.setItem('hybridAppState', JSON.stringify(imported));
-      showToast('Import successful — reloading…');
+      // Undo point before overwriting live data. NOTE: writes to STORAGE_KEY —
+      // the previous code wrote to a dead 'hybridAppState' key, so import was a
+      // silent no-op. Migrations run on the next boot (pullEngineDataFromStorage).
+      const current = localStorage.getItem(STORAGE_KEY);
+      if (current) localStorage.setItem(STORAGE_KEY + '_backup', current);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(result.state));
+
+      // Restore GPS routes into IndexedDB. Keyed by "week_day" → idempotent, no
+      // duplicates on re-import. Never blocks the reload if IndexedDB is absent.
+      let routeCount = 0;
+      try { routeCount = await putRoutes(result.routes); } catch { /* routes best-effort */ }
+
+      showToast(routeCount ? `Import successful (${routeCount} routes) — reloading…` : 'Import successful — reloading…');
       setTimeout(() => location.reload(), 1200);
     } catch {
-      showToast('Import failed: invalid file');
+      showToast('Import failed while saving', true);
     }
   };
   reader.readAsText(file);
@@ -618,7 +674,11 @@ export async function confirmResetAllData() {
     confirmLabel: 'Reset everything', danger: true,
   });
   if (!ok) return;
-  localStorage.removeItem('hybridAppState');
+  // Clear the real state key (+ rolling backups) and the GPS-route IndexedDB.
+  // The previous code removed a dead 'hybridAppState' key, so reset was a no-op.
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY + '_backup');
+  try { await clearRouteDatabase(); } catch { /* best-effort */ }
   showToast('Data cleared — reloading…');
   setTimeout(() => location.reload(), 1200);
 }

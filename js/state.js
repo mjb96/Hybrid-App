@@ -20,7 +20,7 @@ import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './s
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
 
-const STORAGE_KEY = 'hybrid_engine_v2_state';
+export const STORAGE_KEY = 'hybrid_engine_v2_state';
 
 // Recovery point written just before a cloud pull overwrites local state. The
 // cloud sync is last-write-wins with no merge, so a stale/empty device could
@@ -439,6 +439,70 @@ let _cloudTimer = null;
 let _cloudPending = false;
 const CLOUD_DEBOUNCE_MS = 1500;
 
+// Local-write coalescing. Serialising the entire appState to localStorage on
+// every weight/rep keystroke is wasteful for large histories. High-frequency,
+// low-criticality edits (typing) go through scheduleLocalSave() and coalesce
+// into one write; critical events (set complete, finish, run save) still call
+// saveStateToLocalStorage() for an immediate write. A debounced flush always
+// serialises the CURRENT appState, so it can never persist stale data.
+let _localTimer = null;
+let _localPending = false;
+const LOCAL_DEBOUNCE_MS = 400;
+// Dev instrumentation: set localStorage.helyxPersistDebug='1' to log slow writes.
+let _persistDebug = false;
+try { _persistDebug = typeof localStorage !== 'undefined' && localStorage.getItem('helyxPersistDebug') === '1'; } catch { /* ignore */ }
+const PERSIST_WARN_MS = 16; // one frame budget
+
+function _now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+
+// The one place that actually serialises + writes local state. Cancels any
+// pending debounce (it just wrote the latest), recomputes memoized load metrics,
+// and — in dev — warns when a single write blows the frame budget.
+function writeLocalNow() {
+  if (_localTimer) { clearTimeout(_localTimer); _localTimer = null; }
+  _localPending = false;
+  appState.loadMetrics = memoizedLoadMetrics(appState);
+  const t0 = _persistDebug ? _now() : 0;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+    _cloudDirty = true;
+  } catch (e) {
+    console.error('Failed to save state locally:', e);
+  }
+  if (_persistDebug) {
+    const dt = _now() - t0;
+    if (dt > PERSIST_WARN_MS) console.warn(`[persist] local write ${dt.toFixed(1)}ms (state ~${JSON.stringify(appState).length} bytes)`);
+  }
+}
+
+function _scheduleCloudDebounce() {
+  _cloudPending = true;
+  if (!_cloudTimer) {
+    _cloudTimer = setTimeout(() => {
+      _cloudTimer = null;
+      if (_cloudPending) { _cloudPending = false; cloudSave(true); }
+    }, CLOUD_DEBOUNCE_MS);
+  }
+}
+
+// Debounced local persist for rapid, non-critical edits (typing weight/reps).
+// Coalesces a burst of keystrokes into a single serialize. The cloud write is
+// debounced separately. Crash safety: critical actions never use this path, and
+// flushLocalSave() runs on pagehide/visibilitychange so a backgrounded app
+// persists the last keystroke.
+export function scheduleLocalSave() {
+  _localPending = true;
+  if (!_localTimer) {
+    _localTimer = setTimeout(() => { _localTimer = null; if (_localPending) writeLocalNow(); }, LOCAL_DEBOUNCE_MS);
+  }
+  _scheduleCloudDebounce();
+}
+
+// Force any pending debounced LOCAL write to happen now (before unload/reads).
+export function flushLocalSave() {
+  if (_localPending || _localTimer) writeLocalNow();
+}
+
 // Sync-conflict wiring. When a save would overwrite newer cloud data (another
 // device wrote since we loaded), we do NOT clobber it: we raise a conflict for
 // the user to resolve. `_conflictPending` suppresses further cloud writes until
@@ -551,9 +615,10 @@ export function flushCloudSave() {
 }
 
 if (typeof window !== 'undefined') {
-  // Don't lose the last debounced sync if the app is backgrounded or killed.
-  window.addEventListener('pagehide', () => { flushCloudSave(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) flushCloudSave(); });
+  // Don't lose the last debounced local write or sync if the app is backgrounded
+  // or killed. Local flush first so the persisted copy is current, then cloud.
+  window.addEventListener('pagehide', () => { flushLocalSave(); flushCloudSave(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { flushLocalSave(); flushCloudSave(); } });
   // Back online: push up any edits made while offline (or after a failed save).
   window.addEventListener('online', () => {
     if (shouldResyncOnReconnect(_cloudDirty, !!getSupabaseClient(), _conflictPending)) {
@@ -563,23 +628,13 @@ if (typeof window !== 'undefined') {
 }
 
 export async function saveStateToLocalStorage(suppressToast = false) {
-  appState.loadMetrics = memoizedLoadMetrics(appState);
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-    _cloudDirty = true; // local has changes not yet confirmed in the cloud
-  } catch (e) {
-    console.error('Failed to save state locally:', e);
-  }
+  // Critical/explicit save: write local immediately (also cancels any pending
+  // debounced local write, since we just persisted the latest state).
+  writeLocalNow();
 
   if (suppressToast) {
     // Autosave: coalesce network writes. localStorage already holds the latest.
-    _cloudPending = true;
-    if (!_cloudTimer) {
-      _cloudTimer = setTimeout(() => {
-        _cloudTimer = null;
-        if (_cloudPending) { _cloudPending = false; cloudSave(true); }
-      }, CLOUD_DEBOUNCE_MS);
-    }
+    _scheduleCloudDebounce();
     return;
   }
 

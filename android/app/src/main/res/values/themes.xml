@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!--
         The primary app theme. WindowCompat.setDecorFitsSystemWindows(false) in
         MainActivity enables edge-to-edge; the WebView draws behind the bars.
@@ -7,9 +7,12 @@
     <style name="Theme.HybridApp" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@color/bg_dark</item>
         <item name="android:navigationBarColor">@color/bg_dark</item>
-        <!-- Light icons (dark background). -->
+        <!-- Light icons (dark background). windowLightNavigationBar was added in
+             API 27; on our minSdk 26 the framework already draws light nav icons,
+             so the attribute is a correct no-op there. tools:targetApi tells lint
+             this is intentional (was an unguarded NewApi error). -->
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
 
     <!--

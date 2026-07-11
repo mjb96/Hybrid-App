@@ -39,12 +39,40 @@ Object.defineProperty(globalThis, 'navigator', { value: { serviceWorker: { regis
 globalThis.CustomEvent = class { constructor(t, o) { this.type = t; this.detail = o && o.detail; } };
 globalThis.L = { map: () => ({ remove: noop, fitBounds: noop }), tileLayer: () => ({ addTo: () => ({}) }), polyline: () => ({ addTo: () => ({ getBounds: noop }) }) };
 
+// Fail the smoke run on UNEXPECTED console.error / unhandled rejection / uncaught
+// exception — a test that "passes" while the app logs runtime errors (the class
+// of bug this audit calls out, e.g. `window.scrollTo is not a function`) is a
+// false green. A short allowlist covers messages that are expected under the DOM
+// mock (no Supabase global, no real service worker).
+const ALLOWED_ERROR_PATTERNS = [
+  /Supabase global not found/i,
+  /Service worker registration failed/i,
+  /\bno sw\b/i,
+];
+const isAllowed = (msg) => ALLOWED_ERROR_PATTERNS.some((re) => re.test(msg));
+
+const unexpectedErrors = [];
+const realConsoleError = console.error.bind(console);
+console.error = (...args) => {
+  const msg = args.map((a) => (a && a.stack) ? a.stack : String(a)).join(' ');
+  if (!isAllowed(msg)) unexpectedErrors.push(msg);
+  realConsoleError(...args);
+};
+process.on('unhandledRejection', (reason) => {
+  const msg = (reason && reason.stack) ? reason.stack : String(reason);
+  if (!isAllowed(msg)) unexpectedErrors.push('unhandledRejection: ' + msg);
+});
+
 try {
   const mod = await import(new URL('../js/app.js', import.meta.url));
   await new Promise(r => setTimeout(r, 150));
   if (mod.hydrateCurrentView) mod.hydrateCurrentView();
-  console.log('SMOKE OK — app graph imported and home rendered without throwing');
+  if (unexpectedErrors.length) {
+    realConsoleError('SMOKE FAIL — unexpected runtime error(s) logged:\n' + unexpectedErrors.join('\n---\n'));
+    process.exit(1);
+  }
+  console.log('SMOKE OK — app graph imported and home rendered without throwing (no unexpected console errors)');
 } catch (e) {
-  console.error('SMOKE FAIL:\n', e && e.stack ? e.stack : e);
+  realConsoleError('SMOKE FAIL:\n', e && e.stack ? e.stack : e);
   process.exit(1);
 }

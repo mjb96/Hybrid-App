@@ -152,6 +152,10 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
 
+        // Remote WebView debugging (chrome://inspect) is a release-time attack
+        // surface — enable it ONLY in debuggable builds.
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+
         webView.apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
@@ -160,8 +164,12 @@ class MainActivity : AppCompatActivity() {
             // https://appassets.androidplatform.net via WebViewAssetLoader.
             settings.allowFileAccessFromFileURLs = false
             settings.allowUniversalAccessFromFileURLs = false
-            settings.builtInZoomControls = false
-            settings.setSupportZoom(false)
+            // Accessibility: allow pinch-zoom (low-vision users) — the viewport
+            // already permits it. displayZoomControls(false) hides the legacy
+            // on-screen +/- buttons so only the gesture is enabled.
+            settings.builtInZoomControls = true
+            settings.displayZoomControls = false
+            settings.setSupportZoom(true)
             overScrollMode = WebView.OVER_SCROLL_NEVER
 
             webViewClient = AppWebViewClient(assetLoader)
