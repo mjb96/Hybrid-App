@@ -302,6 +302,7 @@ class WeeklyFitnessGraph {
 
     const icon  = this.type === 'strength' ? '🏋️' : '🏃';
     const title = this.type === 'strength' ? 'Gym Session' : 'Run Session';
+    const summary = this._daySummary(dayKey, wd, settings);
     const stats = this._modalStats(dayKey, wd, settings);
     const statsHTML = stats.map(s =>
       `<div class="wfg-ms"><span class="wfg-msl">${s.label}</span><span class="wfg-msv">${s.value}</span></div>`
@@ -311,10 +312,43 @@ class WeeklyFitnessGraph {
       <div class="wfg-mhandle"></div>
       ${dateLine}
       <h3 class="wfg-mtitle">${icon} ${title}</h3>
+      ${summary ? `<p class="wfg-msummary">${summary}</p>` : ''}
       <div class="wfg-mstats">${statsHTML || '<p class="wfg-mempty">No detailed stats recorded.</p>'}</div>
       <button class="wfg-mclose" data-wfg-action="close-modal">Done</button>
     `;
     modal.classList.add('wfg-modal--open');
+  }
+
+  // A compact, glanceable one-liner for the tapped day, e.g.
+  // "14 working sets across 2 exercises · 4,250 kg" or "6.4 km in 34:10".
+  _daySummary(dayKey, wd, settings) {
+    if (this.type === 'strength') {
+      let sets = 0, vol = 0, exercises = 0;
+      const lifts = wd?.lifts?.[dayKey] || {};
+      for (const l in lifts) {
+        if (!Array.isArray(lifts[l])) continue;
+        let liftSets = 0;
+        lifts[l].forEach(s => {
+          const done = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
+          const warm = s.type === 'W' || s.isWarmup;
+          if (done && !warm) { liftSets++; vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
+        });
+        if (liftSets > 0) { sets += liftSets; exercises++; }
+      }
+      if (sets === 0) return '';
+      const setLbl = `${sets} working ${sets === 1 ? 'set' : 'sets'}`;
+      const exLbl  = `${exercises} ${exercises === 1 ? 'exercise' : 'exercises'}`;
+      const volLbl = vol > 0 ? ` · ${Math.round(vol).toLocaleString()} ${settings.weightUnit || 'kg'}` : '';
+      return `${setLbl} across ${exLbl}${volLbl}`;
+    }
+    const run = wd?.runs?.[dayKey] || {};
+    const distKm = parseFloat(run.dist) || 0;
+    const secs   = this._parseTime(run.time);
+    if (distKm <= 0 && secs <= 0) return '';
+    const parts = [];
+    if (distKm > 0) parts.push(this._fmtDistance(distKm, settings));
+    if (secs > 0)   parts.push(`in ${this._fmtTime(secs)}`);
+    return parts.join(' ');
   }
 
   _modalStats(dayKey, wd, settings) {

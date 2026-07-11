@@ -101,7 +101,7 @@ export function answerCoachOnHome(intent) {
   }
 }
 
-function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay) {
+function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive = false) {
   const el = document.getElementById('morningBriefing');
   if (!el) return;
   const firstSession = !!appState._justOnboarded;
@@ -109,6 +109,7 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
   const briefing = buildMorningBriefing({
     state: appState, model, score: scoreResult, projection,
     program: activeProgram, selectedDay, firstSession,
+    overtrainingActive, days: _getDays(),
   });
   setHTML(el, briefingCardHTML(briefing));
 
@@ -133,13 +134,14 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
 // (signature) is acknowledged; a new/worse condition resurfaces it. Returns
 // true while it's on screen so the advisory deload card stays out of its way.
 // ==========================================
-function renderOvertrainingCard(appState, model) {
+function renderOvertrainingCard(appState, model, assessment) {
   const card = document.getElementById('homeOvertrainingCard');
   if (!card) return false;
 
-  let assessment;
-  try { assessment = assessOvertrainingRisk(model, appState, DEFAULT_DAYS); }
-  catch (e) { card.style.display = 'none'; return false; }
+  if (!assessment) {
+    try { assessment = assessOvertrainingRisk(model, appState, _getDays()); }
+    catch (e) { card.style.display = 'none'; return false; }
+  }
 
   const sig = riskSignature(assessment);
   const ack = appState.overtrainingAck;
@@ -343,7 +345,22 @@ export function renderHome() {
   }
 
   const scoreResult = renderHybridScoreHome(appState, model);
-  renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay);
+
+  // Overtraining escalation assessed ONCE here (and reused below). This also
+  // fixes a latent bug: renderOvertrainingCard referenced an out-of-scope
+  // DEFAULT_DAYS, whose ReferenceError the try/catch swallowed — so the safety
+  // card never actually rendered. Passing the assessment in avoids that scope
+  // trap and the double compute.
+  let otAssessment = null;
+  try { otAssessment = assessOvertrainingRisk(model, appState, DEFAULT_DAYS); } catch (_) { /* sparse data */ }
+  const otSig = otAssessment ? riskSignature(otAssessment) : '';
+  const otAck = appState.overtrainingAck;
+  const otAcknowledged = !!(otAssessment && otAssessment.level === 'high' && otAck && otAck.sig === otSig);
+  // The briefing suppresses its own load line only when the escalation card is
+  // actually on screen (high AND not acknowledged) — one red voice, not two.
+  const overtrainingActive = !!(otAssessment && otAssessment.level === 'high' && !otAcknowledged);
+
+  renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
 
   // V2 (S4): the week-compare card moves off Home — it was one of several
@@ -352,7 +369,7 @@ export function renderHome() {
   if (compareCard) compareCard.style.display = 'none';
 
   // Overtraining escalation (R10) takes priority over the advisory deload card.
-  const overtrainingShowing = renderOvertrainingCard(appState, model);
+  const overtrainingShowing = renderOvertrainingCard(appState, model, otAssessment);
 
   const deloadCard = document.getElementById('homeDeloadSuggestionCard');
   const deloadReason = document.getElementById('homeDeloadReason');

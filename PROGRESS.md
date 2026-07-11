@@ -72,6 +72,25 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-11 · **Analytics → action: insight trust, evidence & de-dup**
+  (same branch; Part 2 in `docs/ANALYTICS_VERIFICATION_2026-07.md`). Reviewed the
+  path logged-data → weekly analytics → Hybrid Score → insight → action. **Fixed a
+  real regression:** the overtraining escalation card referenced an out-of-scope
+  `DEFAULT_DAYS`, whose swallowed ReferenceError meant the safety card *never
+  rendered* — now assessed once in `renderHome` and passed in. **De-duplicated red
+  cards:** the briefing coach line now defers to the escalation card when it's on
+  screen (one voice, not two). **Made recommendations explain themselves:** new pure
+  `js/brain/coach-evidence.js` powers a collapsible "Why am I seeing this?" under the
+  coach line — concrete facts from the SAME verified aggregates as In Focus (working
+  sets this week vs same point last week, running distance, readiness, plain-language
+  load direction), a "what clears it" line, and honest data-completeness ("Sleep
+  logged 2 of 7 nights — limited data"). **In Focus:** bar tap now leads with a
+  compact daily summary ("5 working sets across 2 exercises · 2,900 kg" / "6.4 km in
+  34:10"). +15 tests (568 total) incl. home/detail/Brain consistency asserts;
+  typecheck / precache / smoke green; rendered HTML verified. · Next: `[You]`
+  device-test the disclosure + escalation card; optional re-tier of per-view
+  analytics insight severities.
+
 - 2026-07-11 · **Analytics verification + In Focus weekly graph**
   (branch `claude/helyx-analytics-verification-lpc8ma`; full log in
   `docs/ANALYTICS_VERIFICATION_2026-07.md`). Traced stored-data→display for every

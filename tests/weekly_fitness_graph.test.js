@@ -157,6 +157,42 @@ test('running graph defaults to Distance and honours mile units', () => {
   assert.match(html, /6\.2 mi/);
 });
 
+test('bar tap shows a compact daily summary with the exercise count', () => {
+  const state = {
+    currentWeek: '1',
+    settings: { weightUnit: 'kg' },
+    weeks: {
+      '1': {
+        dates: weekDates('2026-06-01'),
+        lifts: { mon: {
+          'Bench Press': [work(100, 5), work(100, 5), work(100, 5)],
+          'Back Squat':  [work(140, 5), work(140, 5)],
+        } },
+      },
+    },
+  };
+  const id = 'strengthBarChart_modal';
+  const g = initWeeklyFitnessGraph(id, 'strength', () => state);
+  g._openModal('mon');
+  const html = getEl('wfgModalContent').innerHTML;
+  // 5 working sets across 2 exercises, volume 100×5×3 + 140×5×2 = 1500 + 1400 = 2900
+  assert.match(html, /5 working sets across 2 exercises/);
+  assert.match(html, /2,900 kg/);
+});
+
+test('running bar tap summary reads "distance in time"', () => {
+  const state = {
+    currentWeek: '1',
+    settings: { distanceUnit: 'km' },
+    weeks: { '1': { dates: weekDates('2026-06-01'), runs: { sat: { dist: '6.4', time: '34:10' } } } },
+  };
+  const id = 'runBarChart_modal';
+  const g = initWeeklyFitnessGraph(id, 'running', () => state);
+  g._openModal('sat');
+  const html = getEl('wfgModalContent').innerHTML;
+  assert.match(html, /6\.4 km in 34:10/);
+});
+
 test('zero-data week renders gracefully with an honest empty comparison', () => {
   const state = {
     currentWeek: '3',

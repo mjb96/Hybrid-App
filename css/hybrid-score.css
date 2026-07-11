@@ -205,6 +205,37 @@
 .mbrief__coach-text { flex: 1 1 0%; min-width: 0; font-size: .74rem; color: var(--text-muted,#94a3b8); line-height: 1.45; }
 .mbrief__coach-text b { color: var(--text-secondary,#cbd5e1); font-weight: 700; }
 
+/* ---- "Why am I seeing this?" — coach evidence disclosure ------------------ */
+.mbrief__why { margin: 6px 0 0 16px; }
+.mbrief__why-summary {
+  font-size: .68rem; font-weight: 700; color: var(--text-muted,#94a3b8);
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 0; user-select: none;
+}
+.mbrief__why-summary::-webkit-details-marker { display: none; }
+.mbrief__why-summary::before { content: '▸'; font-size: .6rem; transition: transform .15s; }
+.mbrief__why[open] .mbrief__why-summary::before { transform: rotate(90deg); }
+.mbrief__why-summary:focus-visible { outline: 2px solid var(--color-blue,#3b82f6); outline-offset: 2px; border-radius: 4px; }
+.mbrief__why-conf { color: var(--color-amber,#f59e0b); font-weight: 700; }
+.mbrief__why-list {
+  margin: 6px 0 0; padding: 0 0 0 2px; list-style: none;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mbrief__why-list li {
+  font-size: .74rem; color: var(--text-secondary,#cbd5e1); line-height: 1.4;
+  padding-left: 14px; position: relative;
+}
+.mbrief__why-list li::before {
+  content: '·'; position: absolute; left: 4px; color: var(--text-muted,#94a3b8); font-weight: 800;
+}
+.mbrief__why-clears {
+  margin: 8px 0 0; font-size: .72rem; font-style: italic;
+  color: var(--text-muted,#94a3b8); line-height: 1.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mbrief__why-summary::before { transition: none; }
+}
+
 /* ---- Why it changed (E7) -------------------------------------------------- */
 .hs-why__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
 .hs-why__k { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted,#94a3b8); }

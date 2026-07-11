@@ -101,3 +101,80 @@ weekly → comparison, plus a perf run (200-week history: ~0.01 ms/`buildWeekCha
 | Week-to-week comparisons | 4 (graph had none; detail label partial-vs-full) | 8 |
 | Analytics clarity | 6 | 8.5 |
 | Home In Focus experience | 3 (hidden; fabricated numbers when shown) | 8.5 |
+
+---
+
+# Part 2 — Analytics → action: insight trust, evidence & de-duplication (2026-07-11)
+
+Second pass on the same branch: reviewing the path *logged data → weekly analytics
+→ Hybrid Score → insight → recommended action* for whether a normal user can tell
+what changed, why, whether it matters, and what to do next.
+
+## Data → recommendation flow
+```
+weeks[N] ─► shared aggregates (week-chart-model / load_models / dashboard-model)
+         ─► Hybrid Score (8 pillars, additive drivers)
+         ─► generateRecommendation (ACWR/TSB/RPE/session → one coach line)
+         ─► Morning Briefing card  (greeting · session · mission · coach line
+                                    + NEW "Why am I seeing this?" evidence)
+         ─► Overtraining escalation card (stacked-signal safety, acknowledge-required)
+```
+
+## Bugs / regressions found & fixed
+| # | Issue | Root cause | Fix |
+|---|---|---|---|
+| 1 | **Overtraining escalation card never rendered** | `renderOvertrainingCard` referenced an out-of-scope `DEFAULT_DAYS`; the `ReferenceError` was swallowed by its own `try/catch`, so the safety card was silently dead | Assess risk **once** in `renderHome` with the correct days source and pass it in; card now renders |
+| 2 | **Two red cards for one cause** | Briefing coach line ("Reduce load today") and the overtraining card both fired on a load spike | Briefing now **defers** its load line when the escalation card is on screen — one voice |
+| 3 | **Recommendations had no visible evidence** | Coach line deliberately hid all numbers; no way to see *why* | New `buildCoachEvidence` → a collapsible **"Why am I seeing this?"** with concrete facts + "what clears it" |
+
+## New: evidence & recommendation hierarchy
+- **Escalation (acknowledge-required):** overtraining card — stacked fatigue signals, lists its signal chips as evidence, owns the load message when active.
+- **Daily coach line (one voice):** the briefing recommendation, now with progressive-disclosure evidence built from the **same verified aggregates** as the In Focus graph (working sets this week vs the same point last week, running distance, readiness, plain-language load direction).
+- **Supporting detail:** the per-view analytics insights (unchanged) live one tap deeper.
+
+Every important recommendation now answers: *what happened* (coach headline),
+*why Helyx thinks so* (evidence bullets), *what to do* (existing advice),
+*what clears it* (the clears line), and *how confident* (a "· limited data" marker
+when sleep/readiness coverage is thin).
+
+## Incomplete-data honesty
+`buildCoachEvidence` distinguishes insufficient data from zero: on a recovery call it
+adds "Sleep logged N of the last 7 nights — recovery read is partial" (and marks the
+disclosure *limited data*) or "No recent readiness data — based on training load
+alone", rather than implying a confident conclusion. With no load/readiness/logged
+work it returns **no bullets** (the disclosure simply doesn't appear).
+
+## In Focus interaction
+Bar tap now leads with a compact daily summary — e.g. *"5 working sets across 2
+exercises · 2,900 kg"* or *"6.4 km in 34:10"* — above the existing stat grid.
+
+## Consistency (asserted in tests)
+`buildWeekChart` totals equal `strengthLoadSeries` / `enduranceLoadSeries` and the
+dashboard model's `week.volume.current`, week-for-week, warm-ups excluded identically.
+
+## Files changed (Part 2)
+`js/brain/coach-evidence.js` (new), `js/brain/morning-briefing.js`,
+`js/home/morning-briefing-card.js`, `js/home.js` (bug fix + single assessment),
+`js/home/weekly-fitness-graph.js` (daily summary), `css/hybrid-score.css`,
+`css/styles.css`. Tests: `tests/coach_evidence.test.js` (7),
+`tests/home_brain_consistency.test.js` (6), +2 In Focus modal tests. 568 total, all
+green; typecheck / precache / smoke green; rendered HTML verified.
+
+## Ratings (this pass)
+| Dimension | Before | After |
+|---|---|---|
+| Analytics trust | 7 | 8.5 |
+| Analytics clarity | 7 | 8.5 |
+| Recommendation usefulness | 5 (advice, no visible why) | 8 |
+| In Focus usability | 8 | 8.5 |
+| Hybrid Brain usefulness | 5 (dead safety card, duplicate reds) | 8 |
+| Overall home-screen experience | 6.5 | 8.5 |
+
+**Would a normal user know what to do next after opening the app?** Yes — one coach
+line states the action, the mission is a tap target to do it, and "Why am I seeing
+this?" shows the evidence on demand without cluttering the calm default.
+
+## Remaining limitations
+- Detail-view "Weekly Volume … vs last week" label (partial-vs-full) still deferred.
+- Per-view analytics insight severities (`insight-engine.js`) not re-tiered this pass.
+- On-device check of the disclosure + escalation card still needed `[You]`.

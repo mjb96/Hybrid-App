@@ -61,6 +61,7 @@ const REQUIRED_ASSETS = [
   "./js/app.js",
   "./js/athlete-profile.js",
   "./js/brain/briefing.js",
+  "./js/brain/coach-evidence.js",
   "./js/brain/coach-memory.js",
   "./js/brain/coach-qa.js",
   "./js/brain/day-verdict.js",

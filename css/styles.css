@@ -6824,8 +6824,15 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
   font-size: 1.05rem;
   font-weight: 800;
   color: var(--text-primary);
-  margin-bottom: 14px;
+  margin-bottom: 8px;
   letter-spacing: -0.03em;
+}
+.wfg-msummary {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 14px;
+  line-height: 1.4;
 }
 .wfg-mstats {
   display: grid;
