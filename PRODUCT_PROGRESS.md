@@ -331,13 +331,18 @@ _Newest first: date · what changed · what's next._
   `programHasLifts`/`programStats.hasLifts`; lift-less programs show "N× runs per week"
   instead of "~1 sets per lift", suppress the meaningless "1×8" Plan-timeline badge (the row
   label already carries the real run prescription), and read "—" for Set volume in compare.
-  **(3, Low) plain-language cockpit banner** — "Baseline Loading Profile Verified" →
-  "First time logging this — today sets your baseline". **(4, Low) native keyboards** —
-  `inputmode="decimal"` (weight) / `"numeric"` (reps). Tests **512 → 519** (all green);
-  typecheck + smoke + precache green; every change re-verified in the real browser. ·
-  **Next:** extend inheritance to coached programs (ghost the athlete's actual S1 over a
-  stale plan number); a tap-to-explain layer for VDOT/e1RM/ACWR; home-gym-aware onboarding
-  equipment default.
+  **(3, Medium) honest FORM (TSB) empty state** — the Recovery leaf showed a confident
+  "0 · fresh / peaking" with no training-load data while its sibling Readiness/ACWR cards
+  honestly showed "No Data"/"--"; new pure `formatFormTSB` (in `metrics-load.js`) returns
+  "-- · Log training to build this" until there's real load history, and a signed TSB
+  (+8 / -13) once there is — matching the Stats-tab card. **(4, Low) plain-language cockpit
+  banner** — "Baseline Loading Profile Verified" → "First time logging this — today sets your
+  baseline". **(5, Low) native keyboards** — `inputmode="decimal"` (weight) / `"numeric"`
+  (reps). Tests **512 → 523** (all green); typecheck + smoke + precache green; every change
+  re-verified in the real browser. · **Next:** extend inheritance to coached programs (ghost
+  the athlete's actual S1 over a stale plan number); a tap-to-explain layer for
+  VDOT/e1RM/ACWR; home-gym-aware onboarding equipment default; Profile "Lifetime" tiles still
+  use emoji (icon-set consistency).
 
 - 2026-07-06 · **UX audit-fix batch — "logged a few workouts" pass** (branch
   `claude/workout-app-ux-audit-5ejlcx`). Fixed the audit findings in reviewable slices:

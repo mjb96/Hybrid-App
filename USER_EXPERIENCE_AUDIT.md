@@ -52,11 +52,13 @@ One hero (Hybrid Score gauge + 3 dials), a single coaching voice (Morning Briefi
 Mission), a day-aware primary CTA (correctly "Log a wellness check-in" on a rest day),
 and a lean At-a-Glance strip. Not a dashboard of micro-metrics. No duplication observed.
 
-### 6. Analytics & Hybrid Brain — **understandable, one jargon gap**
+### 6. Analytics & Hybrid Brain — **understandable; fixed a misleading empty state**
 Insights hub is well bucketed ("One number each, then the depth"). Empty states explain
-what to do ("Log a hard run … to unlock your VDOT"). **VDOT** itself is never *defined* for
-a lay user — paired with "Running fitness" as a subtitle, which softens it. Deferred (a
-tooltip pass), not a blocker.
+what to do ("Log a hard run … to unlock your VDOT"). **But** on the Recovery leaf with no
+data, READINESS said "No Data" and LOAD RATIO (ACWR) showed "--", yet **FORM (TSB) showed a
+confident "0 · fresh / peaking"** — a computed-looking verdict with nothing behind it. Fixed
+(see §3). **VDOT** itself is never *defined* for a lay user — paired with "Running fitness"
+as a subtitle, which softens it. Deferred (a tooltip pass), not a blocker.
 
 ### 7. Health Connect — not re-tested here (Android-native bridge; covered by prior work).
 
@@ -75,9 +77,10 @@ Folded a small native-keyboard fix into the logging change (`inputmode`).
 | 1 | **High** | One-tap quick-log fabricated **40 × 10** on an empty set (the manual-tick path already bounced honestly — inconsistent + a silent-data bug) | **Fixed** |
 | 2 | **High** | New user / no-history exercise: straight sets required **re-typing every field** — no inheritance from the set you just did; one-tap couldn't work at all | **Fixed** |
 | 3 | Medium | Running-only programs showed **"~1 sets per lift"** and **"1×8" volume badges** — meaningless strength vocabulary on a run block | **Fixed** |
-| 4 | Low | Cockpit's first-time banner read **"Baseline Loading Profile Verified"** — machine jargon on a new user's first exercise | **Fixed** |
-| 5 | Low | Weight/reps inputs had no `inputmode` (marginal mobile-keyboard nicety) | **Fixed** |
-| 6 | Low | Onboarding equipment defaults to Full Gym; VDOT undefined; onboarding card vertical centring | Deferred |
+| 4 | Medium | Recovery leaf with no data: FORM (TSB) showed a confident **"0 · fresh / peaking"** while its two sibling cards honestly showed "No Data"/"--" — a misleading computed verdict | **Fixed** |
+| 5 | Low | Cockpit's first-time banner read **"Baseline Loading Profile Verified"** — machine jargon on a new user's first exercise | **Fixed** |
+| 6 | Low | Weight/reps inputs had no `inputmode` (marginal mobile-keyboard nicety) | **Fixed** |
+| 7 | Low | Onboarding equipment defaults to Full Gym; VDOT undefined; Profile "Lifetime" tiles still emoji; onboarding card vertical centring | Deferred |
 
 ---
 
@@ -101,10 +104,17 @@ shows **"3× · runs per week"** instead of the phantom "~1 sets per lift", the 
 **"1×8" badge is suppressed** (the real prescription is the row label it already renders),
 and the side-by-side compare shows "—" for Set volume instead of "~1 sets/lift".
 
-**C. Plain-language first-exercise banner (first-use clarity).**
+**C. Honest FORM (TSB) empty state (analytics — misleading state).**
+Extracted a pure, unit-tested `formatFormTSB(currentCTL, currentATL)` in
+`js/metrics/metrics-load.js`: with no training-load history it returns
+**"-- · Log training to build this"** instead of "0 · fresh / peaking", so all three
+Recovery-leaf cards (Readiness, Form, Load Ratio) now agree there's no data yet. When data
+exists it shows a **signed** TSB (+8 / -13), matching the Stats-tab card.
+
+**D. Plain-language first-exercise banner (first-use clarity).**
 "Baseline Loading Profile Verified" → **"First time logging this — today sets your baseline"**.
 
-**D. Native keyboards (native feel).** Weight input `inputmode="decimal"`, reps
+**E. Native keyboards (native feel).** Weight input `inputmode="decimal"`, reps
 `inputmode="numeric"`.
 
 ---
@@ -128,6 +138,7 @@ and the side-by-side compare shows "—" for Set volume instead of "~1 sets/lift
 | New user, one-tap quick-log S2 empty | Logged a **fabricated 40 × 10** | Inherits S1 (or bounces if nothing to inherit) |
 | Couch-to-5K commitment strip | "~1 · SETS PER LIFT" | "3× · RUNS PER WEEK" |
 | Couch-to-5K Plan timeline row | "Week 1: 8×(60s run/90s walk) … **1×8**" | "Week 1: 8×(60s run/90s walk)" (no phantom badge) |
+| Recovery leaf, no data | FORM (TSB) "0 · fresh / peaking" (beside "No Data" / "--") | FORM (TSB) "-- · Log training to build this" (all three agree) |
 | First exercise, no history | "Baseline Loading Profile Verified" | "First time logging this — today sets your baseline" |
 | Weight/reps field focus (mobile) | Generic numeric keyboard | Decimal / numeric keypad |
 
@@ -139,10 +150,14 @@ and the side-by-side compare shows "—" for Set volume instead of "~1 sets/lift
   prior not completed / prior blank / null input), and does **not** cross warm-up↔working.
 - `tests/program_compare.test.js` (+3): `programHasLifts` true for lifting / false for a
   run-only block; `programStats.hasLifts` flag; compare shows no "sets/lift" for a run block.
+- `tests/metrics_load.test.js` (+4): `formatFormTSB` — neutral "--" empty state on zero/
+  null load data; signed positive (fresh) / negative (fatigue) form once data exists; bare
+  "0" (not "+0") at exact balance.
 
-**Suite: 512 → 519 node tests, all pass. typecheck ✓, smoke ✓, precache ✓.** Each behaviour
+**Suite: 512 → 523 node tests, all pass. typecheck ✓, smoke ✓, precache ✓.** Each behaviour
 change was also re-verified end-to-end in the real browser (inheritance on both paths, the
-honest bounce, the running-program strip/timeline, reload survival).
+honest bounce, the running-program strip/timeline, reload survival, and the Recovery-leaf
+empty state).
 
 ---
 
@@ -160,7 +175,7 @@ honest bounce, the running-program strip/timeline, reload survival).
 - Workout logging: **8.5** (was ~7.5 for straight-set/new-user friction) — now fast, honest, forgiving.
 - Program browsing: **8** — rich and premium; running metadata now coherent.
 - Home screen: **8.5** — glanceable, one voice, on-brand Garmin direction.
-- Analytics: **7.5** — deep and mostly explained; a couple of undefined terms remain.
+- Analytics: **7.5** — deep and mostly explained; empty states now honest; a couple of undefined terms (VDOT) remain.
 - Settings: **7.5** — organised, destructive actions separated (not deeply re-audited here).
 - Native-app feel: **8** — real transitions, icon set, safe areas, timers, haptics; `inputmode` added.
 - Overall retention potential: **8**.

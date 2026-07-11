@@ -16,6 +16,7 @@ import { statCard } from '../charts/chart-primitives.js';
 import { computeRecoveryAnalytics } from '../calculations/recovery-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import { computeDashboardModel } from '../../home/dashboard-model.js';
+import { formatFormTSB } from '../../metrics/metrics-load.js';
 import { getProgramById } from '../../state.js';
 import {
   computeReadiness,
@@ -74,7 +75,9 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
   const color  = readiness.color || readinessColor(readiness.score);
   const status = readiness.status || readinessStatus(readiness.score);
 
-  const tsb   = Math.round((la.currentCTL || 0) - (la.currentATL || 0));
+  // Form/TSB is only meaningful once there's real training-load history (see
+  // formatFormTSB) — with no data it must not read a confident "0 · fresh / peaking".
+  const form  = formatFormTSB(la.currentCTL, la.currentATL);
   const ratio = la.currentRatio > 0 ? la.currentRatio.toFixed(2) : '--';
   const ratioStatus = la.currentRatio === 0 ? '' : la.currentRatio < 0.8 ? 'Detraining' : la.currentRatio < 1.3 ? 'Productive' : 'High';
 
@@ -91,7 +94,7 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
       <div class="an-hero__empty">${readiness.recommendation || ''}</div>
     </article>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Form (TSB)', value: String(tsb), sub: tsb >= 0 ? 'fresh / peaking' : 'carrying fatigue', color: '#3b82f6' })}
+      ${statCard({ label: 'Form (TSB)', value: form.value, sub: form.sub, color: '#3b82f6' })}
       ${statCard({ label: 'Load Ratio (ACWR)', value: ratio, sub: ratioStatus, color: '#f59e0b' })}
     </div>
     ${(() => {
