@@ -12,6 +12,8 @@ import {
 import { renderTSBTrendChart, renderLoadRatioChart, renderTrainingStressChart } from '../charts/load-charts.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { computeRunningAnalytics } from '../calculations/running-calcs.js';
+import { buildWeekChart } from '../week-chart-model.js';
+import { statComparisonFrom } from '../comparison.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import {
   generateRunningInsights,
@@ -118,13 +120,16 @@ function renderRacePredictors(ra, data) {
 }
 
 // ---- Running Fitness Dashboard ----------------------------------------
-function renderRunningFitnessDashboard(ra, la, data) {
+function renderRunningFitnessDashboard(ra, la, data, appState) {
   const el = qs('runningFitnessDashboard');
   if (!el) return;
 
-  const distCur  = ra.distSeries[ra.distSeries.length - 1] || 0;
-  const distPrev = ra.distSeries[ra.distSeries.length - 2] || 0;
-  const distPct  = distPrev > 0 ? ((distCur - distPrev) / distPrev) * 100 : null;
+  // This dashboard always reflects the current week (last series index), so the
+  // comparison is elapsed-matched "vs same point last week" — not a partial week
+  // dressed up as a full-week drop. Same shared model + label as In Focus.
+  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: 0 });
+  const distCur   = distChart.total;
+  const distCmp   = statComparisonFrom(distChart);
 
   const monthly = ra.monthlyDist;
   const curMon  = monthly[monthly.length - 1]?.distance || 0;
@@ -148,7 +153,7 @@ function renderRunningFitnessDashboard(ra, la, data) {
       ${statCard({ label: 'Running Economy', value: ra.re ? ra.re + ' ml/kg/km' : '--', sub: 'At threshold pace', color: '#22d3ee' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distPct, sub: 'vs last week', color: '#ec4899' })}
+      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distCmp.deltaPct, sub: distCmp.sub, color: '#ec4899' })}
       ${statCard({ label: 'Monthly Distance', value: fmtDist(curMon), delta: monPct, sub: 'vs last month', color: '#f472b6' })}
     </div>
     <div class="grid-2-col gap-2 mb-3">
@@ -355,7 +360,7 @@ export function renderRunningAnalytics(data, getState, getDays) {
   section.innerHTML = screenTabBar(_runningTab) + `<div id="running-tab-body"></div>`;
   const body = qs('running-tab-body');
 
-  if (_runningTab === 'stats') _renderRunningStats(body, ra, la, data);
+  if (_runningTab === 'stats') _renderRunningStats(body, ra, la, data, appState);
   else _renderRunningOverview(body, ra, data, allInsights, appState);
 
   mountScreenTabs('analytics-running', (tab) => {
@@ -372,9 +377,10 @@ function _renderRunningOverview(body, ra, data, insights, appState) {
   // "-- ↓100%"). Matches the Strength fix + Home. Delta is null-guarded so a
   // week with no distance yet never shows a bogus "↓100% vs last week".
   const ci       = curWeekIdx(appState, dist.length);
-  const distCur  = dist[ci] || 0;
-  const distPrev = dist[ci - 1] || 0;
-  const distDelta = distCur > 0 && distPrev > 0 ? Math.round(((distCur - distPrev) / distPrev) * 100) : null;
+  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
+  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: (ci + 1) - curWk });
+  const distCur   = distChart.total;
+  const distCmp   = statComparisonFrom(distChart);
   const color = ra.endScore == null ? '#94a3b8'
     : ra.endScore >= 80 ? '#10b981' : ra.endScore >= 60 ? '#3b82f6'
     : ra.endScore >= 40 ? '#f59e0b' : '#ef4444';
@@ -399,7 +405,7 @@ function _renderRunningOverview(body, ra, data, insights, appState) {
   body.innerHTML = `
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distDelta, sub: 'vs last week', color: '#3b82f6' })}
+      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distCmp.deltaPct, sub: distCmp.sub, color: '#3b82f6' })}
       ${statCard({ label: 'Best Pace', value: fmtPace(ra.bestPace), sub: 'fastest recent run', color: '#10b981' })}
     </div>
     ${(() => {
@@ -411,7 +417,7 @@ function _renderRunningOverview(body, ra, data, insights, appState) {
 
 // Stats: the full running engine, one tap deeper. Absorbs the old avg-pace, vdot,
 // and run-crossref leaves so each fact lives in exactly one place.
-function _renderRunningStats(body, ra, la, data) {
+function _renderRunningStats(body, ra, la, data, appState) {
   body.innerHTML = `
     <div id="runningEnduranceHero"></div>
     <div id="runningFitnessDashboard"></div>
@@ -422,7 +428,7 @@ function _renderRunningStats(body, ra, la, data) {
     <div id="runningDistanceSection"></div>
   `;
   renderEnduranceHero(ra, data);
-  renderRunningFitnessDashboard(ra, la, data);
+  renderRunningFitnessDashboard(ra, la, data, appState);
   renderPaceAnalysis(ra, data);
   renderRacePredictors(ra, data);
   renderHRAnalysis(ra, data);

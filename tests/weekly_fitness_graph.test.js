@@ -193,6 +193,43 @@ test('running bar tap summary reads "distance in time"', () => {
   assert.match(html, /6\.4 km in 34:10/);
 });
 
+test('refresh reflects data edits and unit changes without a remount (no stale cache)', () => {
+  const state = {
+    currentWeek: '1',
+    settings: { distanceUnit: 'km' },
+    weeks: { '1': { dates: weekDates('2026-06-01'), runs: { tue: { dist: '10', time: '50:00' } } } },
+  };
+  const id = 'runBarChart_refresh';
+  initWeeklyFitnessGraph(id, 'running', () => state);
+  assert.match(getEl(id).innerHTML, /10\.0 km/);
+
+  // Edit the underlying data, then refresh (same instance) → new value shows.
+  state.weeks['1'].runs.tue.dist = '12';
+  refreshWeeklyFitnessGraph(id);
+  assert.match(getEl(id).innerHTML, /12\.0 km/);
+  assert.doesNotMatch(getEl(id).innerHTML, /10\.0 km/);
+
+  // Change units → the same refresh re-renders in miles (12 km → 7.5 mi).
+  state.settings.distanceUnit = 'mi';
+  refreshWeeklyFitnessGraph(id);
+  assert.match(getEl(id).innerHTML, /7\.5 mi/);
+});
+
+test('deleting the last activity in a week refreshes to an honest zero-data state', () => {
+  const state = {
+    currentWeek: '1', settings: { weightUnit: 'kg' },
+    weeks: { '1': { dates: weekDates('2026-06-01'), lifts: { mon: { A: [work(100, 5)] } } } },
+  };
+  const id = 'strengthBarChart_del';
+  initWeeklyFitnessGraph(id, 'strength', () => state);
+  assert.match(getEl(id).innerHTML, /1 set/);
+  delete state.weeks['1'].lifts.mon;
+  refreshWeeklyFitnessGraph(id);
+  const html = getEl(id).innerHTML;
+  assert.match(html, /aria-label="Monday, no activity"/);
+  assert.doesNotMatch(html, /NaN|Infinity/);
+});
+
 test('zero-data week renders gracefully with an honest empty comparison', () => {
   const state = {
     currentWeek: '3',

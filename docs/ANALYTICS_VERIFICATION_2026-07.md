@@ -178,3 +178,105 @@ this?" shows the evidence on demand without cluttering the calm default.
 - Detail-view "Weekly Volume … vs last week" label (partial-vs-full) still deferred.
 - Per-view analytics insight severities (`insight-engine.js`) not re-tiered this pass.
 - On-device check of the disclosure + escalation card still needed `[You]`.
+
+---
+
+# Part 3 — Release verification (2026-07-11)
+
+Taking the analytics/home experience from correct to release-ready.
+
+## Comparison-period consistency (Priority 1)
+Traced every week-over-week label. The one real mismatch — the **detail-view
+"Weekly Volume / Weekly Distance … vs last week"** stat cards, which showed the
+CURRENT partial week's value against the *full* previous week under a "last week"
+label — is fixed. Both strength and running detail cards now route through the
+same `buildWeekChart` comparison + one shared label source (`js/analytics/
+comparison.js`), so value and label always describe the same periods:
+- current week → elapsed-matched → **"vs same point last week"**
+- completed/navigated week → full-vs-full → **"vs previous week"**
+- non-comparable (no prior week / zero denominator) → **no percentage** (null
+  delta, honest label), never NaN/Infinity.
+Session-vs-session recaps ("Volume vs last week" = same weekday last week) and the
+weekly-review chip (already pace-matched) were verified correct and left as-is.
+
+## Regression found & fixed (Priority 9 in action)
+Wiring the detail cards surfaced a **ReferenceError I introduced**:
+`renderRunningFitnessDashboard` / `_renderRunningStats` used `appState` without it
+in scope — it would have thrown *only when a user opened Running analytics*, which
+the Home-only smoke test never renders. Fixed by threading `appState` through, and
+closed the coverage gap with `tests/analytics_views_render.test.js` (drives both
+views on both tabs; fails on any throw). This is exactly the class of "silent
+render death" this pass set out to eliminate.
+
+## Error visibility (Priority 9)
+New leaf `js/monitoring/report-error.js`: `reportHandledError` (console.error in
+dev/CI + Sentry in prod, never silent) and `renderSafely` (run a render, report +
+fall back to a safe value on throw). The overtraining card path now uses both, so
+a future render fault degrades to "card hidden" **and is observed** rather than
+vanishing. Because the smoke test fails on unexpected `console.error`, a swallowed
+throw in that path now breaks CI.
+
+## Realistic profiles (Priority 3) — all asserted in `tests/user_profiles.test.js`
+| Profile | Key assertions (exact) |
+|---|---|
+| A Consistent strength (12wk) | stable bars (11 sets/wk), risk `none`, rec not `warning` |
+| B Hybrid | strength 5 sets & running 22 km independent — no cross-count |
+| C Rapid load spike | escalation `high`, briefing coach deferred, evidence + clears |
+| D Sparse recovery data | evidence `limited`, "Sleep logged 2 of the last 7 nights" |
+| E Returning (3-wk gap) | current week not comparable (honest), risk not `high` |
+| F Beginner (<2wk) | rec badge `Getting Started`, no trend comparison |
+| G Missed program week | only logged sets count; prescribed-unlogged day = no activity |
+| H Edits/imports/deletes | edits & deletes reflected immediately; one run/day, no dupes |
+
+## Daily-use transitions (Priority 4)
+`buildWeekChart` and `computeDashboardModel` are pure recomputes (no memo layer to
+go stale). `tests/weekly_fitness_graph.test.js` now asserts a mounted graph
+reflects a data edit, a delete (→ honest "no activity"), and a unit change
+(km→mi) on `refresh` — no remount, no stale label, no NaN/Infinity.
+
+## Overtraining flow (Priority 5) — `tests/error_observability.test.js`
+Assessed once per render and the SAME object drives suppression + display; does not
+fire from one weak signal; missing readiness doesn't create false escalation; fires
+on a load spike and CLEARS when it resolves; a thrown render is observable + degrades.
+
+## Performance (2-year synthetic history: 104 weeks, ~1,500 sets, ~350 runs)
+- `computeDashboardModel` (full Home aggregation): **~2.1 ms/call**
+- `buildWeekChart` (In Focus week switch): **~0.11 ms/call** — bounded to one week
+  + its predecessor, no full-history rescan.
+Guard test (`tests/perf_home.test.js`) trips only on a ~20× regression. No perf fix
+needed.
+
+## Android (Priority 8) — NOT tested here
+Gradle is present but the Android Gradle Plugin can't resolve offline and no
+Android SDK/emulator is available, so **no Android build, lint, or on-device test
+was run**. Manual device checklist below.
+
+### Manual Android device-test checklist `[You]`
+- [ ] Home scrolls smoothly; In Focus cards + At-a-Glance render correctly.
+- [ ] In Focus: tap each bar → daily summary sheet; switch Strength/Running metric;
+      prev/next week; today highlighted; zero-data week reads "no activity".
+- [ ] "Why am I seeing this?" expands/collapses; no layout jump; readable at large
+      system font (Settings → Display → Font size = largest); light + dark.
+- [ ] Overtraining card: appears on a stacked-fatigue state; Acknowledge dismisses;
+      does not reappear for the same condition; screen-reader reads title + signals.
+- [ ] Detail analytics (Strength/Running): open both tabs; comparison labels read
+      "vs same point last week" (current) / "vs previous week" (navigated back).
+- [ ] Android back button, background→resume (state restored), pinch-zoom in cockpit.
+- [ ] Health Connect missing-data states (no permission / no records) read honestly.
+- [ ] GPS route displays; offline use; external links open; keyboard behaviour in inputs.
+
+## Files changed (Part 3)
+`js/analytics/comparison.js` (new), `js/analytics/week-chart-model.js` (label
+source), `js/analytics/views/view-strength.js`, `js/analytics/views/view-running.js`
+(+ `appState` threading fix), `js/monitoring/report-error.js` (new), `js/home.js`
+(observable catch + `renderSafely`), `sw.js`. Tests: `comparison` (4),
+`user_profiles` (8), `error_observability` (6), `perf_home` (2),
+`analytics_views_render` (3), +2 graph refresh. **593 total, all green.**
+
+## Release recommendation
+- **Analytics + home-screen experience: Release-candidate ready.** Comparison
+  periods are consistent and correctly labelled, profiles verified with exact
+  assertions, errors observable, performance bounded.
+- **App overall: Closed-beta ready, trending public-beta.** Gated only on the
+  pre-existing `[You]` Android on-device checks (GPS, notifications, Health
+  Connect, WebView) tracked in `PROGRESS.md` — not on any analytics defect.

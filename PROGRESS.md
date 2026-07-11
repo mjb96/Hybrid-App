@@ -72,6 +72,27 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-11 · **Analytics release verification — labels, profiles, safety**
+  (same branch; Part 3 in `docs/ANALYTICS_VERIFICATION_2026-07.md`). Fixed the last
+  comparison mislabel: the strength/running **detail** "Weekly Volume/Distance vs
+  last week" cards showed a partial current week against a full previous week —
+  now routed through the shared `buildWeekChart` comparison + one label source
+  (`js/analytics/comparison.js`): "vs same point last week" (current) / "vs
+  previous week" (completed), zero-safe. Caught & fixed a **ReferenceError I
+  introduced** (`appState` out of scope in the Running dashboard) that would throw
+  only on opening Running analytics — the Home-only smoke never renders it; closed
+  that gap with `tests/analytics_views_render.test.js` (drives both views/tabs,
+  fails on any throw). Added observable error handling (`js/monitoring/
+  report-error.js` — `reportHandledError` + `renderSafely`) so a caught render
+  fault degrades AND is logged/Sentry-reported, never silent (the overtraining-card
+  failure mode). Verified 8 realistic profiles (A–H) with exact assertions;
+  transitions (edit/delete/unit-change refresh, no stale cache); escalation gating
+  + clearing; perf on a 2-year history (Home aggregation ~2 ms, In Focus switch
+  ~0.1 ms). +25 tests (593 total) / typecheck / precache / smoke green. Android
+  build NOT runnable here (no SDK) → manual device checklist in the doc. Verdict:
+  analytics/home = **release-candidate ready**; app = closed→public-beta gated only
+  on `[You]` Android device tests. · Next: `[You]` run the Android checklist.
+
 - 2026-07-11 · **Analytics → action: insight trust, evidence & de-dup**
   (same branch; Part 2 in `docs/ANALYTICS_VERIFICATION_2026-07.md`). Reviewed the
   path logged-data → weekly analytics → Hybrid Score → insight → action. **Fixed a

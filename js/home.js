@@ -23,6 +23,7 @@ import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
 import { setHTML, reconcileKeyed } from './ui/render.js';
+import { reportHandledError, renderSafely } from './monitoring/report-error.js';
 
 let _getState;
 let _getSelectedDay;
@@ -140,7 +141,7 @@ function renderOvertrainingCard(appState, model, assessment) {
 
   if (!assessment) {
     try { assessment = assessOvertrainingRisk(model, appState, _getDays()); }
-    catch (e) { card.style.display = 'none'; return false; }
+    catch (e) { reportHandledError('home:overtraining-card:assess', e); card.style.display = 'none'; return false; }
   }
 
   const sig = riskSignature(assessment);
@@ -352,7 +353,8 @@ export function renderHome() {
   // card never actually rendered. Passing the assessment in avoids that scope
   // trap and the double compute.
   let otAssessment = null;
-  try { otAssessment = assessOvertrainingRisk(model, appState, DEFAULT_DAYS); } catch (_) { /* sparse data */ }
+  try { otAssessment = assessOvertrainingRisk(model, appState, DEFAULT_DAYS); }
+  catch (e) { reportHandledError('home:overtraining-assess', e); }
   const otSig = otAssessment ? riskSignature(otAssessment) : '';
   const otAck = appState.overtrainingAck;
   const otAcknowledged = !!(otAssessment && otAssessment.level === 'high' && otAck && otAck.sig === otSig);
@@ -369,7 +371,10 @@ export function renderHome() {
   if (compareCard) compareCard.style.display = 'none';
 
   // Overtraining escalation (R10) takes priority over the advisory deload card.
-  const overtrainingShowing = renderOvertrainingCard(appState, model, otAssessment);
+  // Wrapped so a render fault degrades to "card hidden" AND is reported — never a
+  // silent disappearance (the exact failure mode of the earlier ReferenceError).
+  const overtrainingShowing = renderSafely('home:overtraining-card',
+    () => renderOvertrainingCard(appState, model, otAssessment), false);
 
   const deloadCard = document.getElementById('homeDeloadSuggestionCard');
   const deloadReason = document.getElementById('homeDeloadReason');
