@@ -72,6 +72,29 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-12 · **Fix phantom `lift_*` workout rows (identity-key leak)** (branch
+  `claude/workout-exercise-leak-fix-7uk3h1`). Root-caused the "new day shows lots
+  of completed exercises named `lift_76dsje3t`" report. The removed "lift identity"
+  subsystem (commit `e2e624f`) once keyed a day's logged sets by generated ids
+  (`'lift_'+Math.random().toString(36).slice(2,10)`) resolved to a display name via
+  `liftNames`/`liftIdMap`. Deleting it **left the id-keyed set arrays in place** and
+  stopped resolving them, so the render path (`_buildExerciseCardEl`,
+  `displayLiftName = liftName`) surfaced the raw id **as the exercise name**, and
+  `reseedActiveProgramIntoWeek` retained the logged entries beside fresh
+  name-keyed prescriptions — the "leaked into the workout" symptom. Not date
+  rollover / shared refs — a migration gap. Fix: **v1→v2 repair migration**
+  (`js/state/migrations.js`) renames each `lift_*` key back to its real name
+  (recovered from the still-persisted maps), merges with any name-keyed entry
+  without losing logged history, falls back to an honest `Unknown exercise` (never
+  the raw id, never a silent delete) when unresolvable, re-points
+  `liftOrder`/`liftMeta`, drops derived id-keyed `exerciseStats`; idempotent +
+  observable (one scrubbed summary, no ids/set data). New leaf `js/state/lift-id.js`
+  (`isInternalLiftId`) also guards the render path against un-migrated cloud-blob
+  keys. Runs on local + cloud + import hydration (migrate is the single chokepoint).
+  Tests: `tests/lift_id_repair.test.js` (16) + a render-guard case in
+  `tests/workout_logging.test.js`. All 625 green; typecheck + smoke pass; precache
+  regenerated. Next: nothing outstanding on this defect.
+
 - 2026-07-12 · **Analytics release verification — Part 4 (comparison periods,
   load-progression, error visibility)** (branch
   `claude/analytics-release-verification-t1qjxo`). Traced every comparison

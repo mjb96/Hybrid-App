@@ -18,6 +18,7 @@ import { deleteMapFromDB } from './db.js';
 import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
 import { dateKey } from './dates.js';
+import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './state/lift-id.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
@@ -155,6 +156,13 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   let displayLiftName;
   if (!isNaN(liftName) && homeBlueprint.lifts?.[parseInt(liftName, 10)]) {
     displayLiftName = homeBlueprint.lifts[parseInt(liftName, 10)];
+  } else if (isInternalLiftId(liftName)) {
+    // Defense-in-depth: the v2 migration repairs stored data, but an un-migrated
+    // key could still arrive from an older device's cloud blob. Never surface a
+    // raw internal id as an exercise name — show an honest fallback instead.
+    // (The primary fix is the migration; this is not a cosmetic row filter — the
+    // row still renders, just with a truthful label.)
+    displayLiftName = UNKNOWN_LIFT_NAME;
   } else {
     displayLiftName = liftName;
   }
