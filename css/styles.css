@@ -6824,8 +6824,15 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
   font-size: 1.05rem;
   font-weight: 800;
   color: var(--text-primary);
-  margin-bottom: 14px;
+  margin-bottom: 8px;
   letter-spacing: -0.03em;
+}
+.wfg-msummary {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 14px;
+  line-height: 1.4;
 }
 .wfg-mstats {
   display: grid;
@@ -6880,6 +6887,109 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
 html[data-theme="light"] #wfgModal { background: rgba(0,0,0,0.55); }
 html[data-theme="light"] .wfg-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
 html[data-theme="light"] .wfg-ms { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+
+/* ── In Focus carousel layout — two stacked cards, no horizontal scroll ── */
+.in-focus-carousel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+@media (min-width: 640px) {
+  .in-focus-carousel { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Today emphasis on bars / axis ── */
+.wfg-b--today { box-shadow: 0 0 0 2px var(--bg-app, #0b0f14), 0 0 0 3px rgba(255,255,255,0.55); }
+.wfg-dc--today .wfg-b { filter: saturate(1.2) brightness(1.08); }
+.wfg-dot--today {
+  width: 6px; height: 6px;
+  outline: 2px solid rgba(255,255,255,0.75);
+  outline-offset: 1px;
+}
+.wfg-xl--today { color: var(--text-primary); font-weight: 800; }
+
+/* ── Summary row: total + honest comparison ── */
+.wfg-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  margin-top: 6px;
+  border-top: 1px solid var(--border-default);
+}
+.wfg-total { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.wfg-total-v {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.wfg-total-l {
+  font-size: 0.56rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
+.wfg-compare {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
+  min-width: 0;
+}
+.wfg-compare-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.wfg-compare-label {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.wfg-compare--up   .wfg-compare-badge { color: var(--color-green, #10b981); }
+.wfg-compare--down .wfg-compare-badge { color: var(--color-red, #ef4444); }
+.wfg-compare--flat .wfg-compare-badge { color: var(--text-muted); }
+.wfg-compare--muted {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  align-self: center;
+  text-align: right;
+  line-height: 1.15;
+}
+
+/* ── Detail link ── */
+.wfg-detail-link {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.wfg-detail-link:active { background: var(--overlay-sm); color: var(--text-primary); }
+.wfg-detail-link:focus-visible { outline: 2px solid var(--color-indigo); outline-offset: 2px; }
+
+/* Respect reduced-motion: no bar growth animation. */
+@media (prefers-reduced-motion: reduce) {
+  .wfg-b { transition: none; }
+}
 
 /* ==========================================================================
    DESIGN SYSTEM REFINEMENT — Phase 2 Polish

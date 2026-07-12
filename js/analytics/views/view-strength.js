@@ -13,6 +13,8 @@ import {
 import { MUSCLE_GROUPS, MUSCLE_LABELS, zoneColor, zoneLabel } from '../calculations/volume-landmarks.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { computeStrengthAnalytics } from '../calculations/strength-calcs.js';
+import { buildWeekChart } from '../week-chart-model.js';
+import { statComparisonFrom } from '../comparison.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import {
   generateStrengthInsights,
@@ -44,9 +46,14 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   if (!el) return;
 
   const ci      = curWeekIdx(appState, sa.volSeries.length);
-  const volCur  = sa.volSeries[ci] || 0;
-  const volPrev = sa.volSeries[ci - 1] || 0;
-  const volPct  = volPrev > 0 ? ((volCur - volPrev) / volPrev) * 100 : null;
+  // Honest week-over-week: for the CURRENT (partial) week this compares the
+  // elapsed portion against the same point last week; for a completed week it's
+  // full-vs-full. Same shared model + labels as the In Focus graph, so value and
+  // label always describe the same periods (no "partial vs full" mislabel).
+  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
+  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: (ci + 1) - curWk });
+  const volCur   = volChart.total;
+  const volCmp   = statComparisonFrom(volChart);
 
   const monthly = sa.monthlyVol;
   const curMon  = monthly[monthly.length - 1]?.volume || 0;
@@ -64,7 +71,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   el.innerHTML = `
     <h2 class="section-header mt-2">Training Load Dashboard</h2>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volPct, sub: 'vs last week', color: '#3b82f6', status: volProgStatus })}
+      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus })}
       ${statCard({ label: 'Monthly Volume', value: fmtKg(curMon), delta: monPct, sub: 'vs last month', color: '#8b5cf6' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
@@ -336,9 +343,10 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWeek) {
   const top = _topLift(data.dynamicStats);
   const ci      = curWeekIdx(appState, sa.volSeries.length);
-  const volCur  = sa.volSeries[ci] || 0;
-  const volPrev = sa.volSeries[ci - 1] || 0;
-  const volPct  = volPrev > 0 ? ((volCur - volPrev) / volPrev) * 100 : null;
+  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
+  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: (ci + 1) - curWk });
+  const volCur   = volChart.total;
+  const volCmp   = statComparisonFrom(volChart);
   const prCount = Object.values(data.dynamicStats).filter(isWeeklyPR).length;
 
   let hero;
@@ -371,7 +379,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     ${_thisWeekSessionsStripHTML(appState, days)}
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volPct, sub: 'vs last week', color: '#8b5cf6' })}
+      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6' })}
       ${statCard({ label: 'PRs This Week', value: String(prCount), sub: prCount === 1 ? 'lift at a new best' : 'lifts at a new best', color: '#10b981' })}
     </div>
     ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}

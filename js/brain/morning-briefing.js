@@ -20,6 +20,9 @@ import { classifyWeek } from '../programs/timeline.js';
 import { projectionLine } from './hybrid-score/project.js';
 import { streakRiskLine } from './streak.js';
 import { coachMemory } from './coach-memory.js';
+import { buildCoachEvidence } from './coach-evidence.js';
+
+const DEFAULT_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 const DAY_NAMES = Object.freeze({
   mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
@@ -87,9 +90,9 @@ function missionFor(model, session, firstSession = false) {
 
 // Main export — compose the whole briefing from already-computed inputs.
 // `model` is the shared dashboard model; `score` is computeHybridScore output.
-/** @param {{state?:any, model?:any, score?:any, projection?:any, program?:any, selectedDay?:string, now?:Date, firstSession?:boolean}} [opts] */
+/** @param {{state?:any, model?:any, score?:any, projection?:any, program?:any, selectedDay?:string, now?:Date, firstSession?:boolean, overtrainingActive?:boolean, days?:string[]}} [opts] */
 export function buildMorningBriefing(opts = {}) {
-  const { state, model, score, projection, program, selectedDay, now = new Date(), firstSession = false } = opts;
+  const { state, model, score, projection, program, selectedDay, now = new Date(), firstSession = false, overtrainingActive = false, days = DEFAULT_DAY_KEYS } = opts;
   const rec = model?.rec || {};
   const wk = String(state?.currentWeek || '1');
   const phase = WEEK_PHASE_NAMES[wk] || '';
@@ -143,12 +146,30 @@ export function buildMorningBriefing(opts = {}) {
     deload,
     session,
     mission: missionFor(model, session, firstSession),
-    coach: {
-      headline: rec.headline || '',
-      advice: rec.advice || '',
-      severity: rec.severity || 'neutral',
-      badge: rec.badge || '',
-    },
+    coach: buildCoach({ state, model, rec, days, overtrainingActive, now }),
+  };
+}
+
+// The coach line + its progressive-disclosure evidence. When the overtraining
+// escalation card is on screen it OWNS the load message (with its own signal
+// chips), so the briefing suppresses its own redundant load headline — one red
+// voice, not two cards repeating the same cause.
+function buildCoach({ state, model, rec, days, overtrainingActive, now }) {
+  if (overtrainingActive) {
+    return { headline: '', advice: '', severity: 'neutral', badge: rec.badge || '', evidence: null, deferred: true };
+  }
+  let evidence = null;
+  try {
+    evidence = buildCoachEvidence({ state, days, model, rec, today: now.toISOString().slice(0, 10) });
+    if (!evidence.bullets.length) evidence = null;
+  } catch (_) { evidence = null; }
+  return {
+    headline: rec.headline || '',
+    advice: rec.advice || '',
+    severity: rec.severity || 'neutral',
+    badge: rec.badge || '',
+    evidence,
+    deferred: false,
   };
 }
 

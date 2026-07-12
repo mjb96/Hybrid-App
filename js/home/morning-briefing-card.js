@@ -61,11 +61,26 @@ export function briefingCardHTML(b) {
     ? `<div class="mbrief__streak mbrief__streak--${esc(b.streakRisk.tone || 'caution')}">${esc(b.streakRisk.text)}</div>`
     : '';
 
+  // "Why am I seeing this?" — progressive disclosure of the concrete evidence
+  // behind the recommendation, built from the same verified aggregates as the In
+  // Focus graph. Native <details> so it's keyboard-accessible and offline-safe.
+  const ev = b.coach.evidence;
+  const whyRow = (ev && ev.bullets && ev.bullets.length)
+    ? `<details class="mbrief__why">
+         <summary class="mbrief__why-summary">Why am I seeing this?${ev.confidence === 'limited' ? ' <span class="mbrief__why-conf">· limited data</span>' : ''}</summary>
+         <ul class="mbrief__why-list">
+           ${ev.bullets.map(x => `<li>${esc(x)}</li>`).join('')}
+         </ul>
+         ${ev.clears ? `<p class="mbrief__why-clears">${esc(ev.clears)}</p>` : ''}
+       </details>`
+    : '';
+
   const coachRow = b.coach.headline
     ? `<div class="mbrief__coach" style="--mb-sev:${sev}">
          <span class="mbrief__coach-dot"></span>
          <span class="mbrief__coach-text"><b>${esc(b.coach.headline)}</b>${b.coach.advice ? ` — ${esc(b.coach.advice)}` : ''}</span>
-       </div>`
+       </div>
+       ${whyRow}`
     : '';
 
   // The mission routes to where it gets done: session missions → the workout

@@ -72,6 +72,65 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-11 · **Analytics release verification — labels, profiles, safety**
+  (same branch; Part 3 in `docs/ANALYTICS_VERIFICATION_2026-07.md`). Fixed the last
+  comparison mislabel: the strength/running **detail** "Weekly Volume/Distance vs
+  last week" cards showed a partial current week against a full previous week —
+  now routed through the shared `buildWeekChart` comparison + one label source
+  (`js/analytics/comparison.js`): "vs same point last week" (current) / "vs
+  previous week" (completed), zero-safe. Caught & fixed a **ReferenceError I
+  introduced** (`appState` out of scope in the Running dashboard) that would throw
+  only on opening Running analytics — the Home-only smoke never renders it; closed
+  that gap with `tests/analytics_views_render.test.js` (drives both views/tabs,
+  fails on any throw). Added observable error handling (`js/monitoring/
+  report-error.js` — `reportHandledError` + `renderSafely`) so a caught render
+  fault degrades AND is logged/Sentry-reported, never silent (the overtraining-card
+  failure mode). Verified 8 realistic profiles (A–H) with exact assertions;
+  transitions (edit/delete/unit-change refresh, no stale cache); escalation gating
+  + clearing; perf on a 2-year history (Home aggregation ~2 ms, In Focus switch
+  ~0.1 ms). +25 tests (593 total) / typecheck / precache / smoke green. Android
+  build NOT runnable here (no SDK) → manual device checklist in the doc. Verdict:
+  analytics/home = **release-candidate ready**; app = closed→public-beta gated only
+  on `[You]` Android device tests. · Next: `[You]` run the Android checklist.
+
+- 2026-07-11 · **Analytics → action: insight trust, evidence & de-dup**
+  (same branch; Part 2 in `docs/ANALYTICS_VERIFICATION_2026-07.md`). Reviewed the
+  path logged-data → weekly analytics → Hybrid Score → insight → action. **Fixed a
+  real regression:** the overtraining escalation card referenced an out-of-scope
+  `DEFAULT_DAYS`, whose swallowed ReferenceError meant the safety card *never
+  rendered* — now assessed once in `renderHome` and passed in. **De-duplicated red
+  cards:** the briefing coach line now defers to the escalation card when it's on
+  screen (one voice, not two). **Made recommendations explain themselves:** new pure
+  `js/brain/coach-evidence.js` powers a collapsible "Why am I seeing this?" under the
+  coach line — concrete facts from the SAME verified aggregates as In Focus (working
+  sets this week vs same point last week, running distance, readiness, plain-language
+  load direction), a "what clears it" line, and honest data-completeness ("Sleep
+  logged 2 of 7 nights — limited data"). **In Focus:** bar tap now leads with a
+  compact daily summary ("5 working sets across 2 exercises · 2,900 kg" / "6.4 km in
+  34:10"). +15 tests (568 total) incl. home/detail/Brain consistency asserts;
+  typecheck / precache / smoke green; rendered HTML verified. · Next: `[You]`
+  device-test the disclosure + escalation card; optional re-tier of per-view
+  analytics insight severities.
+
+- 2026-07-11 · **Analytics verification + In Focus weekly graph**
+  (branch `claude/helyx-analytics-verification-lpc8ma`; full log in
+  `docs/ANALYTICS_VERIFICATION_2026-07.md`). Traced stored-data→display for every
+  major analytics value. Built a single shared, tested model
+  (`js/analytics/week-chart-model.js`) as the source of truth for the home In
+  Focus graph, and rewrote `js/home/weekly-fitness-graph.js` to consume it (no
+  more UI-side calculation). **Fixed:** the graph fabricated strength "Time"
+  (`sets×180s`) / "Calories" — removed; strength now shows honest **Working Sets**
+  (default), **Volume**, and real FIT **Time**. Added an honest, labelled
+  week-to-week comparison — *live* "vs same point last week" (elapsed-matched) for
+  the current week, *completed* "vs previous week" for past weeks — with zero-safe
+  percentages (never `Infinity`/`NaN`). Un-hid the In Focus section on Home; per-bar
+  accessible labels, today highlight, unit-aware, light/dark verified in Chromium.
+  26 new tests (553 total) / typecheck / precache / smoke all green; math proven
+  against hand-calculated fixtures via `scripts/analytics-verify.mjs`. · Next:
+  `[You]` device-test the graph (touch targets, safe areas); optional follow-up to
+  align the strength detail view's "vs last week" label with the honest elapsed
+  comparison.
+
 - 2026-07-10 · **Security & hardening audit — 11-point implementation pass**
   (branch `claude/helyx-security-audit-diww1o`; full log in
   `docs/SECURITY_AUDIT_2026-07.md`). Eight tested commits:
