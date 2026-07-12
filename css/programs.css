@@ -1530,8 +1530,30 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   width: fit-content;
 }
 
+/* The sheet itself is a flex column with a pinned header/handle; only .wpm-body
+   scrolls. Without this the whole sheet was one scroll container, so a tall day
+   scrolled the header off-screen. Scoped to #wpmSheet so the generic
+   .bottom-sheet (quick-start) keeps its simple single-scroll behaviour. */
+#wpmSheet {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;            /* override .bottom-sheet overflow-y:auto */
+  padding-bottom: 0;           /* safe-area padding moves to the scroll body */
+}
+#wpmSheet .bottom-sheet-handle,
+#wpmSheet .bottom-sheet-header { flex: 0 0 auto; }
+
 .wpm-body {
   padding-bottom: 4px;
+}
+
+#wpmSheet .wpm-body {
+  flex: 1 1 auto;
+  min-height: 0;               /* let the flex child shrink so it can scroll */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
 }
 
 .wpm-type-label {
@@ -1566,14 +1588,20 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   border: 1px solid var(--border-default);
 }
 
-.wpm-strength-grid--compact .wpm-grid-header,
-.wpm-strength-grid--compact .wpm-grid-row {
-  grid-template-columns: 1fr 50px 64px;
+/* Responsive prescription columns. Previously the base rule declared 5 desktop
+   columns (`1fr 44px 56px 44px 72px`) while the markup only renders 3 spans, and
+   a `--compact` override patched it back to 3 fixed-px columns — a latent
+   min-width trap on a phone. One source of truth now: a flexible name column
+   that can shrink to zero (min-width:0) and wrap, plus two rem-based numeric
+   columns that scale with the user's font size and grow for long values (ranges
+   like 8–12, "each side") instead of clipping the reps off the right edge. */
+.wpm-grid-header,
+.wpm-grid-row {
+  grid-template-columns: minmax(0, 1fr) minmax(2.75rem, auto) minmax(3.5rem, auto);
 }
 
 .wpm-grid-header {
   display: grid;
-  grid-template-columns: 1fr 44px 56px 44px 72px;
   gap: 0;
   padding: 8px 12px;
   background: var(--overlay-sm);
@@ -1586,12 +1614,24 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 
 .wpm-grid-row {
   display: grid;
-  grid-template-columns: 1fr 44px 56px 44px 72px;
   gap: 0;
   padding: 10px 12px;
   background: var(--overlay-xs);
   border-top: 1px solid var(--border-subtle);
   align-items: center;
+}
+
+/* Very narrow screens / large system fonts: stack each exercise instead of
+   forcing three columns. Name on its own line, then labelled sets/reps lines —
+   readable and never clipped, which beats shrinking to unreadable numerics. */
+@media (max-width: 340px) {
+  .wpm-strength-grid .wpm-grid-header { display: none; }
+  .wpm-strength-grid .wpm-grid-row { grid-template-columns: 1fr; gap: 3px; }
+  .wpm-strength-grid .wpm-grid-row .wpm-ex-val {
+    text-align: left; font-size: 0.72rem; color: var(--text-muted);
+  }
+  .wpm-strength-grid .wpm-grid-row .wpm-ex-val:nth-of-type(2)::before { content: 'Sets '; color: var(--text-faint); }
+  .wpm-strength-grid .wpm-grid-row .wpm-ex-val:nth-of-type(3)::before { content: 'Reps '; color: var(--text-faint); }
 }
 
 .wpm-grid-row:last-child {
@@ -1604,6 +1644,7 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   color: var(--text-primary);
   min-width: 0;
   padding-right: 8px;
+  overflow-wrap: anywhere;   /* a long unbroken name wraps rather than overflowing */
 }
 
 .wpm-ex-val {

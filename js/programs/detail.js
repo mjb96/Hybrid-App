@@ -550,12 +550,48 @@ export function closeProgramDetail() {
 // deload), instead of only ever seeing week 1.
 let _preview = { dayKey: null, programId: null, week: 1 };
 
-export function stepPreviewWeek(delta) {
-  if (!_preview.dayKey) return;
-  openDayPreviewModal(_preview.dayKey, _preview.programId, _preview.week + delta);
+// ── Day-preview sheet a11y + scroll lifecycle ────────────────────────────────
+// The sheet is a body-level `position: fixed` bottom-sheet. Two things it must
+// get right on a phone, independent of the day content:
+//   • the background must not scroll behind it, and closing must land the user
+//     back at the exact library/detail scroll position they opened from;
+//   • it must open at the top with the header visible, take focus, close on
+//     Escape / Android back, and return focus to the day that opened it.
+// These were all missing; the state below drives them. `_sheetOpen` guards the
+// one-time setup so week-stepping (which re-renders the same open sheet) doesn't
+// re-lock, re-push history, or steal the user's inner scroll position.
+let _sheetOpen = false;
+let _sheetTrigger = null;      // element to restore focus to on close
+let _sheetLockedScrollY = 0;   // background scroll position captured at open
+let _sheetHistoryPushed = false;
+let _sheetKeyHandler = null;
+let _sheetPopHandler = null;
+
+function _lockBodyScroll() {
+  if (typeof document === 'undefined' || !document.body) return;
+  _sheetLockedScrollY = (typeof window !== 'undefined' && window.scrollY) || 0;
+  const body = document.body;
+  body.classList.add('sheet-scroll-locked');
+  // position:fixed + negative top pins the page without losing the position, so
+  // the background can't scroll and nothing reflows/jumps on lock.
+  body.style.top = `-${_sheetLockedScrollY}px`;
 }
 
-export function openDayPreviewModal(dayKey, programId, weekIndex) {
+function _unlockBodyScroll() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const body = document.body;
+  body.classList.remove('sheet-scroll-locked');
+  body.style.top = '';
+  if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, _sheetLockedScrollY);
+}
+
+export function stepPreviewWeek(delta) {
+  if (!_preview.dayKey) return;
+  // Same day, different week: keep the reader's place in the sheet.
+  openDayPreviewModal(_preview.dayKey, _preview.programId, _preview.week + delta, { preserveScroll: true });
+}
+
+export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   const resolvedId = programId || _currentProgramId;
   const catalog = getCatalogEntry(resolvedId);
   const program = getProgramById(resolvedId);
@@ -616,6 +652,41 @@ export function openDayPreviewModal(dayKey, programId, weekIndex) {
 
   backdrop.classList.add('active');
   sheet.classList.add('active');
+
+  // Inner scroll: start at the top on a fresh open (header + first exercise
+  // visible); preserve the reader's place only on a same-day week-step.
+  if (!opts.preserveScroll) {
+    if (bodyEl.scrollTo) bodyEl.scrollTo(0, 0); else bodyEl.scrollTop = 0;
+    if (sheet.scrollTo) sheet.scrollTo(0, 0); else sheet.scrollTop = 0;
+  }
+
+  // One-time setup per open (not re-run while week-stepping the open sheet).
+  if (!_sheetOpen) {
+    _sheetOpen = true;
+    _sheetTrigger = _sheetTrigger ||
+      (typeof document !== 'undefined' ? /** @type {any} */ (document.activeElement) : null);
+    _lockBodyScroll();
+
+    // Escape closes.
+    _sheetKeyHandler = (e) => { if (e.key === 'Escape') closeDayPreviewModal(); };
+    document.addEventListener('keydown', _sheetKeyHandler);
+
+    // Android/browser Back closes the sheet instead of leaving the page. We push
+    // one history entry on open and pop it on close; the popstate handler runs
+    // teardown without pushing back (guarded by _sheetHistoryPushed).
+    if (typeof history !== 'undefined' && history.pushState) {
+      try {
+        history.pushState({ wpmSheet: true }, '');
+        _sheetHistoryPushed = true;
+        _sheetPopHandler = () => { _sheetHistoryPushed = false; closeDayPreviewModal(); };
+        window.addEventListener('popstate', _sheetPopHandler);
+      } catch (_) { /* history unavailable */ }
+    }
+
+    // Move focus into the sheet so keyboard/screen-reader users land inside it.
+    const closeBtn = /** @type {HTMLElement|null} */ (sheet.querySelector('.sheet-close-btn'));
+    if (closeBtn && closeBtn.focus) { try { closeBtn.focus(); } catch (_) {} }
+  }
 }
 
 function _parseDescExercises(desc) {
@@ -685,6 +756,28 @@ function renderFallbackPreview(day, mod) {
 export function closeDayPreviewModal() {
   document.getElementById('wpmBackdrop')?.classList.remove('active');
   document.getElementById('wpmSheet')?.classList.remove('active');
+
+  if (!_sheetOpen) return; // already torn down (e.g. double close)
+  _sheetOpen = false;
+
+  // Detach listeners.
+  if (_sheetKeyHandler) { document.removeEventListener('keydown', _sheetKeyHandler); _sheetKeyHandler = null; }
+  if (_sheetPopHandler) { window.removeEventListener('popstate', _sheetPopHandler); _sheetPopHandler = null; }
+
+  // Consume the history entry we pushed, unless we're already here because the
+  // user hit Back (popstate cleared the flag) — that avoids a double-pop loop.
+  if (_sheetHistoryPushed) {
+    _sheetHistoryPushed = false;
+    if (typeof history !== 'undefined' && history.back) { try { history.back(); } catch (_) {} }
+  }
+
+  // Unlock the background and restore the exact prior scroll position.
+  _unlockBodyScroll();
+
+  // Return focus to the day button that opened the sheet.
+  const trigger = _sheetTrigger;
+  _sheetTrigger = null;
+  if (trigger && trigger.focus) { try { trigger.focus(); } catch (_) {} }
 }
 
 // Prescription-truthful: renders the SAME sets×reps the cockpit will show for
@@ -807,6 +900,8 @@ export function handleDetailAction(action, el) {
     case 'open-day-preview': {
       const dayKey   = el.getAttribute('data-day');
       const progId   = el.getAttribute('data-program-id');
+      // Remember the exact trigger so focus returns here when the sheet closes.
+      _sheetTrigger = el;
       if (dayKey) openDayPreviewModal(dayKey, progId);
       break;
     }

@@ -72,6 +72,34 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-12 · **Fix program-day preview bottom-sheet: scroll/position + reps
+  clipping** (branch `claude/workout-exercise-leak-fix-7uk3h1`). Reproduced both
+  reported issues in headless Chromium (playwright-core + the pre-installed
+  browser) at 320/360/390/412 px. Proven findings: the day-preview sheet
+  (`#wpmSheet`) had **no background scroll-lock** (page scrolled behind it), **no
+  focus management**, **no Escape/Android-back dismissal**, **no inner-scroll
+  reset** (header could open scrolled away), the whole sheet was one scroll
+  container so a tall day scrolled the **header off-screen**, and `max-height:80vh`
+  ignored the Android visual viewport. The grid carried a latent trap: a base
+  `grid-template-columns: 1fr 44px 56px 44px 72px` (5 desktop columns vs 3 rendered
+  spans) patched by a divergent `--compact` override — fixed-px, non-scaling.
+  Fixes — JS (`js/programs/detail.js`): open locks body scroll via
+  `position:fixed` + `top:-scrollY` (restored exactly on close), resets inner
+  scroll on a fresh open but preserves it on a same-day week-step, moves focus into
+  the sheet + returns it to the day button, pushes one history entry and closes on
+  Escape/popstate. CSS: `.bottom-sheet` now `max-height:80dvh` (vh fallback) +
+  `body.sheet-scroll-locked`; `#wpmSheet` is a flex column with a **pinned header**
+  and an independently scrolling `.wpm-body` (safe-area bottom padding); the grid is
+  one responsive rem-based 3-col definition (`minmax(0,1fr) minmax(2.75rem,auto)
+  minmax(3.5rem,auto)`, name wraps via `min-width:0`+`overflow-wrap`), with a
+  stacked labelled fallback ≤340px for tiny screens/large fonts. Verified after:
+  no horizontal/reps overflow at any width incl. 1.5× font, header stays visible
+  while body scrolls, close restores scroll to the px. Tests:
+  `tests/day_preview_sheet.test.js` (11, headless lifecycle) + standalone
+  `scripts/preview-viewport-check.mjs` (real-browser geometry, self-skips without
+  a browser; not in `npm test`). 636 green; typecheck + smoke + precache clean.
+  Next: nothing outstanding on this defect.
+
 - 2026-07-12 · **Fix phantom `lift_*` workout rows (identity-key leak)** (branch
   `claude/workout-exercise-leak-fix-7uk3h1`). Root-caused the "new day shows lots
   of completed exercises named `lift_76dsje3t`" report. The removed "lift identity"
