@@ -72,6 +72,36 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-12 · **Analytics release verification — Part 4 (comparison periods,
+  load-progression, error visibility)** (branch
+  `claude/analytics-release-verification-t1qjxo`). Traced every comparison
+  label/value across strength/running detail, In Focus, dashboard, Brain and
+  weekly copy. Found + fixed a latent defect: **`loadProgressionPct` was dead for
+  every mid-program athlete** — it read the last slot of a series padded to the
+  program's total weeks (0 vs 0 → null), so the Fatigue-Trend line and the
+  load-progression insights never fired until the final weeks (same dead-slot trap
+  ATL/CTL already had). Now anchored at the current program week and computed over
+  the two most recent **completed** weeks — full-vs-full, labelled "vs the previous
+  week" (no partial-vs-full mislabel, no NaN/Infinity). Reclassified the
+  week-over-week load-rise insight from red **alert → info** (the ACWR zone insight
+  + Home escalation own the red "load" voice — detail insights are supporting
+  context, Pri 2). In Focus: future days of the current week now read **"upcoming"**
+  (not "no activity") in bar/summary a11y labels, with a dashed-baseline + dimmed
+  x-label so an empty upcoming day can't be mistaken for a missed session (Pri 7).
+  Routed the last three silent `catch`es (coach-Q&A risk, deload card, briefing
+  evidence) through `reportHandledError` — graceful degrade AND observable (Pri
+  5/9). +15 tests (comparison periods current-vs-completed + all non-comparable
+  denominators, loadProgressionPct completed-week behaviour, insight severity, an
+  add/edit/delete transition moving Home+In Focus+detail in lockstep, an observable
+  briefing-evidence failure, the upcoming-day distinction). **608 tests /
+  typecheck / smoke / precache green.** Perf on a 2-year (104-week) history: home
+  aggregation ~2.2 ms, In Focus switch ~0.08 ms — no problems. **Android: NOT
+  buildable here** (no SDK; AGP 8.9.1 unresolvable; no adb/emulator) — CSS/JS ship
+  to the WebView via `copyWebAssets` automatically; manual device checklist stands.
+  Verdict: **closed-beta ready** (public-beta gated on a real device pass). ·
+  Next / `[You]`: run the device checklist (In Focus taps, evidence disclosure,
+  overtraining ack, back button, large font, offline) on an Android build.
+
 - 2026-07-11 · **Analytics release verification — labels, profiles, safety**
   (same branch; Part 3 in `docs/ANALYTICS_VERIFICATION_2026-07.md`). Fixed the last
   comparison mislabel: the strength/running **detail** "Weekly Volume/Distance vs

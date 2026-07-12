@@ -285,7 +285,9 @@ function pickTopInsight(m) {
     return { text: `Building load (ACWR ${m.load.acwr}) — hold volume, watch fatigue.`, tone: 'caution', nav: 'training-status' };
   }
   if (m.week.volume.delta && m.week.volume.delta.good && m.week.volume.delta.dir === 'up') {
-    return { text: `Weekly volume up ${m.week.volume.delta.pctLabel} on last week — momentum is building.`, tone: 'positive', nav: 'weekly-volume' };
+    // `volume.delta` is pace-matched (this week's trained days vs the SAME days
+    // last week), so the copy names that period rather than a full-week "last week".
+    return { text: `Weekly volume up ${m.week.volume.delta.pctLabel} vs the same point last week — momentum is building.`, tone: 'positive', nav: 'weekly-volume' };
   }
   if (m.streak.current >= 3) {
     return { text: `${m.streak.current}-day training streak — keep it alive.`, tone: 'positive', nav: 'streak' };

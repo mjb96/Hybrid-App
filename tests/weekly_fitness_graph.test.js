@@ -132,6 +132,29 @@ test('today is highlighted when a day matches the local date', () => {
   assert.match(html, /wfg-dc--today|wfg-b--today|wfg-dot--today/);
 });
 
+test('future days of the current week read as "upcoming", not "no activity"', () => {
+  // Anchor the current week to today so later days are genuinely in the future.
+  const today = new Intl.DateTimeFormat('en-CA').format(new Date());
+  const base = new Date(today + 'T00:00:00Z');
+  const monday = new Date(base); monday.setUTCDate(base.getUTCDate() - base.getUTCDay() + 1);
+  const dates = {};
+  DAY_KEYS.forEach((dk, i) => { const d = new Date(monday); d.setUTCDate(monday.getUTCDate() + i); dates[dk] = d.toISOString().slice(0, 10); });
+  const state = {
+    currentWeek: '1', settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon' },
+    weeks: { '1': { dates, lifts: { mon: { A: [work(50, 5)] } } } },
+  };
+  const id = 'strengthBarChart_future';
+  initWeeklyFitnessGraph(id, 'strength', () => state);
+  const html = getEl(id).innerHTML;
+  // At least one day this week is after today → it must be announced as upcoming,
+  // and a missed/empty day must never share the future's visual/aria treatment.
+  const lastDate = dates.sun;
+  if (lastDate > today) {
+    assert.match(html, /upcoming/, 'a future day is announced as upcoming');
+    assert.match(html, /wfg-empty--future|wfg-xd--future/, 'future days carry a distinct class');
+  }
+});
+
 test('nav buttons have accessible names', () => {
   const html = mountStrength(strengthState());
   assert.match(html, /aria-label="Previous week"/);

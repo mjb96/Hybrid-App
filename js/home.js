@@ -89,7 +89,8 @@ export function answerCoachOnHome(intent) {
     const model = computeDashboardModel(appState, days, activeProgram, selectedDay);
     const score = computeHybridScore(model, appState, days);
     let risk = null;
-    try { risk = assessOvertrainingRisk(model, appState, days); } catch (_) {}
+    try { risk = assessOvertrainingRisk(model, appState, days); }
+    catch (e) { reportHandledError('home:coach-qa:risk', e); }
     const rec = model?.rec || {};
     const session = { isRest: rec.sessionLabel === 'Rest Day', done: rec.badge === 'Session Done', label: rec.sessionLabel };
     const { answer } = answerCoachQuestion(intent, { model, score, risk, session });
@@ -396,6 +397,7 @@ export function renderHome() {
           deloadCard.style.display = 'none';
         }
       } catch(e) {
+        reportHandledError('home:deload-card', e);
         deloadCard.style.display = 'none';
       }
     } else {

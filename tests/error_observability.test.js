@@ -9,6 +9,7 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { reportHandledError, renderSafely, _setErrorHook } from '../js/monitoring/report-error.js';
 import { assessOvertrainingRisk } from '../js/brain/risk.js';
+import { buildMorningBriefing } from '../js/brain/morning-briefing.js';
 
 afterEach(() => _setErrorHook(null));
 
@@ -42,6 +43,29 @@ test('renderSafely reports a thrown render AND returns the fallback (card degrad
   } finally { console.error = orig; }
   assert.equal(out, false, 'degrades to the fallback');
   assert.deepEqual(seen, [['home:overtraining-card', 'render fault']], 'and is observable');
+});
+
+test('a failing coach-evidence build is reported AND the briefing still renders', () => {
+  // The evidence builder throwing must NOT take down the whole briefing, but the
+  // failure must be observable (not swallowed) — the exact lesson of the dead card.
+  const seen = [];
+  _setErrorHook((ctx, err) => seen.push([ctx, err.message]));
+  const orig = console.error; console.error = () => {};
+  let brief;
+  try {
+    const model = {
+      rec: { headline: 'Push', advice: 'Go', severity: 'neutral', badge: '' },
+      ready: { hasData: false },
+      get load() { throw new Error('load boom'); }, // only coach-evidence reads model.load
+      streak: { current: 0 }, fasting: { active: false },
+    };
+    brief = buildMorningBriefing({ state: { currentWeek: '1', weeks: {}, settings: {} },
+      model, score: { score: 50 }, program: null, selectedDay: 'mon',
+      now: new Date('2026-06-18T09:00:00Z'), days: ['mon'] });
+  } finally { console.error = orig; }
+  assert.ok(brief && brief.coach, 'briefing degrades gracefully — coach still present');
+  assert.equal(brief.coach.evidence, null, 'evidence is null, not a crash');
+  assert.deepEqual(seen, [['briefing:coach-evidence', 'load boom']], 'failure is observable');
 });
 
 // ---- escalation gating -----------------------------------------------------

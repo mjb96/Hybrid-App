@@ -67,11 +67,30 @@ export function trainingLoadStatus(atl, ctl) {
   return                                          { status: 'Danger Zone',  tone: 'warning',  zone: 'danger' };
 }
 
-// Load progression percentage: current 7-day load vs previous 7-day load.
-export function loadProgressionPct(loadSeries) {
+// Load progression percentage: the change between the two most recent COMPLETED
+// weeks, anchored at the athlete's current program week (`currentIdx`, 0-based).
+//
+// Two bugs this deliberately avoids:
+//   1) Reading the last slot of a series padded out to the program's total weeks
+//      made this collapse to null for anyone mid-program (weeks past today are 0),
+//      so the "vs the previous week" line and the load-progression insights never
+//      fired until the final weeks — the SAME dead-slot trap ATL/CTL already fixed.
+//   2) Comparing the in-progress current week against a full previous week is a
+//      partial-vs-full mislabel. Excluding the current week keeps it full-vs-full,
+//      so "vs the previous week" always describes the periods actually compared.
+// Returns null when there aren't two completed weeks with load to compare.
+export function loadProgressionPct(loadSeries, currentIdx) {
   const n = loadSeries.length;
   if (n < 2) return null;
-  return pctChange(loadSeries[n - 2], loadSeries[n - 1]);
+  // Default (no index / out of range): last two slots, legacy behaviour.
+  let last = n - 1;
+  if (Number.isFinite(currentIdx)) {
+    // The current week may be partial → compare the two weeks BEFORE it.
+    last = Math.min(currentIdx - 1, n - 1);
+  }
+  const prev = last - 1;
+  if (prev < 0) return null;
+  return pctChange(loadSeries[prev], loadSeries[last]);
 }
 
 // Training Monotony: mean / stdDev of recent weekly loads (Foster's method).
@@ -145,7 +164,10 @@ export function computeLoadAnalytics(state, days, maxWeek) {
   const currentRatio  = currentCTL > 0 ? Math.round((currentATL / currentCTL) * 100) / 100 : 0;
 
   const weeklyTotal   = liftLoad.map((l, i) => l + (runLoad[i] || 0));
-  const loadProgPct   = loadProgressionPct(weeklyTotal);
+  // Anchor at the current program week (`ci`) so this reflects the athlete's
+  // real position, and compare the two most recent COMPLETED weeks — never the
+  // padded end-of-program slots and never the partial current week.
+  const loadProgPct   = loadProgressionPct(weeklyTotal, ci);
 
   // New advanced metrics
   const monotony      = trainingMonotony(weeklyTotal, 7);

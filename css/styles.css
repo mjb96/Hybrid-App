@@ -6715,6 +6715,10 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
 
 /* Empty day — transparent filler so flex columns stay even */
 .wfg-empty { flex: 1; }
+/* A day still to come reads as upcoming, not a missed session: a faint dashed
+   baseline hint instead of a flat "you did nothing" gap, and a dimmed x-label. */
+.wfg-empty--future { align-self: flex-end; height: 3px; border-top: 1px dashed var(--border-subtle, rgba(148,163,184,0.35)); opacity: 0.6; }
+.wfg-xd--future .wfg-xl { opacity: 0.45; }
 
 /* ── X-axis row ── */
 .wfg-xaxis {

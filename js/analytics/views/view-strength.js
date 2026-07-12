@@ -89,7 +89,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
         <div class="text-xs text-muted mb-1">Fatigue Trend</div>
         <div class="font-heavy" style="font-size:1.2rem;text-transform:capitalize;color:${fatigueColor};">${la.fatigue}</div>
         <div class="text-xs text-muted mt-1">4-week ATL direction</div>
-        ${la.loadProgPct !== null ? `<div class="text-xs mt-1" style="color:${tone(la.loadProgPct)};">${fmtPct(la.loadProgPct)} vs last week</div>` : ''}
+        ${la.loadProgPct !== null ? `<div class="text-xs mt-1" style="color:${tone(la.loadProgPct)};">${fmtPct(la.loadProgPct)} vs the previous week</div>` : ''}
       </article>
     </div>
     <div class="grid-2-col gap-2 mb-3">
