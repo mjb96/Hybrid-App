@@ -42,13 +42,19 @@ export function generateLoadInsights({ atl, ctl, ratio, loadProgPct, fatigue, lo
   else if (fatigue === 'declining')
     insights.push({ text: `Fatigue is declining — you are recovering well. Ready for a training block push.`, priority: 'good', category: 'load' });
 
+  // Week-over-week load progression: the two most recent COMPLETED weeks
+  // (full-vs-full — see loadProgressionPct), so "vs the previous week" always
+  // matches the periods compared. Kept as supporting context (info/good): the
+  // ACWR zone insight above and the Home overtraining escalation own the red
+  // "load" warning — a single week's jump between completed weeks is worth
+  // watching, not an alarm, and shouldn't out-shout the escalation card.
   if (loadProgPct !== null) {
     if (loadProgPct > 15)
-      insights.push({ text: `Weekly training load jumped ${fmtPct(loadProgPct)} vs last week. Avoid exceeding 10% week-on-week increases.`, priority: 'alert', category: 'load' });
+      insights.push({ text: `Training load rose ${fmtPct(loadProgPct)} vs the previous week. Keep week-on-week increases near 10% to stay ahead of injury risk.`, priority: 'info', category: 'load' });
     else if (loadProgPct > 5)
-      insights.push({ text: `Training load increased ${fmtPct(loadProgPct)} this week — solid progressive overload.`, priority: 'good', category: 'load' });
+      insights.push({ text: `Training load rose ${fmtPct(loadProgPct)} vs the previous week — solid progressive overload.`, priority: 'good', category: 'load' });
     else if (loadProgPct < -15)
-      insights.push({ text: `Training load dropped ${fmtPct(Math.abs(loadProgPct))} vs last week.`, priority: 'info', category: 'load' });
+      insights.push({ text: `Training load dropped ${fmtPct(Math.abs(loadProgPct))} vs the previous week.`, priority: 'info', category: 'load' });
   }
 
   return insights;

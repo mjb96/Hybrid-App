@@ -178,14 +178,14 @@ class WeeklyFitnessGraph {
           </button>
         </div>`;
       }
-      return `<div class="wfg-dc${d.isToday ? ' wfg-dc--today' : ''}">
-        <div class="wfg-empty" role="img" aria-label="${aria}"></div>
+      return `<div class="wfg-dc${d.isToday ? ' wfg-dc--today' : ''}${d.isFuture ? ' wfg-dc--future' : ''}">
+        <div class="wfg-empty${d.isFuture ? ' wfg-empty--future' : ''}" role="img" aria-label="${aria}"></div>
       </div>`;
     }).join('');
 
     // X-axis: concise day letters + activity dot + today marker.
     const xHTML = orderedDays.map(d =>
-      `<div class="wfg-xd">
+      `<div class="wfg-xd${d.isFuture ? ' wfg-xd--future' : ''}">
         <div class="wfg-dot${d.hasData ? ' wfg-dot--on' : ''}${d.isToday ? ' wfg-dot--today' : ''}"></div>
         <span class="wfg-xl${d.isToday ? ' wfg-xl--today' : ''}">${d.dayLabel}</span>
       </div>`
@@ -265,13 +265,16 @@ class WeeklyFitnessGraph {
 
   _barAria(d, settings) {
     const dayName = d.dayFull + (d.isToday ? ' (today)' : '');
-    if (!d.hasData) return `${dayName}, no activity`;
+    // A day still to come is "upcoming", not a missed session — never let an
+    // empty future bar read as "no activity" (that's a day you trained nothing).
+    if (!d.hasData) return `${dayName}, ${d.isFuture ? 'upcoming' : 'no activity'}`;
     return `${dayName}, ${this._fmtFull(d.value, settings)}`;
   }
 
   _chartSummaryAria(chart, orderedDays, settings, rangeStr) {
     const parts = orderedDays.map(d =>
-      d.hasData ? `${d.dayFull} ${this._fmtFull(d.value, settings)}` : `${d.dayFull} none`);
+      d.hasData ? `${d.dayFull} ${this._fmtFull(d.value, settings)}`
+                : `${d.dayFull} ${d.isFuture ? 'upcoming' : 'none'}`);
     const c = chart.comparison;
     const compStr = c.isComparable
       ? `${c.direction === 'up' ? 'up' : c.direction === 'down' ? 'down' : 'level'} ${Math.abs(c.percentageChange)}% ${c.comparisonLabel}`

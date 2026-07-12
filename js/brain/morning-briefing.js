@@ -21,6 +21,7 @@ import { projectionLine } from './hybrid-score/project.js';
 import { streakRiskLine } from './streak.js';
 import { coachMemory } from './coach-memory.js';
 import { buildCoachEvidence } from './coach-evidence.js';
+import { reportHandledError } from '../monitoring/report-error.js';
 
 const DEFAULT_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -162,7 +163,7 @@ function buildCoach({ state, model, rec, days, overtrainingActive, now }) {
   try {
     evidence = buildCoachEvidence({ state, days, model, rec, today: now.toISOString().slice(0, 10) });
     if (!evidence.bullets.length) evidence = null;
-  } catch (_) { evidence = null; }
+  } catch (e) { reportHandledError('briefing:coach-evidence', e); evidence = null; }
   return {
     headline: rec.headline || '',
     advice: rec.advice || '',
