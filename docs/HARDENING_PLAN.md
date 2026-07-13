@@ -63,13 +63,15 @@ Baseline (2026-07-13, this branch, pre-change):
   size; confirm health/GPS values are not logged. **Planned.**
 - **Risk:** medium. **Deps:** 2.1.
 
-### 2.5 Remote scripts in the privileged context  `[ ]` (shared with 8.1)
-- **Verified:** `js/garmin.js` dynamically `import()`s `https://esm.sh/buffer` and
-  `https://esm.sh/fit-file-parser`. `esm.sh` is **not** in the `index.html`
-  `script-src`/`connect-src` CSP → the import is CSP-blocked, so FIT import is
-  currently non-functional in the shipped app, *and* if allowed it would be remote
-  code execution inside the bridged WebView. Fix in 8.1 (vendor + pin locally).
-- **Risk:** high (RCE surface + broken feature). **Deps:** none.
+### 2.5 Remote scripts in the privileged context  `[x]` (with 8.1)
+- **Verified:** `js/garmin.js` dynamically `import()`ed `https://esm.sh/buffer` and
+  `https://esm.sh/fit-file-parser`. `esm.sh` is **not** in the CSP → the import was
+  CSP-blocked (FIT import broken as shipped) *and* would be RCE in the bridged WebView.
+- **Done:** vendored locally to `js/vendor/fit-parser.js` (fit-file-parser@3.0.2 +
+  buffer@6.0.3, bundled to self-contained ESM via `scripts/vendor-fit.mjs` /
+  `npm run vendor:fit`, esbuild dev-only). `garmin.js` now lazy-imports the local
+  module; runs offline under `script-src 'self'`, no third-party code. Precache
+  updated (walker follows the dynamic import). Tests: `fit_vendor.test.js`.
 
 ### 2.6 Backup / local privacy  `[x]` (backup) · `[ ]` (account-deletion structure)
 - **Verified:** `AndroidManifest.xml` had `android:allowBackup="true"` → WebView
@@ -175,9 +177,11 @@ Verified targets to inspect: `js/brain/load_models.js`,
 - 7.5 debounced builder persistence (a `persistence_debounce.test.js` already exists —
   verify the builder actually uses it). **Risk:** medium/high (unit migration).
 
-## Phase 8 — Android workflow completion  `[ ]`
-- 8.1 vendor+pin FIT parser locally (also resolves 2.5); works offline under CSP;
-  update precache. 8.2 native export bridge path (`saveTextFile` exists — wire export).
+## Phase 8 — Android workflow completion  🟡 8.1 done
+- **8.1 `[x]`** FIT parser vendored + pinned locally (`js/vendor/fit-parser.js`),
+  offline under CSP, precached; also resolves 2.5. Remaining 8.1 polish (oversized-
+  file guard, dedup of repeated imports, off-main-thread parse) tracked as follow-up.
+- 8.2 native export bridge path (`saveTextFile` exists — wire export).
   8.3 navigation/surface stack for back. 8.4 SW update coordinator (guard active
   workout/run/edit). 8.5 generated cache/version token; namespaced cache deletion.
 - **Risk:** medium.

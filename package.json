@@ -12,12 +12,16 @@
     "typecheck": "tsc -p jsconfig.json",
     "precache:gen": "node scripts/gen-precache.mjs",
     "precache:check": "node scripts/gen-precache.mjs --check",
+    "vendor:fit": "node scripts/vendor-fit.mjs",
     "verify": "npm run typecheck && npm run precache:check && npm test && npm run smoke"
   },
   "devDependencies": {
     "@sentry/browser": "8.55.0",
     "@supabase/supabase-js": "2.45.4",
+    "buffer": "^6.0.3",
+    "esbuild": "^0.24.2",
     "fake-indexeddb": "^6.2.5",
+    "fit-file-parser": "^3.0.2",
     "leaflet": "1.9.4",
     "typescript": "^6.0.3"
   }

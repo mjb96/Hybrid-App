@@ -119,7 +119,25 @@ asserted the old monotony math or status strings.
   a follow-up. Export wire format kept as `{week_day: coords}` for compatibility
   (latest wins per slot). 3.3–3.5 still planned. Added dev dep `fake-indexeddb`.
 
-## Phases 4, 6–9 — ⏳ planned, not yet implemented this session
+## Phase 8.1 / 2.5 — FIT parser vendored  ✅
+
+| Item | Status | Files | Tests | Validation |
+|---|---|---|---|---|
+| 8.1/2.5 Local FIT parser (no remote code) | ✅ | `js/garmin.js`, `js/vendor/fit-parser.js` (new), `scripts/vendor-fit.mjs` (new), `sw.js`, `package.json` | `fit_vendor.test.js` (new) | `npm test` 764 pass |
+
+- **Root cause:** `garmin.js` ran `import('https://esm.sh/…')` for the FIT parser —
+  CSP-blocked (feature broken) and an RCE surface in the privileged WebView.
+- **Fix:** bundled fit-file-parser@3.0.2 + buffer@6.0.3 into a self-contained ESM
+  file via esbuild (`npm run vendor:fit`), committed to `js/vendor/`. `garmin.js`
+  lazy-imports it locally; precache walker picks up the dynamic import so it's cached
+  for offline use. Verified: bundle loads, exposes `FitParser`+`Buffer`, and
+  malformed bytes surface an error via callback (no throw).
+- **Dev deps added:** `esbuild`, `fit-file-parser`, `buffer` (regeneration only —
+  not shipped to the browser except as the pre-built bundle).
+- **Remaining 8.1 polish:** oversized-file guard, import dedup, and off-main-thread
+  parse are follow-ups.
+
+## Phases 4, 6, 7, 9 — ⏳ planned, not yet implemented this session
 
 Verified current behaviour and concrete remediation steps are recorded in
 `HARDENING_PLAN.md`. Key confirmed findings so the next session starts from evidence,

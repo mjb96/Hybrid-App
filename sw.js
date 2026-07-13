@@ -172,6 +172,7 @@ const REQUIRED_ASSETS = [
   "./js/ui/sortable.js",
   "./js/util.js",
   "./js/util/bridge-callback-id.js",
+  "./js/vendor/fit-parser.js",
   "./js/vendor/leaflet/leaflet.css",
   "./js/vendor/leaflet/leaflet.js",
   "./js/workout-map.js",
