@@ -50,7 +50,7 @@ test('Profile A: consistent strength — stable graph, no escalation, on-track c
   }
   // Balanced EWMA load → ACWR ~1.0
   const state = { currentWeek: '12', settings: {}, loadMetrics: { atl: 100, ctl: 100 }, weeks };
-  const chart = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-04-10' });
+  const chart = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-04-01' });
   assert.equal(chart.total, 11); // 3+3+2+3 working sets
   assert.equal(chart.comparison.comparisonLabel, 'vs previous week');
 
@@ -75,8 +75,8 @@ test('Profile B: hybrid — strength and running charts are independent and corr
         runs: { tue: { dist: '6', time: '30:00' }, sat: { dist: '16', time: '85:00' } } },
     },
   };
-  const s = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: '2026-03-20' });
-  const r = buildWeekChart(state, { type: 'running', metric: 'distance', weekOffset: 0, today: '2026-03-20' });
+  const s = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: '2026-02-25' });
+  const r = buildWeekChart(state, { type: 'running', metric: 'distance', weekOffset: 0, today: '2026-02-25' });
   assert.equal(s.total, 5);           // week 8 strength sets only (Mon 3 + Wed 2)
   assert.equal(r.total, 22);          // week 8 running km only (Tue 6 + Sat 16) — no cross-counting
   assert.equal(s.days.reduce((a, d) => a + d.activityCount, 0), 2); // Mon + Wed
@@ -151,11 +151,13 @@ test('Profile E: returning user — current week does not compare against a peak
       '6': { dates: weekDates(monOf('2026-01-05', 6)), lifts: { mon: { Squat: [work(120, 5), work(120, 5)] } } }, // one modest new session
     },
   };
-  // In Focus current week compares to week 5 (which doesn't exist) → not comparable, honest.
+  // In Focus current week compares to LAST calendar week (the gap week — empty),
+  // never to the long-ago peak. previousTotal is 0, not the peak's 4 sets.
   const chart = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: monOf('2026-01-05', 6) });
   assert.equal(chart.total, 2);
   assert.equal(chart.comparison.isComparable, false);
-  assert.match(chart.comparison.message, /Not enough previous data to compare/);
+  assert.equal(chart.comparison.previousTotal, 0, 'compares to the empty last week, not the peak');
+  assert.match(chart.comparison.message, /None at this point last week/);
 
   const model = computeDashboardModel(state, DAYS, null, 'mon');
   const risk = assessOvertrainingRisk(model, state, DAYS);

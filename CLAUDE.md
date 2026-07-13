@@ -20,6 +20,28 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   by design — safe ONLY if Supabase RLS is enforced). RLS (`supabase/rls_user_data.sql`)
   is **applied + proven** — the adversarial check (`scripts/rls-adversarial-check.mjs`)
   passed against the live DB (2026-07-02): user A cannot read/write user B's row.
+- Weekly analytics attribution: `state.currentWeek` is a PROGRAM-week counter that only
+  advances on an explicit step / confirmed auto-advance — it is NOT the calendar week.
+  So "this week" analytics must NOT read `weeks[currentWeek]` directly (that leaked a
+  frozen program week's stale training into the current week). `js/analytics/weekly-aggregate.js`
+  is the canonical source: it buckets every logged day by its real stamped `.dates[day]`
+  into Monday-based CALENDAR weeks (`buildCalendarWeekStrength`, `collectCalendarWeek`,
+  `weekStartOf`, `localDayKey`). The In Focus graph (`buildWeekChart`) + strength detail +
+  the At-a-Glance Weekly Volume tile (`model.calendarWeek`) all consume it, so an empty
+  current calendar week is a true zero and the week label is the real Mon–Sun range, never
+  derived from the activity records. The strength/running **detail week navigator**
+  (`js/analytics/week-nav.js`) is also CALENDAR-based (`getCalendarWeekOffset()`, ephemeral
+  offset, reset on view entry) — it never reads `state.currentWeek`. `explainWeeklyMetric`
+  is a dev-only attribution trace (program week is metadata; the date decides the week).
+  `docs/TIME-MODEL-AUDIT.md` classifies every week-based reference (calendar vs program vs
+  rolling); `tests/analytics_calendar_guard.test.js` keeps the calendar-core modules
+  program-week-free. Program adherence, "Week N" labels, deload detection and today's
+  planned session stay PROGRAM-week based; CTL/ATL/readiness stay rolling-window. The
+  Strength overview's per-lift **estimated-1RM "this week" change + PR indicators** use
+  `js/analytics/strength-calendar.js` (`calendarStrengthSummary`, `bestE1rmByLiftForWeek`,
+  canonical `estimatedE1rm`) — calendar-week, same-exercise only (identity = the lift's
+  bare-string name key; no alias layer), honest empty states. The Hybrid Score strength
+  pillar stays program-week progression on purpose.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads

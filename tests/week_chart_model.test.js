@@ -54,9 +54,11 @@ test('Fixture 1: normal complete week — seven correct daily buckets in Mon–S
       },
     },
   };
-  const m = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-06-15' });
+  // today is in the week AFTER the data week (Mon 8 Jun), so weekOffset -1 lands
+  // on the calendar week that actually holds the Jun 1–7 sessions.
+  const m = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-06-10' });
 
-  assert.equal(m.weekNum, 1);
+  assert.equal(m.weekKey, '2026-06-01');
   assert.equal(m.isCurrentWeek, false);
   assert.deepEqual(m.days.map(d => d.dayKey), DAY_KEYS); // Mon..Sun ordering
   assert.deepEqual(m.days.map(d => d.value), [3, 0, 2, 0, 1, 0, 0]); // working-set buckets
@@ -66,7 +68,7 @@ test('Fixture 1: normal complete week — seven correct daily buckets in Mon–S
   assert.equal(m.endDate, '2026-06-07');
 
   // volume metric on the same fixture
-  const v = buildWeekChart(state, { type: 'strength', metric: 'volume', weekOffset: -1, today: '2026-06-15' });
+  const v = buildWeekChart(state, { type: 'strength', metric: 'volume', weekOffset: -1, today: '2026-06-10' });
   assert.deepEqual(v.days.map(d => d.value), [1500, 0, 1120, 0, 540, 0, 0]);
   assert.equal(v.total, 3160);
 });
@@ -111,7 +113,7 @@ test('Fixture 3: completed-week comparison uses full week vs full prior week', (
   };
   // View week 2 (a completed week) → compare full week 2 vs full week 1.
   const m = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-06-20' });
-  assert.equal(m.weekNum, 2);
+  assert.equal(m.weekKey, '2026-06-08');
   assert.equal(m.isCurrentWeek, false);
   assert.equal(m.total, 3);
   assert.equal(m.comparison.type, 'completed');
@@ -167,10 +169,12 @@ test('Fixture 2: live comparison compares elapsed days only, not a full prior we
 // Fixture 13 — zero previous-week activity: no Infinity%, honest message.
 test('Fixture 13: zero previous-week total yields no percentage, not Infinity', () => {
   const state = {
-    currentWeek: '2',
+    currentWeek: '3',
     weeks: {
-      '1': { dates: weekDates('2026-06-01'), lifts: {} },                 // nothing last week
-      '2': { dates: weekDates('2026-06-08'), lifts: { mon: { A: [work(50, 5), work(50, 5)] } } },
+      // real history two weeks back (so this isn't the athlete's very first week)…
+      '1': { dates: weekDates('2026-05-25'), lifts: { mon: { A: [work(50, 5)] } } },
+      '2': { dates: weekDates('2026-06-01'), lifts: {} },                 // …but nothing last week
+      '3': { dates: weekDates('2026-06-08'), lifts: { mon: { A: [work(50, 5), work(50, 5)] } } },
     },
   };
   const m = buildWeekChart(state, { type: 'strength', metric: 'sets', today: '2026-06-08' });
@@ -184,10 +188,12 @@ test('Fixture 13: zero previous-week total yields no percentage, not Infinity', 
 // Zero-to-zero → "no change / insufficient", never NaN.
 test('zero current and zero previous → flat, no percentage', () => {
   const state = {
-    currentWeek: '2',
+    currentWeek: '3',
     weeks: {
-      '1': { dates: weekDates('2026-06-01'), lifts: {} },
-      '2': { dates: weekDates('2026-06-08'), lifts: {} },
+      // prior history exists, but both last week and this week are empty
+      '1': { dates: weekDates('2026-05-25'), lifts: { mon: { A: [work(50, 5)] } } },
+      '2': { dates: weekDates('2026-06-01'), lifts: {} },
+      '3': { dates: weekDates('2026-06-08'), lifts: {} },
     },
   };
   const m = buildWeekChart(state, { type: 'strength', metric: 'sets', today: '2026-06-08' });
@@ -320,7 +326,8 @@ test('Fixture 4 & 5: weeks crossing month and year boundaries bucket by real dat
       },
     },
   };
-  const m = buildWeekChart(state, { type: 'strength', metric: 'sets', today: '2026-01-10' });
+  // today sits inside the boundary-crossing week itself (Wed 31 Dec).
+  const m = buildWeekChart(state, { type: 'strength', metric: 'sets', today: '2025-12-31' });
   assert.equal(m.startDate, '2025-12-29');
   assert.equal(m.endDate, '2026-01-04');
   assert.equal(m.days[2].date, '2025-12-31'); // Wed
@@ -344,6 +351,9 @@ test('Fixture 16-18: missing or empty week data degrades to an all-zero week', (
   const m = buildWeekChart({ currentWeek: '5', weeks: {} }, { type: 'strength', metric: 'sets', today: '2026-06-10' });
   assert.equal(m.total, 0);
   assert.deepEqual(m.days.map(d => d.value), [0, 0, 0, 0, 0, 0, 0]);
-  assert.equal(m.days.every(d => d.date === null), true);
+  // With no stored activity the week still resolves to the real calendar week of
+  // `today` (Mon 8–Sun 14 Jun) — the label is never derived from the (absent) data.
+  assert.equal(m.startDate, '2026-06-08');
+  assert.equal(m.endDate, '2026-06-14');
   assert.equal(m.comparison.isComparable, false);
 });

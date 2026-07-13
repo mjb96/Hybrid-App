@@ -24,11 +24,13 @@ import {
   deloadInsight,
 } from '../insights/insight-engine.js';
 import { isCompletedSet } from '../../set-utils.js';
-import { isWeeklyPR } from '../../metrics/metrics-strength.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { getProgramById } from '../../state.js';
-import { esc, screenTabBar, mountScreenTabs, spark as _spark, curWeekIdx } from './screen-kit.js';
+import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
+import { getCalendarWeekOffset, getSelectedWeekStart } from '../week-nav.js';
+import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
+import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift, bestE1rmByLiftForWeek } from '../../metrics/metrics-strength.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -45,13 +47,12 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   const el = qs('strengthTrainingLoadDashboard');
   if (!el) return;
 
-  const ci      = curWeekIdx(appState, sa.volSeries.length);
   // Honest week-over-week: for the CURRENT (partial) week this compares the
   // elapsed portion against the same point last week; for a completed week it's
-  // full-vs-full. Same shared model + labels as the In Focus graph, so value and
-  // label always describe the same periods (no "partial vs full" mislabel).
-  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
-  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: (ci + 1) - curWk });
+  // full-vs-full. Same shared model + labels as the In Focus graph, driven by the
+  // CALENDAR-week navigator (offset 0 = this calendar week), so value and label
+  // always describe the same real periods (no "partial vs full" mislabel).
+  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: getCalendarWeekOffset() });
   const volCur   = volChart.total;
   const volCmp   = statComparisonFrom(volChart);
 
@@ -282,30 +283,6 @@ function _topLift(dynamicStats) {
   return entries[0] ? { name: entries[0][0], ...entries[0][1] } : null;
 }
 
-// Weekly estimated-1RM series for one lift (matches the dynamicStats maths:
-// working sets only, e1RM = w·(1 + r/30), max per week).
-function _liftE1rmSeries(appState, days, maxWeek, liftName) {
-  const series = [];
-  for (let w = 1; w <= maxWeek; w++) {
-    const wk = appState.weeks?.[String(w)];
-    let mx = 0;
-    if (wk) days.forEach(d => {
-      const dayLifts = wk.lifts?.[d] || {};
-      const sets = dayLifts[liftName];
-      if (!Array.isArray(sets)) return;
-      sets.forEach(s => {
-        const weight = parseFloat(s.w) || 0;
-        const reps = parseInt(s.r, 10) || 0;
-        if (isCompletedSet(s) && weight > 0 && reps > 0 && s.type !== 'W') {
-          mx = Math.max(mx, weight * (1 + reps / 30));
-        }
-      });
-    });
-    series.push(mx);
-  }
-  return series;
-}
-
 export function renderStrengthAnalytics(data, getState, getDays) {
   const appState  = getState ? getState() : {};
   const days      = getDays ? getDays() : [];
@@ -342,24 +319,24 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 // matter + ONE synthesized insight. The depth lives one tap away in Stats.
 function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWeek) {
   const top = _topLift(data.dynamicStats);
-  const ci      = curWeekIdx(appState, sa.volSeries.length);
-  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
-  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: (ci + 1) - curWk });
+  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: getCalendarWeekOffset() });
   const volCur   = volChart.total;
   const volCmp   = statComparisonFrom(volChart);
-  const prCount = Object.values(data.dynamicStats).filter(isWeeklyPR).length;
+  // Calendar-week strength summary for the SELECTED week (follows the navigator),
+  // every comparison same-exercise. Replaces the old program-week e1RM delta.
+  const cs = calendarStrengthSummary(appState, { weekStart: getSelectedWeekStart() });
 
   let hero;
   if (top) {
-    const series = _liftE1rmSeries(appState, days, maxWeek, top.name).slice(-12);
-    const delta = (top.currentEstimatedMax > 0 && top.previousWeekMax > 0)
-      ? Math.round(top.currentEstimatedMax - top.previousWeekMax) : null;
-    const deltaChip = delta == null ? '' :
-      `<span class="an-hero__delta" style="color:${delta > 0 ? '#10b981' : delta < 0 ? '#ef4444' : 'var(--text-muted)'}">${delta > 0 ? '+' : ''}${delta} kg this week</span>`;
+    // Hero is the ALL-TIME top lift; the spark is its best e1RM by CALENDAR week.
+    const series = calendarWeekE1rmSeriesForLift(appState, top.name, { weeks: 12 });
+    const prChip = cs.prCount > 0
+      ? `<span class="an-hero__delta" style="color:#10b981">🏆 ${cs.prCount} new PR${cs.prCount === 1 ? '' : 's'} this week</span>`
+      : '';
     hero = `<article class="card-dark an-hero">
-      <div class="an-hero__k">Estimated 1RM · ${esc(top.name)}</div>
+      <div class="an-hero__k">All-time est. 1RM · ${esc(top.name)}</div>
       <div class="an-hero__val">${Math.round(top.allTimeMax)}<span class="an-hero__unit">kg</span></div>
-      ${deltaChip}
+      ${prChip}
       ${_spark(series, '#3b82f6')}
     </article>`;
   } else {
@@ -379,11 +356,35 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     ${_thisWeekSessionsStripHTML(appState, days)}
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
+      ${statCard(_weeklyE1rmCard(cs))}
       ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6' })}
-      ${statCard({ label: 'PRs This Week', value: String(prCount), sub: prCount === 1 ? 'lift at a new best' : 'lifts at a new best', color: '#10b981' })}
     </div>
     ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}
   `;
+}
+
+// The "e1RM change" card params, calendar-correct + honest about missing data.
+// Never compares two different lifts and never reads a stale program week.
+function _weeklyE1rmCard(cs) {
+  if (!cs.hasCurrentWork) {
+    return { label: 'e1RM Change', value: '—', sub: 'No strength work logged this week', color: '#64748b' };
+  }
+  if (cs.topChange) {
+    const d = Math.round(cs.topChange.deltaKg);
+    return {
+      label: 'e1RM Change',
+      value: `${d >= 0 ? '+' : ''}${d} kg`,
+      sub: `${cs.topChange.exerciseName} vs previous week`,
+      color: d > 0 ? '#10b981' : d < 0 ? '#ef4444' : '#94a3b8',
+    };
+  }
+  // Trained this week, but no same-exercise result last week to compare against.
+  return {
+    label: 'e1RM This Week',
+    value: `${Math.round(cs.bestThisWeek.e1rm)} kg`,
+    sub: `Best ${cs.bestThisWeek.exerciseName} · no prior week`,
+    color: '#3b82f6',
+  };
 }
 
 // "This week's sessions" strip — a tappable chip per trained day this week, in
@@ -392,9 +393,13 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
 // vs this week's Push".
 const _DAY_ABBR = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 function _thisWeekSessionsStripHTML(appState, days) {
-  const wk = String(appState.currentWeek || '1');
-  const weekData = (appState.weeks || {})[wk];
-  if (!weekData) return '';
+  // "This week" = the current CALENDAR week. Assemble it from real stamped dates
+  // (a day may live in any program-week slot) so the strip can never echo a
+  // frozen program week's stale sessions. Each chip keeps the day's SOURCE
+  // program week so the session-detail modal still opens the right stored slot.
+  const weekData = collectCalendarWeek(appState, weekStartOf(localDayKey(new Date())));
+  const slotWeekOf = {};
+  weekData.sourceSlots.forEach(s => { slotWeekOf[s.day] = s.weekNum; });
   const program = getProgramById(appState.activeProgramId);
   const unit = appState.settings?.weightUnit || 'kg';
 
@@ -402,8 +407,9 @@ function _thisWeekSessionsStripHTML(appState, days) {
   (days || []).forEach(d => {
     const { totalVolume } = summarizeSessionLifts(weekData, d);
     if (totalVolume <= 0) return; // only days with logged lifting
+    const wk = String(slotWeekOf[d] ?? appState.currentWeek ?? '1');
     const title = program?.days?.[d]?.title || 'Workout';
-    chips.push(`<button class="sw-session-chip" data-action="open-session-detail" data-week="${wk}" data-day="${d}" data-datelabel="Week ${wk} · ${esc(title)}">
+    chips.push(`<button class="sw-session-chip" data-action="open-session-detail" data-week="${wk}" data-day="${d}" data-datelabel="${esc(title)}">
       <span class="sw-session-chip__day">${_DAY_ABBR[d] || esc(d)}</span>
       <span class="sw-session-chip__title">${esc(title)}</span>
       <span class="sw-session-chip__vol">${Math.round(totalVolume)} ${esc(unit)} vol</span>
@@ -434,11 +440,22 @@ function _renderStrengthStats(body, data, sa, la, appState) {
   renderStrengthProgression(sa, data.weekLabels);
   renderMuscleGroupAnalysis(sa);
   renderStrengthHeatmap(data);
-  render1RMList(qs('allLiftsRmContainer'), data.dynamicStats);
+  // Calendar-week per-lift maxes for the selected week + its predecessor, plus the
+  // set of lifts at a new calendar-week PR — so "this week / vs last week / PR" in
+  // the list are all real-date based (same-exercise), never program-week buckets.
+  const cs = calendarStrengthSummary(appState, { weekStart: getSelectedWeekStart() });
+  const calStats = {
+    curByLift:  bestE1rmByLiftForWeek(appState, { weekStart: cs.weekKey }),
+    prevByLift: bestE1rmByLiftForWeek(appState, { weekStart: cs.prevWeekKey }),
+    prSet:      new Set(cs.prLifts),
+  };
+  render1RMList(qs('allLiftsRmContainer'), data.dynamicStats, calStats);
 }
 
-// Legacy 1RM list (still used by strength_pr view and tiles)
-export function render1RMList(container, dynamicStats) {
+// Per-lift PR list. `allTimeMax` (from dynamicStats) is the all-time headline;
+// `calStats` supplies the CALENDAR-week "this week / vs last week / PR" figures
+// (same exercise only). `calStats` optional → all-time-only rendering.
+export function render1RMList(container, dynamicStats, calStats = null) {
   const entries = Object.entries(dynamicStats)
     .filter(([, v]) => v.allTimeMax > 0)
     .sort(([, a], [, b]) => b.allTimeMax - a.allTimeMax);
@@ -448,14 +465,15 @@ export function render1RMList(container, dynamicStats) {
     return;
   }
 
-  const prCount  = entries.filter(([, v]) => isWeeklyPR(v)).length;
+  const cal = calStats || { curByLift: {}, prevByLift: {}, prSet: new Set() };
+  const prCount  = cal.prSet.size;
   const maxAllTime = entries[0][1].allTimeMax;
 
   const rows = entries.map(([name, statData]) => {
     const pct  = Math.min(100, Math.max(5, Math.round((statData.allTimeMax / maxAllTime) * 100)));
-    const cur  = statData.currentEstimatedMax || 0;
-    const prev = statData.previousWeekMax || 0;
-    const isCurrentWeekPR = isWeeklyPR(statData);
+    const cur  = cal.curByLift[name]?.bestEstimated1RM || 0;
+    const prev = cal.prevByLift[name]?.bestEstimated1RM || 0;
+    const isCurrentWeekPR = cal.prSet.has(name);
 
     const badge = isCurrentWeekPR
       ? `<span style="font-size:0.7rem;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid #10b981;border-radius:4px;padding:2px 6px;margin-left:6px;">PR</span>`

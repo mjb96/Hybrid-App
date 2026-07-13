@@ -24,7 +24,8 @@ import {
 } from '../insights/insight-engine.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { getProgramById } from '../../state.js';
-import { screenTabBar, mountScreenTabs, spark, curWeekIdx } from './screen-kit.js';
+import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
+import { getCalendarWeekOffset } from '../week-nav.js';
 
 function qs(id) { return document.getElementById(id); }
 
@@ -373,12 +374,10 @@ export function renderRunningAnalytics(data, getState, getDays) {
 // trend as the spark, the two numbers that matter, and ONE synthesized insight.
 function _renderRunningOverview(body, ra, data, insights, appState) {
   const dist = ra.distSeries || [];
-  // Current training week, not the padded final program week (which is empty →
-  // "-- ↓100%"). Matches the Strength fix + Home. Delta is null-guarded so a
-  // week with no distance yet never shows a bogus "↓100% vs last week".
-  const ci       = curWeekIdx(appState, dist.length);
-  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
-  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: (ci + 1) - curWk });
+  // Current CALENDAR week via the shared navigator (offset 0 = this week). Matches
+  // the Strength fix + Home. Delta is null-guarded so a week with no distance yet
+  // never shows a bogus "↓100% vs last week".
+  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: getCalendarWeekOffset() });
   const distCur   = distChart.total;
   const distCmp   = statComparisonFrom(distChart);
   const color = ra.endScore == null ? '#94a3b8'

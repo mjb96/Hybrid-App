@@ -6,10 +6,19 @@
 // All take (state, days, …) so they can be tested in isolation.
 // ==========================================
 
+// The calendar-week strength engine lives in its own program-week-free module
+// (analytics/strength-calendar.js). Re-exported here so existing importers keep a
+// single strength-metrics entry point.
+export {
+  estimatedE1rm, liftE1rmByCalendarWeek, bestE1rmByLiftForWeek,
+  calendarStrengthSummary, calendarWeekE1rmSeriesForLift,
+} from '../analytics/strength-calendar.js';
+import { estimatedE1rm } from '../analytics/strength-calendar.js';
+
 // ---- internal helpers -----------------------------------------------------
 
 function e1rm(weight, reps) {
-  return weight * (1 + reps / 30);
+  return estimatedE1rm(weight, reps);
 }
 
 /**

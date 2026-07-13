@@ -32,7 +32,7 @@ function twoWeekStrength() {
 test('recovery-focused (warning) leads with the load line and includes a clears note', () => {
   const state = twoWeekStrength();
   const model = { load: { hasData: true, acwr: 1.6 }, ready: { hasData: true, score: 44, status: 'Low' } };
-  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-20' });
+  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-10' });
 
   assert.match(ev.bullets[0], /climbing faster than your body is recovering/);
   assert.ok(ev.bullets.some(b => /Readiness is 44/.test(b)));
@@ -43,7 +43,7 @@ test('recovery-focused (warning) leads with the load line and includes a clears 
 test('positive recommendation leads with progress (working sets), not the load warning', () => {
   const state = twoWeekStrength();
   const model = { load: { hasData: true, acwr: 1.0 }, ready: { hasData: true, score: 88, status: 'Primed' } };
-  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'positive', badge: 'Well rested — push it today' }, today: '2026-06-20' });
+  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'positive', badge: 'Well rested — push it today' }, today: '2026-06-10' });
 
   assert.ok(ev.bullets[0].includes('Working sets: 7 this week vs 4 at the same point last week'));
   assert.match(ev.clears, /Keep it here/);
@@ -53,11 +53,11 @@ test('data completeness: sparse sleep on a recovery call flags limited confidenc
   const state = twoWeekStrength();
   // Health Connect connected but only 2 of the last 7 nights logged.
   state.healthConnect = { connected: true, sleep: [
-    { date: '2026-06-19', totalHours: 7 },
-    { date: '2026-06-18', totalHours: 6.5 },
+    { date: '2026-06-09', totalHours: 7 },
+    { date: '2026-06-08', totalHours: 6.5 },
   ] };
   const model = { load: { hasData: true, acwr: 1.55 }, ready: { hasData: true, score: 48, status: 'Low' } };
-  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-20' });
+  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-10' });
 
   assert.equal(ev.confidence, 'limited');
   assert.ok(ev.bullets.some(b => /Sleep logged 2 of the last 7 nights/.test(b)));
@@ -66,7 +66,7 @@ test('data completeness: sparse sleep on a recovery call flags limited confidenc
 test('no readiness data on a recovery call is stated honestly (load alone)', () => {
   const state = twoWeekStrength();
   const model = { load: { hasData: true, acwr: 1.55 }, ready: { hasData: false } };
-  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-20' });
+  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-10' });
   assert.equal(ev.confidence, 'limited');
   assert.ok(ev.bullets.some(b => /based on training load alone/.test(b)));
 });
@@ -74,7 +74,7 @@ test('no readiness data on a recovery call is stated honestly (load alone)', () 
 test('strength-only user gets no running bullet; running-only gets no sets bullet', () => {
   const strengthOnly = twoWeekStrength();
   const m = { load: { hasData: true, acwr: 1.0 }, ready: { hasData: false } };
-  const evS = buildCoachEvidence({ state: strengthOnly, days: DAYS, model: m, rec: { severity: 'neutral', badge: 'On track' }, today: '2026-06-20' });
+  const evS = buildCoachEvidence({ state: strengthOnly, days: DAYS, model: m, rec: { severity: 'neutral', badge: 'On track' }, today: '2026-06-10' });
   assert.ok(!evS.bullets.some(b => /Running:/.test(b)));
 
   const runningOnly = {
@@ -84,7 +84,7 @@ test('strength-only user gets no running bullet; running-only gets no sets bulle
       '2': { dates: weekDates('2026-06-08'), runs: { tue: { dist: '8', time: '40:00' } } },
     },
   };
-  const evR = buildCoachEvidence({ state: runningOnly, days: DAYS, model: m, rec: { severity: 'neutral', badge: 'On track' }, today: '2026-06-20' });
+  const evR = buildCoachEvidence({ state: runningOnly, days: DAYS, model: m, rec: { severity: 'neutral', badge: 'On track' }, today: '2026-06-10' });
   assert.ok(!evR.bullets.some(b => /Working sets:/.test(b)));
   assert.ok(evR.bullets.some(b => b.includes('Running: 8.0 km this week vs 5.0 km at the same point last week')));
 });
@@ -99,6 +99,6 @@ test('insufficient data yields no fabricated bullets', () => {
 test('detraining badge explains what lifts it', () => {
   const state = twoWeekStrength();
   const model = { load: { hasData: true, acwr: 0.4 }, ready: { hasData: false } };
-  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'caution', badge: 'Detraining' }, today: '2026-06-20' });
+  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'caution', badge: 'Detraining' }, today: '2026-06-10' });
   assert.match(ev.clears, /string a few full sessions back together/);
 });

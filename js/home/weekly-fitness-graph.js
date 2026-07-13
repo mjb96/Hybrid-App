@@ -17,13 +17,19 @@ const Y_STEPS = 4;    // intervals between Y-axis labels (5 labels total)
 // Singleton registry — one instance per container id
 const _registry = {};
 
-/** Create and mount a WeeklyFitnessGraph inside `containerId`. Idempotent. */
-export function initWeeklyFitnessGraph(containerId, type, getStateFn) {
+/**
+ * Create and mount a WeeklyFitnessGraph inside `containerId`. Idempotent.
+ * @param {object} [opts]
+ * @param {string} [opts.today] Fixed 'YYYY-MM-DD' local today — TEST-ONLY seam so
+ *   the calendar-week model is deterministic; production omits it (real clock).
+ */
+export function initWeeklyFitnessGraph(containerId, type, getStateFn, opts = {}) {
   let graph = _registry[containerId];
   if (!graph) {
     graph = new WeeklyFitnessGraph(containerId, type, getStateFn);
     _registry[containerId] = graph;
   }
+  if (opts.today) graph._today = opts.today;
   graph.mount();
   return graph;
 }
@@ -135,9 +141,11 @@ class WeeklyFitnessGraph {
       type: this.type,
       metric: this.activeMetric,
       weekOffset: this.weekOffset,
+      today: this._today, // undefined in production → real local today
     });
-    // Keep raw week data for the tap-to-detail modal.
-    this._weekData = (appState.weeks || {})[String(chart.weekNum)] || null;
+    // Keep the calendar week's assembled data for the tap-to-detail modal (it
+    // carries the real dates + the slots that own them).
+    this._weekData = chart.weekData || null;
 
     // Respect the user's week-start preference for DISPLAY ordering only.
     const sunFirst = (settings.weekStartDay === 'sun');
@@ -148,8 +156,7 @@ class WeeklyFitnessGraph {
     const maxVal = Math.max(...values, this.activeMetric === 'sets' ? 4 : 1);
     const yStep  = maxVal / Y_STEPS;
 
-    const currentWeekNum = parseInt(appState.currentWeek, 10) || 1;
-    const canBack = chart.weekNum > 1;
+    const canBack = chart.canGoBack;
     const canFwd  = this.weekOffset < 0;
 
     const rangeStr = this._rangeLabel(chart);
@@ -471,7 +478,7 @@ class WeeklyFitnessGraph {
 
   _rangeLabel(chart) {
     if (chart.isCurrentWeek && !chart.startDate) return 'This week';
-    if (!chart.startDate) return `Week ${chart.weekNum}`;
+    if (!chart.startDate) return chart.weekKey || 'Week';
     const M = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const [, m1, d1] = chart.startDate.split('-').map(Number);
     const [, m2, d2] = (chart.endDate || chart.startDate).split('-').map(Number);
