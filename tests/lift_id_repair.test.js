@@ -292,12 +292,14 @@ test('a repair is observable (summary only: counts + day count, no ids or set da
   } finally {
     _setErrorHook(null);
   }
-  assert.equal(seen.length, 1);
-  assert.equal(seen[0].ctx, 'migration:v2-lift-id-repair');
-  assert.equal(seen[0].payload.repaired, 4);
-  assert.equal(seen[0].payload.days, 1);
+  // Scope to the v2 repair report — later structural migrations (e.g. v3 activation
+  // identity) legitimately emit their own summary, which this contract ignores.
+  const v2 = seen.filter(s => s.ctx === 'migration:v2-lift-id-repair');
+  assert.equal(v2.length, 1);
+  assert.equal(v2[0].payload.repaired, 4);
+  assert.equal(v2[0].payload.days, 1);
   // Never leak raw ids or set contents through telemetry.
-  const json = JSON.stringify(seen[0].payload);
+  const json = JSON.stringify(v2[0].payload);
   assert.equal(/lift_[0-9a-z]{4,}/.test(json), false);
   assert.equal(json.includes('120'), false);
 });
@@ -310,5 +312,7 @@ test('a clean state raises no repair report', () => {
   } finally {
     _setErrorHook(null);
   }
-  assert.equal(seen.length, 0);
+  // No lift-id REPAIR report on clean data (a v3 activation-adoption summary may
+  // fire — that's structural, not a repair).
+  assert.equal(seen.includes('migration:v2-lift-id-repair'), false);
 });

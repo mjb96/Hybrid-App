@@ -72,6 +72,34 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-13 · **Program-switch session isolation (activation identity)** (branch
+  `claude/workout-session-isolation-l02i8o`). Fixed the *real* cross-program leak the
+  earlier `lift_*` repair only partially masked: after switching programs, the previous
+  program's COMPLETED exercises (Deadlift, Pull-Ups, Face Pull, …) were still appended
+  under the new prescription with DONE styling. **Root cause:** logged training is keyed
+  only by program-week number + weekday (`weeks[N].lifts[day]`), with no program-run
+  identity — so Program A "Week 1/Mon" and Program B "Week 1/Mon" share ONE physical
+  slot. `reseedActiveProgramIntoWeek` deliberately *retained* that slot's logged lifts
+  and `orderedLiftNames` renders **every** key in `lifts[day]`, so B inherited A's DONE
+  rows (and a same-slot reuse would also overwrite A's stamped date — silent history
+  corruption). **Fix:** new `js/state/activation-identity.js` gives every program run a
+  stable `activationId`; each week is stamped with its owner. A switch/restart now
+  `beginActivation()` + `archiveForeignWeeks()` — the previous run's weeks move to
+  namespaced `arch:<oldId>:<n>` keys in the same `weeks` map (still counted by every
+  date-/all-time analytics + PR reader, which iterate all entries and attribute by date;
+  invisible to numeric week-nav `1..totalWeeks` and program-week-indexed series), then
+  the new run seeds its start week clean. `applyProgramSwitch` (app.js) and onboarding
+  route through the new `startProgramActivation`. v2→v3 migration adopts existing users'
+  weeks into one legacy activation in place (no archival, no leak; idempotent + observable).
+  Restart = a new run (no inherited completions); shared exercises begin fresh but prior
+  performance stays retrievable by date. **Tests:** `tests/program_isolation.test.js` (14:
+  screenshot fixture — active model is B-only + A archived & still in analytics; A-wk3→B-wk1;
+  restart; shared-lift; adherence-zero; no shared refs; frozen defs; reload; pure helpers;
+  v3 migration). All **742** green; typecheck + precache + smoke clean. Known benign nuance:
+  the "recent pace" tile (walks numeric weeks desc) won't include a prior program's runs —
+  data preserved everywhere date-based. Next: optional explicit resume/abandon modal for an
+  in-progress workout at switch time (today the activation confirm sheet warns).
+
 - 2026-07-13 · **Calendar-correct per-lift estimated-1RM (last program-week/calendar
   inconsistency closed).** The Strength overview's "+X kg this week" est-1RM change, the
   "PRs This Week" count and the Lift-PR list's "this week / vs last week / PR" figures were

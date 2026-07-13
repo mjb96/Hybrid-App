@@ -1,7 +1,7 @@
 // ==========================================
 // ONBOARDING FLOW
 // ==========================================
-import { saveStateToLocalStorage, getProgramById, reseedActiveProgramIntoWeek } from './state.js';
+import { saveStateToLocalStorage, getProgramById, reseedActiveProgramIntoWeek, startProgramActivation } from './state.js';
 import { requestNotificationPermission } from './notifications.js';
 import { provisionalScore } from './onboarding/provisional-score.js';
 import { recommendStarterPrograms } from './onboarding/starter-programs.js';
@@ -202,11 +202,15 @@ function _finish() {
   if (name) appState.settings.name = name;
 
   appState.activeProgramId              = _selectedProgram;
-  // Boot seeded week 1 under the DEFAULT program before the user picked one, so
-  // re-point every materialised week at the chosen program. Otherwise the
-  // cockpit renders the default program's set rows under the new program's
-  // "Target: N × M" label — see reseedActiveProgramIntoWeek for the guard.
-  try { Object.keys(appState.weeks || {}).forEach(wk => reseedActiveProgramIntoWeek(wk)); } catch (_) {}
+  // Boot seeded week 1 under the DEFAULT program before the user picked one. Begin
+  // the user's FIRST real program activation, which archives the boot run's (empty)
+  // scaffolding, then re-point every materialised week at the chosen program.
+  // Otherwise the cockpit renders the default program's set rows under the new
+  // program's "Target: N × M" label — see reseedActiveProgramIntoWeek for the guard.
+  try {
+    startProgramActivation(_selectedProgram, appState.currentWeek || 1);
+    Object.keys(appState.weeks || {}).forEach(wk => reseedActiveProgramIntoWeek(wk));
+  } catch (_) {}
   appState.settings.weightUnit          = _weightUnit;
   appState.settings.distanceUnit        = _distUnit;
   appState.settings.fitnessLevel        = _fitnessLevel;

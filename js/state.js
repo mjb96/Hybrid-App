@@ -16,6 +16,9 @@ import { initAuth, loginToSupabase, signUpToSupabase, checkActiveSession } from 
 import { initImportExport, triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback } from './state/import-export.js';
 import { migrateState, CURRENT_SCHEMA_VERSION } from './state/migrations.js';
 import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './state/sync-guard.js';
+import {
+  ensureActivation, beginActivation, archiveForeignWeeks,
+} from './state/activation-identity.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -312,9 +315,13 @@ export function determineDefaultCalendarDay() {
 
 export function verifyWeekStorageSchema(wk) {
   if (!appState.weeks) appState.weeks = {};
-  
+  // Every seeded/edited week belongs to the current program run, so make sure one
+  // exists to stamp ownership with (backfills legacy/boot states harmlessly).
+  const activationId = ensureActivation(appState);
+
   if (!appState.weeks[wk]) {
-    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, liftOrder: {}, dates: {} };
+    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, liftOrder: {}, dates: {},
+      activationId, programId: appState.activeProgramId };
     DEFAULT_DAYS.forEach(d => {
       appState.weeks[wk].runs[d] = { dist: '', time: '', rpe: '' };
       appState.weeks[wk].notes[d] = '';
@@ -354,19 +361,42 @@ function liftHasLoggedData(sets) {
   return Array.isArray(sets) && sets.some(s => s && (s.c || (s.w !== '' && s.w != null)));
 }
 
+// Begin a fresh run of a program: mint a new activation identity and vacate every
+// numeric week owned by the PREVIOUS run into the archive (logged history kept for
+// analytics, empty scaffolding dropped). After this, the numeric program-week slots
+// are clean for the new run — the caller seeds the chosen start week. Returns the
+// new activation id. Used by both a program SWITCH and a same-program RESTART: each
+// is a distinct run, so a restart never inherits the prior run's completed state.
+export function startProgramActivation(programId, startWeek = 1) {
+  beginActivation(appState, programId, startWeek);
+  return archiveForeignWeeks(appState);
+}
+
 // Re-point a single week at the *active* program: add the new program's
 // exercises, drop the previous program's unlogged scaffolding, and rebuild
 // liftOrder (new blueprint order first, retained logged lifts appended). This
 // replaces stale scaffolding so a program switch doesn't leave a week showing
 // the union of both programs. Logged sets are always preserved.
 export function reseedActiveProgramIntoWeek(wk) {
-  verifyWeekStorageSchema(wk); // ensures the week object exists & is shaped
+  const activationId = ensureActivation(appState);
+  // ISOLATION GUARD: if this numeric slot is owned by a PREVIOUS activation, it
+  // holds a different program run's logged history. Archive it (kept for
+  // analytics/PRs) and clear the slot so the new run seeds clean — a previous
+  // program's completed lifts can never be appended to this workout.
+  if (appState.weeks?.[wk] && appState.weeks[wk].activationId &&
+      appState.weeks[wk].activationId !== activationId) {
+    archiveForeignWeeks(appState);
+  }
+  verifyWeekStorageSchema(wk); // ensures the week object exists & is shaped (fresh if just vacated)
   const program = getProgramById(appState.activeProgramId);
   if (!program?.days) return;
   const weekModifier = getWeekModifier(program, wk);
   const week = appState.weeks[wk];
   if (!week.lifts) week.lifts = {};
   if (!week.liftOrder) week.liftOrder = {};
+  // Stamp ownership so a later switch can recognise this run's weeks.
+  week.activationId = activationId;
+  week.programId = appState.activeProgramId;
 
   DEFAULT_DAYS.forEach(d => {
     const blueprintLifts = (program.days[d]?.lifts || []).filter(n => typeof n === 'string' && n.trim());

@@ -197,9 +197,49 @@ const MIGRATIONS = [
       });
     }
   },
+
+  // v2 → v3: introduce PROGRAM ACTIVATION IDENTITY. Before this, logged training
+  // was keyed only by program-week number + weekday, so switching programs reused
+  // the previous program's week slots and its completed lifts leaked into the new
+  // workout. Existing users have weeks with no owner. Here we adopt all current
+  // weeks into ONE legacy activation for the active program and stamp it as the
+  // active run, so today's data stays exactly where it is (no archival, no leak)
+  // and only a FUTURE program switch begins a new, isolated run. Idempotent: a
+  // state that already carries an activeActivationId is left untouched.
+  (state) => {
+    if (state.activeActivationId) return; // already migrated / freshly created
+    const legacyId = `act_legacy_${Date.now().toString(36)}`;
+    state.activeActivationId = legacyId;
+    if (!Array.isArray(state.activations)) state.activations = [];
+    state.activations.push({
+      id: legacyId,
+      programId: state.activeProgramId || null,
+      startWeek: Math.max(1, parseInt(String(state.currentWeek), 10) || 1),
+      startedAt: new Date().toISOString(),
+      legacy: true,
+    });
+    let stamped = 0;
+    const weeks = state.weeks;
+    if (weeks && typeof weeks === 'object') {
+      for (const wk of Object.keys(weeks)) {
+        const week = weeks[wk];
+        if (!week || typeof week !== 'object') continue;
+        if (week.activationId) continue; // an archived key or already-owned slot
+        week.activationId = legacyId;
+        week.programId = state.activeProgramId || week.programId || null;
+        stamped++;
+      }
+    }
+    if (stamped > 0) {
+      reportHandledError('migration:v3-activation-identity', {
+        message: 'Adopted existing weeks into a legacy program activation',
+        weeksStamped: stamped,
+      });
+    }
+  },
 ];
 
-export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 1
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 3
 
 /**
  * Apply every pending migration in order, then stamp the current version.
