@@ -66,7 +66,29 @@ Phase-2 commit). No JS files changed in 2.1–2.3/2.6.
 
 ---
 
-## Phases 3–9 — ⏳ planned, not yet implemented this session
+## Phase 5 — Sports-science correctness  🟡 5.7 + 5.8 done
+
+| Item | Status | Files | Tests | Validation |
+|---|---|---|---|---|
+| 5.7 Foster monotony from daily loads | ✅ | `load-calcs.js`, `metrics-load.js` (`weekDailyLoads`) | `foster_monotony.test.js` | `npm test` 749 pass |
+| 5.8 Neutral acute:chronic wording | ✅ | `load-calcs.js` (`trainingLoadStatus`), `insight-engine.js` | `foster_monotony.test.js` | same |
+| 5.1–5.6, 5.9 | ⏳ planned | see plan | — | — |
+
+- **5.7 root cause:** `trainingMonotony` averaged a series of *weekly totals* —
+  Foster's monotony is mean/SD of *daily* loads within one week. Fixed to daily
+  method; strain follows. Returns null (not a huge number) when SD=0 or <2 training
+  days. Verified numerically (daily `[480,0,350,0,240,0,0]` → monotony 0.8, strain
+  856; all-equal → null; single-day → null).
+- **5.8:** `trainingLoadStatus` now emits "Insufficient baseline / Below / Near /
+  Above / Well above / Substantially above baseline" (zones unchanged); the danger
+  insight is reworded from "Risk of overtraining injury is elevated" to
+  load-management guidance. Remaining: `view-recovery.js` and `briefing.js` compute
+  their own duplicate status strings — de-dup tracked under Phase 4/7.4.
+
+**Regression:** full suite 749 pass (was 742) after this slice. No existing test
+asserted the old monotony math or status strings.
+
+## Phases 3, 4, 6–9 — ⏳ planned, not yet implemented this session
 
 Verified current behaviour and concrete remediation steps are recorded in
 `HARDENING_PLAN.md`. Key confirmed findings so the next session starts from evidence,

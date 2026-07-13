@@ -5,7 +5,7 @@
 // ==========================================
 import { rollingAverage, rollingSum, trendLine, pctChange, clamp } from './math-utils.js';
 import { weeklyLoadMetricsSeries } from '../../brain/load_models.js';
-import { weeklyLoadSeries } from '../../metrics/metrics-load.js';
+import { weeklyLoadSeries, weekDailyLoads } from '../../metrics/metrics-load.js';
 
 // TSB (Training Stress Balance) series: CTL − ATL for each week.
 export function tsbSeries(atlSeries, ctlSeries) {
@@ -51,20 +51,26 @@ export function fatigueTrend(atlSeries, lookback = 4) {
   return 'stable';
 }
 
-// Training status classification from ACWR (ATL/CTL ratio).
-// Returns { status, tone, zone } suitable for UI display.
+// Training status classification from the acute:chronic load ratio (ATL/CTL).
+// Returns { status, tone, zone } for UI display.
+//
+// Wording is deliberately descriptive (relative to the athlete's OWN recent
+// baseline), not a causal injury prediction: the acute:chronic ratio is a
+// load-management signal with wide individual variation, and universal "danger"
+// cut-offs overstate the evidence. Zones are unchanged so downstream logic and
+// styling that key on `zone` keep working; only the human-facing `status`
+// strings are neutralised. See docs/HARDENING_PLAN.md §5.8.
 export function trainingLoadStatus(atl, ctl) {
-  if (!ctl || ctl === 0) return { status: 'No Data', tone: 'neutral', zone: 'unknown' };
+  if (!ctl || ctl === 0) return { status: 'Insufficient baseline', tone: 'neutral', zone: 'unknown' };
   const ratio = atl / ctl;
-  const tsb   = ctl - atl;
 
-  if (ratio < 0.5)                       return { status: 'Detraining',    tone: 'neutral',  zone: 'low' };
-  if (ratio >= 0.5 && ratio < 0.8)       return { status: 'Fresh',         tone: 'progress', zone: 'low' };
-  if (ratio >= 0.8 && ratio < 1.0)       return { status: 'Optimal',       tone: 'progress', zone: 'optimal' };
-  if (ratio >= 1.0 && ratio < 1.1)       return { status: 'Productive',    tone: 'progress', zone: 'productive' };
-  if (ratio >= 1.1 && ratio < 1.3)       return { status: 'Accumulating',  tone: 'caution',  zone: 'caution' };
-  if (ratio >= 1.3 && ratio < 1.5)       return { status: 'High Load',     tone: 'caution',  zone: 'high' };
-  return                                          { status: 'Danger Zone',  tone: 'warning',  zone: 'danger' };
+  if (ratio < 0.5)                       return { status: 'Well below baseline',        tone: 'neutral',  zone: 'low' };
+  if (ratio >= 0.5 && ratio < 0.8)       return { status: 'Below baseline',             tone: 'progress', zone: 'low' };
+  if (ratio >= 0.8 && ratio < 1.0)       return { status: 'Near baseline',              tone: 'progress', zone: 'optimal' };
+  if (ratio >= 1.0 && ratio < 1.1)       return { status: 'Near baseline',              tone: 'progress', zone: 'productive' };
+  if (ratio >= 1.1 && ratio < 1.3)       return { status: 'Above baseline',             tone: 'caution',  zone: 'caution' };
+  if (ratio >= 1.3 && ratio < 1.5)       return { status: 'Well above baseline',        tone: 'caution',  zone: 'high' };
+  return                                          { status: 'Substantially above baseline', tone: 'warning', zone: 'danger' };
 }
 
 // Load progression percentage: the change between the two most recent COMPLETED
@@ -93,25 +99,35 @@ export function loadProgressionPct(loadSeries, currentIdx) {
   return pctChange(loadSeries[prev], loadSeries[last]);
 }
 
-// Training Monotony: mean / stdDev of recent weekly loads (Foster's method).
-// High monotony (>2) = repetitive, increases injury risk.
-export function trainingMonotony(weeklyTotalSeries, lookback = 7) {
-  const recent = weeklyTotalSeries.slice(-lookback).filter(v => v > 0);
-  if (recent.length < 2) return null;
-  const mean     = recent.reduce((s, v) => s + v, 0) / recent.length;
-  const variance = recent.reduce((s, v) => s + (v - mean) ** 2, 0) / recent.length;
+// Foster Training Monotony = mean / standard deviation of the DAILY loads within
+// ONE week (rest days included as 0). This is a within-week evenness measure: a
+// high value means every day looked the same (little hard/easy contrast).
+//
+// Previously this was (incorrectly) computed over a series of WEEKLY totals,
+// which is a different, undefined quantity — Foster's monotony has no meaning
+// across weeks. It now takes the 7 daily loads of the target week.
+//
+// Returns null when the week has fewer than 2 training days, or when the daily
+// loads have zero spread (SD = 0) — neither supports a valid monotony figure, so
+// we report "insufficient" rather than an arbitrarily huge/undefined number.
+export function trainingMonotony(dailyLoads) {
+  if (!Array.isArray(dailyLoads) || dailyLoads.length < 2) return null;
+  const trainingDays = dailyLoads.filter(v => v > 0).length;
+  if (trainingDays < 2) return null;
+  const mean     = dailyLoads.reduce((s, v) => s + v, 0) / dailyLoads.length;
+  const variance = dailyLoads.reduce((s, v) => s + (v - mean) ** 2, 0) / dailyLoads.length;
   const stdDev   = Math.sqrt(variance);
   if (stdDev === 0) return null;
   return Math.round((mean / stdDev) * 10) / 10;
 }
 
-// Strain Score: current week load × training monotony.
-// High strain requires careful recovery.
-export function strainScore(weeklyTotalSeries, lookback = 7) {
-  const monotony = trainingMonotony(weeklyTotalSeries, lookback);
+// Foster Strain = weekly total load × training monotony. High strain (heavy AND
+// monotonous week) is the combination Foster linked to maladaptation. Takes the
+// week's total load and its daily loads. Null when monotony is undefined.
+export function strainScore(weeklyTotalLoad, dailyLoads) {
+  const monotony = trainingMonotony(dailyLoads);
   if (monotony === null) return null;
-  const weeklyLoad = weeklyTotalSeries[weeklyTotalSeries.length - 1] || 0;
-  return Math.round(weeklyLoad * monotony);
+  return Math.round((weeklyTotalLoad || 0) * monotony);
 }
 
 // Consistency Score: % of last N weeks with meaningful training load.
@@ -169,9 +185,13 @@ export function computeLoadAnalytics(state, days, maxWeek) {
   // padded end-of-program slots and never the partial current week.
   const loadProgPct   = loadProgressionPct(weeklyTotal, ci);
 
-  // New advanced metrics
-  const monotony      = trainingMonotony(weeklyTotal, 7);
-  const strain        = strainScore(weeklyTotal, 7);
+  // Foster monotony/strain are WITHIN-week daily-variability metrics: feed them
+  // the current week's 7 daily loads (rest days as 0), not the week-over-week
+  // totals. Anchored at the athlete's current program week (`ci`, 0-based → week
+  // number ci+1) to match the rest of this payload.
+  const currentWeekDaily = weekDailyLoads(state, days, ci + 1);
+  const monotony      = trainingMonotony(currentWeekDaily);
+  const strain        = strainScore(weeklyTotal[ci] || 0, currentWeekDaily);
   const consistency   = consistencyScore(weeklyTotal, 12);
   const distribution  = loadDistribution(liftLoad, runLoad);
 

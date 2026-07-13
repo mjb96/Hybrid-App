@@ -40,6 +40,27 @@ export function weeklyLoadSeries(state, days, maxWeek) {
   return { lift, run };
 }
 
+// Per-day sRPE load for a SINGLE program week, in day order (`days`).
+// dailyLoad = gymRpe×gymMins + runRpe×runMins. Rest days are 0 and are kept
+// (Foster's training-monotony method includes rest days). Used by
+// trainingMonotony/strainScore, which are within-week daily-variability metrics
+// — NOT week-over-week series.
+export function weekDailyLoads(state, days, weekNum) {
+  const wkData = (state.weeks || {})[String(weekNum)] || {};
+  return days.map(d => {
+    const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
+    const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
+    const gymLoad = (gymRpe > 0 && gymMins > 0) ? gymRpe * gymMins : 0;
+
+    const runEntry = wkData.runs?.[d] || {};
+    const runRpe   = parseFloat(runEntry.rpe) || 0;
+    const runMins  = parseMinutes(runEntry.time);
+    const runLoad  = (runRpe > 0 && runMins > 0) ? runRpe * runMins : 0;
+
+    return gymLoad + runLoad;
+  });
+}
+
 // Average of all gym and run RPE readings per week. 0 when none logged.
 export function weeklyRpeSeries(state, days, maxWeek) {
   const result = [];

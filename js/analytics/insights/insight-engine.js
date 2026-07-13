@@ -29,7 +29,7 @@ export function generateLoadInsights({ atl, ctl, ratio, loadProgPct, fatigue, lo
   if (!ctl || ctl === 0) return insights;
 
   if (loadStatus.zone === 'danger')
-    insights.push({ text: `Acute load is ${Math.round((ratio - 1) * 100)}% above your fitness baseline. Risk of overtraining injury is elevated.`, priority: 'alert', category: 'load' });
+    insights.push({ text: `Acute load is ${Math.round((ratio - 1) * 100)}% above your recent baseline — a sharp spike. Consider easing volume and prioritising recovery this week.`, priority: 'alert', category: 'load' });
   else if (loadStatus.zone === 'high')
     insights.push({ text: `Your training load is running high — fatigue is starting to outpace recovery. Keep a close eye on sleep and readiness this week.`, priority: 'alert', category: 'load' });
   else if (loadStatus.zone === 'optimal' || loadStatus.zone === 'productive')
@@ -50,7 +50,7 @@ export function generateLoadInsights({ atl, ctl, ratio, loadProgPct, fatigue, lo
   // watching, not an alarm, and shouldn't out-shout the escalation card.
   if (loadProgPct !== null) {
     if (loadProgPct > 15)
-      insights.push({ text: `Training load rose ${fmtPct(loadProgPct)} vs the previous week. Keep week-on-week increases near 10% to stay ahead of injury risk.`, priority: 'info', category: 'load' });
+      insights.push({ text: `Training load rose ${fmtPct(loadProgPct)} vs the previous week. Keeping week-on-week increases near 10% helps manage load progression.`, priority: 'info', category: 'load' });
     else if (loadProgPct > 5)
       insights.push({ text: `Training load rose ${fmtPct(loadProgPct)} vs the previous week — solid progressive overload.`, priority: 'good', category: 'load' });
     else if (loadProgPct < -15)

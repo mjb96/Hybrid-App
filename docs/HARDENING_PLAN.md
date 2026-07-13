@@ -146,8 +146,19 @@ Verified targets to inspect: `js/brain/load_models.js`,
   (`complete/estimated/missingDuration/missingRpe/insufficientBaseline`). 5.3 no
   chronic baseline → `null`/insufficient, never ACWR 0 "optimal". 5.4 keep real
   zero-load weeks. 5.5 readiness confidence tier + min signals. 5.6 HRV/RHR baseline
-  excludes today. 5.7 Foster monotony from *daily* loads within the week. 5.8 neutral
-  ACWR wording. 5.9 outlier bounds. **Risk:** medium; each is a bounded, well-tested unit.
+  excludes today. 5.9 outlier bounds. **Risk:** medium; each is a bounded, well-tested unit.
+- **5.7 Foster monotony — `[x]` DONE.** Was computed over week-over-week *totals*
+  (undefined quantity). Rewrote `trainingMonotony(dailyLoads)` + `strainScore(
+  weeklyLoad, dailyLoads)` to Foster's within-week daily method; added
+  `weekDailyLoads(state, days, weekNum)` (metrics-load.js); `computeLoadAnalytics`
+  feeds the current week's 7 daily loads. Null on <2 training days or SD 0 (no huge
+  numbers). Tests: `tests/foster_monotony.test.js`.
+- **5.8 ACWR wording — `[x]` DONE (for `trainingLoadStatus` + load insights).**
+  Neutral baseline-relative labels replace "Danger Zone"/"Detraining" etc.; zones
+  preserved so styling/logic unchanged. Injury-prediction insight text reworded to
+  load-management framing. Note: `view-recovery.js`/`briefing.js` keep independent
+  duplicate status vocabularies (a Phase 4/7.4 de-duplication target) — not yet
+  unified. Tests: `tests/foster_monotony.test.js` (wording contract).
 
 ## Phase 6 — Versioned program schema  `[ ]`
 - Explicit `schemaVersion` contract for strength + running prescriptions; validator +
