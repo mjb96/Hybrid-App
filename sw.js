@@ -150,6 +150,7 @@ const REQUIRED_ASSETS = [
   "./js/set-utils.js",
   "./js/settings.js",
   "./js/state.js",
+  "./js/state/activation-identity.js",
   "./js/state/auth.js",
   "./js/state/import-export.js",
   "./js/state/lift-id.js",

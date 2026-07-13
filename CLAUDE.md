@@ -16,6 +16,16 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   `js/state/sync-guard.js` detect when another device wrote since this one loaded and
   raise a warn-and-choose modal (`js/state/sync-conflict-ui.js`) instead of clobbering.
   A pre-cloud-pull local snapshot (`snapshotLocalBeforeCloudPull`) is also kept.
+- Program-run isolation: every program run has a stable `state.activeActivationId`
+  (`js/state/activation-identity.js`) and each week is stamped `week.activationId`. A
+  switch/restart calls `startProgramActivation` (state.js) → `beginActivation` +
+  `archiveForeignWeeks`: the previous run's numeric weeks move to `arch:<oldId>:<n>` keys
+  **inside `state.weeks`** (logged history kept — every date-/all-time analytics + PR
+  reader iterates all entries and attributes by stamped date, so archived data still
+  counts; numeric week-nav `1..totalWeeks` and program-week-indexed series only touch
+  numeric keys, so a past run never appears in the active workout). This is what stops a
+  previous program's completed lifts leaking into a new program's day — do NOT reintroduce
+  same-slot reuse across programs. v3 migration adopts legacy weeks into one activation.
 - Auth/sync: `js/state/auth.js`, `js/state/supabase.js`. Anon key is hardcoded (public
   by design — safe ONLY if Supabase RLS is enforced). RLS (`supabase/rls_user_data.sql`)
   is **applied + proven** — the adversarial check (`scripts/rls-adversarial-check.mjs`)

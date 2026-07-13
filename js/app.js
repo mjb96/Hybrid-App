@@ -19,6 +19,7 @@ import {
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
+  startProgramActivation,
   saveStateToLocalStorage,
   scheduleLocalSave,
   pullEngineDataFromStorage,
@@ -261,17 +262,14 @@ function applyProgramSwitch(newProgramId, startWeek = 1) {
   // not wherever the previous program happened to be.
   appState.currentWeek = String(Math.max(1, parseInt(String(startWeek), 10) || 1));
   appState.weekStartedAt = new Date().toISOString();
-  // Re-point the current week and every already-materialised future week at the
-  // new program so its exercises replace the old program's unlogged scaffolding
-  // instead of going stale (or stacking as a union). Logged sets are preserved;
-  // past weeks are left untouched as history. Future weeks not yet created will
-  // pick up the new program lazily via verifyWeekStorageSchema.
-  const cur = parseInt(appState.currentWeek, 10) || 1;
-  const targets = new Set([String(appState.currentWeek)]);
-  Object.keys(appState.weeks || {}).forEach(wk => {
-    if ((parseInt(wk, 10) || 0) >= cur) targets.add(wk);
-  });
-  targets.forEach(wk => reseedActiveProgramIntoWeek(wk));
+  // Begin a NEW program activation (a distinct run, even when restarting the same
+  // program) and archive every numeric week owned by the previous run: its logged
+  // history is preserved in the archive (still counted by date-based analytics/PRs)
+  // and its scaffolding is cleared, so no completed exercise from the old program
+  // can leak into the new program's workout. The new run then seeds its start week
+  // clean; future weeks materialise lazily under the new activation.
+  startProgramActivation(newProgramId, appState.currentWeek);
+  reseedActiveProgramIntoWeek(appState.currentWeek);
   saveStateToLocalStorage(true);
   try { updateLibraryState(appState); renderLibrary(); } catch (_) {}
   hydrateCurrentView();
