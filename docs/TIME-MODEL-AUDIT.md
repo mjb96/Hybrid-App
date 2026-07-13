@@ -28,6 +28,7 @@ attribute logged work by real dates. Rolling windows stay rolling.
 | **Analytics week navigator** (`week-nav.js`) | `getSelectedWeek = currentWeek + offset` (program), label from `weeks[N].dates` min/max | calendar offset; label = real Mon–Sun range |
 | Strength "This week's sessions" strip (`view-strength.js`) | `weeks[currentWeek]` | `collectCalendarWeek(weekStartOf(today))`, chip keeps source program week |
 | `curWeekIdx` (`screen-kit.js`) | program-week → series index | **removed** (no longer needed) |
+| Strength overview e1RM "+X kg this week" + "PRs This Week" + Lift-PR list "this week / vs last week / PR" (`view-strength.js`) | `dynamicStats.currentEstimatedMax − previousWeekMax` / `isWeeklyPR` (program-week) | `js/analytics/strength-calendar.js` (`calendarStrengthSummary`, `bestE1rmByLiftForWeek`) — same-exercise, calendar-week; honest empty states |
 
 ### B. Program-week (correct — left unchanged)
 These describe *plan position / adherence*, never "this calendar week":
@@ -55,12 +56,18 @@ headline:
 - `profile-stats.js` heatmap / recent-sessions — anchored via `weekStartedAt`.
 - `view-recovery.js` RPE recovery — current program-week RPE.
 
-## Remaining limitation (documented, not a "this week" headline)
-`metrics-strength.js` `dynamicStats.currentWeekMax/prevWeekMax` bucket per-lift e1RM by
-**program week**; the Strength overview shows a "+X kg this week" est-1RM delta from it.
-On a frozen program week this delta can lag the calendar. It is a secondary per-lift
-figure (not the reported Weekly-Volume defect) and converting it needs calendar
-bucketing of per-lift maxes — tracked as future work, kept program-based for now.
+## Per-lift e1RM (RESOLVED)
+The Strength overview's "this week" estimated-1RM change + PR indicators now use the
+calendar-week engine `js/analytics/strength-calendar.js` (a program-week-free module,
+guarded). Same-exercise only (identity = the lift's stored name key — no alias layer),
+canonical Epley formula (`estimatedE1rm`), warm-ups/incompletes/zero-load excluded,
+same-date duplicates deduped, honest empty states. The Hybrid Score **strength pillar**
+(`pillars.js` `strengthPillar`) intentionally stays **program-week** progression
+(`weeklyE1rmByLift` + `progressionPct(idx=wkNum-1)`) — it measures progress through the
+plan, not a calendar week. The old program-week fields
+(`dynamicStats.currentEstimatedMax/previousWeekMax`, `allLiftsStats.currentWeekMax/
+prevWeekMax`, `isWeeklyPR`) are now unused by any view and left in place only as dead
+history-scan output.
 
 ## Guardrails
 - `tests/analytics_calendar_guard.test.js` — static check: the calendar-core modules

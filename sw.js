@@ -46,6 +46,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/insights/insight-engine.js",
   "./js/analytics/logged-days.js",
   "./js/analytics/scoring/readiness-scoring.js",
+  "./js/analytics/strength-calendar.js",
   "./js/analytics/utils.js",
   "./js/analytics/views/screen-kit.js",
   "./js/analytics/views/view-bodyweight.js",

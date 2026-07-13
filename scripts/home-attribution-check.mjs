@@ -157,6 +157,24 @@ try {
     console.error(`FAIL: strength detail should open on "This week", got "${navThis}".`);
     failed = true;
   }
+
+  // The e1RM overview must NOT show a stale "+X kg this week" for an empty week —
+  // it must state honestly that there's no strength work this calendar week.
+  const overview = await page.$eval('#analytics-strength', el => el.textContent);
+  const stale = /[+\-]\d+\s*kg\b/.test(overview) && !/No strength work/.test(overview);
+  console.log('Strength overview empty-state:', JSON.stringify({
+    honestEmpty: /No strength work logged this week/.test(overview),
+    hasPRchip: /new PR/.test(overview),
+  }));
+  if (!/No strength work logged this week/.test(overview)) {
+    console.error('FAIL: empty current week should show an honest "No strength work" e1RM state.');
+    failed = true;
+  }
+  if (/new PR.*this week/.test(overview)) {
+    console.error('FAIL: empty current week must not claim a PR this week.');
+    failed = true;
+  }
+
   await page.click('#weekNavPrev');
   await page.waitForTimeout(150);
   const navPrev = await page.$eval('#weekNavLabel', el => el.textContent.trim());
@@ -166,6 +184,36 @@ try {
     console.error(`FAIL: stepping back should read "Previous week", got "${navPrev}".`);
     failed = true;
   }
+
+  // --- Scenario 2: Bench trained this week AND last week → named same-exercise
+  // comparison with correct units, in a fresh context. -----------------------
+  const s2 = {
+    currentWeek: '3', activeProgramId: 'hybrid_engine', weekStartedAt: curMon.toISOString(),
+    settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon' },
+    weeks: { '3': {
+      dates: { mon: iso(prevMon), wed: iso(curMon) },
+      lifts: { mon: { 'Bench Press': nSets(3, 100, 5) }, wed: { 'Bench Press': nSets(3, 105, 5) } },
+      runs: {}, gymStats: {}, notes: {}, gymRpe: {}, bodyWeight: {}, liftMeta: {}, liftOrder: {},
+    } },
+  };
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await ctx2.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} }, [STORAGE_KEY, JSON.stringify(s2)]);
+  const page2 = await ctx2.newPage();
+  await page2.goto(BASE, { waitUntil: 'networkidle' });
+  await page2.evaluate(() => {
+    const b = document.createElement('button');
+    b.setAttribute('data-action', 'open-analytics'); b.setAttribute('data-context', 'strength');
+    b.style.display = 'none'; document.body.appendChild(b); b.click(); b.remove();
+  });
+  await page2.waitForSelector('#analytics-strength', { timeout: 10000 });
+  await page2.waitForTimeout(200);
+  const s2text = await page2.$eval('#analytics-strength', el => el.textContent);
+  const s2ok = /Bench Press vs previous week/.test(s2text) && /\+\d+\s*kg/.test(s2text);
+  console.log('Scenario 2 (named same-exercise change):', JSON.stringify({
+    namesBench: /Bench Press vs previous week/.test(s2text), hasKgDelta: /\+\d+\s*kg/.test(s2text),
+  }));
+  if (!s2ok) { console.error('FAIL: this-week Bench change should name "Bench Press vs previous week" with a +kg delta.'); failed = true; }
+  await ctx2.close();
 } catch (e) {
   console.error('ERROR:', e.message);
   failed = true;

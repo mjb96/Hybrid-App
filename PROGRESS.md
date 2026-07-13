@@ -72,6 +72,30 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-13 · **Calendar-correct per-lift estimated-1RM (last program-week/calendar
+  inconsistency closed).** The Strength overview's "+X kg this week" est-1RM change, the
+  "PRs This Week" count and the Lift-PR list's "this week / vs last week / PR" figures were
+  still bucketed by PROGRAM week (`dynamicStats.currentEstimatedMax − previousWeekMax`,
+  `isWeeklyPR`) — stale when the calendar advances but the program week doesn't. New
+  program-week-free module `js/analytics/strength-calendar.js`: canonical `estimatedE1rm`
+  (Epley, coerces/never-NaN), `liftE1rmByCalendarWeek`, `bestE1rmByLiftForWeek`,
+  `calendarStrengthSummary` (same-exercise "top change" + calendar PRs + honest empty
+  states), `calendarWeekE1rmSeriesForLift` (trailing calendar spark). All bucket by real
+  stamped date via `weekly-aggregate.js` (dedup, warm-ups/incompletes/zero-load excluded,
+  undated excluded). Exercise identity = the lift's bare-string name key (no alias layer) —
+  a rename is a new identity, never cross-compared. `view-strength.js` overview rewired:
+  hero = all-time top lift + calendar PR chip, a calendar "e1RM Change" card (names the
+  exercise, honest empty/no-prior states), and the Stats-tab Lift-PR list now calendar
+  same-exercise. Removed the program-week `_liftE1rmSeries`/`isWeeklyPR` usage; re-exported
+  the calendar helpers through metrics-strength for one import point. Hybrid Score strength
+  pillar left program-week (plan progression, by design). Static guard extended to cover
+  strength-calendar.js. New `tests/strength_calendar_e1rm.test.js` (25) covers span/rollover/
+  two-programs/rename/variant/warm-up/bodyweight/decimals/high-rep/dedup/undated/edit-moves/
+  PR/no-cross-exercise/NaN. 728 tests / typecheck / smoke / precache green. Real-browser
+  check extended: empty week → "No strength work logged this week" (no stale +X, no false
+  PR); Scenario 2 → "Bench Press vs previous week +kg". · Analytics time model is now
+  internally consistent end-to-end. Next: real-device + beta feedback (per owner).
+
 - 2026-07-13 · **Complete the program-week ↔ calendar-week separation.** Follow-up to the
   attribution fix: audited every week-based reference (`docs/TIME-MODEL-AUDIT.md`) and
   converted the remaining CALENDAR surfaces off the program-week counter. The strength/

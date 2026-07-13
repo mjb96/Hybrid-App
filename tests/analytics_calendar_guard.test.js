@@ -33,6 +33,7 @@ const CALENDAR_CORE = [
   'js/analytics/weekly-aggregate.js',
   'js/analytics/week-chart-model.js',
   'js/analytics/week-nav.js',
+  'js/analytics/strength-calendar.js',
 ];
 
 // [pattern, human-readable violation]
