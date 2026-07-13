@@ -72,6 +72,37 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-12 · **Safe program activation (no more silent one-tap program swap)**
+  (branch `claude/workout-exercise-leak-fix-7uk3h1`). Browsed the program
+  experience as a real user in headless Chromium (seeded past onboarding). Finding:
+  the library, cards and detail page are already mature and polished (active
+  "NOW TRAINING" banner + ring + next workout, Discover/Saved/Completed tabs,
+  filters, collections, search, recommendations, compatibility "Ready" chip,
+  Overview|Structure|Plan) — so the one genuinely **spec-violating, unsafe**
+  behaviour was the highest-value target: `triggerMakeActiveProgram` →
+  `applyProgramSwitch` **silently replaced** the active program from a one-tap
+  "Start This Program" CTA, with no confirmation, no current-program impact, no
+  active-workout guard, and it kept the previous program's `currentWeek` (so a
+  fresh program could start mid-block). Fix: new pure `js/programs/activation.js`
+  — `buildActivationPlan()` computes an honest, natural-language plan (summary
+  from real metadata only — never "undefined"/0; replace/restart/first modes;
+  history-is-kept reassurance; in-progress-workout warning; Week-1-default +
+  "Keep Week N" start-week choices; no raw ids) and `confirmActivation()` renders
+  a self-contained, safe-area-aware, dvh-capped confirmation dialog;
+  `activateProgramWithConfirm()` gates the switch. `applyProgramSwitch(id,
+  startWeek)` now takes a start week and resets `currentWeek` so an activated
+  program begins where the user chose (Week 1 by default). All existing
+  functionality preserved; the bottom-sheet fixes untouched. Verified in-browser:
+  the sheet renders "Switch to Helyx Foundations? · 12-week hybrid block · 5
+  days/week · Intermediate", warns it replaces the current program, reassures
+  history is kept, offers Start-at-Week-1 / Keep-Week-3 / Cancel; at 320px it
+  fits with no overflow; confirming switches + resets to the chosen week; Cancel
+  changes nothing. Tests: `tests/program_activation.test.js` (13). 649 green;
+  typecheck + smoke + precache clean. Next (not done this session, ranked for a
+  follow-up): detail CTA secondary row (Customize/Compare) can clip on the right
+  at ≤360px; a week-at-a-glance schedule summary on the detail page; a concise
+  progression summary. See USER_EXPERIENCE_AUDIT.md.
+
 - 2026-07-12 · **Fix program-day preview bottom-sheet: scroll/position + reps
   clipping** (branch `claude/workout-exercise-leak-fix-7uk3h1`). Reproduced both
   reported issues in headless Chromium (playwright-core + the pre-installed

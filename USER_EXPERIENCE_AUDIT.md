@@ -11,6 +11,41 @@ Branch: `claude/helyx-ux-audit-6g6r4q`.
 
 ---
 
+## Addendum — Program experience & activation (2026-07-12)
+
+Method: same — the program flow was run in headless Chromium (Pixel-class widths
+320/360/390/412), seeded past onboarding, browsing → detail → activate.
+
+**Verdict:** the program **browse/preview** experience is already strong — polished
+library (active "NOW TRAINING" banner with progress ring + next workout,
+Discover/Saved/Completed, filters, collections, search, recommendations), clean cards
+(name · one-line purpose · type/level/weeks/days · equipment · active/done state,
+neutral attribution, no raw ids), and a well-ordered detail page (hero → stats →
+compatibility "Ready" chip → tags → CTA → description → Overview|Structure|Plan). The
+day-preview sheet was fixed the prior session.
+
+**The one genuinely unsafe gap (fixed this session):** *silent activation.* "Start This
+Program" was a **one-tap, unconfirmed, destructive** action — it replaced the active
+program and re-seeded weeks with no confirmation, no statement of impact on the current
+program, no active-workout guard, and it inherited the old program's `currentWeek` (so a
+brand-new block could open mid-program). Now activation routes through an honest
+confirmation sheet (program summary in natural language, what it replaces, "history is
+kept", in-progress-workout warning, Start-at-Week-1 / Keep-Week-N choice), and a fresh
+program starts at the chosen week. Pure logic in `js/programs/activation.js`, unit-tested.
+
+**Ranked, not-yet-done (for a follow-up session):**
+- *Medium:* detail CTA secondary row (Customize / Compare) can clip on the right at
+  ≤360px — the row should wrap or scroll cleanly.
+- *Medium:* a **week-at-a-glance** schedule summary on the detail page (day · title ·
+  type · short summary) above the day-preview, and a concise **progression summary**
+  (e.g. "Wk 1–3 build · Wk 6 deload · Wk 8–10 peak") where the stored week modifiers
+  support it — derive from real data only, never program marketing text.
+- *Low:* the strength day-preview intentionally shows sets×reps only (engine-truthful,
+  per CLAUDE.md); RPE/rest in the catalog are decorative and must NOT be surfaced as a
+  per-lift prescription — do not "enrich" it back.
+
+---
+
 ## 1. Journey-by-journey review
 
 ### 1. First-time experience — **strong**
