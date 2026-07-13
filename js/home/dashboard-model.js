@@ -21,6 +21,7 @@ import { computeReadiness, readinessStatus, readinessColor } from '../analytics/
 import { getFastingContext } from '../fasting.js';
 import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
 import { loggedDateSet } from '../analytics/logged-days.js';
+import { buildCalendarWeekStrength, indexSlotsByDate, addDaysISO, localDayKey } from '../analytics/weekly-aggregate.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -74,7 +75,7 @@ function hrvStatusFrom(log) {
 // ---------------------------------------------------------------------------
 // MAIN
 // ---------------------------------------------------------------------------
-export function computeDashboardModel(state, days, program, selectedDay) {
+export function computeDashboardModel(state, days, program, selectedDay, opts = {}) {
   const weeks = state?.weeks || {};
   const wkNum = parseInt(state?.currentWeek, 10) || 1;
   const wk = String(wkNum);
@@ -177,6 +178,37 @@ export function computeDashboardModel(state, days, program, selectedDay) {
     }
   });
 
+  // ---- Canonical CALENDAR-week strength (the honest "this week") ----------
+  // The At-a-Glance Weekly Volume tile reads THIS, not `week.*` above. `week.*`
+  // tracks PROGRAM-week progression (consumed by the Hybrid Score / weekly
+  // review); it can point at a frozen program week whose dates are last calendar
+  // week — exactly the stale-attribution bug. The calendar aggregate buckets by
+  // real stamped date, so an empty current calendar week reads as a true zero
+  // and matches the In Focus graph + strength detail (all share this source).
+  const calToday = opts.today || localDayKey(new Date(), opts.tz);
+  const slotIndex = indexSlotsByDate(state, { tz: opts.tz });
+  const calCur = buildCalendarWeekStrength(state, { today: calToday, tz: opts.tz, index: slotIndex });
+  const calPrev = buildCalendarWeekStrength(state, {
+    weekStart: addDaysISO(calCur.weekKey, -7), today: calToday, tz: opts.tz, index: slotIndex,
+  });
+  // Pace-matched previous week: same elapsed weekday positions as this week, so a
+  // partial week is never judged against a full one (mirrors the In Focus graph).
+  const calElapsedN = calCur.days.filter(d => d.date <= calToday).length || 7;
+  const calPrevPaceVol = calPrev.days.slice(0, calElapsedN).reduce((s, d) => s + d.volumeKg, 0);
+  const calendarWeek = {
+    weekKey: calCur.weekKey,
+    startDate: calCur.startDate,
+    endDate: calCur.endDate,
+    sets: calCur.totalWorkingSets,
+    reps: calCur.totalReps,
+    volume: {
+      current: calCur.totalVolumeKg,
+      prev: calPrevPaceVol,
+      delta: makeDelta(calCur.elapsedVolumeKg, calPrevPaceVol, { unit: 'kg' }),
+    },
+    sourceWeekNums: calCur.sourceWeekNums,
+  };
+
   // ---- Body weight --------------------------------------------------------
   const bwLog = [...(state?.bodyWeightLog || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let bodyweight = { hasData: false, latest: null, delta7: null, trend: [] };
@@ -245,6 +277,7 @@ export function computeDashboardModel(state, days, program, selectedDay) {
       // (null until sets carry targets; the Consistency pillar folds it in gently).
       ...(() => { const q = workoutQuality(state, days, maxWeek); return { qualityPct: q.pct, qualityN: q.n }; })(),
     },
+    calendarWeek,
     bodyweight,
     big3,
     pace,

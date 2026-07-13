@@ -1,0 +1,143 @@
+// ============================================================================
+// Helyx — Home weekly-attribution check (real-browser)
+// ----------------------------------------------------------------------------
+// Drives the REAL app in headless Chromium at a phone width and proves the
+// calendar-attribution fix end to end: with a frozen program week whose logged
+// training all falls in the PREVIOUS calendar week, the Home "In Focus" graph
+// must read 0 for "this week" (not the stale ~55 sets), and previous-week nav
+// must still surface last week's real total.
+//
+// Seeds the scenario RELATIVE to the real current date (no Date mocking), so it
+// stays valid whenever it runs.
+//
+//   node scripts/home-attribution-check.mjs
+//
+// Self-skipping if playwright-core / Chromium are unavailable (exit 0).
+// Exit 0 = pass or skip; non-zero = regression.
+// ============================================================================
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { existsSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+function findChromium() {
+  const base = '/opt/pw-browsers';
+  if (!existsSync(base)) return null;
+  // Prefer the headless-shell (old-headless is removed from the full chrome build).
+  for (const d of readdirSync(base).filter(n => n.startsWith('chromium_headless_shell'))) {
+    const p = path.join(base, d, 'chrome-linux', 'headless_shell');
+    if (existsSync(p)) return p;
+  }
+  for (const d of readdirSync(base).filter(n => n.startsWith('chromium') && !n.includes('headless'))) {
+    const p = path.join(base, d, 'chrome-linux', 'chrome');
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+let chromium;
+try { ({ chromium } = await import('playwright-core')); }
+catch { console.log('SKIP: playwright-core not installed.'); process.exit(0); }
+const exe = findChromium();
+if (!exe) { console.log('SKIP: no Chromium binary under /opt/pw-browsers.'); process.exit(0); }
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
+  '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const server = createServer(async (req, res) => {
+  try {
+    const url = decodeURIComponent((req.url || '/').split('?')[0]);
+    const rel = url === '/' ? 'index.html' : url.replace(/^\//, '');
+    const buf = await readFile(path.join(ROOT, rel));
+    res.writeHead(200, { 'content-type': MIME[path.extname(rel)] || 'application/octet-stream' });
+    res.end(buf);
+  } catch { res.writeHead(404); res.end('not found'); }
+});
+await new Promise(r => server.listen(0, r));
+const port = server.address().port;
+const BASE = `http://127.0.0.1:${port}`;
+
+// ---- build the seeded state relative to real "today" -----------------------
+const iso = (d) => d.toISOString().slice(0, 10);
+const addDays = (d, n) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; };
+const now = new Date();
+const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12));
+const back = (todayUTC.getUTCDay() + 6) % 7;              // days since Monday
+const curMon = addDays(todayUTC, -back);                  // this week's Monday
+const prevMon = addDays(curMon, -7);                      // last week's Monday
+const DAY = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const prevDates = {}; DAY.forEach((dk, i) => { prevDates[dk] = iso(addDays(prevMon, i)); });
+const work = (w, r) => ({ c: true, w: String(w), r: String(r) });
+const nSets = (n, w, r) => Array.from({ length: n }, () => work(w, r));
+
+const seeded = {
+  currentWeek: '3',
+  activeProgramId: 'hybrid_engine',
+  weekStartedAt: prevMon.toISOString(),
+  settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon' },
+  weeks: {
+    '3': {
+      dates: prevDates,                                   // LAST calendar week
+      lifts: {
+        mon: { Squat: nSets(15, 100, 5) },
+        tue: { Bench: nSets(15, 100, 5) },
+        thu: { Row: nSets(10, 80, 8) },
+        fri: { Press: nSets(15, 60, 8) },
+      },
+      runs: {}, gymStats: {}, notes: {}, gymRpe: {}, bodyWeight: {}, liftMeta: {}, liftOrder: {},
+    },
+  },
+};
+const STORAGE_KEY = 'hybrid_engine_v2_state';
+
+const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
+let failed = false;
+try {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} },
+    [STORAGE_KEY, JSON.stringify(seeded)]);
+  const page = await ctx.newPage();
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#strengthBarChart .wfg-total-v', { timeout: 15000 });
+
+  // "This week" total on the In Focus strength graph (default metric = sets).
+  const thisWeek = await page.$eval('#strengthBarChart', el => {
+    const v = el.querySelector('.wfg-total-v')?.textContent?.trim();
+    const l = el.querySelector('.wfg-total-l')?.textContent?.trim();
+    const range = el.querySelector('.wfg-range')?.textContent?.trim();
+    const bars = [...el.querySelectorAll('.wfg-b')].length;
+    return { v, l, range, bars };
+  });
+  console.log('In Focus (this week):', JSON.stringify(thisWeek));
+  if (!/^0\b/.test(thisWeek.v) || thisWeek.l !== 'this week') {
+    console.error(`FAIL: In Focus "this week" should read 0 sets, got "${thisWeek.v}" (${thisWeek.l}).`);
+    failed = true;
+  }
+  if (thisWeek.bars !== 0) {
+    console.error(`FAIL: current week should have no bars, got ${thisWeek.bars}.`);
+    failed = true;
+  }
+
+  // Navigate to the previous week → last week's real total (55 sets) reappears.
+  await page.click('#strengthBarChart [data-wfg-action="nav-prev"]');
+  await page.waitForTimeout(150);
+  const lastWeek = await page.$eval('#strengthBarChart', el => ({
+    v: el.querySelector('.wfg-total-v')?.textContent?.trim(),
+    range: el.querySelector('.wfg-range')?.textContent?.trim(),
+  }));
+  console.log('In Focus (previous week):', JSON.stringify(lastWeek));
+  if (!/55/.test(lastWeek.v)) {
+    console.error(`FAIL: previous week should read 55 sets, got "${lastWeek.v}".`);
+    failed = true;
+  }
+} catch (e) {
+  console.error('ERROR:', e.message);
+  failed = true;
+} finally {
+  await browser.close();
+  server.close();
+}
+if (failed) { console.error('home-attribution-check: FAIL'); process.exit(1); }
+console.log('home-attribution-check: PASS — empty current week reads 0, last week retains 55.');

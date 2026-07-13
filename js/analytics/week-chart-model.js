@@ -10,10 +10,12 @@
 // canonical set predicates from set-utils, so the graph can never diverge from
 // the numbers a detail view shows.
 //
-// A Helyx "week" is program-week N (state.weeks["N"]), whose day keys mon..sun
-// are anchored to real calendar dates via `weeks[N].dates`. That IS a Monday-
-// first calendar week in local time — the whole app is built on it — so this
-// model works within that architecture rather than inventing a parallel one.
+// The week identity is the REAL calendar week, resolved via analytics/
+// weekly-aggregate.js: every logged day is bucketed by its stamped `.dates[day]`
+// into a Monday-based calendar week. It deliberately does NOT trust the
+// program-week counter (`state.currentWeek`) as "this week" — that counter only
+// advances on an explicit step, so a frozen program week used to attribute a
+// PRIOR calendar week's training to "this week" (the bug this model now fixes).
 //
 // Comparison rules (deliberate + clearly labelled):
 //   • Current week  → "live" comparison: this week's ELAPSED days (Mon..today)
@@ -26,6 +28,7 @@
 // =============================================================================
 import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
 import { comparisonLabel } from './comparison.js';
+import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 
 export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_SHORT = { mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S' };
@@ -120,13 +123,18 @@ function dayCell(weekData, dayKey, type, metric) {
 // ---- main builder -----------------------------------------------------------
 
 /**
- * Build the week-chart model for the In Focus graph.
- * @param {object} state          appState (reads state.weeks / state.currentWeek)
+ * Build the week-chart model for the In Focus graph, keyed on the REAL CALENDAR
+ * week (Monday-based) rather than the program-week counter. `weekOffset` shifts
+ * by whole calendar weeks from today's week, so offset 0 is always the actual
+ * current calendar week — an empty current week is genuinely empty, and stale
+ * program-week data can no longer masquerade as "this week".
+ * @param {object} state          appState (reads state.weeks; program week is NOT used)
  * @param {object} [opts]
  * @param {'strength'|'running'} [opts.type='strength']
  * @param {string} [opts.metric]  metric key; defaults to the type's first metric
- * @param {number} [opts.weekOffset=0]  0 = current program week, -1 = previous, …
+ * @param {number} [opts.weekOffset=0]  0 = current calendar week, -1 = previous, …
  * @param {string} [opts.today]   'YYYY-MM-DD' local today (injected for tests)
+ * @param {string} [opts.tz]      IANA tz for timestamp→day resolution (tests)
  * @returns {object} week-chart model (see file header for shape)
  */
 export function buildWeekChart(state, opts = {}) {
@@ -136,16 +144,28 @@ export function buildWeekChart(state, opts = {}) {
   const weekOffset = opts.weekOffset || 0;
   const today = opts.today || todayLocalKey();
 
-  const weeks = state?.weeks || {};
-  const currentWeekNum = parseInt(state?.currentWeek, 10) || 1;
-  const weekNum = Math.max(1, currentWeekNum + weekOffset);
-  const isCurrentWeek = weekNum === currentWeekNum;
+  const currentMonday = weekStartOf(today);
+  const targetMonday  = addDaysISO(currentMonday, weekOffset * 7);
+  const isCurrentWeek = weekOffset === 0;
 
-  const weekData = weeks[String(weekNum)];
-  const prevWeekData = weeks[String(weekNum - 1)];
-  const dates = weekData?.dates || {};
+  // Bucket every logged day by its real stamped date, then assemble THIS
+  // calendar week and the one before it from those buckets (synthetic weekData
+  // objects the existing per-day extraction consumes unchanged).
+  const index = indexSlotsByDate(state, { tz: opts.tz });
+  const weekData     = collectCalendarWeek(state, targetMonday, { index });
+  const prevWeekData = collectCalendarWeek(state, addDaysISO(targetMonday, -7), { index });
+  const dates = weekData.dates;
 
-  // Build the 7 day cells.
+  // Any logged activity strictly before this week's Monday? Gates both the
+  // comparison (the very first week has nothing honest to compare to) and
+  // whether "previous week" navigation should be offered.
+  let earliestDate = null;
+  for (const date of index.byDate.keys()) {
+    if (earliestDate === null || date < earliestDate) earliestDate = date;
+  }
+  const hasOlderData = !!earliestDate && earliestDate < targetMonday;
+
+  // Build the 7 day cells against the REAL calendar dates of this week.
   const days = DAY_KEYS.map(dayKey => {
     const cell = dayCell(weekData, dayKey, type, metric);
     const date = dates[dayKey] || null;
@@ -165,14 +185,8 @@ export function buildWeekChart(state, opts = {}) {
   const total = days.reduce((s, d) => s + d.value, 0);
 
   // Elapsed portion of the CURRENT week: days whose date is on/before today.
-  // When dates are missing (older data), fall back to "every day that has data"
-  // so the comparison still lines up sensibly.
   const elapsedKeys = isCurrentWeek
-    ? DAY_KEYS.filter((dayKey, i) => {
-        const date = days[i].date;
-        if (date) return date <= today;
-        return days[i].hasData;
-      })
+    ? DAY_KEYS.filter((dayKey, i) => days[i].date <= today)
     : DAY_KEYS;
 
   const elapsedTotal = isCurrentWeek
@@ -182,24 +196,27 @@ export function buildWeekChart(state, opts = {}) {
   const comparison = buildComparison({
     type, metric, isCurrentWeek,
     currentValue: isCurrentWeek ? elapsedTotal : total,
-    prevWeekData, elapsedKeys,
+    prevWeekData: hasOlderData ? prevWeekData : null, elapsedKeys,
   });
-
-  const nonNullDates = days.map(d => d.date).filter(Boolean).sort();
 
   return {
     type,
     metric,
     metricInfo: catalog[metric],
-    weekNum,
-    weekKey: `W${weekNum}`,
+    weekKey: targetMonday,
+    weekStart: targetMonday,
     isCurrentWeek,
-    startDate: nonNullDates[0] || null,
-    endDate:   nonNullDates[nonNullDates.length - 1] || null,
+    // The label describes the REAL calendar week (Mon..Sun), never the range of
+    // whatever activity happens to be present.
+    startDate: targetMonday,
+    endDate:   addDaysISO(targetMonday, 6),
     days,
     total,
     elapsedTotal,
     comparison,
+    weekData,               // synthetic calendar week — the tap-to-detail modal reads this
+    hasOlderData,
+    canGoBack: !!earliestDate && targetMonday > earliestDate,
   };
 }
 

@@ -47,7 +47,8 @@ test('completed week: stat card gets the previous-week label and full-vs-full pc
       '2': { dates: weekDates('2026-06-08'), lifts: { mon: { A: [work(50, 5), work(50, 5), work(50, 5)] } } }, // 3
     },
   };
-  const chart = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-06-25' });
+  // today in the week after week 2 → weekOffset -1 lands on week 2 (Jun 8–14).
+  const chart = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: -1, today: '2026-06-18' });
   const cmp = statComparisonFrom(chart);
   assert.equal(cmp.sub, 'vs previous week');
   assert.equal(cmp.deltaPct, 50); // (3-2)/2

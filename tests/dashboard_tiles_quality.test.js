@@ -12,7 +12,12 @@ const tile = (id) => TILE_REGISTRY.find(t => t.id === id);
 const run = (id, appState, model, program = {}, day = 'mon') => tile(id).renderData(appState, DAYS, program, day, model);
 
 test('Weekly Volume: no insight line restating the delta chip', () => {
-  const model = { week: { volume: { current: 2200, delta: { good: true, pctLabel: '4%', dir: 'up' }, spark: [1, 2, 3] }, sets: 4, reps: 20 } };
+  const model = {
+    // The tile reads the canonical calendar-week aggregate; the spark stays the
+    // program-week volume history.
+    calendarWeek: { volume: { current: 2200, delta: { good: true, pctLabel: '4%', dir: 'up' } }, sets: 4, reps: 20 },
+    week: { volume: { spark: [1, 2, 3] } },
+  };
   const d = run('weekly-volume', {}, model);
   assert.ok(d.delta, 'keeps the delta chip');
   assert.ok(!d.insight, 'drops the insight that duplicated the delta');

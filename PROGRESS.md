@@ -72,6 +72,29 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-13 · **Fix weekly analytics attribution (stale program week read as "this
+  week").** Root cause: `state.currentWeek` is a PROGRAM-week counter that only advances
+  on an explicit step / confirmed auto-advance, but Home read `weeks[currentWeek]` as the
+  current calendar week — so once the calendar rolled into a new week while the program
+  week stayed frozen, a PRIOR week's training (Mon/Tue/Thu/Fri, ~55 sets / ~11.6 t) showed
+  as "this week", and the label was derived from the data's date range ("11–13 Jul")
+  rather than the real calendar week. New canonical `js/analytics/weekly-aggregate.js`
+  buckets every logged day by its real stamped `.dates[day]` into Monday-based CALENDAR
+  weeks (`localDayKey` — date-only stays local, timestamps → local day, junk → null never
+  "today"; `weekStartOf`; `collectCalendarWeek`; `buildCalendarWeekStrength`; dedup so a
+  cloud/local duplicate can't double-count; `explainWeeklyMetric` dev trace). `buildWeekChart`
+  (In Focus + strength detail) is now calendar-based; the At-a-Glance Weekly Volume tile
+  reads a new `model.calendarWeek`. Result: an empty current week is a true zero, last
+  week's work stays in last week / the comparison, and the label is the real Mon–Sun range.
+  New `tests/weekly_aggregate.test.js` (17) reproduces the exact scenario + all boundary/
+  parsing/dedup/undated cases; existing chart/graph/consistency/profile fixtures re-anchored
+  to calendar-consistent dates. 683 tests / typecheck / smoke green; precache regenerated
+  (weekly-aggregate.js added). Real-browser check (`scripts/home-attribution-check.mjs`)
+  confirms "this week" = 0 sets / "13–19 Jul · This week", prev-week nav = 55 sets / "6–12
+  Jul". · Next: consider making the strength/running detail's older-week navigation fully
+  calendar-based too (offset 0 is already correct); `[You]` device-test the Home graph after
+  a real week rollover.
+
 - 2026-07-12 · **Program progression understanding: week-at-a-glance + phased
   overview on the detail page** (branch `claude/workout-exercise-leak-fix-7uk3h1`).
   The remaining gap was that users couldn't see what a week looks like or how the

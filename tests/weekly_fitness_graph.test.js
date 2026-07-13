@@ -72,9 +72,9 @@ function strengthState() {
 
 // A distinct container id per test keeps the singleton registry isolated.
 let _n = 0;
-function mountStrength(state) {
+function mountStrength(state, today) {
   const id = 'strengthBarChart_' + (++_n);
-  const g = initWeeklyFitnessGraph(id, 'strength', () => state);
+  initWeeklyFitnessGraph(id, 'strength', () => state, today ? { today } : {});
   return getEl(id).innerHTML;
 }
 
@@ -93,14 +93,14 @@ test('default strength metric is Working Sets and the tab is present', () => {
 });
 
 test('each populated bar has a readable accessible label like "Monday, 3 sets"', () => {
-  const html = mountStrength(strengthState());
+  const html = mountStrength(strengthState(), '2026-06-10'); // today in week 2 (Jun 8–14)
   assert.match(html, /aria-label="Monday, 3 sets"/);
   // an empty day is announced as no activity, not a fake zero bar
   assert.match(html, /aria-label="Tuesday, no activity"/);
 });
 
 test('current week uses the live comparison label "vs same point last week"', () => {
-  const html = mountStrength(strengthState());
+  const html = mountStrength(strengthState(), '2026-06-10'); // today in week 2 (Jun 8–14)
   assert.match(html, /vs same point last week/);
 });
 
@@ -173,7 +173,7 @@ test('running graph defaults to Distance and honours mile units', () => {
     weeks: { '1': { dates: weekDates('2026-06-01'), runs: { tue: { dist: '10', time: '50:00' } } } },
   };
   const id = 'runBarChart_mi';
-  initWeeklyFitnessGraph(id, 'running', () => state);
+  initWeeklyFitnessGraph(id, 'running', () => state, { today: '2026-06-03' }); // in the Jun 1 week
   const html = getEl(id).innerHTML;
   assert.match(html, /data-wfg-metric="distance"/);
   // 10 km → 6.2 mi
@@ -195,7 +195,7 @@ test('bar tap shows a compact daily summary with the exercise count', () => {
     },
   };
   const id = 'strengthBarChart_modal';
-  const g = initWeeklyFitnessGraph(id, 'strength', () => state);
+  const g = initWeeklyFitnessGraph(id, 'strength', () => state, { today: '2026-06-03' });
   g._openModal('mon');
   const html = getEl('wfgModalContent').innerHTML;
   // 5 working sets across 2 exercises, volume 100×5×3 + 140×5×2 = 1500 + 1400 = 2900
@@ -210,7 +210,7 @@ test('running bar tap summary reads "distance in time"', () => {
     weeks: { '1': { dates: weekDates('2026-06-01'), runs: { sat: { dist: '6.4', time: '34:10' } } } },
   };
   const id = 'runBarChart_modal';
-  const g = initWeeklyFitnessGraph(id, 'running', () => state);
+  const g = initWeeklyFitnessGraph(id, 'running', () => state, { today: '2026-06-03' });
   g._openModal('sat');
   const html = getEl('wfgModalContent').innerHTML;
   assert.match(html, /6\.4 km in 34:10/);
@@ -223,7 +223,7 @@ test('refresh reflects data edits and unit changes without a remount (no stale c
     weeks: { '1': { dates: weekDates('2026-06-01'), runs: { tue: { dist: '10', time: '50:00' } } } },
   };
   const id = 'runBarChart_refresh';
-  initWeeklyFitnessGraph(id, 'running', () => state);
+  initWeeklyFitnessGraph(id, 'running', () => state, { today: '2026-06-03' });
   assert.match(getEl(id).innerHTML, /10\.0 km/);
 
   // Edit the underlying data, then refresh (same instance) → new value shows.
@@ -244,7 +244,7 @@ test('deleting the last activity in a week refreshes to an honest zero-data stat
     weeks: { '1': { dates: weekDates('2026-06-01'), lifts: { mon: { A: [work(100, 5)] } } } },
   };
   const id = 'strengthBarChart_del';
-  initWeeklyFitnessGraph(id, 'strength', () => state);
+  initWeeklyFitnessGraph(id, 'strength', () => state, { today: '2026-06-03' });
   assert.match(getEl(id).innerHTML, /1 set/);
   delete state.weeks['1'].lifts.mon;
   refreshWeeklyFitnessGraph(id);

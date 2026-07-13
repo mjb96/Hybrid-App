@@ -20,6 +20,16 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   by design — safe ONLY if Supabase RLS is enforced). RLS (`supabase/rls_user_data.sql`)
   is **applied + proven** — the adversarial check (`scripts/rls-adversarial-check.mjs`)
   passed against the live DB (2026-07-02): user A cannot read/write user B's row.
+- Weekly analytics attribution: `state.currentWeek` is a PROGRAM-week counter that only
+  advances on an explicit step / confirmed auto-advance — it is NOT the calendar week.
+  So "this week" analytics must NOT read `weeks[currentWeek]` directly (that leaked a
+  frozen program week's stale training into the current week). `js/analytics/weekly-aggregate.js`
+  is the canonical source: it buckets every logged day by its real stamped `.dates[day]`
+  into Monday-based CALENDAR weeks (`buildCalendarWeekStrength`, `collectCalendarWeek`,
+  `weekStartOf`, `localDayKey`). The In Focus graph (`buildWeekChart`) + strength detail +
+  the At-a-Glance Weekly Volume tile (`model.calendarWeek`) all consume it, so an empty
+  current calendar week is a true zero and the week label is the real Mon–Sun range, never
+  derived from the activity records. `explainWeeklyMetric` is a dev-only attribution trace.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads

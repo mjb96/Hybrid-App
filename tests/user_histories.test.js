@@ -122,10 +122,12 @@ test('no previous week → not comparable, no percentage, honest live/completed 
 });
 
 test('previous value zero but current positive → not a percentage, honest message', () => {
-  const state = { currentWeek: '2', settings: {},
+  const state = { currentWeek: '3', settings: {},
     weeks: {
-      '1': { dates: weekDates(addDays(CUR_MON, -7)), lifts: {} },              // empty prior
-      '2': { dates: weekDates(CUR_MON), lifts: { mon: liftDay(100, 5, 3) } },
+      // real history two weeks back → not the athlete's first week…
+      '1': { dates: weekDates(addDays(CUR_MON, -14)), lifts: { mon: liftDay(100, 5, 3) } },
+      '2': { dates: weekDates(addDays(CUR_MON, -7)), lifts: {} },              // …but empty last week
+      '3': { dates: weekDates(CUR_MON), lifts: { mon: liftDay(100, 5, 3) } },
     } };
   const c = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: TODAY });
   assert.equal(c.comparison.isComparable, false);
@@ -134,10 +136,11 @@ test('previous value zero but current positive → not a percentage, honest mess
 });
 
 test('both weeks zero → not comparable, no percentage, "no activity" message', () => {
-  const state = { currentWeek: '2', settings: {},
+  const state = { currentWeek: '3', settings: {},
     weeks: {
-      '1': { dates: weekDates(addDays(CUR_MON, -7)), lifts: {} },
-      '2': { dates: weekDates(CUR_MON), lifts: {} },
+      '1': { dates: weekDates(addDays(CUR_MON, -14)), lifts: { mon: liftDay(100, 5, 3) } },
+      '2': { dates: weekDates(addDays(CUR_MON, -7)), lifts: {} },
+      '3': { dates: weekDates(CUR_MON), lifts: {} },
     } };
   const c = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: TODAY });
   assert.equal(c.comparison.isComparable, false);

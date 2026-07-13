@@ -237,14 +237,19 @@ export const TILE_REGISTRY = [
     accentVar: '--color-blue', navTarget: 'weekly-volume', order: 4,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
-        const v = model.week.volume;
-        if (v.current <= 0 && !v.delta) return { hero: '0 kg', sub: `${model.week.sets} sets · ${model.week.reps} reps`, state: 'empty' };
+        // Calendar-week source (real stamped dates) so an empty current week is a
+        // true zero and this tile agrees with the In Focus graph + strength detail.
+        // The trend spark stays the program-week volume history (historical context).
+        const cw = model.calendarWeek;
+        const v = cw.volume;
+        const spark = model.week?.volume?.spark;
+        if (v.current <= 0 && !v.delta) return { hero: '0 kg', sub: `${cw.sets} sets · ${cw.reps} reps`, state: 'empty' };
         const hero = v.current >= 1000 ? `${(v.current / 1000).toFixed(1)}t` : `${Math.round(v.current)} kg`;
         // The delta chip already shows the ± vs last week — no insight line
         // restating it. Hero + delta + weekly spark + a sets/reps sub.
         return {
-          hero, sub: `${model.week.sets} sets · ${model.week.reps} reps`,
-          delta: v.delta, spark: v.spark, sparkColor: 'var(--color-blue)',
+          hero, sub: `${cw.sets} sets · ${cw.reps} reps`,
+          delta: v.delta, spark, sparkColor: 'var(--color-blue)',
           state: v.current > 0 ? 'loaded' : 'empty',
         };
       } catch { return { hero: '0 kg', sub: 'Unavailable', state: 'error' }; }

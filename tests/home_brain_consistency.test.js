@@ -42,7 +42,7 @@ test('In Focus volume total equals the load-model strength series for the same w
   const strengthSeries = strengthLoadSeries(state, DAY_KEYS, maxWeek);
   for (let wk = 1; wk <= 3; wk++) {
     const offset = wk - 3; // week wk relative to currentWeek 3
-    const chart = buildWeekChart(state, { type: 'strength', metric: 'volume', weekOffset: offset, today: '2026-06-30' });
+    const chart = buildWeekChart(state, { type: 'strength', metric: 'volume', weekOffset: offset, today: '2026-06-17' });
     assert.equal(chart.total, strengthSeries[wk - 1], `week ${wk} volume mismatch`);
   }
 });
@@ -51,7 +51,7 @@ test('In Focus distance total equals the load-model endurance series for the sam
   const state = state3wk();
   const distSeries = enduranceLoadSeries(state, DAY_KEYS, 3);
   for (let wk = 1; wk <= 3; wk++) {
-    const chart = buildWeekChart(state, { type: 'running', metric: 'distance', weekOffset: wk - 3, today: '2026-06-30' });
+    const chart = buildWeekChart(state, { type: 'running', metric: 'distance', weekOffset: wk - 3, today: '2026-06-17' });
     assert.equal(Math.round(chart.total * 100) / 100, Math.round(distSeries[wk - 1] * 100) / 100, `week ${wk} distance mismatch`);
   }
 });
@@ -59,7 +59,7 @@ test('In Focus distance total equals the load-model endurance series for the sam
 test('In Focus current-week volume equals the dashboard model week.volume.current', () => {
   const state = state3wk();
   const model = computeDashboardModel(state, DAY_KEYS, null, 'mon');
-  const chart = buildWeekChart(state, { type: 'strength', metric: 'volume', weekOffset: 0, today: '2026-06-30' });
+  const chart = buildWeekChart(state, { type: 'strength', metric: 'volume', weekOffset: 0, today: '2026-06-17' });
   // Dashboard model's current volume = strengthLoadSeries[wkNum-1]; both exclude warm-ups.
   assert.equal(chart.total, model.week.volume.current);
 });
@@ -69,7 +69,7 @@ test('warm-ups are excluded identically in the graph and the shared series', () 
     currentWeek: '1', settings: {},
     weeks: { '1': { dates: weekDates('2026-06-01'), lifts: { mon: { A: [warm(60, 10), work(100, 5)] } } } },
   };
-  const chart = buildWeekChart(state, { type: 'strength', metric: 'volume', today: '2026-06-30' });
+  const chart = buildWeekChart(state, { type: 'strength', metric: 'volume', today: '2026-06-03' });
   const series = strengthLoadSeries(state, DAY_KEYS, 1);
   assert.equal(chart.total, 500);       // 100×5, warm-up excluded
   assert.equal(series[0], 500);
