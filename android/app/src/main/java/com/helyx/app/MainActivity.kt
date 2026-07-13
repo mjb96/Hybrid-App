@@ -5,6 +5,7 @@ import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -277,9 +278,34 @@ class MainActivity : AppCompatActivity() {
         ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-            val url = request.url.toString()
-            // Keep in-app for the asset origin; open everything else in the browser.
-            return !url.startsWith(APP_ORIGIN)
+            val uri = request.url
+            // Stay in-app ONLY for the exact privileged origin (parsed, not prefix-
+            // matched, so lookalike hosts can't sneak into the bridged WebView).
+            if (TrustedOrigin.isTrusted(uri.toString())) return false
+            // Everything else is untrusted: hand it to the system browser so it can
+            // never execute inside the WebView that owns the native bridges.
+            openExternally(uri)
+            return true
+        }
+    }
+
+    /**
+     * Opens an untrusted http/https link in the system browser via an explicit
+     * intent. Non-web schemes (intent:, custom app schemes, javascript:, …) are
+     * dropped rather than forwarded — the privileged app must not be a redirector
+     * for arbitrary schemes. Fails safe when no browser is installed.
+     */
+    private fun openExternally(uri: Uri) {
+        val scheme = TrustedOrigin.schemeOf(uri.toString())
+        if (scheme != "http" && scheme != "https") return
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+        } catch (_: android.content.ActivityNotFoundException) {
+            Toast.makeText(this, "No app found to open this link", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -288,6 +314,16 @@ class MainActivity : AppCompatActivity() {
             origin: String,
             callback: GeolocationPermissions.Callback,
         ) {
+            // Only the exact app origin may ever be granted geolocation. A framed
+            // or navigated-to third-party page requesting location is rejected
+            // outright — never prompt the user on its behalf. (The WebView also
+            // blocks off-origin navigation, but this is defence in depth: the
+            // origin the callback carries is authoritative here.)
+            if (!TrustedOrigin.isTrusted(origin)) {
+                callback.invoke(origin, false, false)
+                return
+            }
+
             val hasPermission = ContextCompat.checkSelfPermission(
                 this@MainActivity,
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -320,7 +356,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    companion object {
-        private const val APP_ORIGIN = "https://appassets.androidplatform.net"
-    }
 }
