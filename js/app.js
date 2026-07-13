@@ -1137,6 +1137,7 @@ document.addEventListener('gps:route-saved', (e) => {
     renderRunMap(week, day, distKm, {
       splits,
       thresholdSec: appState.thresholdPaceSeconds,
+      activationId: appState.activeActivationId,
     });
   } catch (_) {}
 });
@@ -1171,7 +1172,10 @@ initGarminRunImport((distance, timeStr, coordinates, stats) => {
     }
   }
   if (coordinates && coordinates.length > 0) {
-    saveMapToDB(wk, sd, coordinates).then(() => {
+    saveMapToDB(wk, sd, coordinates, {
+      activationId: appState.activeActivationId,
+      programId: appState.activeProgramId,
+    }).then(() => {
       saveStateToLocalStorage(true); hydrateCurrentView();
     });
   } else {

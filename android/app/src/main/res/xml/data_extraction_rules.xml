@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ (API 31+) backup / transfer rules. Backup is already disabled at
+    the application level (android:allowBackup="false"), but these explicit rules
+    make the intent unambiguous and cover both Auto Backup (cloud) and
+    device-to-device transfer: NOTHING sensitive leaves the device automatically.
+
+    Rationale: the app stores health, GPS route and workout history in the
+    WebView data directory. Users export/sync deliberately; the platform must not
+    copy this data silently. See docs/ARCHITECTURE_DECISIONS.md (ADR-002).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="file" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+        <exclude domain="file" />
+    </device-transfer>
+</data-extraction-rules>

@@ -51,7 +51,7 @@ export function renderRunMap(wk, selectedDay, hasDistance, options = {}) {
   if (!runMapContainer) return;
 
   if (hasDistance) {
-    getMapFromDB(wk, selectedDay).then(async coords => {
+    getMapFromDB(wk, selectedDay, { activationId: options.activationId }).then(async coords => {
       if (coords && coords.length > 0) {
         runMapContainer.style.display = 'block';
         try { await ensureLeaflet(); } catch { runMapContainer.style.display = 'none'; return; }

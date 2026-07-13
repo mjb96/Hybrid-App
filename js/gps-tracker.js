@@ -452,9 +452,16 @@ export async function stopTracking(week, day) {
 
   const typeLabel = _activityType === 'walk' ? 'Walk' : 'Run';
 
-  // Persist route
+  // Persist route under the active program run so it can't collide with another
+  // activation's Week N / same weekday (or be overwritten by a later program).
   if (finalCoords.length >= 2 && week && day) {
-    try { await saveMapToDB(week, day, finalCoords); } catch (_) {}
+    try {
+      await saveMapToDB(week, day, finalCoords, {
+        activationId: appState.activeActivationId,
+        programId: appState.activeProgramId,
+        startTs: _startTime || Date.now(),
+      });
+    } catch (_) {}
   }
 
   // Tag the day's activity (walk vs run) and persist immediately, so a Quick
