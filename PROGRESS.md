@@ -72,6 +72,117 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-12 · **Program progression understanding: week-at-a-glance + phased
+  overview on the detail page** (branch `claude/workout-exercise-leak-fix-7uk3h1`).
+  The remaining gap was that users couldn't see what a week looks like or how the
+  block changes without opening every day. New pure `js/programs/schedule.js`:
+  `buildWeekSchedule()` (each defined day → truthful one-line summary: "N exercises
+  · M working sets" from `liftTarget` for THAT week's modifier — so a deload shows
+  fewer sets — or the actual run string; rest is intentional), `summarizeProgression()`
+  (groups the week timeline into the program's own named phases with an honest
+  headline; falls back to "same schedule, load-driven" when there's no variation),
+  `diffWeekPrescription()` (real set/rep/deload deltas between weeks; never compares
+  ids/order; suppresses set numbers for lift-less run blocks). Wired into
+  `detail.js` **above** the description: a "This week at a glance" section with a
+  compact week stepper (‹ Week X of Y ›, "You are here" / "Back to current" for the
+  active program, per-day Done/Today status) whose rows open the existing
+  day-preview sheet at that week, a "Changes from Week 1" line, and a "How this
+  program progresses" phased timeline. **Previewing a week never mutates
+  `currentWeek`/progress** (module-local `_scheduleWeek`; verified). Also fixed the
+  reported **CTA-row clipping**: `.detail-cta-wrap` now stacks vertically (Customize/
+  Compare no longer clip at ≤360px), all action buttons ≥44px, and the stats row +
+  rating control made large-font-safe (`min-width:0` / `min-height:44px`). Real data
+  only — no invented RPE/rest/phases; running distance progression surfaces through
+  the program's own week labels (e.g. "Long run: 12km · Weekly ~30km"). Tests:
+  `tests/program_schedule.test.js` (17) + standalone
+  `scripts/program-detail-viewport-check.mjs` (real-browser geometry, self-skips,
+  not in `npm test`). 666 green; typecheck + smoke + precache clean. Known
+  limitation: the shared small program-card in the "Similar programs" scroll row has
+  a pre-existing ~17px document overflow at 1.5× font (rem-based card width) —
+  out of scope (fenced: no card redesign) and not a regression from this work.
+
+- 2026-07-12 · **Safe program activation (no more silent one-tap program swap)**
+  (branch `claude/workout-exercise-leak-fix-7uk3h1`). Browsed the program
+  experience as a real user in headless Chromium (seeded past onboarding). Finding:
+  the library, cards and detail page are already mature and polished (active
+  "NOW TRAINING" banner + ring + next workout, Discover/Saved/Completed tabs,
+  filters, collections, search, recommendations, compatibility "Ready" chip,
+  Overview|Structure|Plan) — so the one genuinely **spec-violating, unsafe**
+  behaviour was the highest-value target: `triggerMakeActiveProgram` →
+  `applyProgramSwitch` **silently replaced** the active program from a one-tap
+  "Start This Program" CTA, with no confirmation, no current-program impact, no
+  active-workout guard, and it kept the previous program's `currentWeek` (so a
+  fresh program could start mid-block). Fix: new pure `js/programs/activation.js`
+  — `buildActivationPlan()` computes an honest, natural-language plan (summary
+  from real metadata only — never "undefined"/0; replace/restart/first modes;
+  history-is-kept reassurance; in-progress-workout warning; Week-1-default +
+  "Keep Week N" start-week choices; no raw ids) and `confirmActivation()` renders
+  a self-contained, safe-area-aware, dvh-capped confirmation dialog;
+  `activateProgramWithConfirm()` gates the switch. `applyProgramSwitch(id,
+  startWeek)` now takes a start week and resets `currentWeek` so an activated
+  program begins where the user chose (Week 1 by default). All existing
+  functionality preserved; the bottom-sheet fixes untouched. Verified in-browser:
+  the sheet renders "Switch to Helyx Foundations? · 12-week hybrid block · 5
+  days/week · Intermediate", warns it replaces the current program, reassures
+  history is kept, offers Start-at-Week-1 / Keep-Week-3 / Cancel; at 320px it
+  fits with no overflow; confirming switches + resets to the chosen week; Cancel
+  changes nothing. Tests: `tests/program_activation.test.js` (13). 649 green;
+  typecheck + smoke + precache clean. Next (not done this session, ranked for a
+  follow-up): detail CTA secondary row (Customize/Compare) can clip on the right
+  at ≤360px; a week-at-a-glance schedule summary on the detail page; a concise
+  progression summary. See USER_EXPERIENCE_AUDIT.md.
+
+- 2026-07-12 · **Fix program-day preview bottom-sheet: scroll/position + reps
+  clipping** (branch `claude/workout-exercise-leak-fix-7uk3h1`). Reproduced both
+  reported issues in headless Chromium (playwright-core + the pre-installed
+  browser) at 320/360/390/412 px. Proven findings: the day-preview sheet
+  (`#wpmSheet`) had **no background scroll-lock** (page scrolled behind it), **no
+  focus management**, **no Escape/Android-back dismissal**, **no inner-scroll
+  reset** (header could open scrolled away), the whole sheet was one scroll
+  container so a tall day scrolled the **header off-screen**, and `max-height:80vh`
+  ignored the Android visual viewport. The grid carried a latent trap: a base
+  `grid-template-columns: 1fr 44px 56px 44px 72px` (5 desktop columns vs 3 rendered
+  spans) patched by a divergent `--compact` override — fixed-px, non-scaling.
+  Fixes — JS (`js/programs/detail.js`): open locks body scroll via
+  `position:fixed` + `top:-scrollY` (restored exactly on close), resets inner
+  scroll on a fresh open but preserves it on a same-day week-step, moves focus into
+  the sheet + returns it to the day button, pushes one history entry and closes on
+  Escape/popstate. CSS: `.bottom-sheet` now `max-height:80dvh` (vh fallback) +
+  `body.sheet-scroll-locked`; `#wpmSheet` is a flex column with a **pinned header**
+  and an independently scrolling `.wpm-body` (safe-area bottom padding); the grid is
+  one responsive rem-based 3-col definition (`minmax(0,1fr) minmax(2.75rem,auto)
+  minmax(3.5rem,auto)`, name wraps via `min-width:0`+`overflow-wrap`), with a
+  stacked labelled fallback ≤340px for tiny screens/large fonts. Verified after:
+  no horizontal/reps overflow at any width incl. 1.5× font, header stays visible
+  while body scrolls, close restores scroll to the px. Tests:
+  `tests/day_preview_sheet.test.js` (11, headless lifecycle) + standalone
+  `scripts/preview-viewport-check.mjs` (real-browser geometry, self-skips without
+  a browser; not in `npm test`). 636 green; typecheck + smoke + precache clean.
+  Next: nothing outstanding on this defect.
+
+- 2026-07-12 · **Fix phantom `lift_*` workout rows (identity-key leak)** (branch
+  `claude/workout-exercise-leak-fix-7uk3h1`). Root-caused the "new day shows lots
+  of completed exercises named `lift_76dsje3t`" report. The removed "lift identity"
+  subsystem (commit `e2e624f`) once keyed a day's logged sets by generated ids
+  (`'lift_'+Math.random().toString(36).slice(2,10)`) resolved to a display name via
+  `liftNames`/`liftIdMap`. Deleting it **left the id-keyed set arrays in place** and
+  stopped resolving them, so the render path (`_buildExerciseCardEl`,
+  `displayLiftName = liftName`) surfaced the raw id **as the exercise name**, and
+  `reseedActiveProgramIntoWeek` retained the logged entries beside fresh
+  name-keyed prescriptions — the "leaked into the workout" symptom. Not date
+  rollover / shared refs — a migration gap. Fix: **v1→v2 repair migration**
+  (`js/state/migrations.js`) renames each `lift_*` key back to its real name
+  (recovered from the still-persisted maps), merges with any name-keyed entry
+  without losing logged history, falls back to an honest `Unknown exercise` (never
+  the raw id, never a silent delete) when unresolvable, re-points
+  `liftOrder`/`liftMeta`, drops derived id-keyed `exerciseStats`; idempotent +
+  observable (one scrubbed summary, no ids/set data). New leaf `js/state/lift-id.js`
+  (`isInternalLiftId`) also guards the render path against un-migrated cloud-blob
+  keys. Runs on local + cloud + import hydration (migrate is the single chokepoint).
+  Tests: `tests/lift_id_repair.test.js` (16) + a render-guard case in
+  `tests/workout_logging.test.js`. All 625 green; typecheck + smoke pass; precache
+  regenerated. Next: nothing outstanding on this defect.
+
 - 2026-07-12 · **Analytics release verification — Part 4 (comparison periods,
   load-progression, error visibility)** (branch
   `claude/analytics-release-verification-t1qjxo`). Traced every comparison

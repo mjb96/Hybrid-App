@@ -11,6 +11,62 @@ Branch: `claude/helyx-ux-audit-6g6r4q`.
 
 ---
 
+## Addendum — Program experience & activation (2026-07-12)
+
+Method: same — the program flow was run in headless Chromium (Pixel-class widths
+320/360/390/412), seeded past onboarding, browsing → detail → activate.
+
+**Verdict:** the program **browse/preview** experience is already strong — polished
+library (active "NOW TRAINING" banner with progress ring + next workout,
+Discover/Saved/Completed, filters, collections, search, recommendations), clean cards
+(name · one-line purpose · type/level/weeks/days · equipment · active/done state,
+neutral attribution, no raw ids), and a well-ordered detail page (hero → stats →
+compatibility "Ready" chip → tags → CTA → description → Overview|Structure|Plan). The
+day-preview sheet was fixed the prior session.
+
+**The one genuinely unsafe gap (fixed this session):** *silent activation.* "Start This
+Program" was a **one-tap, unconfirmed, destructive** action — it replaced the active
+program and re-seeded weeks with no confirmation, no statement of impact on the current
+program, no active-workout guard, and it inherited the old program's `currentWeek` (so a
+brand-new block could open mid-program). Now activation routes through an honest
+confirmation sheet (program summary in natural language, what it replaces, "history is
+kept", in-progress-workout warning, Start-at-Week-1 / Keep-Week-N choice), and a fresh
+program starts at the chosen week. Pure logic in `js/programs/activation.js`, unit-tested.
+
+**Ranked, not-yet-done (for a follow-up session):**
+- *Low:* the strength day-preview intentionally shows sets×reps only (engine-truthful,
+  per CLAUDE.md); RPE/rest in the catalog are decorative and must NOT be surfaced as a
+  per-lift prescription — do not "enrich" it back.
+
+---
+
+## Addendum — Progression understanding (2026-07-12)
+
+Both Medium follow-ups above are now **done** (the CTA clip and the week-at-a-glance +
+progression summary). The detail page gained, above the description:
+
+- **This week at a glance** — every defined day with a truthful summary (e.g.
+  "5 exercises · 15 working sets", "🔥 Tempo: 4×8 min @ threshold pace", "Rest day"),
+  a compact ‹ Week X of Y › stepper, per-day Done/Today status for the active program,
+  and rows that open the existing day-preview sheet at the previewed week. Previewing a
+  week is **non-mutating** (never touches `currentWeek`/progress).
+- **Changes from Week 1** — a concise, real diff when previewing a later week
+  ("Working sets per lift: 3 → 2 · Reduced-load week").
+- **How this program progresses** — the program's own named phases from
+  `weeklyVolModifiers` ("Foundation → Build → Deload → Strength → Deload → Peak →
+  Taper"), with an honest headline and a graceful "same schedule, load-driven"
+  fallback. For running blocks the per-week mileage carried in the week labels
+  (e.g. "Long run: 12km · Weekly ~30km") is surfaced truthfully.
+
+A new user can now answer "what changes between Week 1 and the final week" from the
+phased timeline + the week-diff line, without opening a single training day.
+
+**Known limitation:** the shared *small* program card in the "Similar programs" scroll
+row still overflows the document by ~17px at 1.5× system font (its width is rem-based).
+Pre-existing and outside this scope (no card redesign) — not introduced here.
+
+---
+
 ## 1. Journey-by-journey review
 
 ### 1. First-time experience — **strong**

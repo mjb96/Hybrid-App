@@ -151,6 +151,35 @@ test('removeCustomSetRow deletes the set and prunes empty lift from liftOrder', 
   assert.deepEqual(state.weeks['1'].liftOrder.mon, []);         // and pruned from order
 });
 
+test('render guard: a stray lift_* key never surfaces as an exercise name', () => {
+  initWith(freshState());
+  // Simulate an un-migrated key arriving (e.g. from an old device's cloud blob)
+  // directly in the day the cockpit is about to render.
+  state.weeks['1'].lifts.mon['lift_abcd12'] = [
+    { w: '120', r: '5', c: true }, { w: '120', r: '5', c: true },
+  ];
+  state.weeks['1'].liftOrder.mon = ['lift_abcd12'];
+
+  // Spy on every card element the render path builds so we can read its HTML
+  // (appendChild is a no-op in the stub, so cards aren't reachable otherwise).
+  const created = [];
+  const origCreate = globalThis.document.createElement;
+  globalThis.document.createElement = (tag) => { const el = origCreate(tag); created.push(el); return el; };
+  try {
+    workout.renderWorkout();
+  } finally {
+    globalThis.document.createElement = origCreate;
+  }
+
+  const html = created.map(el => el.innerHTML || '').join('\n');
+  // The visible exercise name is the cockpit-ex-name span. The raw id may still
+  // appear in data-liftname (the internal handle used to key logging), but it
+  // must never be the displayed NAME.
+  const names = [...html.matchAll(/<span class="cockpit-ex-name">([^<]*)<\/span>/g)].map(m => m[1]);
+  assert.ok(names.includes('Unknown exercise'), 'honest fallback label is the displayed name');
+  assert.equal(names.some(n => /lift_/.test(n)), false, 'raw internal id is never the displayed name');
+});
+
 test('pairAsSuperset / unpairSuperset tag and clear a shared groupId', () => {
   initWith(freshState());
   workout.appendCustomSetRow(null, 'Bench');

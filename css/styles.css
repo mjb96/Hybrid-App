@@ -1714,11 +1714,27 @@ html[data-theme="light"] .sortable-placeholder { background: rgba(99, 102, 241, 
   padding: 0 20px calc(20px + env(safe-area-inset-bottom));
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  /* Cap to the VISUAL viewport. `vh` on Android WebView tracks the *largest*
+     viewport (URL bar hidden), so 80vh can exceed what's actually on screen and
+     push the sheet header above the fold. `dvh` tracks the current visual
+     viewport; the vh line stays as a fallback for engines without dvh. */
   max-height: 80vh;
+  max-height: 80dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 .bottom-sheet.active { transform: translateY(0); }
+
+/* Background scroll lock while a bottom-sheet is open. position:fixed pins the
+   page (JS sets `top: -<scrollY>`) so it can't scroll behind the sheet; the
+   scroll position is restored on close. */
+body.sheet-scroll-locked {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
 
 .bottom-sheet-handle {
   width: 36px; height: 4px;

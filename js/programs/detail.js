@@ -4,6 +4,7 @@
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { buildProgramTimeline } from './timeline.js';
+import { buildWeekSchedule, summarizeProgression, diffWeekPrescription } from './schedule.js';
 import { programStats, equipmentFit, programHasLifts } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, coverGlyphFor } from './program-card.js';
@@ -18,6 +19,11 @@ import { escapeHtml } from '../util.js';
 let _currentProgramId = null;
 let _appState = null;
 let _detailTab = 'overview';   // V2-6 — 'overview' (what/why) | 'structure' (what you'll do)
+// The week the "This week at a glance" schedule is previewing. PREVIEW ONLY —
+// this never touches appState.currentWeek or program progress. 0 = "pick a
+// sensible default on next render" (active week if active, else Week 1).
+let _scheduleWeek = 0;
+let _scheduleTotalWeeks = 1;
 
 // Neutral origin line for the detail hero. Uses the centralised attribution
 // mapping; falls back to a dossier creator name as "Inspired by …". Never
@@ -30,8 +36,9 @@ function _detailAttribution(program) {
 }
 
 export function renderProgramDetail(programId, appState) {
-  // Opening a different program always starts on Overview.
-  if (_currentProgramId !== programId) _detailTab = 'overview';
+  // Opening a different program always starts on Overview and resets the
+  // schedule preview to its default week.
+  if (_currentProgramId !== programId) { _detailTab = 'overview'; _scheduleWeek = 0; }
   _currentProgramId = programId;
   _appState = appState;
 
@@ -57,6 +64,17 @@ export function renderProgramDetail(programId, appState) {
   const wod = program.tags?.includes('hyrox-wod');
 
   const similarPrograms = getSimilarPrograms(program, 6);
+
+  // Week-at-a-glance + progression: derived only from real week data. Preview
+  // week defaults to the active week (if this is the active program) else Week 1,
+  // and is clamped whenever the program changes or its length differs.
+  const totalWeeks = Number(program.durationWeeks || program.totalWeeks) || 12;
+  _scheduleTotalWeeks = totalWeeks;
+  if (!_scheduleWeek || _scheduleWeek < 1 || _scheduleWeek > totalWeeks) {
+    _scheduleWeek = isActive ? Math.min(totalWeeks, Math.max(1, parseInt(appState?.currentWeek, 10) || 1)) : 1;
+  }
+  const weekScheduleHTML = wod ? '' : renderWeekAtAGlance(program, isActive, appState, totalWeeks, _scheduleWeek);
+  const progressionHTML  = wod ? '' : renderProgressionOverview(program);
 
   // V2-6 — collapse the ~13-section marketing stack into a lean identity header
   // (hero · stats · tags · CTA · one description) + an Overview | Structure tab
@@ -231,6 +249,10 @@ export function renderProgramDetail(programId, appState) {
            </button>`
       }
     </div>
+
+    <!-- Week-at-a-glance + progression — the actual training, before prose -->
+    ${weekScheduleHTML}
+    ${progressionHTML}
 
     <!-- Description — the one-line "what it is" -->
     <div class="detail-section">
@@ -460,6 +482,118 @@ function renderCommitmentStrip(program, settings) {
     </div>`;
 }
 
+// ── Week-at-a-glance schedule (main page, week-stepped, tappable) ────────────
+const _WAG_TYPE_ICON = { strength: '🏋️', running: '🏃', mixed: '🔀', rest: '💤' };
+
+function _todayDayKey() {
+  return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+}
+
+// Which days of a given week have been trained (any completed set, or a logged
+// run) — used only to mark the ACTIVE program's current week. Never counts
+// prescriptions, previews, or rest days as sessions.
+function _dayCompletionMap(appState, week) {
+  const out = {};
+  const wk = appState?.weeks?.[String(week)];
+  if (!wk) return out;
+  const lifts = wk.lifts || {}, runs = wk.runs || {};
+  for (const d of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+    let done = false;
+    const dl = lifts[d];
+    if (dl && typeof dl === 'object') {
+      for (const k in dl) { if (Array.isArray(dl[k]) && dl[k].some(s => s && s.c)) { done = true; break; } }
+    }
+    if (!done && runs[d] && (runs[d].dist || runs[d].time)) done = true;
+    if (done) out[d] = 'done';
+  }
+  return out;
+}
+
+function renderWeekAtAGlance(program, isActive, appState, totalWeeks, week) {
+  const rows = buildWeekSchedule(program, week);
+  if (!rows.length) return '';
+
+  const activeWeek = isActive ? Math.max(1, parseInt(appState?.currentWeek, 10) || 1) : null;
+  const isCurrent = activeWeek === week;
+  const completion = isCurrent ? _dayCompletionMap(appState, week) : null;
+  const todayKey = isCurrent ? _todayDayKey() : null;
+
+  const changes = week !== 1 ? diffWeekPrescription(program, 1, week) : null;
+  const showChanges = changes && !(changes.length === 1 && /^No prescription changes$/.test(changes[0]));
+
+  const stepper = totalWeeks > 1 ? `
+    <div class="wag-weekbar">
+      <button class="wag-week-btn" data-action="detail-week-step" data-delta="-1" aria-label="Previous week"${week <= 1 ? ' disabled' : ''}>‹</button>
+      <div class="wag-week-label">
+        <span class="wag-week-num">Week ${week} <span class="wag-week-total">of ${totalWeeks}</span></span>
+        ${isCurrent
+          ? '<span class="wag-week-pill">You are here</span>'
+          : (isActive ? '<button class="wag-week-reset" data-action="detail-week-current">Back to current</button>' : '')}
+      </div>
+      <button class="wag-week-btn" data-action="detail-week-step" data-delta="1" aria-label="Next week"${week >= totalWeeks ? ' disabled' : ''}>›</button>
+    </div>` : '';
+
+  const rowsHTML = rows.map(r => {
+    const icon = _WAG_TYPE_ICON[r.type] || '•';
+    const isToday = todayKey === r.dayKey && !r.isRest;
+    const status = completion && completion[r.dayKey] === 'done'
+      ? '<span class="wag-status wag-status--done">✓ Done</span>'
+      : (isToday ? '<span class="wag-status wag-status--today">Today</span>' : '');
+    const attrs = r.interactive
+      ? `data-action="open-day-preview" data-day="${r.dayKey}" data-week="${week}" data-program-id="${_currentProgramId}" role="button" tabindex="0"`
+      : '';
+    return `
+      <div class="wag-row${r.isRest ? ' wag-row--rest' : ''}${r.interactive ? ' wag-row--interactive' : ''}${isToday ? ' wag-row--today' : ''}" ${attrs}>
+        <div class="wag-day">${r.dayShort}</div>
+        <div class="wag-body">
+          <div class="wag-title-line">
+            <span class="wag-type-icon" aria-hidden="true">${icon}</span>
+            <span class="wag-title">${escapeHtml(r.title)}</span>
+            ${status}
+          </div>
+          <div class="wag-summary">${escapeHtml(r.summary)}</div>
+        </div>
+        ${r.interactive ? '<span class="wag-chevron" aria-hidden="true">›</span>' : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">This week at a glance</div>
+      ${stepper}
+      ${showChanges ? `<div class="wag-changes"><span class="wag-changes-label">Changes from Week 1</span>${changes.map(c => `<span class="wag-change">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
+      <div class="wag-list">${rowsHTML}</div>
+    </div>`;
+}
+
+// ── "How this program progresses" — phased, truthful, above the deep Plan tab ─
+function renderProgressionOverview(program) {
+  const { headline, phases, weeks } = summarizeProgression(program);
+  if (!weeks) return '';
+
+  const phasesHTML = phases.map(p => {
+    const color = PLAN_KIND_COLOR[p.kind] || PLAN_KIND_COLOR.work;
+    const range = p.from === p.to ? `Wk ${p.from}` : `Wk ${p.from}–${p.to}`;
+    const tag = PLAN_KIND_LABEL[p.kind];
+    return `
+      <div class="prog-phase" style="--phase-color:${color}">
+        <span class="prog-phase-range">${range}</span>
+        <div class="prog-phase-body">
+          <span class="prog-phase-label">${escapeHtml(p.label)}</span>
+          ${p.spec ? `<span class="prog-phase-spec">${escapeHtml(p.spec)}</span>` : ''}
+        </div>
+        ${tag ? `<span class="prog-phase-tag" style="color:${color};border-color:${color}55">${tag}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">How this program progresses</div>
+      <p class="prog-headline">${escapeHtml(headline)}</p>
+      ${phases.length > 1 ? `<div class="prog-phase-list">${phasesHTML}</div>` : ''}
+    </div>`;
+}
+
 function renderPlanTimeline(program) {
   const rows = buildProgramTimeline(program);
   if (!rows.length) return '';
@@ -550,12 +684,48 @@ export function closeProgramDetail() {
 // deload), instead of only ever seeing week 1.
 let _preview = { dayKey: null, programId: null, week: 1 };
 
-export function stepPreviewWeek(delta) {
-  if (!_preview.dayKey) return;
-  openDayPreviewModal(_preview.dayKey, _preview.programId, _preview.week + delta);
+// ── Day-preview sheet a11y + scroll lifecycle ────────────────────────────────
+// The sheet is a body-level `position: fixed` bottom-sheet. Two things it must
+// get right on a phone, independent of the day content:
+//   • the background must not scroll behind it, and closing must land the user
+//     back at the exact library/detail scroll position they opened from;
+//   • it must open at the top with the header visible, take focus, close on
+//     Escape / Android back, and return focus to the day that opened it.
+// These were all missing; the state below drives them. `_sheetOpen` guards the
+// one-time setup so week-stepping (which re-renders the same open sheet) doesn't
+// re-lock, re-push history, or steal the user's inner scroll position.
+let _sheetOpen = false;
+let _sheetTrigger = null;      // element to restore focus to on close
+let _sheetLockedScrollY = 0;   // background scroll position captured at open
+let _sheetHistoryPushed = false;
+let _sheetKeyHandler = null;
+let _sheetPopHandler = null;
+
+function _lockBodyScroll() {
+  if (typeof document === 'undefined' || !document.body) return;
+  _sheetLockedScrollY = (typeof window !== 'undefined' && window.scrollY) || 0;
+  const body = document.body;
+  body.classList.add('sheet-scroll-locked');
+  // position:fixed + negative top pins the page without losing the position, so
+  // the background can't scroll and nothing reflows/jumps on lock.
+  body.style.top = `-${_sheetLockedScrollY}px`;
 }
 
-export function openDayPreviewModal(dayKey, programId, weekIndex) {
+function _unlockBodyScroll() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const body = document.body;
+  body.classList.remove('sheet-scroll-locked');
+  body.style.top = '';
+  if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, _sheetLockedScrollY);
+}
+
+export function stepPreviewWeek(delta) {
+  if (!_preview.dayKey) return;
+  // Same day, different week: keep the reader's place in the sheet.
+  openDayPreviewModal(_preview.dayKey, _preview.programId, _preview.week + delta, { preserveScroll: true });
+}
+
+export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   const resolvedId = programId || _currentProgramId;
   const catalog = getCatalogEntry(resolvedId);
   const program = getProgramById(resolvedId);
@@ -616,6 +786,41 @@ export function openDayPreviewModal(dayKey, programId, weekIndex) {
 
   backdrop.classList.add('active');
   sheet.classList.add('active');
+
+  // Inner scroll: start at the top on a fresh open (header + first exercise
+  // visible); preserve the reader's place only on a same-day week-step.
+  if (!opts.preserveScroll) {
+    if (bodyEl.scrollTo) bodyEl.scrollTo(0, 0); else bodyEl.scrollTop = 0;
+    if (sheet.scrollTo) sheet.scrollTo(0, 0); else sheet.scrollTop = 0;
+  }
+
+  // One-time setup per open (not re-run while week-stepping the open sheet).
+  if (!_sheetOpen) {
+    _sheetOpen = true;
+    _sheetTrigger = _sheetTrigger ||
+      (typeof document !== 'undefined' ? /** @type {any} */ (document.activeElement) : null);
+    _lockBodyScroll();
+
+    // Escape closes.
+    _sheetKeyHandler = (e) => { if (e.key === 'Escape') closeDayPreviewModal(); };
+    document.addEventListener('keydown', _sheetKeyHandler);
+
+    // Android/browser Back closes the sheet instead of leaving the page. We push
+    // one history entry on open and pop it on close; the popstate handler runs
+    // teardown without pushing back (guarded by _sheetHistoryPushed).
+    if (typeof history !== 'undefined' && history.pushState) {
+      try {
+        history.pushState({ wpmSheet: true }, '');
+        _sheetHistoryPushed = true;
+        _sheetPopHandler = () => { _sheetHistoryPushed = false; closeDayPreviewModal(); };
+        window.addEventListener('popstate', _sheetPopHandler);
+      } catch (_) { /* history unavailable */ }
+    }
+
+    // Move focus into the sheet so keyboard/screen-reader users land inside it.
+    const closeBtn = /** @type {HTMLElement|null} */ (sheet.querySelector('.sheet-close-btn'));
+    if (closeBtn && closeBtn.focus) { try { closeBtn.focus(); } catch (_) {} }
+  }
 }
 
 function _parseDescExercises(desc) {
@@ -685,6 +890,28 @@ function renderFallbackPreview(day, mod) {
 export function closeDayPreviewModal() {
   document.getElementById('wpmBackdrop')?.classList.remove('active');
   document.getElementById('wpmSheet')?.classList.remove('active');
+
+  if (!_sheetOpen) return; // already torn down (e.g. double close)
+  _sheetOpen = false;
+
+  // Detach listeners.
+  if (_sheetKeyHandler) { document.removeEventListener('keydown', _sheetKeyHandler); _sheetKeyHandler = null; }
+  if (_sheetPopHandler) { window.removeEventListener('popstate', _sheetPopHandler); _sheetPopHandler = null; }
+
+  // Consume the history entry we pushed, unless we're already here because the
+  // user hit Back (popstate cleared the flag) — that avoids a double-pop loop.
+  if (_sheetHistoryPushed) {
+    _sheetHistoryPushed = false;
+    if (typeof history !== 'undefined' && history.back) { try { history.back(); } catch (_) {} }
+  }
+
+  // Unlock the background and restore the exact prior scroll position.
+  _unlockBodyScroll();
+
+  // Return focus to the day button that opened the sheet.
+  const trigger = _sheetTrigger;
+  _sheetTrigger = null;
+  if (trigger && trigger.focus) { try { trigger.focus(); } catch (_) {} }
 }
 
 // Prescription-truthful: renders the SAME sets×reps the cockpit will show for
@@ -807,7 +1034,27 @@ export function handleDetailAction(action, el) {
     case 'open-day-preview': {
       const dayKey   = el.getAttribute('data-day');
       const progId   = el.getAttribute('data-program-id');
-      if (dayKey) openDayPreviewModal(dayKey, progId);
+      const wkAttr   = parseInt(el.getAttribute('data-week'), 10);
+      // Remember the exact trigger so focus returns here when the sheet closes.
+      _sheetTrigger = el;
+      // Open at the previewed week when the schedule row carries one (preview
+      // only — never mutates program progress).
+      if (dayKey) openDayPreviewModal(dayKey, progId, Number.isFinite(wkAttr) ? wkAttr : undefined);
+      break;
+    }
+    case 'detail-week-step': {
+      const delta = parseInt(el.getAttribute('data-delta'), 10);
+      if (!isNaN(delta) && _currentProgramId) {
+        const next = (_scheduleWeek || 1) + delta;
+        _scheduleWeek = Math.min(_scheduleTotalWeeks, Math.max(1, next));
+        renderProgramDetail(_currentProgramId, _appState);
+      }
+      break;
+    }
+    case 'detail-week-current': {
+      // Jump the schedule PREVIEW back to the active week (does not change it).
+      _scheduleWeek = Math.max(1, parseInt(_appState?.currentWeek, 10) || 1);
+      renderProgramDetail(_currentProgramId, _appState);
       break;
     }
     case 'preview-week-step': {

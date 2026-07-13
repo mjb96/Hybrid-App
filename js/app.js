@@ -8,6 +8,7 @@ import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAct
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 import { openCompareModal, closeCompareModal, pickCompareB, renderComparePicker, handleCompareSearch } from './programs/compare-ui.js';
 import { getCatalogEntry } from './programs/catalog.js';
+import { activateProgramWithConfirm } from './programs/activation.js';
 import { escapeHtml, programProgressPct } from './util.js';
 import { getWeekModifier } from './schema.js';
 
@@ -54,7 +55,7 @@ import {
   handleExerciseSearch, addExerciseToDayFromLibrary
 } from './workout.js';
 
-import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
+import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad, getWorkoutElapsedSeconds } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
 import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun } from './run-logger.js';
@@ -238,14 +239,27 @@ export function switchProgramMode(mode) {
 }
 
 
+// Activation is a deliberate step, never a silent one-tap swap: route through
+// the confirmation sheet (states the program, its impact on the current
+// program, that history is kept, any in-progress-workout warning, and the
+// start week) and only switch on an explicit choice. Fire-and-forget for the
+// action/event callers.
 export function triggerMakeActiveProgram(newProgramId) {
-  if (newProgramId === appState.activeProgramId) return;
-  applyProgramSwitch(newProgramId);
+  if (!newProgramId) return;
+  activateProgramWithConfirm(appState, newProgramId, {
+    resolveProgram: getProgramById,
+    resolveName: (id) => getCatalogEntry(id)?.name || getProgramById(id)?.name,
+    workoutInProgress: () => { try { return getWorkoutElapsedSeconds() > 0; } catch { return false; } },
+    apply: applyProgramSwitch,
+    onError: (msg) => showToast(msg, true),
+  }).catch(err => console.warn('Activation failed:', err));
 }
 
-
-function applyProgramSwitch(newProgramId) {
+function applyProgramSwitch(newProgramId, startWeek = 1) {
   appState.activeProgramId = newProgramId;
+  // A freshly-activated program begins at the chosen week (Week 1 by default),
+  // not wherever the previous program happened to be.
+  appState.currentWeek = String(Math.max(1, parseInt(String(startWeek), 10) || 1));
   appState.weekStartedAt = new Date().toISOString();
   // Re-point the current week and every already-materialised future week at the
   // new program so its exercises replace the old program's unlogged scaffolding
@@ -259,9 +273,10 @@ function applyProgramSwitch(newProgramId) {
   });
   targets.forEach(wk => reseedActiveProgramIntoWeek(wk));
   saveStateToLocalStorage(true);
+  try { updateLibraryState(appState); renderLibrary(); } catch (_) {}
   hydrateCurrentView();
   showActivePlanView(true);
-  showToast('Program switched ✓');
+  showToast('Program activated ✓');
 }
 
 export function handleMacroWeekSwitch() {
@@ -776,7 +791,7 @@ document.addEventListener('click', (e) => {
   else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
-  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'preview-week-step', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete'].includes(action)) {
+  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'preview-week-step', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete', 'detail-week-step', 'detail-week-current'].includes(action)) {
     handleDetailAction(action, target);
   }
   else if (action === 'close-active-plan-view') {
@@ -1070,12 +1085,10 @@ export function showActivePlanView(show) {
 // Custom event bridge from detail page → app.js
 document.addEventListener('library:make-active', (e) => {
   const id = e.detail?.id;
-  if (id) {
-    triggerMakeActiveProgram(id);
-    updateLibraryState(appState);
-    renderLibrary();
-    showActivePlanView(true);
-  }
+  // triggerMakeActiveProgram opens the confirmation sheet and, only on an
+  // explicit choice, applies the switch (which updates the library + view
+  // itself). Rendering here would run before the user confirms, so it doesn't.
+  if (id) triggerMakeActiveProgram(id);
 });
 
 document.addEventListener('library:view-active', () => {
