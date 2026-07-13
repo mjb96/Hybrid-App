@@ -4,6 +4,7 @@
 // =============================================================================
 import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from './catalog.js';
 import { buildProgramTimeline } from './timeline.js';
+import { buildWeekSchedule, summarizeProgression, diffWeekPrescription } from './schedule.js';
 import { programStats, equipmentFit, programHasLifts } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, coverGlyphFor } from './program-card.js';
@@ -18,6 +19,11 @@ import { escapeHtml } from '../util.js';
 let _currentProgramId = null;
 let _appState = null;
 let _detailTab = 'overview';   // V2-6 — 'overview' (what/why) | 'structure' (what you'll do)
+// The week the "This week at a glance" schedule is previewing. PREVIEW ONLY —
+// this never touches appState.currentWeek or program progress. 0 = "pick a
+// sensible default on next render" (active week if active, else Week 1).
+let _scheduleWeek = 0;
+let _scheduleTotalWeeks = 1;
 
 // Neutral origin line for the detail hero. Uses the centralised attribution
 // mapping; falls back to a dossier creator name as "Inspired by …". Never
@@ -30,8 +36,9 @@ function _detailAttribution(program) {
 }
 
 export function renderProgramDetail(programId, appState) {
-  // Opening a different program always starts on Overview.
-  if (_currentProgramId !== programId) _detailTab = 'overview';
+  // Opening a different program always starts on Overview and resets the
+  // schedule preview to its default week.
+  if (_currentProgramId !== programId) { _detailTab = 'overview'; _scheduleWeek = 0; }
   _currentProgramId = programId;
   _appState = appState;
 
@@ -57,6 +64,17 @@ export function renderProgramDetail(programId, appState) {
   const wod = program.tags?.includes('hyrox-wod');
 
   const similarPrograms = getSimilarPrograms(program, 6);
+
+  // Week-at-a-glance + progression: derived only from real week data. Preview
+  // week defaults to the active week (if this is the active program) else Week 1,
+  // and is clamped whenever the program changes or its length differs.
+  const totalWeeks = Number(program.durationWeeks || program.totalWeeks) || 12;
+  _scheduleTotalWeeks = totalWeeks;
+  if (!_scheduleWeek || _scheduleWeek < 1 || _scheduleWeek > totalWeeks) {
+    _scheduleWeek = isActive ? Math.min(totalWeeks, Math.max(1, parseInt(appState?.currentWeek, 10) || 1)) : 1;
+  }
+  const weekScheduleHTML = wod ? '' : renderWeekAtAGlance(program, isActive, appState, totalWeeks, _scheduleWeek);
+  const progressionHTML  = wod ? '' : renderProgressionOverview(program);
 
   // V2-6 — collapse the ~13-section marketing stack into a lean identity header
   // (hero · stats · tags · CTA · one description) + an Overview | Structure tab
@@ -231,6 +249,10 @@ export function renderProgramDetail(programId, appState) {
            </button>`
       }
     </div>
+
+    <!-- Week-at-a-glance + progression — the actual training, before prose -->
+    ${weekScheduleHTML}
+    ${progressionHTML}
 
     <!-- Description — the one-line "what it is" -->
     <div class="detail-section">
@@ -457,6 +479,118 @@ function renderCommitmentStrip(program, settings) {
           <div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-top:2px;">${escapeHtml(t.l)}</div>
         </div>
       `).join('')}
+    </div>`;
+}
+
+// ── Week-at-a-glance schedule (main page, week-stepped, tappable) ────────────
+const _WAG_TYPE_ICON = { strength: '🏋️', running: '🏃', mixed: '🔀', rest: '💤' };
+
+function _todayDayKey() {
+  return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+}
+
+// Which days of a given week have been trained (any completed set, or a logged
+// run) — used only to mark the ACTIVE program's current week. Never counts
+// prescriptions, previews, or rest days as sessions.
+function _dayCompletionMap(appState, week) {
+  const out = {};
+  const wk = appState?.weeks?.[String(week)];
+  if (!wk) return out;
+  const lifts = wk.lifts || {}, runs = wk.runs || {};
+  for (const d of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+    let done = false;
+    const dl = lifts[d];
+    if (dl && typeof dl === 'object') {
+      for (const k in dl) { if (Array.isArray(dl[k]) && dl[k].some(s => s && s.c)) { done = true; break; } }
+    }
+    if (!done && runs[d] && (runs[d].dist || runs[d].time)) done = true;
+    if (done) out[d] = 'done';
+  }
+  return out;
+}
+
+function renderWeekAtAGlance(program, isActive, appState, totalWeeks, week) {
+  const rows = buildWeekSchedule(program, week);
+  if (!rows.length) return '';
+
+  const activeWeek = isActive ? Math.max(1, parseInt(appState?.currentWeek, 10) || 1) : null;
+  const isCurrent = activeWeek === week;
+  const completion = isCurrent ? _dayCompletionMap(appState, week) : null;
+  const todayKey = isCurrent ? _todayDayKey() : null;
+
+  const changes = week !== 1 ? diffWeekPrescription(program, 1, week) : null;
+  const showChanges = changes && !(changes.length === 1 && /^No prescription changes$/.test(changes[0]));
+
+  const stepper = totalWeeks > 1 ? `
+    <div class="wag-weekbar">
+      <button class="wag-week-btn" data-action="detail-week-step" data-delta="-1" aria-label="Previous week"${week <= 1 ? ' disabled' : ''}>‹</button>
+      <div class="wag-week-label">
+        <span class="wag-week-num">Week ${week} <span class="wag-week-total">of ${totalWeeks}</span></span>
+        ${isCurrent
+          ? '<span class="wag-week-pill">You are here</span>'
+          : (isActive ? '<button class="wag-week-reset" data-action="detail-week-current">Back to current</button>' : '')}
+      </div>
+      <button class="wag-week-btn" data-action="detail-week-step" data-delta="1" aria-label="Next week"${week >= totalWeeks ? ' disabled' : ''}>›</button>
+    </div>` : '';
+
+  const rowsHTML = rows.map(r => {
+    const icon = _WAG_TYPE_ICON[r.type] || '•';
+    const isToday = todayKey === r.dayKey && !r.isRest;
+    const status = completion && completion[r.dayKey] === 'done'
+      ? '<span class="wag-status wag-status--done">✓ Done</span>'
+      : (isToday ? '<span class="wag-status wag-status--today">Today</span>' : '');
+    const attrs = r.interactive
+      ? `data-action="open-day-preview" data-day="${r.dayKey}" data-week="${week}" data-program-id="${_currentProgramId}" role="button" tabindex="0"`
+      : '';
+    return `
+      <div class="wag-row${r.isRest ? ' wag-row--rest' : ''}${r.interactive ? ' wag-row--interactive' : ''}${isToday ? ' wag-row--today' : ''}" ${attrs}>
+        <div class="wag-day">${r.dayShort}</div>
+        <div class="wag-body">
+          <div class="wag-title-line">
+            <span class="wag-type-icon" aria-hidden="true">${icon}</span>
+            <span class="wag-title">${escapeHtml(r.title)}</span>
+            ${status}
+          </div>
+          <div class="wag-summary">${escapeHtml(r.summary)}</div>
+        </div>
+        ${r.interactive ? '<span class="wag-chevron" aria-hidden="true">›</span>' : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">This week at a glance</div>
+      ${stepper}
+      ${showChanges ? `<div class="wag-changes"><span class="wag-changes-label">Changes from Week 1</span>${changes.map(c => `<span class="wag-change">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
+      <div class="wag-list">${rowsHTML}</div>
+    </div>`;
+}
+
+// ── "How this program progresses" — phased, truthful, above the deep Plan tab ─
+function renderProgressionOverview(program) {
+  const { headline, phases, weeks } = summarizeProgression(program);
+  if (!weeks) return '';
+
+  const phasesHTML = phases.map(p => {
+    const color = PLAN_KIND_COLOR[p.kind] || PLAN_KIND_COLOR.work;
+    const range = p.from === p.to ? `Wk ${p.from}` : `Wk ${p.from}–${p.to}`;
+    const tag = PLAN_KIND_LABEL[p.kind];
+    return `
+      <div class="prog-phase" style="--phase-color:${color}">
+        <span class="prog-phase-range">${range}</span>
+        <div class="prog-phase-body">
+          <span class="prog-phase-label">${escapeHtml(p.label)}</span>
+          ${p.spec ? `<span class="prog-phase-spec">${escapeHtml(p.spec)}</span>` : ''}
+        </div>
+        ${tag ? `<span class="prog-phase-tag" style="color:${color};border-color:${color}55">${tag}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">How this program progresses</div>
+      <p class="prog-headline">${escapeHtml(headline)}</p>
+      ${phases.length > 1 ? `<div class="prog-phase-list">${phasesHTML}</div>` : ''}
     </div>`;
 }
 
@@ -900,9 +1034,27 @@ export function handleDetailAction(action, el) {
     case 'open-day-preview': {
       const dayKey   = el.getAttribute('data-day');
       const progId   = el.getAttribute('data-program-id');
+      const wkAttr   = parseInt(el.getAttribute('data-week'), 10);
       // Remember the exact trigger so focus returns here when the sheet closes.
       _sheetTrigger = el;
-      if (dayKey) openDayPreviewModal(dayKey, progId);
+      // Open at the previewed week when the schedule row carries one (preview
+      // only — never mutates program progress).
+      if (dayKey) openDayPreviewModal(dayKey, progId, Number.isFinite(wkAttr) ? wkAttr : undefined);
+      break;
+    }
+    case 'detail-week-step': {
+      const delta = parseInt(el.getAttribute('data-delta'), 10);
+      if (!isNaN(delta) && _currentProgramId) {
+        const next = (_scheduleWeek || 1) + delta;
+        _scheduleWeek = Math.min(_scheduleTotalWeeks, Math.max(1, next));
+        renderProgramDetail(_currentProgramId, _appState);
+      }
+      break;
+    }
+    case 'detail-week-current': {
+      // Jump the schedule PREVIEW back to the active week (does not change it).
+      _scheduleWeek = Math.max(1, parseInt(_appState?.currentWeek, 10) || 1);
+      renderProgramDetail(_currentProgramId, _appState);
       break;
     }
     case 'preview-week-step': {

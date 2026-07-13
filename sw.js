@@ -139,6 +139,7 @@ const REQUIRED_ASSETS = [
   "./js/programs/program-card.js",
   "./js/programs/progression.js",
   "./js/programs/recommendations.js",
+  "./js/programs/schedule.js",
   "./js/programs/search.js",
   "./js/programs/timeline.js",
   "./js/run-logger.js",

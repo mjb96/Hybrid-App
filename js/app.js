@@ -791,7 +791,7 @@ document.addEventListener('click', (e) => {
   else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
-  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'preview-week-step', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete'].includes(action)) {
+  else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'preview-week-step', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete', 'detail-week-step', 'detail-week-current'].includes(action)) {
     handleDetailAction(action, target);
   }
   else if (action === 'close-active-plan-view') {

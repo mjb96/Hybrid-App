@@ -72,6 +72,35 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-12 · **Program progression understanding: week-at-a-glance + phased
+  overview on the detail page** (branch `claude/workout-exercise-leak-fix-7uk3h1`).
+  The remaining gap was that users couldn't see what a week looks like or how the
+  block changes without opening every day. New pure `js/programs/schedule.js`:
+  `buildWeekSchedule()` (each defined day → truthful one-line summary: "N exercises
+  · M working sets" from `liftTarget` for THAT week's modifier — so a deload shows
+  fewer sets — or the actual run string; rest is intentional), `summarizeProgression()`
+  (groups the week timeline into the program's own named phases with an honest
+  headline; falls back to "same schedule, load-driven" when there's no variation),
+  `diffWeekPrescription()` (real set/rep/deload deltas between weeks; never compares
+  ids/order; suppresses set numbers for lift-less run blocks). Wired into
+  `detail.js` **above** the description: a "This week at a glance" section with a
+  compact week stepper (‹ Week X of Y ›, "You are here" / "Back to current" for the
+  active program, per-day Done/Today status) whose rows open the existing
+  day-preview sheet at that week, a "Changes from Week 1" line, and a "How this
+  program progresses" phased timeline. **Previewing a week never mutates
+  `currentWeek`/progress** (module-local `_scheduleWeek`; verified). Also fixed the
+  reported **CTA-row clipping**: `.detail-cta-wrap` now stacks vertically (Customize/
+  Compare no longer clip at ≤360px), all action buttons ≥44px, and the stats row +
+  rating control made large-font-safe (`min-width:0` / `min-height:44px`). Real data
+  only — no invented RPE/rest/phases; running distance progression surfaces through
+  the program's own week labels (e.g. "Long run: 12km · Weekly ~30km"). Tests:
+  `tests/program_schedule.test.js` (17) + standalone
+  `scripts/program-detail-viewport-check.mjs` (real-browser geometry, self-skips,
+  not in `npm test`). 666 green; typecheck + smoke + precache clean. Known
+  limitation: the shared small program-card in the "Similar programs" scroll row has
+  a pre-existing ~17px document overflow at 1.5× font (rem-based card width) —
+  out of scope (fenced: no card redesign) and not a regression from this work.
+
 - 2026-07-12 · **Safe program activation (no more silent one-tap program swap)**
   (branch `claude/workout-exercise-leak-fix-7uk3h1`). Browsed the program
   experience as a real user in headless Chromium (seeded past onboarding). Finding:

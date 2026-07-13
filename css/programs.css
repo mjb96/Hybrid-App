@@ -978,6 +978,7 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 
 .detail-stat {
   flex: 1;
+  min-width: 0;   /* let the value/label wrap at large font instead of forcing horizontal overflow */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -985,6 +986,7 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   padding: 14px 8px;
   text-align: center;
 }
+.detail-stat-value, .detail-stat-label { overflow-wrap: anywhere; max-width: 100%; }
 
 .detail-stat-divider {
   width: 1px;
@@ -1055,8 +1057,18 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 }
 
 .detail-rating--empty {
-  opacity: 0.5;
+  opacity: 0.6;
+  /* Comfortable touch target (was ~18px tall). */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  width: 100%;
 }
+.detail-your-rating { min-height: 44px; }
 
 .detail-rating-empty-text {
   font-size: 0.72rem;
@@ -1071,11 +1083,17 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 
 /* CTA */
 .detail-cta-wrap {
+  /* Stack the actions so the primary CTA, "Mark complete", the Customize/Compare
+     row and the rating each get full width. The old horizontal row packed all of
+     them onto one line and clipped Customize/Compare (and any long/translated
+     label) off the right edge at <=360px. */
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   margin-bottom: 20px;
 }
+.detail-cta-btn { min-height: 44px; }
 
 .detail-cta-btn {
   flex: 1;
@@ -2835,6 +2853,7 @@ html[data-theme="light"] .lib-tab.active { background: rgba(139,92,246,0.08); co
   width: 100%;
   margin-top: 10px;
   padding: 12px;
+  min-height: 44px;
   border-radius: 12px;
   border: 1.5px solid rgba(16,185,129,0.3);
   background: rgba(16,185,129,0.08);
@@ -3002,3 +3021,55 @@ html[data-theme="light"] .detail-complete-btn:active {
   color: var(--text-muted, #94a3b8);
 }
 .detail-your-rating .detail-stars { color: #f59e0b; }
+
+/* ============================================================================
+   WEEK-AT-A-GLANCE SCHEDULE + PROGRESSION OVERVIEW (program detail, main page)
+   ========================================================================== */
+.wag-weekbar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--overlay-sm); border-radius: 12px; padding: 6px 8px; margin-bottom: 12px; }
+.wag-week-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 9px; border: none;
+  background: var(--overlay-md); color: var(--text-inverse); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.wag-week-btn:disabled { opacity: 0.3; pointer-events: none; }
+.wag-week-label { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.wag-week-num { font-size: 0.9rem; font-weight: 800; color: var(--text-inverse); }
+.wag-week-total { font-weight: 600; color: var(--text-muted); }
+.wag-week-pill { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800;
+  color: #10b981; border: 1px solid rgba(16,185,129,0.35); border-radius: 99px; padding: 2px 8px; }
+.wag-week-reset { font-size: 0.68rem; font-weight: 700; color: #60a5fa; background: none; border: none; cursor: pointer; padding: 3px 6px; min-height: 32px; }
+.wag-changes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 0.72rem; color: var(--text-secondary); }
+.wag-changes-label { font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.6rem; }
+.wag-change { background: var(--overlay-sm); border-radius: 99px; padding: 3px 9px; overflow-wrap: anywhere; }
+.wag-list { display: flex; flex-direction: column; gap: 6px; }
+.wag-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px;
+  background: var(--overlay-xs); border: 1px solid var(--border-subtle); }
+.wag-row--interactive { cursor: pointer; }
+.wag-row--interactive:active { background: var(--overlay-sm); }
+.wag-row--rest { opacity: 0.7; }
+.wag-row--today { border-color: rgba(59,130,246,0.6); }
+.wag-day { flex: 0 0 auto; width: 34px; font-family: ui-monospace, monospace; font-size: 0.7rem; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; }
+.wag-body { flex: 1; min-width: 0; }
+.wag-title-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.wag-type-icon { flex: 0 0 auto; font-size: 0.82rem; }
+.wag-title { font-size: 0.84rem; font-weight: 700; color: var(--text-inverse); min-width: 0; overflow-wrap: anywhere; }
+.wag-summary { font-size: 0.74rem; color: var(--text-secondary); margin-top: 2px; overflow-wrap: anywhere; line-height: 1.4; }
+.wag-status { flex: 0 0 auto; font-size: 0.58rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; border-radius: 99px; padding: 2px 7px; }
+.wag-status--done { color: #10b981; border: 1px solid rgba(16,185,129,0.35); }
+.wag-status--today { color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); }
+.wag-chevron { flex: 0 0 auto; color: var(--text-faint); font-size: 1.1rem; }
+
+.prog-headline { font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); margin: 0 0 12px; }
+.prog-phase-list { display: flex; flex-direction: column; gap: 4px; }
+.prog-phase { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+  background: var(--overlay-xs); border-left: 3px solid var(--phase-color, #64748b); }
+.prog-phase-range { flex: 0 0 auto; width: 62px; font-family: ui-monospace, monospace; font-size: 0.7rem;
+  font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.prog-phase-body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.prog-phase-label { font-size: 0.82rem; font-weight: 700; color: var(--text-inverse); overflow-wrap: anywhere; }
+.prog-phase-spec { font-family: ui-monospace, monospace; font-size: 0.72rem; color: var(--text-secondary); }
+.prog-phase-tag { flex: 0 0 auto; font-size: 0.56rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid; border-radius: 99px; padding: 2px 7px; }
+
+/* Light theme: the row/pill fills read fine off the shared overlay/text vars;
+   nudge the interactive row border for contrast. */
+html[data-theme="light"] .wag-row { border-color: rgba(0,0,0,0.06); }
+html[data-theme="light"] .prog-phase { background: rgba(0,0,0,0.02); }
