@@ -24,28 +24,34 @@ Existing safeguards already in the tree:
 
 ---
 
-## MIG-2026-07 (this session)
+## MIG-2026-07-A (Phase 2) — no data migration
 
-No user-data migration shipped this session. Phase 2 changes are Android-shell-only
-(Kotlin + manifest + XML) and do not read or transform any persisted store.
+Android-shell-only (Kotlin + manifest + XML); reads/transforms no persisted store.
+
+## MIG-2026-07-B · IndexedDB routes v1 → v2  — **SHIPPED** (Phase 3.1/3.2)
+
+- **Trigger:** `onupgradeneeded` when `js/db.js` opens `HybridTrainingDB` at v2.
+- **Transform:** each legacy `"<week>_<day>"` row in `runMaps` → a `routes` record
+  `{id: uuid(), activationId:'legacy', programId:null, week, day, startTs, updatedTs,
+   version:2, legacyKey, slotKey, coordinates}` (via `makeRouteRecord`). Empty rows
+  skipped. A `__migration_v2__` meta row records the count.
+- **Non-destructive:** the legacy `runMaps` store is **retained** (never deleted), so a
+  failed/partial migration loses nothing and old data stays recoverable. Reads fall
+  back active→legacy→raw-v1, so pre-migration routes display until overwritten.
+- **Blocked upgrade:** `openDB` `onblocked` → reject with a recognisable error; the
+  calling op returns its safe default (null/undefined) instead of hanging. Late
+  connections (block cleared after reject) are closed so nothing leaks;
+  `onversionchange` closes our connections so we never block a future upgrade.
+- **Rollback/recovery:** v2 records are additive; the v1 store is intact, so reverting
+  code to v1 still reads all original routes. Export (`{week_day:coords}`) is unchanged.
+- **Tests (`tests/route_db_migration.test.js`, fake-indexeddb):** legacy migration
+  survives + readable; two activations sharing Week1/Mon don't overwrite; slot upsert
+  (no duplicate); delete clears the slot; export→import round-trip; blocked-upgrade
+  fail-safe. Pure identity/transform: `tests/route_identity.test.js`.
 
 ---
 
 ## Planned migrations (designed, not yet shipped) — see HARDENING_PLAN.md
-
-### PLAN-A · IndexedDB routes v1 → v2 (Phase 3.1/3.2)  — **not shipped**
-- **Trigger:** `onupgradeneeded` when opening at version 2.
-- **Transform:** for each legacy `"<week>_<day>"` entry, create a record
-  `{id: uuid(), legacyKey, activationId: <unknown/legacy>, programId, localDate?,
-   startTs?, updatedTs: now, version: 2, payload: coords}`. Keep `legacyKey` as
-  metadata. Do not delete the source until the new record is written; on collision keep
-  both (suffix the id).
-- **Recovery:** legacy store retained read-only until migration success is recorded;
-  export includes both shapes during the transition.
-- **Failure handling:** blocked upgrade (`onblocked`) and `versionchange` surface a
-  diagnostic to the UI; the app continues on v1 rather than corrupting v2.
-- **Tests (planned):** legacy migration, two activations same week/day, two routes one
-  calendar day, blocked upgrade, deletion, export/import round-trip.
 
 ### PLAN-B · Application-state transactional migrations (Phase 4.1) — **not shipped**
 - Each step: deep-clone → validate prerequisites → apply one version → validate output

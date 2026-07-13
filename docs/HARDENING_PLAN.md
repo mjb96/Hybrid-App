@@ -86,21 +86,24 @@ Baseline (2026-07-13, this branch, pre-change):
 
 ## Phase 3 — Stable identity & synchronization
 
-### 3.1 Stable record IDs  `[ ]`
-- **Verified:** `js/db.js` stores GPS routes in object store keyed by `"week_day"`
-  (`saveMapToDB(week, day, …)` → `"1_mon"`). Collides across program activations and
-  multiple same-day runs; comment at line 42 documents the format.
-- **Fix:** add UUID (`crypto.randomUUID()` + fallback) identity for activation,
-  workout session, run/activity, route, custom program. Route record to carry
-  `{id,userId,activationId,programId,workoutSessionId,localDate,startTs,updatedTs,
-  version,payload}`.
-- **Migration:** IndexedDB v2 upgrade (3.2). **Risk:** high (data at rest). **Deps:** none.
+### 3.1 Stable record IDs  `[x]` (routes) · `[ ]` (other entities)
+- **Verified:** `js/db.js` stored GPS routes keyed by `"week_day"` (`"1_mon"`) —
+  collided across activations and same-day runs.
+- **Done:** `js/state/route-identity.js` (new, pure) gives routes a stable `id`
+  (`crypto.randomUUID` + fallback) + `{activationId,programId,week,day,localDate,
+  startTs,updatedTs,version,legacyKey,slotKey}`. `slotKey` = activation|week|day, so
+  two activations no longer collide. Tests: `route_identity.test.js`.
+- **Still planned:** the same stable-id treatment for workout session, custom
+  program, and other independently-syncing records (routes were the live collision).
 
-### 3.2 IndexedDB migration  `[ ]`
-- Non-destructive version bump; migrate legacy `week_day` values into new shape with
-  generated ids; keep legacy coords as metadata; collision-preserve; record migration
-  version/outcome; handle blocked/`versionchange`. Tests enumerated in the task.
-- **Risk:** high. **Deps:** 3.1.
+### 3.2 IndexedDB migration  `[x]`
+- **Done:** DB v1→v2. New `routes` store (keyPath `id`) + `by_slot` index; legacy
+  `runMaps` **retained** (non-destructive) and copied into `routes` on upgrade; meta
+  row records the migration. Reads fall back legacy→raw-v1 so old routes keep
+  working; blocked upgrades reject + close late connections (no leak); connections
+  closed per op. Tests (`route_db_migration.test.js`, fake-indexeddb): legacy
+  migration, two same-week/day activations (no overwrite), slot upsert, delete,
+  export/import round-trip, blocked upgrade. See DATA_MIGRATIONS.md (MIG-2026-07-B).
 
 ### 3.3 Local/cloud sync decision  `[~]`
 - **Verified (partial mitigation already exists):** `js/state.js` keeps a

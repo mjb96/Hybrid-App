@@ -405,6 +405,7 @@ function _paintRecap() {
     try {
       renderRunMap(week, day, recap.run.distKm, {
         containerId: 'recapMapContainer', splits: recap.run.splits, thresholdSec: state.thresholdPaceSeconds,
+        activationId: state.activeActivationId,
       });
     } catch (_) { /* map is best-effort */ }
   }

@@ -88,7 +88,38 @@ Phase-2 commit). No JS files changed in 2.1–2.3/2.6.
 **Regression:** full suite 749 pass (was 742) after this slice. No existing test
 asserted the old monotony math or status strings.
 
-## Phases 3, 4, 6–9 — ⏳ planned, not yet implemented this session
+## Phase 3 — Stable identity & sync  🟡 3.1 + 3.2 done
+
+| Item | Status | Files | Tests | Validation |
+|---|---|---|---|---|
+| 3.1 Stable route identity | ✅ | `js/state/route-identity.js` (new) | `route_identity.test.js` (new) | `npm test` 761 pass |
+| 3.2 Non-destructive IndexedDB v1→v2 migration | ✅ | `js/db.js` (rewrite) + 6 call sites | `route_db_migration.test.js` (new, fake-indexeddb) | same |
+| 3.3 Full sync decision table | ⏳ planned (guard exists) | `js/state.js` | — | — |
+| 3.4 Record-level conflict merge | ⏳ planned | — | — | — |
+| 3.5 Account-deletion structured results | ⏳ planned | `js/db.js` deletion flow | — | — |
+
+- **3.1:** every route now carries a stable `id` (crypto.randomUUID + fallback),
+  `activationId`, `programId`, `week`, `day`, `startTs`, `updatedTs`, `version`,
+  `legacyKey`, and a composite `slotKey` (activation|week|day). Pure identity +
+  migration transform in `route-identity.js`.
+- **3.2:** IndexedDB bumped to v2. New `routes` store (keyPath `id`) + `by_slot`
+  index; legacy `runMaps` store **retained** (non-destructive) and copied into
+  `routes` on upgrade. Reads prefer the active activation's record, then a migrated
+  `legacy` record, then the raw v1 row — pre-migration routes keep working until
+  overwritten while new routes are activation-isolated (kills the `1_mon`
+  cross-program collision). `openDB` handles blocked upgrades (rejects + closes late
+  connections so nothing leaks); connections are now closed after every op. Callers
+  (`app.js` ×2, `gps-tracker.js`, `workout.js`, `workout-map.js`,
+  `session-recap.js`) thread `appState.activeActivationId`.
+- **Verified end-to-end** against a real IndexedDB (fake-indexeddb): legacy
+  migration, two activations sharing Week1/Mon (no overwrite), slot upsert (no
+  duplicate), delete, export→import round-trip, blocked-upgrade fail-safe.
+- **Remaining:** multiple runs *within the same activation/day* are now storable
+  (distinct ids) but the UI still shows one route per slot — surfacing multiples is
+  a follow-up. Export wire format kept as `{week_day: coords}` for compatibility
+  (latest wins per slot). 3.3–3.5 still planned. Added dev dep `fake-indexeddb`.
+
+## Phases 4, 6–9 — ⏳ planned, not yet implemented this session
 
 Verified current behaviour and concrete remediation steps are recorded in
 `HARDENING_PLAN.md`. Key confirmed findings so the next session starts from evidence,

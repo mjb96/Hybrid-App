@@ -17,6 +17,7 @@
   "devDependencies": {
     "@sentry/browser": "8.55.0",
     "@supabase/supabase-js": "2.45.4",
+    "fake-indexeddb": "^6.2.5",
     "leaflet": "1.9.4",
     "typescript": "^6.0.3"
   }

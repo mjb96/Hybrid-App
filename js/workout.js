@@ -446,6 +446,7 @@ export function renderWorkout() {
   renderRunMap(wk, selectedDay, runContext.dist, {
     splits: rStats.splits,
     thresholdSec: appState.thresholdPaceSeconds,
+    activationId: appState.activeActivationId,
   });
 
   const notesEl = document.getElementById('sessionNotesInput');
@@ -1650,7 +1651,7 @@ export function executeResetActiveDayMetrics() {
   
   _saveState(true);
   
-  deleteMapFromDB(wk, selectedDay).then(() => {
+  deleteMapFromDB(wk, selectedDay, { activationId: appState.activeActivationId }).then(() => {
     renderWorkout();
   }).catch(() => renderWorkout());
   
