@@ -137,7 +137,7 @@ export function strengthDayStats(dayLifts) {
  *
  * @param {object} state  appState (reads state.weeks)
  * @param {{ tz?: string }} [opts]
- * @returns {{ byDate: Map<string, DatedSlot>, undated: DatedSlot[] }}
+ * @returns {{ byDate: Map<string, DatedSlot>, undated: DatedSlot[], duplicates: DatedSlot[] }}
  */
 export function indexSlotsByDate(state, opts = {}) {
   const weeks = state?.weeks || {};
@@ -145,6 +145,8 @@ export function indexSlotsByDate(state, opts = {}) {
   const byDate = new Map();
   /** @type {DatedSlot[]} */
   const undated = [];
+  /** @type {DatedSlot[]} slots that lost dedup on a shared date (never counted) */
+  const duplicates = [];
 
   for (const w of Object.keys(weeks)) {
     const wd = weeks[w];
@@ -172,11 +174,15 @@ export function indexSlotsByDate(state, opts = {}) {
       if (!slot.dateISO) { undated.push(slot); return; }
 
       const existing = byDate.get(slot.dateISO);
-      if (!existing || _preferSlot(slot, existing)) byDate.set(slot.dateISO, slot);
+      if (!existing) { byDate.set(slot.dateISO, slot); return; }
+      // Two slots on one date → keep the canonical one, record the other as a
+      // suppressed duplicate (so a cloud/local copy can never double-count).
+      if (_preferSlot(slot, existing)) { byDate.set(slot.dateISO, slot); duplicates.push(existing); }
+      else duplicates.push(slot);
     });
   }
 
-  return { byDate, undated };
+  return { byDate, undated, duplicates };
 }
 
 // Deterministic winner between two slots that claim the same calendar date.
@@ -284,39 +290,53 @@ export function explainWeeklyMetric(state, opts = {}) {
   const today = opts.today || localDayKey(now, tz);
   const weekStart = opts.weekStart || weekStartOf(today);
   const weekEnd = addDaysISO(weekStart, 6);
-  const { byDate, undated } = indexSlotsByDate(state, { tz });
+  const { byDate, undated, duplicates } = indexSlotsByDate(state, { tz });
 
-  const sessions = [];
-  for (const slot of [...byDate.values(), ...undated]) {
+  // One row per stored slot, tagged with its dedup disposition so the trace shows
+  // exactly what was counted, what was a suppressed duplicate, and what was undated.
+  const rows = [
+    ...[...byDate.values()].map(s => ({ slot: s, disposition: 'counted' })),
+    ...duplicates.map(s => ({ slot: s, disposition: 'duplicate-suppressed' })),
+    ...undated.map(s => ({ slot: s, disposition: 'undated' })),
+  ];
+
+  const sessions = rows.map(({ slot, disposition }) => {
     const wd = (state?.weeks || {})[String(slot.weekNum)] || {};
     const rawStored = wd.dates?.[slot.day];
     const resolvedLocalDate = slot.dateISO || null;
     const resolvedWeekKey = resolvedLocalDate ? weekKeyOf(resolvedLocalDate) : null;
-    const included = resolvedWeekKey === weekStart;
+    const inWeek = resolvedWeekKey === weekStart;
+    const included = inWeek && disposition === 'counted';
+
     let inclusionReason;
-    if (!resolvedLocalDate) inclusionReason = 'excluded: no recoverable date (undated legacy slot)';
-    else if (included) inclusionReason = `included: real date ${resolvedLocalDate} falls in week ${weekStart}`;
+    if (disposition === 'undated') inclusionReason = 'excluded: no recoverable date (undated legacy slot) — never dated to today';
+    else if (disposition === 'duplicate-suppressed') inclusionReason = `excluded: duplicate of ${resolvedLocalDate} — a canonical slot on that date is counted instead`;
+    else if (inWeek) inclusionReason = `included: real date ${resolvedLocalDate} falls in week ${weekStart}`;
     else inclusionReason = `excluded: real date ${resolvedLocalDate} belongs to week ${resolvedWeekKey}, not ${weekStart}`;
 
-    sessions.push({
+    return {
       slotId: `week${slot.weekNum}/${slot.day}`,
       workoutName: slot.stats.workingSets > 0 ? 'Gym session' : (slot.run ? 'Run session' : 'Session'),
-      rawDateFields: {
-        storedDate: rawStored ?? null,
-        weekNum: slot.weekNum,
-        dayKey: slot.day,
-      },
+      // Program week is METADATA/context only — it never decides the calendar week.
+      programWeek: slot.weekNum,
+      rawDateFields: { storedDate: rawStored ?? null, weekNum: slot.weekNum, dayKey: slot.day },
       resolvedLocalDate,
       resolvedWeekKey,
+      disposition,
       workingSets: slot.stats.workingSets,
       reps: slot.stats.reps,
       volumeKg: slot.stats.volumeKg,
+      // What this session actually adds to the selected week's totals.
+      contribution: included
+        ? { workingSets: slot.stats.workingSets, reps: slot.stats.reps, volumeKg: slot.stats.volumeKg }
+        : { workingSets: 0, reps: 0, volumeKg: 0 },
       included,
       inclusionReason,
-    });
-  }
+    };
+  });
   sessions.sort((a, b) => String(a.resolvedLocalDate).localeCompare(String(b.resolvedLocalDate)));
 
+  const counted = sessions.filter(s => s.included);
   return {
     now: now.toISOString(),
     timezone: tz || (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } })(),
@@ -324,7 +344,14 @@ export function explainWeeklyMetric(state, opts = {}) {
     selectedWeekKey: weekStart,
     currentWeekStart: weekStart,
     currentWeekEnd: weekEnd,
+    note: 'Program week is metadata/context; the workout DATE determines calendar attribution.',
     undatedCount: undated.length,
+    duplicateSuppressedCount: duplicates.length,
+    totals: {
+      workingSets: counted.reduce((t, s) => t + s.workingSets, 0),
+      reps: counted.reduce((t, s) => t + s.reps, 0),
+      volumeKg: counted.reduce((t, s) => t + s.volumeKg, 0),
+    },
     sessions,
   };
 }

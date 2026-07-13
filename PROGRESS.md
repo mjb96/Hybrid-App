@@ -72,6 +72,33 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-13 · **Complete the program-week ↔ calendar-week separation.** Follow-up to the
+  attribution fix: audited every week-based reference (`docs/TIME-MODEL-AUDIT.md`) and
+  converted the remaining CALENDAR surfaces off the program-week counter. The strength/
+  running **detail week navigator** (`js/analytics/week-nav.js`) is now calendar-based —
+  a dedicated ephemeral `calendarWeekOffset` (0 = current calendar week, reset on view
+  entry so "This week" always resolves from today), real Mon–Sun labels (never derived
+  from activity min/max), back-nav only while older logged weeks exist, no future nav, and
+  it never mutates `state.currentWeek`. `curWeekIdx`/`getSelectedWeek` (program-week nav)
+  removed; `view-strength.js`/`view-running.js` pass `getCalendarWeekOffset()` straight into
+  `buildWeekChart`; the "This week's sessions" strip now reads the current calendar week via
+  `collectCalendarWeek` (keeping each chip's source program week for the session modal).
+  `explainWeeklyMetric` extended: program week surfaced as metadata, per-session
+  contribution, duplicate-suppression + undated counts, and a note that the DATE decides
+  attribution. Left intentionally unchanged: program adherence / "Week N" / deload / today's
+  session (program-week), and CTL/ATL/readiness (rolling EWMA) — with tests pinning each
+  basis. New static guard `tests/analytics_calendar_guard.test.js` keeps the calendar-core
+  modules program-week-free; new `tests/time_model_separation.test.js` (10) +
+  `tests/week_nav_calendar.test.js` (5) prove the two clocks are independent (program week
+  spanning two calendar weeks, two program weeks in one calendar week, old+new program in
+  one week, rollover independence, adherence stays program, rolling stays rolling). 702
+  tests / typecheck / smoke / precache green. Real-browser check now also verifies the
+  strength-detail navigator ("This week" → "Previous week · Jul 6 – Jul 12") and that the
+  Home program indicator still reads "Week 3". · Known limitation: `dynamicStats` per-lift
+  e1RM "this week" delta remains program-week-bucketed (secondary figure; documented). ·
+  Next: `[You]` device-test the detail week nav after a real rollover; optional future work —
+  calendar-bucket the per-lift e1RM "this week" delta.
+
 - 2026-07-13 · **Fix weekly analytics attribution (stale program week read as "this
   week").** Root cause: `state.currentWeek` is a PROGRAM-week counter that only advances
   on an explicit step / confirmed auto-advance, but Home read `weeks[currentWeek]` as the

@@ -132,6 +132,40 @@ try {
     console.error(`FAIL: previous week should read 55 sets, got "${lastWeek.v}".`);
     failed = true;
   }
+
+  // Program card still shows the PROGRAM week (not "this week").
+  const progWeek = await page.$eval('#homeWeekBlockIndicator', el => el.textContent.trim()).catch(() => '');
+  console.log('Home program indicator:', JSON.stringify(progWeek));
+  if (!/Week\s*3/.test(progWeek)) {
+    console.error(`FAIL: program card should still read "Week 3", got "${progWeek}".`);
+    failed = true;
+  }
+
+  // --- Strength DETAIL navigator (calendar weeks) ---------------------------
+  await page.evaluate(() => {
+    const b = document.createElement('button');
+    b.setAttribute('data-action', 'open-analytics');
+    b.setAttribute('data-context', 'strength');
+    b.style.display = 'none';
+    document.body.appendChild(b); b.click(); b.remove();
+  });
+  await page.waitForSelector('#weekNavLabel', { timeout: 10000 });
+  await page.waitForTimeout(150);
+  const navThis = await page.$eval('#weekNavLabel', el => el.textContent.trim());
+  console.log('Strength detail nav (default):', JSON.stringify(navThis));
+  if (navThis !== 'This week') {
+    console.error(`FAIL: strength detail should open on "This week", got "${navThis}".`);
+    failed = true;
+  }
+  await page.click('#weekNavPrev');
+  await page.waitForTimeout(150);
+  const navPrev = await page.$eval('#weekNavLabel', el => el.textContent.trim());
+  const navPrevDates = await page.$eval('#weekNavDates', el => el.textContent.trim());
+  console.log('Strength detail nav (prev):', JSON.stringify({ navPrev, navPrevDates }));
+  if (navPrev !== 'Previous week') {
+    console.error(`FAIL: stepping back should read "Previous week", got "${navPrev}".`);
+    failed = true;
+  }
 } catch (e) {
   console.error('ERROR:', e.message);
   failed = true;

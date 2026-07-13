@@ -28,7 +28,9 @@ import { isWeeklyPR } from '../../metrics/metrics-strength.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { getProgramById } from '../../state.js';
-import { esc, screenTabBar, mountScreenTabs, spark as _spark, curWeekIdx } from './screen-kit.js';
+import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
+import { getCalendarWeekOffset } from '../week-nav.js';
+import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -45,13 +47,12 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   const el = qs('strengthTrainingLoadDashboard');
   if (!el) return;
 
-  const ci      = curWeekIdx(appState, sa.volSeries.length);
   // Honest week-over-week: for the CURRENT (partial) week this compares the
   // elapsed portion against the same point last week; for a completed week it's
-  // full-vs-full. Same shared model + labels as the In Focus graph, so value and
-  // label always describe the same periods (no "partial vs full" mislabel).
-  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
-  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: (ci + 1) - curWk });
+  // full-vs-full. Same shared model + labels as the In Focus graph, driven by the
+  // CALENDAR-week navigator (offset 0 = this calendar week), so value and label
+  // always describe the same real periods (no "partial vs full" mislabel).
+  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: getCalendarWeekOffset() });
   const volCur   = volChart.total;
   const volCmp   = statComparisonFrom(volChart);
 
@@ -342,9 +343,7 @@ export function renderStrengthAnalytics(data, getState, getDays) {
 // matter + ONE synthesized insight. The depth lives one tap away in Stats.
 function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWeek) {
   const top = _topLift(data.dynamicStats);
-  const ci      = curWeekIdx(appState, sa.volSeries.length);
-  const curWk    = parseInt(appState?.currentWeek, 10) || 1;
-  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: (ci + 1) - curWk });
+  const volChart = buildWeekChart(appState, { type: 'strength', metric: 'volume', weekOffset: getCalendarWeekOffset() });
   const volCur   = volChart.total;
   const volCmp   = statComparisonFrom(volChart);
   const prCount = Object.values(data.dynamicStats).filter(isWeeklyPR).length;
@@ -392,9 +391,13 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
 // vs this week's Push".
 const _DAY_ABBR = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 function _thisWeekSessionsStripHTML(appState, days) {
-  const wk = String(appState.currentWeek || '1');
-  const weekData = (appState.weeks || {})[wk];
-  if (!weekData) return '';
+  // "This week" = the current CALENDAR week. Assemble it from real stamped dates
+  // (a day may live in any program-week slot) so the strip can never echo a
+  // frozen program week's stale sessions. Each chip keeps the day's SOURCE
+  // program week so the session-detail modal still opens the right stored slot.
+  const weekData = collectCalendarWeek(appState, weekStartOf(localDayKey(new Date())));
+  const slotWeekOf = {};
+  weekData.sourceSlots.forEach(s => { slotWeekOf[s.day] = s.weekNum; });
   const program = getProgramById(appState.activeProgramId);
   const unit = appState.settings?.weightUnit || 'kg';
 
@@ -402,8 +405,9 @@ function _thisWeekSessionsStripHTML(appState, days) {
   (days || []).forEach(d => {
     const { totalVolume } = summarizeSessionLifts(weekData, d);
     if (totalVolume <= 0) return; // only days with logged lifting
+    const wk = String(slotWeekOf[d] ?? appState.currentWeek ?? '1');
     const title = program?.days?.[d]?.title || 'Workout';
-    chips.push(`<button class="sw-session-chip" data-action="open-session-detail" data-week="${wk}" data-day="${d}" data-datelabel="Week ${wk} · ${esc(title)}">
+    chips.push(`<button class="sw-session-chip" data-action="open-session-detail" data-week="${wk}" data-day="${d}" data-datelabel="${esc(title)}">
       <span class="sw-session-chip__day">${_DAY_ABBR[d] || esc(d)}</span>
       <span class="sw-session-chip__title">${esc(title)}</span>
       <span class="sw-session-chip__vol">${Math.round(totalVolume)} ${esc(unit)} vol</span>

@@ -29,7 +29,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   `weekStartOf`, `localDayKey`). The In Focus graph (`buildWeekChart`) + strength detail +
   the At-a-Glance Weekly Volume tile (`model.calendarWeek`) all consume it, so an empty
   current calendar week is a true zero and the week label is the real Mon–Sun range, never
-  derived from the activity records. `explainWeeklyMetric` is a dev-only attribution trace.
+  derived from the activity records. The strength/running **detail week navigator**
+  (`js/analytics/week-nav.js`) is also CALENDAR-based (`getCalendarWeekOffset()`, ephemeral
+  offset, reset on view entry) — it never reads `state.currentWeek`. `explainWeeklyMetric`
+  is a dev-only attribution trace (program week is metadata; the date decides the week).
+  `docs/TIME-MODEL-AUDIT.md` classifies every week-based reference (calendar vs program vs
+  rolling); `tests/analytics_calendar_guard.test.js` keeps the calendar-core modules
+  program-week-free. Program adherence, "Week N" labels, deload detection and today's
+  planned session stay PROGRAM-week based; CTL/ATL/readiness stay rolling-window.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads

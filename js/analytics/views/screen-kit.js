@@ -8,8 +8,6 @@
 // headline sparkline, and small helpers.
 // =============================================================================
 
-import { getSelectedWeek } from '../week-nav.js';
-
 export const esc = (s) => String(s == null ? '' : s)
   .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -27,19 +25,6 @@ export function mountScreenTabs(sectionId, onSwitch) {
   document.getElementById(sectionId)?.querySelectorAll('[data-an-tab]').forEach(btn => {
     btn.addEventListener('click', () => onSwitch(btn.getAttribute('data-an-tab')));
   });
-}
-
-// The selected training week's index into a weekly series padded to the
-// program's total weeks. Follows the week navigator (week-nav.js): with no
-// offset it reads the current training week — so "this week's" number agrees
-// with Home — but once the user steps back through the navigator the stat cards
-// track the week they're viewing instead of staying pinned to the current week.
-// Falls back to the last populated week when currentWeek is unset.
-// (PRODUCT_AUDIT §4.4.)
-export function curWeekIdx(appState, seriesLen) {
-  const hasCur = (parseInt(appState?.currentWeek, 10) || 0) > 0;
-  const wk = hasCur ? getSelectedWeek(appState.currentWeek) : seriesLen;
-  return Math.max(0, Math.min(wk - 1, seriesLen - 1));
 }
 
 // A sparkline scaled to its own data's min/max (works for kg, km, VDOT — unlike
