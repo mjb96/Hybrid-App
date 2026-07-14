@@ -10,12 +10,12 @@
 // Pure: a function of (dashboardModel, state, days). The only persistence is the
 // idempotent daily snapshot handled separately in history.js.
 // =============================================================================
-import { WEEK_PHASE_NAMES } from '../../constants.js';
 import { clamp } from '../../analytics/calculations/math-utils.js';
 import { PILLAR_WEIGHTS, PILLAR_META, SCORE_BANDS, scoreBand, isDeloadWeek } from './config.js';
 import { computePillars } from './pillars.js';
 import { levelFromXp } from './levels.js';
 import { todayKey } from '../../dates.js';
+import { resolveProgramPhase } from '../../programs/phase.js';
 
 // One concrete, actionable next step per pillar (drives the daily recommendation).
 const PILLAR_ACTIONS = Object.freeze({
@@ -44,10 +44,10 @@ function detectReturning(model) {
   return ctl > 0 && ctl < 8 && (model.streak?.current || 0) >= 1 && (model.streak?.longest || 0) >= 5;
 }
 
-export function computeHybridScore(model, state, days) {
+export function computeHybridScore(model, state, days, program = null) {
   const level = state?.settings?.fitnessLevel || 'intermediate';
-  const phaseName = WEEK_PHASE_NAMES[String(state?.currentWeek ?? '')];
-  const deload = isDeloadWeek(state, phaseName);
+  const phase = resolveProgramPhase(program, state?.currentWeek, state);
+  const deload = isDeloadWeek(state, phase.label);
   const returning = detectReturning(model);
 
   const pillars = computePillars(model, state, days, { level, deload });

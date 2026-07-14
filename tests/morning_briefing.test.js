@@ -9,7 +9,13 @@ const baseModel = (over = {}) => ({
   ready: { hasData: true, score: 72, status: 'Ready', available: ['load'] },
   ...over,
 });
-const PROGRAM = { days: { wed: { title: 'Day 3: Tempo + Pull', runs: '5k tempo' } } };
+const PROGRAM = {
+  days: { wed: { title: 'Day 3: Tempo + Pull', runs: '5k tempo' } },
+  weeklyVolModifiers: {
+    '4': { intensityLabel: 'Planned deload' },
+    '5': { intensityLabel: 'Threshold build' },
+  },
+};
 const STATE = { currentWeek: '5', settings: { name: 'Alex Carter' } };
 
 test('greeting: time-of-day aware, uses first name, degrades without one', () => {
@@ -24,6 +30,7 @@ test('greeting: time-of-day aware, uses first name, degrades without one', () =>
 test('context: day, week and phase name', () => {
   const b = buildMorningBriefing({ state: STATE, model: baseModel(), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
   assert.match(b.context, /^Wednesday · Week 5 · /);
+  assert.match(b.context, /Threshold build$/);
 });
 
 test('scoreLine: calibrating, delta up/down/steady/new', () => {
@@ -96,7 +103,6 @@ test('degrades gracefully with an empty model/state', () => {
 });
 
 test('C3: a planned deload week carries an explanatory note', () => {
-  // WEEK_PHASE_NAMES marks week 4 as a Deload Week.
   const b = buildMorningBriefing({ state: { currentWeek: '4', settings: {} }, model: baseModel(), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
   assert.ok(b.deload && /deload/i.test(b.deload.note), 'deload note present on a deload week');
   // A normal week has no deload note.

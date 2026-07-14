@@ -15,8 +15,7 @@
 // state. Completing it is done by *doing the thing*, and XP already flows
 // through the Hybrid Score daily recorder.
 // =============================================================================
-import { WEEK_PHASE_NAMES } from '../constants.js';
-import { classifyWeek } from '../programs/timeline.js';
+import { resolveProgramPhase } from '../programs/phase.js';
 import { projectionLine } from './hybrid-score/project.js';
 import { streakRiskLine } from './streak.js';
 import { coachMemory } from './coach-memory.js';
@@ -97,14 +96,14 @@ export function buildMorningBriefing(opts = {}) {
   const { state, model, score, projection, program, selectedDay, now = new Date(), firstSession = false, overtrainingActive = false, days = DEFAULT_DAY_KEYS } = opts;
   const rec = model?.rec || {};
   const wk = String(state?.currentWeek || '1');
-  const phase = WEEK_PHASE_NAMES[wk] || '';
+  const phase = resolveProgramPhase(program, wk, state);
   const dayName = DAY_NAMES[selectedDay] || '';
 
   // C3 — a planned deload is explained, not silent. Detect it from the program's
   // own week label (falling back to the generic phase map) and carry a short,
   // honest rationale so the lighter week reads as intent, not lost progress.
-  const weekLabel = program?.weeklyVolModifiers?.[wk]?.intensityLabel || phase || '';
-  const deload = classifyWeek(weekLabel) === 'deload'
+  const weekLabel = phase.label;
+  const deload = phase.isDeload
     ? { note: "Planned deload — lighter on purpose. Reduced volume lets your body absorb the work and adapt; this is where gains consolidate, not where they're lost." }
     : null;
 
@@ -140,7 +139,7 @@ export function buildMorningBriefing(opts = {}) {
 
   return {
     greeting: greetingFor(now, firstName(state)),
-    context: [dayName, `Week ${wk}`, phase].filter(Boolean).join(' · '),
+    context: [dayName, `Week ${wk}`, phase.label].filter(Boolean).join(' · '),
     scoreLine: scoreLineFor(score),
     readinessLine,
     forward,

@@ -9,21 +9,14 @@
 //
 // Exercise *selection* is constant across weeks by design in this app — only
 // sets/reps/intensity change — so a "week" here is (sets, reps, phase label),
-// not a different set of movements. Degrades gracefully to the generic
-// WEEK_PHASE_NAMES phase map when a program carries no per-week modifiers.
+// not a different set of movements. Programs without a semantic label use the
+// honest neutral "Training" fallback from the shared phase resolver.
 // =============================================================================
-import { WEEK_PHASE_NAMES } from '../constants.js';
+import { classifyPhase, resolveProgramPhase } from './phase.js';
 
 /** Classify a week from its phase label into a kind used for tint + volume. */
 export function classifyWeek(label) {
-  const s = String(label || '').toLowerCase();
-  if (!s) return 'work';
-  if (/deload/.test(s)) return 'deload';
-  if (/taper/.test(s)) return 'taper';
-  if (/peak|test|max\b|maxes|absolute|race/.test(s)) return 'peak';
-  if (/intensif|intensity|threshold intens|heavy/.test(s)) return 'intensify';
-  if (/accumulat|volume|base|aerobic|hypertrophy|build|goal pace/.test(s)) return 'build';
-  return 'work';
+  return classifyPhase(label);
 }
 
 // Volume when a week carries no explicit set count — a sensible shape by kind.
@@ -54,8 +47,9 @@ export function buildProgramTimeline(program) {
   for (let i = 1; i <= total; i++) {
     const key = String(i);
     const mod = mods ? mods[key] : null;
-    const label = (mod && mod.intensityLabel) || WEEK_PHASE_NAMES[key] || '';
-    const kind = classifyWeek(label);
+    const phase = resolveProgramPhase(program, key);
+    const label = phase.label;
+    const kind = phase.kind;
     const sets = (mod && Number.isFinite(Number(mod.sets))) ? Number(mod.sets) : null;
     const reps = (mod && mod.reps != null) ? mod.reps : null;
 

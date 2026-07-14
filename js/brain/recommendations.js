@@ -12,8 +12,7 @@
 // ==========================================
 import { trainingStatus } from './briefing.js';
 import { isCompletedSet } from '../set-utils.js';
-import { classifyWeek } from '../programs/timeline.js';
-import { WEEK_PHASE_NAMES } from '../constants.js';
+import { resolveProgramPhase } from '../programs/phase.js';
 import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
 
 // Has the selected day's planned session already been logged? Gym counts as done
@@ -203,8 +202,7 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
   // Deload training day → keep it light on purpose; don't tell the athlete to
   // push when the week's whole intent is to absorb the work.
   const wk = String(state?.currentWeek || '1');
-  const weekLabel = activeProgram?.weeklyVolModifiers?.[wk]?.intensityLabel || WEEK_PHASE_NAMES[wk] || '';
-  if (classifyWeek(weekLabel) === 'deload') {
+  if (resolveProgramPhase(activeProgram, wk, state).isDeload) {
     return {
       severity: 'neutral',
       badge: 'Deload',
