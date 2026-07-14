@@ -11,6 +11,7 @@
 // =============================================================================
 import { xpForDay, levelFromXp } from './levels.js';
 import { loggedDateSet } from '../../analytics/logged-days.js';
+import { todayKey } from '../../dates.js';
 
 const MAX_HISTORY = 400; // ~13 months of daily snapshots
 const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -66,7 +67,7 @@ function readinessOf(model) {
 export function recordDailyScore(state, scoreResult, model, todayISO) {
   const hs = ensure(state);
   backfillXp(state);   // one-time, before any level comparison below
-  const today = todayISO || new Date().toISOString().slice(0, 10);
+  const today = todayISO || todayKey();
   // A provisional (self-report-carried) score is a display estimate, not earned
   // progress: never bank its XP or seed a history point from it, or the level
   // ladder and day-over-day delta would be built on answers, not work.

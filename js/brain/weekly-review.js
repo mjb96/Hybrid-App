@@ -12,6 +12,7 @@
 import { computeDashboardModel } from '../home/dashboard-model.js';
 import { weeklyE1rmByLift } from '../metrics/metrics-strength.js';
 import { isProgramDeloadWeek } from './day-verdict.js';
+import { addDaysISO, todayKey } from '../dates.js';
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -40,9 +41,7 @@ function weekPRs(state, days, wkNum, maxWeek) {
 
 // The Hybrid Score arc across the last 7 recorded days.
 function scoreArc(state) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 6);
-  const cutoffISO = cutoff.toISOString().slice(0, 10);
+  const cutoffISO = addDaysISO(todayKey(), -6);
   const entries = (state?.hybridScore?.history || [])
     .filter(h => h.date >= cutoffISO)
     .sort((a, b) => a.date.localeCompare(b.date));

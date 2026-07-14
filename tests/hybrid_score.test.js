@@ -8,23 +8,22 @@ import { weeklyBestPaceSeries } from '../js/metrics/metrics-running.js';
 import { computeHybridScore } from '../js/brain/hybrid-score/hybrid-score.js';
 import { recordDailyScore, dailySeries, bucketedTrend, currentLevel } from '../js/brain/hybrid-score/history.js';
 import { computeDashboardModel } from '../js/home/dashboard-model.js';
+import { addDaysISO, todayKey } from '../js/dates.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const iso = (d) => d.toISOString().slice(0, 10);
+const TODAY = todayKey();
 
 // ---------------------------------------------------------------------------
 // Fixture: a realistic multi-week hybrid athlete progressing on both modalities.
 // ---------------------------------------------------------------------------
 function makeState({ currentWeek = 5, weightGoal = 'maintain', fitnessLevel = 'intermediate' } = {}) {
-  const start = new Date();
-  start.setDate(start.getDate() - (currentWeek - 1) * 7); // week 1 Monday-ish
+  const start = addDaysISO(TODAY, -(currentWeek - 1) * 7); // week 1 Monday-ish
   const weeks = {};
   for (let w = 1; w <= currentWeek; w++) {
     const squat = 100 + (w - 1) * 5;         // progressing strength
     const dist = 5 + (w - 1) * 0.75;         // progressing distance
-    const wkStart = new Date(start); wkStart.setDate(start.getDate() + (w - 1) * 7);
-    const monISO = iso(wkStart);
-    const wedISO = iso(new Date(wkStart.getTime() + 2 * 86400000));
+    const monISO = addDaysISO(start, (w - 1) * 7);
+    const wedISO = addDaysISO(monISO, 2);
     weeks[String(w)] = {
       lifts: { mon: { 'Back Squat': [
         { w: String(squat), r: 5, c: true },
@@ -37,11 +36,11 @@ function makeState({ currentWeek = 5, weightGoal = 'maintain', fitnessLevel = 'i
       dates: { mon: monISO, wed: wedISO },
     };
   }
-  const today = iso(new Date());
-  const sevenAgo = iso(new Date(Date.now() - 7 * 86400000));
+  const today = TODAY;
+  const sevenAgo = addDaysISO(today, -7);
   return {
     currentWeek: String(currentWeek),
-    weekStartedAt: iso(new Date(Date.now() - 2 * 86400000)),
+    weekStartedAt: addDaysISO(today, -2),
     settings: { fitnessLevel, weightGoal, distanceUnit: 'km' },
     weeks,
     loadMetrics: { atl: 9, ctl: 10 }, // ACWR 0.9 — productive
@@ -309,7 +308,7 @@ test('recordDailyScore: a provisional score is never banked (XP stays earned)', 
   const state = day0State({ provisional });
   const model = modelFor(state);
   const r = computeHybridScore(model, state, DAYS);
-  const res = recordDailyScore(state, r, model, iso(new Date()));
+  const res = recordDailyScore(state, r, model, TODAY);
   assert.equal(res.changed, false);
   assert.equal(state.hybridScore.xp, 0);
   assert.equal(state.hybridScore.history.length, 0);
@@ -338,8 +337,8 @@ test('computeHybridScore: progressing hybrid athlete scores well with drivers', 
 test('computeHybridScore: a low-readiness day surfaces a recovery opportunity', () => {
   const state = makeState();
   // Wreck recovery: terrible sleep + high fatigue load.
-  state.wellnessLog = [{ date: iso(new Date()), mood: 1, soreness: 5, sleep: 3 }];
-  state.healthConnect.sleep = [{ date: iso(new Date()), totalHours: 3.5 }];
+  state.wellnessLog = [{ date: TODAY, mood: 1, soreness: 5, sleep: 3 }];
+  state.healthConnect.sleep = [{ date: TODAY, totalHours: 3.5 }];
   state.loadMetrics = { atl: 18, ctl: 10 }; // ACWR 1.8 — spiking
   const model = modelFor(state);
   const r = computeHybridScore(model, state, DAYS);
@@ -426,7 +425,7 @@ test('E7 — recordDailyScore stores per-pillar contributions', () => {
 
 test('E7 — deltaBreakdown attributes the change and ~sums to the delta', () => {
   const state = makeState();
-  const yday = iso(new Date(Date.now() - 86400000));
+  const yday = addDaysISO(TODAY, -1);
   // Yesterday: same pillars but a weaker recovery contribution and a stronger
   // consistency one, so we expect specific movers today.
   const model = modelFor(state);
@@ -454,7 +453,7 @@ test('E7 — deltaBreakdown attributes the change and ~sums to the delta', () =>
 
 test('recordDailyScore: delta reflects yesterday, trends bucket', () => {
   const state = makeState();
-  const y = iso(new Date(Date.now() - 86400000));
+  const y = addDaysISO(TODAY, -1);
   state.hybridScore = { history: [{ date: y, score: 70, level: 2 }], xp: 300, lastRecordedDate: y };
   const model = modelFor(state);
   const r = computeHybridScore(model, state, DAYS);

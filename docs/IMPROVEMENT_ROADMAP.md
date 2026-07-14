@@ -4,6 +4,16 @@
 **Goal:** reach a trustworthy Android public beta without expanding scope  
 **Constraint:** iOS, billing, paywalls, and new feature categories remain deferred
 
+## Implementation status
+
+- **R1 / PR-1 complete — 14 July 2026** on `codex/beta-integrity-dates`.
+  One canonical local-day API now owns user-facing calendar keys; state writers,
+  streaks, score/history, coaching windows, recovery, reports, Home and Settings use
+  it. A source guard prevents raw UTC ISO slicing from returning to those paths.
+  `npm run verify` is green in Sydney, and all 771 tests pass in UTC, UTC+14 and
+  UTC−12 as well. A browser-created 14 July bodyweight entry remained distinct from
+  the prior day's entry. **Next integrity slice:** R2 session/run identity.
+
 ## Prioritization model
 
 Priority is based on severity, likelihood, user trust, launch dependency, and blast radius. Effort is a delivery estimate for one experienced product engineer with review, not elapsed calendar time. Each item includes the evidence required for completion; code existing or a happy-path manual check is not sufficient.

@@ -72,6 +72,20 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Beta Integrity PR-1 — canonical local calendar dates.**
+  Added the single `js/dates.js` local-day API and migrated user-facing date writers
+  and readers across streaks, score/history, coach memory/evidence, recovery/wellness,
+  monthly/weekly reporting, Home, onboarding and Settings. Intentional date-only keys
+  now remain stable in every timezone; invalid values fail closed; whole-day arithmetic
+  is DST-safe. Added fixed-clock boundary coverage plus a source guard that limits raw
+  UTC day slicing to reviewed schedule/calendar arithmetic. Made the previously flaky
+  streak, coach-memory, monthly-report and Hybrid Score fixtures deterministic. Browser
+  verification saved a 76.5 kg entry on 14 July without replacing the prior 75 kg entry
+  (the Body Weight view showed the expected 75.8 kg 7-day average). Validation: Sydney
+  `npm run verify` green; 771/771 tests green in UTC, UTC+14 and UTC−12; typecheck,
+  precache and smoke green. · **Next:** PR-2 / R2 stable session and run identity;
+  preserve multiple same-day runs and their routes through reload/export/import.
+
 - 2026-07-14 · **Evidence-based full product/UX/architecture audit (documentation only).**
   Reviewed the current PWA and Android shell across onboarding, Home, Programs, workout,
   running/FIT, analytics/Brain, state/sync/migrations, export, offline caching, Health

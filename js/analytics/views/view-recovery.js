@@ -30,6 +30,7 @@ import {
   renderInsightsHTML,
   deloadInsight,
 } from '../insights/insight-engine.js';
+import { todayKey } from '../../dates.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { screenTabBar, mountScreenTabs } from './screen-kit.js';
 
@@ -591,7 +592,7 @@ function _renderWellnessForm(formParent, getState, getDays, data) {
   }
 
   const appState = getState();
-  const today    = new Date().toISOString().slice(0, 10);
+  const today    = todayKey();
   const existing = (appState.wellnessLog || []).find(e => e.date === today) || {};
 
   const ratingBtns = (name, current, max) => {

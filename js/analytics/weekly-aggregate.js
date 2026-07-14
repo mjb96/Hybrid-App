@@ -22,42 +22,13 @@
 // it can never diverge from the detail views.
 // =============================================================================
 import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
+import { addDaysISO, localDayKey } from '../dates.js';
+
+// Compatibility re-export: calendar consumers historically imported these from
+// weekly-aggregate. The implementation now lives in the one canonical date API.
+export { addDaysISO, localDayKey } from '../dates.js';
 
 export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-// ---- canonical local-date resolution ----------------------------------------
-
-/**
- * Canonical local calendar-day key (YYYY-MM-DD) for a stored date/timestamp.
- *   • A date-only 'YYYY-MM-DD' is an INTENTIONAL local calendar day — returned
- *     verbatim (never re-parsed through `new Date(str)`, which would read it as
- *     UTC and can shift it a day for anyone west of GMT).
- *   • A full timestamp / Date is converted to the LOCAL calendar day.
- *   • Anything missing or unparseable → null. A bad date NEVER becomes "today".
- * @param {unknown} value
- * @param {string} [tz]  IANA tz for timestamp→day (defaults to the runtime tz)
- * @returns {string|null}
- */
-export function localDayKey(value, tz) {
-  if (value == null || value === '') return null;
-  if (typeof value === 'string' && DATE_ONLY.test(value)) {
-    const [y, m, d] = value.split('-').map(Number);
-    // Reject impossible calendar dates (e.g. 2026-02-31, 2026-13-01).
-    const probe = new Date(Date.UTC(y, m - 1, d));
-    if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) {
-      return null;
-    }
-    return value;
-  }
-  const dt = value instanceof Date ? value : new Date(String(value));
-  if (Number.isNaN(dt.getTime())) return null;
-  try {
-    return new Intl.DateTimeFormat('en-CA', tz ? { timeZone: tz } : undefined).format(dt);
-  } catch (_) {
-    return dt.toISOString().slice(0, 10);
-  }
-}
 
 /**
  * Monday (YYYY-MM-DD) of the calendar week containing `dateISO`. Uses noon-UTC
@@ -79,14 +50,6 @@ export function weekStartOf(dateISO) {
 /** The canonical week key IS the Monday date string — one value, no ambiguity. */
 export function weekKeyOf(dateISO) {
   return weekStartOf(dateISO);
-}
-
-/** Add `n` whole days to a YYYY-MM-DD key (noon-UTC math, DST-safe). */
-export function addDaysISO(dateISO, n) {
-  const [y, m, d] = dateISO.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d, 12));
-  dt.setUTCDate(dt.getUTCDate() + n);
-  return dt.toISOString().slice(0, 10);
 }
 
 // ---- per-day strength stats --------------------------------------------------

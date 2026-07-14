@@ -21,7 +21,8 @@ import { computeReadiness, readinessStatus, readinessColor } from '../analytics/
 import { getFastingContext } from '../fasting.js';
 import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
 import { loggedDateSet } from '../analytics/logged-days.js';
-import { buildCalendarWeekStrength, indexSlotsByDate, addDaysISO, localDayKey } from '../analytics/weekly-aggregate.js';
+import { buildCalendarWeekStrength, indexSlotsByDate } from '../analytics/weekly-aggregate.js';
+import { addDaysISO, localDayKey, todayKey } from '../dates.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -121,7 +122,7 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
 
   // ---- Readiness (multi-signal, Garmin-style) ----------------------------
   const hc = state?.healthConnect || {};
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const todayWellness = (state?.wellnessLog || []).find(e => e.date === today) || null;
   const sleepLog = Array.isArray(hc.sleep) ? [...hc.sleep].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
   const sleepHours = sleepLog[0]?.totalHours || 0;
@@ -416,16 +417,15 @@ export function activeTrainingDates(weeks, days, state) {
   return loggedDateSet(state?.weeks === weeks ? state : { ...state, weeks }, days);
 }
 
-export function computeStreak(weeks, days, state) {
+export function computeStreak(weeks, days, state, todayISO = todayKey()) {
   const active = activeTrainingDates(weeks, days, state);
   // Streak freezes (R7): a frozen day counts for streak continuity, so an
   // occasional missed day doesn't wipe a long streak.
   (state?.streakFreezes?.used || []).forEach(ds => active.add(ds));
-  const todayD = new Date();
   let current = 0;
   for (let i = 0; i <= 120; i++) {
-    const d = new Date(todayD); d.setDate(todayD.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = addDaysISO(todayISO, -i);
+    if (!ds) break;
     if (active.has(ds)) { if (i === current) current++; }
     else if (i === current) break;
   }

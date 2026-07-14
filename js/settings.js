@@ -6,6 +6,7 @@ import { getAllRoutes, putRoutes, clearRouteDatabase } from './db.js';
 import { wrapExport, parseImport } from './state/route-portability.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
+import { todayKey } from './dates.js';
 
 // Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
 const _fmtRest = (sec) => {
@@ -272,7 +273,7 @@ export function saveBodyWeight() {
   const appState = _ensureSettings();
   appState.settings.defaultBodyWeight = val;
   if (!appState.bodyWeightLog) appState.bodyWeightLog = [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const idx = appState.bodyWeightLog.findIndex(l => l.date === today);
   if (idx >= 0) appState.bodyWeightLog[idx].weight = val;
   else appState.bodyWeightLog.push({ date: today, weight: val });
@@ -608,7 +609,7 @@ export async function exportData() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `helyx-training-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `helyx-training-${todayKey()}.json`;
   a.click();
   URL.revokeObjectURL(url);
   const n = Object.keys(routes).length;

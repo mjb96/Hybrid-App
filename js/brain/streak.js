@@ -12,14 +12,15 @@
 // computeStreak via activeTrainingDates + state.streakFreezes.used.
 // =============================================================================
 import { activeTrainingDates } from '../home/dashboard-model.js';
+import { addDaysISO, todayKey } from '../dates.js';
 
 const MAX_FREEZES = 2;
 const DAY_MS = 86400000;
 
 const isoOffset = (todayISO, n) => {
-  const d = new Date(todayISO + 'T00:00:00');
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  const key = addDaysISO(todayISO, -n);
+  if (!key) throw new RangeError(`Invalid local day key: ${todayISO}`);
+  return key;
 };
 
 function ensure(state) {
@@ -51,7 +52,7 @@ function currentStreak(active, todayISO) {
 //      yesterday — preserving the streak.
 //   2. EARN: crossing each new 7-day tier tops the bank back up (capped).
 // Returns { changed, froze, frozeDate, earned }.
-export function reconcileStreakFreezes(state, days, todayISO = new Date().toISOString().slice(0, 10)) {
+export function reconcileStreakFreezes(state, days, todayISO = todayKey()) {
   const f = ensure(state);
   const logged = activeTrainingDates(state.weeks || {}, days, state);
   const activeWithFreezes = new Set([...logged, ...f.used]);
@@ -99,7 +100,7 @@ export function streakFreezeInfo(state) {
 
 // Loss-aversion line: shown when a meaningful streak is at risk (nothing logged
 // yet today). Escalates when there's no freeze to catch a miss. Pure.
-export function streakRiskLine(state, model, todayISO = new Date().toISOString().slice(0, 10)) {
+export function streakRiskLine(state, model, todayISO = todayKey()) {
   const cur = model?.streak?.current || 0;
   if (cur < 3) return null;
   const logged = activeTrainingDates(state?.weeks || {}, ['mon','tue','wed','thu','fri','sat','sun'], state);

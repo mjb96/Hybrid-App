@@ -22,27 +22,82 @@ function resolveDeviceTz() {
 }
 export const DEFAULT_TZ = resolveDeviceTz();
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const pad2 = (n) => String(n).padStart(2, '0');
+
+function validDateOnly(value) {
+  if (typeof value !== 'string' || !DATE_ONLY.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
+}
+
+/**
+ * Canonical local calendar-day key (YYYY-MM-DD) for a stored date/timestamp.
+ * Date-only strings are intentional calendar days and are never reparsed through
+ * UTC. Timestamps and Date objects are converted in `tz` (the device timezone by
+ * default). Invalid input returns null; it never silently becomes "today".
+ * @param {unknown} value
+ * @param {string} [tz]
+ * @returns {string|null}
+ */
+export function localDayKey(value, tz = DEFAULT_TZ) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string' && DATE_ONLY.test(value)) {
+    return validDateOnly(value) ? value : null;
+  }
+
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(d);
+    const part = (type) => parts.find(p => p.type === type)?.value;
+    const year = part('year'), month = part('month'), day = part('day');
+    return year && month && day ? `${year}-${month}-${day}` : null;
+  } catch (_) {
+    // `DEFAULT_TZ` is the runtime timezone, so local getters remain an honest
+    // fallback when Intl is unavailable. An explicit unsupported timezone must
+    // fail closed rather than falling back to UTC and shifting the day.
+    if (tz !== DEFAULT_TZ) return null;
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+}
+
 // Returns YYYY-MM-DD for today in the given timezone.
-export function todayKey(tz = DEFAULT_TZ) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+export function todayKey(tz = DEFAULT_TZ, now = new Date()) {
+  const key = localDayKey(now, tz);
+  if (!key) throw new RangeError(`Unable to resolve calendar day for timezone: ${tz}`);
+  return key;
 }
 
 // Returns YYYY-MM-DD for any Date object (or ISO string) in the given timezone.
 export function dateKey(date = new Date(), tz = DEFAULT_TZ) {
-  const d = date instanceof Date ? date : new Date(date);
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(d);
+  const key = localDayKey(date, tz);
+  if (!key) throw new RangeError('Invalid date');
+  return key;
 }
 
-// Returns 'D/M' label for a YYYY-MM-DD string, interpreted in the given timezone.
-export function formatDayMonth(dateStr, tz = DEFAULT_TZ) {
-  const d = new Date(dateStr + 'T00:00:00');
-  const parts = new Intl.DateTimeFormat('en-AU', {
-    timeZone: tz,
-    day: 'numeric',
-    month: 'numeric',
-  }).formatToParts(d);
-  const day   = parts.find((p) => p.type === 'day').value;
-  const month = parts.find((p) => p.type === 'month').value;
+// Add whole calendar days to a YYYY-MM-DD key. Noon-UTC arithmetic is immune to
+// local DST gaps/folds because the input/output are calendar keys, not instants.
+export function addDaysISO(dateISO, n) {
+  const key = localDayKey(dateISO);
+  const amount = Number(n);
+  if (!key || !Number.isInteger(amount)) return null;
+  const [y, m, d] = key.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12));
+  dt.setUTCDate(dt.getUTCDate() + amount);
+  return dt.toISOString().slice(0, 10);
+}
+
+// Returns 'D/M' for an intentional calendar key. No timezone conversion is
+// involved: 2026-07-14 must display as 14/7 everywhere.
+export function formatDayMonth(dateStr) {
+  const key = localDayKey(dateStr);
+  if (!key) return '';
+  const [, month, day] = key.split('-').map(Number);
   return `${day}/${month}`;
 }
 

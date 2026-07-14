@@ -1,8 +1,9 @@
 // ==========================================
 // LOAD / READINESS METRICS (metrics/metrics-load.js)
 // ==========================================
-// Pure functions — no DOM, no imports, no side effects.
+// Pure functions — no DOM or side effects.
 // ==========================================
+import { daysBetween, todayKey } from '../dates.js';
 
 function parseMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -145,16 +146,13 @@ export function formatFormTSB(currentCTL, currentATL) {
 }
 
 // Streak view derived from stored streakData. Detects broken streaks (last
-// activity > 1 day ago). Uses UTC dates to match how lastActivityDate is stored.
-export function streakView(streakData) {
+// activity > 1 local calendar day ago).
+export function streakView(streakData, todayISO = todayKey()) {
   if (!streakData || !streakData.lastActivityDate) {
     return { hasData: false, current: 0, longest: 0, broken: false };
   }
 
-  const todayUTC = new Date().toISOString().slice(0, 10);
-  const da = new Date(streakData.lastActivityDate + 'T00:00:00Z');
-  const db = new Date(todayUTC + 'T00:00:00Z');
-  const diff = isNaN(da.getTime()) ? null : Math.round((db - da) / 86400000);
+  const diff = daysBetween(streakData.lastActivityDate, todayISO);
 
   const broken = diff !== null && diff > 1;
   return {

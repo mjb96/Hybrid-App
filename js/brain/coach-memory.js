@@ -1,5 +1,6 @@
 // @ts-check
 // =============================================================================
+import { addDaysISO, todayKey } from '../dates.js';
 // COACH MEMORY (js/brain/coach-memory.js)
 //
 // V2-4 — one coach with memory. A good coach remembers what you did last week,
@@ -56,9 +57,9 @@ function consecutiveStrongWeeks(history, threshold = 70) {
  * @param {any} state appState (reads hybridScore.history + streakData)
  * @param {number|null} [todayScore] today's computed score (for PB / recent-high)
  */
-export function coachMemory(state, todayScore = null) {
+export function coachMemory(state, todayScore = null, todayISO = todayKey()) {
   const history = (state?.hybridScore?.history || []).filter(h => typeof h.score === 'number' && h.date);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO;
   const prior = history.filter(h => h.date < today);
 
   // 1) All-time personal best (needs a real history to beat).
@@ -68,7 +69,7 @@ export function coachMemory(state, todayScore = null) {
       return `That's a new personal best Hybrid Score — beating ${priorMax}.`;
     }
     // 2) Highest in the last 30 days (not an all-time PB, but a recent peak).
-    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const cutoff = addDaysISO(today, -30);
     const recent = prior.filter(h => h.date >= cutoff);
     if (recent.length >= 4 && todayScore >= Math.max(...recent.map(h => h.score))) {
       return `Your highest score in a month.`;

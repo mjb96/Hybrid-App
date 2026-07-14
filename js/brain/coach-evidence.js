@@ -14,14 +14,13 @@
 // Load/Recovery stat views).
 // =============================================================================
 import { buildWeekChart } from '../analytics/week-chart-model.js';
+import { addDaysISO, todayKey } from '../dates.js';
 
 // How many of the last 7 nights carry a sleep reading (data completeness).
 function sleepNights(state, today) {
   const log = state?.healthConnect?.sleep;
   if (!Array.isArray(log) || !log.length) return 0;
-  const cutoff = new Date(today + 'T00:00:00Z');
-  cutoff.setUTCDate(cutoff.getUTCDate() - 6);
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
+  const cutoffKey = addDaysISO(today, -6);
   const seen = new Set();
   for (const e of log) {
     if (e && e.date && e.date >= cutoffKey && e.date <= today && (e.totalHours > 0)) seen.add(e.date);
@@ -84,7 +83,7 @@ function distanceBullet(state, days, today) {
  * @returns {{ bullets: string[], clears: string|null, confidence: 'ok'|'limited' }}
  */
 export function buildCoachEvidence({ state, days, model, rec, today }) {
-  const t = today || new Date().toISOString().slice(0, 10);
+  const t = today || todayKey();
   const sev = rec?.severity || 'neutral';
   const badge = rec?.badge || '';
   const bullets = [];
