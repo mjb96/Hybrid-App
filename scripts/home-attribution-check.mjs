@@ -12,37 +12,20 @@
 //
 //   node scripts/home-attribution-check.mjs
 //
-// Self-skipping if playwright-core / Chromium are unavailable (exit 0).
-// Exit 0 = pass or skip; non-zero = regression.
+// Local runs may skip when Chromium is absent. `--required` (used by CI) turns
+// a missing dependency/browser into a hard failure.
 // ============================================================================
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-function findChromium() {
-  const base = '/opt/pw-browsers';
-  if (!existsSync(base)) return null;
-  // Prefer the headless-shell (old-headless is removed from the full chrome build).
-  for (const d of readdirSync(base).filter(n => n.startsWith('chromium_headless_shell'))) {
-    const p = path.join(base, d, 'chrome-linux', 'headless_shell');
-    if (existsSync(p)) return p;
-  }
-  for (const d of readdirSync(base).filter(n => n.startsWith('chromium') && !n.includes('headless'))) {
-    const p = path.join(base, d, 'chrome-linux', 'chrome');
-    if (existsSync(p)) return p;
-  }
-  return null;
-}
-
-let chromium;
-try { ({ chromium } = await import('playwright-core')); }
-catch { console.log('SKIP: playwright-core not installed.'); process.exit(0); }
-const exe = findChromium();
-if (!exe) { console.log('SKIP: no Chromium binary under /opt/pw-browsers.'); process.exit(0); }
+const browserRuntime = await resolveChromium();
+if (!browserRuntime) process.exit(0);
+const { chromium, executablePath: exe } = browserRuntime;
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -76,7 +59,7 @@ const seeded = {
   currentWeek: '3',
   activeProgramId: 'hybrid_engine',
   weekStartedAt: prevMon.toISOString(),
-  settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon' },
+  settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', autoAdvanceWeek: false },
   weeks: {
     '3': {
       dates: prevDates,                                   // LAST calendar week
@@ -189,7 +172,7 @@ try {
   // comparison with correct units, in a fresh context. -----------------------
   const s2 = {
     currentWeek: '3', activeProgramId: 'hybrid_engine', weekStartedAt: curMon.toISOString(),
-    settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon' },
+    settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', autoAdvanceWeek: false },
     weeks: { '3': {
       dates: { mon: iso(prevMon), wed: iso(curMon) },
       lifts: { mon: { 'Bench Press': nSets(3, 100, 5) }, wed: { 'Bench Press': nSets(3, 105, 5) } },

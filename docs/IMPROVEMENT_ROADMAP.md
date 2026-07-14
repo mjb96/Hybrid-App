@@ -43,6 +43,16 @@
   801/801 JS tests plus Android JVM tests, lint, and debug APK assembly. Physical-device
   save/cancel/overwrite/reimport evidence remains the `[You]` checklist in
   `docs/android-export-device-checklist.md`. **Next integrity slice:** R5 release gates.
+- **R5 implementation complete — 14 July 2026** on `codex/beta-integrity-migrations`.
+  One reusable required-verification workflow now owns locked dependency install,
+  JavaScript syntax/type/precache/policy/unit/smoke checks, required Playwright Chromium
+  journeys, and Android JVM/lint/debug-APK checks. Pages deployment and signed Android
+  artifact jobs both depend on that complete workflow. Browser checks use an exact pinned
+  Playwright dependency and fail instead of skipping when required. A repository policy
+  test plus failure injection prevents any required command or artifact dependency from
+  being silently removed. Local evidence: 808/808 JS tests, all three real-browser
+  journeys, Android unit/lint/assemble, and workflow-policy checks green. `[You]` still
+  owns branch-protection configuration after merge.
 
 ## Prioritization model
 

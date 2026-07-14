@@ -72,6 +72,21 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Beta Integrity R5 implementation — verification-gated publication.**
+  Consolidated the duplicate web/Android CI files into one reusable required workflow
+  that installs locked dependencies and runs JavaScript syntax, type, precache, policy,
+  unit, smoke, required Chromium, Android JVM, lint, and debug-APK gates. Pages deployment
+  and signed Android artifact builds now have an explicit dependency on the whole workflow.
+  Added exact-pinned Playwright, a required browser runner, and a repository policy guard
+  with failure injection proving that removing a JS gate, Chromium install/check, Android
+  task, or artifact dependency fails verification. Making the browser journeys mandatory
+  exposed a stale fixture that triggered program auto-advance; the fixture now disables
+  auto-advance explicitly instead of timing out. Validation: **808/808 JS tests**,
+  typecheck, precache, smoke, workflow policy, all three Playwright journeys, Android JVM
+  tests, lint, and debug APK assembly green. · **Next:** review/merge the combined R3–R5
+  PR; `[You]` configure required branch checks and complete the R4 physical-device export
+  checklist before the Phase 0 public-beta gate can close.
+
 - 2026-07-14 · **Beta Integrity R4 implementation — complete Android portability.**
   Replaced split blob/data-URL downloads with one confirmed text-export service. Android
   now opens the system create-document picker through a dedicated, input-validated bridge
