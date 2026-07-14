@@ -23,6 +23,7 @@ import { computeDashboardModel } from './home/dashboard-model.js';
 import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
+import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 
 let _getState;
 let _getSelectedDay;
@@ -1704,6 +1705,17 @@ export function openFinishSessionModal() {
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
   const sumRunRpeEl = document.getElementById('summaryRunRPE');
   const sumModalEl = document.getElementById('summaryModal');
+  const titleEl = document.getElementById('summaryModalTitle');
+  const copyEl = document.getElementById('summaryModalCopy');
+  const actionEl = document.getElementById('summarySaveAction');
+  const progressEl = document.getElementById('summaryCompletionProgress');
+  const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
+  const presentation = completionPresentation(completion);
+  if (sumModalEl) sumModalEl.dataset.outcome = completion.outcome;
+  if (progressEl) progressEl.textContent = completion.progressLabel;
+  if (titleEl) titleEl.textContent = presentation.title;
+  if (copyEl) copyEl.textContent = presentation.body;
+  if (actionEl) actionEl.textContent = presentation.action;
 
   if (sumVolEl) sumVolEl.textContent = vol + ' kg';
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
@@ -1754,6 +1766,7 @@ export function closeFinishSessionModal() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const wk = appState.currentWeek;
+  const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
   if (!appState.weeks[wk].gymRpe) appState.weeks[wk].gymRpe = {};
 
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
@@ -1803,11 +1816,16 @@ export function closeFinishSessionModal() {
   
   if (_switchTab) _switchTab('home');
 
-  // Surface the session recap over Home. Decoupled via an event so workout.js
-  // doesn't depend on the recap module.
-  try {
-    document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay } }));
-  } catch (_) {}
+  // Only a policy-complete session earns the completed recap path. Partial work
+  // is still persisted and counted as activity, with explicitly partial copy.
+  if (completion.complete) {
+    try {
+      document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay, outcome: 'complete' } }));
+    } catch (_) {}
+  } else if (completion.partial) {
+    showToast('Partial session saved — not marked complete');
+    try { document.dispatchEvent(new CustomEvent('session:saved-partial', { detail: { week: wk, day: selectedDay } })); } catch (_) {}
+  }
 }
 
 // ==========================================

@@ -64,7 +64,7 @@ test('generateRecommendation: a rest day never says "push" — it frames recover
 
 test('generateRecommendation: a deload training day says keep it light, not push', () => {
   const program = {
-    days: { mon: { title: 'Push', runs: 'Rest' } },
+    days: { mon: { title: 'Push', lifts: ['Bench'], runs: 'Rest' } },
     weeklyVolModifiers: { '8': { intensityLabel: 'Deload' } },
   };
   const s = { currentWeek: '8', loadMetrics: { atl: 95, ctl: 100 }, weeks: { '8': { lifts: { mon: { 'Bench': [{ w: '60', r: '5', c: false }] } } } } };
