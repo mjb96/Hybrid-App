@@ -13,6 +13,7 @@
 // from data that already exists (load metrics, readiness, sleep log, Hybrid
 // Score history, logged RPEs).
 // =============================================================================
+import { runSessionsForDay } from '../state/run-sessions.js';
 
 // Signal catalogue: key → { weight, severity, label }. Weight drives the level;
 // severity colours the chip. ACWR ≥1.5 is on its own sufficient (injury-risk
@@ -59,9 +60,11 @@ function highRpeCount(state, days) {
     if (!wk) continue;
     for (const d of days) {
       const g = parseFloat(wk.gymRpe?.[d]) || 0;
-      const r = parseFloat(wk.runs?.[d]?.rpe) || 0;
       if (g > 0) rpes.push(g);
-      if (r > 0) rpes.push(r);
+      runSessionsForDay(wk, d).forEach(run => {
+        const r = parseFloat(run.rpe) || 0;
+        if (r > 0) rpes.push(r);
+      });
     }
   }
   return rpes.slice(-6).filter(v => v >= 8).length;

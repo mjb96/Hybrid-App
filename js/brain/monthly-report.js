@@ -10,8 +10,7 @@
 import { computeDashboardModel } from '../home/dashboard-model.js';
 import { forEachLoggedDay } from '../analytics/logged-days.js';
 import { buildPredictions, topPredictionLine } from './predictions.js';
-
-const DAY_MS = 86400000;
+import { addDaysISO, dateKey } from '../dates.js';
 
 // Every logged day → { dateISO, volume, distance } via the shared iterator.
 function datedSessions(state, days) {
@@ -39,11 +38,11 @@ function avgScoreInWindow(state, startISO, endISO) {
 }
 
 export function buildMonthlyReport(state, days, program, now = new Date()) {
-  const today = new Date(now); today.setHours(0, 0, 0, 0);
-  const endISO = new Date(today.getTime() + DAY_MS).toISOString().slice(0, 10); // inclusive of today
-  const startISO = new Date(today.getTime() - 27 * DAY_MS).toISOString().slice(0, 10);
+  const todayISO = dateKey(now);
+  const endISO = addDaysISO(todayISO, 1); // exclusive end, inclusive of today
+  const startISO = addDaysISO(todayISO, -27);
   const prevEndISO = startISO;
-  const prevStartISO = new Date(today.getTime() - 55 * DAY_MS).toISOString().slice(0, 10);
+  const prevStartISO = addDaysISO(todayISO, -55);
 
   const sessions = datedSessions(state, days);
   const cur = windowTotals(sessions, startISO, endISO);

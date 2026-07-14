@@ -20,6 +20,7 @@
 
 import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './lift-id.js';
 import { reportHandledError } from '../monitoring/report-error.js';
+import { migrateLegacyRunSessions } from './run-sessions.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -237,9 +238,24 @@ const MIGRATIONS = [
       });
     }
   },
+
+  // v3 → v4: give every stored run a stable SESSION identity without changing
+  // the legacy cockpit shape. The original `runs[day]` object is preserved as
+  // the editable projection; canonical appendable history lives alongside it
+  // in `runSessions[day]`. Empty scaffolding becomes an empty list, never a fake
+  // session. Deterministic ids make the migration idempotent and export-safe.
+  (state) => {
+    const migrated = migrateLegacyRunSessions(state, DAY_KEYS);
+    if (migrated > 0) {
+      reportHandledError('migration:v4-run-session-identity', {
+        message: 'Adopted legacy run slots into stable run sessions',
+        sessionsMigrated: migrated,
+      });
+    }
+  },
 ];
 
-export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 3
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 4
 
 /**
  * Apply every pending migration in order, then stamp the current version.

@@ -19,6 +19,7 @@ import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './s
 import {
   ensureActivation, beginActivation, archiveForeignWeeks,
 } from './state/activation-identity.js';
+import { migrateLegacyRunSessions, runSessionsForDay } from './state/run-sessions.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -320,10 +321,11 @@ export function verifyWeekStorageSchema(wk) {
   const activationId = ensureActivation(appState);
 
   if (!appState.weeks[wk]) {
-    appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, liftOrder: {}, dates: {},
+    appState.weeks[wk] = { runs: {}, runSessions: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, liftOrder: {}, dates: {},
       activationId, programId: appState.activeProgramId };
     DEFAULT_DAYS.forEach(d => {
       appState.weeks[wk].runs[d] = { dist: '', time: '', rpe: '' };
+      appState.weeks[wk].runSessions[d] = [];
       appState.weeks[wk].notes[d] = '';
       appState.weeks[wk].gymRpe[d] = '';
       appState.weeks[wk].bodyWeight[d] = '';
@@ -352,6 +354,9 @@ export function verifyWeekStorageSchema(wk) {
       }
     });
   }
+  // Defensive schema repair for imported/current-version snapshots that lack
+  // the v4 sidecar. This adopts any legacy projection before creating arrays.
+  migrateLegacyRunSessions({ weeks: { [wk]: appState.weeks[wk] } }, DEFAULT_DAYS);
 }
 
 // A set counts as "logged" (real history, never discard on a program switch)
@@ -446,9 +451,10 @@ function loadMetricsSignature(state) {
     for (const d of DEFAULT_DAYS) {
       const gr = wd.gymRpe?.[d];
       const gt = wd.gymStats?.[d]?.time;
-      const rr = wd.runs?.[d]?.rpe;
-      const rt = wd.runs?.[d]?.time;
-      if (gr || gt || rr || rt) parts.push(`${wk}${d}:${gr || ''}/${gt || ''}/${rr || ''}/${rt || ''}`);
+      const runSig = runSessionsForDay(wd, d)
+        .map(run => `${run.sessionId || ''}:${run.rpe || ''}/${run.time || ''}`)
+        .join(',');
+      if (gr || gt || runSig) parts.push(`${wk}${d}:${gr || ''}/${gt || ''}/${runSig}`);
     }
   }
   return parts.join('|');

@@ -24,6 +24,7 @@ import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
 import { setHTML, reconcileKeyed } from './ui/render.js';
 import { reportHandledError, renderSafely } from './monitoring/report-error.js';
+import { todayKey } from './dates.js';
 
 let _getState;
 let _getSelectedDay;
@@ -174,7 +175,7 @@ function renderOvertrainingCard(appState, model, assessment) {
 
   // Fire a single warning push per day when the condition is high (best-effort).
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayKey();
     if (appState._overtrainingPushedDate !== today) {
       const pushed = pushOvertrainingWarning(assessment);
       if (pushed) { appState._overtrainingPushedDate = today; saveStateToLocalStorage(true); }
@@ -423,7 +424,7 @@ document.addEventListener('click', (e) => {
     // signal set will resurface the warning.
     const appState = _getState();
     const card = document.getElementById('homeOvertrainingCard');
-    appState.overtrainingAck = { sig: card?.dataset.sig || '', date: new Date().toISOString().slice(0, 10) };
+    appState.overtrainingAck = { sig: card?.dataset.sig || '', date: todayKey() };
     saveStateToLocalStorage(true);
     if (card) card.style.display = 'none';
     renderHome();

@@ -157,6 +157,7 @@ const REQUIRED_ASSETS = [
   "./js/state/migrations.js",
   "./js/state/route-identity.js",
   "./js/state/route-portability.js",
+  "./js/state/run-sessions.js",
   "./js/state/supabase.js",
   "./js/state/sync-conflict-ui.js",
   "./js/state/sync-guard.js",

@@ -27,6 +27,7 @@
 //
 // Pure — no DOM, no module state, unit-tested in tests/program_isolation.test.js.
 // =============================================================================
+import { runDaySummary } from './run-sessions.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const ARCHIVE_PREFIX = 'arch:';
@@ -86,9 +87,8 @@ export function weekHasLoggedData(week) {
       if (Array.isArray(sets) && sets.some(setIsLogged)) return true;
     }
   }
-  const runs = week.runs || {};
   for (const day of DAY_KEYS) {
-    const r = runs[day];
+    const r = runDaySummary(week, day);
     if (r && ((parseFloat(r.dist) || 0) > 0 || (r.time != null && r.time !== ''))) return true;
   }
   const gym = week.gymStats || {};

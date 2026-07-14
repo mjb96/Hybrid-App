@@ -44,14 +44,18 @@ function drawPaceSegments(map, coords, splits, thresholdSec) {
 }
 
 // hasDistance: pass the run's recorded distance (truthy => a run exists to map).
-// options: { splits, thresholdSec } — when provided, draws pace-zone colouring.
+// options: { splits, thresholdSec, sessionId } — exact session identity avoids
+// showing another route when two runs share the same program slot.
 export function renderRunMap(wk, selectedDay, hasDistance, options = {}) {
   const containerId = options.containerId || 'runMapContainer';
   const runMapContainer = document.getElementById(containerId);
   if (!runMapContainer) return;
 
   if (hasDistance) {
-    getMapFromDB(wk, selectedDay, { activationId: options.activationId }).then(async coords => {
+    getMapFromDB(wk, selectedDay, {
+      activationId: options.activationId,
+      sessionId: options.sessionId,
+    }).then(async coords => {
       if (coords && coords.length > 0) {
         runMapContainer.style.display = 'block';
         try { await ensureLeaflet(); } catch { runMapContainer.style.display = 'none'; return; }

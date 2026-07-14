@@ -14,6 +14,7 @@ import { trainingStatus } from './briefing.js';
 import { isCompletedSet } from '../set-utils.js';
 import { classifyWeek } from '../programs/timeline.js';
 import { WEEK_PHASE_NAMES } from '../constants.js';
+import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
 
 // Has the selected day's planned session already been logged? Gym counts as done
 // when every materialised set for the day is complete (and there is at least
@@ -28,7 +29,7 @@ function sessionCompletion(state, selectedDay, session) {
     totalSets += dayLifts[lift].length;
     doneSets += dayLifts[lift].filter(isCompletedSet).length;
   }
-  const runLogged = (parseFloat(wk.runs?.[selectedDay]?.dist) || 0) > 0;
+  const runLogged = (parseFloat(runDaySummary(wk, selectedDay).dist) || 0) > 0;
   const gymDone = session.hasGym ? (totalSets > 0 && doneSets === totalSets) : true;
   const runDone = session.hasRun ? runLogged : true;
   const anyLogged = doneSets > 0 || runLogged;
@@ -44,9 +45,11 @@ function getRecentRpes(state, days) {
     if (!wkData) continue;
     for (const d of days) {
       const gymRpe = parseFloat(wkData.gymRpe?.[d]) || 0;
-      const runRpe = parseFloat(wkData.runs?.[d]?.rpe) || 0;
       if (gymRpe > 0) entries.push(gymRpe);
-      if (runRpe > 0) entries.push(runRpe);
+      runSessionsForDay(wkData, d).forEach(run => {
+        const runRpe = parseFloat(run.rpe) || 0;
+        if (runRpe > 0) entries.push(runRpe);
+      });
     }
   }
   return entries.reverse().slice(0, 6); // most recent first, cap at 6

@@ -22,6 +22,7 @@ import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './state/lift-id.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
+import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 
 let _getState;
 let _getSelectedDay;
@@ -447,6 +448,7 @@ export function renderWorkout() {
     splits: rStats.splits,
     thresholdSec: appState.thresholdPaceSeconds,
     activationId: appState.activeActivationId,
+    sessionId: runContext.sessionId,
   });
 
   const notesEl = document.getElementById('sessionNotesInput');
@@ -867,7 +869,7 @@ export function commitWorkoutUIState() {
   if (distEl && distEl.offsetParent !== null) {
     const existing = weekData.runs[selectedDay] || {};
     const distUnit = _runDistUnit(appState);
-    weekData.runs[selectedDay] = {
+    const update = {
       ...existing,
       // Convert the entered display-unit distance back to canonical km.
       dist:  distEl.value === '' ? '' : _displayDistToKm(distEl.value, distUnit),
@@ -880,6 +882,14 @@ export function commitWorkoutUIState() {
       elev:  elevEl  ? elevEl.value  : '',
       cals:  calsEl  ? calsEl.value  : '',
     };
+    if (hasRunData(update) || existing.sessionId) {
+      upsertRunSession(weekData, selectedDay, update, {
+        sessionId: existing.sessionId || newRunSessionId(),
+        source: existing.source || 'cockpit',
+        localDate: existing.localDate || weekData.dates?.[selectedDay] || null,
+        startTs: existing.startTs,
+      });
+    }
   }
 
   if (!weekData.gymStats) weekData.gymStats = {};
@@ -1623,7 +1633,7 @@ export function executeResetActiveDayMetrics() {
   if (!appState.weeks[wk].notes) appState.weeks[wk].notes = {};
   if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
   
-  appState.weeks[wk].runs[selectedDay] = { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '' };
+  clearRunSessions(appState.weeks[wk], selectedDay);
   appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
   appState.weeks[wk].lifts[selectedDay] = {};
   appState.weeks[wk].notes[selectedDay] = '';
@@ -1751,7 +1761,16 @@ export function closeFinishSessionModal() {
   
   if (sumGymRpeEl) appState.weeks[wk].gymRpe[selectedDay] = sumGymRpeEl.value;
   if (sumRunRpeEl && appState.weeks[wk].runs[selectedDay]) {
-    appState.weeks[wk].runs[selectedDay].rpe = sumRunRpeEl.value;
+    const existingRun = appState.weeks[wk].runs[selectedDay];
+    existingRun.rpe = sumRunRpeEl.value;
+    if (existingRun.sessionId || hasRunData(existingRun)) {
+      upsertRunSession(appState.weeks[wk], selectedDay, existingRun, {
+        sessionId: existingRun.sessionId || newRunSessionId(),
+        source: existingRun.source || 'cockpit',
+        localDate: existingRun.localDate || appState.weeks[wk].dates?.[selectedDay] || null,
+        startTs: existingRun.startTs,
+      });
+    }
   }
   
   const gymRpeEl = document.getElementById('sessionGymRpeCockpit');

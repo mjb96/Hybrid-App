@@ -4,12 +4,15 @@
 // Pure functions. No DOM, no side effects.
 // ==========================================
 import { rollingAverage, pctChange, clamp } from './math-utils.js';
+import { addDaysISO, todayKey } from '../../dates.js';
+
+const cutoffDay = (days, todayISO = todayKey()) => addDaysISO(todayISO, -days);
 
 // Extract last N days of sleep data from wellnessLog.
 // Returns [{ date, hours }, ...] sorted ascending.
-export function sleepSeries(wellnessLog, days = 28) {
+export function sleepSeries(wellnessLog, days = 28, todayISO = todayKey()) {
   if (!Array.isArray(wellnessLog) || wellnessLog.length === 0) return [];
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const cutoff = cutoffDay(days, todayISO);
   return wellnessLog
     .filter(e => e.date >= cutoff && e.sleep > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -17,9 +20,9 @@ export function sleepSeries(wellnessLog, days = 28) {
 }
 
 // Extract mood series from wellnessLog.
-export function moodSeries(wellnessLog, days = 28) {
+export function moodSeries(wellnessLog, days = 28, todayISO = todayKey()) {
   if (!Array.isArray(wellnessLog) || wellnessLog.length === 0) return [];
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const cutoff = cutoffDay(days, todayISO);
   return wellnessLog
     .filter(e => e.date >= cutoff && e.mood > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -27,9 +30,9 @@ export function moodSeries(wellnessLog, days = 28) {
 }
 
 // Extract soreness series from wellnessLog.
-export function sorenessSeries(wellnessLog, days = 28) {
+export function sorenessSeries(wellnessLog, days = 28, todayISO = todayKey()) {
   if (!Array.isArray(wellnessLog) || wellnessLog.length === 0) return [];
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const cutoff = cutoffDay(days, todayISO);
   return wellnessLog
     .filter(e => e.date >= cutoff && e.soreness > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -38,10 +41,10 @@ export function sorenessSeries(wellnessLog, days = 28) {
 
 // HRV trend series from Health Connect data.
 // Returns [{ date, value }, ...] for last N days.
-export function hrvSeries(healthConnect, days = 28) {
+export function hrvSeries(healthConnect, days = 28, todayISO = todayKey()) {
   const hrv = healthConnect?.hrv;
   if (!Array.isArray(hrv) || hrv.length === 0) return [];
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const cutoff = cutoffDay(days, todayISO);
   return hrv
     .filter(e => e.date >= cutoff && (e.rmssd || e.value) > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -49,10 +52,10 @@ export function hrvSeries(healthConnect, days = 28) {
 }
 
 // Resting HR trend series from Health Connect.
-export function restingHrSeries(healthConnect, days = 28) {
+export function restingHrSeries(healthConnect, days = 28, todayISO = todayKey()) {
   const rhr = healthConnect?.restingHR;
   if (!Array.isArray(rhr) || rhr.length === 0) return [];
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const cutoff = cutoffDay(days, todayISO);
   return rhr
     .filter(e => e.date >= cutoff && e.bpm > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -263,7 +266,7 @@ export function computeRecoveryAnalytics(appState) {
     ? { current: sleep7d, baseline: sleep28dBaseline, pct: Math.round(((sleep7d - sleep28dBaseline) / sleep28dBaseline) * 100) }
     : null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const todayWellness = wellnessLog.find(e => e.date === today) || {};
 
   return {

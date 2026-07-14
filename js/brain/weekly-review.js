@@ -12,6 +12,8 @@
 import { computeDashboardModel } from '../home/dashboard-model.js';
 import { weeklyE1rmByLift } from '../metrics/metrics-strength.js';
 import { isProgramDeloadWeek } from './day-verdict.js';
+import { addDaysISO, todayKey } from '../dates.js';
+import { runDaySummary } from '../state/run-sessions.js';
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -40,9 +42,7 @@ function weekPRs(state, days, wkNum, maxWeek) {
 
 // The Hybrid Score arc across the last 7 recorded days.
 function scoreArc(state) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 6);
-  const cutoffISO = cutoff.toISOString().slice(0, 10);
+  const cutoffISO = addDaysISO(todayKey(), -6);
   const entries = (state?.hybridScore?.history || [])
     .filter(h => h.date >= cutoffISO)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -97,7 +97,7 @@ export function buildWeeklyReview(state, days, program) {
   days.forEach(d => {
     const lifts = weekData.lifts?.[d] || {};
     const lifted = Object.values(lifts).some(sets => Array.isArray(sets) && sets.some(s => s && s.c));
-    const ran = (parseFloat(weekData.runs?.[d]?.dist) || 0) > 0;
+    const ran = (parseFloat(runDaySummary(weekData, d).dist) || 0) > 0;
     if (lifted || ran) sessionDays++;
   });
 

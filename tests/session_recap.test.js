@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildSessionRecap, renderSessionRecapHTML } from '../js/session-recap.js';
+import { upsertRunSession } from '../js/state/run-sessions.js';
 
 function stateWith(day) {
   return { weeks: { '1': day } };
@@ -96,6 +97,19 @@ test('empty day yields an empty recap (no throw), renders a friendly message', (
   const r = buildSessionRecap(stateWith({ lifts: {}, runs: {} }), '1', 'fri');
   assert.equal(r.empty, true);
   assert.match(renderSessionRecapHTML(r), /Nothing logged/i);
+});
+
+test('sessionId recap selects one exact same-day run while day recap aggregates both', () => {
+  const wd = { lifts: {}, runs: {}, runSessions: {}, dates: { mon: '2026-07-13' } };
+  upsertRunSession(wd, 'mon', { dist: '5', time: '25:00', type: 'run' }, { sessionId: 'run_one', updatedTs: 1 });
+  upsertRunSession(wd, 'mon', { dist: '3', time: '18:00', type: 'run' }, { sessionId: 'run_two', updatedTs: 2 });
+  const state = stateWith(wd);
+
+  assert.equal(buildSessionRecap(state, '1', 'mon').run.distKm, 8);
+  const exact = buildSessionRecap(state, '1', 'mon', 'run_one');
+  assert.equal(exact.run.sessionId, 'run_one');
+  assert.equal(exact.run.distKm, 5);
+  assert.equal(exact.run.time, '25:00');
 });
 
 test('renderSessionRecapHTML escapes lift names and includes stats', () => {

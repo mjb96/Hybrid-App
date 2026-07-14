@@ -5,6 +5,7 @@
 import { CONFIG } from './constants.js';
 import { devWarn } from './debug.js';
 import { isCompletedSet } from './set-utils.js';
+import { runSessionsForDay } from './state/run-sessions.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -217,8 +218,10 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
     // Fallback: session-level RPE (gym + run)
     if (!hasPerSetRpe) {
       DEFAULT_DAYS.forEach(d => {
-        const runRpe = parseInt(pastWkData.runs?.[d]?.rpe, 10) || 0;
-        if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
+        runSessionsForDay(pastWkData, d).forEach(run => {
+          const runRpe = parseInt(run.rpe, 10) || 0;
+          if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
+        });
 
         const gymRpe = parseInt(pastWkData.gymRpe?.[d], 10) || 0;
         if (gymRpe > 0) { totalRpeSum += gymRpe; rpeCount++; }

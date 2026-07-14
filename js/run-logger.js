@@ -4,16 +4,11 @@
 import { saveStateToLocalStorage, showToast, verifyWeekStorageSchema } from './state.js';
 import { todayKey } from './dates.js';
 import { resolveDateToSlot } from './analytics/logged-days.js';
+import { newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 
 let _getState;
 
-// When Save would overwrite a run already logged for the chosen date, we require a
-// second tap to confirm. Keyed by the resolved slot ("week:day") so switching the
-// date re-arms the guard.
-let _pendingOverwriteSlot = null;
-
-function _resetOverwriteGuard() {
-  _pendingOverwriteSlot = null;
+function _resetSaveButton() {
   const btn = document.querySelector('#runLoggerModal [data-action="save-run-log"]');
   if (btn) btn.textContent = 'Save Run';
 }
@@ -40,7 +35,7 @@ export function openRunLogger() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  _resetOverwriteGuard();
+  _resetSaveButton();
 
   const unit = _getState?.().settings?.distanceUnit || 'km';
   const badge = document.getElementById('rlDistUnit');
@@ -96,20 +91,7 @@ export function saveManualRun() {
   verifyWeekStorageSchema(wk);
   if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
 
-  // Don't silently clobber a run already logged for this date — confirm with a
-  // second tap first.
-  const slotKey = `${wk}:${day}`;
-  const existing = appState.weeks[wk].runs[day];
-  const existingHasData = existing && (existing.dist || existing.time || existing.pace || existing.rpe);
-  if (existingHasData && _pendingOverwriteSlot !== slotKey) {
-    _pendingOverwriteSlot = slotKey;
-    showToast('A run is already logged for that date — tap again to replace it', true);
-    const btn = modal?.querySelector('[data-action="save-run-log"]');
-    if (btn) btn.textContent = 'Replace existing run';
-    return;
-  }
-
-  appState.weeks[wk].runs[day] = {
+  upsertRunSession(appState.weeks[wk], day, {
     dist: distKm.toFixed(2),
     time,
     rpe,
@@ -118,7 +100,11 @@ export function saveManualRun() {
     elev,
     cals: '',
     notes,
-  };
+  }, {
+    sessionId: newRunSessionId(),
+    source: 'manual',
+    localDate: dateISO,
+  });
 
   // Stamp the slot with the run's ACTUAL calendar date (not "today"), so the
   // activity calendar, streaks and analytics all place it correctly.
@@ -127,7 +113,7 @@ export function saveManualRun() {
 
   saveStateToLocalStorage(true);
   document.dispatchEvent(new Event('app:storage-loaded'));
-  _resetOverwriteGuard();
+  _resetSaveButton();
   closeRunLogger();
   showToast('Run logged ✓');
 }

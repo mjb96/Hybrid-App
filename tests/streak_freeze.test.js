@@ -2,9 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { reconcileStreakFreezes, streakFreezeInfo, streakRiskLine } from '../js/brain/streak.js';
 import { computeStreak } from '../js/home/dashboard-model.js';
+import { addDaysISO } from '../js/dates.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const ISO = (n, from = new Date()) => { const d = new Date(from); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+const TODAY = '2026-07-14';
+const ISO = (n, from = TODAY) => addDaysISO(from, -n);
 
 // Build a state whose logged dates are exactly `dates` (each as a one-lift day).
 function stateWithDates(dates, extra = {}) {
@@ -37,13 +39,13 @@ test('a frozen day bridges a gap so the streak survives', () => {
     streakFreezes: { available: 1, used: [], earnedTier: 0 },
   };
   // Without a freeze the streak is just today (1) — yesterday broke it.
-  assert.equal(computeStreak(state.weeks, DAYS, state).current, 1);
+  assert.equal(computeStreak(state.weeks, DAYS, state, today).current, 1);
   const r = reconcileStreakFreezes(state, DAYS, today);
   assert.equal(r.froze, true);
   assert.equal(r.frozeDate, ISO(1));
   assert.equal(state.streakFreezes.available, 0);
   // Now today + frozen-yesterday + day2 + day3 = 4.
-  assert.equal(computeStreak(state.weeks, DAYS, state).current, 4);
+  assert.equal(computeStreak(state.weeks, DAYS, state, today).current, 4);
 });
 
 test('no auto-freeze when there is no ongoing streak to protect', () => {

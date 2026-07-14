@@ -10,6 +10,7 @@
 // never diverge from the detail views. This component only formats + renders.
 // ==========================================
 import { buildWeekChart, STRENGTH_METRICS, RUNNING_METRICS, DAY_KEYS } from '../analytics/week-chart-model.js';
+import { runDaySummary } from '../state/run-sessions.js';
 
 const CHART_H = 120;  // bars area height in px
 const Y_STEPS = 4;    // intervals between Y-axis labels (5 labels total)
@@ -351,7 +352,7 @@ class WeeklyFitnessGraph {
       const volLbl = vol > 0 ? ` · ${Math.round(vol).toLocaleString()} ${settings.weightUnit || 'kg'}` : '';
       return `${setLbl} across ${exLbl}${volLbl}`;
     }
-    const run = wd?.runs?.[dayKey] || {};
+    const run = runDaySummary(wd, dayKey);
     const distKm = parseFloat(run.dist) || 0;
     const secs   = this._parseTime(run.time);
     if (distKm <= 0 && secs <= 0) return '';
@@ -387,7 +388,7 @@ class WeeklyFitnessGraph {
         if (parseFloat(gs.avgHR) > 0) add('Avg HR', `${Math.round(parseFloat(gs.avgHR))} bpm`);
       }
     } else {
-      const run = wd?.runs?.[dayKey] || {};
+      const run = runDaySummary(wd, dayKey);
       const distKm = parseFloat(run.dist) || 0;
       const secs   = this._parseTime(run.time);
       if (distKm > 0) add('Distance', this._fmtDistance(distKm, settings));

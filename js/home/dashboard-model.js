@@ -21,7 +21,9 @@ import { computeReadiness, readinessStatus, readinessColor } from '../analytics/
 import { getFastingContext } from '../fasting.js';
 import { isCompletedSet as isDone, dayVolume } from '../set-utils.js';
 import { loggedDateSet } from '../analytics/logged-days.js';
-import { buildCalendarWeekStrength, indexSlotsByDate, addDaysISO, localDayKey } from '../analytics/weekly-aggregate.js';
+import { buildCalendarWeekStrength, indexSlotsByDate } from '../analytics/weekly-aggregate.js';
+import { addDaysISO, localDayKey, todayKey } from '../dates.js';
+import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -106,7 +108,7 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
     return days.reduce((sum, d) => (valueFn(curWkData, d) > 0 ? sum + valueFn(prevWkData, d) : sum), 0);
   };
   const liftVolOf = (wd, d) => dayVolume(wd?.lifts?.[d]);
-  const runDistOf = (wd, d) => parseFloat(wd?.runs?.[d]?.dist) || 0;
+  const runDistOf = (wd, d) => parseFloat(runDaySummary(wd, d).dist) || 0;
   const volPrev  = paceMatchedPrev(liftVolOf);
   const distPrev = paceMatchedPrev(runDistOf);
 
@@ -121,7 +123,7 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
 
   // ---- Readiness (multi-signal, Garmin-style) ----------------------------
   const hc = state?.healthConnect || {};
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const todayWellness = (state?.wellnessLog || []).find(e => e.date === today) || null;
   const sleepLog = Array.isArray(hc.sleep) ? [...hc.sleep].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
   const sleepHours = sleepLog[0]?.totalHours || 0;
@@ -170,7 +172,7 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
   days.forEach(d => {
     const bp = program?.days?.[d];
     const runScheduled = bp?.runs && !bp.runs.toLowerCase().includes('no structured') && bp.runs.toLowerCase() !== 'rest';
-    if (runScheduled) { consistencyTotal++; if (num(weekData.runs?.[d]?.dist) > 0) consistencyDone++; }
+    if (runScheduled) { consistencyTotal++; if (num(runDaySummary(weekData, d).dist) > 0) consistencyDone++; }
     const dayLifts = weekData.lifts?.[d] || {};
     for (const lift in dayLifts) {
       if (!Array.isArray(dayLifts[lift])) continue;
@@ -386,8 +388,9 @@ function computePace(weeks, days, distUnit) {
   for (const w of Object.keys(weeks).map(Number).sort((a, b) => b - a)) {
     const wd = weeks[String(w)];
     days.forEach(d => {
-      const r = wd?.runs?.[d];
-      if (r && num(r.dist) > 0 && parseMins(r.time) > 0) runs.push({ dist: num(r.dist), mins: parseMins(r.time) });
+      for (const r of runSessionsForDay(wd, d)) {
+        if (num(r.dist) > 0 && parseMins(r.time) > 0) runs.push({ dist: num(r.dist), mins: parseMins(r.time) });
+      }
     });
     if (runs.length >= 6) break;
   }
@@ -416,16 +419,15 @@ export function activeTrainingDates(weeks, days, state) {
   return loggedDateSet(state?.weeks === weeks ? state : { ...state, weeks }, days);
 }
 
-export function computeStreak(weeks, days, state) {
+export function computeStreak(weeks, days, state, todayISO = todayKey()) {
   const active = activeTrainingDates(weeks, days, state);
   // Streak freezes (R7): a frozen day counts for streak continuity, so an
   // occasional missed day doesn't wipe a long streak.
   (state?.streakFreezes?.used || []).forEach(ds => active.add(ds));
-  const todayD = new Date();
   let current = 0;
   for (let i = 0; i <= 120; i++) {
-    const d = new Date(todayD); d.setDate(todayD.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = addDaysISO(todayISO, -i);
+    if (!ds) break;
     if (active.has(ds)) { if (i === current) current++; }
     else if (i === current) break;
   }
@@ -453,8 +455,8 @@ function computeWeekCompare(weeks, days, wkNum) {
 
   let prevVol = 0, prevDist = 0, curVol = 0, curDist = 0;
   days.forEach(d => {
-    prevDist += num(prevWkData.runs?.[d]?.dist);
-    curDist  += num(curWkData.runs?.[d]?.dist);
+    prevDist += num(runDaySummary(prevWkData, d).dist);
+    curDist  += num(runDaySummary(curWkData, d).dist);
     prevVol  += dayVolume(prevWkData.lifts?.[d]);
     curVol   += dayVolume(curWkData.lifts?.[d]);
   });
@@ -475,7 +477,7 @@ function avgConsistency(weeks, days, program, wkNum) {
     days.forEach(d => {
       const bp = program?.days?.[d];
       const runScheduled = bp?.runs && !bp.runs.toLowerCase().includes('no structured') && bp.runs.toLowerCase() !== 'rest';
-      if (runScheduled) { tot++; if (num(wd.runs?.[d]?.dist) > 0) done++; }
+      if (runScheduled) { tot++; if (num(runDaySummary(wd, d).dist) > 0) done++; }
       const dl = wd.lifts?.[d] || {};
       for (const lift in dl) if (Array.isArray(dl[lift])) dl[lift].forEach(s => { tot++; if (isDone(s)) done++; });
     });

@@ -150,6 +150,17 @@ function recordsForSlot(db, activationId, week, day) {
   });
 }
 
+function recordById(db, id) {
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(ROUTES_STORE, 'readonly');
+      const req = tx.objectStore(ROUTES_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+}
+
 function latest(records) {
   let best = null;
   for (const r of records) if (!best || (r.updatedTs || 0) > (best.updatedTs || 0)) best = r;
@@ -160,16 +171,20 @@ function latest(records) {
 // (activation, week, day) in place — keeping its stable id — or creates a new
 // one, so re-saving the same session never duplicates while different
 // activations get distinct records. Returns the record id (or null on failure).
-// ctx: { activationId, programId, startTs, localDate }
+// ctx: { sessionId, activationId, programId, startTs, localDate }
 export async function saveMapToDB(week, day, coordinates, ctx = {}) {
   if (typeof indexedDB === 'undefined') return null;
   if (!Array.isArray(coordinates) || coordinates.length === 0) return null;
   let db;
   try { db = await openDB(); } catch { return null; }
   const activationId = ctx.activationId || 'legacy';
-  const existing = latest(await recordsForSlot(db, activationId, week, day));
+  const routeId = ctx.sessionId ? `route:${ctx.sessionId}` : null;
+  const existing = routeId
+    ? await recordById(db, routeId)
+    : latest(await recordsForSlot(db, activationId, week, day));
   const rec = makeRouteRecord({
-    id: existing ? existing.id : undefined,
+    id: existing ? existing.id : routeId,
+    sessionId: ctx.sessionId || (existing && existing.sessionId) || null,
     activationId,
     programId: ctx.programId || (existing && existing.programId) || null,
     week, day,
@@ -194,6 +209,18 @@ export async function getMapFromDB(week, day, ctx = {}) {
   if (typeof indexedDB === 'undefined') return undefined;
   let db;
   try { db = await openDB(); } catch { return undefined; }
+
+  if (ctx.sessionId) {
+    const exact = await recordById(db, `route:${ctx.sessionId}`);
+    if (exact) { closeQuietly(db); return exact.coordinates; }
+    // A migrated state session may still point at a pre-session route that can
+    // only be found by its legacy slot. New session ids must fail exact rather
+    // than silently showing a sibling run's route.
+    if (!String(ctx.sessionId).startsWith('run_legacy_')) {
+      closeQuietly(db);
+      return undefined;
+    }
+  }
 
   if (ctx.activationId) {
     const rec = latest(await recordsForSlot(db, ctx.activationId, week, day));
@@ -249,6 +276,30 @@ export async function getAllRoutes() {
   });
 }
 
+// Rich portable records preserve every same-day session instead of collapsing
+// to the latest `week_day` entry. The meta migration row is never exported.
+export async function getAllRouteRecords() {
+  if (typeof indexedDB === 'undefined') return [];
+  let db;
+  try { db = await openDB(); } catch { return []; }
+  return new Promise((resolve) => {
+    const out = [];
+    try {
+      const tx = db.transaction(ROUTES_STORE, 'readonly');
+      const req = tx.objectStore(ROUTES_STORE).openCursor();
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          const r = cursor.value;
+          if (r && r.id !== MIGRATION_META_KEY && Array.isArray(r.coordinates) && r.coordinates.length) out.push(r);
+          cursor.continue();
+        } else { closeQuietly(db); resolve(out); }
+      };
+      req.onerror = () => { closeQuietly(db); resolve(out); };
+    } catch { closeQuietly(db); resolve(out); }
+  });
+}
+
 // Restore routes from an export ({ "week_day": coords }). Idempotent: re-importing
 // the same file upserts the same `imported` slot rather than appending. `coords`
 // are already validated by sanitizeRoutes. Returns the number written.
@@ -273,6 +324,24 @@ export async function putRoutes(routes) {
   });
 }
 
+// Restore already-sanitized rich records. Stable ids make repeated imports
+// idempotent, while distinct session ids on one slot remain distinct.
+export async function putRouteRecords(records) {
+  if (typeof indexedDB === 'undefined' || !Array.isArray(records) || records.length === 0) return 0;
+  let db;
+  try { db = await openDB(); } catch { return 0; }
+  const recs = records.map((r) => makeRouteRecord(r));
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(ROUTES_STORE, 'readwrite');
+      const store = tx.objectStore(ROUTES_STORE);
+      for (const r of recs) store.put(r);
+      tx.oncomplete = () => { closeQuietly(db); resolve(recs.length); };
+      tx.onerror = () => { closeQuietly(db); resolve(0); };
+    } catch { closeQuietly(db); resolve(0); }
+  });
+}
+
 // Delete the route(s) for a slot: the ctx.activationId record(s), plus the
 // legacy `runMaps` row and any migrated `legacy` record for the same week/day so
 // a "clear this day" leaves nothing behind.
@@ -282,10 +351,14 @@ export async function deleteMapFromDB(week, day, ctx = {}) {
   try { db = await openDB(); } catch { return; }
 
   const ids = [];
-  if (ctx.activationId) {
+  if (ctx.sessionId) {
+    ids.push(`route:${ctx.sessionId}`);
+  } else if (ctx.activationId) {
     for (const r of await recordsForSlot(db, ctx.activationId, week, day)) ids.push(r.id);
   }
-  for (const r of await recordsForSlot(db, 'legacy', week, day)) ids.push(r.id);
+  if (!ctx.sessionId) {
+    for (const r of await recordsForSlot(db, 'legacy', week, day)) ids.push(r.id);
+  }
 
   await new Promise((resolve) => {
     try {
@@ -296,7 +369,8 @@ export async function deleteMapFromDB(week, day, ctx = {}) {
       tx.onerror = () => resolve();
     } catch { resolve(); }
   });
-  // Also clear the raw v1 row if present.
+  // Also clear the raw v1 row if the whole slot is being cleared.
+  if (ctx.sessionId) { closeQuietly(db); return; }
   await new Promise((resolve) => {
     const done = () => { closeQuietly(db); resolve(); };
     try {

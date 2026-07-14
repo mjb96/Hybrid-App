@@ -7,6 +7,7 @@
 import { getCatalogEntry } from './programs/catalog.js';
 import { allLiftsStats } from './metrics/metrics-strength.js';
 import { isCompletedSet, isWarmupSet } from './set-utils.js';
+import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 
 // ── Section helpers ───────────────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ export function _countTotalWorkouts(state, days) {
         const sets = wkData.lifts[d][l];
         return Array.isArray(sets) && sets.some(_isSet);
       });
-      const hasRun = parseFloat(wkData?.runs?.[d]?.dist) > 0;
+      const hasRun = (parseFloat(runDaySummary(wkData, d).dist) || 0) > 0;
       if (hasLifts || hasRun) count++;
     });
   }
@@ -156,25 +157,26 @@ export function _computeRunningPBs(state, days) {
 
   for (const wkData of Object.values(state.weeks || {})) {
     days.forEach(d => {
-      const run = wkData?.runs?.[d];
-      if (!run?.dist || !run?.time) return;
-      const dist = parseFloat(run.dist);
-      if (!dist) return;
+      runSessionsForDay(wkData, d).forEach(run => {
+        if (!run?.dist || !run?.time) return;
+        const dist = parseFloat(run.dist);
+        if (!dist) return;
 
-      const parts = run.time.split(':').map(Number);
-      let totalSecs = 0;
-      if (parts.length === 2) totalSecs = parts[0] * 60 + parts[1];
-      else if (parts.length === 3) totalSecs = parts[0] * 3600 + parts[1] * 60 + parts[2];
-      if (!totalSecs) return;
+        const parts = run.time.split(':').map(Number);
+        let totalSecs = 0;
+        if (parts.length === 2) totalSecs = parts[0] * 60 + parts[1];
+        else if (parts.length === 3) totalSecs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (!totalSecs) return;
 
-      const paceSecs = totalSecs / dist;
-      for (const bracket of brackets) {
-        if (dist >= bracket.minKm && dist <= bracket.maxKm) {
-          if (!bests[bracket.label] || totalSecs < bests[bracket.label].totalSecs) {
-            bests[bracket.label] = { label: bracket.label, dist, timeStr: run.time, totalSecs, paceSecs };
+        const paceSecs = totalSecs / dist;
+        for (const bracket of brackets) {
+          if (dist >= bracket.minKm && dist <= bracket.maxKm) {
+            if (!bests[bracket.label] || totalSecs < bests[bracket.label].totalSecs) {
+              bests[bracket.label] = { label: bracket.label, dist, timeStr: run.time, totalSecs, paceSecs };
+            }
           }
         }
-      }
+      });
     });
   }
 
@@ -238,7 +240,7 @@ export function _lifetimeTotals(state, days) {
           if (_isSet(s)) { dayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); dayHasLift = true; }
         });
       }
-      const runDist = parseFloat(wkData?.runs?.[d]?.dist) || 0;
+      const runDist = parseFloat(runDaySummary(wkData, d).dist) || 0;
       volume += dayVol;
       distanceKm += runDist;
       if (dayHasLift || runDist > 0) sessions++;
@@ -409,19 +411,20 @@ export function _runningStats(state, days) {
   let totalKm = 0, longestKm = 0, runCount = 0, bestPaceSecs = Infinity;
   for (const wkData of Object.values(state.weeks || {})) {
     days.forEach(d => {
-      const run  = wkData?.runs?.[d];
-      const dist = parseFloat(run?.dist) || 0;
-      if (dist <= 0) return;
-      totalKm += dist;
-      runCount++;
-      if (dist > longestKm) longestKm = dist;
-      if (run.time) {
-        const parts = run.time.split(':').map(Number);
-        let secs = 0;
-        if (parts.length === 2)      secs = parts[0] * 60 + parts[1];
-        else if (parts.length === 3) secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
-        if (secs > 0 && dist >= 1) { const pace = secs / dist; if (pace < bestPaceSecs) bestPaceSecs = pace; }
-      }
+      runSessionsForDay(wkData, d).forEach(run => {
+        const dist = parseFloat(run?.dist) || 0;
+        if (dist <= 0) return;
+        totalKm += dist;
+        runCount++;
+        if (dist > longestKm) longestKm = dist;
+        if (run.time) {
+          const parts = run.time.split(':').map(Number);
+          let secs = 0;
+          if (parts.length === 2)      secs = parts[0] * 60 + parts[1];
+          else if (parts.length === 3) secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+          if (secs > 0 && dist >= 1) { const pace = secs / dist; if (pace < bestPaceSecs) bestPaceSecs = pace; }
+        }
+      });
     });
   }
   return { totalKm, longestKm, runCount, bestPaceSecs: bestPaceSecs === Infinity ? null : bestPaceSecs };
@@ -501,7 +504,7 @@ export function _heatmapData(state, days, numWeeks) {
           if (!Array.isArray(dayLifts[l])) continue;
           dayLifts[l].forEach(s => { if (_isSet(s)) vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); });
         }
-        dist = parseFloat(wkData.runs?.[d]?.dist) || 0;
+        dist = parseFloat(runDaySummary(wkData, d).dist) || 0;
       }
       if (vol > maxVol)   maxVol = vol;
       if (dist > maxDist) maxDist = dist;
@@ -546,11 +549,12 @@ export function _weekSummary(state, days, weekNum) {
       if (!Array.isArray(dayLifts[l])) continue;
       dayLifts[l].forEach(s => { if (_isSet(s)) { dayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); dayHasLift = true; } });
     }
-    const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
+    const run = runDaySummary(wkData, d);
+    const runDist = parseFloat(run.dist) || 0;
     volume += dayVol;
     distanceKm += runDist;
     if (dayHasLift || runDist > 0) sessions++;
-    minutes += _parseDurationMin(wkData.runs?.[d]?.time) + _parseDurationMin(wkData.gymStats?.[d]?.time);
+    minutes += _parseDurationMin(run.time) + _parseDurationMin(wkData.gymStats?.[d]?.time);
   });
   return { volume, distanceKm, sessions, minutes };
 }
@@ -596,7 +600,7 @@ export function _recentSessions(state, days, limit = 5) {
         const sets = wkData.lifts[d][l];
         return Array.isArray(sets) && sets.some(_isSet);
       });
-      const runDist = parseFloat(wkData.runs?.[d]?.dist) || 0;
+      const runDist = parseFloat(runDaySummary(wkData, d).dist) || 0;
       if (liftDone.length === 0 && runDist === 0) continue;
 
       const type = liftDone.length > 0 && runDist > 0 ? 'both' : liftDone.length > 0 ? 'lift' : 'run';

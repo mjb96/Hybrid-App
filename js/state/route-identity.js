@@ -17,7 +17,7 @@
 // read/write lives in js/db.js.
 // =============================================================================
 
-export const ROUTE_RECORD_VERSION = 2;
+export const ROUTE_RECORD_VERSION = 3;
 
 /** Stable, collision-resistant id for one route. Uses crypto.randomUUID when
  *  available (secure-context browsers + the Android WebView + Node ≥ 16.7),
@@ -52,7 +52,7 @@ export function parseLegacyKey(key) {
  * caller's activation/program/date metadata. `coordinates` is stored verbatim
  * (js/db.js and route-portability validate/cap points on the way in/out).
  * @param {{
- *   id?: string, activationId?: string, programId?: string,
+ *   id?: string, sessionId?: string, activationId?: string, programId?: string,
  *   week: string|number, day: string, coordinates: any[],
  *   startTs?: number, updatedTs?: number, localDate?: string, legacyKey?: string,
  * }} input
@@ -62,8 +62,10 @@ export function makeRouteRecord(input) {
   const day = String(input.day);
   const activationId = input.activationId || 'legacy';
   const now = Number.isFinite(input.updatedTs) ? Number(input.updatedTs) : Date.now();
+  const sessionId = input.sessionId ? String(input.sessionId) : null;
   return {
-    id: input.id || newRouteId(),
+    id: input.id || (sessionId ? `route:${sessionId}` : newRouteId()),
+    sessionId,
     activationId,
     programId: input.programId || null,
     week,

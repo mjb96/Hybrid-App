@@ -10,6 +10,7 @@
 // ==========================================
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { renderRunMap } from './workout-map.js';
+import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { insightsForSession } from './analytics/insights/build-insights.js';
 import { paceZoneColour } from './analytics/utils.js';
 import { confettiBurst } from './ui/celebration.js';
@@ -25,8 +26,8 @@ export function initSessionRecap(getStateFn) { _getState = getStateFn; }
 export function sharePRFromRecap() {
   const state = _getState?.();
   if (!state) return;
-  const { week, day } = _recapCtx;
-  const recap = buildSessionRecap(state, week, day);
+  const { week, day, sessionId } = _recapCtx;
+  const recap = buildSessionRecap(state, week, day, sessionId);
   const pr = topPR(recap.lifts);
   if (!pr) { showToast('No PR to share from this session'); return; }
   sharePRCard(pr, state, { showToast });
@@ -34,7 +35,7 @@ export function sharePRFromRecap() {
 
 // V2 — Summary | Breakdown, remembered across a single recap's open lifetime.
 let _recapTab = 'summary';
-let _recapCtx = { week: null, day: null };
+let _recapCtx = { week: null, day: null, sessionId: null };
 
 // Epley estimated 1RM (matches the app's convention: 1-rep sets are exact).
 function e1rm(w, r) {
@@ -82,10 +83,14 @@ function pacePerKm(distKm, timeStr) {
 }
 
 // Pure: assemble the recap for one (week, day). Never throws on sparse data.
-export function buildSessionRecap(state, week, day) {
+export function buildSessionRecap(state, week, day, sessionId = null) {
   const wd       = state?.weeks?.[week] || {};
   const dayLifts = wd.lifts?.[day] || {};
-  const run      = wd.runs?.[day] || null;
+  const exactRun = sessionId
+    ? runSessionsForDay(wd, day).find(run => run.sessionId === sessionId)
+    : null;
+  const runSummary = sessionId ? (exactRun || {}) : runDaySummary(wd, day);
+  const run      = Object.keys(runSummary).length ? runSummary : null;
   const gymStats = wd.gymStats?.[day] || {};
   const gymRpe   = wd.gymRpe?.[day] || '';
   const dateISO  = wd.dates?.[day] || null;
@@ -143,6 +148,7 @@ export function buildSessionRecap(state, week, day) {
   const runDist = run ? (parseFloat(run.dist) || 0) : 0;
   if (run && (runDist > 0 || run.time)) {
     runOut = {
+      sessionId: run.sessionId || null,
       type:    run.type === 'walk' ? 'walk' : 'run',
       distKm:  runDist,
       time:    run.time || '',
@@ -388,8 +394,8 @@ export function renderSessionRecapHTML(r, insights = [], thresholdSec = null, ta
 function _paintRecap() {
   const state = _getState?.();
   if (!state) return null;
-  const { week, day } = _recapCtx;
-  const recap = buildSessionRecap(state, week, day);
+  const { week, day, sessionId } = _recapCtx;
+  const recap = buildSessionRecap(state, week, day, sessionId);
   let insights = [];
   try { insights = insightsForSession(state, recap.types); } catch (_) { insights = []; }
 
@@ -406,16 +412,17 @@ function _paintRecap() {
       renderRunMap(week, day, recap.run.distKm, {
         containerId: 'recapMapContainer', splits: recap.run.splits, thresholdSec: state.thresholdPaceSeconds,
         activationId: state.activeActivationId,
+        sessionId: recap.run.sessionId,
       });
     } catch (_) { /* map is best-effort */ }
   }
   return recap;
 }
 
-export function openSessionRecap(week, day) {
+export function openSessionRecap(week, day, sessionId = null) {
   const state = _getState?.();
   if (!state) return;
-  _recapCtx = { week, day };
+  _recapCtx = { week, day, sessionId };
   _recapTab = 'summary';
   const recap = _paintRecap();
 

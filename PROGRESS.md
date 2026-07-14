@@ -72,6 +72,55 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Beta Integrity PR-2 — stable run/session and route identity.**
+  Added a backward-compatible canonical run history (`runSessions[day]`) with one
+  stable `sessionId` per manual, GPS or FIT activity; the legacy `runs[day]` shape
+  remains the latest editable cockpit projection. State v4 adopts legacy runs with
+  deterministic IDs. GPS now keeps its original start timestamp and program/date
+  destination across Android activity recovery, saves factual sessions immediately,
+  and links each route by exact session. IndexedDB reads/deletes are sibling-safe;
+  JSON export v3 preserves multiple same-day rich route records while v2/raw-state
+  imports remain supported. Migrated load/running/calendar/Profile/Home/Brain readers
+  so day totals aggregate every activity while pace, RPE, VDOT and session counts use
+  each exact run. Exact just-finished recaps no longer show an accidental combined-day
+  result; CSV no longer collapses multiple runs in an exported day (archived-week
+  completeness remains R4). Added reload, migration, analytics, recap,
+  route-isolation and v2/v3 portability regressions. Validation: 787/787 tests,
+  typecheck, precache and smoke green. · **Next:** PR-3 / R3 transactional,
+  validated and retryable migrations; never stamp a failed step current.
+
+- 2026-07-14 · **Beta Integrity PR-1 — canonical local calendar dates.**
+  Added the single `js/dates.js` local-day API and migrated user-facing date writers
+  and readers across streaks, score/history, coach memory/evidence, recovery/wellness,
+  monthly/weekly reporting, Home, onboarding and Settings. Intentional date-only keys
+  now remain stable in every timezone; invalid values fail closed; whole-day arithmetic
+  is DST-safe. Added fixed-clock boundary coverage plus a source guard that limits raw
+  UTC day slicing to reviewed schedule/calendar arithmetic. Made the previously flaky
+  streak, coach-memory, monthly-report and Hybrid Score fixtures deterministic. Browser
+  verification saved a 76.5 kg entry on 14 July without replacing the prior 75 kg entry
+  (the Body Weight view showed the expected 75.8 kg 7-day average). Validation: Sydney
+  `npm run verify` green; 771/771 tests green in UTC, UTC+14 and UTC−12; typecheck,
+  precache and smoke green. · **Next:** PR-2 / R2 stable session and run identity;
+  preserve multiple same-day runs and their routes through reload/export/import.
+
+- 2026-07-14 · **Evidence-based full product/UX/architecture audit (documentation only).**
+  Reviewed the current PWA and Android shell across onboarding, Home, Programs, workout,
+  running/FIT, analytics/Brain, state/sync/migrations, export, offline caching, Health
+  Connect, security, accessibility, performance and release workflows; exercised a fresh
+  390×844 browser journey plus a 1280px layout check. Created the five requested audit
+  artifacts: `docs/COMPREHENSIVE_PRODUCT_AUDIT.md`, `docs/UI_UX_AUDIT.md`,
+  `docs/TECHNICAL_ARCHITECTURE_AUDIT.md`, `docs/IMPROVEMENT_ROADMAP.md`, and
+  `docs/AUDIT_EVIDENCE_INDEX.md`. No production code changed. Baseline validation is not
+  green: 760/764 Node tests pass. Three `streak_freeze` cases fail because local midnight
+  is converted through UTC in the Sydney timezone; a fourth `coach_memory` fixture is
+  calendar-position dependent and split its intended two-days-per-week data across ISO
+  weeks. Typecheck, precache, smoke,
+  analytics verification/perf, and web staging pass. The audit also ranks same-day
+  run/route overwrite, non-transactional migrations, Android export integration, and
+  ungated release workflows as beta blockers. · **Next:** owner reviews/approves the
+  proposed Beta Integrity PR; do not implement before approval. No commit while the
+  required suite is red.
+
 - 2026-07-13 · **Program-switch session isolation (activation identity)** (branch
   `claude/workout-session-isolation-l02i8o`). Fixed the *real* cross-program leak the
   earlier `lift_*` repair only partially masked: after switching programs, the previous

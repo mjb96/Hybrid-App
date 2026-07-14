@@ -8,6 +8,7 @@
 // and dashboard code; this centralises it so they can't drift.
 // =============================================================================
 import { dayVolume, isCompletedSet } from '../set-utils.js';
+import { runDaySummary } from '../state/run-sessions.js';
 
 const num = (v) => parseFloat(v) || 0;
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -65,7 +66,7 @@ export function forEachLoggedDay(state, days, cb) {
     const stored = wd.dates || {};
     days.forEach((day, dayIdx) => {
       const lifts = wd.lifts?.[day];
-      const run = wd.runs?.[day];
+      const run = runDaySummary(wd, day);
       const distance = num(run?.dist);
       if (completedSetCount(lifts) <= 0 && distance <= 0) return;
       const volume = dayVolume(lifts);

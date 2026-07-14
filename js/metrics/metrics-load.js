@@ -1,16 +1,10 @@
 // ==========================================
 // LOAD / READINESS METRICS (metrics/metrics-load.js)
 // ==========================================
-// Pure functions — no DOM, no imports, no side effects.
+// Pure functions — no DOM or side effects.
 // ==========================================
-
-function parseMinutes(timeStr) {
-  if (!timeStr) return 0;
-  const parts = String(timeStr).split(':').map(Number);
-  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
-  if (parts.length === 2) return parts[0] + parts[1] / 60;
-  return parseFloat(timeStr) || 0;
-}
+import { daysBetween, todayKey } from '../dates.js';
+import { runLoadForDay, runSessionsForDay } from '../state/run-sessions.js';
 
 // ---- public API -----------------------------------------------------------
 
@@ -28,10 +22,7 @@ export function weeklyLoadSeries(state, days, maxWeek) {
         const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
         if (gymRpe > 0 && gymMins > 0) liftLoad += gymRpe * gymMins;
 
-        const runEntry = wkData.runs?.[d] || {};
-        const runRpe   = parseFloat(runEntry.rpe) || 0;
-        const runMins  = parseMinutes(runEntry.time);
-        if (runRpe > 0 && runMins > 0) runLoad += runRpe * runMins;
+        runLoad += runLoadForDay(wkData, d);
       });
     }
     lift.push(liftLoad);
@@ -52,10 +43,7 @@ export function weekDailyLoads(state, days, weekNum) {
     const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
     const gymLoad = (gymRpe > 0 && gymMins > 0) ? gymRpe * gymMins : 0;
 
-    const runEntry = wkData.runs?.[d] || {};
-    const runRpe   = parseFloat(runEntry.rpe) || 0;
-    const runMins  = parseMinutes(runEntry.time);
-    const runLoad  = (runRpe > 0 && runMins > 0) ? runRpe * runMins : 0;
+    const runLoad  = runLoadForDay(wkData, d);
 
     return gymLoad + runLoad;
   });
@@ -71,8 +59,10 @@ export function weeklyRpeSeries(state, days, maxWeek) {
       days.forEach(d => {
         const gRpe = parseFloat(wkData.gymRpe?.[d]) || 0;
         if (gRpe > 0) { sum += gRpe; count++; }
-        const rRpe = parseFloat(wkData.runs?.[d]?.rpe) || 0;
-        if (rRpe > 0) { sum += rRpe; count++; }
+        for (const session of runSessionsForDay(wkData, d)) {
+          const rRpe = parseFloat(session.rpe) || 0;
+          if (rRpe > 0) { sum += rRpe; count++; }
+        }
       });
     }
     result.push(count > 0 ? sum / count : 0);
@@ -110,8 +100,10 @@ export function recoveryMetrics(state, days) {
     days.forEach(d => {
       const gRpe = parseFloat(wkData.gymRpe?.[d]) || 0;
       if (gRpe > 0) { sum += gRpe; count++; }
-      const rRpe = parseFloat(wkData.runs?.[d]?.rpe) || 0;
-      if (rRpe > 0) { sum += rRpe; count++; }
+      for (const session of runSessionsForDay(wkData, d)) {
+        const rRpe = parseFloat(session.rpe) || 0;
+        if (rRpe > 0) { sum += rRpe; count++; }
+      }
     });
   }
 
@@ -145,16 +137,13 @@ export function formatFormTSB(currentCTL, currentATL) {
 }
 
 // Streak view derived from stored streakData. Detects broken streaks (last
-// activity > 1 day ago). Uses UTC dates to match how lastActivityDate is stored.
-export function streakView(streakData) {
+// activity > 1 local calendar day ago).
+export function streakView(streakData, todayISO = todayKey()) {
   if (!streakData || !streakData.lastActivityDate) {
     return { hasData: false, current: 0, longest: 0, broken: false };
   }
 
-  const todayUTC = new Date().toISOString().slice(0, 10);
-  const da = new Date(streakData.lastActivityDate + 'T00:00:00Z');
-  const db = new Date(todayUTC + 'T00:00:00Z');
-  const diff = isNaN(da.getTime()) ? null : Math.round((db - da) / 86400000);
+  const diff = daysBetween(streakData.lastActivityDate, todayISO);
 
   const broken = diff !== null && diff > 1;
   return {

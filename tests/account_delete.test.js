@@ -31,11 +31,12 @@ test('removes every Helyx-namespaced key, keeps others', () => {
     'hybrid_engine_v2_state_backup': '{}',
     'hybrid_engine_v2_state_cloud_backup': '{}',
     'hybrid_engine_v2_state_cloud_version': '2026-07-01T00:00:00Z',
+    'hybrid_engine_v2_state_active_gps_session': '{}',
     'sb-uzxvufzlaipdwuffxqyo-auth-token': 'keep-me',   // Supabase session (signOut handles)
     'theme': 'dark',                                     // unrelated pref
   });
   const removed = clearHelyxLocalData(storage);
-  assert.equal(removed, 4);
+  assert.equal(removed, 5);
   assert.deepEqual(storage._keys().sort(), ['sb-uzxvufzlaipdwuffxqyo-auth-token', 'theme']);
 });
 

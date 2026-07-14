@@ -29,6 +29,7 @@
 import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
 import { comparisonLabel } from './comparison.js';
 import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
+import { todayKey } from '../dates.js';
 
 export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_SHORT = { mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S' };
@@ -280,12 +281,4 @@ function buildComparison({ type, metric, isCurrentWeek, currentValue, prevWeekDa
 }
 
 // ---- today key (local) ------------------------------------------------------
-// Mirrors dates.js todayKey but inlined so this module stays a leaf with no
-// dependency on the display-timezone helpers (tests inject `today` directly).
-function todayLocalKey() {
-  try {
-    return new Intl.DateTimeFormat('en-CA').format(new Date());
-  } catch (_) {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
+const todayLocalKey = () => todayKey();

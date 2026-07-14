@@ -6,6 +6,7 @@ import { requestNotificationPermission } from './notifications.js';
 import { provisionalScore } from './onboarding/provisional-score.js';
 import { recommendStarterPrograms } from './onboarding/starter-programs.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
+import { todayKey } from './dates.js';
 
 let _getState;
 
@@ -240,7 +241,7 @@ function _finish() {
   if (!isNaN(bw) && bw > 0) {
     appState.settings.defaultBodyWeight = bw;
     if (!appState.bodyWeightLog) appState.bodyWeightLog = [];
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayKey();
     const idx = appState.bodyWeightLog.findIndex(l => l.date === today);
     if (idx >= 0) appState.bodyWeightLog[idx].weight = bw;
     else appState.bodyWeightLog.push({ date: today, weight: bw });

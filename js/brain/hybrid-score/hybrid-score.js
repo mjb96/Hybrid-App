@@ -15,6 +15,7 @@ import { clamp } from '../../analytics/calculations/math-utils.js';
 import { PILLAR_WEIGHTS, PILLAR_META, SCORE_BANDS, scoreBand, isDeloadWeek } from './config.js';
 import { computePillars } from './pillars.js';
 import { levelFromXp } from './levels.js';
+import { todayKey } from '../../dates.js';
 
 // One concrete, actionable next step per pillar (drives the daily recommendation).
 const PILLAR_ACTIONS = Object.freeze({
@@ -159,7 +160,7 @@ export function computeHybridScore(model, state, days) {
 
   // Day-over-day delta from stored history (yesterday's score).
   const hist = state?.hybridScore?.history || [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const prior = [...hist].filter(h => h.date < today).sort((a, b) => a.date.localeCompare(b.date));
   const yEntry = prior.length ? prior[prior.length - 1] : null;
   const delta = yEntry ? score - yEntry.score : null;

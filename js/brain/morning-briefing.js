@@ -22,6 +22,7 @@ import { streakRiskLine } from './streak.js';
 import { coachMemory } from './coach-memory.js';
 import { buildCoachEvidence } from './coach-evidence.js';
 import { reportHandledError } from '../monitoring/report-error.js';
+import { dateKey } from '../dates.js';
 
 const DEFAULT_DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -131,10 +132,11 @@ export function buildMorningBriefing(opts = {}) {
     ? { line: projectionLine(projection), from: projection.current.score,
         to: projection.projected.score, gain: projection.gain }
     : null;
-  const streakRisk = streakRiskLine(state, model, now.toISOString().slice(0, 10));
+  const today = dateKey(now);
+  const streakRisk = streakRiskLine(state, model, today);
   // V2-4 — the coach remembers: one true line drawn from the athlete's own
   // score/streak history (or null when nothing stands out).
-  const memory = coachMemory(state, score?.score ?? null);
+  const memory = coachMemory(state, score?.score ?? null, today);
 
   return {
     greeting: greetingFor(now, firstName(state)),
@@ -161,7 +163,7 @@ function buildCoach({ state, model, rec, days, overtrainingActive, now }) {
   }
   let evidence = null;
   try {
-    evidence = buildCoachEvidence({ state, days, model, rec, today: now.toISOString().slice(0, 10) });
+    evidence = buildCoachEvidence({ state, days, model, rec, today: dateKey(now) });
     if (!evidence.bullets.length) evidence = null;
   } catch (e) { reportHandledError('briefing:coach-evidence', e); evidence = null; }
   return {
