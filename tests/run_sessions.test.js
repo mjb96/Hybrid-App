@@ -92,6 +92,32 @@ test('legacy migration is deterministic, non-destructive and idempotent', () => 
   assert.equal(state.weeks['1'].runSessions.mon.length, 1);
 });
 
+test('migration repairs partial canonical lists without hiding or colliding sessions', () => {
+  const state = {
+    weeks: {
+      '1': {
+        activationId: 'act_a',
+        dates: { mon: '2026-07-13', tue: '2026-07-14' },
+        runs: {
+          mon: { dist: '5', time: '24:00' },
+          tue: { dist: '3', time: '18:00' },
+        },
+        runSessions: {
+          mon: [],
+          tue: [
+            { sessionId: 'duplicate', dist: '2' },
+            { sessionId: 'duplicate', dist: '3' },
+          ],
+        },
+      },
+    },
+  };
+  assert.equal(migrateLegacyRunSessions(state, ['mon', 'tue']), 2);
+  assert.equal(state.weeks['1'].runSessions.mon.length, 1, 'empty list adopts the real legacy run');
+  assert.equal(new Set(state.weeks['1'].runSessions.tue.map((run) => run.sessionId)).size, 2);
+  assert.equal(migrateLegacyRunSessions(state, ['mon', 'tue']), 0, 'repair is idempotent');
+});
+
 test('v4 state migration adopts legacy runs after activation identity', () => {
   const state = {
     schemaVersion: 3,

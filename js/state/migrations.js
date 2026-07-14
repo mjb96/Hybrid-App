@@ -9,10 +9,10 @@
 //
 //   • CURRENT_SCHEMA_VERSION — bump when you add a migration.
 //   • MIGRATIONS[i] upgrades state FROM version i TO version i+1.
-//   • migrateState(state) runs every pending migration in order, then stamps
-//     state.schemaVersion. Idempotent: re-running on an up-to-date state is a
-//     no-op. A throwing migration is logged and skipped so one bad step can't
-//     brick load.
+//   • migrateState(state) runs every pending migration as an isolated
+//     transaction. A step is cloned, executed, stamped, and validated before
+//     it replaces the last-good state. A failure stops immediately and leaves
+//     the failed step's input recoverable for a safe retry.
 //
 // Legacy data (no schemaVersion) is treated as version 0.
 // Pure module — no DOM, unit-tested in tests/state_migrations.test.js.
@@ -20,7 +20,7 @@
 
 import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './lift-id.js';
 import { reportHandledError } from '../monitoring/report-error.js';
-import { migrateLegacyRunSessions } from './run-sessions.js';
+import { hasRunData, migrateLegacyRunSessions } from './run-sessions.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -206,19 +206,21 @@ const MIGRATIONS = [
   // weeks into ONE legacy activation for the active program and stamp it as the
   // active run, so today's data stays exactly where it is (no archival, no leak)
   // and only a FUTURE program switch begins a new, isolated run. Idempotent: a
-  // state that already carries an activeActivationId is left untouched.
+  // state that already carries an activeActivationId is repaired in place when
+  // its activation record or a week stamp is missing.
   (state) => {
-    if (state.activeActivationId) return; // already migrated / freshly created
-    const legacyId = `act_legacy_${Date.now().toString(36)}`;
+    const legacyId = state.activeActivationId || `act_legacy_${Date.now().toString(36)}`;
     state.activeActivationId = legacyId;
     if (!Array.isArray(state.activations)) state.activations = [];
-    state.activations.push({
-      id: legacyId,
-      programId: state.activeProgramId || null,
-      startWeek: Math.max(1, parseInt(String(state.currentWeek), 10) || 1),
-      startedAt: new Date().toISOString(),
-      legacy: true,
-    });
+    if (!state.activations.some((activation) => activation?.id === legacyId)) {
+      state.activations.push({
+        id: legacyId,
+        programId: state.activeProgramId || null,
+        startWeek: Math.max(1, parseInt(String(state.currentWeek), 10) || 1),
+        startedAt: new Date().toISOString(),
+        legacy: true,
+      });
+    }
     let stamped = 0;
     const weeks = state.weeks;
     if (weeks && typeof weeks === 'object') {
@@ -257,24 +259,164 @@ const MIGRATIONS = [
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 4
 
+/** Error raised when a state upgrade cannot safely commit. */
+export class StateMigrationError extends Error {
+  /**
+   * @param {number} fromVersion
+   * @param {number} toVersion
+   * @param {unknown} cause
+   */
+  constructor(fromVersion, toVersion, cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause || 'Unknown migration failure');
+    super(`State migration v${fromVersion} → v${toVersion} failed: ${detail}`);
+    this.name = 'StateMigrationError';
+    this.fromVersion = fromVersion;
+    this.toVersion = toVersion;
+    this.cause = cause;
+  }
+}
+
+/** @param {unknown} error */
+export function isStateMigrationError(error) {
+  return error instanceof StateMigrationError;
+}
+
+function cloneState(state) {
+  // Persisted app state is a JSON blob. Using its actual serialization boundary
+  // here also rejects values that could not be recovered after a reload.
+  return JSON.parse(JSON.stringify(state));
+}
+
+function replaceState(target, candidate) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, candidate);
+}
+
+function assertObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+}
+
+/** Validate the invariants introduced by one completed schema version. */
+function validateStep(state, version) {
+  assertObject(state, 'State');
+  if (state.schemaVersion !== version) {
+    throw new Error(`Expected schemaVersion ${version}`);
+  }
+  if (state.weeks !== undefined) assertObject(state.weeks, 'weeks');
+
+  if (version === 1) {
+    for (const week of Object.values(state.weeks || {})) {
+      if (!week || typeof week !== 'object' || !week.lifts) continue;
+      if (DAY_KEYS.some((day) => Array.isArray(week.lifts[day]))) {
+        throw new Error('Legacy array-shaped lift data remains');
+      }
+    }
+  }
+
+  if (version === 2) {
+    for (const week of Object.values(state.weeks || {})) {
+      if (!week || typeof week !== 'object' || !week.lifts) continue;
+      for (const dayLifts of Object.values(week.lifts)) {
+        if (!dayLifts || typeof dayLifts !== 'object' || Array.isArray(dayLifts)) continue;
+        if (Object.keys(dayLifts).some(isInternalLiftId)) {
+          throw new Error('Internal lift identity remains in workout history');
+        }
+      }
+    }
+    if (state.exerciseStats && Object.keys(state.exerciseStats).some(isInternalLiftId)) {
+      throw new Error('Internal lift identity remains in exercise stats');
+    }
+  }
+
+  if (version === 3) {
+    if (!state.activeActivationId || typeof state.activeActivationId !== 'string') {
+      throw new Error('Active program activation identity is missing');
+    }
+    if (!Array.isArray(state.activations) ||
+        !state.activations.some((activation) => activation?.id === state.activeActivationId)) {
+      throw new Error('Active program activation record is missing');
+    }
+    for (const week of Object.values(state.weeks || {})) {
+      if (!week || typeof week !== 'object') continue;
+      if (!week.activationId || typeof week.activationId !== 'string') {
+        throw new Error('Workout week activation identity is missing');
+      }
+    }
+  }
+
+  if (version === 4) {
+    for (const week of Object.values(state.weeks || {})) {
+      if (!week || typeof week !== 'object') continue;
+      assertObject(week.runSessions, 'week.runSessions');
+      for (const day of DAY_KEYS) {
+        const sessions = week.runSessions[day];
+        if (!Array.isArray(sessions)) throw new Error(`runSessions.${day} must be an array`);
+        const realSessions = sessions.filter(hasRunData);
+        if (realSessions.some((session) =>
+            (!session.sessionId || typeof session.sessionId !== 'string'))) {
+          throw new Error(`runSessions.${day} contains a session without identity`);
+        }
+        const ids = realSessions.map((session) => session.sessionId);
+        if (new Set(ids).size !== ids.length) {
+          throw new Error(`runSessions.${day} contains duplicate identities`);
+        }
+        if (hasRunData(week.runs?.[day]) && realSessions.length === 0) {
+          throw new Error(`Legacy run data for ${day} was not adopted`);
+        }
+      }
+    }
+  }
+}
+
 /**
- * Apply every pending migration in order, then stamp the current version.
+ * Apply every pending migration as an independently validated transaction.
+ * `afterStep` is a fault-injection seam used by the migration tests; production
+ * callers should omit it.
  * @param {any} state
+ * @param {{afterStep?: (context: {fromVersion: number, toVersion: number, state: any}) => void}} [options]
  * @returns {any} the same (mutated) state
+ * @throws {StateMigrationError} with the state left at its last-good version
  */
-export function migrateState(state) {
+export function migrateState(state, options = {}) {
   if (!state || typeof state !== 'object') return state;
   let from = Number.isInteger(state.schemaVersion) ? state.schemaVersion : 0;
   if (from < 0) from = 0;
+  if (from > CURRENT_SCHEMA_VERSION) {
+    const error = new StateMigrationError(from, from, new Error('Schema is newer than this app supports'));
+    reportHandledError('migration:unsupported-future-schema', {
+      message: error.message,
+      fromVersion: from,
+      currentVersion: CURRENT_SCHEMA_VERSION,
+    });
+    throw error;
+  }
   for (let v = from; v < CURRENT_SCHEMA_VERSION; v++) {
     const step = MIGRATIONS[v];
-    if (!step) continue;
+    if (!step) {
+      throw new StateMigrationError(v, v + 1, new Error('Migration step is missing'));
+    }
     try {
-      step(state);
+      const candidate = cloneState(state);
+      step(candidate);
+      options.afterStep?.({ fromVersion: v, toVersion: v + 1, state: candidate });
+      candidate.schemaVersion = v + 1;
+      validateStep(candidate, v + 1);
+      replaceState(state, candidate);
     } catch (err) {
-      console.error(`State migration to v${v + 1} failed; skipping:`, err);
+      const migrationError = err instanceof StateMigrationError
+        ? err
+        : new StateMigrationError(v, v + 1, err);
+      console.error(`State migration to v${v + 1} failed; keeping v${v}:`, err);
+      reportHandledError('migration:step-failed', {
+        message: migrationError.message,
+        fromVersion: v,
+        toVersion: v + 1,
+        errorName: err instanceof Error ? err.name : typeof err,
+      });
+      throw migrationError;
     }
   }
-  state.schemaVersion = CURRENT_SCHEMA_VERSION;
   return state;
 }

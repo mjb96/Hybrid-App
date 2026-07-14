@@ -222,19 +222,63 @@ export function migrateLegacyRunSessions(state, days) {
     if (!week || typeof week !== 'object') continue;
     if (!week.runSessions || typeof week.runSessions !== 'object') week.runSessions = {};
     for (const day of days) {
-      if (Array.isArray(week.runSessions[day])) continue;
       const legacy = week.runs?.[day];
+      const deterministicId = legacyRunSessionId(week.activationId, weekKey, day);
+      const stored = week.runSessions[day];
+
+      if (Array.isArray(stored)) {
+        const seen = new Set();
+        let changed = false;
+        week.runSessions[day] = stored.map((entry, index) => {
+          if (!hasRunData(entry)) return entry;
+          let sessionId = typeof entry.sessionId === 'string' && entry.sessionId
+            ? entry.sessionId
+            : deterministicId;
+          if (seen.has(sessionId)) sessionId = `${deterministicId}_${index + 1}`;
+          while (seen.has(sessionId)) sessionId += '_dup';
+          seen.add(sessionId);
+          if (entry.sessionId === sessionId) return entry;
+          changed = true;
+          migrated++;
+          return normalizeRunSession(entry, {
+            sessionId,
+            source: entry.source || 'legacy',
+            localDate: entry.localDate || week.dates?.[day] || null,
+            startTs: entry.startTs,
+            updatedTs: entry.updatedTs || 1,
+          });
+        });
+
+        // A prematurely-created empty canonical list must not hide real legacy
+        // data. Adopt it exactly once, using the same deterministic identity.
+        if (!week.runSessions[day].some(hasRunData) && hasRunData(legacy)) {
+          week.runSessions[day].push(normalizeRunSession(legacy, {
+            sessionId: legacy.sessionId || deterministicId,
+            source: legacy.source || 'legacy',
+            localDate: legacy.localDate || week.dates?.[day] || null,
+            startTs: legacy.startTs,
+            updatedTs: legacy.updatedTs || 1,
+          }));
+          changed = true;
+          migrated++;
+        }
+        if (changed) {
+          if (!week.runs || typeof week.runs !== 'object') week.runs = {};
+          syncProjection(week, day);
+        }
+        continue;
+      }
+
       if (!hasRunData(legacy)) { week.runSessions[day] = []; continue; }
-      const sessionId = legacy.sessionId || legacyRunSessionId(week.activationId, weekKey, day);
       const session = normalizeRunSession(legacy, {
-        sessionId,
+        sessionId: legacy.sessionId || deterministicId,
         source: legacy.source || 'legacy',
         localDate: legacy.localDate || week.dates?.[day] || null,
         startTs: legacy.startTs,
         updatedTs: legacy.updatedTs || 1,
       });
       week.runSessions[day] = [session];
-      if (!week.runs) week.runs = {};
+      if (!week.runs || typeof week.runs !== 'object') week.runs = {};
       week.runs[day] = { ...session };
       migrated++;
     }

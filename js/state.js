@@ -15,6 +15,7 @@ import { getSupabaseClient } from './state/supabase.js';
 import { initAuth, loginToSupabase, signUpToSupabase, checkActiveSession } from './state/auth.js';
 import { initImportExport, triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback } from './state/import-export.js';
 import { migrateState, CURRENT_SCHEMA_VERSION } from './state/migrations.js';
+import { showMigrationRecovery } from './state/migration-recovery-ui.js';
 import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './state/sync-guard.js';
 import {
   ensureActivation, beginActivation, archiveForeignWeeks,
@@ -815,9 +816,16 @@ export async function pullEngineDataFromStorage() {
   if (appState.settings.weightGoal === undefined) appState.settings.weightGoal = 'maintain';
   if (!appState.settings.restOverrides) appState.settings.restOverrides = {};
 
-  // Run versioned schema migrations (legacy-week cleanup lives here now) and
-  // stamp the current schema version.
-  migrateState(appState);
+  // Run versioned schema migrations before any save-capable sub-module starts.
+  // A failed step leaves localStorage byte-for-byte untouched, blocks the rest
+  // of boot, and presents an explicit retry path instead of running on a
+  // partially upgraded blob.
+  try {
+    migrateState(appState);
+  } catch (migrationError) {
+    showMigrationRecovery(migrationError);
+    throw migrationError;
+  }
 
   verifyWeekStorageSchema(appState.currentWeek);
   appState.loadMetrics = recomputeLoadMetrics(appState);

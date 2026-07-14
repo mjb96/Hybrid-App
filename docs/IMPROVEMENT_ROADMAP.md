@@ -23,8 +23,16 @@
   run, and analytics distinguish per-session signals from per-day totals. Evidence:
   manual+GPS JSON reload, state/IDB migration, sibling-safe route deletion,
   same-day analytics, exact recap and v2/v3 export/import regressions; 787/787 tests,
-  typecheck, precache and smoke green. **Next integrity slice:** R3 transactional,
-  validated and retryable state migrations.
+  typecheck, precache and smoke green.
+- **R3 / PR-3 complete — 14 July 2026** on `codex/beta-integrity-migrations`.
+  Each schema step now executes on a detached JSON clone, advances its version only
+  after invariant validation, and atomically replaces the last-good state. A thrown
+  step, validation failure, missing step, or future schema stops immediately without
+  stamping current. Startup leaves persisted bytes untouched and presents an
+  accessible retry screen; snapshot/file imports upgrade in memory before replacing
+  live data. Fault injection covers every version boundary, byte-for-byte rollback,
+  retry, old-version corpus, future schemas, recovery failure, and partial run-session
+  adoption. **Next integrity slice:** R4 complete Android portability/export.
 
 ## Prioritization model
 

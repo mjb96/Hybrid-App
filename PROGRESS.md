@@ -72,6 +72,22 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Beta Integrity PR-3 — transactional, validated, retryable migrations.**
+  Replaced the catch-and-continue migration runner (which could stamp failed data as
+  current) with isolated one-step transactions: clone the last-good JSON state, run
+  one upgrade, stamp its candidate version, validate that version's invariants, then
+  atomically commit. Thrown steps, failed validation, missing steps and future schemas
+  now stop without advancing the source blob. Startup blocks before save-capable wiring
+  and shows an accessible “Your data is safe” retry screen while localStorage remains
+  untouched. Cloud-snapshot recovery and both JSON import paths migrate before replacing
+  current data and report an honest safe-stop on failure. Hardened v3 activation repair
+  and v4 partial/duplicate run-session adoption so their validators can prove complete,
+  stable identities. Added fault injection at every v0→v4 boundary, byte-for-byte
+  rollback + retry, old-version corpus/idempotence, future-version, recovery UI/snapshot,
+  and partial-session regressions. Validation: **795/795 tests**, typecheck, precache and
+  smoke green. · **Next:** PR-4 / R4 complete Android export portability, including
+  native file handling and archived-week CSV completeness.
+
 - 2026-07-14 · **Beta Integrity PR-2 — stable run/session and route identity.**
   Added a backward-compatible canonical run history (`runSessions[day]`) with one
   stable `sessionId` per manual, GPS or FIT activity; the legacy `runs[day]` shape

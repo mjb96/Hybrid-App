@@ -4,6 +4,7 @@
 // =============================================================================
 import { showToast } from '../toast.js';
 import { runSessionsForDay } from './run-sessions.js';
+import { isStateMigrationError } from './migrations.js';
 
 let _getState       = null;
 let _setState       = null;
@@ -48,9 +49,17 @@ export function recoverCloudPullSnapshot() {
     showToast('No recoverable snapshot found.', true);
     return false;
   }
-  _backupCurrentState(); // keep an undo point for the cloud state we're leaving
   const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
-  const merged = _migrate({ ...base, ...snap });
+  let merged;
+  try {
+    merged = _migrate({ ...base, ...snap });
+  } catch (error) {
+    showToast(isStateMigrationError(error)
+      ? 'Recovery stopped safely: this snapshot could not be upgraded.'
+      : 'Recovery stopped safely. Your current data was not replaced.', true);
+    return false;
+  }
+  _backupCurrentState(); // undo point only after the snapshot upgrades safely
   if (!merged.customExercises) merged.customExercises = [];
   if (!merged.customPrograms)  merged.customPrograms  = [];
   _setState(merged);
@@ -137,11 +146,11 @@ export function triggerEngineImport(event) {
     try {
       const parsedData = JSON.parse(e.target.result);
       if (parsedData.currentWeek && parsedData.weeks && Object.keys(parsedData.weeks).length > 0) {
-        _backupCurrentState(); // undo point before we overwrite live data
         const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
         // Run the same versioned migrations the load path uses so an older
         // export is upgraded (and stamped) instead of silently half-broken.
         const merged = _migrate({ ...base, ...parsedData });
+        _backupCurrentState(); // undo point only after the import upgrades safely
         if (!merged.customExercises) merged.customExercises = [];
         if (!merged.customPrograms)  merged.customPrograms  = [];
         _setState(merged);
@@ -152,7 +161,9 @@ export function triggerEngineImport(event) {
         showToast('File structure failed validation.', true);
       }
     } catch (err) {
-      showToast('Error parsing storage file.', true);
+      showToast(isStateMigrationError(err)
+        ? 'Import stopped safely: this file could not be upgraded.'
+        : 'Error parsing storage file.', true);
     }
   };
   reader.readAsText(file);

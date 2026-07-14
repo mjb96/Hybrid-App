@@ -8014,3 +8014,31 @@ input[type="text"],
 .activity-actions { display: flex; gap: 12px; }
 .activity-actions .gps-btn-secondary,
 .activity-actions .gps-btn-stop { flex: 1; }
+
+/* ── Transactional migration recovery ─────────────────────────────────── */
+.migration-recovery {
+  position: fixed; inset: 0; z-index: 10000;
+  display: grid; place-items: center;
+  padding: 24px;
+  background: rgba(4, 7, 12, 0.94);
+  backdrop-filter: blur(10px);
+}
+.migration-recovery__panel {
+  width: min(100%, 420px);
+  padding: 28px 24px;
+  border: 1px solid var(--border, #29303a);
+  border-radius: 20px;
+  background: var(--bg-card, #121820);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+.migration-recovery__eyebrow {
+  margin-bottom: 10px;
+  color: var(--accent-blue, #60a5fa);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.migration-recovery__panel h1 { margin: 0 0 12px; font-size: 1.6rem; }
+.migration-recovery__panel p { margin: 0; color: var(--text-muted, #a8b1bd); line-height: 1.55; }
+.migration-recovery__action { width: 100%; margin-top: 24px; }

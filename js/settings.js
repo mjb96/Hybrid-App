@@ -4,6 +4,7 @@
 import { saveStateToLocalStorage, STORAGE_KEY } from './state.js';
 import { getAllRouteRecords, putRouteRecords, putRoutes, clearRouteDatabase } from './db.js';
 import { wrapExport, parseImport } from './state/route-portability.js';
+import { isStateMigrationError, migrateState } from './state/migrations.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 import { todayKey } from './dates.js';
@@ -647,12 +648,15 @@ export function handleImportFile(file) {
     if (!result) { showToast('Import failed: unrecognised file', true); return; }
 
     try {
+      // Upgrade a detached in-memory copy before touching the live state key.
+      // A migration failure therefore leaves the user's current bytes intact.
+      const migratedState = migrateState(result.state);
       // Undo point before overwriting live data. NOTE: writes to STORAGE_KEY —
       // the previous code wrote to a dead 'hybridAppState' key, so import was a
-      // silent no-op. Migrations run on the next boot (pullEngineDataFromStorage).
+      // silent no-op.
       const current = localStorage.getItem(STORAGE_KEY);
       if (current) localStorage.setItem(STORAGE_KEY + '_backup', current);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(result.state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedState));
 
       // Restore rich session-linked routes when present; v2 backups fall back to
       // their legacy week/day map. Stable ids make either path idempotent.
@@ -665,8 +669,10 @@ export function handleImportFile(file) {
 
       showToast(routeCount ? `Import successful (${routeCount} routes) — reloading…` : 'Import successful — reloading…');
       setTimeout(() => location.reload(), 1200);
-    } catch {
-      showToast('Import failed while saving', true);
+    } catch (error) {
+      showToast(isStateMigrationError(error)
+        ? 'Import stopped safely: this file could not be upgraded.'
+        : 'Import failed while saving', true);
     }
   };
   reader.readAsText(file);
