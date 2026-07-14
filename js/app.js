@@ -15,7 +15,7 @@ import { resolveProgramPhase } from './programs/phase.js';
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
   setActiveTab, setSelectedDay, setAppState,
-  getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
+  getProgramById, getActiveProgramIssue, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
@@ -305,6 +305,20 @@ export function handleMacroWeekSwitch() {
 }
 
 export function hydrateCurrentView() {
+  const programIssue = getActiveProgramIssue(appState);
+  if (programIssue) {
+    // Route to the explicit recovery surface without changing the stored ID or
+    // touching its weeks. Replacement only happens through normal activation.
+    document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    setActiveTab('program');
+    document.getElementById('view-program')?.classList.add('active');
+    document.querySelector('.nav-item[data-target="program"]')?.classList.add('active');
+    showActivePlanView(false);
+    updateLibraryState(appState);
+    renderLibrary();
+    return;
+  }
   verifyWeekStorageSchema(appState.currentWeek);
 
   if (activeTab === 'home') safeRenderExecution(renderHome, "Home Dashboard Render");
@@ -1417,7 +1431,7 @@ async function bootstrapApp() {
     // state, so the stored training history must be loaded first.
     initGpsTracker();
 
-    const currentTab = activeTab || 'home';
+    const currentTab = getActiveProgramIssue(appState) ? 'program' : (activeTab || 'home');
     const currentDay = selectedDay || 'mon';
 
     verifyWeekStorageSchema(appState.currentWeek);

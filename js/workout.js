@@ -261,7 +261,7 @@ export function renderWorkout() {
   const weekData = appState.weeks[wk];
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const homeBlueprint = activeProgram.days?.[selectedDay] || { lifts: [], runs: "Rest" };
+  const homeBlueprint = activeProgram?.days?.[selectedDay] || { lifts: [], runs: "Rest" };
 
   // --- RUN METRICS ---
   const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '', pace: '', notes: '' };

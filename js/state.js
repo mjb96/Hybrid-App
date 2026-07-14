@@ -124,15 +124,29 @@ export function emitStorageLoadedEvent() {
 // UNIVERSAL PROGRAM RESOLVER
 // ==========================================
 export function getProgramById(id) {
-  if (appState.customPrograms) {
-    const custom = appState.customPrograms.find(p => p.id === id);
-    if (custom) return custom;
-  }
-  if (PROGRAMS[id]) return PROGRAMS[id];
+  return resolveProgramForState(appState, id);
+}
+
+export function isUsableProgram(program) {
+  if (!program || typeof program !== 'object') return false;
+  if (!program.days || typeof program.days !== 'object' || Array.isArray(program.days)) return false;
+  const weeks = Number(program.totalWeeks ?? program.durationWeeks);
+  return Number.isInteger(weeks) && weeks > 0 && weeks <= 104;
+}
+
+export function resolveProgramForState(state, id) {
+  if (typeof id !== 'string' || !id.trim()) return null;
+  const custom = Array.isArray(state?.customPrograms)
+    ? state.customPrograms.find(p => p?.id === id)
+    : null;
+  // A matching custom record owns its ID. If it is corrupt, fail closed rather
+  // than silently rendering a catalog/system program that happens to share it.
+  if (custom) return isUsableProgram(custom) ? custom : null;
+  if (PROGRAMS[id]) return isUsableProgram(PROGRAMS[id]) ? PROGRAMS[id] : null;
   // Catalog-only programs — normalize to workout-compatible shape
   const catalogEntry = getCatalogEntry(id);
   if (catalogEntry) {
-    return {
+    const normalized = {
       ...catalogEntry,
       totalWeeks: catalogEntry.durationWeeks || 12,
       weeklyVolModifiers: catalogEntry.weeklyVolModifiers || {},
@@ -142,8 +156,22 @@ export function getProgramById(id) {
         philosophy: catalogEntry.description || '',
       },
     };
+    return isUsableProgram(normalized) ? normalized : null;
   }
-  return PROGRAMS['hybrid_engine'];
+  return null;
+}
+
+export function getActiveProgramIssue(state = appState) {
+  const id = state?.activeProgramId;
+  if (!id || resolveProgramForState(state, id)) return null;
+  const customRecordExists = Array.isArray(state?.customPrograms)
+    && state.customPrograms.some(program => program?.id === id);
+  return {
+    id,
+    reason: customRecordExists ? 'corrupt' : 'missing',
+    title: 'Program unavailable',
+    message: 'The saved program could not be loaded. Your logged history is still safe. Choose a replacement below or create a new program.',
+  };
 }
 
 // ==========================================
@@ -316,6 +344,11 @@ export function determineDefaultCalendarDay() {
 }
 
 export function verifyWeekStorageSchema(wk) {
+  const activeProgram = getProgramById(appState.activeProgramId);
+  // An unknown/deleted/corrupt active ID is a recovery state, not permission to
+  // seed the default plan into that ID's week. Leave state untouched until the
+  // user explicitly chooses a replacement from Programs.
+  if (!activeProgram) return false;
   if (!appState.weeks) appState.weeks = {};
   // Every seeded/edited week belongs to the current program run, so make sure one
   // exists to stamp ownership with (backfills legacy/boot states harmlessly).
@@ -333,8 +366,6 @@ export function verifyWeekStorageSchema(wk) {
       appState.weeks[wk].gymStats[d] = { time: '', avgHR: '', maxHR: '', cals: '' };
       appState.weeks[wk].lifts[d] = {};
     });
-
-    const activeProgram = getProgramById(appState.activeProgramId);
 
     DEFAULT_DAYS.forEach(d => {
       const dayBlueprint = activeProgram.days[d];
@@ -358,6 +389,7 @@ export function verifyWeekStorageSchema(wk) {
   // Defensive schema repair for imported/current-version snapshots that lack
   // the v4 sidecar. This adopts any legacy projection before creating arrays.
   migrateLegacyRunSessions({ weeks: { [wk]: appState.weeks[wk] } }, DEFAULT_DAYS);
+  return true;
 }
 
 // A set counts as "logged" (real history, never discard on a program switch)

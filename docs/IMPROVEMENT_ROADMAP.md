@@ -109,6 +109,12 @@
   verdicts, evidence, and risk consumers use that contract. Missing, sparse, stale,
   future-dated, outlier, normalized-weight, and copy regressions keep a single input
   from presenting as authoritative coaching.
+- **R19 complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Program resolution now fails closed for unknown, deleted, or structurally corrupt IDs
+  instead of substituting Hybrid Engine. Startup routes the athlete to Programs without
+  mutating the stored ID or weeks; an explicit recovery banner says history is safe and
+  offers the catalog or a new custom plan. Exact, missing, corrupt, and ID-shadow fixtures
+  prove replacement occurs only through the normal confirmed activation flow.
 
 ## Prioritization model
 
@@ -306,10 +312,12 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
-- 2026-07-14 · R11–R13 completed on `codex/core-loop-truth-accessibility`: mobile ergonomics
-  and sign-in modal lifecycle, direct bodyweight load modes, and confidence-gated readiness.
-  `npm run verify` (868 tests) and required Playwright journeys pass. · Next: archive duplicate
-  trackers, complete a remaining low-risk roadmap quick win, then update PR #132.
+- 2026-07-14 · R11–R13 and quick-win R19 completed on
+  `codex/core-loop-truth-accessibility`: mobile ergonomics and sign-in modal lifecycle,
+  direct bodyweight load modes, confidence-gated readiness, and explicit invalid-program
+  recovery. Duplicate progress trackers were archived into this single live roadmap.
+  `npm run verify` (874 tests) and required Playwright journeys pass. · Next: push the branch,
+  update PR #132, monitor required checks, then complete the human-owned device/release matrix.
 
 Historical implementation logs through 14 July 2026 are preserved in
 `docs/archive/PROGRESS-legacy-2026-07-14.md` and
