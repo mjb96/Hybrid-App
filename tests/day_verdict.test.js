@@ -33,8 +33,10 @@ test('dayVerdict: a logged session is mode "done"; low readiness on a work day i
   const done = dayVerdict({ rec: { sessionLabel: 'Push Day', badge: 'Session Done' } }, { currentWeek: '2' }, {}, 'mon');
   assert.equal(done.mode, 'done');
   assert.equal(done.canProjectGain, false);
-  const recover = dayVerdict({ rec: { sessionLabel: 'Push Day', badge: '' }, ready: { hasData: true, score: 30 } }, { currentWeek: '2' }, {}, 'mon');
+  const recover = dayVerdict({ rec: { sessionLabel: 'Push Day', badge: '' }, ready: { hasData: true, score: 30, confidence: 'high' } }, { currentWeek: '2' }, {}, 'mon');
   assert.equal(recover.mode, 'recover');
+  const limited = dayVerdict({ rec: { sessionLabel: 'Push Day', badge: '' }, ready: { hasData: true, score: 30, confidence: 'low' } }, { currentWeek: '2' }, {}, 'mon');
+  assert.equal(limited.mode, 'train');
 });
 
 // ---- projection is rest-aware -------------------------------------------

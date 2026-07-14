@@ -82,6 +82,39 @@
   activation, sync, migration, and celebration overlays use it. Required mobile Chromium
   checks prove the lifecycle and Android unit/lint/APK gates pass. Physical TalkBack remains
   the explicit `[You]` release artifact in `docs/android-accessibility-device-checklist.md`.
+- **R11 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Semantic secondary-copy tokens now meet WCAG AA in dark and light themes, and primary
+  onboarding, Home, navigation, Programs, workout, Profile, and Settings controls expose
+  44px targets without widening the page. A required real-Chromium contract covers
+  320/360/390/412px, 200% text, contrast, target geometry, and horizontal overflow. The
+  same pass fixed the visible-but-inert sign-in screen by putting auth on the shared modal
+  lifecycle; the browser journey proves typing, account-tab switching, close, and focus
+  restoration above onboarding. Physical touch review remains the explicit `[You]`
+  artifact in `docs/android-ergonomics-device-checklist.md`.
+- **R12 complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Pull-Up, Chin-Up, Dip, and Push-Up set rows now expose Bodyweight / Weighted /
+  Assisted directly, default a first blank bodyweight movement honestly, and retain
+  the fine-grained band selector in set options. Assistance is subtracted from body
+  mass to produce effective moved load instead of being counted as positive load.
+  The former cryptic set-number target is now a keyboard-focusable, visibly labelled
+  `Log S1` shortcut. Pure variant/semantics/render tests plus a real 360px Chromium
+  journey prove that a first-tap bodyweight set persists completion, mode, bodyweight,
+  and a positive effective load without opening overflow.
+- **R13 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Readiness now returns an explicit confidence band, input count, named evidence,
+  time scope, excluded stale/future/invalid inputs, and a deterministic attribution
+  trace. One signal remains a low-confidence estimate and two remain developing;
+  only three or more current signals can unlock PR, time-trial, push, back-off, or
+  readiness-driven risk language. Home, Recovery, morning briefing, coach Q&A,
+  verdicts, evidence, and risk consumers use that contract. Missing, sparse, stale,
+  future-dated, outlier, normalized-weight, and copy regressions keep a single input
+  from presenting as authoritative coaching.
+- **R19 complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Program resolution now fails closed for unknown, deleted, or structurally corrupt IDs
+  instead of substituting Hybrid Engine. Startup routes the athlete to Programs without
+  mutating the stored ID or weeks; an explicit recovery banner says history is safe and
+  offers the catalog or a new custom plan. Exact, missing, corrupt, and ID-shadow fixtures
+  prove replacement occurs only through the normal confirmed activation flow.
 
 ## Prioritization model
 
@@ -253,13 +286,42 @@ These are small, but should not displace Phase 0:
 
 These require the product owner/device/accounts and must not be simulated as complete:
 
-- `[You]` Run the supplied device matrix for foreground/background/lock/process-kill GPS and attach route comparisons.
-- `[You]` Grant/revoke each Health Connect permission on supported devices and capture Settings/result evidence.
-- `[You]` Confirm Android system save/share and reimport on at least one minimum/older supported and one current Android device.
-- `[You]` Configure branch protection and Play Console internal/public beta tracks after workflow gating is merged.
-- `[You]` Review coaching/health copy for product and legal positioning before store submission.
+- [ ] Confirm the Google Play Developer account, Play Console access, at least one physical
+  Android test phone, and Supabase owner access are available.
+- [ ] Run the supplied foreground/background/lock/process-kill GPS matrix and attach route
+  comparisons; prepare the Play foreground-service declaration and demonstration video.
+- [ ] Grant, deny, and revoke each Health Connect permission on minimum/current supported
+  Android versions; test notifications, resume, offline behavior, and capture Settings/result evidence.
+- [ ] Complete the TalkBack, touch-target, Android system save/share, cancel, overwrite, and
+  JSON reimport checklists on minimum/current supported devices.
+- [ ] Deploy and verify the `delete-account` edge function so account deletion removes the
+  authentication record as well as local/cloud user data.
+- [ ] Have the privacy policy and terms reviewed, replace every placeholder, host them at public
+  URLs, and complete the Play Data Safety form from `docs/legal/play-data-safety.md`.
+- [ ] Produce final launcher/splash assets, phone screenshots, feature graphic, and store listing
+  media only after the device matrices pass.
+- [ ] Configure `main` branch protection so the required verification workflow cannot be bypassed.
+- [ ] Produce the signed release through CI, upload it to Play internal testing, invite testers,
+  triage Sentry findings, complete final QA/versioning, then promote to closed/public beta.
+- [ ] Review coaching/health copy for product and legal positioning before store submission.
 
 Engineering should provide exact checklists, fixtures, expected results, and build artifacts for each item.
+
+## Session log
+
+Newest first; keep entries short and link commits or checklists instead of repeating the
+implementation register.
+
+- 2026-07-14 · R11–R13 and quick-win R19 completed on
+  `codex/core-loop-truth-accessibility`: mobile ergonomics and sign-in modal lifecycle,
+  direct bodyweight load modes, confidence-gated readiness, and explicit invalid-program
+  recovery. Duplicate progress trackers were archived into this single live roadmap.
+  `npm run verify` (874 tests) and required Playwright journeys pass. · Next: push the branch,
+  update PR #132, monitor required checks, then complete the human-owned device/release matrix.
+
+Historical implementation logs through 14 July 2026 are preserved in
+`docs/archive/PROGRESS-legacy-2026-07-14.md` and
+`docs/archive/PRODUCT_PROGRESS-legacy-2026-07-14.md`; they are evidence, not active plans.
 
 ## Stop conditions
 

@@ -92,7 +92,10 @@ export function buildCoachEvidence({ state, days, model, rec, today }) {
   const sets = setsBullet(state, days, t);
   const dist = distanceBullet(state, days, t);
   const readyHas = !!model?.ready?.hasData;
-  const readyLine = readyHas ? `Readiness is ${model.ready.score} — ${model.ready.status}.` : null;
+  const readyCount = model?.ready?.inputCount || 0;
+  const readyLine = readyHas
+    ? `Readiness is ${model.ready.score} — ${model.ready.status} (${model.ready.confidence} confidence, ${readyCount} signal${readyCount === 1 ? '' : 's'}).`
+    : null;
 
   // Order the evidence by what actually drove THIS recommendation.
   const recoveryFocused = sev === 'warning' || sev === 'caution' || badge === 'Rest Day' || badge === 'Deload';
@@ -114,6 +117,9 @@ export function buildCoachEvidence({ state, days, model, rec, today }) {
   /** @type {'ok'|'limited'} */
   let confidence = 'ok';
   if (recoveryFocused) {
+    if (readyHas && model.ready.confidence !== 'high') {
+      confidence = 'limited';
+    }
     if (connected && nights < 4) {
       bullets.push(`Sleep logged ${nights} of the last 7 nights — recovery read is partial.`);
       confidence = 'limited';

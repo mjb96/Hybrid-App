@@ -29,7 +29,9 @@
 
   /* --- Text --- */
   --text-primary:   #f8fafc;
-  --text-secondary: #64748b;
+  /* WCAG AA on the app's darkest and card surfaces. Keep secondary copy
+     readable; reserve opacity-based colours for non-essential decoration. */
+  --text-secondary: #94a3b8;
   --text-white:     #ffffff;
 
   /* --- Semantic accents --- */
@@ -118,11 +120,11 @@
      used in ~60 places but never defined (text was falling back to inherit). */
   --text-main:    var(--text-primary);
   --text-inverse: var(--text-primary);
-  --text-sub:     rgba(255,255,255,0.60);
-  --text-muted:   rgba(255,255,255,0.40);
-  --text-strong:  rgba(255,255,255,0.72);
-  --text-faint:   rgba(255,255,255,0.30);
-  --text-ghost:   rgba(255,255,255,0.20);
+  --text-sub:     #cbd5e1;
+  --text-muted:   #94a3b8;
+  --text-strong:  #e2e8f0;
+  --text-faint:   #7c8da5;
+  --text-ghost:   #64748b;
 
   /* --- Domain colours (analytics sections) --- */
   --color-pink:   #ec4899;
@@ -2593,14 +2595,14 @@ html[data-theme="light"] {
 
   /* Text */
   --text-primary:   #0f172a;
-  --text-secondary: #64748b;
-  --text-tertiary:  #94a3b8;
+  --text-secondary: #475569;
+  --text-tertiary:  #526176;
   --text-white:     #1e293b;
-  --text-sub:       rgba(15,23,42,0.55);
-  --text-muted:     rgba(15,23,42,0.48);
-  --text-strong:    rgba(15,23,42,0.70);
-  --text-faint:     rgba(15,23,42,0.38);
-  --text-ghost:     rgba(15,23,42,0.30);
+  --text-sub:       #475569;
+  --text-muted:     #526176;
+  --text-strong:    #334155;
+  --text-faint:     #526176;
+  --text-ghost:     #64748b;
 
   /* Glass/overlay — flip to dark-on-light */
   --glass-border:   rgba(0, 0, 0, 0.08);
@@ -8058,3 +8060,154 @@ input[type="text"],
 .migration-recovery__panel h1 { margin: 0 0 12px; font-size: 1.6rem; }
 .migration-recovery__panel p { margin: 0; color: var(--text-muted, #a8b1bd); line-height: 1.55; }
 .migration-recovery__action { width: 100%; margin-top: 24px; }
+
+/* ==========================================================================
+   CORE MOBILE ERGONOMICS (roadmap R11)
+   Primary controls in onboarding, navigation, workout and Settings expose a
+   44px target. The compact set grid keeps that contract at 320px without
+   widening the document; its two numeric fields take the remaining width.
+   ========================================================================== */
+:root { --touch-target: 44px; }
+
+.nav-item,
+.day-pill,
+.run-add-strip,
+.cockpit-header-clickzone,
+.cct-logall,
+.btn-pad,
+.btn-pad-append,
+.sheet-close-btn,
+.settings-close-btn,
+.settings-toggle-btn,
+.settings-action-btn,
+.settings-input,
+.ob-toggle-btn,
+.ob-input,
+.ob-cta,
+.ob-skip,
+.ob-back-link,
+.ob-goal-btn,
+.ob-prog-card {
+  min-height: var(--touch-target);
+}
+
+.profile-avatar-btn,
+.home-avatar,
+.profile-settings-btn,
+.log-run-fab,
+.week-stepper-btn,
+.rest-adj-btn,
+.rest-skip-btn {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+}
+
+.settings-close-btn,
+.sheet-close-btn {
+  width: var(--touch-target);
+  height: var(--touch-target);
+}
+
+.settings-toggle-btn { min-width: var(--touch-target); }
+
+.drag-handle-grip,
+.btn-ss-link,
+.set-num-lbl,
+.gym-check-wrap,
+input[type="checkbox"].gym-check,
+.btn-set-more {
+  width: var(--touch-target);
+  min-width: var(--touch-target);
+  height: var(--touch-target);
+  min-height: var(--touch-target);
+}
+
+.type-pill,
+.btn-load,
+.btn-set-delete,
+.btn-rpe {
+  min-height: var(--touch-target);
+}
+
+.ob-goal-desc,
+.run-add-sub,
+.fit-import-tile__sub,
+.cockpit-ex-target,
+.settings-hint,
+.settings-row-label {
+  font-size: max(0.75rem, var(--text-sm));
+  line-height: 1.45;
+}
+
+.set-num-lbl[data-action="quick-log"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  width: 60px;
+  min-width: 60px;
+  padding: 4px;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.cockpit-set-row,
+.set-rows-head {
+  grid-template-columns: 60px minmax(0, 1fr) minmax(0, 1fr) 44px 44px;
+  gap: 8px;
+}
+.cockpit-set-row input { min-width: 0; }
+.cockpit-set-row input { min-height: var(--touch-target); }
+
+.set-load-choice {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  background: var(--overlay-sm);
+}
+.set-load-choice__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.set-load-choice__btn.active {
+  background: var(--color-blue);
+  color: #fff;
+  box-shadow: var(--shadow-xs);
+}
+
+@media (max-width: 380px) {
+  .bottom-nav {
+    left: 12px;
+    right: 12px;
+    width: calc(100% - 24px);
+  }
+  .cockpit-body { padding-inline: 10px; }
+  .cockpit-set-row,
+  .set-rows-head {
+    gap: 4px;
+  }
+  .cockpit-set-row input { min-width: 0; padding-inline: 4px; }
+  .set-adv-row { gap: 6px; }
+  .settings-row { gap: 8px; }
+}
+
+/* At 200% text zoom, controls wrap vertically instead of causing horizontal
+   page overflow. The content remains operable without two-axis scrolling. */
+@media (max-width: 480px) {
+  .settings-row { flex-wrap: wrap; }
+  .settings-toggle-group { flex-wrap: wrap; justify-content: flex-end; }
+  .run-grid-inputs { grid-template-columns: 1fr; }
+}

@@ -109,7 +109,7 @@ test('cycleSetType walks ""→W→D→F→"" ', () => {
   assert.deepEqual(seq, ['W', 'D', 'F', '']);
 });
 
-test('cycleSetLoad stamps bodyweight then band weights then clears', () => {
+test('cycleSetLoad stamps bodyweight, subtracts band assistance, then clears', () => {
   initWith(freshState());
   workout.appendCustomSetRow(null, 'Pull-up');
   // '' -> BW (stamps latest logged bodyweight 80)
@@ -119,7 +119,7 @@ test('cycleSetLoad stamps bodyweight then band weights then clears', () => {
   // BW -> L (band light = 10)
   workout.cycleSetLoad('Pull-up', 0);
   assert.equal(sets('Pull-up')[0].band, 'L');
-  assert.equal(sets('Pull-up')[0].w, '10');
+  assert.equal(sets('Pull-up')[0].w, '70');
   // L -> M -> H -> '' (weighted, cleared)
   workout.cycleSetLoad('Pull-up', 0); // M
   workout.cycleSetLoad('Pull-up', 0); // H
@@ -127,6 +127,20 @@ test('cycleSetLoad stamps bodyweight then band weights then clears', () => {
   assert.equal(sets('Pull-up')[0].w, '');
   assert.equal(sets('Pull-up')[0].bw, undefined);
   assert.equal(sets('Pull-up')[0].band, undefined);
+});
+
+test('setSetLoadMode exposes direct Bodyweight, Weighted, and Assisted choices', () => {
+  initWith(freshState());
+  workout.appendCustomSetRow(null, 'Dips');
+  workout.setSetLoadMode('Dips', 0, 'bodyweight');
+  assert.equal(sets('Dips')[0].bw, true);
+  assert.equal(sets('Dips')[0].w, '80');
+  workout.setSetLoadMode('Dips', 0, 'assisted');
+  assert.equal(sets('Dips')[0].band, 'M');
+  assert.equal(sets('Dips')[0].w, '60');
+  workout.setSetLoadMode('Dips', 0, 'weighted');
+  assert.equal(sets('Dips')[0].loadMode, 'weighted');
+  assert.equal(sets('Dips')[0].w, '');
 });
 
 test('setPerSetRir sets RIR + derived RPE, and taps to clear', () => {

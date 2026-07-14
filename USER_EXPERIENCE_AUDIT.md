@@ -124,7 +124,7 @@ set", not a trophy** (the Sprint-4 anti-spam rule). Same event, two verdicts. Fi
 ### 7. Health Connect — not re-tested here (Android-native bridge; covered by prior work).
 
 ### 8. Running & GPS — not exercised in-browser (web geolocation unavailable headless;
-native foreground-service path is covered by prior device-test items in `PROGRESS.md`).
+native foreground-service path is covered by the device-test items in `docs/IMPROVEMENT_ROADMAP.md`).
 
 ### 9. Settings & 10. Native feel — spot-checked; consistent with the polished chrome.
 Folded a small native-keyboard fix into the logging change (`inputmode`).
@@ -235,7 +235,7 @@ state, and "PRs This Week" reading 0 on a first-ever session).
 
 ## 7. Remaining product risks / unfinished
 - GPS/Health Connect/notifications still need **real-device** verification (`[You]`, per
-  `PROGRESS.md`) — not testable headless.
+  `docs/IMPROVEMENT_ROADMAP.md`) — not testable headless.
 - Analytics still assume some fitness literacy (VDOT, e1RM, ACWR labels are surfaced,
   though mostly with plain-language subtitles).
 - Run-program timeline volume bars are visually flat (see §4).

@@ -3073,3 +3073,38 @@ html[data-theme="light"] .detail-complete-btn:active {
    nudge the interactive row border for contrast. */
 html[data-theme="light"] .wag-row { border-color: rgba(0,0,0,0.06); }
 html[data-theme="light"] .prog-phase { background: rgba(0,0,0,0.02); }
+
+/* Core program-discovery targets (roadmap R11). Cards already exceed 44px;
+   compact chips and icon actions need an explicit minimum target. */
+.prog-search-input-wrap,
+.filter-chip,
+.active-prog-continue-btn,
+.popular-search-chip,
+.detail-back-btn,
+.detail-bookmark-btn,
+.detail-cta-btn,
+.prog-tab,
+.wag-week-btn,
+.wag-week-reset,
+.wag-row--interactive,
+.prog-card-bookmark {
+  min-height: var(--touch-target, 44px);
+}
+
+.detail-bookmark-btn,
+.prog-card-bookmark,
+.wag-week-btn {
+  min-width: var(--touch-target, 44px);
+  width: var(--touch-target, 44px);
+  height: var(--touch-target, 44px);
+}
+
+.detail-back-btn { min-width: var(--touch-target, 44px); }
+
+.detail-description,
+.detail-highlight-item,
+.prog-headline,
+.wag-summary {
+  font-size: max(0.8rem, var(--text-base));
+  line-height: 1.5;
+}

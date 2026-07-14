@@ -71,7 +71,7 @@ function hrvStatusFrom(log) {
   else if (ratio >= 0.92) status = 'baseline';
   else if (ratio >= 0.80) status = 'suppressed';
   else status = 'low';
-  return { status, latest, mean };
+  return { status, latest, mean, date: sorted[0]?.date || null };
 }
 
 // ---------------------------------------------------------------------------
@@ -127,20 +127,28 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
   const todayWellness = (state?.wellnessLog || []).find(e => e.date === today) || null;
   const sleepLog = Array.isArray(hc.sleep) ? [...hc.sleep].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
   const sleepHours = sleepLog[0]?.totalHours || 0;
+  const hrvStat = hrvStatusFrom(hc.hrv);
+  const restingHrValues = Array.isArray(hc.restingHR) ? hc.restingHR : [];
+  const latestRestingHr = [...restingHrValues].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const signalDates = {
+    hrv: hrvStat?.date,
+    sleep: sleepLog[0]?.date,
+    load: today,
+    restingHr: latestRestingHr?.date,
+    wellness: todayWellness?.date,
+  };
   const readyRaw = computeReadiness({
-    hrvStat:        hrvStatusFrom(hc.hrv),
+    hrvStat,
     sleepHours,
     atl, ctl,
     todayWellness,
-    restingHrValues: hc.restingHR || [],
+    restingHrValues,
+    signalDates,
+    asOf: today,
   });
   const ready = {
-    score:          readyRaw.score,
-    status:         readyRaw.status,
+    ...readyRaw,
     color:          readinessColor(readyRaw.score),
-    recommendation: readyRaw.recommendation,
-    components:     readyRaw.components,
-    available:      readyRaw.available,
     hasData:        readyRaw.score !== null,
   };
 
@@ -148,16 +156,16 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
   // pillar uses this so ACWR isn't counted twice (Recovery + the Load pillar).
   // The full `ready` above still powers the Readiness tile and recovery view.
   const readyNoLoadRaw = computeReadiness({
-    hrvStat:        hrvStatusFrom(hc.hrv),
+    hrvStat,
     sleepHours,
     atl: 0, ctl: 0,   // 0 → the load component drops out (that's the point)
     todayWellness,
-    restingHrValues: hc.restingHR || [],
+    restingHrValues,
+    signalDates,
+    asOf: today,
   });
   const readyNoLoad = {
-    score:      readyNoLoadRaw.score,
-    status:     readyNoLoadRaw.status,
-    components: readyNoLoadRaw.components,
+    ...readyNoLoadRaw,
     hasData:    readyNoLoadRaw.score !== null,
   };
 
@@ -310,10 +318,10 @@ function pickTopInsight(m) {
   if (m.load.hasData && m.load.acwr >= 1.5) {
     return { text: `Load spiking (ACWR ${m.load.acwr}). Ease off and protect recovery today.`, tone: 'warning', nav: 'training-status' };
   }
-  if (!sessionDone && m.ready.hasData && m.ready.score >= 85) {
+  if (!sessionDone && m.ready.hasData && m.ready.confidence === 'high' && m.ready.score >= 85) {
     return { text: `Readiness ${m.ready.score} — primed for a hard session or a PR attempt.`, tone: 'positive', nav: 'recovery-score' };
   }
-  if (m.ready.hasData && m.ready.score < 40) {
+  if (m.ready.hasData && m.ready.confidence === 'high' && m.ready.score < 40) {
     return { text: `Readiness ${m.ready.score} — recovery is suppressed. Keep it easy today.`, tone: 'warning', nav: 'recovery-score' };
   }
   if (m.load.hasData && m.load.acwr >= 1.3) {

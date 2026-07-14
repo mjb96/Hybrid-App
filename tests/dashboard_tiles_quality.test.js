@@ -32,11 +32,12 @@ test('Training Status: no raw CTL/ATL "Fitness N" jargon', () => {
 
 test('Readiness: sub shows values, not a list of input names', () => {
   const model = {
-    ready: { hasData: true, score: 85, status: 'Peak', color: 'var(--color-green)', available: ['hrv', 'sleep', 'load'] },
+    ready: { hasData: true, score: 85, status: 'Peak', color: 'var(--color-green)', available: ['hrv', 'sleep', 'load'], confidence: 'high', inputCount: 3 },
     health: { sleepHours: 7.8, hrv: 62, restingHR: 52 },
   };
   const d = run('readiness', {}, model);
   assert.match(String(d.sub), /Sleep 7\.8h|HRV 62ms/);
+  assert.match(String(d.sub), /high confidence/i);
   assert.doesNotMatch(String(d.sub), /HRV · Sleep · Load/); // not the old name list
 });
 

@@ -22,13 +22,31 @@ test('train-today: high risk → hold back', () => {
 });
 
 test('train-today: low readiness → yes but easy', () => {
-  const { answer } = answerCoachQuestion('train-today', { risk: { level: 'none' }, session: { isRest: false }, model: { ready: { hasData: true, score: 40 } } });
+  const { answer } = answerCoachQuestion('train-today', { risk: { level: 'none' }, session: { isRest: false }, model: { ready: { hasData: true, score: 40, confidence: 'high', inputCount: 3 } } });
   assert.match(answer, /keep it easy|zone 2/i);
 });
 
 test('train-today: primed → push', () => {
-  const { answer } = answerCoachQuestion('train-today', { risk: { level: 'none' }, session: { isRest: false }, model: { ready: { hasData: true, score: 90 } } });
+  const { answer } = answerCoachQuestion('train-today', { risk: { level: 'none' }, session: { isRest: false }, model: { ready: { hasData: true, score: 90, confidence: 'high', inputCount: 3 } } });
   assert.match(answer, /primed|push/i);
+});
+
+test('train-today: one signal cannot recommend pushing or backing off', () => {
+  for (const score of [20, 100]) {
+    const { answer } = answerCoachQuestion('train-today', { risk: { level: 'none' }, session: { isRest: false }, model: { ready: { hasData: true, score, confidence: 'low', inputCount: 1 } } });
+    assert.match(answer, /not enough evidence/i);
+    assert.doesNotMatch(answer, /primed|keep it easy|zone 2/i);
+  }
+});
+
+test('readiness answer names confidence and evidence', () => {
+  const { answer } = answerCoachQuestion('readiness', { model: { ready: {
+    hasData: true, score: 100, status: 'Limited signal', confidence: 'low', inputCount: 1,
+    evidence: [{ label: 'Latest sleep' }],
+  } } });
+  assert.match(answer, /low confidence from Latest sleep/i);
+  assert.match(answer, /not enough evidence/i);
+  assert.doesNotMatch(answer, /Good to go|primed/i);
 });
 
 test('why-score: summarises the biggest movers from deltaBreakdown', () => {

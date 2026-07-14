@@ -6,7 +6,7 @@ every screen in two personas — a brand-new user (fresh install through onboard
 and a returning athlete (8 seeded weeks of hybrid training). All findings below were
 **observed in the running app on this date** or verified in code (`file:line`). Everything
 recommended by previous audits that has shipped has been removed from this document — see
-`PRODUCT_PROGRESS.md` for the record of completed work.
+`docs/IMPROVEMENT_ROADMAP.md` for implementation status and the live execution plan.
 
 > **How to read this:** §1 is the verdict. §2 is the vision and the design laws that are
 > already codified and working — do not re-litigate them. §3 is the one systemic problem
@@ -447,7 +447,7 @@ Effort: XS <1h · S ~half-day · M 1–3 days · L 1–2 weeks. All pre-beta unl
 
 ### Sprint 4 — Beta + post-beta
 - Device-test list (GPS lock-screen run, notification loop, Health Connect, swap/plate/
-  swipe) — unchanged from PROGRESS.md `[You]` items.
+  swipe) — unchanged from the improvement roadmap's `[You]` device items.
 - Store assets **after** Sprint 3 (screenshots should show the icon set, not emoji).
 - Post-beta: VDOT-from-easy-runs estimate, Home tile aspirational empty states, type ramp
   (C7), splash polish, "More" bucket fold, dead-DOM sweep, Sentry breadcrumbs for render

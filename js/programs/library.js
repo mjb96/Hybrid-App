@@ -8,7 +8,7 @@ import { getRecommendations } from './recommendations.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { renderProgramCard, isWod, coverGlyphFor } from './program-card.js';
 import { icon as svgIcon } from '../ui/icons.js';
-import { toggleBookmark, recordRecentlyViewed, getProgramById, saveStateToLocalStorage } from '../state.js';
+import { toggleBookmark, recordRecentlyViewed, getProgramById, getActiveProgramIssue, saveStateToLocalStorage } from '../state.js';
 import { escapeHtml, programProgressPct } from '../util.js';
 
 // V2-6 — the curated home rails (in order) shown on the lean Discover surface.
@@ -108,7 +108,7 @@ function getNextWorkoutInfo(programId) {
   return null;
 }
 
-function renderActiveProgramBanner() {
+export function renderActiveProgramBanner() {
   const banner = document.getElementById('activeProgBanner');
   if (!banner || !_appState) return;
 
@@ -116,6 +116,23 @@ function renderActiveProgramBanner() {
   if (!activeId) {
     banner.innerHTML = '';
     banner.style.display = 'none';
+    return;
+  }
+
+  const issue = getActiveProgramIssue(_appState);
+  if (issue) {
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div class="active-prog-card active-prog-card--recovery" role="status" aria-live="polite">
+        <div class="active-prog-inner">
+          <div class="active-prog-left">
+            <span class="active-prog-badge">ACTION NEEDED</span>
+            <div class="active-prog-name">${escapeHtml(issue.title)}</div>
+            <div class="active-prog-meta">${escapeHtml(issue.message)}</div>
+          </div>
+          <button class="create-cta-btn" data-action="open-create-program">Create new</button>
+        </div>
+      </div>`;
     return;
   }
 

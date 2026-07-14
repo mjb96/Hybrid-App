@@ -16,6 +16,36 @@ const WEIGHTS = {
   wellness:  0.13,
 };
 
+const EVIDENCE_META = {
+  hrv:       { label: 'HRV vs baseline', scope: 'recent biometric' },
+  sleep:     { label: 'Latest sleep', scope: 'last night' },
+  load:      { label: 'Training load balance', scope: 'rolling training load' },
+  restingHr: { label: 'Resting HR vs baseline', scope: 'recent biometric' },
+  wellness:  { label: 'Wellness check-in', scope: 'today' },
+};
+
+const MAX_AGE_DAYS = { hrv: 2, sleep: 2, restingHr: 2, wellness: 0 };
+
+function ageDays(date, asOf) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) || !/^\d{4}-\d{2}-\d{2}$/.test(String(asOf || ''))) return null;
+  const utc = (key) => { const [y, m, d] = key.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((utc(asOf) - utc(date)) / 86400000);
+}
+
+function confidenceFor(inputCount) {
+  if (inputCount <= 0) return 'none';
+  if (inputCount === 1) return 'low';
+  if (inputCount === 2) return 'moderate';
+  return 'high';
+}
+
+function statusForConfidence(score, confidence) {
+  if (score === null) return 'No Data';
+  if (confidence === 'low') return 'Limited signal';
+  if (confidence === 'moderate') return 'Developing read';
+  return readinessStatus(score);
+}
+
 // HRV component: 0–100.
 // Uses HRV status (elevated/baseline/suppressed/low).
 function hrvComponent(hrvStat) {
@@ -31,7 +61,7 @@ function hrvComponent(hrvStat) {
 
 // Sleep component: 0–100 based on last night's hours vs 8h target.
 function sleepComponent(sleepHours) {
-  if (!sleepHours || sleepHours <= 0) return null;
+  if (!sleepHours || sleepHours <= 0 || sleepHours > 16) return null;
   if (sleepHours >= 8.5) return 100;
   if (sleepHours >= 7.5) return 85;
   if (sleepHours >= 7.0) return 70;
@@ -57,8 +87,11 @@ function loadComponent(atl, ctl) {
 // Resting HR component: 0–100 based on deviation from 7-day baseline.
 // Elevated resting HR relative to baseline signals poor recovery.
 function restingHrComponent(restingHrValues) {
-  if (!restingHrValues || restingHrValues.length < 2) return null;
-  const sorted   = [...restingHrValues].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const valid = Array.isArray(restingHrValues)
+    ? restingHrValues.filter((entry) => Number.isFinite(Number(entry?.bpm)) && Number(entry.bpm) >= 25 && Number(entry.bpm) <= 220)
+    : [];
+  if (valid.length < 2) return null;
+  const sorted   = [...valid].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const today    = sorted[0].bpm;
   const window7  = sorted.slice(0, Math.min(7, sorted.length));
   const baseline = window7.reduce((s, e) => s + e.bpm, 0) / window7.length;
@@ -85,9 +118,23 @@ function wellnessComponent(todayWellness) {
   return n > 0 ? Math.round(score / n) : null;
 }
 
+/**
+ * @typedef {Object} ReadinessInput
+ * @property {{ status?: string } | null} [hrvStat]
+ * @property {number | null} [sleepHours]
+ * @property {number | null} [atl]
+ * @property {number | null} [ctl]
+ * @property {{ mood?: number, soreness?: number } | null} [todayWellness]
+ * @property {Array<{ date?: string, bpm?: number }>} [restingHrValues]
+ * @property {Record<string, string | null | undefined>} [signalDates]
+ * @property {string | null} [asOf]
+ */
+
 // Compute composite readiness from all available components.
-// Returns { score (0-100), components, status, recommendation, available }.
-export function computeReadiness({ hrvStat, sleepHours, atl, ctl, todayWellness, restingHrValues }) {
+// Returns the score plus its calibration contract: confidence, input count,
+// evidence, time scope, excluded inputs, and a deterministic dev trace.
+/** @param {ReadinessInput} [input] */
+export function computeReadiness({ hrvStat, sleepHours, atl, ctl, todayWellness, restingHrValues, signalDates = {}, asOf = null } = {}) {
   const raw = {
     hrv:       hrvComponent(hrvStat),
     sleep:     sleepComponent(sleepHours),
@@ -96,10 +143,35 @@ export function computeReadiness({ hrvStat, sleepHours, atl, ctl, todayWellness,
     wellness:  wellnessComponent(todayWellness),
   };
 
+  const supplied = {
+    hrv: !!hrvStat,
+    sleep: sleepHours != null && Number(sleepHours) !== 0,
+    load: Number(ctl) > 0,
+    restingHr: Array.isArray(restingHrValues) && restingHrValues.length > 0,
+    wellness: !!todayWellness,
+  };
+  const excluded = [];
+  for (const key of Object.keys(raw)) {
+    const age = ageDays(signalDates?.[key], asOf);
+    const maxAge = MAX_AGE_DAYS[key];
+    if (age != null && maxAge != null && (age < 0 || age > maxAge)) {
+      raw[key] = null;
+      excluded.push({ key, reason: age < 0 ? 'future-dated' : 'stale', ageDays: age });
+    } else if (supplied[key] && raw[key] === null) {
+      excluded.push({ key, reason: 'invalid' });
+    }
+  }
+
   // Only include available signals
   const available = Object.entries(raw).filter(([, v]) => v !== null);
   if (available.length === 0) {
-    return { score: null, components: {}, status: 'No Data', recommendation: 'Log workouts and wellness check-ins to generate readiness.', available: [] };
+    return {
+      score: null, components: {}, status: 'No Data',
+      recommendation: 'Log workouts and wellness check-ins to generate readiness.',
+      available: [], confidence: 'none', inputCount: 0, evidence: [],
+      scope: 'no current inputs', excluded,
+      devTrace: { method: 'available-signal weighted mean', normalizedWeights: {}, excluded },
+    };
   }
 
   // Redistribute weights across available signals
@@ -113,13 +185,37 @@ export function computeReadiness({ hrvStat, sleepHours, atl, ctl, todayWellness,
   });
 
   score = Math.round(clamp(score, 0, 100));
+  const inputCount = available.length;
+  const confidence = confidenceFor(inputCount);
+  const evidence = available.map(([key, value]) => ({
+    key,
+    label: EVIDENCE_META[key]?.label || key,
+    scope: EVIDENCE_META[key]?.scope || 'recent',
+    score: Math.round(value),
+  }));
+  const scopes = [...new Set(evidence.map((item) => item.scope))];
+  const normalizedWeights = Object.fromEntries(available.map(([key]) => [key, Math.round((WEIGHTS[key] / totalWeight) * 1000) / 1000]));
 
   return {
     score,
     components,
-    status: readinessStatus(score),
-    recommendation: readinessRecommendation(score, components),
+    status: statusForConfidence(score, confidence),
+    recommendation: readinessRecommendation(score, components, { confidence, evidence }),
     available: available.map(([k]) => k),
+    confidence,
+    inputCount,
+    evidence,
+    scope: scopes.join(' + '),
+    excluded,
+    devTrace: {
+      method: 'available-signal weighted mean',
+      normalizedWeights,
+      score,
+      confidence,
+      inputCount,
+      evidence,
+      excluded,
+    },
   };
 }
 
@@ -144,8 +240,18 @@ export function readinessColor(score) {
 }
 
 // Actionable recommendation text.
-export function readinessRecommendation(score, components) {
+export function readinessRecommendation(score, components, { confidence = 'high', evidence = [] } = {}) {
   if (score === null) return 'Log workouts and wellness check-ins to generate readiness.';
+
+  const evidenceText = evidence.map((item) => item.label).join(' + ') || 'one available signal';
+  if (confidence === 'low') {
+    return `Early estimate from ${evidenceText}. One signal is not enough to recommend pushing or backing off — follow the plan and reassess how you feel.`;
+  }
+  if (confidence === 'moderate') {
+    if (score >= 70) return `Two signals look positive, but this read is still developing. Train as planned; wait for more evidence before a PR or time trial.`;
+    if (score < 55) return `Two signals suggest recovery may be limited. Keep planned effort flexible and reassess during the warm-up.`;
+    return `Readiness is still developing from two signals. Complete planned work without adding extra intensity.`;
+  }
 
   if (score >= 85) {
     return 'You are primed for high-intensity training or a PR attempt today.';

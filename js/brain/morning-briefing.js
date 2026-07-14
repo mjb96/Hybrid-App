@@ -61,6 +61,7 @@ function scoreLineFor(score) {
 //   rest day     → wellness check-in, then pure recovery framing.
 function missionFor(model, session, firstSession = false) {
   const readyScore = model?.ready?.hasData ? model.ready.score : null;
+  const decisiveRead = model?.ready?.confidence === 'high';
   const checkedIn = (model?.ready?.available || []).includes('wellness');
 
   // First run after onboarding: point squarely at the very first action.
@@ -75,9 +76,9 @@ function missionFor(model, session, firstSession = false) {
       return { icon: '✅', text: `${session.label} complete — nice work`, done: true };
     }
     let text = `Complete today's ${session.label.toLowerCase()}`;
-    if (session.hasRun && readyScore !== null && readyScore < 55) {
+    if (decisiveRead && session.hasRun && readyScore !== null && readyScore < 55) {
       text += ' — keep the run easy, Zone 2 only';
-    } else if (!session.hasRun && readyScore !== null && readyScore >= 85) {
+    } else if (decisiveRead && !session.hasRun && readyScore !== null && readyScore >= 85) {
       text += ' — you’re primed, a good day to push';
     }
     return { icon: '🎯', text, done: false };
@@ -120,7 +121,7 @@ export function buildMorningBriefing(opts = {}) {
   };
 
   const readinessLine = model?.ready?.hasData
-    ? `Readiness ${model.ready.score} — ${model.ready.status}`
+    ? `Readiness ${model.ready.score} — ${model.ready.status} · ${model.ready.confidence} confidence from ${model.ready.inputCount} signal${model.ready.inputCount === 1 ? '' : 's'}`
     : null;
 
   // V2-3 the morning hook — a forward-looking upside ("train and it rises to X")

@@ -93,6 +93,7 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
       <div class="an-hero__k">Readiness</div>
       <div id="recoveryReadinessRing" style="display:flex;justify-content:center;margin:6px 0 2px;"></div>
       <div class="an-hero__k" style="color:${color};font-size:0.95rem;letter-spacing:0;text-transform:none;">${status}</div>
+      <div class="text-xs text-muted">${readiness.confidence} confidence · ${readiness.inputCount} signal${readiness.inputCount === 1 ? '' : 's'} · ${readiness.scope}</div>
       <div class="an-hero__empty">${readiness.recommendation || ''}</div>
     </article>
     <div class="grid-2-col gap-2 mb-2">
@@ -257,6 +258,7 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
       <div style="font-size:1.6rem;font-weight:900;color:${statusColor};letter-spacing:-0.02em;margin-bottom:2px;">${primaryStatus}</div>
       <div class="text-xs text-muted mb-4">${_recoveryStatusWhy(primaryStatus, recov, la)}</div>
       <div id="readinessRingContainer"></div>
+      <div class="text-xs text-muted mt-2">${readiness.confidence} confidence · ${readiness.inputCount} signal${readiness.inputCount === 1 ? '' : 's'} · ${readiness.scope}</div>
       <div class="text-sm text-muted mt-3 text-center" style="max-width:280px;line-height:1.5;">${readiness.recommendation}</div>
       ${_readinessComponentsHTML(readiness.components)}
     </article>`;

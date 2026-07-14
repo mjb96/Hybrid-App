@@ -4,12 +4,13 @@
 // ==========================================
 import { DAY_NAMES_FULL } from './constants.js';
 import { escapeHtml } from './util.js';
+import { isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 
 export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg') {
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75) {
   const ghostWeight = historicalSetData?.w || weightUnit;
   const ghostReps   = historicalSetData?.r || 'reps';
   const type = sData.type || '';
@@ -22,23 +23,35 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   const loadState = sData.bw ? 'BW' : (sData.band || '');
   const loadLabels = { '': 'Weighted', 'BW': 'Bodyweight', 'L': '🟢 Light band', 'M': '🟡 Med band', 'H': '🔴 Heavy band' };
   const loadCls = loadState === '' ? 'weighted' : loadState === 'BW' ? 'bw' : loadState;
+  const bodyweightCapable = isBodyweightExercise(exerciseName);
+  const directMode = resolvedLoadMode(sData, exerciseName);
+  const effectiveValue = bodyweightCapable && directMode === 'bodyweight' && !sData.w
+    ? String(bodyweight)
+    : String(sData.w || '');
 
   // Full-word type label for the (now roomier) expander, vs the terse column badge.
   const typeFullLabels = { '': 'Working set', 'W': 'Warm-up', 'D': 'Drop set', 'F': 'AMRAP (max reps)' };
 
-  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}">
+  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}" data-load-mode="${directMode}">
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
-    <div class="set-num-lbl tactile-scale"
+    ${bodyweightCapable ? `<div class="set-load-choice" role="group" aria-label="Load mode for set ${sIdx + 1}">
+      ${['bodyweight', 'weighted', 'assisted'].map(mode => `<button type="button"
+        class="set-load-choice__btn${directMode === mode ? ' active' : ''}"
+        data-action="set-load-mode" data-mode="${mode}"
+        data-liftname="${safeLiftName}" data-sidx="${sIdx}"
+        aria-pressed="${directMode === mode}">${mode === 'bodyweight' ? 'Bodyweight' : mode === 'weighted' ? 'Weighted' : 'Assisted'}</button>`).join('')}
+    </div>` : ''}
+    <button type="button" class="set-num-lbl tactile-scale"
          data-action="quick-log"
          data-liftname="${safeLiftName}"
          data-sidx="${sIdx}"
          title="Tap to log this set at its target"
          aria-label="Log set ${sIdx + 1} at target"
          style="cursor:pointer; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); text-align: center;">
-         ${numLabels[type]}
-    </div>
+         Log ${numLabels[type]}
+    </button>
     <div>
-      <input type="number" inputmode="decimal" class="input-weight-node" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(String(sData.w || ''))}">
+      <input type="number" inputmode="decimal" class="input-weight-node" aria-label="Effective load for set ${sIdx + 1}" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(effectiveValue)}">
     </div>
     <div>
       <input type="number" inputmode="numeric" class="input-reps-node" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">

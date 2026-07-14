@@ -25,6 +25,7 @@ import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 import { detectRunType } from './workout/run-type.js';
+import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 
 let _getState;
 let _getSelectedDay;
@@ -214,7 +215,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
       if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
     }
-    return buildSetRow(sData, sIdx, safeLiftName, ghostSet, wUnit);
+    return buildSetRow(sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName, _currentBodyweight(appState));
   }).join('');
 
   // C4b — per-side plate math for the coach's target weight (barbell lifts only:
@@ -260,7 +261,7 @@ export function renderWorkout() {
   const weekData = appState.weeks[wk];
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const homeBlueprint = activeProgram.days?.[selectedDay] || { lifts: [], runs: "Rest" };
+  const homeBlueprint = activeProgram?.days?.[selectedDay] || { lifts: [], runs: "Rest" };
 
   // --- RUN METRICS ---
   const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '', pace: '', notes: '' };
@@ -756,7 +757,17 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   // Merge — never replace: preserve any existing set metadata (type, rpe, isPR)
   // so quick-logging a warmup/drop set doesn't silently demote it to a working set.
   const _setArr = appState.weeks[wk].lifts[selectedDay][liftName];
-  const _prev = _setArr[sIdx] || {};
+  let _prev = _setArr[sIdx] || {};
+  const rowMode = parentRow.dataset?.loadMode;
+  // A blank Pull-Up/Dip/Push-Up row defaults visibly to Bodyweight. Persist
+  // that same mode when its labelled shortcut is used, so the first tap is
+  // honest metadata rather than an untyped numeric weight.
+  if (isBodyweightExercise(liftName) && rowMode === 'bodyweight' && !_prev.loadMode && !_prev.bw) {
+    _prev = applyLoadMode(_prev, 'bodyweight', {
+      bodyweight: _currentBodyweight(appState),
+      bandWeights: appState.settings?.bandWeights,
+    });
+  }
   _setArr[sIdx] = { ..._prev, w: targetW, r: targetR, c: true };
   if (_tw != null && _prev.tw == null) _setArr[sIdx].tw = _tw;
   if (_tr != null && _prev.tr == null) _setArr[sIdx].tr = _tr;
@@ -1247,11 +1258,46 @@ function _currentBodyweight(appState) {
   return 75;
 }
 
-// One "load" control per set, cycling Weighted → Bodyweight → Light → Medium →
-// Heavy band. Bodyweight stamps your bodyweight; a band stamps its configured
-// nominal kg (settings.bandWeights); both feed volume/e1RM. Returning to
-// Weighted clears the auto-stamped weight. (Replaces the separate band + BW
-// controls so each set carries a single, quiet chip.)
+function _replaceSet(setArr, index, next) {
+  // Preserve array identity because other workout consumers can hold the live
+  // set list, while still applying the pure load-mode result atomically.
+  setArr[index] = next;
+}
+
+function _syncLoadModeRow(liftName, sIdx, set) {
+  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
+  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
+  if (!row) return;
+  const mode = resolvedLoadMode(set, liftName);
+  row.dataset.loadMode = mode;
+  row.querySelectorAll('.set-load-choice__btn').forEach((button) => {
+    const active = button.getAttribute('data-mode') === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const wInput = row.querySelector('.input-weight-node');
+  if (wInput) wInput.value = set.w || '';
+}
+
+export function setSetLoadMode(liftName, sIdx, mode) {
+  if (!['bodyweight', 'weighted', 'assisted'].includes(mode)) return;
+  const appState = _getState();
+  const selectedDay = _getSelectedDay();
+  const wk = appState.currentWeek;
+  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
+  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
+  const next = applyLoadMode(setArr[sIdx], mode, {
+    bodyweight: _currentBodyweight(appState),
+    bandWeights: appState.settings?.bandWeights,
+  });
+  _replaceSet(setArr, sIdx, next);
+  _syncLoadModeRow(liftName, sIdx, next);
+  _saveState(true);
+}
+
+// The overflow load chip remains the fine-grained band selector. Unlike the
+// legacy behavior, band kg is assistance subtracted from body mass, never a
+// positive lifted load.
 export function cycleSetLoad(liftName, sIdx) {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
@@ -1265,17 +1311,15 @@ export function cycleSetLoad(liftName, sIdx) {
   const cur = set.bw ? 'BW' : (set.band || '');
   const next = order[(order.indexOf(cur) + 1) % order.length];
 
-  delete set.bw;
-  delete set.band;
+  let nextSet;
   if (next === 'BW') {
-    set.bw = true;
-    set.w = String(_currentBodyweight(appState));
+    nextSet = applyLoadMode(set, 'bodyweight', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
   } else if (next) {
-    set.band = next;
-    set.w = String(bands[next] ?? '');
+    nextSet = applyBandAssistance(set, next, { bodyweight: _currentBodyweight(appState), bandWeights: bands });
   } else {
-    set.w = ''; // back to Weighted — drop the auto-stamped load
+    nextSet = applyLoadMode(set, 'weighted', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
   }
+  _replaceSet(setArr, sIdx, nextSet);
 
   // Targeted DOM update (keep the card expanded / scroll position).
   const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
@@ -1289,8 +1333,9 @@ export function cycleSetLoad(liftName, sIdx) {
       chip.className = 'btn-load tactile-scale load-' + cls;
     }
     const wInput = row.querySelector('.input-weight-node');
-    if (wInput) wInput.value = set.w;
+    if (wInput) wInput.value = nextSet.w;
   }
+  _syncLoadModeRow(liftName, sIdx, nextSet);
   _saveState(true);
 }
 
@@ -1829,6 +1874,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);
   else if (action === 'toggle-set-adv') target.closest('.cockpit-set-row')?.classList.toggle('adv-open');
   else if (action === 'cycle-set-type') cycleSetType(liftName, sIdx);
+  else if (action === 'set-load-mode') setSetLoadMode(liftName, sIdx, target.getAttribute('data-mode'));
   else if (action === 'cycle-load') cycleSetLoad(liftName, sIdx);
   else if (action === 'show-ss-panel') showSupersetLinkPanel(exCard);
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));

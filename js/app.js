@@ -15,7 +15,7 @@ import { resolveProgramPhase } from './programs/phase.js';
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
   setActiveTab, setSelectedDay, setAppState,
-  getProgramById, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
+  getProgramById, getActiveProgramIssue, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
@@ -37,7 +37,7 @@ import {
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { paintIcons } from './ui/icons.js';
-import { initModalStack, requestCloseTopModal } from './ui/modal-stack.js';
+import { closeManagedModal, initModalStack, openManagedModal, requestCloseTopModal } from './ui/modal-stack.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -305,6 +305,20 @@ export function handleMacroWeekSwitch() {
 }
 
 export function hydrateCurrentView() {
+  const programIssue = getActiveProgramIssue(appState);
+  if (programIssue) {
+    // Route to the explicit recovery surface without changing the stored ID or
+    // touching its weeks. Replacement only happens through normal activation.
+    document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    setActiveTab('program');
+    document.getElementById('view-program')?.classList.add('active');
+    document.querySelector('.nav-item[data-target="program"]')?.classList.add('active');
+    showActivePlanView(false);
+    updateLibraryState(appState);
+    renderLibrary();
+    return;
+  }
   verifyWeekStorageSchema(appState.currentWeek);
 
   if (activeTab === 'home') safeRenderExecution(renderHome, "Home Dashboard Render");
@@ -912,13 +926,19 @@ else if (action === 'export-csv') triggerCSVExport();
   else if (action === 'signup-supabase') signUpToSupabase();
   else if (action === 'close-auth') {
     const overlay = document.getElementById('authOverlay');
-    if (overlay) overlay.style.display = 'none';
+    if (overlay) {
+      overlay.style.display = 'none';
+      closeManagedModal(overlay);
+    }
   }
   else if (action === 'open-auth') {
     // Auth is opt-in now (no front-door wall): returning users open it to
     // restore/sync, new users open it from Settings to back up their progress.
     const overlay = document.getElementById('authOverlay');
-    if (overlay) overlay.style.display = '';
+    if (overlay) {
+      overlay.style.display = 'flex';
+      openManagedModal(overlay, { initialFocus: '#loginEmail' });
+    }
   }
   
   // Summary Modals
@@ -1411,7 +1431,7 @@ async function bootstrapApp() {
     // state, so the stored training history must be loaded first.
     initGpsTracker();
 
-    const currentTab = activeTab || 'home';
+    const currentTab = getActiveProgramIssue(appState) ? 'program' : (activeTab || 'home');
     const currentDay = selectedDay || 'mon';
 
     verifyWeekStorageSchema(appState.currentWeek);
