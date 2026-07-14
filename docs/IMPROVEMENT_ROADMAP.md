@@ -116,6 +116,34 @@
   offers the catalog or a new custom plan. Exact, missing, corrupt, and ID-shadow fixtures
   prove replacement occurs only through the normal confirmed activation flow.
 
+- **R14 implementation complete (engineering) — 14 July 2026** on
+  `claude/helyx-r14-health-connect-9vw5k8`. One supported-field contract now
+  governs Health Connect end to end. `js/health/health-fields.js` and the mirrored
+  `android/.../HealthFieldContract.kt` define exactly four fields with a real path —
+  Steps, Resting HR, HRV, Sleep — using one shared id vocabulary. The Settings
+  selection (`syncFields`) is the ONLY thing that drives permissions and reads:
+  `requestHealthPermissions`/`readHealthDataByDay` pass the selected field ids, the
+  native side maps them to exactly those Health Connect permissions (+ History) and
+  reads only the selected-and-granted record types, and `applyHealthDays` writes only
+  selected fields. Each sync records honest per-field status (granted / permission
+  needed / read error / no data / off) surfaced next to each toggle; connect distinguishes
+  all-denied (`permissions-denied`, stays disconnected) from no-data. The fake VO₂ max
+  toggle, dashboard tile, profile card and marketing copy were removed (no ingestion
+  path); legacy `vo2max`/unsupported keys are dropped by `normalizeSyncFields` while
+  stored history is preserved. The manifest now declares exactly the four field
+  permissions + `READ_HEALTH_DATA_HISTORY` (added HRV + history, removed Weight/Exercise/
+  HeartRate/ActiveCalories); the unused over-broad `readHealthData`/`fetchAll` native
+  path was deleted. Evidence: 881 JS tests (new `tests/health_fields.test.js` +
+  extended `tests/health_bridge.test.js` cover field-filtering, per-field status,
+  grant/deny/revoke/no-data/partial-error), `npm run verify`, `npm run smoke`, and the
+  required Playwright browser checks pass locally; `android/.../HealthFieldContractTest.kt`
+  covers the native mapping. **Android JVM test / lint / debug-APK assembly were NOT run
+  in this session** — the sandbox has no Android SDK and the SDK download is blocked by
+  the egress policy; they must pass in the required `verify.yml` CI workflow before merge.
+  Physical grant/deny/revoke/no-data/partial-error device evidence remains the `[You]`
+  matrix in `docs/android-health-connect-device-checklist.md`. **Next:** run CI for the
+  Android gate, then the device matrix.
+
 ## Prioritization model
 
 Priority is based on severity, likelihood, user trust, launch dependency, and blast radius. Effort is a delivery estimate for one experienced product engineer with review, not elapsed calendar time. Each item includes the evidence required for completion; code existing or a happy-path manual check is not sufficient.
@@ -312,6 +340,16 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-14 · R14 Health Connect field contract implemented on
+  `claude/helyx-r14-health-connect-9vw5k8`. New shared supported-field contract
+  (`js/health/health-fields.js` + `android/.../HealthFieldContract.kt`) makes the
+  Settings selection drive exactly which permissions/records are requested and read;
+  per-field sync status (grant/deny/revoke/no-data/partial-error); fake VO₂ max control
+  removed; manifest narrowed to the four supported fields + history. 881 JS tests, verify,
+  smoke, and required browser checks green; new JS + Android JVM contract tests added;
+  device permission-matrix checklist added (`docs/android-health-connect-device-checklist.md`).
+  Android JVM/lint/APK could not run in-sandbox (no SDK; download egress-blocked) and must
+  pass in `verify.yml` CI. · Next: run CI Android gate; do not push/PR without owner sign-off.
 - 2026-07-14 · R11–R13 and quick-win R19 completed on
   `codex/core-loop-truth-accessibility`: mobile ergonomics and sign-in modal lifecycle,
   direct bodyweight load modes, confidence-gated readiness, and explicit invalid-program
