@@ -4,6 +4,7 @@ const checks = [
   'scripts/home-attribution-check.mjs',
   'scripts/preview-viewport-check.mjs',
   'scripts/program-detail-viewport-check.mjs',
+  'scripts/modal-accessibility-check.mjs',
 ];
 
 for (const check of checks) {

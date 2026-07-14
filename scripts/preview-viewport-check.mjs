@@ -88,6 +88,12 @@ async function openSheet(page, { longContent = false } = {}) {
 
 async function newPage(width, height, extraCss = '') {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2 });
+  await ctx.addInitScript(() => {
+    localStorage.setItem('hybrid_engine_v2_state', JSON.stringify({
+      schemaVersion: 4, currentWeek: '1', activeProgramId: 'hybrid_engine',
+      onboardingComplete: true, settings: { weightUnit: 'kg', distanceUnit: 'km' }, weeks: {},
+    }));
+  });
   const page = await ctx.newPage();
   await page.goto(BASE, { waitUntil: 'load' });
   // Settle geometry: disable transitions so we never measure mid-animation.

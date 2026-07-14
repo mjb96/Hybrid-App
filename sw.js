@@ -174,6 +174,7 @@ const REQUIRED_ASSETS = [
   "./js/ui/confirm-modal.js",
   "./js/ui/icons.js",
   "./js/ui/leaflet-loader.js",
+  "./js/ui/modal-stack.js",
   "./js/ui/render.js",
   "./js/ui/sortable.js",
   "./js/util.js",

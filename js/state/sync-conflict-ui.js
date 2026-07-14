@@ -7,6 +7,7 @@
 // state.js via setSyncConflictHandler; state.js invokes it on divergence.
 // =============================================================================
 import { setSyncConflictHandler, resolveSyncConflict } from '../state.js';
+import { closeManagedModal, openManagedModal } from '../ui/modal-stack.js';
 
 function _fmt(iso) {
   const t = Date.parse(iso);
@@ -24,7 +25,7 @@ function _showConflict({ serverUpdatedAt } = {}) {
   const overlay = document.createElement('div');
   overlay.id = 'syncConflictOverlay';
   overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Sync conflict');
   overlay.style.cssText =
     'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
     'justify-content:center;padding:24px;background:rgba(0,0,0,0.6);';
@@ -50,7 +51,7 @@ function _showConflict({ serverUpdatedAt } = {}) {
       '</div>' +
     '</div>';
 
-  const close = () => { overlay.remove(); _open = false; };
+  const close = () => { closeManagedModal(overlay); overlay.remove(); _open = false; };
 
   overlay.addEventListener('click', (e) => {
     const btn = e.target.closest?.('[data-sync-choice]');
@@ -62,6 +63,7 @@ function _showConflict({ serverUpdatedAt } = {}) {
   });
 
   document.body.appendChild(overlay);
+  openManagedModal(overlay, { initialFocus: '[data-sync-choice="cloud"]', dismissible: false });
 }
 
 export function initSyncConflictUI() {

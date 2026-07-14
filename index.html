@@ -1100,7 +1100,7 @@
 
   </main>
 
-  <div id="todaySummaryModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="todaySummaryTitle">
+  <div id="todaySummaryModal" class="modal-overlay" role="dialog" aria-labelledby="todaySummaryTitle" data-modal-root data-modal-open-style="true" data-modal-close-action="close-today-summary" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="todaySummaryTitle" class="text-2xl font-heavy text-inverse mb-1">Today's Session</h2>
       <p id="todaySummaryDayLabel" class="text-sm text-muted mb-4"></p>
@@ -1157,14 +1157,14 @@
   </div>
 
   <!-- Weekly Fitness Graph — Workout Summary Modal -->
-  <div id="wfgModal" role="dialog" aria-modal="true" aria-label="Workout Summary">
+  <div id="wfgModal" role="dialog" aria-label="Workout Summary" data-modal-root data-modal-open-class="wfg-modal--open" inert aria-hidden="true">
     <div class="wfg-msheet">
       <div id="wfgModalContent"></div>
     </div>
   </div>
 
   <!-- Run Logger Modal -->
-  <div class="modal-overlay rl-overlay" id="runLoggerModal" role="dialog" aria-modal="true" aria-label="Log a Run">
+  <div class="modal-overlay rl-overlay" id="runLoggerModal" role="dialog" aria-label="Log a Run" data-modal-root data-modal-close-action="close-run-logger" inert aria-hidden="true">
     <div class="modal-sheet rl-sheet">
       <div class="rl-header">
         <span class="rl-title">Log Run</span>
@@ -1222,7 +1222,7 @@
   </div>
 
   <!-- Onboarding -->
-  <div class="ob-overlay" id="onboardingOverlay" aria-modal="true" role="dialog" aria-label="Setup">
+  <div class="ob-overlay" id="onboardingOverlay" role="dialog" aria-label="Setup" data-modal-root data-modal-dismissible="false" inert aria-hidden="true">
 
     <!-- Step 1: Name -->
     <div class="ob-step ob-step-active" id="ob-step-1">
@@ -1382,8 +1382,8 @@
   </div>
 
   <!-- Settings Panel -->
-  <div class="settings-overlay" id="settingsOverlay" aria-hidden="true">
-    <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="settings-overlay" id="settingsOverlay" data-modal-root data-modal-dialog="#settingsPanel" data-modal-close-action="close-settings" inert aria-hidden="true">
+    <div class="settings-panel" id="settingsPanel" role="dialog" aria-label="Settings">
 
       <div class="settings-header">
         <div class="settings-profile-hero">
@@ -1738,7 +1738,7 @@
   </nav>
 
   <!-- Program Rating Modal -->
-  <div class="modal-overlay" id="programRatingModal" role="dialog" aria-modal="true" aria-labelledby="ratingModalTitle">
+  <div class="modal-overlay" id="programRatingModal" role="dialog" aria-labelledby="ratingModalTitle" data-modal-root data-modal-close-action="close-rating-modal" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="ratingModalTitle" class="text-2xl font-heavy text-inverse mb-1">Rate This Program</h2>
       <p class="text-lg text-muted mb-4" id="ratingModalProgramName"></p>
@@ -1755,7 +1755,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
+  <div class="modal-overlay" id="summaryModal" role="dialog" aria-labelledby="summaryModalTitle" data-modal-root data-modal-close-action="cancel-finish-modal" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="summaryModalTitle" class="text-2xl font-heavy text-inverse mb-1">Session Complete</h2>
       <p id="summaryModalCopy" class="text-lg text-muted mb-2">Review your session before saving.</p>
@@ -1785,7 +1785,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay el-overlay" id="addExerciseModal" role="dialog" aria-modal="true" aria-label="Add Exercise">
+  <div class="modal-overlay el-overlay" id="addExerciseModal" role="dialog" aria-label="Add Exercise" data-modal-root data-modal-close-action="close-add-exercise" inert aria-hidden="true">
     <div class="modal-sheet el-sheet">
       <div class="el-header">
         <span class="el-title">Add Exercise</span>
@@ -1802,7 +1802,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay el-overlay" id="programCompareModal" role="dialog" aria-modal="true" aria-label="Compare Programs">
+  <div class="modal-overlay el-overlay" id="programCompareModal" role="dialog" aria-label="Compare Programs" data-modal-root data-modal-close-action="close-compare" inert aria-hidden="true">
     <div class="modal-sheet el-sheet">
       <div class="el-header">
         <span class="el-title">Compare Programs</span>
@@ -1815,7 +1815,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay el-overlay" id="swapExerciseModal" role="dialog" aria-modal="true" aria-label="Swap Exercise">
+  <div class="modal-overlay el-overlay" id="swapExerciseModal" role="dialog" aria-label="Swap Exercise" data-modal-root data-modal-close-action="close-swap-exercise" inert aria-hidden="true">
     <div class="modal-sheet el-sheet">
       <div class="el-header">
         <span class="el-title">Swap Exercise</span>
@@ -1830,7 +1830,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="confirmResetModal" role="dialog" aria-modal="true" aria-labelledby="resetModalTitle">
+  <div class="modal-overlay" id="confirmResetModal" role="dialog" aria-labelledby="resetModalTitle" data-modal-root data-modal-close-action="close-reset-modal" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="resetModalTitle" class="text-2xl font-heavy text-accent-red mb-1">Clear Today's Log?</h2>
       <p class="text-lg text-muted mb-5">This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.</p>
@@ -1841,7 +1841,7 @@
     </div>
   </div>
 
-<div class="modal-overlay" id="createProgramModal" role="dialog" aria-modal="true" aria-labelledby="createProgramTitle">
+<div class="modal-overlay" id="createProgramModal" role="dialog" aria-labelledby="createProgramTitle" data-modal-root data-modal-close-action="close-create-program" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="createProgramTitle" class="text-2xl font-heavy text-inverse mb-1">Create Custom Program</h2>
       <p class="text-sm text-muted mb-4">Start a blank program you can shape day by day.</p>
@@ -1867,7 +1867,7 @@
     </div>
   </div>
 
-  <div id="weekAdvanceModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="weekAdvanceMessage">
+  <div id="weekAdvanceModal" class="modal-overlay" role="dialog" aria-labelledby="weekAdvanceMessage" data-modal-root data-modal-close-action="cancel-week-advance" inert aria-hidden="true">
     <div class="modal-content" style="background: var(--bg-dark); padding: 24px; border-radius: 12px; max-width: 350px; text-align: center; border: 1px solid var(--border-light);">
       <h3 class="text-xl font-heavy text-main mb-3">Time to Advance?</h3>
       <p id="weekAdvanceMessage" class="text-sub mb-5" style="color: var(--text-muted);"></p>
@@ -1881,7 +1881,7 @@
 
   <!-- Quick-start sheet — opened by the centre "+" nav FAB; start Run / Walk / Fast from any tab. -->
   <div id="quickStartBackdrop" class="sheet-backdrop" data-action="close-quick-start"></div>
-  <div id="quickStartSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="qsTitle">
+  <div id="quickStartSheet" class="bottom-sheet" role="dialog" aria-labelledby="qsTitle" data-modal-root data-modal-close-action="close-quick-start" data-modal-companion="#quickStartBackdrop" inert aria-hidden="true">
     <div class="bottom-sheet-handle"></div>
     <div class="bottom-sheet-header">
       <h3 id="qsTitle" class="bottom-sheet-title">Start</h3>
@@ -1898,7 +1898,7 @@
 
   <!-- Workout Preview Modal (day detail bottom-sheet) -->
   <div id="wpmBackdrop" class="sheet-backdrop" data-action="close-day-preview"></div>
-  <div id="wpmSheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="wpmTitle">
+  <div id="wpmSheet" class="bottom-sheet" role="dialog" aria-labelledby="wpmTitle" data-modal-root data-modal-close-action="close-day-preview" data-modal-companion="#wpmBackdrop" data-modal-history="external" inert aria-hidden="true">
     <div class="bottom-sheet-handle"></div>
     <div class="bottom-sheet-header">
       <div class="wpm-header-left">
@@ -1913,12 +1913,12 @@
 
   <!-- Fasting Detail Sheet -->
   <div id="fastingSheetBackdrop" class="fasting-sheet-backdrop" data-action="close-fasting-detail"></div>
-  <div id="fastingSheet" class="fasting-sheet" role="dialog" aria-modal="true" aria-label="Fasting details">
+  <div id="fastingSheet" class="fasting-sheet" role="dialog" aria-label="Fasting details" data-modal-root data-modal-close-action="close-fasting-detail" data-modal-companion="#fastingSheetBackdrop" inert aria-hidden="true">
     <!-- content injected by home.js openFastingDetail() -->
   </div>
 
   <!-- PR Goal Modal -->
-  <div id="prGoalModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="prGoalTitle">
+  <div id="prGoalModal" class="modal-overlay" role="dialog" aria-labelledby="prGoalTitle" data-modal-root data-modal-close-action="close-pr-goal-modal" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="prGoalTitle" class="text-xl font-heavy text-main mb-1">Set PR Goal</h2>
       <p id="prGoalSubtitle" class="text-sub mb-4" style="color: var(--text-muted); font-size: 0.85rem;"></p>
@@ -1932,7 +1932,7 @@
   </div>
 
   <!-- Session Detail Modal -->
-  <div id="sessionDetailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sessionDetailTitle">
+  <div id="sessionDetailModal" class="modal-overlay" role="dialog" aria-labelledby="sessionDetailTitle" data-modal-root data-modal-close-action="close-session-detail" inert aria-hidden="true">
     <div class="modal-content sds-modal-content">
       <div class="sds-header">
         <div>

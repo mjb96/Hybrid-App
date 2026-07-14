@@ -53,6 +53,35 @@
   being silently removed. Local evidence: 808/808 JS tests, all three real-browser
   journeys, Android unit/lint/assemble, and workflow-policy checks green. `[You]` still
   owns branch-protection configuration after merge.
+- **R6 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Onboarding now persists canonical fitness goal, experience, equipment tier, and the
+  tier-derived equipment map. Recommendation cards disclose both their real difficulty
+  and why an adjacent level is being offered. The complete goal/level/tier matrix is
+  unit-tested and a fresh-install Chromium journey proves Strength + Beginner + Home
+  basics survive finish into stored Settings.
+- **R7 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  One program-aware phase resolver now uses the active program's authored modifier and
+  explicit deload state across Home, briefing, detail/timeline, analytics, notifications,
+  weekly review, and Hybrid Score. Neutral fallback is “Training”; feature code no longer
+  reads the global phase-name table. Cross-consumer and catalog/deload regressions pass.
+- **R8 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  One completion policy now compares the logged working sets and run against the same
+  program prescription the cockpit renders. Empty, partial, skipped, modified, swapped,
+  run-only, hybrid, full, and rest outcomes are covered. Partial work stays in history but
+  cannot emit completion language, XP/recap, or completed-session coaching; Chromium
+  verifies the real finish dialog says “Save partial session” after one logged set.
+- **R9 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  The run-type parser is pure and ordered: repetition structure wins over incidental
+  recovery/pace words, so `6×800m (90s recovery)` is Intervals. All 73 unique non-rest
+  catalog prescriptions are exercised, and unknown copy receives only a neutral
+  Run/Training label rather than a fabricated intensity.
+- **R10 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  A shared modal/sheet stack owns inert/aria-modal state, background isolation, scroll
+  lock, focus entry/trapping/restoration, Escape, browser history, Android Back, stacking,
+  blocking dialogs, and reduced motion. All 18 static surfaces plus dynamic confirmation,
+  activation, sync, migration, and celebration overlays use it. Required mobile Chromium
+  checks prove the lifecycle and Android unit/lint/APK gates pass. Physical TalkBack remains
+  the explicit `[You]` release artifact in `docs/android-accessibility-device-checklist.md`.
 
 ## Prioritization model
 

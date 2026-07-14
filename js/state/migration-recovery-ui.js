@@ -2,6 +2,7 @@
 // Blocking startup recovery for a state schema that could not be upgraded.
 // The persisted blob is deliberately left untouched so retrying after an app
 // update always starts from the same recoverable bytes.
+import { openManagedModal } from '../ui/modal-stack.js';
 
 /** @param {unknown} error */
 export function migrationRecoveryCopy(error) {
@@ -31,7 +32,6 @@ export function showMigrationRecovery(error, doc = document, reload = () => loca
   backdrop.id = 'migrationRecovery';
   backdrop.className = 'migration-recovery';
   backdrop.setAttribute('role', 'alertdialog');
-  backdrop.setAttribute('aria-modal', 'true');
   backdrop.setAttribute('aria-labelledby', 'migrationRecoveryTitle');
   backdrop.setAttribute('aria-describedby', 'migrationRecoveryMessage');
 
@@ -55,6 +55,6 @@ export function showMigrationRecovery(error, doc = document, reload = () => loca
   panel.append(eyebrow, title, message, button);
   backdrop.append(panel);
   doc.body.append(backdrop);
-  button.focus();
+  openManagedModal(backdrop, { initialFocus: button, dismissible: false, history: false });
   return backdrop;
 }

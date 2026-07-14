@@ -37,6 +37,7 @@ import {
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { paintIcons } from './ui/icons.js';
+import { initModalStack, requestCloseTopModal } from './ui/modal-stack.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -1321,6 +1322,10 @@ function _submitProgramRating() {
 // ==========================================
 if (typeof window !== 'undefined') {
   window.__onAndroidBack = function () {
+    // Shared dialog/sheet stack owns modal dismissal, focus restoration and
+    // semantics. This also covers surfaces whose visual class is not `.active`.
+    if (requestCloseTopModal()) return 'handled';
+
     // 0) Full-screen session recap sits above everything — close it first.
     if (isSessionRecapOpen()) { closeSessionRecap(); return 'handled'; }
 
@@ -1389,6 +1394,7 @@ async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
+    initModalStack(document);
     initOfflineIndicator();
     initSyncConflictUI();
     initSessionRecap(() => appState);

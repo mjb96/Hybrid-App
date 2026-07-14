@@ -72,6 +72,21 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Roadmap R6–R10 implementation — core-loop truth and accessible modal stack.**
+  R6 persists canonical onboarding goal/level/equipment settings and discloses recommendation
+  difficulty; a fresh-install Chromium flow proves the finish state. R7 replaces global phase
+  guesses with one active-program modifier/deload resolver across every consumer. R8 gives
+  workout, coaching and recap one prescription-based completion policy with honest empty,
+  partial and full outcomes. R9 classifies structured intervals before incidental recovery
+  words and exercises all 73 catalog prescriptions. R10 inventories 18 static surfaces and
+  moves them plus dynamic confirmations, activation, sync, migration and celebration dialogs
+  onto one inert/focus/Escape/history/Android-Back/reduced-motion stack. Validation: **850/850
+  JS tests**, typecheck, precache, smoke, required mobile Chromium journeys, Android JVM tests,
+  lint and debug APK assembly green. Physical TalkBack evidence remains `[You]` via
+  `docs/android-accessibility-device-checklist.md`. · **Next:** commit/push the completed
+  feature branch, open a PR targeting `main`, monitor required checks, then complete the
+  physical TalkBack and export/device checklists before the public beta.
+
 - 2026-07-14 · **Beta Integrity R5 implementation — verification-gated publication.**
   Consolidated the duplicate web/Android CI files into one reusable required workflow
   that installs locked dependencies and runs JavaScript syntax, type, precache, policy,

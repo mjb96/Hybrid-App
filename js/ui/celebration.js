@@ -1,5 +1,6 @@
 // @ts-check
 // =============================================================================
+import { closeManagedModal, openManagedModal } from './modal-stack.js';
 // CELEBRATION — premium milestone moments (js/ui/celebration.js)
 //
 // One shared overlay for the app's earned moments: a PR, a streak milestone,
@@ -138,11 +139,13 @@ function showNext() {
   const close = () => {
     if (closed) return;
     closed = true;
+    closeManagedModal(overlay);
     overlay.classList.remove('celebration--in');
     setTimeout(() => { overlay.remove(); showNext(); }, reducedMotion() ? 0 : 260);
   };
   overlay.addEventListener('click', close);
   setTimeout(close, AUTO_DISMISS_MS);
+  openManagedModal(overlay, { onRequestClose: close });
 
   requestAnimationFrame(() => overlay.classList.add('celebration--in'));
   hapticSuccess();
