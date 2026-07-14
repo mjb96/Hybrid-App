@@ -33,6 +33,16 @@
   live data. Fault injection covers every version boundary, byte-for-byte rollback,
   retry, old-version corpus, future schemas, recovery failure, and partial run-session
   adoption. **Next integrity slice:** R4 complete Android portability/export.
+- **R4 implementation complete — 14 July 2026** on `codex/beta-integrity-migrations`.
+  JSON and CSV now use one text-export service with three honest adapters: Android's
+  Storage Access Framework, the browser file picker, and a clearly-labelled download
+  fallback. Android reports saved/cancelled/error only after the selected Uri write;
+  bridge inputs and callback scripts are validated. JSON refuses to claim completeness
+  if any IndexedDB route cannot be read/preserved. CSV keeps archived activation keys,
+  multiple same-day sessions, metadata-only days, and RFC 4180 user text. Local evidence:
+  801/801 JS tests plus Android JVM tests, lint, and debug APK assembly. Physical-device
+  save/cancel/overwrite/reimport evidence remains the `[You]` checklist in
+  `docs/android-export-device-checklist.md`. **Next integrity slice:** R5 release gates.
 
 ## Prioritization model
 

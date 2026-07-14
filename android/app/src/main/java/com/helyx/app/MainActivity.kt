@@ -1,6 +1,7 @@
 package com.helyx.app
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.DownloadManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bridge: HybridHealthBridge
     private lateinit var gpsBridge: GpsBridge
     private lateinit var notifBridge: NotifyBridge
+    private lateinit var fileExportBridge: FileExportBridge
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
@@ -74,6 +76,14 @@ class MainActivity : AppCompatActivity() {
         val cb = fileChooserCallback
         fileChooserCallback = null
         cb?.onReceiveValue(if (uri != null) arrayOf(uri) else null)
+    }
+
+    private val createExportDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        fileExportBridge.onDocumentResult(
+            if (result.resultCode == Activity.RESULT_OK) result.data?.data else null
+        )
     }
 
     private val requestNotifPermLauncher = registerForActivityResult(
@@ -123,6 +133,18 @@ class MainActivity : AppCompatActivity() {
                     // Pre-13: no runtime permission, resolve immediately as granted.
                     notifBridge.onPermissionResult(true)
                 }
+            },
+        )
+        fileExportBridge = FileExportBridge(
+            context = this,
+            webView = webView,
+            launchCreateDocument = { filename, mime ->
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = mime
+                    putExtra(Intent.EXTRA_TITLE, filename)
+                }
+                createExportDocumentLauncher.launch(intent)
             },
         )
 
@@ -183,6 +205,7 @@ class MainActivity : AppCompatActivity() {
             addJavascriptInterface(bridge, "HybridHealthBridge")
             addJavascriptInterface(gpsBridge, "HybridGpsBridge")
             addJavascriptInterface(notifBridge, "HybridNotifyBridge")
+            addJavascriptInterface(fileExportBridge, "HybridFileExportBridge")
             loadUrl(BuildConfig.APP_URL)
         }
     }
@@ -204,7 +227,7 @@ class MainActivity : AppCompatActivity() {
                         URLDecoder.decode(url.substring(commaIdx + 1), "UTF-8")
                     }
                 } catch (_: Exception) { return }
-                bridge.saveTextFile(filename, content, mimeType)
+                fileExportBridge.saveFromDownload(filename, content, mimeType)
             }
             url.startsWith("http://") || url.startsWith("https://") -> {
                 val filename = URLUtil.guessFileName(url, contentDisposition, mimetype)

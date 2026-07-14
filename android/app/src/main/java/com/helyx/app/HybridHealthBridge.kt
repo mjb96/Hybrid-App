@@ -2,16 +2,12 @@ package com.helyx.app
 
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
@@ -25,7 +21,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicReference
@@ -192,36 +187,6 @@ class HybridHealthBridge(
             .build()
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .notify(NOTIFICATION_ID_REST_TIMER, notification)
-    }
-
-    @JavascriptInterface
-    fun saveTextFile(filename: String, content: String, mime: String) {
-        scope.launch {
-            runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val values = ContentValues().apply {
-                        put(MediaStore.Downloads.DISPLAY_NAME, filename)
-                        put(MediaStore.Downloads.MIME_TYPE, mime.ifBlank { "application/octet-stream" })
-                        put(MediaStore.Downloads.IS_PENDING, 1)
-                    }
-                    val resolver = context.contentResolver
-                    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                        ?: error("MediaStore insert returned null")
-                    resolver.openOutputStream(uri)?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
-                    values.clear()
-                    values.put(MediaStore.Downloads.IS_PENDING, 0)
-                    resolver.update(uri, values, null, null)
-                } else {
-                    val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                        ?: error("External files dir unavailable")
-                    dir.mkdirs()
-                    java.io.File(dir, filename).writeText(content, Charsets.UTF_8)
-                }
-                webView.post { Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_SHORT).show() }
-            }.onFailure {
-                webView.post { Toast.makeText(context, "Save failed", Toast.LENGTH_SHORT).show() }
-            }
-        }
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────

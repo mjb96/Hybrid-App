@@ -8,6 +8,7 @@ import { isStateMigrationError, migrateState } from './state/migrations.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 import { todayKey } from './dates.js';
+import { exportResultMessage, saveTextExport } from './portability/export-service.js';
 
 // Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
 const _fmtRest = (sec) => {
@@ -603,18 +604,25 @@ export async function exportData() {
   const appState = _getState();
   // Include GPS routes (they live in IndexedDB, not appState) in a versioned
   // envelope so export is a complete, restorable backup.
-  let routeRecords = [];
-  try { routeRecords = await getAllRouteRecords(); } catch { /* routes optional in export */ }
+  let routeRecords;
+  try { routeRecords = await getAllRouteRecords(); }
+  catch {
+    showToast('Export stopped: GPS routes could not be read safely.', true);
+    return;
+  }
   const payload = wrapExport(appState, routeRecords, { appVersion: APP_VERSION });
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `helyx-training-${todayKey()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  const n = routeRecords.length;
-  showToast(n ? `Data exported ✓ (${n} route${n === 1 ? '' : 's'})` : 'Data exported ✓');
+  if (payload.routeRecords.length !== routeRecords.length) {
+    showToast('Export stopped: route validation did not preserve every route.', true);
+    return;
+  }
+  const result = await saveTextExport({
+    filename: `helyx-training-${todayKey()}.json`,
+    content: JSON.stringify(payload, null, 2),
+    mime: 'application/json',
+  });
+  const n = payload.routeRecords.length;
+  const copy = exportResultMessage(result, n ? `Data (${n} route${n === 1 ? '' : 's'})` : 'Data');
+  showToast(copy.message, copy.error);
 }
 
 export function triggerImport() {

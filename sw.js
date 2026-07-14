@@ -122,6 +122,8 @@ const REQUIRED_ASSETS = [
   "./js/onboarding.js",
   "./js/onboarding/provisional-score.js",
   "./js/onboarding/starter-programs.js",
+  "./js/portability/csv-export.js",
+  "./js/portability/export-service.js",
   "./js/profile-stats.js",
   "./js/program_builder.js",
   "./js/programs/activation.js",

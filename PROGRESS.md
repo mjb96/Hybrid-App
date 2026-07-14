@@ -72,6 +72,20 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Beta Integrity R4 implementation — complete Android portability.**
+  Replaced split blob/data-URL downloads with one confirmed text-export service. Android
+  now opens the system create-document picker through a dedicated, input-validated bridge
+  and reports saved/cancelled/error only after the Uri write; browser file-picker writes
+  are likewise confirmed, while anchor fallback honestly says “Download started.” JSON
+  export stops rather than silently omitting unreadable/rejected IndexedDB routes. The new
+  pure CSV builder includes numeric and `arch:*` week keys, activation/program/date fields,
+  every same-day run, notes/bodyweight-only days, and RFC 4180 escaping. Added JS adapter,
+  cancel, route and CSV regressions plus native filename/MIME/callback-injection tests.
+  Validation: **801/801 JS tests**, typecheck, precache, smoke, Android JVM tests, lint,
+  and a 12 MB debug APK assembly green. `[You]` physical-device acceptance artifact:
+  `docs/android-export-device-checklist.md` (save/cancel/overwrite/offline/clear+reimport).
+  · **Next:** R5 verification-gated production workflows, then one combined PR.
+
 - 2026-07-14 · **Beta Integrity PR-3 — transactional, validated, retryable migrations.**
   Replaced the catch-and-continue migration runner (which could stamp failed data as
   current) with isolated one-step transactions: clone the last-good JSON state, run
