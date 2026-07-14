@@ -136,6 +136,33 @@ try {
     await page.click('.bottom-nav [data-target="workout"]');
     await page.waitForSelector('#view-workout.active');
     await inspect(page, `workout ${width}px`, ['#view-workout .day-pill', '#view-workout #startWorkoutBtn', '#view-workout .set-num-lbl[data-action="quick-log"]', '#view-workout .gym-check-wrap', '#view-workout .btn-set-more']);
+    if (width === 360) {
+      const bodyweightCard = page.locator('#view-workout .cockpit-exercise:has(.set-load-choice)').first();
+      if (await bodyweightCard.evaluate((card) => card.classList.contains('collapsed'))) {
+        await bodyweightCard.locator('.cockpit-header-clickzone').click();
+      }
+      const bodyweightRow = bodyweightCard.locator('.cockpit-set-row:has(.set-load-choice)').first();
+      check(await bodyweightRow.count() === 1, 'workout 360px: no direct bodyweight load-mode row');
+      if (await bodyweightRow.count()) {
+        const labels = await bodyweightRow.locator('.set-load-choice__btn').allTextContents();
+        check(labels.join('|') === 'Bodyweight|Weighted|Assisted', `workout 360px: load modes were ${labels.join('|')}`);
+        await inspect(page, 'workout load modes 360px', ['#view-workout .set-load-choice__btn']);
+        const quick = bodyweightRow.locator('.set-num-lbl[data-action="quick-log"]');
+        check(/^Log S1$/.test((await quick.textContent() || '').trim()), 'workout 360px: set shortcut is not visibly labelled Log S1');
+        await bodyweightRow.locator('.set-load-choice__btn[data-mode="bodyweight"]').click();
+        await bodyweightRow.locator('.input-reps-node').fill('5');
+        await quick.click();
+        const logged = await bodyweightRow.evaluate(async (row) => {
+          const lift = row.closest('.cockpit-exercise')?.getAttribute('data-liftname');
+          const index = Number.parseInt(row.getAttribute('data-set-index') || '0', 10);
+          const state = await import('./js/state.js');
+          const set = state.appState.weeks?.[state.appState.currentWeek]?.lifts?.[state.selectedDay]?.[lift]?.[index];
+          return { completed: set?.c, bodyweight: set?.bw, mode: set?.loadMode, weight: Number(set?.w) };
+        });
+        check(logged.completed && logged.bodyweight && logged.mode === 'bodyweight' && logged.weight > 0,
+          `workout 360px: first-tap bodyweight log metadata was ${JSON.stringify(logged)}`);
+      }
+    }
 
     await page.click('.bottom-nav [data-target="program"]');
     await page.waitForSelector('#view-program.active');

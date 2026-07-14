@@ -91,6 +91,15 @@
   lifecycle; the browser journey proves typing, account-tab switching, close, and focus
   restoration above onboarding. Physical touch review remains the explicit `[You]`
   artifact in `docs/android-ergonomics-device-checklist.md`.
+- **R12 complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Pull-Up, Chin-Up, Dip, and Push-Up set rows now expose Bodyweight / Weighted /
+  Assisted directly, default a first blank bodyweight movement honestly, and retain
+  the fine-grained band selector in set options. Assistance is subtracted from body
+  mass to produce effective moved load instead of being counted as positive load.
+  The former cryptic set-number target is now a keyboard-focusable, visibly labelled
+  `Log S1` shortcut. Pure variant/semantics/render tests plus a real 360px Chromium
+  journey prove that a first-tap bodyweight set persists completion, mode, bodyweight,
+  and a positive effective load without opening overflow.
 
 ## Prioritization model
 

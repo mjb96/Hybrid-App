@@ -8144,15 +8144,49 @@ input[type="checkbox"].gym-check,
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
+  width: 60px;
+  min-width: 60px;
+  padding: 4px;
+  font-size: 0.68rem;
+  line-height: 1.1;
 }
 
 .cockpit-set-row,
 .set-rows-head {
-  grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px 44px;
+  grid-template-columns: 60px minmax(0, 1fr) minmax(0, 1fr) 44px 44px;
   gap: 8px;
 }
 .cockpit-set-row input { min-width: 0; }
 .cockpit-set-row input { min-height: var(--touch-target); }
+
+.set-load-choice {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  background: var(--overlay-sm);
+}
+.set-load-choice__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.set-load-choice__btn.active {
+  background: var(--color-blue);
+  color: #fff;
+  box-shadow: var(--shadow-xs);
+}
 
 @media (max-width: 380px) {
   .bottom-nav {
