@@ -159,7 +159,7 @@ export function renderConnectHealthTile(config, data) {
       <span class="connect-health-tile__icon">⌚</span>
       <div class="connect-health-tile__text">
         <div class="connect-health-tile__title">Connect your Health app</div>
-        <div class="connect-health-tile__sub">Unlock HRV, resting HR, sleep, steps &amp; VO₂ max</div>
+        <div class="connect-health-tile__sub">Unlock steps, resting HR, HRV &amp; sleep</div>
       </div>
       <span class="connect-health-tile__arrow">›</span>
     </div>

@@ -2467,6 +2467,16 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
 .hc-data-toggle:last-child { border-bottom: none; }
 .hc-data-toggle input[type="checkbox"] { accent-color: var(--color-green); width: 16px; height: 16px; }
 .hc-data-toggle span { font-size: 0.82rem; font-weight: 600; color: var(--text-strong); }
+.hc-data-toggle span:first-of-type { flex: 1; }
+.hc-field-status {
+  font-size: 0.68rem;
+  font-weight: 600;
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+.hc-field-status--ok   { color: var(--color-green); }
+.hc-field-status--warn { color: var(--color-amber, #f59e0b); }
+.hc-field-status--muted { color: var(--text-faint); }
 .settings-hint {
   font-size: 0.72rem;
   color: var(--text-faint);
