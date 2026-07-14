@@ -31,7 +31,7 @@ function twoWeekStrength() {
 
 test('recovery-focused (warning) leads with the load line and includes a clears note', () => {
   const state = twoWeekStrength();
-  const model = { load: { hasData: true, acwr: 1.6 }, ready: { hasData: true, score: 44, status: 'Low' } };
+  const model = { load: { hasData: true, acwr: 1.6 }, ready: { hasData: true, score: 44, status: 'Low', confidence: 'high', inputCount: 3 } };
   const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-10' });
 
   assert.match(ev.bullets[0], /climbing faster than your body is recovering/);
@@ -42,7 +42,7 @@ test('recovery-focused (warning) leads with the load line and includes a clears 
 
 test('positive recommendation leads with progress (working sets), not the load warning', () => {
   const state = twoWeekStrength();
-  const model = { load: { hasData: true, acwr: 1.0 }, ready: { hasData: true, score: 88, status: 'Primed' } };
+  const model = { load: { hasData: true, acwr: 1.0 }, ready: { hasData: true, score: 88, status: 'Primed', confidence: 'high', inputCount: 3 } };
   const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'positive', badge: 'Well rested — push it today' }, today: '2026-06-10' });
 
   assert.ok(ev.bullets[0].includes('Working sets: 7 this week vs 4 at the same point last week'));
@@ -56,11 +56,21 @@ test('data completeness: sparse sleep on a recovery call flags limited confidenc
     { date: '2026-06-09', totalHours: 7 },
     { date: '2026-06-08', totalHours: 6.5 },
   ] };
-  const model = { load: { hasData: true, acwr: 1.55 }, ready: { hasData: true, score: 48, status: 'Low' } };
+  const model = { load: { hasData: true, acwr: 1.55 }, ready: { hasData: true, score: 48, status: 'Low', confidence: 'moderate', inputCount: 2 } };
   const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-10' });
 
   assert.equal(ev.confidence, 'limited');
   assert.ok(ev.bullets.some(b => /Sleep logged 2 of the last 7 nights/.test(b)));
+});
+
+test('a sparse readiness estimate marks recovery evidence as limited', () => {
+  const state = twoWeekStrength();
+  const model = { load: { hasData: true, acwr: 1.55 }, ready: {
+    hasData: true, score: 25, status: 'Limited signal', confidence: 'low', inputCount: 1,
+  } };
+  const ev = buildCoachEvidence({ state, days: DAYS, model, rec: { severity: 'warning', badge: 'Reduce load today' }, today: '2026-06-10' });
+  assert.equal(ev.confidence, 'limited');
+  assert.ok(ev.bullets.some(b => /low confidence, 1 signal\)/.test(b)));
 });
 
 test('no readiness data on a recovery call is stated honestly (load alone)', () => {

@@ -6,7 +6,7 @@ const at = (h) => { const d = new Date(); d.setHours(h, 0, 0, 0); return d; };
 
 const baseModel = (over = {}) => ({
   rec: { sessionLabel: 'Hybrid Session', badge: 'Productive', headline: 'On track — stick to the plan', advice: 'Follow the program today.', severity: 'neutral' },
-  ready: { hasData: true, score: 72, status: 'Ready', available: ['load'] },
+  ready: { hasData: true, score: 72, status: 'Ready', available: ['load'], confidence: 'high', inputCount: 3 },
   ...over,
 });
 const PROGRAM = {
@@ -47,12 +47,22 @@ test('mission: incomplete training day → complete-session, readiness-aware', (
   assert.equal(b.mission.done, false);
   assert.match(b.mission.text, /Complete today's hybrid session/);
   // Low readiness + a run in the plan → Zone 2 framing
-  const low = buildMorningBriefing({ state: STATE, model: baseModel({ ready: { hasData: true, score: 45, status: 'Low', available: [] } }), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
+  const low = buildMorningBriefing({ state: STATE, model: baseModel({ ready: { hasData: true, score: 45, status: 'Low', available: [], confidence: 'high', inputCount: 3 } }), score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
   assert.match(low.mission.text, /Zone 2/);
   // High readiness gym-only day → push framing
-  const gym = baseModel({ rec: { sessionLabel: 'Gym Session', badge: '', headline: '', advice: '', severity: 'neutral' }, ready: { hasData: true, score: 90, status: 'Peak', available: [] } });
+  const gym = baseModel({ rec: { sessionLabel: 'Gym Session', badge: '', headline: '', advice: '', severity: 'neutral' }, ready: { hasData: true, score: 90, status: 'Peak', available: [], confidence: 'high', inputCount: 3 } });
   const push = buildMorningBriefing({ state: STATE, model: gym, score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
   assert.match(push.mission.text, /push/);
+});
+
+test('mission: one readiness signal never changes planned intensity', () => {
+  const low = baseModel({ ready: { hasData: true, score: 20, status: 'Limited signal', available: ['sleep'], confidence: 'low', inputCount: 1 } });
+  const lowBriefing = buildMorningBriefing({ state: STATE, model: low, score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
+  assert.doesNotMatch(lowBriefing.mission.text, /Zone 2|easy/i);
+
+  const high = baseModel({ rec: { sessionLabel: 'Gym Session', badge: '' }, ready: { hasData: true, score: 100, status: 'Limited signal', available: ['sleep'], confidence: 'low', inputCount: 1 } });
+  const highBriefing = buildMorningBriefing({ state: STATE, model: high, score: null, program: PROGRAM, selectedDay: 'wed', now: at(7) });
+  assert.doesNotMatch(highBriefing.mission.text, /push|primed/i);
 });
 
 test('mission: completed session flips to done with celebration', () => {
@@ -64,13 +74,13 @@ test('mission: completed session flips to done with celebration', () => {
 });
 
 test('mission: rest day → check-in first, then recovery framing', () => {
-  const rest = baseModel({ rec: { sessionLabel: 'Rest Day', badge: '', headline: '', advice: '', severity: 'neutral' }, ready: { hasData: true, score: 70, status: 'Ready', available: ['load'] } });
+  const rest = baseModel({ rec: { sessionLabel: 'Rest Day', badge: '', headline: '', advice: '', severity: 'neutral' }, ready: { hasData: true, score: 70, status: 'Ready', available: ['load'], confidence: 'low', inputCount: 1 } });
   const b = buildMorningBriefing({ state: STATE, model: rest, score: null, program: PROGRAM, selectedDay: 'sun', now: at(7) });
   assert.equal(b.session.isRest, true);
   assert.match(b.mission.text, /check-in/);
   assert.equal(b.mission.done, false);
   // After checking in, the mission resolves to recovery framing
-  const checked = buildMorningBriefing({ state: STATE, model: baseModel({ rec: { sessionLabel: 'Rest Day', badge: '' }, ready: { hasData: true, score: 70, status: 'Ready', available: ['wellness'] } }), score: null, program: PROGRAM, selectedDay: 'sun', now: at(7) });
+  const checked = buildMorningBriefing({ state: STATE, model: baseModel({ rec: { sessionLabel: 'Rest Day', badge: '' }, ready: { hasData: true, score: 70, status: 'Ready', available: ['wellness'], confidence: 'low', inputCount: 1 } }), score: null, program: PROGRAM, selectedDay: 'sun', now: at(7) });
   assert.equal(checked.mission.done, true);
   assert.match(checked.mission.text, /Rest well/);
 });

@@ -46,7 +46,7 @@ export function dayVerdict(model, state, program, selectedDay) {
   if (sessionDone) mode = 'done';
   else if (isRestDay) mode = 'rest';
   else if (isDeloadWeek) mode = 'deload';
-  else if (readiness != null && readiness < 40) mode = 'recover';
+  else if (model?.ready?.confidence === 'high' && readiness != null && readiness < 40) mode = 'recover';
   else mode = 'train';
 
   // "Train today and your score rises" is only honest on a day that still has

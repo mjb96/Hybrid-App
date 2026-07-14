@@ -181,7 +181,8 @@ export const TILE_REGISTRY = [
         if (h.sleepHours > 0) parts.push(`Sleep ${h.sleepHours.toFixed(1)}h`);
         if (h.hrv != null) parts.push(`HRV ${Math.round(h.hrv)}ms`);
         if (parts.length < 2 && h.restingHR != null) parts.push(`RHR ${Math.round(h.restingHR)}`);
-        const sub = parts.slice(0, 2).join(' · ') || `${r.available?.length || 0} signals tracked`;
+        const values = parts.slice(0, 2).join(' · ') || `${r.available?.length || 0} signals tracked`;
+        const sub = `${values} · ${r.confidence} confidence`;
         return {
           hero: String(r.score), ringPct: r.score, ringColor: r.color,
           tag: r.status, tagColor: r.color, sub, state: 'loaded',

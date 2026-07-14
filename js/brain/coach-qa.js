@@ -40,9 +40,11 @@ function answerTrainToday(ctx) {
   if (session && session.isRest) {
     return `Today's a rest day on your plan. A light walk or some mobility is perfect — let the work sink in.`;
   }
-  const r = model?.ready?.hasData ? model.ready.score : null;
-  if (r != null && r < 55) return `Yes — but keep it easy. Your readiness is low (${r}), so favour Zone 2 and lighter loads over intensity.`;
-  if (r != null && r >= 85) return `Great day to train — you're primed (readiness ${r}). A good day to push a little.`;
+  const ready = model?.ready;
+  const r = ready?.hasData ? ready.score : null;
+  if (ready?.confidence === 'high' && r != null && r < 55) return `Yes — but keep it easy. Multiple readiness signals are low (${r}), so favour Zone 2 and lighter loads over intensity.`;
+  if (ready?.confidence === 'high' && r != null && r >= 85) return `Great day to train — multiple signals say you're primed (readiness ${r}). A good day to push a little.`;
+  if (ready?.hasData && ready.confidence !== 'high') return `Train to plan, but keep it flexible. Readiness is a ${ready.confidence}-confidence read from ${ready.inputCount} signal${ready.inputCount === 1 ? '' : 's'} — not enough evidence to push or back off yet.`;
   if (risk && risk.level === 'watch') return `Yes, but hold your planned volume — there are early fatigue signs, so don't add extra work.`;
   return `Yes — you're clear to train. Hit today's session as planned.`;
 }
@@ -76,7 +78,12 @@ function answerProjection(ctx) {
 
 function answerReadiness(ctx) {
   const { model } = ctx;
-  if (model?.ready?.hasData) return `Your readiness is ${model.ready.score} — ${model.ready.status}. ${model.ready.score >= 70 ? 'Good to go.' : 'Ease into it.'}`;
+  if (model?.ready?.hasData) {
+    const r = model.ready;
+    const evidence = (r.evidence || []).map((item) => item.label).join(' + ') || `${r.inputCount} signals`;
+    if (r.confidence !== 'high') return `Your readiness estimate is ${r.score}, with ${r.confidence} confidence from ${evidence}. Follow the plan and reassess how you feel; this is not enough evidence to push or back off.`;
+    return `Your readiness is ${r.score} — ${r.status}, with high confidence from ${evidence}. ${r.score >= 70 ? 'Good to go.' : 'Ease into it.'}`;
+  }
   return `Log a 30-second wellness check-in and I'll read your readiness for you.`;
 }
 

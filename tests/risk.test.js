@@ -7,7 +7,7 @@ const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.
 
 const model = (over = {}) => ({
   load: { hasData: true, acwr: 0.9, tsb: 0 },
-  ready: { hasData: true, score: 70 },
+  ready: { hasData: true, score: 70, confidence: 'high' },
   ...over,
 });
 
@@ -28,11 +28,38 @@ test('ACWR spike alone → high (injury-risk literature)', () => {
 
 test('two moderate signals stack to high; one alone is only watch', () => {
   // Elevated ACWR (1) + readiness dip (1) = 2 → watch
-  const watch = assessOvertrainingRisk(model({ load: { hasData: true, acwr: 1.35, tsb: -5 }, ready: { hasData: true, score: 50 } }), { currentWeek: '2', weeks: {} }, DAYS);
+  const watch = assessOvertrainingRisk(model({ load: { hasData: true, acwr: 1.35, tsb: -5 }, ready: { hasData: true, score: 50, confidence: 'high' } }), { currentWeek: '2', weeks: {} }, DAYS);
   assert.equal(watch.level, 'watch');
   // Deep fatigue (2) + low readiness (2) = 4 → high
-  const high = assessOvertrainingRisk(model({ load: { hasData: true, acwr: 1.0, tsb: -30 }, ready: { hasData: true, score: 35 } }), { currentWeek: '2', weeks: {} }, DAYS);
+  const high = assessOvertrainingRisk(model({ load: { hasData: true, acwr: 1.0, tsb: -30 }, ready: { hasData: true, score: 35, confidence: 'high' } }), { currentWeek: '2', weeks: {} }, DAYS);
   assert.equal(high.level, 'high');
+});
+
+test('low-confidence readiness cannot raise risk', () => {
+  const a = assessOvertrainingRisk(model({
+    load: { hasData: true, acwr: 1.0, tsb: 0 },
+    ready: { hasData: true, score: 10, confidence: 'low' },
+  }), { currentWeek: '2', weeks: {} }, DAYS);
+  assert.equal(a.level, 'none');
+  assert.ok(!a.signals.some((signal) => /readiness/i.test(signal.key)));
+});
+
+test('one bad sleep night is not sleep debt', () => {
+  const state = { currentWeek: '2', weeks: {}, healthConnect: { sleep: [
+    { date: iso(0), totalHours: 4.5 },
+  ] } };
+  const a = assessOvertrainingRisk(model(), state, DAYS);
+  assert.ok(!a.signals.some((signal) => signal.key === 'sleepDebt'));
+});
+
+test('stale sleep nights are not treated as current sleep debt', () => {
+  const state = { currentWeek: '2', weeks: {}, healthConnect: { sleep: [
+    { date: iso(20), totalHours: 4.5 },
+    { date: iso(21), totalHours: 5 },
+    { date: iso(22), totalHours: 5.5 },
+  ] } };
+  const a = assessOvertrainingRisk(model(), state, DAYS);
+  assert.ok(!a.signals.some((signal) => signal.key === 'sleepDebt'));
 });
 
 test('sleep debt read from health log', () => {

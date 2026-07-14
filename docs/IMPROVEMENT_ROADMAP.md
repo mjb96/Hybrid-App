@@ -100,6 +100,15 @@
   `Log S1` shortcut. Pure variant/semantics/render tests plus a real 360px Chromium
   journey prove that a first-tap bodyweight set persists completion, mode, bodyweight,
   and a positive effective load without opening overflow.
+- **R13 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Readiness now returns an explicit confidence band, input count, named evidence,
+  time scope, excluded stale/future/invalid inputs, and a deterministic attribution
+  trace. One signal remains a low-confidence estimate and two remain developing;
+  only three or more current signals can unlock PR, time-trial, push, back-off, or
+  readiness-driven risk language. Home, Recovery, morning briefing, coach Q&A,
+  verdicts, evidence, and risk consumers use that contract. Missing, sparse, stale,
+  future-dated, outlier, normalized-weight, and copy regressions keep a single input
+  from presenting as authoritative coaching.
 
 ## Prioritization model
 

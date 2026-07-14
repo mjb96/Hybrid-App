@@ -14,6 +14,7 @@
 // Score history, logged RPEs).
 // =============================================================================
 import { runSessionsForDay } from '../state/run-sessions.js';
+import { addDaysISO, todayKey } from '../dates.js';
 
 // Signal catalogue: key → { weight, severity, label }. Weight drives the level;
 // severity colours the chip. ACWR ≥1.5 is on its own sufficient (injury-risk
@@ -33,9 +34,13 @@ const SIGNAL_META = {
 function recentSleepAvg(state, n = 3) {
   const log = state?.healthConnect?.sleep;
   if (!Array.isArray(log) || !log.length) return null;
-  const sorted = [...log].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const take = sorted.slice(0, n).map(e => e.totalHours).filter(h => h > 0);
-  if (!take.length) return null;
+  const today = todayKey();
+  const cutoff = addDaysISO(today, -6);
+  const sorted = [...log]
+    .filter((entry) => entry?.date >= cutoff && entry.date <= today)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const take = sorted.slice(0, n).map(e => e.totalHours).filter(h => h > 0 && h <= 16);
+  if (take.length < n) return null;
   return take.reduce((a, b) => a + b, 0) / take.length;
 }
 
@@ -85,7 +90,7 @@ export function assessOvertrainingRisk(model, state, days = ['mon','tue','wed','
   if (L?.hasData && L.tsb <= -25) add('deepFatigue');
 
   const r = model?.ready;
-  if (r?.hasData) {
+  if (r?.hasData && r.confidence === 'high') {
     if (r.score < 40) add('lowReadiness');
     else if (r.score < 55) add('readinessDip');
   }

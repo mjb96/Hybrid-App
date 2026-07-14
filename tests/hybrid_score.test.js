@@ -184,6 +184,14 @@ test('recoveryPillar: uses readiness score, flags poor sleep', () => {
   assert.equal(recoveryPillar({ ready: { hasData: false }, load: { hasData: false } }).score, null);
 });
 
+test('recoveryPillar: sparse readiness is labelled as limited, not well recovered', () => {
+  const p = recoveryPillar({
+    ready: { hasData: true, score: 100, confidence: 'low', inputCount: 1, components: {} },
+    load: { hasData: false },
+  });
+  assert.deepEqual(p.signals, ['low-confidence readiness (1 signal)']);
+});
+
 test('momentumPillar (E3): reads the score history trend, not raw series', () => {
   const hist = (scores) => ({ hybridScore: { history: scores.map((s, i) => ({ date: `2026-07-0${i + 1}`, score: s })) } });
   const up = momentumPillar({}, hist([70, 73, 76, 80]));
