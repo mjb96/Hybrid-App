@@ -23,6 +23,7 @@
 import { dateKey } from './dates.js';
 import { fmtFastDuration, fmtHoursLabel } from './fasting.js';
 import { isCompletedSet } from './set-utils.js';
+import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 
 export const DashboardTileType = Object.freeze({
   METRIC:    'metric',
@@ -56,7 +57,7 @@ function collectRecentDays(appState, windowDays = 7) {
       if (!ds) continue;
       const d = new Date(ds + 'T00:00:00');
       if (isNaN(d.getTime()) || d < cutoff) continue;
-      out.push({ date: ds, run: wd.runs?.[day], gymStats: wd.gymStats?.[day] });
+      out.push({ date: ds, run: runDaySummary(wd, day), gymStats: wd.gymStats?.[day] });
     }
   }
   return out;
@@ -100,7 +101,7 @@ export const TILE_REGISTRY = [
         if (!weekData) return { hero: 'Rest', sub: 'No session planned.', state: 'empty' };
         const bp = activeProgram?.days?.[selectedDay] || {};
         const todayLifts = weekData.lifts?.[selectedDay] || {};
-        const todayRun = weekData.runs?.[selectedDay] || {};
+        const todayRun = runDaySummary(weekData, selectedDay);
         let completedSets = 0, totalSets = 0;
         for (const lift in todayLifts) {
           if (Array.isArray(todayLifts[lift])) {
@@ -352,11 +353,13 @@ export const TILE_REGISTRY = [
             }
             if (gymMins > 0 && gRpe > 0) gymTSS += gymMins * gRpe;
             else if (completedSets > 0) gymTSS += completedSets * (gRpe > 0 ? gRpe : 6) * 4;
-            const rDist = parseFloat(weekData.runs?.[d]?.dist) || 0;
-            const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
-            const rMins = parseTimeToMinutes(weekData.runs?.[d]?.time);
-            if (rMins > 0 && rRpe > 0) runTSS += rMins * rRpe;
-            else if (rDist > 0) runTSS += rDist * (rRpe > 0 ? rRpe : 6) * 8;
+            runSessionsForDay(weekData, d).forEach(run => {
+              const rDist = parseFloat(run.dist) || 0;
+              const rRpe = parseInt(run.rpe, 10) || 0;
+              const rMins = parseTimeToMinutes(run.time);
+              if (rMins > 0 && rRpe > 0) runTSS += rMins * rRpe;
+              else if (rDist > 0) runTSS += rDist * (rRpe > 0 ? rRpe : 6) * 8;
+            });
           });
         }
         if (gymTSS === 0 && runTSS === 0) return { label: 'No data logged', advice: 'Log workouts to see your bias.', liftPct: 50, runPct: 50, state: 'empty' };

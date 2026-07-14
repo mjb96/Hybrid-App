@@ -6,6 +6,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   saveMapToDB, getMapFromDB, deleteMapFromDB, getAllRoutes, putRoutes,
+  getAllRouteRecords, putRouteRecords,
 } from '../js/db.js';
 
 const DB_NAME = 'HybridTrainingDB';
@@ -88,6 +89,27 @@ test('re-saving the same slot upserts in place (no duplicate record)', async () 
   assert.deepEqual(all['1_mon'], [[9, 9], [8, 8]]);
 });
 
+test('two sessions in the same activation/week/day keep independent routes', async () => {
+  const first = [[1, 1], [2, 2]];
+  const second = [[8, 8], [9, 9]];
+  await saveMapToDB(1, 'mon', first, { activationId: 'act_A', sessionId: 'run_a', startTs: 100 });
+  await saveMapToDB(1, 'mon', second, { activationId: 'act_A', sessionId: 'run_b', startTs: 200 });
+
+  assert.deepEqual(await getMapFromDB(1, 'mon', { activationId: 'act_A', sessionId: 'run_a' }), first);
+  assert.deepEqual(await getMapFromDB(1, 'mon', { activationId: 'act_A', sessionId: 'run_b' }), second);
+  const records = await getAllRouteRecords();
+  assert.equal(records.length, 2);
+  assert.deepEqual(new Set(records.map((r) => r.sessionId)), new Set(['run_a', 'run_b']));
+});
+
+test('deleting one session route leaves its same-slot sibling intact', async () => {
+  await saveMapToDB(2, 'wed', [[1, 1], [2, 2]], { activationId: 'act_A', sessionId: 'run_a' });
+  await saveMapToDB(2, 'wed', [[3, 3], [4, 4]], { activationId: 'act_A', sessionId: 'run_b' });
+  await deleteMapFromDB(2, 'wed', { activationId: 'act_A', sessionId: 'run_a' });
+  assert.equal(await getMapFromDB(2, 'wed', { activationId: 'act_A', sessionId: 'run_a' }), undefined);
+  assert.deepEqual(await getMapFromDB(2, 'wed', { activationId: 'act_A', sessionId: 'run_b' }), [[3, 3], [4, 4]]);
+});
+
 test('deleteMapFromDB clears the slot for its activation', async () => {
   await saveMapToDB(3, 'fri', [[1, 1], [2, 2]], { activationId: 'act_A' });
   assert.ok(await getMapFromDB(3, 'fri', { activationId: 'act_A' }));
@@ -106,6 +128,16 @@ test('export → import round-trips routes after migration', async () => {
   assert.equal(written, 2);
   assert.deepEqual(await getMapFromDB(1, 'mon'), [[1, 1], [2, 2]]);
   assert.deepEqual(await getMapFromDB(4, 'sat'), [[3, 3], [4, 4]]);
+});
+
+test('rich-record export/import preserves two same-day session routes', async () => {
+  await saveMapToDB(4, 'sat', [[1, 1], [2, 2]], { activationId: 'act_A', sessionId: 'run_a', startTs: 100 });
+  await saveMapToDB(4, 'sat', [[3, 3], [4, 4]], { activationId: 'act_A', sessionId: 'run_b', startTs: 200 });
+  const exported = await getAllRouteRecords();
+  await delDb();
+  assert.equal(await putRouteRecords(exported), 2);
+  assert.deepEqual(await getMapFromDB(4, 'sat', { activationId: 'act_A', sessionId: 'run_a' }), [[1, 1], [2, 2]]);
+  assert.deepEqual(await getMapFromDB(4, 'sat', { activationId: 'act_A', sessionId: 'run_b' }), [[3, 3], [4, 4]]);
 });
 
 test('a blocked upgrade fails safe (no throw, safe default) instead of hanging', async () => {

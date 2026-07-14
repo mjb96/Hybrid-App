@@ -7,6 +7,7 @@ import { dateKey } from '../../dates.js';
 import { getProgramById } from '../../state.js';
 import { isCompletedSet } from '../../set-utils.js';
 import { streakFreezeInfo } from '../../brain/streak.js';
+import { runDaySummary } from '../../state/run-sessions.js';
 
 export function renderProgressAnalytics(data, getState) {
   const tbody = document.getElementById('analyticsTimelineTableBody');
@@ -83,7 +84,7 @@ export function renderStreakDetail(data, getState, getDays) {
   for (const wk in appState.weeks || {}) {
     const wkData = appState.weeks[wk];
     defaultDays.forEach((d, dayIdx) => {
-      const rDist = parseFloat(wkData?.runs?.[d]?.dist) || 0;
+      const rDist = parseFloat(runDaySummary(wkData, d).dist) || 0;
       let completedSets = 0;
       const dayLifts = wkData?.lifts?.[d] || {};
       for (const lift in dayLifts) {
@@ -189,7 +190,7 @@ export function renderStreakDetail(data, getState, getDays) {
         }
       }
       const gymHasData = completedSets > 0;
-      const runHasData = parseFloat(wkData?.runs?.[d]?.dist) > 0;
+      const runHasData = (parseFloat(runDaySummary(wkData, d).dist) || 0) > 0;
       if (gymHasData || runHasData) {
         trainingDays.push({ week: parseInt(wk, 10), dayIdx, gym: gymHasData, run: runHasData });
       }

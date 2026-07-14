@@ -19,6 +19,7 @@ import { shareHybridScoreCard } from './brain/hybrid-score/share-card.js';
 import { showToast } from './toast.js';
 import { renderReview, setReviewTab } from './analytics/views/view-weekly-review.js';
 import { renderProjections } from './analytics/views/view-projections.js';
+import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 
 let _getState;
 let _getDays;
@@ -197,20 +198,21 @@ function collectAnalyticsData() {
     let weekHrZones = [0, 0, 0, 0, 0];
 
     DEFAULT_DAYS.forEach(d => {
-      const run  = wkData.runs?.[d] || {};
+      const run  = runDaySummary(wkData, d);
       const dist = parseFloat(run.dist) || 0;
       const elev = parseFloat(run.elev) || 0;
       const cals = parseFloat(run.cals) || 0;
       weekDist += dist; weekElev += elev; weekCals += cals;
 
-      const paceS = parsePaceSeconds(dist, run.time || '');
-      if (paceS > 0 && dist > 0) { weekRunTime += paceS * dist; weekRunDist += dist; }
-
-      const runRpe = parseFloat(run.rpe) || 0;
-      if (runRpe > 0) { weekRpeSum += runRpe; weekRpeCount++; }
-
-      if (run.avgCadence)    { weekCadenceSum += parseFloat(run.avgCadence); weekCadenceCount++; }
-      if (run.trainingEffect){ weekTeSum += parseFloat(run.trainingEffect); weekTeCount++; }
+      runSessionsForDay(wkData, d).forEach(session => {
+        const sessionDist = parseFloat(session.dist) || 0;
+        const paceS = session.type === 'walk' ? 0 : parsePaceSeconds(sessionDist, session.time || '');
+        if (paceS > 0 && sessionDist > 0) { weekRunTime += paceS * sessionDist; weekRunDist += sessionDist; }
+        const runRpe = parseFloat(session.rpe) || 0;
+        if (runRpe > 0) { weekRpeSum += runRpe; weekRpeCount++; }
+        if (session.avgCadence) { weekCadenceSum += parseFloat(session.avgCadence); weekCadenceCount++; }
+        if (session.trainingEffect) { weekTeSum += parseFloat(session.trainingEffect); weekTeCount++; }
+      });
       if (Array.isArray(run.hrZones)) {
         run.hrZones.forEach((z, i) => { if (i < 5) weekHrZones[i] += parseFloat(z) || 0; });
       }
@@ -279,7 +281,7 @@ function collectAnalyticsData() {
         });
       }
       const gymHasData = completedSets > 0;
-      const runHasData = parseFloat(wkData?.runs?.[d]?.dist) > 0;
+      const runHasData = (parseFloat(runDaySummary(wkData, d).dist) || 0) > 0;
       if (gymHasData || runHasData) {
         trainingDays.push({ week: parseInt(wk, 10), dayIdx, gym: gymHasData, run: runHasData });
       }
@@ -424,4 +426,3 @@ export function renderAnalytics() {
       break;
   }
 }
-

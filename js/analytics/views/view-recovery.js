@@ -17,6 +17,7 @@ import { computeRecoveryAnalytics } from '../calculations/recovery-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import { computeDashboardModel } from '../../home/dashboard-model.js';
 import { formatFormTSB } from '../../metrics/metrics-load.js';
+import { runSessionsForDay } from '../../state/run-sessions.js';
 import { getProgramById } from '../../state.js';
 import {
   computeReadiness,
@@ -118,9 +119,11 @@ export function renderRecoveryAnalytics(data, getState, getDays) {
   let totalRpe = 0, rpeCount = 0;
   if (weekData) {
     defaultDays.forEach(d => {
-      const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
       const gRpe = parseInt(weekData.gymRpe?.[d], 10)   || 0;
-      if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+      runSessionsForDay(weekData, d).forEach(run => {
+        const rRpe = parseInt(run.rpe, 10) || 0;
+        if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+      });
       if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
     });
   }
@@ -213,9 +216,11 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
   let rpeCount = 0, totalRpe = 0;
   if (weekData) {
     defaultDays.forEach(d => {
-      const rRpe = parseInt(weekData.runs?.[d]?.rpe, 10) || 0;
       const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
-      if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+      runSessionsForDay(weekData, d).forEach(run => {
+        const rRpe = parseInt(run.rpe, 10) || 0;
+        if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
+      });
       if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
     });
   }

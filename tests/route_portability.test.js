@@ -10,7 +10,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  wrapExport, parseImport, sanitizeRoutes, EXPORT_FORMAT, EXPORT_VERSION, ROUTE_LIMITS,
+  wrapExport, parseImport, sanitizeRoutes, sanitizeRouteRecords,
+  EXPORT_FORMAT, EXPORT_VERSION, ROUTE_LIMITS,
 } from '../js/state/route-portability.js';
 
 const sampleState = () => ({ currentWeek: '3', weeks: { 1: { lifts: {} }, 3: { runs: {} } } });
@@ -18,6 +19,18 @@ const sampleRoutes = () => ({
   '1_mon': [[51.5, -0.12], [51.51, -0.13], [51.52, -0.14]],
   '3_wed': [[40.0, -70.0], [40.01, -70.01]],
 });
+const sampleRecords = () => ([
+  {
+    id: 'route:run_one', sessionId: 'run_one', activationId: 'act_1', programId: 'hybrid',
+    week: '1', day: 'mon', localDate: '2026-07-13', startTs: 100, updatedTs: 101,
+    coordinates: [[51.5, -0.12], [51.51, -0.13]],
+  },
+  {
+    id: 'route:run_two', sessionId: 'run_two', activationId: 'act_1', programId: 'hybrid',
+    week: '1', day: 'mon', localDate: '2026-07-13', startTs: 200, updatedTs: 201,
+    coordinates: [[51.6, -0.22], [51.61, -0.23]],
+  },
+]);
 
 test('export → import round-trips state AND routes', () => {
   const wrapped = wrapExport(sampleState(), sampleRoutes());
@@ -36,6 +49,7 @@ test('legacy raw-appState export still imports (no routes)', () => {
   assert.ok(parsed);
   assert.equal(parsed.legacy, true);
   assert.deepEqual(parsed.routes, {});
+  assert.deepEqual(parsed.routeRecords, []);
   assert.equal(parsed.state.currentWeek, '3');
 });
 
@@ -43,6 +57,30 @@ test('an export with no routes yields an empty routes map, not undefined', () =>
   const wrapped = wrapExport(sampleState(), {});
   const parsed = parseImport(wrapped);
   assert.deepEqual(parsed.routes, {});
+  assert.deepEqual(parsed.routeRecords, []);
+});
+
+test('v3 rich records preserve two routes in the same week/day slot', () => {
+  const wrapped = wrapExport(sampleState(), sampleRecords());
+  const parsed = parseImport(JSON.parse(JSON.stringify(wrapped)));
+  assert.ok(parsed);
+  assert.deepEqual(parsed.routes, {});
+  assert.equal(parsed.routeRecords.length, 2);
+  assert.deepEqual(parsed.routeRecords.map(r => r.id), ['route:run_one', 'route:run_two']);
+  assert.deepEqual(parsed.routeRecords.map(r => r.sessionId), ['run_one', 'run_two']);
+  assert.equal(parsed.routeRecords[0].slotKey, parsed.routeRecords[1].slotKey);
+});
+
+test('v2 route-map envelope remains importable', () => {
+  const parsed = parseImport({
+    format: EXPORT_FORMAT,
+    version: 2,
+    state: sampleState(),
+    routes: sampleRoutes(),
+  });
+  assert.ok(parsed);
+  assert.equal(parsed.routeRecords.length, 0);
+  assert.equal(Object.keys(parsed.routes).length, 2);
 });
 
 test('re-importing the same file is idempotent by key (no duplicate routes)', () => {
@@ -88,6 +126,18 @@ test('too many routes are capped', () => {
 test('extra per-point fields are stripped to [lat,lng]', () => {
   const { routes } = sanitizeRoutes({ '1_mon': [[51.5, -0.1, 5, 12345], [51.6, -0.2, 3, 12346]] });
   assert.deepEqual(routes['1_mon'], [[51.5, -0.1], [51.6, -0.2]]);
+});
+
+test('rich record sanitizer strips point extras and rejects duplicate or malformed identities', () => {
+  const records = sampleRecords();
+  records[0].coordinates = [[51.5, -0.1, 123], [51.6, -0.2, 456]];
+  records.push({ ...records[0] }); // duplicate id
+  records.push({ ...records[1], id: '', coordinates: [[1, 2], [3, 4]] });
+  records.push({ ...records[1], id: 'route:bad-day', day: 'bad day' });
+  const { routeRecords, dropped } = sanitizeRouteRecords(records);
+  assert.equal(routeRecords.length, 2);
+  assert.deepEqual(routeRecords[0].coordinates, [[51.5, -0.1], [51.6, -0.2]]);
+  assert.ok(dropped >= 3);
 });
 
 test('garbage / non-object payloads import as null (rejected)', () => {

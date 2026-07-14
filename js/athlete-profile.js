@@ -9,6 +9,7 @@ import { computeStreak } from './home/dashboard-model.js';
 import { levelFromXp } from './brain/hybrid-score/levels.js';
 import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
 import { compareSessionToPrevWeek } from './analytics/calculations/session-compare.js';
+import { runDaySummary } from './state/run-sessions.js';
 
 // V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
 // the full depth. Fixed, curated order — the doctrine is "simple front, powerful
@@ -621,7 +622,7 @@ function openSessionDetailModal(el) {
     }
 
     // ── Run ───────────────────────────────────────────────────────────────────
-    const runData = weekData.runs?.[day] || {};
+    const runData = runDaySummary(weekData, day);
     const runDist = parseFloat(runData.dist) || 0;
     if (runDist > 0 || runData.time) {
       html += `<div class="sds-section"><div class="sds-section-title">Run</div>`;

@@ -2,8 +2,9 @@
 // ==========================================
 // RUNNING METRICS (metrics/metrics-running.js)
 // ==========================================
-// Pure functions — no DOM, no imports, no side effects.
+// Pure functions — no DOM or side effects.
 // ==========================================
+import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
 
 function parseMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -39,7 +40,7 @@ function eachWeek(state, days, maxWeek, fn) {
 export function weeklyDistanceSeries(state, days, maxWeek) {
   return eachWeek(state, days, maxWeek, (wkData, days) => {
     let dist = 0;
-    if (wkData) days.forEach(d => { dist += parseFloat(wkData.runs?.[d]?.dist) || 0; });
+    if (wkData) days.forEach(d => { dist += parseFloat(runDaySummary(wkData, d).dist) || 0; });
     return dist;
   });
 }
@@ -48,7 +49,7 @@ export function weeklyDistanceSeries(state, days, maxWeek) {
 export function weeklyElevationSeries(state, days, maxWeek) {
   return eachWeek(state, days, maxWeek, (wkData, days) => {
     let elev = 0;
-    if (wkData) days.forEach(d => { elev += parseFloat(wkData.runs?.[d]?.elev) || 0; });
+    if (wkData) days.forEach(d => { elev += parseFloat(runDaySummary(wkData, d).elev) || 0; });
     return elev;
   });
 }
@@ -59,13 +60,13 @@ export function weeklyPaceSeries(state, days, maxWeek) {
     let totalDist = 0, weightedSecs = 0;
     if (wkData) {
       days.forEach(d => {
-        const run = wkData.runs?.[d] || {};
-        // Walks are aerobic volume/load but NOT a running-pace signal — exclude
-        // them so a slow walk can't skew pace, VDOT, or aerobic-decoupling.
-        if (run.type === 'walk') return;
-        const dist = parseFloat(run.dist) || 0;
-        const pace = parsePaceSecs(dist, run.time || '');
-        if (dist > 0 && pace > 0) { weightedSecs += pace * dist; totalDist += dist; }
+        for (const run of runSessionsForDay(wkData, d)) {
+          // Walks are aerobic volume/load but NOT a running-pace signal.
+          if (run.type === 'walk') continue;
+          const dist = parseFloat(run.dist) || 0;
+          const pace = parsePaceSecs(dist, run.time || '');
+          if (dist > 0 && pace > 0) { weightedSecs += pace * dist; totalDist += dist; }
+        }
       });
     }
     return totalDist > 0 ? weightedSecs / totalDist : 0;
@@ -81,12 +82,13 @@ export function weeklyBestPaceSeries(state, days, maxWeek) {
     let best = 0;
     if (wkData) {
       days.forEach(d => {
-        const run = wkData.runs?.[d] || {};
-        if (run.type === 'walk') return;
-        const dist = parseFloat(run.dist) || 0;
-        const pace = parsePaceSecs(dist, run.time || '');
-        // Faster = smaller s/km; track the minimum positive pace.
-        if (dist > 0 && pace > 0 && (best === 0 || pace < best)) best = pace;
+        for (const run of runSessionsForDay(wkData, d)) {
+          if (run.type === 'walk') continue;
+          const dist = parseFloat(run.dist) || 0;
+          const pace = parsePaceSecs(dist, run.time || '');
+          // Faster = smaller s/km; track the minimum positive pace.
+          if (dist > 0 && pace > 0 && (best === 0 || pace < best)) best = pace;
+        }
       });
     }
     return best;
@@ -101,11 +103,12 @@ export function weeklyHrSeries(state, days, maxWeek) {
     let hrSum = 0, hrCount = 0, hrMax = 0;
     if (wkData) {
       days.forEach(d => {
-        const run = wkData.runs?.[d] || {};
-        const avg = parseFloat(run.avgHR) || 0;
-        const max = parseFloat(run.maxHR) || 0;
-        if (avg > 0) { hrSum += avg; hrCount++; }
-        if (max > hrMax) hrMax = max;
+        for (const run of runSessionsForDay(wkData, d)) {
+          const avg = parseFloat(run.avgHR) || 0;
+          const max = parseFloat(run.maxHR) || 0;
+          if (avg > 0) { hrSum += avg; hrCount++; }
+          if (max > hrMax) hrMax = max;
+        }
       });
     }
     avgHr.push(hrCount > 0 ? Math.round(hrSum / hrCount) : 0);
@@ -120,8 +123,10 @@ export function weeklyHrZonesSeries(state, days, maxWeek) {
     const zones = [0, 0, 0, 0, 0];
     if (wkData) {
       days.forEach(d => {
-        const hrz = wkData.runs?.[d]?.hrZones;
-        if (Array.isArray(hrz)) hrz.forEach((z, i) => { if (i < 5) zones[i] += parseFloat(z) || 0; });
+        for (const run of runSessionsForDay(wkData, d)) {
+          const hrz = run.hrZones;
+          if (Array.isArray(hrz)) hrz.forEach((z, i) => { if (i < 5) zones[i] += parseFloat(z) || 0; });
+        }
       });
     }
     return zones;
@@ -134,8 +139,10 @@ export function weeklyCadenceSeries(state, days, maxWeek) {
     let sum = 0, count = 0;
     if (wkData) {
       days.forEach(d => {
-        const c = parseFloat(wkData.runs?.[d]?.avgCadence) || 0;
-        if (c > 0) { sum += c; count++; }
+        for (const run of runSessionsForDay(wkData, d)) {
+          const c = parseFloat(run.avgCadence) || 0;
+          if (c > 0) { sum += c; count++; }
+        }
       });
     }
     return count > 0 ? sum / count : 0;
@@ -148,8 +155,10 @@ export function weeklyTrainingEffectSeries(state, days, maxWeek) {
     let sum = 0, count = 0;
     if (wkData) {
       days.forEach(d => {
-        const te = parseFloat(wkData.runs?.[d]?.trainingEffect) || 0;
-        if (te > 0) { sum += te; count++; }
+        for (const run of runSessionsForDay(wkData, d)) {
+          const te = parseFloat(run.trainingEffect) || 0;
+          if (te > 0) { sum += te; count++; }
+        }
       });
     }
     return count > 0 ? sum / count : 0;

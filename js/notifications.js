@@ -20,6 +20,7 @@ import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.j
 import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
 import { maybePushFastingNudge } from './fasting/fasting-nudge.js';
 import { makeBridgeCallbackId } from './util/bridge-callback-id.js';
+import { runDaySummary } from './state/run-sessions.js';
 
 let _reminderTimer = null;
 let _weeklySummaryTimer = null;
@@ -156,7 +157,7 @@ function _hasLoggedToday(dayKey) {
     const sets = wk.lifts[dayKey][l];
     return Array.isArray(sets) && sets.some(s => s?.c);
   });
-  const hasRun = parseFloat(wk.runs?.[dayKey]?.dist) > 0;
+  const hasRun = (parseFloat(runDaySummary(wk, dayKey).dist) || 0) > 0;
   return hasLifts || hasRun;
 }
 
@@ -280,7 +281,7 @@ export function checkMissedWorkout() {
     const sets = wk.lifts[yesterdayKey][l];
     return Array.isArray(sets) && sets.some(s => s?.c);
   });
-  const hasRun = parseFloat(wk.runs?.[yesterdayKey]?.dist) > 0;
+  const hasRun = (parseFloat(runDaySummary(wk, yesterdayKey).dist) || 0) > 0;
 
   if (!hasLifts && !hasRun) {
     const dayLabel = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][yesterday.getDay()];

@@ -23,6 +23,7 @@
 // =============================================================================
 import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
 import { addDaysISO, localDayKey } from '../dates.js';
+import { runDaySummary } from '../state/run-sessions.js';
 
 // Compatibility re-export: calendar consumers historically imported these from
 // weekly-aggregate. The implementation now lives in the one canonical date API.
@@ -119,7 +120,7 @@ export function indexSlotsByDate(state, opts = {}) {
 
     DAY_KEYS.forEach((day) => {
       const lifts = wd.lifts?.[day];
-      const run = wd.runs?.[day];
+      const run = runDaySummary(wd, day);
       const gymStats = wd.gymStats?.[day];
       const stats = strengthDayStats(lifts);
       const runDist = parseFloat(run?.dist) || 0;

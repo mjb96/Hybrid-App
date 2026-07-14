@@ -12,20 +12,13 @@
 // ==========================================
 import { estimateWeekStart, slotDateISO } from '../dates.js';
 import { dayVolume } from '../set-utils.js';
+import { runDaySummary, runLoadForDay } from '../state/run-sessions.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 // EWMA decay constants — span-based equivalents of 7-day (ATL) and 28-day (CTL)
 const λ_ATL = 2 / (7 + 1);    // 0.25
 const λ_CTL = 2 / (28 + 1);   // ≈ 0.0690
-
-function parseMinutes(timeStr) {
-  if (!timeStr) return 0;
-  const parts = String(timeStr).split(':').map(Number);
-  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
-  if (parts.length === 2) return parts[0] + parts[1] / 60;
-  return parseFloat(timeStr) || 0;
-}
 
 // ---- Weekly series (pure, no EWMA) ----------------------------------------
 
@@ -51,7 +44,7 @@ export function enduranceLoadSeries(state, days, maxWeek) {
     let dist = 0;
     if (wkData) {
       days.forEach(d => {
-        dist += parseFloat(wkData.runs?.[d]?.dist) || 0;
+        dist += parseFloat(runDaySummary(wkData, d).dist) || 0;
       });
     }
     result.push(dist);
@@ -71,9 +64,7 @@ export function recoveryCostSeries(state, days, maxWeek) {
         const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
         if (gymRpe > 0 && gymMins > 0) cost += gymRpe * gymMins;
 
-        const runRpe  = parseFloat(wkData.runs?.[d]?.rpe) || 0;
-        const runMins = parseMinutes(wkData.runs?.[d]?.time);
-        if (runRpe > 0 && runMins > 0) cost += runRpe * runMins;
+        cost += runLoadForDay(wkData, d);
       });
     }
     result.push(cost);
@@ -93,9 +84,7 @@ export function recoveryCostBreakdown(state, days, maxWeek) {
         const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
         if (gymRpe > 0 && gymMins > 0) str += gymRpe * gymMins;
 
-        const runRpe  = parseFloat(wkData.runs?.[d]?.rpe) || 0;
-        const runMins = parseMinutes(wkData.runs?.[d]?.time);
-        if (runRpe > 0 && runMins > 0) end += runRpe * runMins;
+        end += runLoadForDay(wkData, d);
       });
     }
     strength.push(str);
@@ -160,11 +149,9 @@ function buildDailyTimeline(state) {
     DAY_KEYS.forEach(d => {
       const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
       const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-      const runRpe  = parseFloat(wkData.runs?.[d]?.rpe) || 0;
-      const runMins = parseMinutes(wkData.runs?.[d]?.time);
       const dayLoad =
         (gymRpe > 0 && gymMins > 0 ? gymRpe * gymMins : 0) +
-        (runRpe > 0 && runMins > 0 ? runRpe * runMins : 0);
+        runLoadForDay(wkData, d);
       const date = slotDateISO(weekStartISO, d);
       if (date) entries.push({ date, load: dayLoad });
     });
@@ -186,11 +173,9 @@ export function weeklyLoadMetricsSeries(state, days, maxWeek) {
       if (wkData) {
         const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
         const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-        const runRpe  = parseFloat(wkData.runs?.[d]?.rpe) || 0;
-        const runMins = parseMinutes(wkData.runs?.[d]?.time);
         dayLoad =
           (gymRpe > 0 && gymMins > 0 ? gymRpe * gymMins : 0) +
-          (runRpe > 0 && runMins > 0 ? runRpe * runMins : 0);
+          runLoadForDay(wkData, d);
       }
       atl = dayLoad * λ_ATL + atl * (1 - λ_ATL);
       ctl = dayLoad * λ_CTL + ctl * (1 - λ_CTL);

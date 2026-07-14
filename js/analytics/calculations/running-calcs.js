@@ -11,6 +11,7 @@ import {
   weeklyHrZonesSeries,
   weeklyCadenceSeries,
 } from '../../metrics/metrics-running.js';
+import { runSessionsForDay } from '../../state/run-sessions.js';
 
 // VDOT estimate from threshold pace (sec/km).
 // Uses Daniels' VDOT formula approximation based on T-pace = 88% VO2max pace.
@@ -64,12 +65,13 @@ export function bestEffortVdot(state, days, maxWeek, window = 8) {
     const wk = (state?.weeks || {})[String(w)];
     if (!wk) continue;
     for (const d of days) {
-      const run = wk.runs?.[d];
-      if (!run || run.type === 'walk') continue;
-      const dist = parseFloat(run.dist) || 0;
-      if (dist < 1.5 || dist > 42.2) continue;
-      const v = vdotFromPerformance(dist, _timeToSecs(run.time));
-      if (v != null && (best == null || v > best)) best = v;
+      for (const run of runSessionsForDay(wk, d)) {
+        if (run.type === 'walk') continue;
+        const dist = parseFloat(run.dist) || 0;
+        if (dist < 1.5 || dist > 42.2) continue;
+        const v = vdotFromPerformance(dist, _timeToSecs(run.time));
+        if (v != null && (best == null || v > best)) best = v;
+      }
     }
   }
   return best;

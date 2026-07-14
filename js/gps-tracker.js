@@ -15,12 +15,13 @@
 // Dispatches: CustomEvent 'gps:route-saved' { detail: { week, day, distKm } }
 // ==========================================
 import { saveMapToDB } from './db.js';
-import { showToast, appState, saveStateToLocalStorage } from './state.js';
+import { showToast, appState, saveStateToLocalStorage, verifyWeekStorageSchema } from './state.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
 import {
   isNativeGpsAvailable, ensureLocationPermission,
   nativeStartRun, nativePauseRun, nativeResumeRun, nativeStopRun, nativeDrainSince,
 } from './gps/native-bridge.js';
+import { newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
 const MAX_ACCURACY_M   = 50;   // discard readings worse than 50 m accuracy
@@ -53,6 +54,9 @@ let _wakeLock  = null;
 let _tickTimer = null;
 let _activityType = 'run'; // 'run' | 'walk' — tags the logged activity
 let _quickActivity = false; // true when launched via Home Quick Start (auto-open recap on stop)
+let _sessionId = null;      // stable across pause/reload; links state ↔ IndexedDB route
+let _sessionStartTs = null; // original session start, never the last resumed segment
+let _sessionContext = {};   // { week, day, localDate }
 let _liveMap   = null;   // Leaflet instance for the live tracking map
 let _liveLine  = null;   // Leaflet Polyline
 let _liveMarker = null;  // Leaflet CircleMarker (current position dot)
@@ -71,6 +75,39 @@ let _nativeMode      = false;
 let _nativeSeq       = 0;  // drain cursor into the native point buffer
 let _nativeElapsedMs = 0;  // native service is the source of truth for run time
 let _drainTimer      = null;
+const ACTIVE_GPS_STORAGE_KEY = 'hybrid_engine_v2_state_active_gps_session';
+
+function readStoredSessionIdentity() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_GPS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) { return null; }
+}
+
+function writeStoredSessionIdentity(value) {
+  try { localStorage.setItem(ACTIVE_GPS_STORAGE_KEY, JSON.stringify(value)); } catch (_) {}
+}
+
+function beginSessionIdentity(activityType, quickStart, ctx = {}) {
+  _sessionId = newRunSessionId();
+  _sessionStartTs = Date.now();
+  _sessionContext = { ...ctx };
+  writeStoredSessionIdentity({
+    sessionId: _sessionId,
+    startTs: _sessionStartTs,
+    activityType,
+    quickStart: !!quickStart,
+    context: _sessionContext,
+  });
+}
+
+function clearSessionIdentity() {
+  _sessionId = null;
+  _sessionStartTs = null;
+  _sessionContext = {};
+  try { localStorage.removeItem(ACTIVE_GPS_STORAGE_KEY); } catch (_) {}
+}
 
 // ── Math helpers ──────────────────────────────────────────────────────────
 
@@ -265,6 +302,7 @@ function onPositionError(err) {
   console.warn('GPS error:', msg);
   if (_status === 'waiting') {
     _status = 'idle';
+    clearSessionIdentity();
     showPanel('start');
     showToast('GPS unavailable — ' + msg);
   }
@@ -294,6 +332,17 @@ function recoverNativeRun() {
   _nativeElapsedMs = p.elapsedMs;
   _coords = []; _distKm = 0; _splits = [];
   _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
+  const saved = readStoredSessionIdentity() || {};
+  _sessionId = saved.sessionId || newRunSessionId();
+  _sessionStartTs = Number(saved.startTs) || Math.max(1, Date.now() - p.elapsedMs);
+  _sessionContext = saved.context && typeof saved.context === 'object' ? { ...saved.context } : {};
+  _activityType = saved.activityType === 'walk' ? 'walk' : 'run';
+  _quickActivity = !!saved.quickStart;
+  _scope = _quickActivity ? 'activity' : 'cockpit';
+  writeStoredSessionIdentity({
+    sessionId: _sessionId, startTs: _sessionStartTs, activityType: _activityType,
+    quickStart: _quickActivity, context: _sessionContext,
+  });
   _status = 'waiting';           // ingestFix transitions to live on first valid fix
   showPanel('wait');
   drainNative();                 // replay everything collected so far
@@ -306,7 +355,7 @@ export function onWorkoutTabActivated() {
   if (_liveMap) setTimeout(() => _liveMap.invalidateSize(), 100);
 }
 
-export async function startTracking(activityType = 'run', quickStart = false) {
+export async function startTracking(activityType = 'run', quickStart = false, ctx = {}) {
   if (_status !== 'idle') return false;
 
   // 'walk' or 'run' — tags the logged activity (Quick Start from Home passes
@@ -339,6 +388,7 @@ export async function startTracking(activityType = 'run', quickStart = false) {
       return false;
     }
     if (nativeStartRun()) {
+      beginSessionIdentity(_activityType, _quickActivity, ctx);
       _nativeMode = true;
       _status     = 'waiting';
       showPanel('wait');
@@ -356,6 +406,7 @@ export async function startTracking(activityType = 'run', quickStart = false) {
   }
 
   _status = 'waiting';
+  beginSessionIdentity(_activityType, _quickActivity, ctx);
   showPanel('wait');
 
   _wakeLock = await acquireWakeLock();
@@ -385,6 +436,7 @@ export function cancelTracking() {
   _coords = []; _distKm = 0;
   _splits = []; _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
   _nativeMode = false; _nativeSeq = 0; _nativeElapsedMs = 0;
+  clearSessionIdentity();
 
   destroyLiveMap();
   showPanel('start');
@@ -435,6 +487,13 @@ export async function stopTracking(week, day) {
   const finalDist   = _distKm;
   const finalCoords = [..._coords];
   const finalSplits = [..._splits];
+  const sessionId = _sessionId || newRunSessionId();
+  const sessionStartTs = _sessionStartTs || Math.max(1, Date.now() - finalMs);
+  const finalWeek = String(_sessionContext.week || week || '');
+  const finalDay = String(_sessionContext.day || day || '');
+  const localDate = _sessionContext.localDate || null;
+  const wasQuick = _quickActivity;
+  const activityType = _activityType;
 
   _status      = 'idle';
   _startTime   = null;
@@ -452,29 +511,48 @@ export async function stopTracking(week, day) {
 
   const typeLabel = _activityType === 'walk' ? 'Walk' : 'Run';
 
-  // Persist route under the active program run so it can't collide with another
-  // activation's Week N / same weekday (or be overwritten by a later program).
-  if (finalCoords.length >= 2 && week && day) {
+  // Persist the route under the exact run session. Two runs in the same
+  // activation/week/day now receive distinct records instead of slot-upserting.
+  let routeId = null;
+  if (finalCoords.length >= 2 && finalWeek && finalDay) {
     try {
-      await saveMapToDB(week, day, finalCoords, {
+      routeId = await saveMapToDB(finalWeek, finalDay, finalCoords, {
+        sessionId,
         activationId: appState.activeActivationId,
         programId: appState.activeProgramId,
-        startTs: _startTime || Date.now(),
+        startTs: sessionStartTs,
+        localDate,
       });
     } catch (_) {}
   }
 
-  // Tag the day's activity (walk vs run) and persist immediately, so a Quick
-  // Start walk is saved even if the user never opens the cockpit to commit.
-  // The cockpit commit merges ...existing, so this tag survives a later edit.
-  if (week && day) {
-    if (!appState.weeks[week]) appState.weeks[week] = {};
-    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
-    const existingRun = appState.weeks[week].runs[day] || {};
-    appState.weeks[week].runs[day] = { ...existingRun, type: _activityType };
+  // Persist the factual session immediately for BOTH quick and in-program GPS.
+  // The cockpit may enrich this same sessionId with RPE/notes afterwards.
+  if (finalWeek && finalDay) {
+    verifyWeekStorageSchema(finalWeek);
+    upsertRunSession(appState.weeks[finalWeek], finalDay, {
+      sessionId,
+      dist: finalDist,
+      time: fmtTime(finalMs),
+      type: activityType,
+      splits: finalSplits,
+      routeId,
+    }, {
+      sessionId,
+      source: 'gps',
+      localDate,
+      startTs: sessionStartTs,
+    });
+    if (localDate) {
+      if (!appState.weeks[finalWeek].dates) appState.weeks[finalWeek].dates = {};
+      appState.weeks[finalWeek].dates[finalDay] = localDate;
+    }
+    clearSessionIdentity();
+    saveStateToLocalStorage(true);
+  } else {
+    clearSessionIdentity();
     saveStateToLocalStorage(true);
   }
-  const wasQuick = _quickActivity;
   _activityType = 'run'; // reset for the next session
 
   // In-program run: auto-fill the cockpit run inputs so the user can review +
@@ -498,26 +576,24 @@ export async function stopTracking(week, day) {
 
   document.dispatchEvent(
     new CustomEvent('gps:route-saved', {
-      detail: { week, day, distKm: finalDist, splits: finalSplits, coords: finalCoords },
+      detail: {
+        week: finalWeek, day: finalDay, sessionId, routeId,
+        distKm: finalDist, splits: finalSplits, coords: finalCoords,
+        quickActivity: wasQuick,
+      },
     })
   );
 
-  // A Home Quick Start is a standalone activity with no cockpit to commit its
-  // inputs — persist distance + time directly (splits + type are already saved
-  // above and by the gps:route-saved listener), then surface the recap.
-  if (wasQuick && week && day) {
-    if (!appState.weeks[week]) appState.weeks[week] = {};
-    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
-    const existingRun = appState.weeks[week].runs[day] || {};
-    appState.weeks[week].runs[day] = { ...existingRun, dist: finalDist, time: fmtTime(finalMs) };
-    saveStateToLocalStorage(true);
+  // A Home Quick Start is a standalone activity with no cockpit to review, so
+  // surface the recap for this exact session immediately.
+  if (wasQuick && finalWeek && finalDay) {
     showToast(`${typeLabel} saved ✓`);
-    try { document.dispatchEvent(new CustomEvent('session:finished', { detail: { week, day } })); } catch (_) {}
+    try { document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: finalWeek, day: finalDay, sessionId } })); } catch (_) {}
   } else {
     showToast(`${typeLabel} tracked ✓ — add your RPE below`);
   }
   _quickActivity = false;
   _scope = 'cockpit'; // back to the default surface for the next session
 
-  return { distKm: finalDist, timeStr: fmtTime(finalMs) };
+  return { sessionId, routeId, distKm: finalDist, timeStr: fmtTime(finalMs) };
 }

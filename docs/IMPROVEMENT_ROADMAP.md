@@ -12,7 +12,19 @@
   it. A source guard prevents raw UTC ISO slicing from returning to those paths.
   `npm run verify` is green in Sydney, and all 771 tests pass in UTC, UTC+14 and
   UTC−12 as well. A browser-created 14 July bodyweight entry remained distinct from
-  the prior day's entry. **Next integrity slice:** R2 session/run identity.
+  the prior day's entry.
+- **R2 / PR-2 complete — 14 July 2026** on `codex/beta-integrity-sessions`.
+  Canonical `runSessions[day]` history now gives every manual, GPS and FIT run a
+  stable identity while retaining `runs[day]` as the latest editable cockpit
+  projection. GPS preserves its original start timestamp and destination across
+  Android activity recovery; routes are keyed by exact session; export v3 carries
+  every rich route record without collapsing a same-day slot. Legacy state and
+  route formats migrate non-destructively, day recaps can target the exact finished
+  run, and analytics distinguish per-session signals from per-day totals. Evidence:
+  manual+GPS JSON reload, state/IDB migration, sibling-safe route deletion,
+  same-day analytics, exact recap and v2/v3 export/import regressions; 787/787 tests,
+  typecheck, precache and smoke green. **Next integrity slice:** R3 transactional,
+  validated and retryable state migrations.
 
 ## Prioritization model
 

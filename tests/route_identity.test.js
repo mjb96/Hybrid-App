@@ -45,6 +45,15 @@ test('makeRouteRecord fills stable id, slotKey, version and keeps metadata', () 
   assert.deepEqual(r.coordinates, [[1, 2], [3, 4]]);
 });
 
+test('a session-linked route uses a deterministic primary key', () => {
+  const r = makeRouteRecord({
+    sessionId: 'run_abc', activationId: 'act_9', week: 1, day: 'mon',
+    coordinates: [[1, 2], [3, 4]], updatedTs: 1000,
+  });
+  assert.equal(r.id, 'route:run_abc');
+  assert.equal(r.sessionId, 'run_abc');
+});
+
 test('legacyRecordsFromMap migrates each route to a distinct legacy record', () => {
   const recs = legacyRecordsFromMap(
     { '1_mon': [[0, 0], [1, 1]], '2_wed': [[2, 2], [3, 3]] },

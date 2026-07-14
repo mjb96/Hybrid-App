@@ -72,6 +72,23 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Beta Integrity PR-2 — stable run/session and route identity.**
+  Added a backward-compatible canonical run history (`runSessions[day]`) with one
+  stable `sessionId` per manual, GPS or FIT activity; the legacy `runs[day]` shape
+  remains the latest editable cockpit projection. State v4 adopts legacy runs with
+  deterministic IDs. GPS now keeps its original start timestamp and program/date
+  destination across Android activity recovery, saves factual sessions immediately,
+  and links each route by exact session. IndexedDB reads/deletes are sibling-safe;
+  JSON export v3 preserves multiple same-day rich route records while v2/raw-state
+  imports remain supported. Migrated load/running/calendar/Profile/Home/Brain readers
+  so day totals aggregate every activity while pace, RPE, VDOT and session counts use
+  each exact run. Exact just-finished recaps no longer show an accidental combined-day
+  result; CSV no longer collapses multiple runs in an exported day (archived-week
+  completeness remains R4). Added reload, migration, analytics, recap,
+  route-isolation and v2/v3 portability regressions. Validation: 787/787 tests,
+  typecheck, precache and smoke green. · **Next:** PR-3 / R3 transactional,
+  validated and retryable migrations; never stamp a failed step current.
+
 - 2026-07-14 · **Beta Integrity PR-1 — canonical local calendar dates.**
   Added the single `js/dates.js` local-day API and migrated user-facing date writers
   and readers across streaks, score/history, coach memory/evidence, recovery/wellness,

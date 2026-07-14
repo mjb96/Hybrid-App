@@ -79,7 +79,9 @@ import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTrack
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
-import { dateKey } from './dates.js';
+import { dateKey, todayKey } from './dates.js';
+import { resolveDateToSlot, resolveSlotDate } from './analytics/logged-days.js';
+import { newRunSessionId, runDaySummary, upsertRunSession } from './state/run-sessions.js';
 import { FASTING_ACTIONS, handleFastingClickAction } from './fasting/fasting-actions.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 
@@ -198,9 +200,20 @@ export function isActivityScreenOpen() {
 
 export function startQuickActivity(type) {
   const kind = type === 'walk' ? 'walk' : 'run';
-  determineDefaultCalendarDay();   // log to today's slot
+  const localDate = todayKey();
+  const slot = resolveDateToSlot(appState, localDate);
+  if (slot) {
+    verifyWeekStorageSchema(String(slot.weekNum));
+    setSelectedDay(slot.day);
+  } else {
+    determineDefaultCalendarDay();
+  }
   openActivityScreen(kind);
-  startTracking(kind, /* quickStart */ true);
+  startTracking(kind, /* quickStart */ true, {
+    week: slot ? String(slot.weekNum) : appState.currentWeek,
+    day: slot?.day || selectedDay,
+    localDate,
+  });
 }
 
 // Cancel a Quick Start: discard the in-progress track (nothing is saved) and
@@ -604,7 +617,7 @@ export function openTodaySummaryModal() {
       }
     }
 
-    const runData = weekData.runs?.[todayKey] || {};
+    const runData = runDaySummary(weekData, todayKey);
     runDist = parseFloat(runData.dist) || null;
     runTime = runData.time || null;
     runRpe  = runData.rpe  || null;
@@ -685,7 +698,7 @@ export function openTodaySummaryModal() {
           });
         }
       }
-      prevDist = parseFloat(prevData.runs?.[todayKey]?.dist) || 0;
+      prevDist = parseFloat(runDaySummary(prevData, todayKey).dist) || 0;
 
       const volDelta  = volume - prevVol;
       const setsDelta = sets   - prevSets;
@@ -866,7 +879,12 @@ document.addEventListener('click', (e) => {
   else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
   else if (action === 'close-session-recap') { closeSessionRecap(); }
   else if (action === 'share-pr-card') { sharePRFromRecap(); }
-  else if (action === 'gps-start')  { startTracking(); }
+  else if (action === 'gps-start')  {
+    const dayIdx = DEFAULT_DAYS.indexOf(selectedDay);
+    const localDate = appState.weeks?.[appState.currentWeek]?.dates?.[selectedDay]
+      || resolveSlotDate(appState, parseInt(appState.currentWeek, 10) || 1, dayIdx, null);
+    startTracking('run', false, { week: appState.currentWeek, day: selectedDay, localDate });
+  }
   else if (action === 'gps-pause')  { pauseTracking(); }
   else if (action === 'gps-resume') { resumeTracking(); }
   else if (action === 'gps-stop')   {
@@ -1119,40 +1137,37 @@ initRunLogger(getState);
 initOnboarding(getState);
 initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
-initGpsTracker();
 
 // Save auto-filled inputs, persist km splits, and render the pace-zone map after GPS tracking finishes.
 document.addEventListener('gps:route-saved', (e) => {
-  const { week, day, distKm, splits, coords } = e.detail;
+  const { week, day, sessionId, distKm, splits, quickActivity } = e.detail;
 
-  // Write splits into state before commitWorkoutUIState spreads existing data.
-  if (splits && splits.length > 0 && appState.weeks[week]) {
-    const existing = appState.weeks[week].runs?.[day] || {};
-    if (!appState.weeks[week].runs) appState.weeks[week].runs = {};
-    appState.weeks[week].runs[day] = { ...existing, splits };
+  if (!quickActivity && String(week) === String(appState.currentWeek) && day === selectedDay) {
+    try { commitWorkoutUIState(); } catch (_) {}
   }
-
-  try { commitWorkoutUIState(); } catch (_) {}
   try {
     renderRunMap(week, day, distKm, {
       splits,
       thresholdSec: appState.thresholdPaceSeconds,
       activationId: appState.activeActivationId,
+      sessionId,
     });
   } catch (_) {}
 });
 
 // === DEVICE IMPORT WIRING ===
 
-initGarminRunImport((distance, timeStr, coordinates, stats) => {
+initGarminRunImport(async (distance, timeStr, coordinates, stats) => {
   const wk = appState.currentWeek;
   const sd = selectedDay;
+  const localDate = appState.weeks[wk]?.dates?.[sd] || dateKey();
+  const sessionId = newRunSessionId();
   if (appState.weeks[wk]) {
     if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
-    appState.weeks[wk].runs[sd] = {
+    upsertRunSession(appState.weeks[wk], sd, {
       dist:           distance,
       time:           timeStr,
-      rpe:            appState.weeks[wk].runs[sd]?.rpe || '',
+      rpe:            '',
       avgHR:          stats?.avgHR        != null ? Math.round(stats.avgHR)       : '',
       maxHR:          stats?.maxHR        != null ? Math.round(stats.maxHR)       : '',
       elev:           stats?.elevation    != null ? Math.round(stats.elevation)   : '',
@@ -1163,21 +1178,28 @@ initGarminRunImport((distance, timeStr, coordinates, stats) => {
       aerobicTE:      stats?.aerobicTE    != null ? stats.aerobicTE               : '',
       hrZones:        stats?.hrZones      || null,
       splits:         stats?.splits       || null,
-    };
+    }, { sessionId, source: 'fit', localDate });
   }
   if (appState.weeks[wk]) {
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
     if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = dateKey();
+      appState.weeks[wk].dates[sd] = localDate;
     }
   }
   if (coordinates && coordinates.length > 0) {
-    saveMapToDB(wk, sd, coordinates, {
+    const routeId = await saveMapToDB(wk, sd, coordinates, {
+      sessionId,
       activationId: appState.activeActivationId,
       programId: appState.activeProgramId,
-    }).then(() => {
-      saveStateToLocalStorage(true); hydrateCurrentView();
+      localDate,
     });
+    const current = appState.weeks[wk]?.runs?.[sd];
+    if (current?.sessionId === sessionId) {
+      upsertRunSession(appState.weeks[wk], sd, { ...current, routeId }, {
+        sessionId, source: 'fit', localDate,
+      });
+    }
+    saveStateToLocalStorage(true); hydrateCurrentView();
   } else {
     saveStateToLocalStorage(true); hydrateCurrentView();
   }
@@ -1370,11 +1392,17 @@ async function bootstrapApp() {
     initSyncConflictUI();
     initSessionRecap(() => appState);
     // Recap entry points: after finishing a session, and tapping a logged day.
-    document.addEventListener('session:finished', (e) => { closeActivityScreen(); openSessionRecap(e.detail?.week, e.detail?.day); });
+    document.addEventListener('session:finished', (e) => {
+      closeActivityScreen();
+      openSessionRecap(e.detail?.week, e.detail?.day, e.detail?.sessionId);
+    });
     document.addEventListener('app:open-recap',   (e) => openSessionRecap(e.detail?.week, e.detail?.day));
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();
+    // Recovery may immediately attach a device-local active session to app
+    // state, so the stored training history must be loaded first.
+    initGpsTracker();
 
     const currentTab = activeTab || 'home';
     const currentDay = selectedDay || 'mon';

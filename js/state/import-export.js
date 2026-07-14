@@ -3,6 +3,7 @@
 // init() must be called with live accessors before use.
 // =============================================================================
 import { showToast } from '../toast.js';
+import { runSessionsForDay } from './run-sessions.js';
 
 let _getState       = null;
 let _setState       = null;
@@ -88,40 +89,35 @@ export function triggerEngineExport() {
 
 export function triggerCSVExport() {
   const appState = _getState();
-  let csv = 'Week,Day,Exercise,Set,Weight,Reps,Completed,RunDist,RunTime,RunRPE,AvgHR,MaxHR,ElevGain,Calories,BodyWeight,GymRPE,Notes\n';
+  let csv = 'Week,Day,Exercise,Set,Weight,Reps,Completed,RunSessionId,RunDist,RunTime,RunRPE,AvgHR,MaxHR,ElevGain,Calories,BodyWeight,GymRPE,Notes\n';
   const loggedWeeks = Object.keys(appState.weeks).map(Number).sort((a, b) => a - b);
   loggedWeeks.forEach(w => {
     if (!appState.weeks[w]) return;
     _DEFAULT_DAYS.forEach(d => {
       const dayNotes = (appState.weeks[w].notes?.[d] || '').replace(/,/g, ' ').replace(/\n/g, ' ');
-      const run = appState.weeks[w].runs?.[d] || {};
+      const runs = runSessionsForDay(appState.weeks[w], d);
       const bw     = appState.weeks[w].bodyWeight?.[d] || '';
       const gymRpe = appState.weeks[w].gymRpe?.[d] || '';
 
-      const runDist = run.dist || '';
-      const runTime = run.time || '';
-      const runRpe  = run.rpe  || '';
-      const runAvgHR = run.avgHR || '';
-      const runMaxHR = run.maxHR || '';
-      const runElev  = run.elev  || '';
-      const runCals  = run.cals  || '';
+      const runCols = (run) => `${run?.sessionId || ''},${run?.dist || ''},${run?.time || ''},${run?.rpe || ''},${run?.avgHR || ''},${run?.maxHR || ''},${run?.elev || ''},${run?.cals || ''}`;
+      const emptyRunCols = Array(8).fill('').join(',');
 
       const lifts    = appState.weeks[w].lifts?.[d] || {};
       const liftKeys = Object.keys(lifts);
 
       if (liftKeys.length === 0) {
-        if (runDist || runTime) {
-          csv += `${w},${d},,,,,,${runDist},${runTime},${runRpe},${runAvgHR},${runMaxHR},${runElev},${runCals},${bw},${gymRpe},${dayNotes}\n`;
-        }
+        runs.forEach(run => {
+          csv += `${w},${d},,,,,,${runCols(run)},${bw},${gymRpe},${dayNotes}\n`;
+        });
       } else {
         liftKeys.forEach((lift, liftIdx) => {
           lifts[lift].forEach((s, idx) => {
             const isFirstRow = liftIdx === 0 && idx === 0;
-            const runCols = isFirstRow
-              ? `${runDist},${runTime},${runRpe},${runAvgHR},${runMaxHR},${runElev},${runCals}`
-              : ',,,,,,,';
-            csv += `${w},${d},${lift},${idx + 1},${s.w},${s.r},${s.c},${runCols},${bw},${gymRpe},${dayNotes}\n`;
+            csv += `${w},${d},${lift},${idx + 1},${s.w},${s.r},${s.c},${isFirstRow && runs[0] ? runCols(runs[0]) : emptyRunCols},${bw},${gymRpe},${dayNotes}\n`;
           });
+        });
+        runs.slice(1).forEach(run => {
+          csv += `${w},${d},,,,,,${runCols(run)},${bw},${gymRpe},${dayNotes}\n`;
         });
       }
     });

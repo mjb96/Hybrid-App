@@ -2,7 +2,7 @@
 // SETTINGS
 // ==========================================
 import { saveStateToLocalStorage, STORAGE_KEY } from './state.js';
-import { getAllRoutes, putRoutes, clearRouteDatabase } from './db.js';
+import { getAllRouteRecords, putRouteRecords, putRoutes, clearRouteDatabase } from './db.js';
 import { wrapExport, parseImport } from './state/route-portability.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
@@ -602,9 +602,9 @@ export async function exportData() {
   const appState = _getState();
   // Include GPS routes (they live in IndexedDB, not appState) in a versioned
   // envelope so export is a complete, restorable backup.
-  let routes = {};
-  try { routes = await getAllRoutes(); } catch { /* routes optional in export */ }
-  const payload = wrapExport(appState, routes, { appVersion: APP_VERSION });
+  let routeRecords = [];
+  try { routeRecords = await getAllRouteRecords(); } catch { /* routes optional in export */ }
+  const payload = wrapExport(appState, routeRecords, { appVersion: APP_VERSION });
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -612,7 +612,7 @@ export async function exportData() {
   a.download = `helyx-training-${todayKey()}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  const n = Object.keys(routes).length;
+  const n = routeRecords.length;
   showToast(n ? `Data exported ✓ (${n} route${n === 1 ? '' : 's'})` : 'Data exported ✓');
 }
 
@@ -654,10 +654,14 @@ export function handleImportFile(file) {
       if (current) localStorage.setItem(STORAGE_KEY + '_backup', current);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(result.state));
 
-      // Restore GPS routes into IndexedDB. Keyed by "week_day" → idempotent, no
-      // duplicates on re-import. Never blocks the reload if IndexedDB is absent.
+      // Restore rich session-linked routes when present; v2 backups fall back to
+      // their legacy week/day map. Stable ids make either path idempotent.
       let routeCount = 0;
-      try { routeCount = await putRoutes(result.routes); } catch { /* routes best-effort */ }
+      try {
+        routeCount = result.routeRecords.length
+          ? await putRouteRecords(result.routeRecords)
+          : await putRoutes(result.routes);
+      } catch { /* routes best-effort */ }
 
       showToast(routeCount ? `Import successful (${routeCount} routes) — reloading…` : 'Import successful — reloading…');
       setTimeout(() => location.reload(), 1200);
@@ -679,6 +683,7 @@ export async function confirmResetAllData() {
   // The previous code removed a dead 'hybridAppState' key, so reset was a no-op.
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(STORAGE_KEY + '_backup');
+  localStorage.removeItem(STORAGE_KEY + '_active_gps_session');
   try { await clearRouteDatabase(); } catch { /* best-effort */ }
   showToast('Data cleared — reloading…');
   setTimeout(() => location.reload(), 1200);
