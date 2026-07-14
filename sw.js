@@ -186,6 +186,7 @@ const REQUIRED_ASSETS = [
   "./js/workout.js",
   "./js/workout/completion-policy.js",
   "./js/workout/plates.js",
+  "./js/workout/run-type.js",
   "./js/workout/substitutions.js",
   "./manifest.json",
 ];

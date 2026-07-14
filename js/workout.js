@@ -24,6 +24,7 @@ import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
+import { detectRunType } from './workout/run-type.js';
 
 let _getState;
 let _getSelectedDay;
@@ -105,27 +106,6 @@ function _timeFromPaceDist(paceStr, distKm) {
   return `${m}:${s}`;
 }
 
-function _detectRunType(str) {
-  if (!str) return null;
-  const s = str.toLowerCase();
-  if (/recovery|shakeout|very easy/.test(s))
-    return { label: 'Recovery', color: '#10b981' };
-  if (/zone 2|z2|easy run|easy pace|aerobic base|conversational|low heart/.test(s))
-    return { label: 'Zone 2', color: '#22d3ee' };
-  if (/long run|lsd|long slow|long aerobic/.test(s))
-    return { label: 'Long Run', color: '#8b5cf6' };
-  if (/tempo|threshold|comfortably hard|lactate/.test(s))
-    return { label: 'Tempo', color: '#f59e0b' };
-  if (/interval|repeat|×|\bx\b|\d+m\b|fartlek|speed work/.test(s))
-    return { label: 'Intervals', color: '#ef4444' };
-  if (/race pace|5k pace|10k pace|half marathon pace|marathon pace/.test(s))
-    return { label: 'Race Pace', color: '#ec4899' };
-  if (/hill|strides/.test(s))
-    return { label: 'Hills', color: '#f97316' };
-  if (/conditioning|amrap|emom|metcon|circuit/.test(s))
-    return { label: 'Conditioning', color: '#a855f7' };
-  return null;
-}
 let _getDays;
 let _saveState;
 let _switchTab;
@@ -470,7 +450,7 @@ export function renderWorkout() {
 
   const runTypeBadgeEl = document.getElementById('runTypeBadge');
   if (runTypeBadgeEl) {
-    const runType = isRunScheduled ? _detectRunType(blueprintRun) : null;
+    const runType = isRunScheduled ? detectRunType(blueprintRun) : null;
     if (runType) {
       runTypeBadgeEl.textContent = runType.label;
       runTypeBadgeEl.style.setProperty('--badge-color', runType.color);
