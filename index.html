@@ -1651,11 +1651,10 @@
 
           <div class="hc-data-types" id="hcDataTypes">
             <div class="settings-section-label" style="margin-top:10px;">Sync Data Types</div>
-            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncHrv" data-hc-field="hrv" checked><span>Heart Rate Variability (HRV)</span></label>
-            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncRhr" data-hc-field="restingHR" checked><span>Resting Heart Rate</span></label>
-            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSleep" data-hc-field="sleep" checked><span>Sleep Duration</span></label>
-            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSteps" data-hc-field="steps" checked><span>Daily Steps</span></label>
-            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncVo2" data-hc-field="vo2max" checked><span>VO₂ Max</span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSteps" data-hc-field="steps" checked><span>Daily Steps</span><span class="hc-field-status" data-hc-status="steps" style="display:none;"></span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncRhr" data-hc-field="restingHR" checked><span>Resting Heart Rate</span><span class="hc-field-status" data-hc-status="restingHR" style="display:none;"></span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncHrv" data-hc-field="hrv" checked><span>Heart Rate Variability (HRV)</span><span class="hc-field-status" data-hc-status="hrv" style="display:none;"></span></label>
+            <label class="hc-data-toggle"><input type="checkbox" id="hcSyncSleep" data-hc-field="sleep" checked><span>Sleep Duration</span><span class="hc-field-status" data-hc-status="sleep" style="display:none;"></span></label>
           </div>
 
           <button class="settings-action-btn" id="hcSyncNowBtn" data-action="hc-sync-now" style="display:none;">Sync Now</button>

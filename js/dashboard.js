@@ -510,28 +510,9 @@ export const TILE_REGISTRY = [
       } catch { return { hero: '--', sub: 'Unavailable', state: 'error' }; }
     },
   },
-
-  // ---- VO₂ MAX (HEALTH CONNECT) ------------------------------
-  {
-    id: 'vo2max', type: DashboardTileType.METRIC, icon: '🫁', label: 'VO₂ Max',
-    accentVar: '--color-pink', navTarget: 'vdot', order: 16, requiresHealth: true,
-    renderData(appState) {
-      try {
-        const hc = appState.healthConnect; const log = hc?.vo2max;
-        if (!hc?.connected || !log?.length) return { hero: '--', sub: 'Connect Health app', tag: 'Setup', tagColor: 'var(--color-blue)', state: 'empty' };
-        const sorted = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const latest = sorted[0].value;
-        const first = sorted[sorted.length - 1].value;
-        const delta = latest - first;
-        const fitness = latest >= 55 ? 'Excellent' : latest >= 45 ? 'Good' : latest >= 35 ? 'Average' : 'Below Avg';
-        return {
-          hero: `${latest.toFixed(1)}`, sub: `mL/kg/min · ${fitness}`,
-          tag: sorted.length > 1 ? `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} all-time` : 'First reading',
-          tagColor: delta >= 0 ? 'var(--color-green)' : 'var(--color-red)', state: 'loaded',
-        };
-      } catch { return { hero: '--', sub: 'Unavailable', state: 'error' }; }
-    },
-  },
+  // NOTE: VO₂ max is intentionally NOT a Health Connect tile — Health Connect
+  // has no VO₂ max ingestion path in this app, so a "Connect Health app" CTA
+  // here would be a fake promise. See js/health/health-fields.js (R14).
 ];
 
 // ==========================================
@@ -550,7 +531,7 @@ export const TILE_REGISTRY = [
 export const DEFAULT_HIDDEN_TILES = Object.freeze([
   'program-hero', 'today', 'fasting', 'consistency', 'top-lifts', 'active-fuel',
   'stress-balance', 'goal-progress',
-  'hrv', 'resting-hr', 'sleep', 'steps', 'vo2max',
+  'hrv', 'resting-hr', 'sleep', 'steps',
 ]);
 
 // V2 (S3): the Home dashboard shows exactly four fixed tiles — no customiser,
@@ -559,8 +540,8 @@ export const DEFAULT_HIDDEN_TILES = Object.freeze([
 // (Top Lifts) · a running number (Avg Pace). Chosen by us, per PRODUCT_V2 §3.
 export const HOME_TILE_IDS = Object.freeze(['readiness', 'weekly-volume', 'top-lifts', 'avg-pace']);
 
-// Synthetic full-width tile shown in place of the five Health-Connect tiles
-// when the Health app isn't linked — kills five dead "Setup" placeholders.
+// Synthetic full-width tile shown in place of the Health-Connect metric tiles
+// when the Health app isn't linked — kills dead "Setup" placeholders.
 export const CONNECT_HEALTH_TILE = {
   id: 'connect-health', type: DashboardTileType.CONNECT, icon: '⌚', label: 'Connect Health',
   accentVar: '--color-blue', navTarget: 'custom:settings', order: 99,

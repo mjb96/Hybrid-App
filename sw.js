@@ -105,6 +105,7 @@ const REQUIRED_ASSETS = [
   "./js/gps/native-bridge.js",
   "./js/haptics.js",
   "./js/health/health-bridge.js",
+  "./js/health/health-fields.js",
   "./js/home.js",
   "./js/home/activity-calendar.js",
   "./js/home/dashboard-model.js",

@@ -260,7 +260,6 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
     sleepHours,
     restingHR: latestVal(hc.restingHR, 'bpm'),
     steps:     latestVal(hc.steps, 'count'),
-    vo2max:    latestVal(hc.vo2max, 'value'),
     hrv:       latestVal(hc.hrv, 'rmssd'),
   };
 

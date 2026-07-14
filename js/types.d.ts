@@ -19,15 +19,29 @@ export interface LoadMetrics {
   ctl: number;
 }
 
+export interface HealthFieldStatus {
+  selected: boolean;
+  permission: 'granted' | 'denied' | 'unknown';
+  error: boolean;
+  days: number;
+  lastDate: string | null;
+  updatedAt: number;
+}
+
 export interface HealthConnectState {
   connected: boolean;
-  lastSync: string | null;
+  lastSync: string | number | null;
   hrv: any[];
   restingHR: any[];
   sleep: any[];
   steps: any[];
-  vo2max: any[];
+  /** Legacy, inert series kept for data preservation (no ingestion path). */
+  vo2max?: any[];
   stepGoal: number;
+  /** Supported-field selection (see js/health/health-fields.js). */
+  syncFields?: Record<string, boolean>;
+  /** Honest per-field outcome of the last permission/read. */
+  fieldStatus?: Record<string, HealthFieldStatus>;
 }
 
 export interface FastingSession {
@@ -102,9 +116,9 @@ declare global {
     /** Native Health Connect bridge (Android only; undefined on web/PWA). */
     HybridHealthBridge?: {
       getAvailabilityStatus(): string;
-      requestPermissions(typesJson: string, callbackId: string): void;
+      requestPermissions(fieldsJson: string, callbackId: string): void;
       readHealthData(startIso: string, endIso: string, callbackId: string): void;
-      readHealthDataByDay(startIso: string, endIso: string, callbackId: string): void;
+      readHealthDataByDay(startIso: string, endIso: string, fieldsJson: string, callbackId: string): void;
       notifyRestComplete(title: string, body: string): void;
     };
     /** Native Android Storage Access Framework text-export bridge. */

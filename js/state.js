@@ -88,7 +88,7 @@ export let appState = {
   goalData: { milestones: [], completedCount: 0 },
   prGoals: {},
   loadMetrics: { atl: 0, ctl: 0 },
-  healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
+  healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000, syncFields: { steps: true, restingHR: true, hrv: true, sleep: true }, fieldStatus: {} },
   wellnessLog: [],
   fastingSession: { active: false, startTime: null, goal: 16, history: [] },
   programLibrary: {
@@ -734,7 +734,7 @@ export async function pullEngineDataFromStorage() {
     goalData: { milestones: [], completedCount: 0 },
     prGoals: {},
     loadMetrics: { atl: 0, ctl: 0 },
-    healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 },
+    healthConnect: { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000, syncFields: { steps: true, restingHR: true, hrv: true, sleep: true }, fieldStatus: {} },
     wellnessLog: [],
     fastingSession: { active: false, startTime: null, goal: 16, history: [] },
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
@@ -820,7 +820,7 @@ export async function pullEngineDataFromStorage() {
   if (!appState.streakData) appState.streakData = { current: 0, longest: 0, lastActivityDate: null };
   if (!appState.goalData) appState.goalData = { milestones: [], completedCount: 0 };
   if (!appState.loadMetrics) appState.loadMetrics = { atl: 0, ctl: 0 };
-  if (!appState.healthConnect) appState.healthConnect = { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000 };
+  if (!appState.healthConnect) appState.healthConnect = { connected: false, lastSync: null, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [], stepGoal: 10000, syncFields: { steps: true, restingHR: true, hrv: true, sleep: true }, fieldStatus: {} };
   if (!appState.wellnessLog) appState.wellnessLog = [];
   if (!appState.fastingSession) appState.fastingSession = { active: false, startTime: null, goal: 16, history: [] };
   if (!appState.prGoals) appState.prGoals = {};

@@ -36,7 +36,8 @@ import { rearmReminder, notificationsGranted } from './notifications.js';
 import { getCloudUser, signOutSupabase, deleteAccount as authDeleteAccount } from './state/auth.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { hasCloudPullSnapshot, recoverCloudPullSnapshot } from './state/import-export.js';
-import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect } from './health/health-bridge.js';
+import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect, describeFieldStatus } from './health/health-bridge.js';
+import { HEALTH_FIELDS, normalizeSyncFields, selectedFieldIds, isSupportedField } from './health/health-fields.js';
 
 let _getState;
 
@@ -737,13 +738,28 @@ function _syncHealthConnectUI() {
   if (stepGoalInput) stepGoalInput.value = hc.stepGoal || 10000;
   if (noteEl) noteEl.style.display = connected ? 'none' : 'block';
 
-  // Sync field toggles
-  if (connected) {
-    ['hrv','restingHR','sleep','steps','vo2max'].forEach(field => {
-      const el = document.querySelector(`[data-hc-field="${field}"]`);
-      if (el) el.checked = hc.syncFields ? (hc.syncFields[field] !== false) : true;
-    });
-  }
+  // Sync-field toggles + honest per-field status, driven by the supported-field
+  // contract only (no fake toggles — every toggle here has a real read path).
+  const norm = normalizeSyncFields(hc.syncFields);
+  const fieldStatus = hc.fieldStatus || {};
+  HEALTH_FIELDS.forEach(({ id }) => {
+    const el = document.querySelector(`[data-hc-field="${id}"]`);
+    if (el) el.checked = norm[id];
+    const statusEl = document.querySelector(`[data-hc-status="${id}"]`);
+    if (statusEl) {
+      // Status only means something once connected AND a real per-field outcome
+      // has been recorded; otherwise show nothing rather than a misleading label.
+      if (connected && norm[id] && fieldStatus[id]) {
+        const { text, tone } = describeFieldStatus(fieldStatus[id]);
+        statusEl.textContent = text;
+        statusEl.className = 'hc-field-status hc-field-status--' + tone;
+        statusEl.style.display = '';
+      } else {
+        statusEl.textContent = '';
+        statusEl.style.display = 'none';
+      }
+    }
+  });
 }
 
 export async function hcToggleConnect() {
@@ -775,13 +791,24 @@ export async function hcToggleConnect() {
     return;
   }
 
-  if (!hc.syncFields) hc.syncFields = { hrv: true, restingHR: true, sleep: true, steps: true, vo2max: true };
+  // Persist the normalized selection (drops any legacy unsupported keys) so the
+  // request path asks for EXACTLY the fields the user has enabled.
+  hc.syncFields = normalizeSyncFields(hc.syncFields);
+  const selected = selectedFieldIds(hc.syncFields);
+  if (!selected.length) {
+    showToast('Select at least one data type to sync.', true);
+    return;
+  }
   showToast('Opening Health Connect…');
   try {
-    const { dayCount } = await connectAndSync(appState, saveStateToLocalStorage, { days: 90 });
+    const { dayCount, fieldsWithData } = await connectAndSync(appState, saveStateToLocalStorage, { days: 90, fields: selected });
     _syncHealthConnectUI();
-    showToast(dayCount > 0 ? `Health Connect synced (${dayCount} days) ✓` : 'Connected — no recent data found.');
+    if (dayCount > 0 && fieldsWithData > 0) showToast(`Health Connect synced (${dayCount} days) ✓`);
+    else showToast('Connected — no recent data found for the selected types.');
   } catch (err) {
+    _syncHealthConnectUI();
+    if (err?.message === 'permissions-denied' || err?.message === 'permissions-revoked') { showToast('No Health Connect permissions were granted.', true); return; }
+    if (err?.message === 'no-fields-selected') { showToast('Select at least one data type to sync.', true); return; }
     if (err?.message !== 'bridge-timeout') console.warn('Health Connect connect failed:', err);
     showToast('Could not connect to Health Connect.', true);
   }
@@ -791,12 +818,20 @@ export async function hcSyncNow() {
   if (!_getState) return;
   if (!isHealthBridgeAvailable()) { showToast('Sync requires the Android app.', true); return; }
   const appState = _getState();
+  const hc = appState.healthConnect || (appState.healthConnect = {});
+  hc.syncFields = normalizeSyncFields(hc.syncFields);
+  const selected = selectedFieldIds(hc.syncFields);
+  if (!selected.length) { showToast('Select at least one data type to sync.', true); return; }
   showToast('Syncing…');
   try {
-    const { dayCount } = await syncHealthConnect(appState, saveStateToLocalStorage, { days: 90 });
+    const { dayCount, fieldsWithData } = await syncHealthConnect(appState, saveStateToLocalStorage, { days: 90, fields: selected });
     _syncHealthConnectUI();
-    showToast(dayCount > 0 ? `Synced ${dayCount} days ✓` : 'No new data to sync.');
+    if (dayCount > 0 && fieldsWithData > 0) showToast(`Synced ${dayCount} days ✓`);
+    else showToast('No new data for the selected types.');
   } catch (err) {
+    _syncHealthConnectUI();
+    if (err?.message === 'permissions-revoked') { showToast('Health Connect permissions were revoked — reconnect to sync.', true); return; }
+    if (err?.message === 'no-fields-selected') { showToast('Select at least one data type to sync.', true); return; }
     if (err?.message !== 'bridge-timeout') console.warn('Health Connect sync failed:', err);
     showToast('Sync failed.', true);
   }
@@ -812,10 +847,14 @@ export function saveStepGoal() {
 }
 
 export function hcToggleSyncField(field, enabled) {
+  if (!isSupportedField(field)) return; // never persist an unsupported (fake) toggle
   const appState = _getState();
-  if (!appState.healthConnect.syncFields) appState.healthConnect.syncFields = {};
-  appState.healthConnect.syncFields[field] = enabled;
+  const hc = appState.healthConnect || (appState.healthConnect = {});
+  hc.syncFields = normalizeSyncFields(hc.syncFields);
+  hc.syncFields[field] = !!enabled;
   saveStateToLocalStorage(true);
+  // Turning a field off means we stop reading it; reflect that immediately.
+  _syncHealthConnectUI();
 }
 
 // Called from Android native layer via window.onHealthConnectData(payload)
@@ -825,11 +864,11 @@ window.onHealthConnectData = function(payload) {
     const appState = window._hybridGetState?.();
     if (!appState) return;
     const hc = appState.healthConnect;
+    // Legacy native push path — accept only supported contract fields.
     if (data.hrv)       hc.hrv       = data.hrv;
     if (data.restingHR) hc.restingHR = data.restingHR;
     if (data.sleep)     hc.sleep     = data.sleep;
     if (data.steps)     hc.steps     = data.steps;
-    if (data.vo2max)    hc.vo2max    = data.vo2max;
     hc.connected = true;
     hc.lastSync  = Date.now();
     saveStateToLocalStorage(true);

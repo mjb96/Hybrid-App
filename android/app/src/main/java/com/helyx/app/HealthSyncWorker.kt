@@ -2,7 +2,6 @@ package com.helyx.app
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -18,8 +17,8 @@ import java.time.Instant
  *
  * Scheduled every 8 hours by MainActivity.scheduleHealthSync().
  * The cached JSON (key = KEY_SNAPSHOT) is stored under PREFS_NAME and can be
- * read natively; the JS bridge's normal readHealthData path always re-queries
- * Health Connect for the freshest data.
+ * read natively; the JS bridge's normal readHealthDataByDay path always
+ * re-queries Health Connect for the freshest data.
  */
 class HealthSyncWorker(
     private val appContext: Context,
@@ -37,15 +36,11 @@ class HealthSyncWorker(
             val start = end.minusSeconds(24L * 3600)
             val range = TimeRangeFilter.between(start, end)
 
+            // Only the supported-field contract (HealthFieldContract): steps + sleep.
             val steps = runCatching {
                 client.readRecords(ReadRecordsRequest(StepsRecord::class, range))
                     .records.sumOf { it.count }
             }.getOrDefault(0L)
-
-            val calories = runCatching {
-                client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, range))
-                    .records.sumOf { it.energy.inKilocalories }
-            }.getOrDefault(0.0)
 
             val sleepMs = runCatching {
                 client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, range))
@@ -53,10 +48,9 @@ class HealthSyncWorker(
             }.getOrDefault(0L)
 
             val snapshot = JSONObject().apply {
-                put("steps",         steps)
-                put("activeCalories", calories)
-                put("sleepMs",       sleepMs)
-                put("syncedAt",      end.toString())
+                put("steps",    steps)
+                put("sleepMs",  sleepMs)
+                put("syncedAt", end.toString())
             }.toString()
 
             appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

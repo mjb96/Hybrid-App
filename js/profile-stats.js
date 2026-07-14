@@ -17,10 +17,10 @@ export function _renderHealthSection(state) {
 
   const latestHRV   = hc.hrv?.slice(-1)[0]?.value;
   const latestRHR   = hc.restingHR?.slice(-1)[0]?.value;
-  const latestVO2   = hc.vo2max?.slice(-1)[0]?.value;
+  const latestSteps = hc.steps?.slice(-1)[0]?.count;
   const latestSleep = hc.sleep?.slice(-1)[0]?.hours;
 
-  if (!latestHRV && !latestRHR && !latestVO2 && !latestSleep) return '';
+  if (!latestHRV && !latestRHR && !latestSteps && !latestSleep) return '';
 
   return `
     <div class="profile-section">
@@ -28,7 +28,7 @@ export function _renderHealthSection(state) {
       <div class="profile-stat-grid">
         ${latestHRV   ? _statCard(Math.round(latestHRV).toString(),   'HRV (ms)',   '💙', null) : ''}
         ${latestRHR   ? _statCard(Math.round(latestRHR).toString(),   'Resting HR', '❤️', null) : ''}
-        ${latestVO2   ? _statCard(Math.round(latestVO2).toString(),   'VO₂ Max',   '🫀', 'var(--color-cyan)') : ''}
+        ${latestSteps ? _statCard(Math.round(latestSteps).toLocaleString(), 'Steps', '👟', 'var(--color-cyan)') : ''}
         ${latestSleep ? _statCard(latestSleep.toFixed(1) + 'h',      'Sleep',      '🌙', null) : ''}
       </div>
     </div>
