@@ -72,6 +72,24 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Evidence-based full product/UX/architecture audit (documentation only).**
+  Reviewed the current PWA and Android shell across onboarding, Home, Programs, workout,
+  running/FIT, analytics/Brain, state/sync/migrations, export, offline caching, Health
+  Connect, security, accessibility, performance and release workflows; exercised a fresh
+  390×844 browser journey plus a 1280px layout check. Created the five requested audit
+  artifacts: `docs/COMPREHENSIVE_PRODUCT_AUDIT.md`, `docs/UI_UX_AUDIT.md`,
+  `docs/TECHNICAL_ARCHITECTURE_AUDIT.md`, `docs/IMPROVEMENT_ROADMAP.md`, and
+  `docs/AUDIT_EVIDENCE_INDEX.md`. No production code changed. Baseline validation is not
+  green: 760/764 Node tests pass. Three `streak_freeze` cases fail because local midnight
+  is converted through UTC in the Sydney timezone; a fourth `coach_memory` fixture is
+  calendar-position dependent and split its intended two-days-per-week data across ISO
+  weeks. Typecheck, precache, smoke,
+  analytics verification/perf, and web staging pass. The audit also ranks same-day
+  run/route overwrite, non-transactional migrations, Android export integration, and
+  ungated release workflows as beta blockers. · **Next:** owner reviews/approves the
+  proposed Beta Integrity PR; do not implement before approval. No commit while the
+  required suite is red.
+
 - 2026-07-13 · **Program-switch session isolation (activation identity)** (branch
   `claude/workout-session-isolation-l02i8o`). Fixed the *real* cross-program leak the
   earlier `lift_*` repair only partially masked: after switching programs, the previous
