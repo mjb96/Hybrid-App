@@ -178,6 +178,22 @@
   range/type validation, multi-session, malformed, semicircle GPS conversion, HR
   fallback, gym sets, and save success/false/throw/no-session gating); 896 JS tests,
   typecheck, smoke, verify, and required browser checks green. No Android changes.
+- **R16 (part 2 of 2) — runtime JS vendored, CSP tightened — 14 July 2026** on
+  `claude/helyx-r16-vendor-runtime-js`. All production runtime JS is now vendored into
+  the signed bundle and served from `'self'`: `js/vendor/supabase-js-2.45.4.umd.js` (the
+  exact npm UMD — its SHA-384 still matches the former CDN SRI pin) and
+  `js/vendor/sentry-browser-8.55.0.min.js` (built from the pinned `@sentry/browser` via
+  `scripts/vendor-runtime.mjs`, exposing `window.Sentry` init + captureException). The
+  remote `<script src="cdn.jsdelivr.net/…">` tags are gone — notably the Sentry one had
+  **no SRI**, so it was genuinely mutable remote code in the privileged origin. CSP is
+  tightened to `script-src 'self'` and jsdelivr is dropped from `connect-src`; the vendored
+  files are added to the SW precache so an offline launch has them locally. Evidence: a real
+  Chromium load confirms both vendored globals execute and **zero remote `.js` is requested**;
+  `tests/csp_vendored_runtime.test.js` asserts no remote `<script src>`, `script-src 'self'`,
+  the Supabase SRI match, and that the Sentry bundle exposes its API; 889 JS tests, typecheck,
+  smoke, and the required browser checks pass. Part 1 (bridge-escaping centralization) is
+  PR #135. Fonts remain a remote stylesheet (non-executable, degrade to system font offline)
+  and are out of this JS-focused slice. **Next:** land both R16 PRs.
 
 ## Prioritization model
 
@@ -389,6 +405,12 @@ implementation register.
   port; `BridgeSafeTest` extended. JS suite/typecheck/smoke green; Android compile/tests
   are CI-only (no local SDK). Part 2 (vendor CDN runtime JS + tighten CSP) is a separate
   follow-up PR. · Next: open PR, let CI run the Android gate.
+- 2026-07-14 · R16 (part 2) runtime-JS vendoring on `claude/helyx-r16-vendor-runtime-js`.
+  Supabase + Sentry vendored into `js/vendor/` (Supabase byte-identical to the SRI pin;
+  Sentry built from the pinned npm package via `scripts/vendor-runtime.mjs`), remote CDN
+  `<script>` tags removed, CSP tightened to `script-src 'self'`, precache updated. Real
+  browser confirms zero remote-JS requests and both globals load; `tests/csp_vendored_runtime.test.js`
+  added; 889 tests + browser checks green. Pairs with R16 part 1 (PR #135). · Next: land both.
 - 2026-07-14 · R14 Health Connect field contract implemented on
   `claude/helyx-r14-health-connect-9vw5k8`. New shared supported-field contract
   (`js/health/health-fields.js` + `android/.../HealthFieldContract.kt`) makes the
