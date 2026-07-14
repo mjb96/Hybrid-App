@@ -6,9 +6,9 @@ still-valid recommendations were carried forward, and their stale ones deliberat
 dropped.
 
 **Current sources of truth:**
-- `/PRODUCT_AUDIT.md` — the master product design document (vision, laws, findings, roadmap).
-- `/PRODUCT_PROGRESS.md` — live product status, open UX issues, next sprint.
-- `/PROGRESS.md` — Android launch operations tracker (Play Console, device tests, legal).
+- `/PRODUCT_AUDIT.md` — the master product design document (vision, laws, findings).
+- `/docs/IMPROVEMENT_ROADMAP.md` — the only live execution roadmap, status tracker,
+  human-owned launch checklist, and session log.
 - `/docs/v2/ui-pattern.md` — the surface pattern doctrine (still live, still binding).
 
 Contents:
@@ -20,3 +20,5 @@ Contents:
 - `HYBRID-SCORE-REVIEW.md` — the score engine deep review (2026-07-02). Defects E1–E8
   fixed and shipped; optional E9–E12 were re-evaluated in the new audit.
 - `v2-change-manifest.md` — grep manifest used during the V2 subtraction slices.
+- `PROGRESS-legacy-2026-07-14.md` — former Android launch tracker and full session history.
+- `PRODUCT_PROGRESS-legacy-2026-07-14.md` — former product sprint tracker and UX history.

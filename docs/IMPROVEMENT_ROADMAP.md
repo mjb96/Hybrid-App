@@ -280,13 +280,40 @@ These are small, but should not displace Phase 0:
 
 These require the product owner/device/accounts and must not be simulated as complete:
 
-- `[You]` Run the supplied device matrix for foreground/background/lock/process-kill GPS and attach route comparisons.
-- `[You]` Grant/revoke each Health Connect permission on supported devices and capture Settings/result evidence.
-- `[You]` Confirm Android system save/share and reimport on at least one minimum/older supported and one current Android device.
-- `[You]` Configure branch protection and Play Console internal/public beta tracks after workflow gating is merged.
-- `[You]` Review coaching/health copy for product and legal positioning before store submission.
+- [ ] Confirm the Google Play Developer account, Play Console access, at least one physical
+  Android test phone, and Supabase owner access are available.
+- [ ] Run the supplied foreground/background/lock/process-kill GPS matrix and attach route
+  comparisons; prepare the Play foreground-service declaration and demonstration video.
+- [ ] Grant, deny, and revoke each Health Connect permission on minimum/current supported
+  Android versions; test notifications, resume, offline behavior, and capture Settings/result evidence.
+- [ ] Complete the TalkBack, touch-target, Android system save/share, cancel, overwrite, and
+  JSON reimport checklists on minimum/current supported devices.
+- [ ] Deploy and verify the `delete-account` edge function so account deletion removes the
+  authentication record as well as local/cloud user data.
+- [ ] Have the privacy policy and terms reviewed, replace every placeholder, host them at public
+  URLs, and complete the Play Data Safety form from `docs/legal/play-data-safety.md`.
+- [ ] Produce final launcher/splash assets, phone screenshots, feature graphic, and store listing
+  media only after the device matrices pass.
+- [ ] Configure `main` branch protection so the required verification workflow cannot be bypassed.
+- [ ] Produce the signed release through CI, upload it to Play internal testing, invite testers,
+  triage Sentry findings, complete final QA/versioning, then promote to closed/public beta.
+- [ ] Review coaching/health copy for product and legal positioning before store submission.
 
 Engineering should provide exact checklists, fixtures, expected results, and build artifacts for each item.
+
+## Session log
+
+Newest first; keep entries short and link commits or checklists instead of repeating the
+implementation register.
+
+- 2026-07-14 · R11–R13 completed on `codex/core-loop-truth-accessibility`: mobile ergonomics
+  and sign-in modal lifecycle, direct bodyweight load modes, and confidence-gated readiness.
+  `npm run verify` (868 tests) and required Playwright journeys pass. · Next: archive duplicate
+  trackers, complete a remaining low-risk roadmap quick win, then update PR #132.
+
+Historical implementation logs through 14 July 2026 are preserved in
+`docs/archive/PROGRESS-legacy-2026-07-14.md` and
+`docs/archive/PRODUCT_PROGRESS-legacy-2026-07-14.md`; they are evidence, not active plans.
 
 ## Stop conditions
 

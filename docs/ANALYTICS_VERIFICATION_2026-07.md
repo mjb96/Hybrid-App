@@ -279,4 +279,4 @@ source), `js/analytics/views/view-strength.js`, `js/analytics/views/view-running
   assertions, errors observable, performance bounded.
 - **App overall: Closed-beta ready, trending public-beta.** Gated only on the
   pre-existing `[You]` Android on-device checks (GPS, notifications, Health
-  Connect, WebView) tracked in `PROGRESS.md` — not on any analytics defect.
+  Connect, WebView) tracked in `docs/IMPROVEMENT_ROADMAP.md` — not on any analytics defect.

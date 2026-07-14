@@ -38,7 +38,7 @@ Each step points at the artifact that makes it quick.
 
 ## 5. Signing + release build
 - [x] Upload keystore + GitHub secrets + signed-AAB CI pipeline — built and
-      verified 2026-07-02 (see PROGRESS.md session log).
+      verified 2026-07-02 (see `docs/archive/PROGRESS-legacy-2026-07-14.md`).
 - [ ] Run **Actions → Release AAB → Run workflow** for the release candidate,
       set the version name, download the signed `.aab` artifact.
       **Do this only after PRODUCT_AUDIT.md Sprints 1–3** — screenshots and the
