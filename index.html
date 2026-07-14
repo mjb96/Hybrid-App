@@ -13,19 +13,22 @@
   <meta name="theme-color" content="#070a12">
 
   <!-- Content-Security-Policy — hardens the privileged Android WebView (and the
-       PWA) against arbitrary remote code. script-src is limited to our own
-       bundled modules plus the two exact, integrity-pinned CDN libraries below;
-       object/base/frame directives shut down injection and clickjacking. Inline
-       styles are permitted (pervasive + low-risk); inline SCRIPT is NOT — the
-       only former inline script now lives in ./js/sw-reload.js. See
+       PWA) against arbitrary remote code. script-src is 'self' ONLY: every
+       runtime library (Supabase, Sentry) is vendored into the signed bundle
+       under js/vendor/, so no remote executable code can reach this privileged
+       origin and an offline launch makes zero remote-JS requests. Regenerate the
+       vendored files with `node scripts/vendor-runtime.mjs`. object/base/frame
+       directives shut down injection and clickjacking. Inline styles are
+       permitted (pervasive + low-risk); inline SCRIPT is NOT — the only former
+       inline script now lives in ./js/sw-reload.js. See
        docs/security/webview-threat-model.md. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' https://cdn.jsdelivr.net;
+    script-src 'self';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com;
-    connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://*.sentry.io https://*.ingest.sentry.io;
+    connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io https://*.ingest.sentry.io;
     worker-src 'self' blob:;
     manifest-src 'self';
     object-src 'none';
@@ -51,17 +54,16 @@
        CSP above can forbid inline script. display=swap keeps first paint fast. -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 
-  <!-- Supabase client. Pinned to an EXACT version and integrity-checked (SRI):
-       a compromised or hijacked CDN cannot substitute different code — the
-       browser rejects any script whose hash doesn't match. -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"
-          integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o"
-          crossorigin="anonymous" defer></script>
-  <!-- Crash reporting. Exposes window.Sentry; stays inert until a DSN is
-       configured in js/monitoring/sentry-config.js (see initSentry). Pinned to
-       an exact version so the loaded code is reproducible. -->
-  <script src="https://cdn.jsdelivr.net/npm/@sentry/browser@8.55.0/build/bundle.min.js"
-          crossorigin="anonymous" defer></script>
+  <!-- Supabase client — VENDORED (js/vendor/supabase-js-2.45.4.umd.js), served
+       from 'self' so no CDN sits in the privileged origin. The bytes are the
+       exact npm UMD build (its SHA-384 matches the former CDN SRI pin; see
+       scripts/vendor-runtime.mjs). -->
+  <script src="./js/vendor/supabase-js-2.45.4.umd.js" defer></script>
+  <!-- Crash reporting — VENDORED (js/vendor/sentry-browser-8.55.0.min.js), built
+       from the pinned @sentry/browser via scripts/vendor-runtime.mjs. Exposes
+       window.Sentry (init + captureException); stays inert until a DSN is
+       configured in js/monitoring/sentry-config.js (see initSentry). -->
+  <script src="./js/vendor/sentry-browser-8.55.0.min.js" defer></script>
 
   <link rel="stylesheet" href="./css/styles.css">
   <link rel="stylesheet" href="./css/programs.css">

@@ -183,6 +183,8 @@ const REQUIRED_ASSETS = [
   "./js/vendor/fit-parser.js",
   "./js/vendor/leaflet/leaflet.css",
   "./js/vendor/leaflet/leaflet.js",
+  "./js/vendor/sentry-browser-8.55.0.min.js",
+  "./js/vendor/supabase-js-2.45.4.umd.js",
   "./js/workout-map.js",
   "./js/workout-order.js",
   "./js/workout.js",
