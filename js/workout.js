@@ -349,7 +349,9 @@ export function renderWorkout() {
   if (gMaxHREl)     gMaxHREl.value     = gymContext.maxHR        || '';
   if (gCalsEl)      gCalsEl.value      = gymContext.cals         || '';
   if (gTEEl)        gTEEl.value        = gymContext.trainingEffect || '';
-  if (gAerobicTEEl) gAerobicTEEl.value = gymContext.aerobicTE   || '';
+  // "Anaerobic TE" field. Read the correctly-named field, falling back to the
+  // legacy `aerobicTE` key on sessions saved before the R27 rename.
+  if (gAerobicTEEl) gAerobicTEEl.value = (gymContext.anaerobicTE ?? gymContext.aerobicTE) || '';
 
   const hasGymStats = gymContext.time || gymContext.avgHR || gymContext.maxHR || gymContext.cals ||
                       gymContext.trainingEffect;
@@ -891,7 +893,7 @@ export function commitWorkoutUIState() {
   const gCalsEl = document.getElementById('gymInputCals');
 
   if (gTimeEl && gTimeEl.offsetParent !== null) {
-    // Spread existing so .FIT-imported extras (trainingEffect, aerobicTE,
+    // Spread existing so .FIT-imported extras (trainingEffect, anaerobicTE,
     // gymSets) survive — they have no inputs here and would otherwise be wiped.
     const existingGym = weekData.gymStats[selectedDay] || {};
     weekData.gymStats[selectedDay] = {
