@@ -1182,9 +1182,10 @@ document.addEventListener('gps:route-saved', (e) => {
 initGarminRunImport(async (distance, timeStr, coordinates, stats) => {
   const wk = appState.currentWeek;
   const sd = selectedDay;
-  const localDate = appState.weeks[wk]?.dates?.[sd] || dateKey();
-  const sessionId = newRunSessionId();
-  if (appState.weeks[wk]) {
+  if (!appState.weeks[wk]) return false; // nothing to save into → honest failure
+  try {
+    const localDate = appState.weeks[wk]?.dates?.[sd] || dateKey();
+    const sessionId = newRunSessionId();
     if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
     upsertRunSession(appState.weeks[wk], sd, {
       dist:           distance,
@@ -1197,40 +1198,40 @@ initGarminRunImport(async (distance, timeStr, coordinates, stats) => {
       cals:           stats?.calories     != null ? Math.round(stats.calories)    : '',
       avgCadence:     stats?.avgCadence   != null ? Math.round(stats.avgCadence)  : '',
       trainingEffect: stats?.trainingEffect != null ? stats.trainingEffect        : '',
-      aerobicTE:      stats?.aerobicTE    != null ? stats.aerobicTE               : '',
+      anaerobicTE:    stats?.anaerobicTE  != null ? stats.anaerobicTE             : '',
       hrZones:        stats?.hrZones      || null,
       splits:         stats?.splits       || null,
     }, { sessionId, source: 'fit', localDate });
-  }
-  if (appState.weeks[wk]) {
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
-    if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = localDate;
-    }
-  }
-  if (coordinates && coordinates.length > 0) {
-    const routeId = await saveMapToDB(wk, sd, coordinates, {
-      sessionId,
-      activationId: appState.activeActivationId,
-      programId: appState.activeProgramId,
-      localDate,
-    });
-    const current = appState.weeks[wk]?.runs?.[sd];
-    if (current?.sessionId === sessionId) {
-      upsertRunSession(appState.weeks[wk], sd, { ...current, routeId }, {
-        sessionId, source: 'fit', localDate,
+    if (!appState.weeks[wk].dates[sd]) appState.weeks[wk].dates[sd] = localDate;
+    if (coordinates && coordinates.length > 0) {
+      const routeId = await saveMapToDB(wk, sd, coordinates, {
+        sessionId,
+        activationId: appState.activeActivationId,
+        programId: appState.activeProgramId,
+        localDate,
       });
+      const current = appState.weeks[wk]?.runs?.[sd];
+      if (current?.sessionId === sessionId) {
+        upsertRunSession(appState.weeks[wk], sd, { ...current, routeId }, {
+          sessionId, source: 'fit', localDate,
+        });
+      }
     }
-    saveStateToLocalStorage(true); hydrateCurrentView();
-  } else {
-    saveStateToLocalStorage(true); hydrateCurrentView();
+    saveStateToLocalStorage(true);
+    hydrateCurrentView();
+    return true;
+  } catch (err) {
+    console.warn('FIT run import save failed:', err);
+    return false;
   }
 });
 
-initGarminGymImport((timeStr, stats) => {
+initGarminGymImport(async (timeStr, stats) => {
   const wk = appState.currentWeek;
   const sd = selectedDay;
-  if (appState.weeks[wk]) {
+  if (!appState.weeks[wk]) return false;
+  try {
     if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
     if (!appState.weeks[wk].gymStats[sd]) appState.weeks[wk].gymStats[sd] = {};
     const g = appState.weeks[wk].gymStats[sd];
@@ -1239,15 +1240,17 @@ initGarminGymImport((timeStr, stats) => {
     g.maxHR       = stats?.maxHR       != null ? Math.round(stats.maxHR)      : '';
     g.cals        = stats?.calories    != null ? Math.round(stats.calories)   : '';
     g.trainingEffect = stats?.trainingEffect != null ? stats.trainingEffect   : '';
-    g.aerobicTE   = stats?.aerobicTE   != null ? stats.aerobicTE              : '';
+    g.anaerobicTE = stats?.anaerobicTE != null ? stats.anaerobicTE            : '';
     g.gymSets     = stats?.gymSets     || null;
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
-    if (!appState.weeks[wk].dates[sd]) {
-      appState.weeks[wk].dates[sd] = dateKey();
-    }
+    if (!appState.weeks[wk].dates[sd]) appState.weeks[wk].dates[sd] = dateKey();
+    saveStateToLocalStorage(true);
+    hydrateCurrentView();
+    return true;
+  } catch (err) {
+    console.warn('FIT gym import save failed:', err);
+    return false;
   }
-  saveStateToLocalStorage(true);
-  hydrateCurrentView();
 });
 
 setImportSuccessCallback(() => hydrateCurrentView());

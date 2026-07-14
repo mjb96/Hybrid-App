@@ -11,7 +11,9 @@
 
 const RUN_VALUE_KEYS = [
   'dist', 'time', 'rpe', 'pace', 'avgHR', 'maxHR', 'elev', 'descent', 'cals',
-  'avgCadence', 'trainingEffect', 'aerobicTE', 'hrZones', 'splits', 'notes',
+  // `anaerobicTE` is the correct name (R27); `aerobicTE` is kept so sessions
+  // saved before the rename keep round-tripping through the projection.
+  'avgCadence', 'trainingEffect', 'anaerobicTE', 'aerobicTE', 'hrZones', 'splits', 'notes',
 ];
 
 /** True when a run object carries user/imported activity rather than scaffold. */

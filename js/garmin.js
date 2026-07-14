@@ -68,12 +68,16 @@ function setupUploader(inputId, isRun, onDataExtracted) {
           mode: 'list', 
         });
 
-        fitParser.parse(nodeBuffer, (error, data) => {
+        fitParser.parse(nodeBuffer, async (error, data) => {
           if (error) {
             showToast('Parse error: ' + error.toString().slice(0, 60), true);
             return;
           }
-          extractData(data, isRun, onDataExtracted);
+          try {
+            await extractData(data, isRun, onDataExtracted);
+          } catch (e) {
+            showToast('FIT import failed: ' + String(e).slice(0, 60), true);
+          }
         });
 
       } catch (fatalError) {
@@ -85,148 +89,162 @@ function setupUploader(inputId, isRun, onDataExtracted) {
   });
 }
 
-function extractData(garminData, isRun, onDataExtracted) {
-  let foundSession = null;
+// ── Pure extraction (exported, DOM-free, so the FIT field contract can be
+//    unit-tested against fixtures without a device or the parser). ───────────
 
-  if (garminData.sessions && garminData.sessions.length > 0) {
-    foundSession = garminData.sessions[0];
-  } else if (garminData.session && (Array.isArray(garminData.session) ? garminData.session.length > 0 : true)) {
-    foundSession = Array.isArray(garminData.session) ? garminData.session[0] : garminData.session;
-  } else {
-    function searchForSession(data) {
-      if (Array.isArray(data)) {
-        for (let i = 0; i < data.length; i++) {
-          searchForSession(data[i]);
-          if (foundSession) return;
-        }
-      } else if (data !== null && typeof data === 'object') {
-        const hasTime = (data.total_timer_time !== undefined || data.total_elapsed_time !== undefined);
-        const hasDist = data.total_distance !== undefined;
-        const hasCals = data.total_calories !== undefined;
+/** A finite number, or null. Guards against NaN/undefined/strings. */
+function num(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
 
-        if (isRun && hasDist && hasTime) {
-          foundSession = data;
-          return;
-        } else if (!isRun && hasTime && hasCals) {
-          foundSession = data;
-          return;
-        }
+/** First present (non-null/undefined) value among the EXACT keys, else undefined. */
+function pickExact(session, names) {
+  for (const n of names) {
+    if (session[n] !== undefined && session[n] !== null) return session[n];
+  }
+  return undefined;
+}
 
-        for (let key in data) {
-          searchForSession(data[key]);
-          if (foundSession) return;
-        }
-      }
+/**
+ * Exact-key numeric lookup with a plausible range; null when absent, non-numeric,
+ * or out of range. Exact keys are essential: FIT's aerobic
+ * `total_training_effect` and anaerobic `total_anaerobic_training_effect` share
+ * the `training_effect` substring, so a loose (includes) match let one capture
+ * the other's value depending on key order. No fake `0` default either — a
+ * missing field stays null instead of masquerading as a real reading.
+ */
+function pickNum(session, names, min, max) {
+  const v = num(pickExact(session, names));
+  if (v === null) return null;
+  return (v >= min && v <= max) ? v : null;
+}
+
+function findSession(garminData, isRun) {
+  if (Array.isArray(garminData.sessions) && garminData.sessions.length > 0) return garminData.sessions[0];
+  if (garminData.session) {
+    return Array.isArray(garminData.session) ? (garminData.session[0] || null) : garminData.session;
+  }
+  let found = null;
+  (function search(data) {
+    if (found) return;
+    if (Array.isArray(data)) { for (const it of data) { search(it); if (found) return; } return; }
+    if (data && typeof data === 'object') {
+      const hasTime = data.total_timer_time !== undefined || data.total_elapsed_time !== undefined;
+      const hasDist = data.total_distance !== undefined;
+      const hasCals = data.total_calories !== undefined;
+      if (isRun && hasDist && hasTime) { found = data; return; }
+      if (!isRun && hasTime && hasCals) { found = data; return; }
+      for (const k in data) { search(data[k]); if (found) return; }
     }
-    searchForSession(garminData);
-  }
+  })(garminData);
+  return found;
+}
 
-  if (!foundSession) {
-    showToast(`Could not find ${isRun ? 'run' : 'gym'} data in this file.`, true);
-    return;
-  }
+function formatDuration(seconds) {
+  const s = num(seconds) || 0;
+  const mins = Math.floor(s / 60);
+  const secs = Math.floor(s % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
-  const totalDistanceKm = foundSession.total_distance || 0; 
-  const durationSeconds = foundSession.total_timer_time || foundSession.total_elapsed_time || 0;
-  
-  const mins = Math.floor(durationSeconds / 60);
-  const secs = Math.floor(durationSeconds % 60);
-  const timeFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
+/**
+ * Pure FIT → app-stats mapper. Returns a structured result instead of touching
+ * the DOM/toasts, so the contract is testable. The parser is configured with
+ * `lengthUnit: 'km'`, so `total_distance` is already kilometres.
+ * @returns {{ ok:false, reason:string }
+ *   | { ok:true, isRun:boolean, distanceKm:number, time:string, coordinates:number[][], stats:object }}
+ */
+export function extractSessionStats(garminData, isRun) {
+  if (!garminData || typeof garminData !== 'object') return { ok: false, reason: 'empty' };
+  const session = findSession(garminData, isRun);
+  if (!session || typeof session !== 'object') return { ok: false, reason: 'no-session' };
 
-  function getStat(searchTerms) {
-    const keys = Object.keys(foundSession);
-    for (let i = 0; i < keys.length; i++) {
-      for (let j = 0; j < searchTerms.length; j++) {
-        if (keys[i].toLowerCase().includes(searchTerms[j])) {
-          return foundSession[keys[i]];
-        }
-      }
-    }
-    return 0;
-  }
+  const distanceKm = num(session.total_distance) || 0;
+  const durationSeconds = num(session.total_timer_time) ?? num(session.total_elapsed_time) ?? 0;
 
-  // Extended parameter extraction
-  const extraStats = {
-    avgHR: getStat(['avg_heart', 'average_heart', 'avg_hr']),
-    maxHR: getStat(['max_heart', 'maximum_heart', 'max_hr']),
-    elevation: getStat(['ascent', 'elevation', 'gain', 'total_ascent']),
-    calories: getStat(['cal']),
-    descent: getStat(['descent', 'total_descent']),
-    avgCadence: getStat(['avg_cadence', 'avg_running_cadence', 'average_cadence']),
-    trainingEffect: getStat(['total_training_effect', 'training_effect']),
-    aerobicTE: getStat(['total_anaerobic_effect', 'anaerobic_training_effect']),
-    hrZones: getStat(['time_in_hr_zone']) || null
+  const stats = {
+    avgHR:      pickNum(session, ['avg_heart_rate', 'avg_hr', 'average_heart_rate'], 20, 260),
+    maxHR:      pickNum(session, ['max_heart_rate', 'max_hr', 'maximum_heart_rate'], 20, 260),
+    elevation:  pickNum(session, ['total_ascent', 'ascent'], 0, 100000),
+    descent:    pickNum(session, ['total_descent', 'descent'], 0, 100000),
+    calories:   pickNum(session, ['total_calories', 'calories'], 0, 100000),
+    avgCadence: pickNum(session, ['avg_running_cadence', 'avg_cadence', 'average_cadence'], 0, 300),
+    // Aerobic Training Effect — FIT `total_training_effect` (0–5).
+    trainingEffect: pickNum(session, ['total_training_effect', 'total_aerobic_training_effect'], 0, 5),
+    // Anaerobic Training Effect — FIT `total_anaerobic_training_effect` (0–5).
+    // This is exactly what the UI's "Anaerobic TE" field displays.
+    anaerobicTE:    pickNum(session, ['total_anaerobic_training_effect', 'total_anaerobic_effect'], 0, 5),
+    hrZones: Array.isArray(session.time_in_hr_zone) ? session.time_in_hr_zone : null,
   };
 
-  // Lap Data Processing
+  // Laps → run splits or gym sets.
+  const laps = Array.isArray(garminData.laps) ? garminData.laps
+    : (garminData.activity && Array.isArray(garminData.activity.laps) ? garminData.activity.laps : []);
   const splits = [];
   const gymSets = [];
-  let laps = garminData.laps || (garminData.activity && garminData.activity.laps) || [];
-  
-  laps.forEach((lap, index) => {
+  laps.forEach((lap, i) => {
+    if (!lap || typeof lap !== 'object') return;
     if (isRun) {
       splits.push({
-        lap: index + 1,
-        time: lap.total_timer_time || lap.total_elapsed_time || 0,
-        dist: lap.total_distance || 0,
-        avgHR: lap.avg_heart_rate || 0
+        lap: i + 1,
+        time: num(lap.total_timer_time) ?? num(lap.total_elapsed_time) ?? 0,
+        dist: num(lap.total_distance) || 0,
+        avgHR: num(lap.avg_heart_rate) || 0,
       });
-    } else {
-      if (lap.total_reps) {
-        gymSets.push({
-          set: index + 1,
-          reps: lap.total_reps,
-          weight: lap.weight || 0,
-          category: lap.category || 'Lifting'
-        });
-      }
+    } else if (num(lap.total_reps)) {
+      gymSets.push({ set: i + 1, reps: lap.total_reps, weight: num(lap.weight) || 0, category: lap.category || 'Lifting' });
     }
   });
+  stats.splits = splits.length ? splits : null;
+  stats.gymSets = gymSets.length ? gymSets : null;
 
-  extraStats.splits = splits.length > 0 ? splits : null;
-  extraStats.gymSets = gymSets.length > 0 ? gymSets : null;
-
+  // Records → GPS coordinates (semicircle→degree) + manual HR fallback.
+  const records = Array.isArray(garminData.records) ? garminData.records
+    : (garminData.activity && Array.isArray(garminData.activity.records) ? garminData.activity.records : []);
   const coordinates = [];
-  let manualHRCnt = 0;
-  let manualHRSum = 0;
-  let manualMaxHR = 0;
-  
-  let records = garminData.records || []; 
-  if (records.length === 0 && garminData.activity && garminData.activity.records) {
-    records = garminData.activity.records;
-  }
-
-  records.forEach(record => {
-    if (isRun && record.position_lat && record.position_long) {
-      let lat = record.position_lat;
-      let lng = record.position_long;
-      
-      if (Math.abs(lat) > 180) lat = lat * (180.0 / 2147483648.0);
-      if (Math.abs(lng) > 180) lng = lng * (180.0 / 2147483648.0);
-      
-      coordinates.push([lat, lng]);
-    }
-    
-    if (record.heart_rate) {
-      manualHRSum += record.heart_rate;
-      manualHRCnt++;
-      if (record.heart_rate > manualMaxHR) {
-        manualMaxHR = record.heart_rate;
+  let hrSum = 0, hrCnt = 0, hrMax = 0;
+  for (const rec of records) {
+    if (!rec || typeof rec !== 'object') continue;
+    if (isRun && rec.position_lat != null && rec.position_long != null) {
+      let lat = num(rec.position_lat), lng = num(rec.position_long);
+      if (lat !== null && lng !== null) {
+        if (Math.abs(lat) > 180) lat = lat * (180.0 / 2147483648.0);
+        if (Math.abs(lng) > 180) lng = lng * (180.0 / 2147483648.0);
+        coordinates.push([lat, lng]);
       }
     }
-  });
+    const hr = num(rec.heart_rate);
+    if (hr !== null && hr > 0) { hrSum += hr; hrCnt++; if (hr > hrMax) hrMax = hr; }
+  }
+  if (stats.avgHR === null && hrCnt > 0) stats.avgHR = hrSum / hrCnt;
+  if (stats.maxHR === null && hrMax > 0) stats.maxHR = hrMax;
 
-  if (extraStats.avgHR === 0 && manualHRCnt > 0) {
-    extraStats.avgHR = manualHRSum / manualHRCnt;
-  }
-  if (extraStats.maxHR === 0 && manualMaxHR > 0) {
-    extraStats.maxHR = manualMaxHR;
-  }
+  return { ok: true, isRun, distanceKm, time: formatDuration(durationSeconds), coordinates, stats };
+}
 
-  showToast('Garmin Imported! ✓');
-  if (isRun) {
-    onDataExtracted(totalDistanceKm.toFixed(2), timeFormatted, coordinates, extraStats);
-  } else {
-    onDataExtracted(timeFormatted, extraStats);
+/**
+ * Thin wrapper: run the pure extractor, hand the result to the destination save
+ * (`onDataExtracted`), and ONLY report success once that save has actually
+ * completed. `onDataExtracted` may be async and returns a truthy value on a
+ * confirmed save; returning `false` (or throwing) surfaces an honest failure
+ * instead of a false "Imported ✓". `toast` is injectable for tests.
+ */
+export async function extractData(garminData, isRun, onDataExtracted, toast = showToast) {
+  const result = extractSessionStats(garminData, isRun);
+  if (!result.ok) {
+    toast(`Could not find ${isRun ? 'run' : 'gym'} data in this file.`, true);
+    return false;
   }
+  let saved;
+  try {
+    saved = isRun
+      ? await onDataExtracted(result.distanceKm.toFixed(2), result.time, result.coordinates, result.stats)
+      : await onDataExtracted(result.time, result.stats);
+  } catch (err) {
+    saved = false;
+  }
+  if (saved === false) {
+    toast('Import failed — nothing was saved.', true);
+    return false;
+  }
+  toast('Garmin Imported! ✓');
+  return true;
 }

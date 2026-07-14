@@ -160,6 +160,25 @@
   CDN runtime JS (Supabase/Sentry) into the signed bundle and tighten CSP to `script-src
   'self'` so an offline launch makes no remote-JS request.
 
+- **R27 complete — 14 July 2026** on `claude/helyx-r27-fit-import-contract`. FIT
+  import now has an honest field contract. The extraction is a pure, exported
+  `extractSessionStats` (js/garmin.js) using EXACT FIT keys with range validation:
+  aerobic Training Effect comes from `total_training_effect` and anaerobic from
+  `total_anaerobic_training_effect` — the old `getStat` substring match let one
+  capture the other's value (both contain `training_effect`), and mis-stored the
+  anaerobic reading in a field literally named `aerobicTE` while the UI labelled it
+  "Anaerobic TE". That field is renamed `anaerobicTE` (consumers read the legacy
+  `aerobicTE` as a fallback; RICH_FIELDS keeps both so old sessions round-trip).
+  Missing/out-of-range/non-numeric values now validate to null instead of masquerading
+  as a real `0`. Import success is claimed ONLY after the destination save resolves:
+  `extractData` awaits `onDataExtracted`, and the app.js run/gym callbacks return
+  true/false (wrapping the save in try/catch) so a failed or thrown write shows
+  "Import failed — nothing was saved" instead of "Imported ✓". Evidence:
+  `tests/garmin_fit_contract.test.js` (12 cases: aerobic/anaerobic non-conflation,
+  range/type validation, multi-session, malformed, semicircle GPS conversion, HR
+  fallback, gym sets, and save success/false/throw/no-session gating); 896 JS tests,
+  typecheck, smoke, verify, and required browser checks green. No Android changes.
+
 ## Prioritization model
 
 Priority is based on severity, likelihood, user trust, launch dependency, and blast radius. Effort is a delivery estimate for one experienced product engineer with review, not elapsed calendar time. Each item includes the evidence required for completion; code existing or a happy-path manual check is not sufficient.
@@ -356,6 +375,12 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-14 · R27 FIT import contract on `claude/helyx-r27-fit-import-contract`. Exact-key
+  validated FIT extraction (aerobic vs anaerobic TE no longer conflate; missing/out-of-range
+  → null, not fake 0), mislabeled `aerobicTE`→`anaerobicTE` with back-compat, and success is
+  claimed only after an awaited destination save (failed/thrown writes surface an error, not
+  "Imported ✓"). Pure `extractSessionStats` extracted for fixture testing;
+  `tests/garmin_fit_contract.test.js` (12 cases); 896 tests + verify + browser checks green. · Next: PR.
 - 2026-07-14 · R16 (part 1) bridge-escaping centralization on
   `claude/helyx-r16-runtime-bridge-security`. All native→JS callback resolution now uses
   one `BridgeSafe.callbackScript`/`javascriptString` API (id+registry validated, payload
