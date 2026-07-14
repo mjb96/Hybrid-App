@@ -207,7 +207,7 @@ class HybridHealthBridge(
         val readable = selectedFields.filter { it in grantedFields }
         val errors = mutableListOf<String>()
 
-        fun <T> readField(id: String, block: () -> List<T>): List<T> =
+        suspend fun <T> readField(id: String, block: suspend () -> List<T>): List<T> =
             if (id in readable) runCatching { block() }.getOrElse { errors.add(id); emptyList() }
             else emptyList()
 
