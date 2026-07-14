@@ -11,31 +11,13 @@
 // severity: 'positive' | 'neutral' | 'caution' | 'warning'
 // ==========================================
 import { trainingStatus } from './briefing.js';
-import { isCompletedSet } from '../set-utils.js';
-import { classifyWeek } from '../programs/timeline.js';
-import { WEEK_PHASE_NAMES } from '../constants.js';
-import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
+import { resolveProgramPhase } from '../programs/phase.js';
+import { runSessionsForDay } from '../state/run-sessions.js';
+import { classifyPlannedSession, evaluateSessionCompletion } from '../workout/completion-policy.js';
 
 // Has the selected day's planned session already been logged? Gym counts as done
 // when every materialised set for the day is complete (and there is at least
 // one); a run counts as done once a distance is logged. Rest days never count.
-function sessionCompletion(state, selectedDay, session) {
-  const wkNum = parseInt(state.currentWeek || '1', 10);
-  const wk = state.weeks?.[String(wkNum)] || {};
-  const dayLifts = wk.lifts?.[selectedDay] || {};
-  let totalSets = 0, doneSets = 0;
-  for (const lift in dayLifts) {
-    if (!Array.isArray(dayLifts[lift])) continue;
-    totalSets += dayLifts[lift].length;
-    doneSets += dayLifts[lift].filter(isCompletedSet).length;
-  }
-  const runLogged = (parseFloat(runDaySummary(wk, selectedDay).dist) || 0) > 0;
-  const gymDone = session.hasGym ? (totalSets > 0 && doneSets === totalSets) : true;
-  const runDone = session.hasRun ? runLogged : true;
-  const anyLogged = doneSets > 0 || runLogged;
-  return { complete: anyLogged && gymDone && runDone };
-}
-
 // Collect RPE readings from the last two weeks, most recent first.
 function getRecentRpes(state, days) {
   const currentWk = parseInt(state.currentWeek || '1', 10);
@@ -57,26 +39,7 @@ function getRecentRpes(state, days) {
 
 // Read today's blueprint and return what kind of session is planned.
 function classifySession(blueprint) {
-  if (!blueprint) return { label: 'Rest Day', hasRun: false, hasGym: false };
-  const runsText = (blueprint.runs || '').toLowerCase();
-  const titleText = (blueprint.title || '').toLowerCase();
-  const isRestRun =
-    runsText === 'rest' ||
-    runsText.includes('no running') ||
-    runsText.includes('no structured') ||
-    runsText.includes('no run') ||
-    runsText === '';
-  const hasRun = !!blueprint.runs && !isRestRun;
-  const isRestDay =
-    titleText.includes('rest') ||
-    titleText.includes('recovery') ||
-    (blueprint.badge || '').toLowerCase() === 'rest';
-  const hasGym = !isRestDay;
-  let label = 'Rest Day';
-  if (hasRun && hasGym) label = 'Hybrid Session';
-  else if (hasRun) label = 'Run Day';
-  else if (hasGym) label = 'Gym Session';
-  return { label, hasRun, hasGym };
+  return classifyPlannedSession(blueprint);
 }
 
 // Build advice text from load, freshness, session type and RPE trend. V2-4: the
@@ -163,7 +126,7 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
   // If today's planned session is already logged, acknowledge it rather than
   // prescribing effort the athlete has already put in.
   if (session.hasGym || session.hasRun) {
-    const done = sessionCompletion(state, selectedDay, session);
+    const done = evaluateSessionCompletion(state, activeProgram, state.currentWeek, selectedDay);
     if (done.complete) {
       const what = session.hasRun && session.hasGym ? 'hybrid session'
                  : session.hasRun ? 'run' : 'session';
@@ -203,8 +166,7 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
   // Deload training day → keep it light on purpose; don't tell the athlete to
   // push when the week's whole intent is to absorb the work.
   const wk = String(state?.currentWeek || '1');
-  const weekLabel = activeProgram?.weeklyVolModifiers?.[wk]?.intensityLabel || WEEK_PHASE_NAMES[wk] || '';
-  if (classifyWeek(weekLabel) === 'deload') {
+  if (resolveProgramPhase(activeProgram, wk, state).isDeload) {
     return {
       severity: 'neutral',
       badge: 'Deload',

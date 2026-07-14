@@ -194,8 +194,8 @@ function _armDailyReminder() {
 export function composeMorningReminder(state, program, now = new Date()) {
   const selectedDay = _dayKey(now);
   const model = computeDashboardModel(state, WEEK_DAYS, program, selectedDay);
-  const score = computeHybridScore(model, state, WEEK_DAYS);
-  const projection = projectScore(model, state, WEEK_DAYS);
+  const score = computeHybridScore(model, state, WEEK_DAYS, program);
+  const projection = projectScore(model, state, WEEK_DAYS, { program });
   const briefing = buildMorningBriefing({ state, model, score, projection, program, selectedDay, now });
   return { title: 'Morning Briefing', body: briefingToText(briefing) };
 }

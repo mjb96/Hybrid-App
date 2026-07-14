@@ -100,7 +100,13 @@ test('Profile C: rapid load spike — escalation high, briefing defers, evidence
   };
   // Friday is a planned-but-unlogged gym day, so the coach prescribes (rather than
   // acknowledging an already-complete session) — that's the warning path we test.
-  const program = { days: { mon: { title: 'Lower', badge: '' }, fri: { title: 'Upper' } }, totalWeeks: 12 };
+  const program = {
+    days: {
+      mon: { title: 'Lower', badge: '', lifts: ['Squat'] },
+      fri: { title: 'Upper', lifts: ['Bench'] },
+    },
+    totalWeeks: 12,
+  };
   const model = computeDashboardModel(state, DAYS, program, 'fri');
   const risk = assessOvertrainingRisk(model, state, DAYS);
   assert.equal(risk.level, 'high');
@@ -176,7 +182,13 @@ test('Profile F: beginner — no load data yet → getting-started, no trend cla
   };
   // Friday is planned but not yet logged, so we exercise the pre-data coaching
   // path (no load history, <2 RPEs) rather than an acknowledgement.
-  const rec = generateRecommendation(state, DAYS, { days: { mon: { title: 'Full Body' }, fri: { title: 'Full Body' } }, totalWeeks: 12 }, 'fri');
+  const rec = generateRecommendation(state, DAYS, {
+    days: {
+      mon: { title: 'Full Body', lifts: ['Squat'] },
+      fri: { title: 'Full Body', lifts: ['Bench'] },
+    },
+    totalWeeks: 12,
+  }, 'fri');
   assert.equal(rec.badge, 'Getting Started');
   const chart = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: '2026-06-10' });
   assert.equal(chart.comparison.isComparable, false); // no prior week to trend

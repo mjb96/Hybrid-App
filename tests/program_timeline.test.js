@@ -1,7 +1,7 @@
 // ==========================================
 // PROGRAM TIMELINE TEST (tests/program_timeline.test.js)
 // A1 — the week-by-week plan builder. Turns weeklyVolModifiers into a readable
-// progression arc; degrades to WEEK_PHASE_NAMES when a program has none. Run
+// progression arc; degrades to an honest neutral phase when a program has none. Run
 // with `node --test`.
 // ==========================================
 import assert from 'node:assert/strict';
@@ -45,12 +45,11 @@ test('volume bars scale to the program peak set count', () => {
   assert.ok(rows[0].volumeScore < rows[1].volumeScore, 'lower-volume week reads shorter');
 });
 
-test('degrades gracefully to the generic phase map with no modifiers', () => {
+test('degrades gracefully without inventing deloads when modifiers are absent', () => {
   const rows = buildProgramTimeline({ durationWeeks: 12 }); // no weeklyVolModifiers
   assert.equal(rows.length, 12);
-  // WEEK_PHASE_NAMES marks weeks 4 and 8 as deloads.
-  assert.equal(rows[3].deload, true);
-  assert.equal(rows[7].deload, true);
+  assert.ok(rows.every(r => r.label === 'Training'));
+  assert.ok(rows.every(r => r.deload === false));
   assert.ok(rows.every(r => r.sets === null), 'no fabricated set counts');
   assert.ok(rows.every(r => r.volumeScore > 0), 'still shows a shape');
 });

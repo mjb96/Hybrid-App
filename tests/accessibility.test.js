@@ -4,7 +4,7 @@
 // Automated a11y guards for the critical screens' markup in index.html:
 //   • no icon-only button lacks an accessible name;
 //   • key interactive inputs have an accessible name;
-//   • every role="dialog" declares aria-modal + a label;
+//   • closed dialogs are inert/hidden and do not make a modal claim;
 //   • the viewport doesn't block zoom (low-vision).
 // These lock the fixes from this audit so they can't silently regress.
 // Run with `node --test`.
@@ -43,11 +43,17 @@ test('key interactive inputs have an accessible name', () => {
   }
 });
 
-test('every dialog declares aria-modal and a label', () => {
+test('closed dialogs are inert/hidden, labelled, and make no aria-modal claim', () => {
   for (const m of HTML.matchAll(/<[a-z0-9]+\b([^>]*\brole="dialog"[^>]*)>/g)) {
     const attrs = m[1];
-    assert.match(attrs, /aria-modal="true"/, `dialog missing aria-modal: ${m[0].slice(0, 90)}`);
     assert.match(attrs, /aria-label|aria-labelledby/, `dialog missing a label: ${m[0].slice(0, 90)}`);
+    assert.doesNotMatch(attrs, /aria-modal="true"/, `closed dialog falsely claims modal semantics: ${m[0].slice(0, 90)}`);
+  }
+  const roots = [...HTML.matchAll(/<[a-z0-9]+\b([^>]*\bdata-modal-root\b[^>]*)>/g)];
+  assert.ok(roots.length >= 17, 'modal inventory unexpectedly shrank');
+  for (const m of roots) {
+    assert.match(m[1], /\binert\b/, `closed modal root is not inert: ${m[0].slice(0, 110)}`);
+    assert.match(m[1], /aria-hidden="true"/, `closed modal root is not hidden: ${m[0].slice(0, 110)}`);
   }
 });
 

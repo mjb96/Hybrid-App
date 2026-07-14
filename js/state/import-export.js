@@ -3,7 +3,9 @@
 // init() must be called with live accessors before use.
 // =============================================================================
 import { showToast } from '../toast.js';
-import { runSessionsForDay } from './run-sessions.js';
+import { isStateMigrationError } from './migrations.js';
+import { buildTrainingCsv } from '../portability/csv-export.js';
+import { exportResultMessage, saveTextExport } from '../portability/export-service.js';
 
 let _getState       = null;
 let _setState       = null;
@@ -48,9 +50,17 @@ export function recoverCloudPullSnapshot() {
     showToast('No recoverable snapshot found.', true);
     return false;
   }
-  _backupCurrentState(); // keep an undo point for the cloud state we're leaving
   const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
-  const merged = _migrate({ ...base, ...snap });
+  let merged;
+  try {
+    merged = _migrate({ ...base, ...snap });
+  } catch (error) {
+    showToast(isStateMigrationError(error)
+      ? 'Recovery stopped safely: this snapshot could not be upgraded.'
+      : 'Recovery stopped safely. Your current data was not replaced.', true);
+    return false;
+  }
+  _backupCurrentState(); // undo point only after the snapshot upgrades safely
   if (!merged.customExercises) merged.customExercises = [];
   if (!merged.customPrograms)  merged.customPrograms  = [];
   _setState(merged);
@@ -76,57 +86,26 @@ export function setImportSuccessCallback(fn) {
   _onImportSuccess = fn;
 }
 
-export function triggerEngineExport() {
+export async function triggerEngineExport() {
   const appState = _getState();
-  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(appState));
-  const a = document.createElement('a');
-  a.setAttribute('href', dataStr);
-  a.setAttribute('download', 'helyx-snapshot-wk' + appState.currentWeek + '.json');
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const result = await saveTextExport({
+    filename: `helyx-snapshot-wk${appState.currentWeek}.json`,
+    content: JSON.stringify(appState),
+    mime: 'application/json',
+  });
+  const copy = exportResultMessage(result, 'Snapshot');
+  showToast(copy.message, copy.error);
 }
 
-export function triggerCSVExport() {
+export async function triggerCSVExport() {
   const appState = _getState();
-  let csv = 'Week,Day,Exercise,Set,Weight,Reps,Completed,RunSessionId,RunDist,RunTime,RunRPE,AvgHR,MaxHR,ElevGain,Calories,BodyWeight,GymRPE,Notes\n';
-  const loggedWeeks = Object.keys(appState.weeks).map(Number).sort((a, b) => a - b);
-  loggedWeeks.forEach(w => {
-    if (!appState.weeks[w]) return;
-    _DEFAULT_DAYS.forEach(d => {
-      const dayNotes = (appState.weeks[w].notes?.[d] || '').replace(/,/g, ' ').replace(/\n/g, ' ');
-      const runs = runSessionsForDay(appState.weeks[w], d);
-      const bw     = appState.weeks[w].bodyWeight?.[d] || '';
-      const gymRpe = appState.weeks[w].gymRpe?.[d] || '';
-
-      const runCols = (run) => `${run?.sessionId || ''},${run?.dist || ''},${run?.time || ''},${run?.rpe || ''},${run?.avgHR || ''},${run?.maxHR || ''},${run?.elev || ''},${run?.cals || ''}`;
-      const emptyRunCols = Array(8).fill('').join(',');
-
-      const lifts    = appState.weeks[w].lifts?.[d] || {};
-      const liftKeys = Object.keys(lifts);
-
-      if (liftKeys.length === 0) {
-        runs.forEach(run => {
-          csv += `${w},${d},,,,,,${runCols(run)},${bw},${gymRpe},${dayNotes}\n`;
-        });
-      } else {
-        liftKeys.forEach((lift, liftIdx) => {
-          lifts[lift].forEach((s, idx) => {
-            const isFirstRow = liftIdx === 0 && idx === 0;
-            csv += `${w},${d},${lift},${idx + 1},${s.w},${s.r},${s.c},${isFirstRow && runs[0] ? runCols(runs[0]) : emptyRunCols},${bw},${gymRpe},${dayNotes}\n`;
-          });
-        });
-        runs.slice(1).forEach(run => {
-          csv += `${w},${d},,,,,,${runCols(run)},${bw},${gymRpe},${dayNotes}\n`;
-        });
-      }
-    });
+  const result = await saveTextExport({
+    filename: 'helyx-data-export.csv',
+    content: buildTrainingCsv(appState, _DEFAULT_DAYS),
+    mime: 'text/csv',
   });
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'helyx-data-export.csv';
-  a.click();
+  const copy = exportResultMessage(result, 'CSV');
+  showToast(copy.message, copy.error);
 }
 
 export function triggerEngineImport(event) {
@@ -137,11 +116,11 @@ export function triggerEngineImport(event) {
     try {
       const parsedData = JSON.parse(e.target.result);
       if (parsedData.currentWeek && parsedData.weeks && Object.keys(parsedData.weeks).length > 0) {
-        _backupCurrentState(); // undo point before we overwrite live data
         const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
         // Run the same versioned migrations the load path uses so an older
         // export is upgraded (and stamped) instead of silently half-broken.
         const merged = _migrate({ ...base, ...parsedData });
+        _backupCurrentState(); // undo point only after the import upgrades safely
         if (!merged.customExercises) merged.customExercises = [];
         if (!merged.customPrograms)  merged.customPrograms  = [];
         _setState(merged);
@@ -152,7 +131,9 @@ export function triggerEngineImport(event) {
         showToast('File structure failed validation.', true);
       }
     } catch (err) {
-      showToast('Error parsing storage file.', true);
+      showToast(isStateMigrationError(err)
+        ? 'Import stopped safely: this file could not be upgraded.'
+        : 'Error parsing storage file.', true);
     }
   };
   reader.readAsText(file);

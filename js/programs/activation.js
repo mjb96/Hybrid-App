@@ -20,6 +20,7 @@
 // gates it behind an explicit, reviewable choice.
 // =============================================================================
 import { DIFFICULTY_LABELS, CATEGORIES } from './catalog.js';
+import { closeManagedModal, openManagedModal } from '../ui/modal-stack.js';
 
 /**
  * Compute the activation plan shown to the user before switching programs.
@@ -144,11 +145,9 @@ export function confirmActivation(plan) {
   ensureStyles();
 
   return new Promise((resolve) => {
-    const prevFocus = /** @type {HTMLElement|null} */ (document.activeElement);
     const overlay = document.createElement('div');
     overlay.className = 'actm-overlay';
     overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', plan.title);
 
     const summaryLine = plan.summary.length ? `<div class="actm__summary">${_esc(plan.summary.join(' · '))}</div>` : '';
@@ -172,26 +171,26 @@ export function confirmActivation(plan) {
     const finish = (result) => {
       if (done) return;
       done = true;
-      document.removeEventListener('keydown', onKey);
+      closeManagedModal(overlay);
       overlay.classList.remove('actm--in');
       setTimeout(() => {
         overlay.remove();
-        try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch { /* ignore */ }
         resolve(result);
       }, 200);
     };
-    const onKey = (e) => { if (e.key === 'Escape') finish({ activate: false, startWeek: 1 }); };
     overlay.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target);
       if (t === overlay || t.closest('[data-act-cancel]')) return finish({ activate: false, startWeek: 1 });
       const weekBtn = t.closest('[data-act-week]');
       if (weekBtn) finish({ activate: true, startWeek: parseInt(weekBtn.getAttribute('data-act-week'), 10) || 1 });
     });
-    document.addEventListener('keydown', onKey);
+    openManagedModal(overlay, {
+      initialFocus: '[data-act-default]',
+      onRequestClose: () => finish({ activate: false, startWeek: 1 }),
+    });
 
     requestAnimationFrame(() => {
       overlay.classList.add('actm--in');
-      /** @type {HTMLElement|null} */ (overlay.querySelector('[data-act-default]'))?.focus();
     });
   });
 }

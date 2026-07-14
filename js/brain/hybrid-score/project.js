@@ -19,12 +19,12 @@ import { computeHybridScore } from './hybrid-score.js';
  * @param {any} model  shared dashboard model (carries .week + .streak + .load)
  * @param {any} state  appState
  * @param {any} days   logged-days array
- * @param {{completeToday?:boolean}} [opts]
+ * @param {{completeToday?:boolean, program?:any}} [opts]
  * @returns {{ current:any, projected:any, gain:number, canProject:boolean }}
  */
 export function projectScore(model, state, days, opts = {}) {
-  const { completeToday = true } = opts;
-  const current = computeHybridScore(model, state, days);
+  const { completeToday = true, program = null } = opts;
+  const current = computeHybridScore(model, state, days, program);
 
   const w = (model && model.week) || {};
   const total = w.consistencyTotal || 0;
@@ -50,7 +50,7 @@ export function projectScore(model, state, days, opts = {}) {
     load: model.load ? { ...model.load } : model.load,
   };
 
-  const projected = computeHybridScore(projModel, state, days);
+  const projected = computeHybridScore(projModel, state, days, program);
   const gain = (projected.score ?? 0) - (current.score ?? 0);
   return { current, projected, gain: Math.max(0, gain), canProject: gain > 0 };
 }

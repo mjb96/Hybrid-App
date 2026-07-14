@@ -20,7 +20,7 @@ beforeEach(() => {
   globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 });
 
-function wire({ snapshot }) {
+function wire({ snapshot, migrate = (s) => s }) {
   let current = { weeks: { cloud: {} }, tag: 'cloud' };
   let cleared = false;
   initImportExport({
@@ -28,7 +28,7 @@ function wire({ snapshot }) {
     setState: (s) => { current = s; },
     saveState: () => {},
     defaultDays: ['mon'],
-    migrate: (s) => s,
+    migrate,
     storageKey: 'test_key',
     getCloudBackup: () => snapshot,
     clearCloudBackup: () => { cleared = true; },
@@ -61,5 +61,20 @@ test('recoverCloudPullSnapshot refuses an empty snapshot and leaves state untouc
   const ok = recoverCloudPullSnapshot();
   assert.equal(ok, false);
   assert.equal(h.get().tag, 'cloud');
+  assert.equal(h.wasCleared(), false);
+});
+
+test('recoverCloudPullSnapshot keeps current data when snapshot migration fails', () => {
+  const h = wire({
+    snapshot: { savedAt: 'now', state: { weeks: { '1': { lifts: {} } }, tag: 'local' } },
+    migrate: (candidate) => {
+      candidate.partiallyMutated = true;
+      throw new Error('injected migration fault');
+    },
+  });
+  const ok = recoverCloudPullSnapshot();
+  assert.equal(ok, false);
+  assert.equal(h.get().tag, 'cloud');
+  assert.equal(h.get().partiallyMutated, undefined);
   assert.equal(h.wasCleared(), false);
 });

@@ -1,5 +1,6 @@
 // @ts-check
 // =============================================================================
+import { closeManagedModal, openManagedModal } from './modal-stack.js';
 // CONFIRM MODAL (js/ui/confirm-modal.js) — roadmap R15
 //
 // One styled, promise-based replacement for the native confirm() — which on a
@@ -55,16 +56,9 @@ export function confirmModal(opts = {}) {
   ensureStyles();
 
   return new Promise((resolve) => {
-    // Remember what had focus so we can restore it when the dialog closes —
-    // otherwise focus falls back to the document top (a screen-reader/keyboard
-    // dead-end).
-    const prevFocus = /** @type {HTMLElement|null} */ (
-      typeof document !== 'undefined' ? document.activeElement : null
-    );
     const overlay = document.createElement('div');
     overlay.className = 'cmodal-overlay';
     overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', title);
     overlay.innerHTML = `
       <div class="cmodal">
@@ -81,20 +75,14 @@ export function confirmModal(opts = {}) {
     const close = (result) => {
       if (done) return;
       done = true;
-      document.removeEventListener('keydown', onKey);
+      closeManagedModal(overlay);
       overlay.classList.remove('cmodal--in');
       const finish = () => {
         overlay.remove();
-        // Restore focus to the trigger element for keyboard/screen-reader users.
-        try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch { /* ignore */ }
         resolve(result);
       };
       // Respect reduced-motion (no transitionend fires when transition:none).
       setTimeout(finish, 200);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') close(false);
-      else if (e.key === 'Enter') close(true);
     };
     overlay.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target);
@@ -102,11 +90,13 @@ export function confirmModal(opts = {}) {
       else if (t.closest('[data-cm="ok"]')) close(true);
       else if (t.closest('[data-cm="cancel"]')) close(false);
     });
-    document.addEventListener('keydown', onKey);
+    openManagedModal(overlay, {
+      initialFocus: '[data-cm="ok"]',
+      onRequestClose: () => close(false),
+    });
 
     requestAnimationFrame(() => {
       overlay.classList.add('cmodal--in');
-      /** @type {HTMLElement|null} */ (overlay.querySelector('[data-cm="ok"]'))?.focus();
     });
   });
 }

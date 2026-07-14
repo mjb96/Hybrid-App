@@ -95,14 +95,17 @@ test('composeMorningReminder: active athlete gets score + session + mission', ()
     loadMetrics: { atl: 9, ctl: 10 },
     weeks: { '1': { lifts: {}, runs: { wed: { dist: '5', time: '25:00', rpe: '6' } }, dates: { wed: '2026-06-24' } }, '2': { lifts: {}, runs: {} } },
   };
-  const program = { totalWeeks: 12, days: { wed: { title: 'Day 3: Tempo Run', runs: '5k tempo' } } };
+  const program = {
+    totalWeeks: 12,
+    days: { wed: { title: 'Day 3: Tempo Run', lifts: ['Back Squat'], runs: '5k tempo' } },
+  };
   const { body } = composeMorningReminder(state, program, now);
   assert.match(body, /^Good morning, Alex\./);
   // V2-3 — decisive, forward-looking voice: lead with the upside of training
   // today (falls back to the plain score line when there's no gain to promise).
   assert.match(body, /(\d+ today — train and it rises to \d+|Your Hybrid Score is \d+)/);
   assert.match(body, /Today: Day 3: Tempo Run\./);
-  // The rec engine classifies a non-rest title + a run as a hybrid session.
+  // The prescribed lift plus run make this a hybrid session.
   assert.match(body, /Mission: Complete today's hybrid session/);
 });
 

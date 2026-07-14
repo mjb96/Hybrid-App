@@ -348,10 +348,11 @@ test('computeHybridScore: a low-readiness day surfaces a recovery opportunity', 
   assert.ok(['recovery', 'load', 'consistency', 'endurance', 'strength', 'lifestyle'].includes(r.topOpportunity.pillar));
 });
 
-test('computeHybridScore: planned deload reweights and is not punished', () => {
-  const state = makeState({ currentWeek: 4 }); // week 4 = "Deload Week" in WEEK_PHASE_NAMES
+test('computeHybridScore: the active program\'s planned deload reweights and is not punished', () => {
+  const state = makeState({ currentWeek: 4 });
   const model = modelFor(state);
-  const r = computeHybridScore(model, state, DAYS);
+  const program = { weeklyVolModifiers: { '4': { intensityLabel: 'Program deload' } } };
+  const r = computeHybridScore(model, state, DAYS, program);
   assert.equal(r.deload, true);
   // Strength/endurance weight is shifted down on a deload.
   if (r.pillars.strength.score != null && r.pillars.recovery.score != null) {

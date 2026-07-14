@@ -1,7 +1,7 @@
 // ==========================================
 // HOME DASHBOARD — coordinator. UI sub-modules live in ./home/
 // ==========================================
-import { WEEK_PHASE_NAMES } from './constants.js';
+import { resolveProgramPhase } from './programs/phase.js';
 import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
 import { projectScore } from './brain/hybrid-score/project.js';
@@ -56,7 +56,7 @@ export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHisto
 function renderHybridScoreHome(appState, model) {
   const el = document.getElementById('hybridScoreHome');
   if (!el) return null;
-  const result = computeHybridScore(model, appState, _getDays());
+  const result = computeHybridScore(model, appState, _getDays(), getProgramById(appState.activeProgramId));
   // The Morning Briefing directly below owns the day's action — one voice.
   setHTML(el, heroHTML(result, { showAction: false }));
   try {
@@ -88,7 +88,7 @@ export function answerCoachOnHome(intent) {
     const days = _getDays();
     const activeProgram = getProgramById(appState.activeProgramId);
     const model = computeDashboardModel(appState, days, activeProgram, selectedDay);
-    const score = computeHybridScore(model, appState, days);
+    const score = computeHybridScore(model, appState, days, activeProgram);
     let risk = null;
     try { risk = assessOvertrainingRisk(model, appState, days); }
     catch (e) { reportHandledError('home:coach-qa:risk', e); }
@@ -108,7 +108,7 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
   const el = document.getElementById('morningBriefing');
   if (!el) return;
   const firstSession = !!appState._justOnboarded;
-  const projection = projectScore(model, appState, _getDays());
+  const projection = projectScore(model, appState, _getDays(), { program: activeProgram });
   const briefing = buildMorningBriefing({
     state: appState, model, score: scoreResult, projection,
     program: activeProgram, selectedDay, firstSession,
@@ -284,7 +284,7 @@ export function renderHome() {
   const indicatorEl = document.getElementById('homeWeekBlockIndicator');
   const phaseEl = document.getElementById('homePhaseLabelTag');
   if (indicatorEl) indicatorEl.textContent = 'Week ' + wk;
-  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[wk] || 'Active Phase';
+  if (phaseEl) phaseEl.textContent = resolveProgramPhase(getProgramById(appState.activeProgramId), wk, appState).label;
 
   // Home-header avatar → Profile (the avatar is Profile's entry point now that
   // Profile has left the nav bar). Shows the photo if set, else name initials.

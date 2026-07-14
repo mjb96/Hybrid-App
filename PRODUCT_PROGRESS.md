@@ -20,6 +20,21 @@ program de-dupe + CTA + labels). First-run, integrity, coherence and premium-fee
 materially better. Remaining polish is a deliberate follow-up list (below). Full scorecard
 in `PRODUCT_AUDIT.md` §11.
 
+### Beta core-loop truth + accessibility — implementation complete (2026-07-14)
+
+- Onboarding persists the selected goal, experience, and a truthful Home basics/Full
+  gym equipment map; adjacent-difficulty recommendations explain the stretch.
+- Program phase/deload language now comes from the active program everywhere, including
+  Home, briefing, detail, notifications, analytics, review, and Hybrid Score.
+- Workout finish has one prescription-based completion policy. Partial work saves without
+  completion language or recap; only all planned sets plus any planned run completes.
+- Structured run parsing prevents interval prescriptions containing “recovery” from being
+  presented as Recovery sessions; unknown text stays neutral.
+- Every static and dynamic dialog/sheet now shares inert background, focus trap/restore,
+  Escape, browser/Android Back, scroll lock, stacking, and reduced-motion behavior.
+  Automated mobile Chromium and Android build gates pass. Physical TalkBack acceptance is
+  intentionally left to the release checklist, not simulated as complete.
+
 ### Sprint 4 — "skeptical first-time user" UX audit — shipped (2026-07-05)
 A fresh-eyes walkthrough at phone size (Chromium, Pixel viewport) surfaced 13 issues
 across first-run, the three core flows, error states and mobile. All fixed on branch

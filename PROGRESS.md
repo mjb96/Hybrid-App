@@ -72,6 +72,66 @@
 ## Session Log
 _Newest first. One entry per session: date · what changed · what's next._
 
+- 2026-07-14 · **Roadmap R6–R10 implementation — core-loop truth and accessible modal stack.**
+  R6 persists canonical onboarding goal/level/equipment settings and discloses recommendation
+  difficulty; a fresh-install Chromium flow proves the finish state. R7 replaces global phase
+  guesses with one active-program modifier/deload resolver across every consumer. R8 gives
+  workout, coaching and recap one prescription-based completion policy with honest empty,
+  partial and full outcomes. R9 classifies structured intervals before incidental recovery
+  words and exercises all 73 catalog prescriptions. R10 inventories 18 static surfaces and
+  moves them plus dynamic confirmations, activation, sync, migration and celebration dialogs
+  onto one inert/focus/Escape/history/Android-Back/reduced-motion stack. Validation: **850/850
+  JS tests**, typecheck, precache, smoke, required mobile Chromium journeys, Android JVM tests,
+  lint and debug APK assembly green. Physical TalkBack evidence remains `[You]` via
+  `docs/android-accessibility-device-checklist.md`. · **Next:** commit/push the completed
+  feature branch, open a PR targeting `main`, monitor required checks, then complete the
+  physical TalkBack and export/device checklists before the public beta.
+
+- 2026-07-14 · **Beta Integrity R5 implementation — verification-gated publication.**
+  Consolidated the duplicate web/Android CI files into one reusable required workflow
+  that installs locked dependencies and runs JavaScript syntax, type, precache, policy,
+  unit, smoke, required Chromium, Android JVM, lint, and debug-APK gates. Pages deployment
+  and signed Android artifact builds now have an explicit dependency on the whole workflow.
+  Added exact-pinned Playwright, a required browser runner, and a repository policy guard
+  with failure injection proving that removing a JS gate, Chromium install/check, Android
+  task, or artifact dependency fails verification. Making the browser journeys mandatory
+  exposed a stale fixture that triggered program auto-advance; the fixture now disables
+  auto-advance explicitly instead of timing out. Validation: **808/808 JS tests**,
+  typecheck, precache, smoke, workflow policy, all three Playwright journeys, Android JVM
+  tests, lint, and debug APK assembly green. · **Next:** review/merge the combined R3–R5
+  PR; `[You]` configure required branch checks and complete the R4 physical-device export
+  checklist before the Phase 0 public-beta gate can close.
+
+- 2026-07-14 · **Beta Integrity R4 implementation — complete Android portability.**
+  Replaced split blob/data-URL downloads with one confirmed text-export service. Android
+  now opens the system create-document picker through a dedicated, input-validated bridge
+  and reports saved/cancelled/error only after the Uri write; browser file-picker writes
+  are likewise confirmed, while anchor fallback honestly says “Download started.” JSON
+  export stops rather than silently omitting unreadable/rejected IndexedDB routes. The new
+  pure CSV builder includes numeric and `arch:*` week keys, activation/program/date fields,
+  every same-day run, notes/bodyweight-only days, and RFC 4180 escaping. Added JS adapter,
+  cancel, route and CSV regressions plus native filename/MIME/callback-injection tests.
+  Validation: **801/801 JS tests**, typecheck, precache, smoke, Android JVM tests, lint,
+  and a 12 MB debug APK assembly green. `[You]` physical-device acceptance artifact:
+  `docs/android-export-device-checklist.md` (save/cancel/overwrite/offline/clear+reimport).
+  · **Next:** R5 verification-gated production workflows, then one combined PR.
+
+- 2026-07-14 · **Beta Integrity PR-3 — transactional, validated, retryable migrations.**
+  Replaced the catch-and-continue migration runner (which could stamp failed data as
+  current) with isolated one-step transactions: clone the last-good JSON state, run
+  one upgrade, stamp its candidate version, validate that version's invariants, then
+  atomically commit. Thrown steps, failed validation, missing steps and future schemas
+  now stop without advancing the source blob. Startup blocks before save-capable wiring
+  and shows an accessible “Your data is safe” retry screen while localStorage remains
+  untouched. Cloud-snapshot recovery and both JSON import paths migrate before replacing
+  current data and report an honest safe-stop on failure. Hardened v3 activation repair
+  and v4 partial/duplicate run-session adoption so their validators can prove complete,
+  stable identities. Added fault injection at every v0→v4 boundary, byte-for-byte
+  rollback + retry, old-version corpus/idempotence, future-version, recovery UI/snapshot,
+  and partial-session regressions. Validation: **795/795 tests**, typecheck, precache and
+  smoke green. · **Next:** PR-4 / R4 complete Android export portability, including
+  native file handling and archived-week CSV completeness.
+
 - 2026-07-14 · **Beta Integrity PR-2 — stable run/session and route identity.**
   Added a backward-compatible canonical run history (`runSessions[day]`) with one
   stable `sessionId` per manual, GPS or FIT activity; the legacy `runs[day]` shape

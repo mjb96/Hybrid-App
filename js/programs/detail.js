@@ -10,7 +10,8 @@ import { getSimilarPrograms } from './recommendations.js';
 import { renderProgramCard, coverGlyphFor } from './program-card.js';
 import { programAttribution } from './attribution.js';
 import { icon as svgIcon } from '../ui/icons.js';
-import { PROGRAMS, WEEK_PHASE_NAMES } from '../constants.js';
+import { PROGRAMS } from '../constants.js';
+import { resolveProgramPhase } from './phase.js';
 import { getWeekModifier } from '../schema.js';
 import { liftTarget } from '../engine.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
@@ -429,8 +430,8 @@ function renderSampleWorkout(program, programData, wod = false) {
 }
 
 // A1 — the week-by-week plan. Renders the progression/deload arc that every
-// program already carries in weeklyVolModifiers (with a WEEK_PHASE_NAMES
-// fallback), tinted by phase so the shape of the block reads at a glance.
+// program already carries in weeklyVolModifiers, tinted by phase so the shape
+// of the block reads at a glance.
 const PLAN_KIND_COLOR = {
   deload: '#22d3ee', peak: '#ef4444', taper: '#a78bfa',
   intensify: '#f59e0b', build: '#8b5cf6', work: '#64748b',
@@ -751,7 +752,7 @@ export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   _preview = { dayKey, programId: resolvedId, week: wk };
 
   const mod = getWeekModifier(catalog || program, wk);
-  const phaseLabel = (mod && mod.intensityLabel) || WEEK_PHASE_NAMES[String(wk)] || '';
+  const phaseLabel = resolveProgramPhase(catalog || program, wk).label;
 
   const dayLabels = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
 

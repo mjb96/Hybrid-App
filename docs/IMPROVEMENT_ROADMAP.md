@@ -23,8 +23,65 @@
   run, and analytics distinguish per-session signals from per-day totals. Evidence:
   manual+GPS JSON reload, state/IDB migration, sibling-safe route deletion,
   same-day analytics, exact recap and v2/v3 export/import regressions; 787/787 tests,
-  typecheck, precache and smoke green. **Next integrity slice:** R3 transactional,
-  validated and retryable state migrations.
+  typecheck, precache and smoke green.
+- **R3 / PR-3 complete — 14 July 2026** on `codex/beta-integrity-migrations`.
+  Each schema step now executes on a detached JSON clone, advances its version only
+  after invariant validation, and atomically replaces the last-good state. A thrown
+  step, validation failure, missing step, or future schema stops immediately without
+  stamping current. Startup leaves persisted bytes untouched and presents an
+  accessible retry screen; snapshot/file imports upgrade in memory before replacing
+  live data. Fault injection covers every version boundary, byte-for-byte rollback,
+  retry, old-version corpus, future schemas, recovery failure, and partial run-session
+  adoption. **Next integrity slice:** R4 complete Android portability/export.
+- **R4 implementation complete — 14 July 2026** on `codex/beta-integrity-migrations`.
+  JSON and CSV now use one text-export service with three honest adapters: Android's
+  Storage Access Framework, the browser file picker, and a clearly-labelled download
+  fallback. Android reports saved/cancelled/error only after the selected Uri write;
+  bridge inputs and callback scripts are validated. JSON refuses to claim completeness
+  if any IndexedDB route cannot be read/preserved. CSV keeps archived activation keys,
+  multiple same-day sessions, metadata-only days, and RFC 4180 user text. Local evidence:
+  801/801 JS tests plus Android JVM tests, lint, and debug APK assembly. Physical-device
+  save/cancel/overwrite/reimport evidence remains the `[You]` checklist in
+  `docs/android-export-device-checklist.md`. **Next integrity slice:** R5 release gates.
+- **R5 implementation complete — 14 July 2026** on `codex/beta-integrity-migrations`.
+  One reusable required-verification workflow now owns locked dependency install,
+  JavaScript syntax/type/precache/policy/unit/smoke checks, required Playwright Chromium
+  journeys, and Android JVM/lint/debug-APK checks. Pages deployment and signed Android
+  artifact jobs both depend on that complete workflow. Browser checks use an exact pinned
+  Playwright dependency and fail instead of skipping when required. A repository policy
+  test plus failure injection prevents any required command or artifact dependency from
+  being silently removed. Local evidence: 808/808 JS tests, all three real-browser
+  journeys, Android unit/lint/assemble, and workflow-policy checks green. `[You]` still
+  owns branch-protection configuration after merge.
+- **R6 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Onboarding now persists canonical fitness goal, experience, equipment tier, and the
+  tier-derived equipment map. Recommendation cards disclose both their real difficulty
+  and why an adjacent level is being offered. The complete goal/level/tier matrix is
+  unit-tested and a fresh-install Chromium journey proves Strength + Beginner + Home
+  basics survive finish into stored Settings.
+- **R7 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  One program-aware phase resolver now uses the active program's authored modifier and
+  explicit deload state across Home, briefing, detail/timeline, analytics, notifications,
+  weekly review, and Hybrid Score. Neutral fallback is “Training”; feature code no longer
+  reads the global phase-name table. Cross-consumer and catalog/deload regressions pass.
+- **R8 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  One completion policy now compares the logged working sets and run against the same
+  program prescription the cockpit renders. Empty, partial, skipped, modified, swapped,
+  run-only, hybrid, full, and rest outcomes are covered. Partial work stays in history but
+  cannot emit completion language, XP/recap, or completed-session coaching; Chromium
+  verifies the real finish dialog says “Save partial session” after one logged set.
+- **R9 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  The run-type parser is pure and ordered: repetition structure wins over incidental
+  recovery/pace words, so `6×800m (90s recovery)` is Intervals. All 73 unique non-rest
+  catalog prescriptions are exercised, and unknown copy receives only a neutral
+  Run/Training label rather than a fabricated intensity.
+- **R10 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  A shared modal/sheet stack owns inert/aria-modal state, background isolation, scroll
+  lock, focus entry/trapping/restoration, Escape, browser history, Android Back, stacking,
+  blocking dialogs, and reduced motion. All 18 static surfaces plus dynamic confirmation,
+  activation, sync, migration, and celebration overlays use it. Required mobile Chromium
+  checks prove the lifecycle and Android unit/lint/APK gates pass. Physical TalkBack remains
+  the explicit `[You]` release artifact in `docs/android-accessibility-device-checklist.md`.
 
 ## Prioritization model
 

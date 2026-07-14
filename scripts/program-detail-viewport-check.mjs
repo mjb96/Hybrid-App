@@ -12,35 +12,23 @@
 //   • stepping the schedule week updates the view and shows a "Changes from
 //     Week 1" summary WITHOUT mutating the active program's week.
 //
-// Standalone + self-skipping (needs playwright-core + a Chromium binary; not in
-// `npm test`). Exit 0 = pass or skipped; non-zero = a layout regression.
+// Standalone and optional locally. `--required` makes missing browser tooling a
+// hard failure, and is always used by the publication verification workflow.
 //
 //   node scripts/program-detail-viewport-check.mjs
 // ============================================================================
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIDTHS = [320, 360, 390, 412];
 
-function findChromium() {
-  const base = '/opt/pw-browsers';
-  if (!existsSync(base)) return null;
-  for (const d of readdirSync(base).filter(n => n.startsWith('chromium') && !n.includes('headless'))) {
-    const p = path.join(base, d, 'chrome-linux', 'chrome');
-    if (existsSync(p)) return p;
-  }
-  return null;
-}
-
-let chromium;
-try { ({ chromium } = await import('playwright-core')); }
-catch { console.log('SKIP: playwright-core not installed.'); process.exit(0); }
-const exe = findChromium();
-if (!exe) { console.log('SKIP: no Chromium binary under /opt/pw-browsers.'); process.exit(0); }
+const browserRuntime = await resolveChromium();
+if (!browserRuntime) process.exit(0);
+const { chromium, executablePath: exe } = browserRuntime;
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = createServer(async (req, res) => {

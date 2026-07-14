@@ -5,6 +5,7 @@ import { saveStateToLocalStorage, getProgramById, reseedActiveProgramIntoWeek, s
 import { requestNotificationPermission } from './notifications.js';
 import { provisionalScore } from './onboarding/provisional-score.js';
 import { recommendStarterPrograms } from './onboarding/starter-programs.js';
+import { difficultyDisclosure, onboardingSettings } from './onboarding/preferences.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 import { todayKey } from './dates.js';
 
@@ -102,7 +103,13 @@ function _renderProgramList() {
   if (recs.length) {
     // Keep the current selection if it's still in the list, else pick the top.
     if (!recs.some(p => p.id === _selectedProgram)) _selectedProgram = recs[0].id;
-    cards = recs.map(p => ({ id: p.id, name: p.name, desc: p.tagline || p.dossier?.focus || '', meta: metaLine(p) }));
+    cards = recs.map(p => ({
+      id: p.id,
+      name: p.name,
+      desc: p.tagline || p.dossier?.focus || '',
+      meta: metaLine(p),
+      difficulty: difficultyDisclosure(p.difficulty, _fitnessLevel),
+    }));
   } else {
     const ids = GOAL_PROGRAMS[_selectedGoal] || [];
     if (!ids.includes(_selectedProgram)) _selectedProgram = ids[0] || 'hybrid_engine';
@@ -114,6 +121,7 @@ function _renderProgramList() {
       <span class="ob-prog-name">${c.name}</span>
       <span class="ob-prog-desc">${c.desc}</span>
       ${c.meta ? `<span class="ob-prog-meta">${c.meta}</span>` : ''}
+      ${c.difficulty ? `<span class="ob-prog-difficulty ob-prog-difficulty--${c.difficulty.relation}"><strong>${c.difficulty.label}</strong> · ${c.difficulty.explanation}</span>` : ''}
     </button>`).join('');
 }
 
@@ -214,8 +222,11 @@ function _finish() {
   } catch (_) {}
   appState.settings.weightUnit          = _weightUnit;
   appState.settings.distanceUnit        = _distUnit;
-  appState.settings.fitnessLevel        = _fitnessLevel;
-  appState.settings.equipmentTier       = _equipmentTier;
+  Object.assign(appState.settings, onboardingSettings({
+    goal: _selectedGoal,
+    level: _fitnessLevel,
+    equipmentTier: _equipmentTier,
+  }));
   appState.settings.weeklyFrequency     = _weeklyFrequency;
   appState.settings.recoveryFeel        = _recoveryFeel;
   appState.settings.onboardingComplete  = true;

@@ -4,9 +4,11 @@
 import { saveStateToLocalStorage, STORAGE_KEY } from './state.js';
 import { getAllRouteRecords, putRouteRecords, putRoutes, clearRouteDatabase } from './db.js';
 import { wrapExport, parseImport } from './state/route-portability.js';
+import { isStateMigrationError, migrateState } from './state/migrations.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 import { todayKey } from './dates.js';
+import { exportResultMessage, saveTextExport } from './portability/export-service.js';
 
 // Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
 const _fmtRest = (sec) => {
@@ -602,18 +604,25 @@ export async function exportData() {
   const appState = _getState();
   // Include GPS routes (they live in IndexedDB, not appState) in a versioned
   // envelope so export is a complete, restorable backup.
-  let routeRecords = [];
-  try { routeRecords = await getAllRouteRecords(); } catch { /* routes optional in export */ }
+  let routeRecords;
+  try { routeRecords = await getAllRouteRecords(); }
+  catch {
+    showToast('Export stopped: GPS routes could not be read safely.', true);
+    return;
+  }
   const payload = wrapExport(appState, routeRecords, { appVersion: APP_VERSION });
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `helyx-training-${todayKey()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  const n = routeRecords.length;
-  showToast(n ? `Data exported ✓ (${n} route${n === 1 ? '' : 's'})` : 'Data exported ✓');
+  if (payload.routeRecords.length !== routeRecords.length) {
+    showToast('Export stopped: route validation did not preserve every route.', true);
+    return;
+  }
+  const result = await saveTextExport({
+    filename: `helyx-training-${todayKey()}.json`,
+    content: JSON.stringify(payload, null, 2),
+    mime: 'application/json',
+  });
+  const n = payload.routeRecords.length;
+  const copy = exportResultMessage(result, n ? `Data (${n} route${n === 1 ? '' : 's'})` : 'Data');
+  showToast(copy.message, copy.error);
 }
 
 export function triggerImport() {
@@ -647,12 +656,15 @@ export function handleImportFile(file) {
     if (!result) { showToast('Import failed: unrecognised file', true); return; }
 
     try {
+      // Upgrade a detached in-memory copy before touching the live state key.
+      // A migration failure therefore leaves the user's current bytes intact.
+      const migratedState = migrateState(result.state);
       // Undo point before overwriting live data. NOTE: writes to STORAGE_KEY —
       // the previous code wrote to a dead 'hybridAppState' key, so import was a
-      // silent no-op. Migrations run on the next boot (pullEngineDataFromStorage).
+      // silent no-op.
       const current = localStorage.getItem(STORAGE_KEY);
       if (current) localStorage.setItem(STORAGE_KEY + '_backup', current);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(result.state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedState));
 
       // Restore rich session-linked routes when present; v2 backups fall back to
       // their legacy week/day map. Stable ids make either path idempotent.
@@ -665,8 +677,10 @@ export function handleImportFile(file) {
 
       showToast(routeCount ? `Import successful (${routeCount} routes) — reloading…` : 'Import successful — reloading…');
       setTimeout(() => location.reload(), 1200);
-    } catch {
-      showToast('Import failed while saving', true);
+    } catch (error) {
+      showToast(isStateMigrationError(error)
+        ? 'Import stopped safely: this file could not be upgraded.'
+        : 'Import failed while saving', true);
     }
   };
   reader.readAsText(file);

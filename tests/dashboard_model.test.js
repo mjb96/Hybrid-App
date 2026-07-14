@@ -165,7 +165,11 @@ function highReadinessState(monSquatSets) {
     weeks: { '2': { lifts: { mon: { 'Back Squat': monSquatSets } }, runs: {} } },
   };
 }
-const GYM_PROGRAM = { totalWeeks: 12, days: { mon: { title: 'Push', runs: 'Rest' } } };
+const GYM_PROGRAM = {
+  totalWeeks: 12,
+  days: { mon: { title: 'Push', lifts: ['Back Squat'], runs: 'Rest' } },
+  weeklyVolModifiers: { '2': { sets: 2, reps: 5, intensityLabel: 'Working Sets' } },
+};
 
 test('high readiness surfaces the "go hard" insight when the session is NOT done', () => {
   const s = highReadinessState([{ w: '100', r: '5', c: true }, { w: '100', r: '5', c: false }]);

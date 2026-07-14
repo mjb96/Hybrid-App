@@ -35,7 +35,7 @@ export function shareScoreCard() {
   if (!result) {
     const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
     const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
-    result = computeHybridScore(model, st, _getDays());
+    result = computeHybridScore(model, st, _getDays(), getProgramById(st.activeProgramId));
   }
   shareHybridScoreCard(result, st, { showToast });
 }
@@ -350,7 +350,7 @@ export function renderAnalytics() {
       const st = _getState();
       const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
       const model = computeDashboardModel(st, _getDays(), getProgramById(st.activeProgramId), dayKey);
-      const result = computeHybridScore(model, st, _getDays());
+      const result = computeHybridScore(model, st, _getDays(), getProgramById(st.activeProgramId));
       _lastScoreResult = result;   // for the Share action (V2-5)
       const el = document.getElementById('hybridScoreDetail');
       if (el) el.innerHTML = hybridScoreDetailHTML(result, st);

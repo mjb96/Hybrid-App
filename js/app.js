@@ -1,7 +1,6 @@
 // ==========================================
 // CLEANED CORE PROTOCOL ROUTER (app.js)
 // ==========================================
-import { WEEK_PHASE_NAMES } from './constants.js';
 import { devWarn } from './debug.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
@@ -11,6 +10,7 @@ import { getCatalogEntry } from './programs/catalog.js';
 import { activateProgramWithConfirm } from './programs/activation.js';
 import { escapeHtml, programProgressPct } from './util.js';
 import { getWeekModifier } from './schema.js';
+import { resolveProgramPhase } from './programs/phase.js';
 
 import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
@@ -37,6 +37,7 @@ import {
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { paintIcons } from './ui/icons.js';
+import { initModalStack, requestCloseTopModal } from './ui/modal-stack.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -376,7 +377,7 @@ function _renderActivePlanHero() {
   const actualWk  = parseInt(appState.currentWeek || '1', 10);
   const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
   const progress = programProgressPct(actualWk, totalWeeks);
-  const phaseName = WEEK_PHASE_NAMES[String(displayWk)] || '';
+  const phaseName = resolveProgramPhase(catalog || prog, displayWk, appState).label;
 
   heroEl.innerHTML = `
     <div class="aplan-hero-inner" style="background: linear-gradient(135deg, ${g[0]}, ${g[1]})">
@@ -403,7 +404,8 @@ function _renderActivePlanWeekNav() {
   const phaseEl = document.getElementById('aplanPhaseName');
   const displayWk = _activePlanDisplayWeek || appState.currentWeek || '1';
   if (numEl) numEl.textContent = displayWk;
-  if (phaseEl) phaseEl.textContent = WEEK_PHASE_NAMES[displayWk] || '';
+  const prog = getCatalogEntry(appState.activeProgramId) || getProgramById(appState.activeProgramId);
+  if (phaseEl) phaseEl.textContent = resolveProgramPhase(prog, displayWk, appState).label;
 }
 
 function _renderThisWeekTab(catalog, prog) {
@@ -447,7 +449,7 @@ function _renderThisWeekTab(catalog, prog) {
   // blueprint that ignores the selector.
   const displayWk = _activePlanDisplayWeek || appState.currentWeek || '1';
   const mod = getWeekModifier(prog, displayWk);
-  const phase = WEEK_PHASE_NAMES[String(displayWk)] || mod.intensityLabel || '';
+  const phase = resolveProgramPhase(catalog || prog, displayWk, appState).label;
   const setsReps = (mod.sets && mod.reps) ? `${mod.sets}×${mod.reps}` : '';
   const prescription = `
     <div class="aplan-week-prescription">
@@ -469,7 +471,7 @@ function _renderScheduleTab(catalog, prog) {
     const isCurrent = w === displayWkNum;
     const isPast = w < displayWkNum;
     const isActual = w === actualWkNum && displayWkNum !== actualWkNum;
-    const phase = WEEK_PHASE_NAMES[String(w)] || '';
+    const phase = resolveProgramPhase(catalog || prog, w, appState).label;
     cells.push(`
       <button class="aplan-sched-cell ${isCurrent ? 'aplan-sched-cell--current' : ''} ${isPast ? 'aplan-sched-cell--past' : ''} ${isActual ? 'aplan-sched-cell--actual' : ''}"
               data-action="aplan-set-week" data-week="${w}" title="${phase}">
@@ -480,7 +482,7 @@ function _renderScheduleTab(catalog, prog) {
 
   const phaseGroups = {};
   for (let w = 1; w <= totalWeeks; w++) {
-    const p = WEEK_PHASE_NAMES[String(w)] || 'Training';
+    const p = resolveProgramPhase(catalog || prog, w, appState).label;
     if (!phaseGroups[p]) phaseGroups[p] = [];
     phaseGroups[p].push(w);
   }
@@ -1320,6 +1322,10 @@ function _submitProgramRating() {
 // ==========================================
 if (typeof window !== 'undefined') {
   window.__onAndroidBack = function () {
+    // Shared dialog/sheet stack owns modal dismissal, focus restoration and
+    // semantics. This also covers surfaces whose visual class is not `.active`.
+    if (requestCloseTopModal()) return 'handled';
+
     // 0) Full-screen session recap sits above everything — close it first.
     if (isSessionRecapOpen()) { closeSessionRecap(); return 'handled'; }
 
@@ -1388,6 +1394,7 @@ async function bootstrapApp() {
   try {
     initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
     paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
+    initModalStack(document);
     initOfflineIndicator();
     initSyncConflictUI();
     initSessionRecap(() => appState);

@@ -13,8 +13,7 @@
 //
 // Pure: a function of (model, state, program, selectedDay). No DOM, no state.
 // =============================================================================
-import { WEEK_PHASE_NAMES } from '../constants.js';
-import { classifyWeek } from '../programs/timeline.js';
+import { resolveProgramPhase } from '../programs/phase.js';
 
 /**
  * @param {any} model     shared dashboard model (carries .rec + .ready)
@@ -31,8 +30,9 @@ import { classifyWeek } from '../programs/timeline.js';
 export function dayVerdict(model, state, program, selectedDay) {
   const rec = model?.rec || {};
   const wk = String(state?.currentWeek || '1');
-  const weekLabel = program?.weeklyVolModifiers?.[wk]?.intensityLabel || WEEK_PHASE_NAMES[wk] || '';
-  const isDeloadWeek = classifyWeek(weekLabel) === 'deload';
+  const phase = resolveProgramPhase(program, wk, state);
+  const weekLabel = phase.label;
+  const isDeloadWeek = phase.isDeload;
 
   const label = rec.sessionLabel || 'Rest Day';
   const isRestDay = label === 'Rest Day';
@@ -65,6 +65,5 @@ export function dayVerdict(model, state, program, selectedDay) {
  */
 export function isProgramDeloadWeek(state, program) {
   const wk = String(state?.currentWeek || '1');
-  const label = program?.weeklyVolModifiers?.[wk]?.intensityLabel || WEEK_PHASE_NAMES[wk] || '';
-  return classifyWeek(label) === 'deload';
+  return resolveProgramPhase(program, wk, state).isDeload;
 }

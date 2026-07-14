@@ -23,6 +23,8 @@ import { computeDashboardModel } from './home/dashboard-model.js';
 import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
+import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
+import { detectRunType } from './workout/run-type.js';
 
 let _getState;
 let _getSelectedDay;
@@ -104,27 +106,6 @@ function _timeFromPaceDist(paceStr, distKm) {
   return `${m}:${s}`;
 }
 
-function _detectRunType(str) {
-  if (!str) return null;
-  const s = str.toLowerCase();
-  if (/recovery|shakeout|very easy/.test(s))
-    return { label: 'Recovery', color: '#10b981' };
-  if (/zone 2|z2|easy run|easy pace|aerobic base|conversational|low heart/.test(s))
-    return { label: 'Zone 2', color: '#22d3ee' };
-  if (/long run|lsd|long slow|long aerobic/.test(s))
-    return { label: 'Long Run', color: '#8b5cf6' };
-  if (/tempo|threshold|comfortably hard|lactate/.test(s))
-    return { label: 'Tempo', color: '#f59e0b' };
-  if (/interval|repeat|×|\bx\b|\d+m\b|fartlek|speed work/.test(s))
-    return { label: 'Intervals', color: '#ef4444' };
-  if (/race pace|5k pace|10k pace|half marathon pace|marathon pace/.test(s))
-    return { label: 'Race Pace', color: '#ec4899' };
-  if (/hill|strides/.test(s))
-    return { label: 'Hills', color: '#f97316' };
-  if (/conditioning|amrap|emom|metcon|circuit/.test(s))
-    return { label: 'Conditioning', color: '#a855f7' };
-  return null;
-}
 let _getDays;
 let _saveState;
 let _switchTab;
@@ -469,7 +450,7 @@ export function renderWorkout() {
 
   const runTypeBadgeEl = document.getElementById('runTypeBadge');
   if (runTypeBadgeEl) {
-    const runType = isRunScheduled ? _detectRunType(blueprintRun) : null;
+    const runType = isRunScheduled ? detectRunType(blueprintRun) : null;
     if (runType) {
       runTypeBadgeEl.textContent = runType.label;
       runTypeBadgeEl.style.setProperty('--badge-color', runType.color);
@@ -1704,6 +1685,17 @@ export function openFinishSessionModal() {
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
   const sumRunRpeEl = document.getElementById('summaryRunRPE');
   const sumModalEl = document.getElementById('summaryModal');
+  const titleEl = document.getElementById('summaryModalTitle');
+  const copyEl = document.getElementById('summaryModalCopy');
+  const actionEl = document.getElementById('summarySaveAction');
+  const progressEl = document.getElementById('summaryCompletionProgress');
+  const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
+  const presentation = completionPresentation(completion);
+  if (sumModalEl) sumModalEl.dataset.outcome = completion.outcome;
+  if (progressEl) progressEl.textContent = completion.progressLabel;
+  if (titleEl) titleEl.textContent = presentation.title;
+  if (copyEl) copyEl.textContent = presentation.body;
+  if (actionEl) actionEl.textContent = presentation.action;
 
   if (sumVolEl) sumVolEl.textContent = vol + ' kg';
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
@@ -1754,6 +1746,7 @@ export function closeFinishSessionModal() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const wk = appState.currentWeek;
+  const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
   if (!appState.weeks[wk].gymRpe) appState.weeks[wk].gymRpe = {};
 
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
@@ -1803,11 +1796,16 @@ export function closeFinishSessionModal() {
   
   if (_switchTab) _switchTab('home');
 
-  // Surface the session recap over Home. Decoupled via an event so workout.js
-  // doesn't depend on the recap module.
-  try {
-    document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay } }));
-  } catch (_) {}
+  // Only a policy-complete session earns the completed recap path. Partial work
+  // is still persisted and counted as activity, with explicitly partial copy.
+  if (completion.complete) {
+    try {
+      document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay, outcome: 'complete' } }));
+    } catch (_) {}
+  } else if (completion.partial) {
+    showToast('Partial session saved — not marked complete');
+    try { document.dispatchEvent(new CustomEvent('session:saved-partial', { detail: { week: wk, day: selectedDay } })); } catch (_) {}
+  }
 }
 
 // ==========================================

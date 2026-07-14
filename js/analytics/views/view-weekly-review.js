@@ -222,7 +222,7 @@ export function renderWeeklyReview(review, state) {
         const WK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
         const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
         const model = computeDashboardModel(state, WK_DAYS, getProgramById(state.activeProgramId), dayKey);
-        const result = computeHybridScore(model, state, WK_DAYS);
+        const result = computeHybridScore(model, state, WK_DAYS, getProgramById(state.activeProgramId));
         shareHybridScoreCard(result, state, {
           showToast, variant: 'weekly', weekLabel: `Week ${state.currentWeek || ''}`.trim(),
         });

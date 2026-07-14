@@ -106,10 +106,14 @@ declare global {
       readHealthData(startIso: string, endIso: string, callbackId: string): void;
       readHealthDataByDay(startIso: string, endIso: string, callbackId: string): void;
       notifyRestComplete(title: string, body: string): void;
-      saveTextFile(filename: string, content: string, mime: string): void;
+    };
+    /** Native Android Storage Access Framework text-export bridge. */
+    HybridFileExportBridge?: {
+      saveTextFile(filename: string, content: string, mime: string, callbackId: string): void;
     };
     /** Pending native→JS callbacks keyed by callbackId. */
     __hcCB?: Record<string, (json: string) => void>;
+    __fileExportCB?: Record<string, (json: string) => void>;
     /** Hardware/gesture back handler; returns 'handled' or 'exit'. */
     __onAndroidBack?: () => string;
     _hybridGetState?: () => any;
