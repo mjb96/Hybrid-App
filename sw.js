@@ -120,6 +120,7 @@ const REQUIRED_ASSETS = [
   "./js/monitoring/sentry.js",
   "./js/notifications.js",
   "./js/onboarding.js",
+  "./js/onboarding/preferences.js",
   "./js/onboarding/provisional-score.js",
   "./js/onboarding/starter-programs.js",
   "./js/portability/csv-export.js",

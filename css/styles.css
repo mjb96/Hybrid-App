@@ -3382,6 +3382,22 @@ html[data-theme="light"] .rl-rpe-btn.active {
   color: var(--color-orange, #ff6b00);
   font-variant-numeric: tabular-nums;
 }
+.ob-prog-difficulty {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+.ob-prog-difficulty strong { color: var(--text-primary); }
+.ob-prog-difficulty--stretch,
+.ob-prog-difficulty--advanced { color: var(--color-amber, #f59e0b); }
+.ob-field-hint {
+  margin: 7px 2px 0;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
 
 /* Light mode onboarding */
 html[data-theme="light"] .ob-input {
