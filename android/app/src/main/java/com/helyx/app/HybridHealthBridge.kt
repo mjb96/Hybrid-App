@@ -10,9 +10,10 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.core.app.NotificationCompat
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.*
-import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
+import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.CoroutineScope
@@ -29,28 +30,33 @@ import java.util.concurrent.atomic.AtomicReference
  * Android JavascriptInterface injected as `window.HybridHealthBridge`.
  *
  * JS contract:
- *   getAvailabilityStatus()                              → String sync
- *   requestPermissions(typesJson, callbackId)            → void; resolves via __hcCB[callbackId]
- *   readHealthData(startIso, endIso, callbackId)         → void; resolves via __hcCB[callbackId]
- *   readHealthDataByDay(startIso, endIso, callbackId)    → void; resolves via __hcCB[callbackId]
+ *   getAvailabilityStatus()                                        → String sync
+ *   requestPermissions(fieldsJson, callbackId)                     → void; resolves via __hcCB[callbackId]
+ *   readHealthDataByDay(startIso, endIso, fieldsJson, callbackId)  → void; resolves via __hcCB[callbackId]
  *
- * readHealthDataByDay contract:
- *   Accepts a date range (ISO 8601 instants) and returns per-calendar-day buckets
- *   so the JS backfill can populate up to 90 days of healthLog in a single bridge call.
- *   Resolves with:
- *     {
- *       days: [{
- *         date: "YYYY-MM-DD",        // local calendar date (device timezone)
- *         steps: number,
- *         activeCalories: number,    // kcal
- *         sleepSessions: [{ durationMs, score, startTime }],
- *         restingHeartRate: number|null,  // bpm
- *         hrvRmssd: number|null,          // ms
- *       }]
- *     }
- *   Data older than 30 days requires the HealthDataHistory permission (mapped as
- *   "HealthDataHistory" in the JS type list). Denied → records older than 30 days
- *   are simply absent; the caller degrades gracefully to a 30-day window.
+ * `fieldsJson` is a JSON array of SUPPORTED FIELD IDS from the shared contract
+ * (HealthFieldContract / js/health/health-fields.js): "steps", "restingHR",
+ * "hrv", "sleep". Permissions are requested and records are read for EXACTLY the
+ * fields in that array — never for a field the user did not select.
+ *
+ * requestPermissions resolves with:
+ *   { granted: [fieldId...], denied: [fieldId...] }
+ *
+ * readHealthDataByDay resolves with:
+ *   {
+ *     granted: [fieldId...],       // selected fields currently permission-granted
+ *     days: [{
+ *       date: "YYYY-MM-DD",        // local calendar date (device timezone)
+ *       steps: number|absent,
+ *       sleepSessions: [{ durationMs, score, startTime, stages }]|absent,
+ *       restingHeartRate: number|null,  // bpm
+ *       hrvRmssd: number|null,          // ms
+ *     }],
+ *     errors: [fieldId...],        // selected+granted fields whose read threw
+ *   }
+ * A day bucket only carries keys for fields that were both selected AND granted.
+ * Records older than 30 days require READ_HEALTH_DATA_HISTORY; when that is
+ * denied Health Connect omits them and the caller degrades to a 30-day window.
  *
  * Async results are delivered by calling window.__hcCB[callbackId](jsonString)
  * and then deleting the key. The JS side registers callbacks before each call.
@@ -64,40 +70,11 @@ class HybridHealthBridge(
     private val client by lazy { HealthConnectClient.getOrCreate(context) }
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val pendingPermCallbackId = AtomicReference<String?>()
+    private val pendingPermFields = AtomicReference<List<String>>(emptyList())
 
     companion object {
         const val NOTIFICATION_CHANNEL_ID  = "rest_timer"
         private const val NOTIFICATION_ID_REST_TIMER = 1001
-
-        // Historical data access (records older than 30 days). Requested alongside
-        // the per-type read permissions; graceful degradation if denied.
-        private const val PERMISSION_READ_HEALTH_DATA_HISTORY =
-            "android.permission.health.READ_HEALTH_DATA_HISTORY"
-
-        /** Full set of Health Connect permissions this app requests. */
-        val ALL_PERMISSIONS: Set<String> = setOf(
-            HealthPermission.getReadPermission(StepsRecord::class),
-            HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-            HealthPermission.getReadPermission(SleepSessionRecord::class),
-            HealthPermission.getReadPermission(HeartRateRecord::class),
-            HealthPermission.getReadPermission(RestingHeartRateRecord::class),
-            HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
-            HealthPermission.getReadPermission(WeightRecord::class),
-            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-            PERMISSION_READ_HEALTH_DATA_HISTORY,
-        )
-
-        private val TYPE_TO_PERMISSION = mapOf(
-            "Steps"                      to HealthPermission.getReadPermission(StepsRecord::class),
-            "ActiveCaloriesBurned"       to HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-            "SleepSession"               to HealthPermission.getReadPermission(SleepSessionRecord::class),
-            "HeartRate"                  to HealthPermission.getReadPermission(HeartRateRecord::class),
-            "RestingHeartRate"           to HealthPermission.getReadPermission(RestingHeartRateRecord::class),
-            "HeartRateVariabilityRmssd"  to HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
-            "Weight"                     to HealthPermission.getReadPermission(WeightRecord::class),
-            "ExerciseSession"            to HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-            "HealthDataHistory"          to PERMISSION_READ_HEALTH_DATA_HISTORY,
-        )
     }
 
     // ── Synchronous bridge method ─────────────────────────────────────────────
@@ -114,14 +91,22 @@ class HybridHealthBridge(
     // ── Async bridge methods — results delivered via JS callback ─────────────
 
     @JavascriptInterface
-    fun requestPermissions(typesJson: String, callbackId: String) {
-        val types = runCatching {
-            JSONArray(typesJson).let { arr -> (0 until arr.length()).map { arr.getString(it) } }
-        }.getOrDefault(emptyList())
+    fun requestPermissions(fieldsJson: String, callbackId: String) {
+        val requested = parseFieldIds(fieldsJson)
+        val selected = HealthFieldContract.sanitize(requested)
+        val permissions = HealthFieldContract.permissionsForFields(selected)
 
-        val permissions = types.mapNotNull { TYPE_TO_PERMISSION[it] }.toSet()
-            .ifEmpty { ALL_PERMISSIONS }
+        // An empty/unsupported selection must NEVER launch a permission request.
+        if (permissions.isEmpty()) {
+            val json = JSONObject().apply {
+                put("granted", JSONArray())
+                put("denied",  JSONArray(selected))
+            }.toString()
+            resolveCallback(callbackId, json)
+            return
+        }
 
+        pendingPermFields.set(selected)
         pendingPermCallbackId.set(callbackId)
         webView.post { launchPermissions(permissions) }
     }
@@ -129,33 +114,31 @@ class HybridHealthBridge(
     /** Called by MainActivity after the Health Connect permission activity returns. */
     fun onPermissionResult(granted: Set<String>) {
         val callbackId = pendingPermCallbackId.getAndSet(null) ?: return
-        val grantedTypes = TYPE_TO_PERMISSION.entries.filter { it.value in granted }.map { it.key }
-        val deniedTypes  = TYPE_TO_PERMISSION.keys.filter { it !in grantedTypes }
+        val selected = pendingPermFields.getAndSet(emptyList())
+        val grantedFields = HealthFieldContract.grantedFields(granted)
+        // Report only fields the user actually selected.
+        val grantedSelected = selected.filter { it in grantedFields }
+        val deniedSelected  = selected.filter { it !in grantedFields }
         val json = JSONObject().apply {
-            put("granted", JSONArray(grantedTypes))
-            put("denied",  JSONArray(deniedTypes))
+            put("granted", JSONArray(grantedSelected))
+            put("denied",  JSONArray(deniedSelected))
         }.toString()
         resolveCallback(callbackId, json)
     }
 
-    @JavascriptInterface
-    fun readHealthData(startIso: String, endIso: String, callbackId: String) {
-        scope.launch {
-            val json = runCatching { fetchAll(startIso, endIso) }.getOrElse { "{}" }
-            resolveCallback(callbackId, json)
-        }
-    }
-
     /**
-     * Returns per-calendar-day health summaries for the given date range.
-     * Each day bucket contains steps, active calories, sleep sessions, RHR, and HRV.
-     * Data older than 30 days requires PERMISSION_READ_HEALTH_DATA_HISTORY; if that
-     * permission is absent, Health Connect silently omits those records.
+     * Returns per-calendar-day health summaries for the given date range and the
+     * SELECTED fields only. Each granted field's records are bucketed by local
+     * calendar day; a field that is selected but not currently granted is simply
+     * omitted (reflected in the returned `granted` list). Data older than 30 days
+     * requires READ_HEALTH_DATA_HISTORY; if absent Health Connect omits it.
      */
     @JavascriptInterface
-    fun readHealthDataByDay(startIso: String, endIso: String, callbackId: String) {
+    fun readHealthDataByDay(startIso: String, endIso: String, fieldsJson: String, callbackId: String) {
+        val selected = HealthFieldContract.sanitize(parseFieldIds(fieldsJson))
         scope.launch {
-            val json = runCatching { fetchByDay(startIso, endIso) }.getOrElse { "{\"days\":[]}" }
+            val json = runCatching { fetchByDay(startIso, endIso, selected) }
+                .getOrElse { "{\"granted\":[],\"days\":[],\"errors\":[]}" }
             resolveCallback(callbackId, json)
         }
     }
@@ -191,6 +174,10 @@ class HybridHealthBridge(
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
+    private fun parseFieldIds(json: String): List<String> = runCatching {
+        JSONArray(json).let { arr -> (0 until arr.length()).map { arr.getString(it) } }
+    }.getOrDefault(emptyList())
+
     private fun resolveCallback(id: String, json: String) {
         val escaped = json.replace("\\", "\\\\").replace("'", "\\'")
         webView.post {
@@ -202,124 +189,40 @@ class HybridHealthBridge(
         }
     }
 
-    private suspend fun fetchAll(startIso: String, endIso: String): String {
-        val range = TimeRangeFilter.between(Instant.parse(startIso), Instant.parse(endIso))
-
-        val steps = runCatching {
-            client.readRecords(ReadRecordsRequest(StepsRecord::class, range))
-                .records.sumOf { it.count }
-        }.getOrDefault(0L)
-
-        val calories = runCatching {
-            client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, range))
-                .records.sumOf { it.energy.inKilocalories }
-        }.getOrDefault(0.0)
-
-        val sleepArr = JSONArray()
-        for (s in runCatching {
-            client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, range)).records
-        }.getOrDefault(emptyList())) {
-            val stagesArr = JSONArray()
-            s.stages.forEach { st ->
-                stagesArr.put(JSONObject().apply {
-                    put("stage",      sleepStageName(st.stage))
-                    put("durationMs", st.endTime.toEpochMilli() - st.startTime.toEpochMilli())
-                })
-            }
-            sleepArr.put(JSONObject().apply {
-                put("durationMs", s.endTime.toEpochMilli() - s.startTime.toEpochMilli())
-                put("score",      JSONObject.NULL)
-                put("startTime",  s.startTime.toString())
-                put("stages",     stagesArr)
-            })
-        }
-
-        val hrArr = JSONArray()
-        runCatching {
-            client.readRecords(ReadRecordsRequest(HeartRateRecord::class, range)).records
-        }.getOrDefault(emptyList()).forEach { r ->
-            r.samples.forEach { s ->
-                hrArr.put(JSONObject().apply {
-                    put("bpm",  s.beatsPerMinute)
-                    put("time", s.time.toString())
-                })
-            }
-        }
-
-        val rhr = runCatching {
-            client.readRecords(ReadRecordsRequest(RestingHeartRateRecord::class, range))
-                .records.lastOrNull()?.beatsPerMinute
-        }.getOrNull()
-
-        val hrv = runCatching {
-            client.readRecords(ReadRecordsRequest(HeartRateVariabilityRmssdRecord::class, range))
-                .records.lastOrNull()?.heartRateVariabilityMillis
-        }.getOrNull()
-
-        val weightKg = runCatching {
-            client.readRecords(ReadRecordsRequest(WeightRecord::class, range))
-                .records.lastOrNull()?.weight?.inKilograms
-        }.getOrNull()
-
-        val exArr = JSONArray()
-        for (e in runCatching {
-            client.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, range)).records
-        }.getOrDefault(emptyList())) {
-            val sr = TimeRangeFilter.between(e.startTime, e.endTime)
-            val cals = runCatching {
-                client.aggregate(AggregateRequest(
-                    setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL), sr
-                ))[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.inKilocalories?.toInt() ?: 0
-            }.getOrDefault(0)
-            val distKm = runCatching {
-                client.aggregate(AggregateRequest(
-                    setOf(DistanceRecord.DISTANCE_TOTAL), sr
-                ))[DistanceRecord.DISTANCE_TOTAL]?.inKilometers
-            }.getOrNull()
-            val avgHR = runCatching {
-                client.aggregate(AggregateRequest(
-                    setOf(HeartRateRecord.BPM_AVG), sr
-                ))[HeartRateRecord.BPM_AVG]
-            }.getOrNull()
-            exArr.put(JSONObject().apply {
-                put("exerciseType",  e.exerciseType.toString())
-                put("durationMs",    e.endTime.toEpochMilli() - e.startTime.toEpochMilli())
-                put("totalCalories", cals)
-                put("avgHeartRate",  avgHR ?: JSONObject.NULL)
-                put("totalDistance", distKm ?: JSONObject.NULL)
-                put("startTime",     e.startTime.toString())
-            })
-        }
-
-        return JSONObject().apply {
-            put("steps",            steps)
-            put("activeCalories",   calories)
-            put("sleepSessions",    sleepArr)
-            put("heartRateSamples", hrArr)
-            put("restingHeartRate", rhr ?: JSONObject.NULL)
-            put("hrvRmssd",         hrv ?: JSONObject.NULL)
-            put("weightKg",         weightKg ?: JSONObject.NULL)
-            put("exerciseSessions", exArr)
-        }.toString()
-    }
-
     /**
-     * Fetches all relevant health records for the given range and buckets them into
-     * per-local-calendar-day summaries. A single bridge call replaces N×readHealthData
-     * calls for a multi-day backfill.
+     * Fetches the SELECTED-and-GRANTED health records for the range and buckets
+     * them into per-local-calendar-day summaries. Only the fields the user
+     * selected are read; a read that throws adds the field to `errors`.
      */
-    private suspend fun fetchByDay(startIso: String, endIso: String): String {
+    private suspend fun fetchByDay(startIso: String, endIso: String, selectedFields: List<String>): String {
         val zone = ZoneId.systemDefault()
         val start = Instant.parse(startIso)
         val end   = Instant.parse(endIso)
         val range = TimeRangeFilter.between(start, end)
 
-        // Read the full range once per type.
-        val stepsRecs = runCatching { client.readRecords(ReadRecordsRequest(StepsRecord::class, range)).records }.getOrDefault(emptyList())
-        val calRecs   = runCatching { client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, range)).records }.getOrDefault(emptyList())
-        val sleepRecs = runCatching { client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, range)).records }.getOrDefault(emptyList())
-        val rhrRecs   = runCatching { client.readRecords(ReadRecordsRequest(RestingHeartRateRecord::class, range)).records }.getOrDefault(emptyList())
-        val hrvRecs   = runCatching { client.readRecords(ReadRecordsRequest(HeartRateVariabilityRmssdRecord::class, range)).records }.getOrDefault(emptyList())
+        val grantedPerms = runCatching { client.permissionController.getGrantedPermissions() }
+            .getOrDefault(emptySet())
+        val grantedFields = HealthFieldContract.grantedFields(grantedPerms)
+        // Read only fields that are BOTH selected AND currently granted.
+        val readable = selectedFields.filter { it in grantedFields }
+        val errors = mutableListOf<String>()
+
+        fun <T> readField(id: String, block: () -> List<T>): List<T> =
+            if (id in readable) runCatching { block() }.getOrElse { errors.add(id); emptyList() }
+            else emptyList()
+
+        val stepsRecs = readField("steps") {
+            client.readRecords(ReadRecordsRequest(StepsRecord::class, range)).records
+        }
+        val sleepRecs = readField("sleep") {
+            client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, range)).records
+        }
+        val rhrRecs = readField("restingHR") {
+            client.readRecords(ReadRecordsRequest(RestingHeartRateRecord::class, range)).records
+        }
+        val hrvRecs = readField("hrv") {
+            client.readRecords(ReadRecordsRequest(HeartRateVariabilityRmssdRecord::class, range)).records
+        }
 
         val startDate = start.atZone(zone).toLocalDate()
         val endDate   = end.atZone(zone).toLocalDate().minusDays(1) // end is exclusive
@@ -329,49 +232,55 @@ class HybridHealthBridge(
         while (!day.isAfter(endDate)) {
             val dayStart = day.atStartOfDay(zone).toInstant()
             val dayEnd   = day.plusDays(1).atStartOfDay(zone).toInstant()
+            val bucket = JSONObject().apply { put("date", day.toString()) } // YYYY-MM-DD
+            var hasAny = false
 
-            val daySteps = stepsRecs.filter { it.startTime >= dayStart && it.startTime < dayEnd }
-                .sumOf { it.count }
-
-            val dayCals = calRecs.filter { it.startTime >= dayStart && it.startTime < dayEnd }
-                .sumOf { it.energy.inKilocalories }
-
-            val daySleep = JSONArray()
-            for (s in sleepRecs.filter { it.startTime >= dayStart && it.startTime < dayEnd }) {
-                val stagesArr = JSONArray()
-                s.stages.forEach { st ->
-                    stagesArr.put(JSONObject().apply {
-                        put("stage",      sleepStageName(st.stage))
-                        put("durationMs", st.endTime.toEpochMilli() - st.startTime.toEpochMilli())
+            if ("steps" in readable) {
+                bucket.put("steps", stepsRecs.filter { it.startTime >= dayStart && it.startTime < dayEnd }.sumOf { it.count })
+                hasAny = true
+            }
+            if ("sleep" in readable) {
+                val daySleep = JSONArray()
+                for (s in sleepRecs.filter { it.startTime >= dayStart && it.startTime < dayEnd }) {
+                    val stagesArr = JSONArray()
+                    s.stages.forEach { st ->
+                        stagesArr.put(JSONObject().apply {
+                            put("stage",      sleepStageName(st.stage))
+                            put("durationMs", st.endTime.toEpochMilli() - st.startTime.toEpochMilli())
+                        })
+                    }
+                    daySleep.put(JSONObject().apply {
+                        put("durationMs", s.endTime.toEpochMilli() - s.startTime.toEpochMilli())
+                        put("score",      JSONObject.NULL)
+                        put("startTime",  s.startTime.toString())
+                        put("stages",     stagesArr)
                     })
                 }
-                daySleep.put(JSONObject().apply {
-                    put("durationMs", s.endTime.toEpochMilli() - s.startTime.toEpochMilli())
-                    put("score",      JSONObject.NULL)
-                    put("startTime",  s.startTime.toString())
-                    put("stages",     stagesArr)
-                })
+                bucket.put("sleepSessions", daySleep)
+                hasAny = true
+            }
+            if ("restingHR" in readable) {
+                val dayRhr = rhrRecs.filter { it.time >= dayStart && it.time < dayEnd }.lastOrNull()?.beatsPerMinute
+                bucket.put("restingHeartRate", dayRhr ?: JSONObject.NULL)
+                hasAny = true
+            }
+            if ("hrv" in readable) {
+                val dayHrv = hrvRecs.filter { it.time >= dayStart && it.time < dayEnd }.lastOrNull()?.heartRateVariabilityMillis
+                bucket.put("hrvRmssd", dayHrv ?: JSONObject.NULL)
+                hasAny = true
             }
 
-            val dayRhr = rhrRecs.filter { it.time >= dayStart && it.time < dayEnd }
-                .lastOrNull()?.beatsPerMinute
-
-            val dayHrv = hrvRecs.filter { it.time >= dayStart && it.time < dayEnd }
-                .lastOrNull()?.heartRateVariabilityMillis
-
-            daysArr.put(JSONObject().apply {
-                put("date",             day.toString())   // YYYY-MM-DD
-                put("steps",            daySteps)
-                put("activeCalories",   dayCals)
-                put("sleepSessions",    daySleep)
-                put("restingHeartRate", dayRhr ?: JSONObject.NULL)
-                put("hrvRmssd",         dayHrv ?: JSONObject.NULL)
-            })
-
+            if (hasAny) daysArr.put(bucket)
             day = day.plusDays(1)
         }
 
-        return JSONObject().apply { put("days", daysArr) }.toString()
+        return JSONObject().apply {
+            // Report which SELECTED fields are currently granted so JS can show
+            // an honest per-field status (a revocation shrinks this list).
+            put("granted", JSONArray(selectedFields.filter { it in grantedFields }))
+            put("days",    daysArr)
+            put("errors",  JSONArray(errors))
+        }.toString()
     }
 
     private fun sleepStageName(stage: Int): String = when (stage) {

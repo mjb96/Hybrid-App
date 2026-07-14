@@ -18,14 +18,17 @@
     <!-- Re-arm the daily training reminder alarm after a device reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Health Connect read permissions -->
+    <!-- Health Connect read permissions — EXACTLY the supported-field contract
+         (HealthFieldContract.kt / js/health/health-fields.js): steps, resting
+         heart rate, HRV, sleep. History enables the >30-day backfill and
+         degrades gracefully if the user denies it. Do not add a permission here
+         without a matching field in the contract, or the app would request data
+         it can never surface (R14). -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
-    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
-    <uses-permission android:name="android.permission.health.READ_SLEEP" />
-    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
-    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
 
     <!-- Required: declare Health Connect as a queried package on API 30+ -->
     <queries>
