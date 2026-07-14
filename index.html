@@ -399,11 +399,14 @@
 </head>
 <body>
 
-  <div id="authOverlay" class="auth-overlay" style="display:none;">
-    <div class="auth-card">
+  <div id="authOverlay" class="auth-overlay" style="display:none;"
+       data-modal-root data-modal-dialog=".auth-card"
+       data-modal-close-action="close-auth" data-modal-open-style="true"
+       inert aria-hidden="true">
+    <div class="auth-card" role="dialog" aria-labelledby="authDialogTitle">
       <div class="auth-brand">
         <div class="auth-brand-icon">⚡</div>
-        <div class="auth-brand-name">Helyx</div>
+        <div class="auth-brand-name" id="authDialogTitle">Helyx</div>
         <div class="auth-brand-sub">Train smarter. Track everything.</div>
       </div>
 

@@ -37,7 +37,7 @@ import {
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { paintIcons } from './ui/icons.js';
-import { initModalStack, requestCloseTopModal } from './ui/modal-stack.js';
+import { closeManagedModal, initModalStack, openManagedModal, requestCloseTopModal } from './ui/modal-stack.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
@@ -912,13 +912,19 @@ else if (action === 'export-csv') triggerCSVExport();
   else if (action === 'signup-supabase') signUpToSupabase();
   else if (action === 'close-auth') {
     const overlay = document.getElementById('authOverlay');
-    if (overlay) overlay.style.display = 'none';
+    if (overlay) {
+      overlay.style.display = 'none';
+      closeManagedModal(overlay);
+    }
   }
   else if (action === 'open-auth') {
     // Auth is opt-in now (no front-door wall): returning users open it to
     // restore/sync, new users open it from Settings to back up their progress.
     const overlay = document.getElementById('authOverlay');
-    if (overlay) overlay.style.display = '';
+    if (overlay) {
+      overlay.style.display = 'flex';
+      openManagedModal(overlay, { initialFocus: '#loginEmail' });
+    }
   }
   
   // Summary Modals

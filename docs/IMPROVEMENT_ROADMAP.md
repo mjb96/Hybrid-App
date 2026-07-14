@@ -82,6 +82,15 @@
   activation, sync, migration, and celebration overlays use it. Required mobile Chromium
   checks prove the lifecycle and Android unit/lint/APK gates pass. Physical TalkBack remains
   the explicit `[You]` release artifact in `docs/android-accessibility-device-checklist.md`.
+- **R11 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
+  Semantic secondary-copy tokens now meet WCAG AA in dark and light themes, and primary
+  onboarding, Home, navigation, Programs, workout, Profile, and Settings controls expose
+  44px targets without widening the page. A required real-Chromium contract covers
+  320/360/390/412px, 200% text, contrast, target geometry, and horizontal overflow. The
+  same pass fixed the visible-but-inert sign-in screen by putting auth on the shared modal
+  lifecycle; the browser journey proves typing, account-tab switching, close, and focus
+  restoration above onboarding. Physical touch review remains the explicit `[You]`
+  artifact in `docs/android-ergonomics-device-checklist.md`.
 
 ## Prioritization model
 
