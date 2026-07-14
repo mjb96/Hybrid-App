@@ -143,6 +143,22 @@
   Physical grant/deny/revoke/no-data/partial-error device evidence remains the `[You]`
   matrix in `docs/android-health-connect-device-checklist.md`. **Next:** run CI for the
   Android gate, then the device matrix.
+- **R16 (part 1 of 2) — bridge escaping centralized — 14 July 2026** on
+  `claude/helyx-r16-runtime-bridge-security`. Every native→JS `evaluateJavascript`
+  callback now goes through ONE escaping API: `BridgeSafe.callbackScript(registry, id,
+  payload)` builds the canonical resolve-then-delete script, validating the callback id
+  (conservative alphabet) and the registry, and emitting the payload via
+  `BridgeSafe.javascriptString` (double-quoted, escaping quotes/backslashes/control
+  chars/U+2028/U+2029). `HybridHealthBridge.resolveCallback` (previously an un-validated
+  id + ad-hoc `\`/`'`-only escape), `GpsBridge`, and `NotifyBridge` now use it, and
+  `ExportSafe.callbackScript` delegates to it (its private duplicate escaper deleted). The
+  escaping algorithm was proven injection-safe against hostile payloads/ids/registries via
+  a Node port; `BridgeSafeTest` gains matching JVM cases (JS-string escaping, U+2028/2029,
+  breakout payloads, hostile id/registry). JS suite (884), typecheck, smoke green (no JS
+  changed). **Android JVM/lint/APK not runnable in-sandbox (no SDK; egress-blocked) — must
+  pass in `verify.yml` CI.** **Still open (R16 part 2, separate PR):** vendor the SRI-pinned
+  CDN runtime JS (Supabase/Sentry) into the signed bundle and tighten CSP to `script-src
+  'self'` so an offline launch makes no remote-JS request.
 
 ## Prioritization model
 
@@ -340,6 +356,14 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-14 · R16 (part 1) bridge-escaping centralization on
+  `claude/helyx-r16-runtime-bridge-security`. All native→JS callback resolution now uses
+  one `BridgeSafe.callbackScript`/`javascriptString` API (id+registry validated, payload
+  robustly JS-escaped); Health/GPS/Notify/Export bridges routed through it, the ad-hoc
+  Health escaper and ExportSafe's duplicate removed. Injection-safety proven via a Node
+  port; `BridgeSafeTest` extended. JS suite/typecheck/smoke green; Android compile/tests
+  are CI-only (no local SDK). Part 2 (vendor CDN runtime JS + tighten CSP) is a separate
+  follow-up PR. · Next: open PR, let CI run the Android gate.
 - 2026-07-14 · R14 Health Connect field contract implemented on
   `claude/helyx-r14-health-connect-9vw5k8`. New shared supported-field contract
   (`js/health/health-fields.js` + `android/.../HealthFieldContract.kt`) makes the

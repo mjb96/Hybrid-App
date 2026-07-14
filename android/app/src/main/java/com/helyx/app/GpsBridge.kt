@@ -82,15 +82,8 @@ class GpsBridge(
     }
 
     private fun resolvePermCallback(id: String, granted: Boolean) {
-        // id is already validated (BridgeSafe.callbackId); guard again so no
-        // future caller can bypass sanitisation.
-        val safe = BridgeSafe.callbackId(id) ?: return
-        webView.post {
-            webView.evaluateJavascript(
-                "if(window.__gpsCB&&window.__gpsCB['$safe'])" +
-                "{window.__gpsCB['$safe']('$granted');delete window.__gpsCB['$safe'];}",
-                null,
-            )
-        }
+        // One shared escaping API (validates the id, escapes the payload).
+        val script = BridgeSafe.callbackScript("__gpsCB", id, granted.toString()) ?: return
+        webView.post { webView.evaluateJavascript(script, null) }
     }
 }

@@ -179,14 +179,9 @@ class HybridHealthBridge(
     }.getOrDefault(emptyList())
 
     private fun resolveCallback(id: String, json: String) {
-        val escaped = json.replace("\\", "\\\\").replace("'", "\\'")
-        webView.post {
-            webView.evaluateJavascript(
-                "if(window.__hcCB&&window.__hcCB['$id'])" +
-                "{window.__hcCB['$id']('$escaped');delete window.__hcCB['$id'];}",
-                null,
-            )
-        }
+        // One shared escaping API: validates the id and JS-escapes the payload.
+        val script = BridgeSafe.callbackScript("__hcCB", id, json) ?: return
+        webView.post { webView.evaluateJavascript(script, null) }
     }
 
     /**
