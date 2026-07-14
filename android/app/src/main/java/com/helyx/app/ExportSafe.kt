@@ -22,28 +22,7 @@ object ExportSafe {
         return Request(safeName, safeContent, safeMime, safeCallback)
     }
 
-    fun callbackScript(callbackId: String?, payload: String): String? {
-        val safe = BridgeSafe.callbackId(callbackId) ?: return null
-        val quotedPayload = javascriptString(payload)
-        return "if(window.__fileExportCB&&window.__fileExportCB['$safe'])" +
-            "{window.__fileExportCB['$safe']($quotedPayload);delete window.__fileExportCB['$safe'];}"
-    }
-
-    private fun javascriptString(value: String): String = buildString {
-        append('"')
-        value.forEach { char ->
-            when (char) {
-                '"' -> append("\\\"")
-                '\\' -> append("\\\\")
-                '\b' -> append("\\b")
-                '\u000C' -> append("\\f")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                '\u2028', '\u2029' -> append("\\u%04x".format(char.code))
-                else -> if (char.code < 0x20) append("\\u%04x".format(char.code)) else append(char)
-            }
-        }
-        append('"')
-    }
+    /** Delegates to the one shared escaping API (BridgeSafe) — no local escaping. */
+    fun callbackScript(callbackId: String?, payload: String): String? =
+        BridgeSafe.callbackScript("__fileExportCB", callbackId, payload)
 }

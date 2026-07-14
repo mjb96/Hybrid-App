@@ -119,13 +119,8 @@ class NotifyBridge(
     }
 
     private fun resolve(id: String, granted: Boolean) {
-        val safe = BridgeSafe.callbackId(id) ?: return
-        webView.post {
-            webView.evaluateJavascript(
-                "if(window.__notifCB&&window.__notifCB['$safe'])" +
-                "{window.__notifCB['$safe']('$granted');delete window.__notifCB['$safe'];}",
-                null,
-            )
-        }
+        // One shared escaping API (validates the id, escapes the payload).
+        val script = BridgeSafe.callbackScript("__notifCB", id, granted.toString()) ?: return
+        webView.post { webView.evaluateJavascript(script, null) }
     }
 }
