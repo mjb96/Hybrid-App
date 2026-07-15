@@ -209,7 +209,9 @@
   the profile hero name is now `_esc`-escaped (`athlete-profile.js`). Evidence:
   `tests/import_validate.test.js` (11 cases: non-object/malformed/wrong-type/future-schema/
   oversize rejection, accurate counts, avatar allow/deny + sanitize non-mutation, honest
-  copy); 912 JS tests, typecheck, smoke, and required browser checks green. **Scope note:**
+  copy); 912 JS tests, typecheck, smoke, and required browser checks green. This slice also
+  made `scripts/core-ergonomics-check.mjs` weekday-independent (it now selects a deterministic
+  bodyweight day instead of relying on today, which was a latent Rest-day flake). **Scope note:**
   this closes the avatar vector end to end and the primary imported-name sink; a broader
   escaping pass over remaining `innerHTML` sinks for other imported strings (custom
   program/exercise names, celebration copy) is a documented follow-up, and an explicit

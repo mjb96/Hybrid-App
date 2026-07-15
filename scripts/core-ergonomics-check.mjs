@@ -135,6 +135,12 @@ try {
 
     await page.click('.bottom-nav [data-target="workout"]');
     await page.waitForSelector('#view-workout.active');
+    // Deterministically select a day with a full session including a bodyweight
+    // movement (hybrid_engine Thursday = Pull-Ups) so the workout assertions never
+    // depend on which weekday the suite happens to run on — today could be a Rest
+    // day with no exercises to inspect.
+    await page.click('#view-workout .day-pill[data-day="thu"]');
+    await page.waitForSelector('#view-workout .cockpit-exercise:has(.set-load-choice)');
     await inspect(page, `workout ${width}px`, ['#view-workout .day-pill', '#view-workout #startWorkoutBtn', '#view-workout .set-num-lbl[data-action="quick-log"]', '#view-workout .gym-check-wrap', '#view-workout .btn-set-more']);
     if (width === 360) {
       const bodyweightCard = page.locator('#view-workout .cockpit-exercise:has(.set-load-choice)').first();
