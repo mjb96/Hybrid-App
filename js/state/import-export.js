@@ -3,7 +3,8 @@
 // init() must be called with live accessors before use.
 // =============================================================================
 import { showToast } from '../toast.js';
-import { isStateMigrationError } from './migrations.js';
+import { isStateMigrationError, CURRENT_SCHEMA_VERSION } from './migrations.js';
+import { validateImport, importReasonMessage } from './import-validate.js';
 import { buildTrainingCsv } from '../portability/csv-export.js';
 import { exportResultMessage, saveTextExport } from '../portability/export-service.js';
 
@@ -114,22 +115,31 @@ export function triggerEngineImport(event) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const parsedData = JSON.parse(e.target.result);
-      if (parsedData.currentWeek && parsedData.weeks && Object.keys(parsedData.weeks).length > 0) {
-        const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
-        // Run the same versioned migrations the load path uses so an older
-        // export is upgraded (and stamped) instead of silently half-broken.
-        const merged = _migrate({ ...base, ...parsedData });
-        _backupCurrentState(); // undo point only after the import upgrades safely
-        if (!merged.customExercises) merged.customExercises = [];
-        if (!merged.customPrograms)  merged.customPrograms  = [];
-        _setState(merged);
-        _saveState(true);
-        if (_onImportSuccess) _onImportSuccess();
-        showToast('Data snapshot mounted successfully.');
-      } else {
-        showToast('File structure failed validation.', true);
+      const rawText = e.target.result;
+      const parsedData = JSON.parse(rawText);
+      // Deep-validate + sanitize in memory BEFORE anything can replace live state.
+      // A malformed/oversized/future-schema/hostile file is refused here, with
+      // current data left completely untouched.
+      const check = validateImport(parsedData, { currentSchemaVersion: CURRENT_SCHEMA_VERSION, rawText });
+      if (!check.ok) {
+        showToast(importReasonMessage(check.reason), true);
+        return;
       }
+      const base = { activeProgramId: 'hybrid_engine', weekStartedAt: null, exerciseStats: {}, customExercises: [], customPrograms: [] };
+      // Run the same versioned migrations the load path uses so an older
+      // export is upgraded (and stamped) instead of silently half-broken.
+      const merged = _migrate({ ...base, ...check.state });
+      _backupCurrentState(); // undo point only after the import upgrades safely
+      if (!merged.customExercises) merged.customExercises = [];
+      if (!merged.customPrograms)  merged.customPrograms  = [];
+      _setState(merged);
+      _saveState(true);
+      if (_onImportSuccess) _onImportSuccess();
+      const c = check.counts;
+      const parts = [`${c.weeks} week${c.weeks === 1 ? '' : 's'}`];
+      if (c.programs) parts.push(`${c.programs} program${c.programs === 1 ? '' : 's'}`);
+      if (c.runs) parts.push(`${c.runs} run${c.runs === 1 ? '' : 's'}`);
+      showToast(`Imported ${parts.join(' · ')} ✓`);
     } catch (err) {
       showToast(isStateMigrationError(err)
         ? 'Import stopped safely: this file could not be upgraded.'
