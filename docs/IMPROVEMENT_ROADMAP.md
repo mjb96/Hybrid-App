@@ -194,6 +194,28 @@
   smoke, and the required browser checks pass. Part 1 (bridge-escaping centralization) is
   PR #135. Fonts remain a remote stylesheet (non-executable, degrade to system font offline)
   and are out of this JS-focused slice. **Next:** land both R16 PRs.
+- **R17 (import safety core) — 14 July 2026** on `claude/helyx-r17-safe-import`. A JSON
+  import can no longer overwrite live data with a malformed file or smuggle hostile markup.
+  New pure `js/state/import-validate.js` deep-validates a parsed snapshot BEFORE anything
+  replaces state — types of `currentWeek`/`weeks`/`customPrograms`/`bodyWeightLog`/`settings`,
+  non-empty valid weeks, a 25 MB size cap, and future-schema refusal — returning a
+  discriminated result so `triggerEngineImport` refuses cleanly (current state untouched,
+  reassuring copy) and reports **accurate counts** (weeks · programs · runs) on success.
+  `sanitizeImportedState` strips an unsafe `avatarDataUrl` at the import boundary
+  (`isSafeImageDataUrl` allowlists only `data:image/*;base64` ≤3 MB), losslessly for real
+  avatars. The avatar render path (`settings.js _refreshAvatar`) was rebuilt to set
+  `img.src` as a DOM property instead of interpolating the URL into an `innerHTML`
+  string — the previous attribute-breakout XSS sink in the privileged WebView origin — and
+  the profile hero name is now `_esc`-escaped (`athlete-profile.js`). Evidence:
+  `tests/import_validate.test.js` (11 cases: non-object/malformed/wrong-type/future-schema/
+  oversize rejection, accurate counts, avatar allow/deny + sanitize non-mutation, honest
+  copy); 912 JS tests, typecheck, smoke, and required browser checks green. This slice also
+  made `scripts/core-ergonomics-check.mjs` weekday-independent (it now selects a deterministic
+  bodyweight day instead of relying on today, which was a latent Rest-day flake). **Scope note:**
+  this closes the avatar vector end to end and the primary imported-name sink; a broader
+  escaping pass over remaining `innerHTML` sinks for other imported strings (custom
+  program/exercise names, celebration copy) is a documented follow-up, and an explicit
+  pre-import preview/confirm modal was left for a later slice. No Android changes.
 
 ## Prioritization model
 
@@ -391,6 +413,13 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-14 · R17 (import safety core) on `claude/helyx-r17-safe-import`. Deep in-memory
+  import validation + sanitization (`js/state/import-validate.js`) so malformed/oversize/
+  future-schema files are refused without replacing state and success shows accurate counts;
+  hostile `avatarDataUrl` stripped at the boundary and the avatar render switched from an
+  `innerHTML` `<img src>` string (attribute-breakout XSS) to a validated `img.src` property;
+  profile hero name `_esc`-escaped. `tests/import_validate.test.js` (11 cases); 912 tests +
+  browser checks green. Follow-up: broader innerHTML-escaping audit + pre-import preview modal. · Next: PR.
 - 2026-07-14 · R27 FIT import contract on `claude/helyx-r27-fit-import-contract`. Exact-key
   validated FIT extraction (aerobic vs anaerobic TE no longer conflate; missing/out-of-range
   → null, not fake 0), mislabeled `aerobicTE`→`anaerobicTE` with back-compat, and success is

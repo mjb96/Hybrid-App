@@ -111,7 +111,7 @@ export function renderAthleteProfile() {
     <div class="profile-hero">
       <div class="profile-hero-avatar" id="profileHeroAvatar">${avatarInner}</div>
       <div class="profile-hero-info">
-        <h1 class="profile-hero-name">${name}</h1>
+        <h1 class="profile-hero-name">${_esc(name)}</h1>
         <div class="profile-hero-sub">${heroSub}</div>
       </div>
       <button class="profile-settings-btn" data-action="share-profile" aria-label="Share profile card">

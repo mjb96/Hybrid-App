@@ -38,6 +38,7 @@ import { confirmModal } from './ui/confirm-modal.js';
 import { hasCloudPullSnapshot, recoverCloudPullSnapshot } from './state/import-export.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect, describeFieldStatus } from './health/health-bridge.js';
 import { HEALTH_FIELDS, normalizeSyncFields, selectedFieldIds, isSupportedField } from './health/health-fields.js';
+import { isSafeImageDataUrl } from './state/import-validate.js';
 
 let _getState;
 
@@ -204,6 +205,30 @@ function _setToggleActive(groupSelector, activeSelector) {
 // ==========================================
 // AVATAR
 // ==========================================
+// Render initials or a validated avatar image into `el` via DOM nodes — never by
+// interpolating the (possibly imported/hostile) avatar URL into an innerHTML
+// string, which was an attribute-breakout XSS sink. img.src is a property
+// assignment, so its value can never inject markup, and the URL must still pass
+// the image-data-URL allowlist before it is used at all.
+function _paintAvatar(el, initials, avatarUrl, radius, withOverlay) {
+  el.textContent = ''; // clear existing children
+  if (avatarUrl && isSafeImageDataUrl(avatarUrl)) {
+    const img = document.createElement('img');
+    img.src = avatarUrl;
+    img.alt = 'Avatar';
+    img.style.cssText = `width:100%;height:100%;object-fit:cover;border-radius:${radius};`;
+    el.appendChild(img);
+  } else {
+    el.textContent = initials; // plain text — never interpreted as markup
+  }
+  if (withOverlay) {
+    const overlay = document.createElement('div');
+    overlay.className = 'settings-avatar-camera-overlay';
+    overlay.textContent = '📷';
+    el.appendChild(overlay);
+  }
+}
+
 function _refreshAvatar() {
   if (!_getState) return;
   const s    = _getState().settings || {};
@@ -213,15 +238,12 @@ function _refreshAvatar() {
     : '?';
   const avatarUrl = s.avatarDataUrl || null;
 
-  const imgTag      = avatarUrl ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">` : null;
-  const imgTagRound = avatarUrl ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : null;
-
   const btnEl   = document.getElementById('profileAvatarInitials');
   const largeEl = document.getElementById('settingsAvatarLarge');
   const nameEl  = document.getElementById('settingsNameDisplay');
 
-  if (btnEl)   btnEl.innerHTML  = imgTagRound || initials;
-  if (largeEl) largeEl.innerHTML = (imgTag || initials) + '<div class="settings-avatar-camera-overlay">📷</div>';
+  if (btnEl)   _paintAvatar(btnEl, initials, avatarUrl, '50%', false);
+  if (largeEl) _paintAvatar(largeEl, initials, avatarUrl, 'inherit', true);
   if (nameEl)  nameEl.textContent = name.trim() || 'Athlete';
 }
 
