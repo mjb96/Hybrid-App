@@ -56,8 +56,10 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   has a DSN), PII-scrubbed for health/location data.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads
   bundled assets. Native Health Connect bridge in `js/health/health-bridge.js`
-  (Android-only). GPS in `js/gps-tracker.js` uses web geolocation (unreliable when the
-  screen locks — a problem for run tracking).
+  (Android-only). Android GPS uses a foreground location service plus an app-private,
+  fsynced active-session journal; JS drains/replays native fixes and acknowledges the
+  journal only after app-state persistence. Browser/PWA GPS still uses web geolocation
+  and is foreground-only.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
 - Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)

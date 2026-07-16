@@ -20,6 +20,10 @@ import {
   suggestProgression,
   findLastPerformance,
   computeGAP,
+  liftTarget,
+  prescribeSetsForLift,
+  reconcilePrescribedSets,
+  repGoalFromTarget,
 } from '../js/engine.js';
 
 // ---- epley1RM (D1) --------------------------------------------------------
@@ -222,13 +226,34 @@ test('findLastPerformance skips warmups and incomplete sets', () => {
 // ==========================================
 // SET PRESCRIPTION — target and materialisation agree; no silent reduction
 // ==========================================
-import { liftTarget, prescribeSetsForLift } from '../js/engine.js';
 
 test('liftTarget prefers the inline spec, else the week modifier', () => {
   const desc = 'Targets: Back Squat (4x5), Romanian Deadlift (3x8)...';
   const mod = { sets: 2, reps: 8 };
   assert.deepEqual(liftTarget(desc, 'Back Squat', mod), { sets: 4, reps: 5 });   // inline
   assert.deepEqual(liftTarget(desc, 'Calf Raises', mod), { sets: 2, reps: 8 });  // modifier (deload)
+});
+
+test('liftTarget preserves rep ranges and max-rep prescriptions verbatim', () => {
+  const desc = 'Push-Ups (3×max). Incline DB Press (4×10-12).';
+  assert.deepEqual(liftTarget(desc, 'Push-Ups', {}), { sets: 3, reps: 'max reps' });
+  assert.deepEqual(liftTarget(desc, 'Incline DB Press', {}), { sets: 4, reps: '10–12' });
+  assert.equal(repGoalFromTarget('10–12'), 12);
+  assert.equal(repGoalFromTarget('max reps'), null);
+});
+
+test('liftTarget reads authored sets×reps embedded in legacy lift names', () => {
+  assert.deepEqual(liftTarget('Push-up progressions.', 'Push-Ups 4×max', { sets: 3, reps: 10 }), { sets: 4, reps: 'max reps' });
+  assert.deepEqual(liftTarget('Volume work.', 'Cable Curl 3×10-12', { sets: 4, reps: 8 }), { sets: 3, reps: '10–12' });
+  assert.deepEqual(liftTarget('Legacy rich lift.', { name: 'Back Squat' }, { sets: 2, reps: 6 }), { sets: 2, reps: 6 });
+});
+
+test('prescription reconciliation resizes blank rows but never removes user work', () => {
+  assert.equal(reconcilePrescribedSets([{ w: '', r: '', c: false }], 4).length, 4);
+  assert.equal(reconcilePrescribedSets(Array.from({ length: 4 }, () => ({ w: '', r: '', c: false })), 2).length, 2);
+  const logged = [{ w: '20', r: '10', c: true }, { w: '', r: '', c: false }, { w: '', r: '', c: false }];
+  assert.equal(reconcilePrescribedSets(logged, 2), logged);
+  assert.equal(reconcilePrescribedSets(logged, 4).length, 4);
 });
 
 test('prescribeSetsForLift populates the full target with blank, ghost-ready sets', () => {

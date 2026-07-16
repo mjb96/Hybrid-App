@@ -6,7 +6,7 @@
 // ==========================================
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
-import { prescribeSetsForLift } from './engine.js';
+import { liftTarget, prescribeSetsForLift, reconcilePrescribedSets } from './engine.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
@@ -389,6 +389,24 @@ export function verifyWeekStorageSchema(wk) {
   // Defensive schema repair for imported/current-version snapshots that lack
   // the v4 sidecar. This adopts any legacy projection before creating arrays.
   migrateLegacyRunSessions({ weeks: { [wk]: appState.weeks[wk] } }, DEFAULT_DAYS);
+
+  // Older builds materialised every lift from the week-wide 3×10 fallback when
+  // an authored target was a range/max prescription or lived in the lift name.
+  // Reconcile only the active program's scaffold: untouched rows resize exactly;
+  // user-entered/completed rows are never removed and only gain missing rows.
+  const week = appState.weeks[wk];
+  if (!week.lifts || typeof week.lifts !== 'object') week.lifts = {};
+  const modifier = getWeekModifier(activeProgram, wk);
+  DEFAULT_DAYS.forEach((day) => {
+    const blueprint = activeProgram.days?.[day];
+    for (const liftName of (blueprint?.lifts || [])) {
+      const target = liftTarget(blueprint.desc, liftName, modifier);
+      const existing = week.lifts?.[day]?.[liftName];
+      const reconciled = reconcilePrescribedSets(existing, target.sets);
+      if (!week.lifts[day]) week.lifts[day] = {};
+      week.lifts[day][liftName] = reconciled;
+    }
+  });
   return true;
 }
 
@@ -532,9 +550,11 @@ function writeLocalNow() {
   _localPending = false;
   appState.loadMetrics = memoizedLoadMetrics(appState);
   const t0 = _persistDebug ? _now() : 0;
+  let saved = false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
     _cloudDirty = true;
+    saved = true;
   } catch (e) {
     console.error('Failed to save state locally:', e);
   }
@@ -542,6 +562,7 @@ function writeLocalNow() {
     const dt = _now() - t0;
     if (dt > PERSIST_WARN_MS) console.warn(`[persist] local write ${dt.toFixed(1)}ms (state ~${JSON.stringify(appState).length} bytes)`);
   }
+  return saved;
 }
 
 function _scheduleCloudDebounce() {
@@ -699,18 +720,19 @@ if (typeof window !== 'undefined') {
 export async function saveStateToLocalStorage(suppressToast = false) {
   // Critical/explicit save: write local immediately (also cancels any pending
   // debounced local write, since we just persisted the latest state).
-  writeLocalNow();
+  const savedLocally = writeLocalNow();
 
   if (suppressToast) {
     // Autosave: coalesce network writes. localStorage already holds the latest.
     _scheduleCloudDebounce();
-    return;
+    return savedLocally;
   }
 
   // Explicit save: cancel any pending debounce and flush now so the toast is truthful.
   if (_cloudTimer) { clearTimeout(_cloudTimer); _cloudTimer = null; }
   _cloudPending = false;
   await cloudSave(false);
+  return savedLocally;
 }
 
 export async function pullEngineDataFromStorage() {

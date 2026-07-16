@@ -1,6 +1,7 @@
 # Helyx Improvement Roadmap
 
 **Prepared:** 14 July 2026  
+**Last reconciled with `main`:** 16 July 2026
 **Goal:** reach a trustworthy Android public beta without expanding scope  
 **Constraint:** iOS, billing, paywalls, and new feature categories remain deferred
 
@@ -32,7 +33,7 @@
   accessible retry screen; snapshot/file imports upgrade in memory before replacing
   live data. Fault injection covers every version boundary, byte-for-byte rollback,
   retry, old-version corpus, future schemas, recovery failure, and partial run-session
-  adoption. **Next integrity slice:** R4 complete Android portability/export.
+  adoption.
 - **R4 implementation complete — 14 July 2026** on `codex/beta-integrity-migrations`.
   JSON and CSV now use one text-export service with three honest adapters: Android's
   Storage Access Framework, the browser file picker, and a clearly-labelled download
@@ -42,7 +43,7 @@
   multiple same-day sessions, metadata-only days, and RFC 4180 user text. Local evidence:
   801/801 JS tests plus Android JVM tests, lint, and debug APK assembly. Physical-device
   save/cancel/overwrite/reimport evidence remains the `[You]` checklist in
-  `docs/android-export-device-checklist.md`. **Next integrity slice:** R5 release gates.
+  `docs/android-export-device-checklist.md`.
 - **R5 implementation complete — 14 July 2026** on `codex/beta-integrity-migrations`.
   One reusable required-verification workflow now owns locked dependency install,
   JavaScript syntax/type/precache/policy/unit/smoke checks, required Playwright Chromium
@@ -116,7 +117,7 @@
   offers the catalog or a new custom plan. Exact, missing, corrupt, and ID-shadow fixtures
   prove replacement occurs only through the normal confirmed activation flow.
 
-- **R14 implementation complete (engineering) — 14 July 2026** on
+- **R14 implementation complete (engineering) — 14 July 2026**, merged via PR #134 from
   `claude/helyx-r14-health-connect-9vw5k8`. One supported-field contract now
   governs Health Connect end to end. `js/health/health-fields.js` and the mirrored
   `android/.../HealthFieldContract.kt` define exactly four fields with a real path —
@@ -137,13 +138,11 @@
   extended `tests/health_bridge.test.js` cover field-filtering, per-field status,
   grant/deny/revoke/no-data/partial-error), `npm run verify`, `npm run smoke`, and the
   required Playwright browser checks pass locally; `android/.../HealthFieldContractTest.kt`
-  covers the native mapping. **Android JVM test / lint / debug-APK assembly were NOT run
-  in this session** — the sandbox has no Android SDK and the SDK download is blocked by
-  the egress policy; they must pass in the required `verify.yml` CI workflow before merge.
+  covers the native mapping. The required GitHub verification workflow, including the
+  Android gate, passed before merge.
   Physical grant/deny/revoke/no-data/partial-error device evidence remains the `[You]`
-  matrix in `docs/android-health-connect-device-checklist.md`. **Next:** run CI for the
-  Android gate, then the device matrix.
-- **R16 (part 1 of 2) — bridge escaping centralized — 14 July 2026** on
+  matrix in `docs/android-health-connect-device-checklist.md`.
+- **R16 (part 1 of 2) — bridge escaping centralized — 14 July 2026**, merged via PR #135 from
   `claude/helyx-r16-runtime-bridge-security`. Every native→JS `evaluateJavascript`
   callback now goes through ONE escaping API: `BridgeSafe.callbackScript(registry, id,
   payload)` builds the canonical resolve-then-delete script, validating the callback id
@@ -155,12 +154,11 @@
   escaping algorithm was proven injection-safe against hostile payloads/ids/registries via
   a Node port; `BridgeSafeTest` gains matching JVM cases (JS-string escaping, U+2028/2029,
   breakout payloads, hostile id/registry). JS suite (884), typecheck, smoke green (no JS
-  changed). **Android JVM/lint/APK not runnable in-sandbox (no SDK; egress-blocked) — must
-  pass in `verify.yml` CI.** **Still open (R16 part 2, separate PR):** vendor the SRI-pinned
-  CDN runtime JS (Supabase/Sentry) into the signed bundle and tighten CSP to `script-src
-  'self'` so an offline launch makes no remote-JS request.
+  changed). The required GitHub verification workflow, including the Android gate, passed
+  before merge. Part 2 is also merged via PR #136.
 
-- **R27 complete — 14 July 2026** on `claude/helyx-r27-fit-import-contract`. FIT
+- **R27 complete — 14 July 2026**, merged via PR #137 from
+  `claude/helyx-r27-fit-import-contract`. FIT
   import now has an honest field contract. The extraction is a pure, exported
   `extractSessionStats` (js/garmin.js) using EXACT FIT keys with range validation:
   aerobic Training Effect comes from `total_training_effect` and anaerobic from
@@ -178,7 +176,8 @@
   range/type validation, multi-session, malformed, semicircle GPS conversion, HR
   fallback, gym sets, and save success/false/throw/no-session gating); 896 JS tests,
   typecheck, smoke, verify, and required browser checks green. No Android changes.
-- **R16 (part 2 of 2) — runtime JS vendored, CSP tightened — 14 July 2026** on
+- **R16 (part 2 of 2) — runtime JS vendored, CSP tightened — 14 July 2026**, merged via
+  PR #136 from
   `claude/helyx-r16-vendor-runtime-js`. All production runtime JS is now vendored into
   the signed bundle and served from `'self'`: `js/vendor/supabase-js-2.45.4.umd.js` (the
   exact npm UMD — its SHA-384 still matches the former CDN SRI pin) and
@@ -193,8 +192,9 @@
   the Supabase SRI match, and that the Sentry bundle exposes its API; 889 JS tests, typecheck,
   smoke, and the required browser checks pass. Part 1 (bridge-escaping centralization) is
   PR #135. Fonts remain a remote stylesheet (non-executable, degrade to system font offline)
-  and are out of this JS-focused slice. **Next:** land both R16 PRs.
-- **R17 (import safety core) — 14 July 2026** on `claude/helyx-r17-safe-import`. A JSON
+  and are out of this JS-focused slice.
+- **R17 (import safety core) — 14 July 2026**, merged via PR #138 from
+  `claude/helyx-r17-safe-import`. A JSON
   import can no longer overwrite live data with a malformed file or smuggle hostile markup.
   New pure `js/state/import-validate.js` deep-validates a parsed snapshot BEFORE anything
   replaces state — types of `currentWeek`/`weeks`/`customPrograms`/`bodyWeightLog`/`settings`,
@@ -216,29 +216,39 @@
   escaping pass over remaining `innerHTML` sinks for other imported strings (custom
   program/exercise names, celebration copy) is a documented follow-up, and an explicit
   pre-import preview/confirm modal was left for a later slice. No Android changes.
+- **R15 durable-session foundation implemented — 16 July 2026** on
+  `codex/gps-durable-session`. Android now journals active-run metadata and GPS fixes in
+  app-private storage before accepting them into memory, reloads a supported process-death
+  session explicitly paused at its last durable fix, retains finalizing data until JS has
+  durably saved the workout, and requires an explicit discard for damaged recovery data.
+  The service redelivers restart intent, lifecycle commands fail closed, and an empty bridge
+  response no longer masquerades as a storage failure. JVM journal fixtures cover atomic
+  state, partial-tail recovery, corruption and bounds; JS contract/persistence tests cover
+  replay and two-phase acknowledgement. Route outlier/quality modelling, CI Android evidence,
+  and the physical lock/process-kill matrix remain open before R15 is complete.
 
 ## Prioritization model
 
 Priority is based on severity, likelihood, user trust, launch dependency, and blast radius. Effort is a delivery estimate for one experienced product engineer with review, not elapsed calendar time. Each item includes the evidence required for completion; code existing or a happy-path manual check is not sufficient.
 
-## Recommended first PR
+## Current execution focus
 
-### PR-1 — Canonical Local Dates
+Completed recommendations remain in the implementation register and phase tables as
+acceptance evidence; they are not the active queue. The next engineering slices are:
 
-**Scope:** R1 only.  
-**Why first:** it closes the currently proven production defect and makes the required suite green without mixing date semantics with route/storage migrations.  
-**Expected files:** `js/dates.js`, streak/coach-memory, onboarding/bodyweight, score/history, recovery/wellness, Home/settings date writers, and fixed-clock/timezone tests.  
-**Exclude:** route identity, export, visual redesign, structured program schema, new analytics, iOS, billing, catalog expansion.
+1. **R15 — GPS completion evidence:** land the durable-session foundation, then add route
+   quality/outlier fixtures and complete the supported restart/device matrix before calling
+   the recommendation complete.
+2. **R18 — activation continuity:** first block unresolved mid-session program switches
+   behind save/discard/cancel, then define prior-activation view/resume semantics without
+   changing historical attribution.
+3. **R17 follow-ups — imported-content safety:** audit remaining imported free-text HTML
+   sinks and add an explicit pre-import preview/confirm step. The destructive-import and
+   avatar/name security core is already merged.
 
-Required merge evidence:
-
-- full `npm run verify` green in Sydney and UTC;
-- all 764 existing tests plus the added timezone matrix pass under UTC and Australia/Sydney;
-- state-writing local-day producers use the canonical helper;
-- fixed-clock fixtures do not depend on the weekday the suite happens to run;
-- browser-created day records remain on the selected Sydney calendar date.
-
-The rest of the Phase 0 gate should land as separate PRs: PR-2 session/run identity (R2), PR-3 transactional migrations (R3), PR-4 Android portability (R4), and PR-5 release gating (R5).
+In parallel, complete the human-owned device and release evidence below. Phase 3 work
+(R20–R26) remains deferred until the public-beta gate is satisfied; R24 additionally
+requires production telemetry.
 
 ## Consolidated recommendation register
 
@@ -273,26 +283,6 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R25 | Maintainability/design | Large cross-cutting modules plus inline styles/`!important` raise regression cost. | Split along tested seams and migrate touched UI to primitives. | workout/app/settings/state and CSS/components. | Pre-split behavior coverage and visual regression. | Phase 3 / small per-seam PRs, never a mechanical rewrite. |
 | R26 | Product hierarchy | Program taxonomy and optional advanced/wellness surfaces repeat/compete with the core loop. | Simplify discovery and progressively disclose unused advanced areas based on beta evidence. | program library/Home/Start/navigation renderers. | Funnel/usability study plus no-regression discovery tests. | Phase 3 / product-evidence-led PRs. |
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
-
-## Ranked priority bands
-
-- **Immediate blockers:** R1 local dates, R2 run/route identity, R3 migrations, R4 Android portability, R5 release gates.
-- **High-priority improvements:** R6 onboarding truth, R7 phase resolver, R8 completion policy, R10 modal accessibility, R11 mobile ergonomics, R13 coaching confidence, R14 Health contract, R15 GPS durability, R16 privileged-runtime hardening, R20 prescription resolver, R21 cross-program history.
-- **Medium-priority improvements:** R9 run classifier, R12 bodyweight entry, R17 safe import, R18 activation continuity, R19 invalid-program recovery, R22 analytics consolidation, R23 running projection confidence, R24 persistence scale, R26 product simplification, R27 FIT import contract.
-- **Low-priority polish/maintenance:** R25 incremental module/design-system cleanup and desktop-specific layout work only if beta evidence supports it.
-
-## Top 10 improvements by product impact
-
-1. R1 — canonical local calendar dates.
-2. R2 — session-level run and route identity.
-3. R3 — transactional/retryable migrations.
-4. R4 — complete, device-verified Android portability.
-5. R5 — verification-gated production releases.
-6. R6 — onboarding choices that actually drive the product.
-7. R7 — one program-aware phase source.
-8. R8 — one truthful workout completion policy.
-9. R10 — accessible modal/sheet navigation.
-10. R13/R14 — confidence-gated coaching and an enforceable Health Connect privacy contract.
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -363,26 +353,6 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R25 | Split god modules along tested behavior seams and migrate touched UI to shared tokens/primitives. | Minor | Lowers regression cost and accelerates accessibility work. | Ongoing, 2–5 days/slice | Medium if done mechanically. | Behavior tests; R10/R11 primitives. | Coverage before/after, module-size/boundary checks, no visual regression in core viewport matrix. | Workout/state/settings concerns have explicit APIs; inline styles/`!important` trend down on each touched screen. |
 | R26 | Simplify Programs and optional wellness hierarchy based on beta usage, without deleting data/features. | Moderate | Keeps users focused on plan → train → track. | 4–7 days | Medium: product discovery trade-off. | Beta event funnel and qualitative feedback. | A/B or moderated journey evidence; time-to-program/start-workout; no reduction in search success. | One primary recommendation/catalog path remains, duplicate taxonomy is removed, and unused wellness modules are progressively disclosed. |
 
-## Quick wins
-
-These are small, but should not displace Phase 0:
-
-- R9: reorder/test run-type detection.
-- R12: expose bodyweight/weighted mode.
-- R19: remove unknown-program silent fallback.
-- Rename current-scope “lifetime PR” immediately if the all-history query is not yet ready.
-- Add explicit “limited data” copy for readiness with fewer than the agreed signal threshold.
-- Make viewport scripts report a clear skip/failure instead of a successful-looking no-op.
-
-## Major projects
-
-- Session/run identity and route migration (R2).
-- Transactional state migration/import system (R3, R17).
-- Accessible modal and mobile-control system (R10, R11).
-- Health Connect contract and GPS durability (R14, R15).
-- Structured prescription resolver (R20).
-- Event/session-oriented persistence and sync, only after telemetry (R24).
-
 ## Human-owned validation and release items
 
 These require the product owner/device/accounts and must not be simulated as complete:
@@ -413,33 +383,51 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · R15 durable Android GPS foundation on `codex/gps-durable-session`:
+  append-only/fsynced point journal, atomic metadata, explicit paused/finalizing/corrupt
+  recovery, foreground-service redelivery, and two-phase JS save acknowledgement. Targeted
+  JS contracts pass; Android JVM/assemble evidence is CI-only in this checkout. · Next: merge
+  this foundation, add point-quality/outlier fixtures, and run the owner device matrix.
+- 2026-07-16 · Product fixes and approved visual consistency pass: canonical 10/20/30 kg
+  band loads, logged-day deletion, exact max/range workout prescriptions, goal-aware
+  Training Score language/penalties, and the approved midnight-navy/cobalt/ice/burnt-orange
+  system across core surfaces. Commits `ca514e0` through `a7e8840`; full JS/type/smoke and
+  required mobile-browser gates green. · Next: validate on the Android beta build.
+- 2026-07-16 · Reconciled the live roadmap with GitHub `main` after PRs #133–#138.
+  Removed the shipped first-PR, priority-band, top-10, quick-win, and duplicate
+  major-project queues; `PRODUCT_AUDIT.md` now points here instead of carrying a stale
+  sprint plan. · Next: R15 durable GPS-session design and recovery slice while the owner
+  progresses the device/release evidence.
 - 2026-07-14 · R17 (import safety core) on `claude/helyx-r17-safe-import`. Deep in-memory
   import validation + sanitization (`js/state/import-validate.js`) so malformed/oversize/
   future-schema files are refused without replacing state and success shows accurate counts;
   hostile `avatarDataUrl` stripped at the boundary and the avatar render switched from an
   `innerHTML` `<img src>` string (attribute-breakout XSS) to a validated `img.src` property;
   profile hero name `_esc`-escaped. `tests/import_validate.test.js` (11 cases); 912 tests +
-  browser checks green. Follow-up: broader innerHTML-escaping audit + pre-import preview modal. · Next: PR.
+  browser checks green. Merged via PR #138. Follow-up: broader innerHTML-escaping audit +
+  pre-import preview modal.
 - 2026-07-14 · R27 FIT import contract on `claude/helyx-r27-fit-import-contract`. Exact-key
   validated FIT extraction (aerobic vs anaerobic TE no longer conflate; missing/out-of-range
   → null, not fake 0), mislabeled `aerobicTE`→`anaerobicTE` with back-compat, and success is
   claimed only after an awaited destination save (failed/thrown writes surface an error, not
   "Imported ✓"). Pure `extractSessionStats` extracted for fixture testing;
-  `tests/garmin_fit_contract.test.js` (12 cases); 896 tests + verify + browser checks green. · Next: PR.
+  `tests/garmin_fit_contract.test.js` (12 cases); 896 tests + verify + browser checks green.
+  Merged via PR #137.
 - 2026-07-14 · R16 (part 1) bridge-escaping centralization on
   `claude/helyx-r16-runtime-bridge-security`. All native→JS callback resolution now uses
   one `BridgeSafe.callbackScript`/`javascriptString` API (id+registry validated, payload
   robustly JS-escaped); Health/GPS/Notify/Export bridges routed through it, the ad-hoc
   Health escaper and ExportSafe's duplicate removed. Injection-safety proven via a Node
   port; `BridgeSafeTest` extended. JS suite/typecheck/smoke green; Android compile/tests
-  are CI-only (no local SDK). Part 2 (vendor CDN runtime JS + tighten CSP) is a separate
-  follow-up PR. · Next: open PR, let CI run the Android gate.
+  are CI-only (no local SDK). Merged via PR #135 after required verification passed; part
+  2 landed via PR #136.
 - 2026-07-14 · R16 (part 2) runtime-JS vendoring on `claude/helyx-r16-vendor-runtime-js`.
   Supabase + Sentry vendored into `js/vendor/` (Supabase byte-identical to the SRI pin;
   Sentry built from the pinned npm package via `scripts/vendor-runtime.mjs`), remote CDN
   `<script>` tags removed, CSP tightened to `script-src 'self'`, precache updated. Real
   browser confirms zero remote-JS requests and both globals load; `tests/csp_vendored_runtime.test.js`
-  added; 889 tests + browser checks green. Pairs with R16 part 1 (PR #135). · Next: land both.
+  added; 889 tests + browser checks green. Merged via PR #136; pairs with R16 part 1
+  (PR #135).
 - 2026-07-14 · R14 Health Connect field contract implemented on
   `claude/helyx-r14-health-connect-9vw5k8`. New shared supported-field contract
   (`js/health/health-fields.js` + `android/.../HealthFieldContract.kt`) makes the
@@ -448,14 +436,15 @@ implementation register.
   removed; manifest narrowed to the four supported fields + history. 881 JS tests, verify,
   smoke, and required browser checks green; new JS + Android JVM contract tests added;
   device permission-matrix checklist added (`docs/android-health-connect-device-checklist.md`).
-  Android JVM/lint/APK could not run in-sandbox (no SDK; download egress-blocked) and must
-  pass in `verify.yml` CI. · Next: run CI Android gate; do not push/PR without owner sign-off.
+  Android JVM/lint/APK could not run in-sandbox (no SDK; download egress-blocked); the
+  required GitHub verification passed before merge via PR #134. Physical device evidence
+  remains open.
 - 2026-07-14 · R11–R13 and quick-win R19 completed on
   `codex/core-loop-truth-accessibility`: mobile ergonomics and sign-in modal lifecycle,
   direct bodyweight load modes, confidence-gated readiness, and explicit invalid-program
   recovery. Duplicate progress trackers were archived into this single live roadmap.
-  `npm run verify` (874 tests) and required Playwright journeys pass. · Next: push the branch,
-  update PR #132, monitor required checks, then complete the human-owned device/release matrix.
+  `npm run verify` (874 tests) and required Playwright journeys pass. Merged via PR #133;
+  the human-owned device/release matrix remains open.
 
 Historical implementation logs through 14 July 2026 are preserved in
 `docs/archive/PROGRESS-legacy-2026-07-14.md` and
@@ -470,6 +459,12 @@ Do not proceed to public beta if any of the following remains true:
 - migration failure can advance the schema version;
 - Android JSON export cannot be saved and reimported;
 - local calendar records can be stamped as the wrong day in supported timezones;
+- an active GPS session can be silently lost or accepted without recover/discard after a
+  supported service or process restart;
+- a program switch can proceed while a workout is unresolved;
+- imported user text can still execute or be interpreted as markup in a privileged UI;
 - a production deployment/signed artifact can bypass required verification.
+- any applicable human-owned device, account, legal, or release item above remains
+  unverified.
 
 The roadmap intentionally puts fewer, deeper integrity changes ahead of feature breadth. The beta should test whether the existing core loop is valuable—not whether users will tolerate losing or misclassifying the data created by that loop.

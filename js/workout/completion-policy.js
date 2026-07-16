@@ -63,6 +63,7 @@ function runWasLogged(weekData, day) {
 /**
  * @returns {{
  *  outcome:'rest'|'empty'|'partial'|'complete', complete:boolean, partial:boolean,
+ *  componentOutcome:null|'strength-complete'|'run-complete',
  *  anyLogged:boolean, modified:boolean, label:string,
  *  planned:{gym:boolean,run:boolean,sets:number,components:number},
  *  actual:{sets:number,materializedSets:number,run:boolean,components:number},
@@ -83,6 +84,14 @@ export function evaluateSessionCompletion(state, program, week, day) {
   const anyLogged = working.complete > 0 || run;
   const complete = !plan.isRest && anyLogged && gymComplete && runComplete;
   const partial = !complete && !plan.isRest && anyLogged;
+  // A hybrid day can still contain a fully completed workout. Keep the day open
+  // for its other planned component, but do not describe finished strength/run
+  // work as a "partial session".
+  const componentOutcome = !complete && plan.hasGym && plan.hasRun
+    ? gymComplete && !runComplete ? 'strength-complete'
+      : runComplete && !gymComplete ? 'run-complete'
+      : null
+    : null;
   const plannedComponents = Number(plan.hasGym) + Number(plan.hasRun);
   const actualComponents = Number(plan.hasGym && gymComplete) + Number(plan.hasRun && runComplete);
   const blueprintNames = new Set(blueprint?.lifts || []);
@@ -95,10 +104,12 @@ export function evaluateSessionCompletion(state, program, week, day) {
 
   const outcome = plan.isRest ? 'rest' : complete ? 'complete' : partial ? 'partial' : 'empty';
   const bits = [];
-  if (plan.hasGym) bits.push(`${Math.min(working.complete, expectedSets)} of ${expectedSets} planned sets`);
+  if (plan.hasGym) bits.push(gymComplete && componentOutcome === 'strength-complete'
+    ? 'Strength complete'
+    : `${Math.min(working.complete, expectedSets)} of ${expectedSets} planned sets`);
   if (plan.hasRun) bits.push(run ? 'run logged' : 'run not logged');
   return {
-    outcome, complete, partial, anyLogged, modified, label: plan.label,
+    outcome, complete, partial, componentOutcome, anyLogged, modified, label: plan.label,
     planned: { gym: plan.hasGym, run: plan.hasRun, sets: expectedSets, components: plannedComponents },
     actual: { sets: working.complete, materializedSets: working.total, run, components: actualComponents },
     progressLabel: bits.join(' · ') || 'No planned training',
@@ -112,6 +123,22 @@ export function completionPresentation(result) {
       body: 'All planned work is logged. Review the details before returning home.',
       action: 'Complete Session & Return Home',
       emitsRecap: true,
+    };
+  }
+  if (result?.componentOutcome === 'strength-complete') {
+    return {
+      title: 'Strength workout complete',
+      body: 'Your strength work is saved. The planned run is still open for this day.',
+      action: 'Save Strength Workout & Return Home',
+      emitsRecap: false,
+    };
+  }
+  if (result?.componentOutcome === 'run-complete') {
+    return {
+      title: 'Run complete',
+      body: 'Your run is saved. The planned strength work is still open for this day.',
+      action: 'Save Run & Return Home',
+      emitsRecap: false,
     };
   }
   if (result?.partial) {

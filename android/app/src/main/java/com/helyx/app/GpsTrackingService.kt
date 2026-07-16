@@ -33,42 +33,137 @@ object GpsPointStore {
     const val STATUS_IDLE = "IDLE"
     const val STATUS_TRACKING = "TRACKING"
     const val STATUS_PAUSED = "PAUSED"
+    const val STATUS_FINALIZING = "FINALIZING"
+    const val STATUS_RECOVERY_ERROR = "RECOVERY_ERROR"
 
     private val points = ArrayList<Point>()
     private var status = STATUS_IDLE
     private var startedAtMs = 0L      // wall clock at run start
     private var pausedAccumMs = 0L    // total paused time so far
     private var pausedSinceMs = 0L    // wall clock when the current pause began (0 = not paused)
+    private var journal: GpsSessionJournal? = null
+    private var initialized = false
+    private var restoredFromDisk = false
+    private var durable = false
 
-    @Synchronized fun startRun() {
+    /** Load the app-private active-session journal once per Android process. */
+    @Synchronized fun initialize(context: Context) {
+        if (initialized) return
+        initialized = true
+        journal = FileGpsSessionJournal(java.io.File(context.filesDir, "gps-active-session"))
+        val saved = journal?.load()
+        if (saved == null) {
+            if (journal?.hasPendingData() == true) {
+                status = STATUS_RECOVERY_ERROR
+                restoredFromDisk = true
+                durable = false
+            }
+            return
+        }
+        points.clear()
+        points.addAll(saved.points.map { Point(it.lat, it.lng, it.acc, it.t) })
+        startedAtMs = saved.startedAtMs
+        pausedAccumMs = saved.pausedAccumMs
+        status = saved.status
+        pausedSinceMs = saved.pausedSinceMs
+        restoredFromDisk = true
+        durable = true
+
+        // A recreated process cannot prove GPS was collected during the gap. Recover
+        // explicitly paused at the last durable fix so elapsed time never includes an
+        // unobserved process-death interval.
+        if (status == STATUS_TRACKING) {
+            val now = System.currentTimeMillis()
+            val lastDurableAt = (points.lastOrNull()?.t ?: startedAtMs).coerceIn(startedAtMs, now)
+            status = STATUS_PAUSED
+            pausedSinceMs = lastDurableAt
+            durable = persistState()
+        }
+    }
+
+    /** Refuse to start if an unfinalized journal exists or durable storage is unavailable. */
+    @Synchronized fun startRun(): Boolean {
+        if (status != STATUS_IDLE) return false
+        val now = System.currentTimeMillis()
+        val fresh = JournalGpsSession(STATUS_TRACKING, now, 0L, 0L, emptyList())
+        if (journal?.start(fresh) != true) {
+            durable = false
+            return false
+        }
         points.clear()
         status = STATUS_TRACKING
-        startedAtMs = System.currentTimeMillis()
+        startedAtMs = now
         pausedAccumMs = 0L
         pausedSinceMs = 0L
+        restoredFromDisk = false
+        durable = true
+        return true
     }
 
-    @Synchronized fun pauseRun() {
-        if (status != STATUS_TRACKING) return
+    @Synchronized fun pauseRun(): Boolean {
+        if (status != STATUS_TRACKING) return status == STATUS_PAUSED
         status = STATUS_PAUSED
         pausedSinceMs = System.currentTimeMillis()
+        durable = persistState()
+        return durable
     }
 
-    @Synchronized fun resumeRun() {
-        if (status != STATUS_PAUSED) return
-        status = STATUS_TRACKING
+    @Synchronized fun resumeRun(): Boolean {
+        if (status != STATUS_PAUSED) return status == STATUS_TRACKING
+        val priorPausedAccum = pausedAccumMs
+        val priorPausedSince = pausedSinceMs
         if (pausedSinceMs > 0) pausedAccumMs += System.currentTimeMillis() - pausedSinceMs
         pausedSinceMs = 0L
+        status = STATUS_TRACKING
+        if (!persistState()) {
+            status = STATUS_PAUSED
+            pausedAccumMs = priorPausedAccum
+            pausedSinceMs = priorPausedSince.takeIf { it > 0 } ?: System.currentTimeMillis()
+            durable = false
+            return false
+        }
+        restoredFromDisk = false
+        durable = true
+        return true
     }
 
-    @Synchronized fun stopRun() {
+    /** Stop collection but retain the journal until JS confirms state + route persistence. */
+    @Synchronized fun finalizeRun(): Boolean {
+        if (status == STATUS_IDLE) return false
+        if (pausedSinceMs == 0L) pausedSinceMs = System.currentTimeMillis()
+        status = STATUS_FINALIZING
+        durable = persistState()
+        return durable
+    }
+
+    /** Clear only after a completed save or an explicit discard. */
+    @Synchronized fun clearRun(): Boolean {
+        val cleared = journal?.clear() == true
+        if (!cleared) return false
+        points.clear()
         status = STATUS_IDLE
+        startedAtMs = 0L
+        pausedAccumMs = 0L
         pausedSinceMs = 0L
-        // points are kept until the next startRun() so a final drain still works
+        restoredFromDisk = false
+        durable = true
+        return true
     }
 
-    @Synchronized fun addPoint(lat: Double, lng: Double, acc: Float, t: Long) {
-        if (status == STATUS_TRACKING) points.add(Point(lat, lng, acc, t))
+    /** Returns false and pauses the run when a fix cannot be journaled durably. */
+    @Synchronized fun addPoint(lat: Double, lng: Double, acc: Float, t: Long): Boolean {
+        if (status != STATUS_TRACKING) return false
+        val point = Point(lat, lng, acc, t)
+        if (journal?.append(JournalGpsPoint(lat, lng, acc, t)) != true) {
+            status = STATUS_PAUSED
+            pausedSinceMs = System.currentTimeMillis()
+            durable = false
+            persistState()
+            return false
+        }
+        points.add(point)
+        durable = true
+        return true
     }
 
     @Synchronized fun getStatus(): String = status
@@ -83,7 +178,7 @@ object GpsPointStore {
     /**
      * JSON payload of every point with index >= sinceSeq, plus run metadata.
      * Built by hand (values are all numeric) to avoid pulling org.json into a
-     * hot path; shape: {"seq":N,"status":"TRACKING","elapsedMs":123,"points":[[lat,lng,acc,t],…]}
+     * hot path; shape includes durability/restart evidence for honest JS recovery.
      */
     @Synchronized fun drainJson(sinceSeq: Int): String {
         val from = sinceSeq.coerceIn(0, points.size)
@@ -91,6 +186,8 @@ object GpsPointStore {
         sb.append("{\"seq\":").append(points.size)
             .append(",\"status\":\"").append(status)
             .append("\",\"elapsedMs\":").append(elapsedMs())
+            .append(",\"durable\":").append(durable)
+            .append(",\"restored\":").append(restoredFromDisk)
             .append(",\"points\":[")
         for (i in from until points.size) {
             val p = points[i]
@@ -101,6 +198,13 @@ object GpsPointStore {
         sb.append("]}")
         return sb.toString()
     }
+
+    @Synchronized private fun persistState(): Boolean {
+        if (status == STATUS_IDLE || startedAtMs <= 0L) return false
+        return journal?.saveState(
+            JournalGpsSession(status, startedAtMs, pausedAccumMs, pausedSinceMs, emptyList())
+        ) == true
+    }
 }
 
 /**
@@ -108,7 +212,7 @@ object GpsPointStore {
  * app switched, or activity killed. Android requires the persistent
  * notification; that is what stops the OS from reclaiming location access.
  *
- * Control via intent actions (ACTION_START/PAUSE/RESUME/STOP). Points flow
+ * Control via intent actions (ACTION_START/PAUSE/RESUME). Points flow
  * into GpsPointStore; the WebView pulls them through GpsBridge.
  */
 class GpsTrackingService : Service(), LocationListener {
@@ -117,7 +221,6 @@ class GpsTrackingService : Service(), LocationListener {
         const val ACTION_START  = "com.helyx.app.gps.START"
         const val ACTION_PAUSE  = "com.helyx.app.gps.PAUSE"
         const val ACTION_RESUME = "com.helyx.app.gps.RESUME"
-        const val ACTION_STOP   = "com.helyx.app.gps.STOP"
 
         const val CHANNEL_ID = "run_tracking"
         private const val NOTIFICATION_ID = 2001
@@ -141,34 +244,57 @@ class GpsTrackingService : Service(), LocationListener {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        GpsPointStore.initialize(this)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
                 if (!hasLocationPermission()) { stopSelf(); return START_NOT_STICKY }
-                GpsPointStore.startRun()
-                startForeground(NOTIFICATION_ID, buildNotification("Run in progress"))
-                startListening()
+                if (GpsPointStore.getStatus() == GpsPointStore.STATUS_IDLE && !GpsPointStore.startRun()) {
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                val tracking = GpsPointStore.getStatus() == GpsPointStore.STATUS_TRACKING
+                startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification(if (tracking) "Run in progress" else "Run recovered — open Helyx to resume"),
+                )
+                if (tracking) startListening()
             }
             ACTION_PAUSE -> {
+                startForeground(NOTIFICATION_ID, buildNotification("Run paused"))
                 GpsPointStore.pauseRun()
                 stopListening() // no fixes wanted while paused; saves battery
                 notifyText("Run paused")
             }
             ACTION_RESUME -> {
-                GpsPointStore.resumeRun()
-                startListening()
-                notifyText("Run in progress")
+                startForeground(NOTIFICATION_ID, buildNotification("Run resuming"))
+                if (GpsPointStore.resumeRun()) {
+                    startListening()
+                    notifyText("Run in progress")
+                } else {
+                    stopListening()
+                    notifyText("Tracking paused — storage unavailable")
+                }
             }
-            ACTION_STOP -> {
-                GpsPointStore.stopRun()
-                stopListening()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+            null -> {
+                // Android may recreate the service after reclaiming the process. The
+                // journal intentionally restores TRACKING as PAUSED, so no unobserved
+                // gap is counted and the athlete must explicitly resume or finish.
+                if (GpsPointStore.getStatus() == GpsPointStore.STATUS_PAUSED) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        buildNotification("Run recovered — open Helyx to resume"),
+                    )
+                } else {
+                    stopSelf()
+                }
             }
         }
-        // If the OS kills us mid-run it should not restart with a stale intent:
-        // the run's JS context is gone; a zombie notification helps nobody.
-        return START_NOT_STICKY
+        return START_REDELIVER_INTENT
     }
 
     override fun onDestroy() {
@@ -210,12 +336,16 @@ class GpsTrackingService : Service(), LocationListener {
     }
 
     override fun onLocationChanged(location: Location) {
-        GpsPointStore.addPoint(
+        val stored = GpsPointStore.addPoint(
             location.latitude,
             location.longitude,
             location.accuracy,
             location.time.takeIf { it > 0 } ?: System.currentTimeMillis(),
         )
+        if (!stored && GpsPointStore.getStatus() == GpsPointStore.STATUS_PAUSED) {
+            stopListening()
+            notifyText("Tracking paused — storage unavailable")
+        }
     }
 
     // Required by older API levels of the LocationListener interface.

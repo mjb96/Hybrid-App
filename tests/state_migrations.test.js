@@ -40,12 +40,15 @@ function fixtureAtVersion(version) {
     };
   }
   if (version === 2) return { schemaVersion: 2, weeks: { '1': commonWeek } };
-  return {
+  const activated = {
     schemaVersion: 3,
     activeActivationId: 'act_existing',
     activations: [{ id: 'act_existing' }],
     weeks: { '1': { ...commonWeek, activationId: 'act_existing' } },
   };
+  if (version === 3) return activated;
+  migrateState(activated);
+  return { ...activated, schemaVersion: version };
 }
 
 test('legacy (unstamped) state is migrated and stamped to current version', () => {
@@ -77,6 +80,21 @@ test('migrateState stamps an empty/new state without error', () => {
   const state = {};
   migrateState(state);
   assert.equal(state.schemaVersion, CURRENT_SCHEMA_VERSION);
+});
+
+test('v5 canonicalises retired resistance-band settings without changing history', () => {
+  const state = fixtureAtVersion(4);
+  state.settings = {
+    name: 'Alex',
+    bandWeights: { L: 5, M: 15, H: 25 },
+  };
+  const history = JSON.stringify(state.weeks);
+
+  migrateState(state);
+
+  assert.deepEqual(state.settings.bandWeights, { L: 10, M: 20, H: 30 });
+  assert.equal(state.settings.name, 'Alex');
+  assert.equal(JSON.stringify(state.weeks), history);
 });
 
 test('migrateState tolerates non-object input', () => {

@@ -16,12 +16,13 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v94';
+const CACHE_NAME = 'helyx-v95';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
   "./",
   "./css/analytics.css",
+  "./css/brand-consistency.css",
   "./css/hybrid-score.css",
   "./css/programs.css",
   "./css/styles.css",
@@ -190,6 +191,7 @@ const REQUIRED_ASSETS = [
   "./js/workout-order.js",
   "./js/workout.js",
   "./js/workout/completion-policy.js",
+  "./js/workout/delete-day.js",
   "./js/workout/load-mode.js",
   "./js/workout/plates.js",
   "./js/workout/run-type.js",

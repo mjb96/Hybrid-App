@@ -250,7 +250,7 @@ export function endurancePillar(model, state, days, level) {
 // ---- TRAINING LOAD & BALANCE ---------------------------------------------
 // Rewards the productive ACWR zone AND doing both modalities. Deload-aware:
 // on a planned deload an easing load (ACWR < 1, rising TSB) scores HIGH.
-export function loadPillar(model, state, days, deload) {
+export function loadPillar(model, state, days, deload, goal = 'hybrid') {
   const hasLoad = model.load?.hasData;
   const bd = recoveryCostBreakdown(state, days, model.maxWeek);
   const idx = model.wkNum - 1;
@@ -274,22 +274,23 @@ export function loadPillar(model, state, days, deload) {
   else if (acwr < 1.5) zone = 40;
   else zone = 18;
 
-  // Balance: closest to an even hybrid split scores best; a single modality is
-  // capped to nudge the athlete toward true hybrid training.
+  // Balance is a real part of the HYBRID goal only. A strength- or endurance-
+  // focused athlete is judged on productive total load, never on whether they
+  // logged the unrelated modality.
   let balance = 60, balanceSignal = null;
-  if (str > 0 && end > 0) {
+  if (goal === 'hybrid' && str > 0 && end > 0) {
     const total = str + end;
     const strPct = (str / total) * 100;
     const imbalance = Math.abs(strPct - 50); // 0 = perfect
     balance = clamp(100 - imbalance * 1.4, 30, 100);
     if (imbalance <= 15) balanceSignal = 'well-balanced lift/run load';
     else balanceSignal = strPct > 50 ? 'lift-heavy week' : 'run-heavy week';
-  } else if (hasBalance) {
+  } else if (goal === 'hybrid' && hasBalance) {
     balance = 52;
     balanceSignal = str > 0 ? 'no running logged this week' : 'no lifting logged this week';
   }
 
-  const score = hasBalance ? 0.6 * zone + 0.4 * balance : zone;
+  const score = goal === 'hybrid' && hasBalance ? 0.6 * zone + 0.4 * balance : zone;
   const signals = [];
   if (hasLoad) {
     if (deload) signals.push(`deload — ACWR ${acwr.toFixed(2)}`);
@@ -380,15 +381,15 @@ export function lifestylePillar(model) {
 }
 
 // Assemble every pillar in one pass. Returns { [pillar]: {score, signals} }.
-/** @param {{level?:string, deload?:boolean}} [opts] */
+/** @param {{level?:string, deload?:boolean, goal?:string}} [opts] */
 export function computePillars(model, state, days, opts = {}) {
-  const { level, deload } = opts;
+  const { level, deload, goal = 'hybrid' } = opts;
   return {
     consistency: consistencyPillar(model),
     recovery:    recoveryPillar(model, state),
     strength:    strengthPillar(model, state, days, level),
     endurance:   endurancePillar(model, state, days, level),
-    load:        loadPillar(model, state, days, deload),
+    load:        loadPillar(model, state, days, deload, goal),
     momentum:    momentumPillar(model, state),
     body:        bodyPillar(model, state),
     lifestyle:   lifestylePillar(model),

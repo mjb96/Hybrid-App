@@ -49,7 +49,7 @@ test('rejects wrong-typed top-level collections', () => {
 });
 
 test('rejects a future schema version', () => {
-  const r = validateImport({ ...okState(), schemaVersion: 99 }, { currentSchemaVersion: 4 });
+  const r = validateImport({ ...okState(), schemaVersion: 99 }, { currentSchemaVersion: 5 });
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'future-schema');
 });
@@ -61,7 +61,7 @@ test('rejects an oversized payload', () => {
 });
 
 test('accepts a well-formed snapshot and reports accurate counts', () => {
-  const r = validateImport(okState(), { currentSchemaVersion: 4 });
+  const r = validateImport(okState(), { currentSchemaVersion: 5 });
   assert.equal(r.ok, true);
   assert.deepEqual(r.counts, { weeks: 2, programs: 2, bodyWeights: 1, runs: 1, loggedDays: 2 });
 });
@@ -87,14 +87,14 @@ test('sanitizeImportedState strips a hostile avatar but keeps the rest', () => {
 });
 
 test('validateImport returns state with the hostile avatar already removed', () => {
-  const r = validateImport({ ...okState(), settings: { name: 'A', avatarDataUrl: 'x" onerror="x' } }, { currentSchemaVersion: 4 });
+  const r = validateImport({ ...okState(), settings: { name: 'A', avatarDataUrl: 'x" onerror="x' } }, { currentSchemaVersion: 5 });
   assert.equal(r.ok, true);
   assert.equal('avatarDataUrl' in r.state.settings, false);
 });
 
 test('a legitimate base64 avatar survives import', () => {
   const url = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ=';
-  const r = validateImport({ ...okState(), settings: { avatarDataUrl: url } }, { currentSchemaVersion: 4 });
+  const r = validateImport({ ...okState(), settings: { avatarDataUrl: url } }, { currentSchemaVersion: 5 });
   assert.equal(r.state.settings.avatarDataUrl, url);
 });
 

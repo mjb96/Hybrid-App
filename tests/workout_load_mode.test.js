@@ -65,3 +65,15 @@ test('a normal barbell row does not receive irrelevant bodyweight mode controls'
   assert.doesNotMatch(html, /set-load-choice/);
   assert.match(html, /Log S1/);
 });
+
+test('set rows display authored rep ranges without auto-logging a fake rep count', () => {
+  const html = buildSetRow({}, 0, 'Incline DB Press', null, 'kg', 'Incline DB Press', 82, '10–12', 12);
+  assert.match(html, /placeholder="10–12"/);
+  assert.match(html, /data-target-reps="12"/);
+});
+
+test('set rows display max reps as an explicit target', () => {
+  const html = buildSetRow({}, 0, 'Push-Ups', null, 'kg', 'Push-Ups', 82, 'max reps', null);
+  assert.match(html, /placeholder="max reps"/);
+  assert.match(html, /data-target-reps=""/);
+});

@@ -62,9 +62,10 @@ function renderHybridScoreHome(appState, model) {
   try {
     const { changed, milestones } = recordDailyScore(appState, result, model);
     if (changed) saveStateToLocalStorage(true);
-    // Earned moments (level-up · streak milestone · first 90+) fire only on
-    // the first record of the day, so this can't spam on re-renders.
-    (milestones || []).forEach(celebrateMilestone);
+    // Keep the score surface training-led: XP/ranks remain available in the
+    // athlete profile, while Home only celebrates real consistency/score
+    // milestones rather than interrupting a workout flow with level-ups.
+    (milestones || []).filter(m => m.kind !== 'level').forEach(celebrateMilestone);
   } catch (e) {
     console.warn('Hybrid Score record failed (non-fatal):', e);
   }

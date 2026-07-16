@@ -1,0 +1,200 @@
+/* =============================================================================
+   HELYX BRAND CONSISTENCY
+   Programs is the reference for depth, card rhythm and restraint. This final
+   stylesheet carries that language through the core loop with a more technical
+   palette: midnight navy, gunmetal, cobalt, ice blue and a small burnt-orange
+   "today" accent. Green/amber/red remain reserved for real state and feedback.
+   Loaded last so component-specific styles consume one final brand decision.
+   ============================================================================= */
+
+:root {
+  --brand-midnight: #07111f;
+  --brand-gunmetal: #101b2a;
+  --brand-raised: #142235;
+  --brand-cobalt: #2563eb;
+  --brand-cobalt-strong: #1d4ed8;
+  --brand-cobalt-rgb: 37, 99, 235;
+  --brand-ice: #60a5fa;
+  --brand-ice-soft: #bfdbfe;
+  --brand-steel: #94a3b8;
+  --brand-burnt-orange: #f97316;
+  --brand-gradient: linear-gradient(135deg, var(--brand-cobalt-strong), var(--brand-cobalt));
+
+  --bg-app: #050a12;
+  --bg-card: #0b1420;
+  --bg-input: var(--brand-gunmetal);
+  --bg-input-focus: var(--brand-raised);
+  --bg-deep: var(--brand-midnight);
+  --color-blue: var(--brand-cobalt);
+  --color-indigo: var(--brand-cobalt-strong);
+  --color-orange: var(--brand-burnt-orange);
+  --accent-blue: var(--brand-cobalt);
+  --accent-indigo: var(--brand-cobalt-strong);
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse at 82% 0%, rgba(var(--brand-cobalt-rgb), 0.15), transparent 50%),
+    radial-gradient(ellipse at 15% 88%, rgba(var(--brand-cobalt-rgb), 0.07), transparent 46%),
+    radial-gradient(ellipse at 58% 55%, rgba(96,165,250,0.035), transparent 56%);
+}
+
+/* One surface vocabulary across Home, Workout, Insights and Profile. */
+.card-dark,
+.glance-card,
+.profile-stat-card,
+.profile-active-program,
+.an-chart,
+.an-insights {
+  border-radius: 14px !important;
+  border-color: rgba(96,165,250,0.10) !important;
+  background: linear-gradient(160deg, rgba(16,27,42,0.98), rgba(7,17,31,0.98)) !important;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.025) !important;
+}
+
+.card-dark:hover {
+  border-color: rgba(var(--brand-cobalt-rgb), 0.24) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.48), 0 0 0 1px rgba(var(--brand-cobalt-rgb), 0.06) !important;
+}
+
+/* Programs-style type hierarchy: compact, sentence-case and confident. */
+#view-home h2.section-header,
+#view-workout h2.section-header,
+#view-profile h2.section-header,
+.profile-section-title,
+.profile-subsection-title {
+  text-transform: none;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+
+#view-home h2.section-header,
+#view-workout h2.section-header,
+#view-profile h2.section-header { font-size: 0.88rem; }
+.profile-section-title { font-size: 0.8rem; }
+.profile-subsection-title { font-size: 0.72rem; color: var(--brand-steel); }
+
+/* Primary brand interaction. Completion and warnings keep semantic colours. */
+#homePrimaryCta.btn-green,
+#startWorkoutBtn.btn-green,
+.ob-cta,
+.day-pill.active,
+.set-load-choice__btn.active,
+.an-tab--active,
+.detail-cta-btn:not(.detail-cta-btn--active):not(.detail-cta-btn--completed) {
+  background: var(--brand-gradient) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 6px 22px rgba(var(--brand-cobalt-rgb), 0.28) !important;
+}
+
+.bottom-nav {
+  background: rgba(5,10,18,0.95) !important;
+  border-color: rgba(var(--brand-cobalt-rgb), 0.46) !important;
+  box-shadow: 0 -1px 0 rgba(var(--brand-cobalt-rgb), 0.10),
+              0 20px 60px rgba(0,0,0,0.82),
+              0 0 22px rgba(var(--brand-cobalt-rgb), 0.12) !important;
+}
+.nav-item.active { color: var(--brand-ice-soft) !important; }
+.nav-item.active::before { background: rgba(var(--brand-cobalt-rgb), 0.14) !important; }
+.nav-item::after { background: var(--brand-cobalt) !important; }
+
+.home-avatar,
+.profile-avatar-btn,
+.profile-hero-avatar {
+  background: var(--brand-gradient) !important;
+  border-color: rgba(var(--brand-cobalt-rgb), 0.72) !important;
+  box-shadow: 0 4px 16px rgba(var(--brand-cobalt-rgb), 0.28) !important;
+}
+.home-phase-label { color: var(--brand-ice); }
+.home-week-progress__fill,
+.hs-confidence__fill { background: var(--brand-gradient); }
+
+/* Burnt orange is deliberately rare: it answers "which day is today?" only. */
+.day-pill--today:not(.active) { border-color: var(--brand-burnt-orange) !important; }
+.day-pill--today::before { background: var(--brand-burnt-orange) !important; }
+
+.cockpit-exercise:not(.collapsed) {
+  border-color: rgba(var(--brand-cobalt-rgb), 0.23) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.48),
+              0 0 0 1px rgba(var(--brand-cobalt-rgb), 0.06) !important;
+}
+.cockpit-exercise:not(.collapsed) .cockpit-header {
+  background: rgba(var(--brand-cobalt-rgb), 0.045) !important;
+}
+
+.subview-back-btn,
+.week-nav-arrow:not(:disabled) {
+  color: var(--brand-ice-soft) !important;
+  background: rgba(var(--brand-cobalt-rgb), 0.10) !important;
+  border-color: rgba(var(--brand-cobalt-rgb), 0.28) !important;
+}
+
+.hs-hero {
+  border-radius: 18px;
+  border-color: rgba(var(--brand-cobalt-rgb), 0.20);
+  box-shadow: 0 12px 38px rgba(0,0,0,0.38);
+}
+.hs-level {
+  color: var(--brand-ice-soft);
+  background: rgba(var(--brand-cobalt-rgb), 0.12);
+  border: 1px solid rgba(var(--brand-cobalt-rgb), 0.22);
+}
+.mbrief {
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(16,27,42,0.98), rgba(7,17,31,0.98));
+  border-color: rgba(96,165,250,0.10);
+}
+.mbrief__mission {
+  background: rgba(var(--brand-cobalt-rgb), 0.10);
+  border-color: rgba(var(--brand-cobalt-rgb), 0.28);
+}
+.mbrief__mission-k { color: var(--brand-ice); }
+
+input[type="number"]:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(var(--brand-cobalt-rgb), 0.58) !important;
+  box-shadow: 0 0 0 3px rgba(var(--brand-cobalt-rgb), 0.11);
+}
+
+:focus-visible { outline-color: rgba(var(--brand-cobalt-rgb), 0.78); }
+
+/* Program chrome keeps its successful layout but joins the approved palette. */
+.prog-search-input-wrap { background: var(--brand-gunmetal); }
+.prog-card--small .prog-card-info,
+.prog-card--large .prog-card-info { background: #0b1420; }
+
+html[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse at 82% 0%, rgba(var(--brand-cobalt-rgb), 0.075), transparent 50%),
+    radial-gradient(ellipse at 15% 88%, rgba(var(--brand-cobalt-rgb), 0.035), transparent 46%) !important;
+}
+
+html[data-theme="light"] .card-dark,
+html[data-theme="light"] .profile-stat-card,
+html[data-theme="light"] .profile-active-program,
+html[data-theme="light"] .an-chart,
+html[data-theme="light"] .an-insights {
+  background: linear-gradient(160deg, #ffffff, #f4f7fb) !important;
+  border-color: rgba(37,99,235,0.12) !important;
+  box-shadow: 0 3px 14px rgba(15,23,42,0.08) !important;
+}
+
+html[data-theme="light"] .bottom-nav {
+  background: rgba(255,255,255,0.96) !important;
+  border-color: rgba(var(--brand-cobalt-rgb), 0.30) !important;
+  box-shadow: 0 10px 36px rgba(var(--brand-cobalt-rgb), 0.12) !important;
+}
+
+html[data-theme="light"] .nav-item.active { color: var(--brand-cobalt-strong) !important; }
+html[data-theme="light"] .mbrief { background: linear-gradient(160deg, #ffffff, #f4f7fb); }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-dark,
+  .cockpit-exercise,
+  .day-pill { transition: none !important; }
+}

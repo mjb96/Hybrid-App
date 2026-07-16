@@ -37,8 +37,22 @@ test('hybrid session requires both the planned sets and run', () => {
   const lifts = { mon: { Squat: [set(true), set(true)], Bench: [set(true), set(true)] } };
   const withoutRun = evaluateSessionCompletion(state({ lifts }), PROGRAM, 1, 'mon');
   assert.equal(withoutRun.outcome, 'partial');
+  assert.equal(withoutRun.componentOutcome, 'strength-complete');
+  assert.equal(withoutRun.progressLabel, 'Strength complete · run not logged');
+  const strengthPresentation = completionPresentation(withoutRun);
+  assert.equal(strengthPresentation.title, 'Strength workout complete');
+  assert.doesNotMatch(strengthPresentation.title, /partial/i);
+  assert.match(strengthPresentation.body, /run is still open/i);
   const withRun = evaluateSessionCompletion(state({ lifts, runSessions: { mon: [{ sessionId: 'run_1', dist: '5', time: '25:00' }] } }), PROGRAM, 1, 'mon');
   assert.equal(withRun.outcome, 'complete');
+});
+
+test('a completed run on a hybrid day is credited while strength remains open', () => {
+  const result = evaluateSessionCompletion(state({ runSessions: { mon: [{ sessionId: 'run_3', dist: '5', time: '25:00' }] } }), PROGRAM, 1, 'mon');
+  assert.equal(result.componentOutcome, 'run-complete');
+  const presentation = completionPresentation(result);
+  assert.equal(presentation.title, 'Run complete');
+  assert.match(presentation.body, /strength work is still open/i);
 });
 
 test('run-only plan does not invent a gym requirement despite its title', () => {

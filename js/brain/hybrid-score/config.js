@@ -20,6 +20,49 @@ export const PILLAR_WEIGHTS = Object.freeze({
   lifestyle:   0.05,
 });
 
+// The score answers the athlete's chosen goal instead of assuming everyone is
+// training for an even lift/run split. Hybrid remains the product's balanced
+// default; single-modality goals remove the unrelated progression pillar and
+// redistribute that weight across adherence, recovery and relevant progress.
+export const GOAL_PILLAR_WEIGHTS = Object.freeze({
+  hybrid: PILLAR_WEIGHTS,
+  strength: Object.freeze({
+    consistency: 0.24,
+    recovery:    0.20,
+    strength:    0.24,
+    endurance:   0,
+    load:        0.12,
+    momentum:    0.12,
+    body:        0.04,
+    lifestyle:   0.04,
+  }),
+  endurance: Object.freeze({
+    consistency: 0.24,
+    recovery:    0.20,
+    strength:    0,
+    endurance:   0.24,
+    load:        0.12,
+    momentum:    0.12,
+    body:        0.04,
+    lifestyle:   0.04,
+  }),
+});
+
+export function normalizeScoreGoal(goal) {
+  return goal === 'strength' || goal === 'endurance' ? goal : 'hybrid';
+}
+
+export function pillarWeightsForGoal(goal) {
+  return GOAL_PILLAR_WEIGHTS[normalizeScoreGoal(goal)];
+}
+
+export function scoreGoalLabel(goal) {
+  const normalized = normalizeScoreGoal(goal);
+  return normalized === 'strength' ? 'Strength focus'
+    : normalized === 'endurance' ? 'Endurance focus'
+    : 'Hybrid focus';
+}
+
 // Human labels + accent tokens for each pillar (UI + drivers).
 export const PILLAR_META = Object.freeze({
   consistency: { label: 'Consistency',    icon: '🎯', color: 'var(--color-blue)'  },

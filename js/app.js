@@ -950,7 +950,7 @@ else if (action === 'export-csv') triggerCSVExport();
   }
   
   // Athlete Profile
-  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'share-profile'].includes(action))
+  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'delete-session-workout', 'share-profile'].includes(action))
     handleProfileAction(action, target);
   else if (action === 'pick-avatar')              openAvatarPicker();
 
@@ -1161,6 +1161,15 @@ initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
 
 // Save auto-filled inputs, persist km splits, and render the pace-zone map after GPS tracking finishes.
+document.addEventListener('gps:recovered', (e) => {
+  const detail = /** @type {CustomEvent} */ (e).detail || {};
+  if (detail.quickActivity) {
+    openActivityScreen(detail.activityType === 'walk' ? 'walk' : 'run');
+  } else {
+    launchActiveWorkoutCockpit();
+  }
+});
+
 document.addEventListener('gps:route-saved', (e) => {
   const { week, day, sessionId, distKm, splits, quickActivity } = e.detail;
 

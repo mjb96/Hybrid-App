@@ -1,17 +1,18 @@
 # Helyx — Product Audit & Design Blueprint
 
-**Audit date:** 2026-07-04 · **Status:** the single source of truth for product/UX decisions.
+**Audit date:** 2026-07-04 · **Status:** dated design blueprint and product-decision record.
 **Method:** full documentation review, full codebase read, and a headless-Chromium walk of
 every screen in two personas — a brand-new user (fresh install through onboarding to day-0)
 and a returning athlete (8 seeded weeks of hybrid training). All findings below were
-**observed in the running app on this date** or verified in code (`file:line`). Everything
-recommended by previous audits that has shipped has been removed from this document — see
-`docs/IMPROVEMENT_ROADMAP.md` for implementation status and the live execution plan.
+**observed in the running app on this date** or verified in code (`file:line`). Findings
+below are retained as the audit snapshot that informed the design laws and rejected ideas;
+they are not live implementation status. See `docs/IMPROVEMENT_ROADMAP.md` for the only
+current execution queue, completion status, release gates, and session log.
 
 > **How to read this:** §1 is the verdict. §2 is the vision and the design laws that are
 > already codified and working — do not re-litigate them. §3 is the one systemic problem
 > this audit exists to name. §4 is screen-by-screen. §5–§8 are workflows, IA, gaps and
-> polish. §9 is what NOT to build. §10 is the prioritised roadmap. §11 is the scorecard.
+> polish. §9 is what NOT to build. §10 points to the live roadmap. §11 is the dated scorecard.
 
 ---
 
@@ -44,9 +45,9 @@ defensible; together they read as a machine, not a coach. Whoop and Garmin feel 
 not because their screens are prettier but because **every surface agrees**.
 
 The engine is a 9. The presentation pattern is an 8. The **coherence is a 4**, and
-coherence is the product. The roadmap in §10 is therefore not a feature list: Sprint 1
-fixes the first two minutes, Sprint 2 makes the app one coach with one voice, Sprint 3
-spends polish where the eye actually lands. Nothing new gets built until those land.
+coherence is the product. At audit time, the priority was to fix the first two minutes,
+make the app one coach with one voice, then spend polish where the eye actually lands.
+Current execution status lives only in `docs/IMPROVEMENT_ROADMAP.md`.
 
 **Top 5 actions (all pre-beta):**
 1. Fix day-0: blend the provisional score until real data earns confidence; never show
@@ -114,8 +115,8 @@ own:
 Two readiness numbers exist for a good engine reason (E3 de-double-counting), but the user
 was never told there are two; they just see the app disagree with itself.
 
-**The fix is one small module, not a rewrite** — this is the highest-leverage project in
-the entire document (§10, Sprint 2): a pure `dayVerdict(model, state, program)` that
+**The fix is one small module, not a rewrite** — this was the audit's highest-leverage
+project: a pure `dayVerdict(model, state, program)` that
 returns `{ mode: 'train'|'rest'|'deload-train'|'recover', readiness, headline, projection? }`
 computed **once**, consumed by the briefing, the cockpit header, the projection line, the
 flag slot, and — critically — passed to every Overview insight builder as a **gate**: an
@@ -313,7 +314,7 @@ The trim to consumer-grade settings worked; nothing to remove or add. Keep resis
 
 | Journey | State today | Verdict |
 |---|---|---|
-| **First open → first value** | Auth wall → onboarding (good) → reveal (good) → day-0 score contradicts reveal | **Broken at the last step** — Sprint 1 |
+| **First open → first value** | Auth wall → onboarding (good) → reveal (good) → day-0 score contradicts reveal | **Broken at the last step at audit time** |
 | **Morning check-in** | Open → score + briefing + mission in one viewport | **Works** once voices unify; the 2-second test passes |
 | **Log a programmed lift day** | Cockpit → ghost targets → tap/Log-all → rest timer → finish → recap | **Strong**; equal to Hevy/Strong, better coached |
 | **Log a run** | Quick Start GPS or cockpit manual/watch-import; recap with splits/map/zones | **Strong** (GPS needs the pending device test) |
@@ -399,7 +400,7 @@ Ordered by perceived-quality-per-effort:
   data first.
 - **LLM coaching layer** — rejected *until* the deterministic voice is unified (§3).
   Layering language generation over contradictory verdicts would launder incoherence into
-  fluent incoherence. Revisit only after Sprint 2 ships and holds on device.
+  fluent incoherence. Revisit only after the deterministic voice holds on device.
 - **Social feed / community / leaderboards** — the shareable card is the entire social
   surface. A feed is a different company.
 - **More analytics leaves, tiles, or settings** — the subtraction was the feature. Any
@@ -414,44 +415,13 @@ Ordered by perceived-quality-per-effort:
 
 ---
 
-## 10. Prioritised roadmap
+## 10. Execution roadmap
 
-Effort: XS <1h · S ~half-day · M 1–3 days · L 1–2 weeks. All pre-beta unless marked.
-
-### Sprint 1 — "The first two minutes" (P0, blocks beta)
-| # | Item | Why | Effort |
-|---|---|---|---|
-| 1.1 | Day-0 score: blend provisional, floor the no-history state, "Building" not "At Risk", sessions-not-sets copy | The reveal→Home contradiction is the first thing every tester sees | M |
-| 1.2 | Auth after onboarding, not before (keep returning-user sign-in link) | Payoff before homework; activation | S |
-| 1.3 | Strip fabricated rating/enrolled counts from all program UI | Trust + store risk | S |
-| 1.4 | Fasting empty-state starts a fast inline (kill the dead-end) | Broken loop | S |
-| 1.5 | Same-fact-same-number: weekly volume + ACWR routed from the one model everywhere | Data integrity is the brand | S–M |
-
-### Sprint 2 — "One coach" (P0/P1, blocks beta)
-| # | Item | Why | Effort |
-|---|---|---|---|
-| 2.1 | `dayVerdict()` module: one train/rest/deload decision + one readiness number, consumed by briefing, cockpit header, projection, flag slot | §3 — the audit's centre | M |
-| 2.2 | Gate every Overview insight line through the verdict (suppress/reframe on rest & deload) | Kills the five-voices day | S–M |
-| 2.3 | `shouldSuggestDeload` reads the program's real deload map; never fires on a deload week | Contradiction with its own briefing | S |
-| 2.4 | Projection line hidden on rest/deload days (as V2-3 originally specified) | "Train today" on a rest day | XS |
-| 2.5 | One user-facing readiness number (or label the two: "Readiness" vs "Recovery ex-load") | 93 vs 80 | S |
-| 2.6 | Copy pass: Biggest driver rename, machine-ese lines (§8.4) | Coach voice | S |
-
-### Sprint 3 — "Looks like it costs money" (P1, ship with beta if possible)
-| # | Item | Effort |
-|---|---|---|
-| 3.1 | Icon set replaces emoji (nav, hub, tiles, milestones) | M |
-| 3.2 | Program cover art system; de-dupe rails; detail CTA hierarchy; commitment-strip label fix | M |
-| 3.3 | Chip/spark null-guards; strength-band calibration; XP backfill from history; onboarding program meta line; today-marker on day chips; START button matches day type | M (bundle of S/XS) |
-| 3.4 | **Central "+" quick-start on the nav bar** — consolidate Start Run · Walk · Fast (later: log-a-lift, check-in, log-weight) into a raised centre "+" opening a small action sheet, reachable from every tab. Removes the Home Walk/Run row + the interim Home fasting chip → truly quiet Home. Keep the live-fast / active-GPS status as a slim persistent pill (the "+" only *starts*; it never hides an in-progress timer). **Decided layout:** `Home · Workout · ⊕ · Insights · Programs`; **Profile moves off the bar to an avatar tap in the Home header.** Supersedes the 2026-07-04 Home fasting quick-action. *Why: universal reach + native feel + calm Home · Effort: M · P1.* | M |
-
-### Sprint 4 — Beta + post-beta
-- Device-test list (GPS lock-screen run, notification loop, Health Connect, swap/plate/
-  swipe) — unchanged from the improvement roadmap's `[You]` device items.
-- Store assets **after** Sprint 3 (screenshots should show the icon set, not emoji).
-- Post-beta: VDOT-from-easy-runs estimate, Home tile aspirational empty states, type ramp
-  (C7), splash polish, "More" bucket fold, dead-DOM sweep, Sentry breadcrumbs for render
-  shields.
+This audit does not carry an execution backlog. Its former sprint plan became obsolete as
+the work shipped and duplicated the live status tracker. Use
+`docs/IMPROVEMENT_ROADMAP.md` for current priorities, implementation evidence, human-owned
+release gates, and the session log. Re-check any dated observation in §§1–8 against the
+current product before turning it into work.
 
 ---
 
@@ -468,8 +438,8 @@ Effort: XS <1h · S ~half-day · M 1–3 days · L 1–2 weeks. All pre-beta unl
 | **First-run / activation** | **3/10** | Auth wall + day-0 "At Risk" contradiction |
 | Trust & integrity | **5/10** | Fake social proof + same-fact-different-number |
 | Retention machinery | **7/10** | Morning hook, streaks, XP, share card all present; unproven on device |
-| **Overall** | **6.5/10** | A 9/10 engine at ~70% presentation-integrity. Sprints 1–2 are worth more than any feature ever proposed for this app. |
+| **Overall** | **6.5/10** | Audit-time snapshot: a 9/10 engine at ~70% presentation-integrity. |
 
-**Would I pay for it?** After Sprints 1–3: yes — the score + verdict + hybrid cockpit is a
-$5–8/mo product on current merits. Today: a tester would churn inside the first session on
-the day-0 contradiction, and that answer is what the beta would measure.
+**Would I have paid for the audited build?** Not yet: the score + verdict + hybrid cockpit
+had paid-product potential, but the day-0 contradiction risked first-session churn. This is
+a dated assessment, not the current release verdict.

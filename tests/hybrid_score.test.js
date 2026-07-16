@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { levelFromXp, xpForDay } from '../js/brain/hybrid-score/levels.js';
-import { scoreBand, isDeloadWeek, PILLAR_WEIGHTS } from '../js/brain/hybrid-score/config.js';
+import { scoreBand, isDeloadWeek, PILLAR_WEIGHTS, pillarWeightsForGoal } from '../js/brain/hybrid-score/config.js';
 import { consistencyPillar, recoveryPillar, momentumPillar, bodyPillar, lifestylePillar, endurancePillar } from '../js/brain/hybrid-score/pillars.js';
 import { weeklyBestPaceSeries } from '../js/metrics/metrics-running.js';
 import { computeHybridScore } from '../js/brain/hybrid-score/hybrid-score.js';
@@ -16,7 +16,7 @@ const TODAY = todayKey();
 // ---------------------------------------------------------------------------
 // Fixture: a realistic multi-week hybrid athlete progressing on both modalities.
 // ---------------------------------------------------------------------------
-function makeState({ currentWeek = 5, weightGoal = 'maintain', fitnessLevel = 'intermediate' } = {}) {
+function makeState({ currentWeek = 5, weightGoal = 'maintain', fitnessLevel = 'intermediate', fitnessGoal = 'hybrid' } = {}) {
   const start = addDaysISO(TODAY, -(currentWeek - 1) * 7); // week 1 Monday-ish
   const weeks = {};
   for (let w = 1; w <= currentWeek; w++) {
@@ -41,7 +41,7 @@ function makeState({ currentWeek = 5, weightGoal = 'maintain', fitnessLevel = 'i
   return {
     currentWeek: String(currentWeek),
     weekStartedAt: addDaysISO(today, -2),
-    settings: { fitnessLevel, weightGoal, distanceUnit: 'km' },
+    settings: { fitnessLevel, fitnessGoal, weightGoal, distanceUnit: 'km' },
     weeks,
     loadMetrics: { atl: 9, ctl: 10 }, // ACWR 0.9 — productive
     thresholdPaceSeconds: 240,
@@ -96,6 +96,16 @@ test('scoreBand + isDeloadWeek', () => {
   assert.equal(isDeloadWeek({ currentWeek: '4' }, 'Deload Week'), true);
   assert.equal(isDeloadWeek({ currentWeek: '4', deloadApplied: '4' }, 'Build'), true);
   assert.equal(isDeloadWeek({ currentWeek: '3' }, 'Build'), false);
+});
+
+test('goal profiles are normalized and keep a complete 100% weighting', () => {
+  for (const goal of ['hybrid', 'strength', 'endurance']) {
+    const weights = pillarWeightsForGoal(goal);
+    assert.ok(Math.abs(Object.values(weights).reduce((sum, value) => sum + value, 0) - 1) < 1e-9);
+  }
+  assert.equal(pillarWeightsForGoal('strength').endurance, 0);
+  assert.equal(pillarWeightsForGoal('endurance').strength, 0);
+  assert.equal(pillarWeightsForGoal('unknown'), PILLAR_WEIGHTS);
 });
 
 // ---------------------------------------------------------------------------
@@ -340,6 +350,40 @@ test('computeHybridScore: progressing hybrid athlete scores well with drivers', 
   const sum = avail.reduce((a, p) => a + (p.contribution || 0), 0);
   assert.ok(Math.abs(sum - (r.score - 50)) <= avail.length,
     `contributions ${sum} should ~equal score-50 ${r.score - 50}`);
+});
+
+test('computeHybridScore: a strength goal never requires running for score balance', () => {
+  const strengthProgram = { totalWeeks: 12, days: { mon: { title: 'Lift', runs: 'Rest', lifts: ['Back Squat'] } } };
+  const strengthState = makeState({ fitnessGoal: 'strength' });
+  for (const week of Object.values(strengthState.weeks)) week.runs = {};
+  const model = computeDashboardModel(strengthState, DAYS, strengthProgram, 'mon');
+  const result = computeHybridScore(model, strengthState, DAYS, strengthProgram);
+
+  assert.equal(result.goal, 'strength');
+  assert.equal(result.goalLabel, 'Strength focus');
+  assert.equal(result.goalWeights.endurance, 0);
+  assert.equal(result.pillars.endurance.included, false);
+  assert.ok(result.pillars.strength.weight > 0);
+  assert.ok(!result.pillars.load.signals.some(signal => /no running/i.test(signal)));
+
+  const hybridState = structuredClone(strengthState);
+  hybridState.settings.fitnessGoal = 'hybrid';
+  const hybrid = computeHybridScore(model, hybridState, DAYS, strengthProgram);
+  assert.ok(hybrid.pillars.load.signals.some(signal => /no running/i.test(signal)));
+});
+
+test('computeHybridScore: an endurance goal never requires lifting for score balance', () => {
+  const runProgram = { totalWeeks: 12, days: { wed: { title: 'Run', runs: '5 km easy', lifts: [] } } };
+  const state = makeState({ fitnessGoal: 'endurance' });
+  for (const week of Object.values(state.weeks)) week.lifts = {};
+  const model = computeDashboardModel(state, DAYS, runProgram, 'wed');
+  const result = computeHybridScore(model, state, DAYS, runProgram);
+
+  assert.equal(result.goal, 'endurance');
+  assert.equal(result.goalWeights.strength, 0);
+  assert.equal(result.pillars.strength.included, false);
+  assert.ok(result.pillars.endurance.weight > 0);
+  assert.ok(!result.pillars.load.signals.some(signal => /no lifting/i.test(signal)));
 });
 
 test('computeHybridScore: a low-readiness day surfaces a recovery opportunity', () => {

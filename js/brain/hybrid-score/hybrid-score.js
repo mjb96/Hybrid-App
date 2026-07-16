@@ -11,7 +11,7 @@
 // idempotent daily snapshot handled separately in history.js.
 // =============================================================================
 import { clamp } from '../../analytics/calculations/math-utils.js';
-import { PILLAR_WEIGHTS, PILLAR_META, SCORE_BANDS, scoreBand, isDeloadWeek } from './config.js';
+import { PILLAR_META, SCORE_BANDS, scoreBand, isDeloadWeek, normalizeScoreGoal, pillarWeightsForGoal, scoreGoalLabel } from './config.js';
 import { computePillars } from './pillars.js';
 import { levelFromXp } from './levels.js';
 import { todayKey } from '../../dates.js';
@@ -46,11 +46,13 @@ function detectReturning(model) {
 
 export function computeHybridScore(model, state, days, program = null) {
   const level = state?.settings?.fitnessLevel || 'intermediate';
+  const goal = normalizeScoreGoal(state?.settings?.fitnessGoal);
+  const goalLabel = scoreGoalLabel(goal);
   const phase = resolveProgramPhase(program, state?.currentWeek, state);
   const deload = isDeloadWeek(state, phase.label);
   const returning = detectReturning(model);
 
-  const pillars = computePillars(model, state, days, { level, deload });
+  const pillars = computePillars(model, state, days, { level, deload, goal });
 
   // Comeback protection: don't let a low-load pillar drag a returning athlete.
   if (returning && pillars.load?.score != null) {
@@ -58,7 +60,7 @@ export function computeHybridScore(model, state, days, program = null) {
   }
 
   // Available pillars only; renormalise weights across them.
-  const weights = { ...PILLAR_WEIGHTS };
+  const weights = { ...pillarWeightsForGoal(goal) };
   if (deload) {
     // A well-executed deload leans on recovery + consistency; progression is
     // expected to pause, so shift half of strength/endurance weight across.
@@ -68,7 +70,8 @@ export function computeHybridScore(model, state, days, program = null) {
   }
 
   // Pillars actually backed by logged data.
-  const realKeys = Object.keys(pillars).filter(k => pillars[k].score != null);
+  Object.keys(pillars).forEach(k => { pillars[k].included = weights[k] > 0; });
+  const realKeys = Object.keys(pillars).filter(k => weights[k] > 0 && pillars[k].score != null);
 
   // Provisional priors (from the onboarding self-report, persisted at finish)
   // fill pillars that have NO real data yet, so a brand-new athlete meets their
@@ -85,6 +88,7 @@ export function computeHybridScore(model, state, days, program = null) {
   if (scoringKeys.length === 0) {
     return {
       score: null, band: scoreBand(null), hasData: false, confidence: 0,
+      goal, goalLabel, goalWeights: weights,
       pillars, drivers: [], level: levelFromXp(state?.hybridScore?.xp),
       delta: null, deltaBreakdown: null, momentum: { dir: 'flat', label: 'No trend yet' },
       deload, returning,
@@ -102,7 +106,7 @@ export function computeHybridScore(model, state, days, program = null) {
   });
   const usedProvisional = provKeys.length > 0;
 
-  const totalWeightAll = Object.values(PILLAR_WEIGHTS).reduce((a, b) => a + b, 0);
+  const totalWeightAll = Object.values(weights).reduce((a, b) => a + b, 0);
   const scoringWeight = scoringKeys.reduce((s, k) => s + weights[k], 0);
 
   // Weighted average → score. Contributions cᵢ = wᵢ′·(pillarᵢ − 50) sum to score − 50
@@ -206,6 +210,7 @@ export function computeHybridScore(model, state, days, program = null) {
 
   return {
     score, band, hasData: true, confidence,
+    goal, goalLabel, goalWeights: weights,
     provisional: usedProvisional,
     pillars, drivers, positives, negatives,
     topContributor, topOpportunity,

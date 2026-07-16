@@ -168,6 +168,6 @@ export function celebrateMilestone(m) {
   } else if (m.kind === 'streak') {
     celebrate({ icon: '🔥', title: `${m.days}-day streak`, subtitle: 'Consistency compounds — this is how athletes are built.' });
   } else if (m.kind === 'score') {
-    celebrate({ icon: '◇', title: `Hybrid Score ${m.score}`, subtitle: 'Your first Elite-range score. Recovery, load and progress — all firing.' });
+    celebrate({ icon: '◇', title: `Hybrid Score ${m.score}`, subtitle: 'Your first 90+ score — recovery, load and progress are lining up.' });
   }
 }

@@ -4,12 +4,17 @@
 // =============================================================================
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
-import { showToast } from './state.js';
+import { getProgramById, showToast } from './state.js';
 import { computeStreak } from './home/dashboard-model.js';
 import { levelFromXp } from './brain/hybrid-score/levels.js';
 import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
 import { compareSessionToPrevWeek } from './analytics/calculations/session-compare.js';
 import { runDaySummary } from './state/run-sessions.js';
+import { getWeekModifier } from './schema.js';
+import { prescribeSetsForLift } from './engine.js';
+import { deleteMapFromDB } from './db.js';
+import { confirmModal } from './ui/confirm-modal.js';
+import { deleteDayWorkoutData } from './workout/delete-day.js';
 
 // V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
 // the full depth. Fixed, curated order — the doctrine is "simple front, powerful
@@ -532,9 +537,15 @@ function openSessionDetailModal(el) {
   const modal      = document.getElementById('sessionDetailModal');
   const body       = document.getElementById('sessionDetailBody');
   const dateEl     = document.getElementById('sessionDetailDate');
+  const deleteBtn  = document.getElementById('sessionDetailDelete');
   if (!modal || !body) return;
 
   if (dateEl) dateEl.textContent = dateLabel;
+  if (deleteBtn) {
+    deleteBtn.dataset.week = week;
+    deleteBtn.dataset.day = day;
+    deleteBtn.dataset.datelabel = dateLabel;
+  }
 
   const weightUnit = state.settings?.weightUnit || 'kg';
   let html = '';
@@ -667,6 +678,71 @@ function closeSessionDetailModal() {
   document.getElementById('sessionDetailModal')?.classList.remove('active');
 }
 
+/** @returns {{lifts: Record<string, any[]>, liftOrder: string[]}} */
+function replacementPrescription(state, weekKey, day) {
+  const week = state.weeks?.[weekKey];
+  const isActiveSlot = /^\d+$/.test(String(weekKey)) &&
+    (!week?.activationId || week.activationId === state.activeActivationId);
+  if (!isActiveSlot) return { lifts: {}, liftOrder: [] };
+
+  const program = getProgramById(state.activeProgramId);
+  const blueprint = program?.days?.[day];
+  const names = (blueprint?.lifts || []).filter((name) => typeof name === 'string' && name.trim());
+  if (!program || names.length === 0) return { lifts: {}, liftOrder: [] };
+
+  /** @type {Record<string, any[]>} */
+  const lifts = {};
+  const modifier = getWeekModifier(program, weekKey);
+  for (const name of names) {
+    try {
+      lifts[name] = prescribeSetsForLift(weekKey, day, name, blueprint.desc, modifier);
+    } catch (error) {
+      console.warn(`Could not restore prescription for ${name}:`, error);
+    }
+  }
+  return { lifts, liftOrder: Object.keys(lifts) };
+}
+
+async function deleteSessionWorkout(el) {
+  if (!_getState) return;
+  const weekKey = el.getAttribute('data-week');
+  const day = el.getAttribute('data-day');
+  const dateLabel = el.getAttribute('data-datelabel') || 'this day';
+  const state = _getState();
+  const week = weekKey ? state.weeks?.[weekKey] : null;
+  if (!weekKey || !day || !week) {
+    showToast('Workout could not be found', true);
+    return;
+  }
+
+  const confirmed = await confirmModal({
+    title: 'Delete this workout?',
+    message: `${dateLabel} will be removed from your training history, including its GPS route. Body-weight data for the day will be kept. This cannot be undone.`,
+    confirmLabel: 'Delete workout',
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  const activationId = week.activationId || state.activeActivationId;
+  const replacement = replacementPrescription(state, weekKey, day);
+  const deleted = deleteDayWorkoutData(week, day, replacement);
+  if (!deleted) {
+    closeSessionDetailModal();
+    renderAthleteProfile();
+    showToast('Workout was already empty');
+    return;
+  }
+
+  await Promise.resolve(_saveState?.(true));
+  await deleteMapFromDB(weekKey, day, { activationId });
+  closeSessionDetailModal();
+  renderAthleteProfile();
+  try {
+    document.dispatchEvent(new CustomEvent('session:deleted', { detail: { week: weekKey, day } }));
+  } catch (_) {}
+  showToast('Workout deleted');
+}
+
 // ── Action handler ────────────────────────────────────────────────────────────
 
 export function handleProfileAction(action, el) {
@@ -738,6 +814,14 @@ export function handleProfileAction(action, el) {
 
   if (action === 'close-session-detail') {
     closeSessionDetailModal();
+    return;
+  }
+
+  if (action === 'delete-session-workout') {
+    deleteSessionWorkout(el).catch((error) => {
+      console.warn('Workout deletion failed:', error);
+      showToast('Workout could not be deleted', true);
+    });
     return;
   }
 }

@@ -3,7 +3,7 @@
 // ==========================================
 import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
-import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget } from './engine.js';
+import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer } from './timers.js';
@@ -22,10 +22,11 @@ import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './state/lift-id.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
-import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
+import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 import { detectRunType } from './workout/run-type.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { deleteDayWorkoutData } from './workout/delete-day.js';
 
 let _getState;
 let _getSelectedDay;
@@ -34,9 +35,15 @@ let _getSelectedDay;
 // coach's suggestion); the default "kg"/"reps" placeholders are non-numeric.
 // Returns the numeric target, or null when there's no real prescription.
 function _numericPlaceholder(inputNode) {
-  const ph = inputNode?.getAttribute?.('placeholder');
-  const n = ph == null ? NaN : parseFloat(ph);
-  return isNaN(n) ? null : n;
+  const ph = String(inputNode?.getAttribute?.('placeholder') || '').trim();
+  if (!/^\d+(?:\.\d+)?$/.test(ph)) return null;
+  const n = Number(ph);
+  return Number.isFinite(n) ? n : null;
+}
+
+function _prescribedRepGoal(inputNode) {
+  const explicit = Number(inputNode?.dataset?.targetReps);
+  return Number.isFinite(explicit) && explicit > 0 ? explicit : _numericPlaceholder(inputNode);
 }
 
 // Straight-set convenience: read this exercise's set rows from the live DOM and
@@ -152,12 +159,16 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
 
   let blueprintLabel = 'Target: Working Sets';
   let diagnostic = { isStalled: false, suggestedWeight: '', progression: null };
+  // Keep the resolved prescription available while rendering the set rows.
+  // The fallback is deliberately blank rather than inventing a numeric target
+  // if an old/custom program cannot be resolved.
+  let target = { sets: setsArr.length, reps: '' };
   try {
     // Resolve the prescribed target first so the auto-progression engine can
     // judge whether last session actually hit the rep goal.
     const weekModifier = getWeekModifier(getProgramById(appState.activeProgramId), wk);
-    const target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
-    diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, target.reps);
+    target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
+    diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, repGoalFromTarget(target.reps) || 0);
     // Label shows the SAME target we materialise (inline spec or week modifier),
     // so "Target: 4 × 5" always matches the number of set rows populated.
     blueprintLabel = `Target: ${target.sets} × ${target.reps}`;
@@ -215,7 +226,10 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
       if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
     }
-    return buildSetRow(sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName, _currentBodyweight(appState));
+    return buildSetRow(
+      sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
+      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps),
+    );
   }).join('');
 
   // C4b — per-side plate math for the coach's target weight (barbell lifts only:
@@ -707,8 +721,8 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
     if (ph && !isNaN(parseFloat(ph))) targetW = ph;
   }
   if (!targetR) {
-    const ph = rInput.getAttribute('placeholder');
-    if (ph && !isNaN(parseFloat(ph))) targetR = ph;
+    const ph = _numericPlaceholder(rInput);
+    if (ph != null) targetR = String(ph);
   }
 
   if (!targetW || !targetR) {
@@ -754,7 +768,7 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   // different number. Additive + never overwritten: default "kg"/"reps" ghosts are
   // non-numeric and skipped, and an existing target is preserved.
   const _tw = _numericPlaceholder(wInput);
-  const _tr = _numericPlaceholder(rInput);
+  const _tr = _prescribedRepGoal(rInput);
 
   // Merge — never replace: preserve any existing set metadata (type, rpe, isPR)
   // so quick-logging a warmup/drop set doesn't silently demote it to a working set.
@@ -829,7 +843,9 @@ export function updateInputState(inputNode) {
   // E5 — capture the prescribed target (ghost placeholder) alongside the actual,
   // additively, so a manually-typed set still records what it was measured against.
   const setObj = appState.weeks[wk].lifts[selectedDay][liftName][sIdx];
-  const ph = _numericPlaceholder(inputNode);
+  const ph = inputNode.classList.contains('input-reps-node')
+    ? _prescribedRepGoal(inputNode)
+    : _numericPlaceholder(inputNode);
   if (inputNode.classList.contains('input-weight-node')) {
     setObj.w = inputNode.value;
     if (ph != null && setObj.tw == null) setObj.tw = ph;
@@ -1655,33 +1671,25 @@ export function executeResetActiveDayMetrics() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const wk = appState.currentWeek;
-  
-  if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
-  if (!appState.weeks[wk].lifts) appState.weeks[wk].lifts = {};
-  if (!appState.weeks[wk].notes) appState.weeks[wk].notes = {};
-  if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
-  
-  clearRunSessions(appState.weeks[wk], selectedDay);
-  appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
-  appState.weeks[wk].lifts[selectedDay] = {};
-  appState.weeks[wk].notes[selectedDay] = '';
-  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
-  appState.weeks[wk].liftOrder[selectedDay] = [];
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const blueprint = activeProgram.days?.[selectedDay];
+  const blueprint = activeProgram?.days?.[selectedDay];
+  /** @type {Record<string, any[]>} */
+  const lifts = {};
+  const liftOrder = [];
 
   if (blueprint && blueprint.lifts) {
     blueprint.lifts.forEach(liftName => {
       try {
         const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
-        appState.weeks[wk].lifts[selectedDay][liftName] =
-          prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier);
+        lifts[liftName] = prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier);
+        liftOrder.push(liftName);
       } catch(e) { console.warn(e); }
     });
-    // Reset restores the prescribed program order.
-    appState.weeks[wk].liftOrder[selectedDay] = [...blueprint.lifts];
   }
+  // Reset restores the prescribed program order and clears every workout-only
+  // field through the same path used by historical-session deletion.
+  deleteDayWorkoutData(appState.weeks[wk], selectedDay, { lifts, liftOrder });
   try {
     stopAndResetWorkoutTimer();
     dismissRestTimer();
@@ -1850,7 +1858,12 @@ export function closeFinishSessionModal() {
       document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay, outcome: 'complete' } }));
     } catch (_) {}
   } else if (completion.partial) {
-    showToast('Partial session saved — not marked complete');
+    const savedMessage = completion.componentOutcome === 'strength-complete'
+      ? 'Strength workout saved · run still open'
+      : completion.componentOutcome === 'run-complete'
+        ? 'Run saved · strength workout still open'
+        : 'Partial session saved — planned work remains';
+    showToast(savedMessage);
     try { document.dispatchEvent(new CustomEvent('session:saved-partial', { detail: { week: wk, day: selectedDay } })); } catch (_) {}
   }
 }

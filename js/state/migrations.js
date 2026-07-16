@@ -255,9 +255,22 @@ const MIGRATIONS = [
       });
     }
   },
+
+  // v4 → v5: resistance-band load is a fixed product convention, not a user
+  // preference. An earlier settings screen allowed the nominal kg values to be
+  // edited; that control has since been retired, but its old values can remain
+  // in local/cloud state forever and make assisted-load calculations wrong.
+  // Canonicalise every existing account to Light 10 kg, Medium 20 kg, Heavy
+  // 30 kg. Logged sets keep their band identity and workout history untouched.
+  (state) => {
+    if (!state.settings || typeof state.settings !== 'object' || Array.isArray(state.settings)) {
+      state.settings = {};
+    }
+    state.settings.bandWeights = { L: 10, M: 20, H: 30 };
+  },
 ];
 
-export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 4
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS.length; // 5
 
 /** Error raised when a state upgrade cannot safely commit. */
 export class StateMigrationError extends Error {
@@ -366,6 +379,13 @@ function validateStep(state, version) {
           throw new Error(`Legacy run data for ${day} was not adopted`);
         }
       }
+    }
+  }
+
+  if (version === 5) {
+    const bands = state.settings?.bandWeights;
+    if (!bands || bands.L !== 10 || bands.M !== 20 || bands.H !== 30) {
+      throw new Error('Resistance-band weights are not canonical');
     }
   }
 }

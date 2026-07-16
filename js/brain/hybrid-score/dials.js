@@ -33,7 +33,7 @@ export function computeDials(result) {
     const active = [];
     for (const k of def.pillars) {
       const p = pillars[k];
-      if (!p || p.score == null) continue;
+      if (!p || p.score == null || p.included === false) continue;
       const w = (p.weight != null ? p.weight : (PILLAR_WEIGHTS[k] || 0) * 100) || 1;
       weighted += p.score * w;
       wsum += w;

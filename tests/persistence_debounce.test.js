@@ -14,10 +14,15 @@ import { test, mock } from 'node:test';
 
 // Fake localStorage that counts writes — installed BEFORE state.js evaluates.
 let writes = 0;
+let rejectWrites = false;
 const store = new Map();
 globalThis.localStorage = {
   getItem: (k) => (store.has(k) ? store.get(k) : null),
-  setItem: (k, v) => { writes++; store.set(k, String(v)); },
+  setItem: (k, v) => {
+    writes++;
+    if (rejectWrites) throw new Error('storage unavailable');
+    store.set(k, String(v));
+  },
   removeItem: (k) => store.delete(k),
 };
 
@@ -81,4 +86,17 @@ test('critical save writes immediately and cancels a pending debounce', async ()
   mock.timers.tick(400);
   assert.equal(writes, 1, 'the superseded debounce did not double-write');
   mock.timers.reset();
+});
+
+test('critical save reports when the durable local write fails', async () => {
+  setAppState(baseState());
+  rejectWrites = true;
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(await saveStateToLocalStorage(true), false);
+  } finally {
+    console.error = originalError;
+    rejectWrites = false;
+  }
 });
