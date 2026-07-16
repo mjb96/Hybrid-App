@@ -22,6 +22,7 @@ import {
 } from '../js/state.js';
 import {
   newActivationId, isArchivedWeekKey, weekHasLoggedData, archiveForeignWeeks,
+  beginActivation, priorActivationSummaries, resumeActivation,
 } from '../js/state/activation-identity.js';
 import { migrateState } from '../js/state/migrations.js';
 import { indexSlotsByDate } from '../js/analytics/weekly-aggregate.js';
@@ -291,6 +292,51 @@ test('archiveForeignWeeks keeps owned weeks, archives logged foreign, drops empt
   assert.equal(res.archived.length, 1);
   assert.equal(res.dropped.length, 1);
   assert.equal(state.weeks[res.archived[0]].lifts.mon['Squat'][0].w, 100, 'archived history intact');
+});
+
+test('resuming a prior activation archives the current run and restores exact prior weeks', () => {
+  const state = {
+    activeActivationId: 'act_new', activeProgramId: 'progB', currentWeek: '2',
+    activations: [
+      { id: 'act_old', programId: 'progA', startWeek: 1, lastWeek: 3, status: 'paused', pausedAt: '2026-07-01T00:00:00.000Z' },
+      { id: 'act_new', programId: 'progB', startWeek: 1, status: 'active', startedAt: '2026-07-02T00:00:00.000Z' },
+    ],
+    weeks: {
+      '2': { activationId: 'act_new', programId: 'progB', lifts: { mon: { Squat: [done(100, 5)] } }, dates: { mon: '2026-07-10' } },
+      'arch:act_old:1': { activationId: 'act_old', programId: 'progA', lifts: { mon: { Deadlift: [done(140, 5)] } }, dates: { mon: '2026-06-01' } },
+      'arch:act_old:3': { activationId: 'act_old', programId: 'progA', lifts: { mon: { Deadlift: [done(150, 3)] } }, dates: { mon: '2026-06-15' } },
+    },
+  };
+
+  const result = resumeActivation(state, 'act_old', '2026-07-16T00:00:00.000Z');
+  assert.equal(result.ok, true);
+  assert.equal(state.activeActivationId, 'act_old');
+  assert.equal(state.activeProgramId, 'progA');
+  assert.equal(state.currentWeek, '3');
+  assert.deepEqual(result.restored.sort(), ['1', '3']);
+  assert.equal(state.weeks['1'].lifts.mon.Deadlift[0].w, 140);
+  assert.equal(state.weeks['3'].lifts.mon.Deadlift[0].w, 150);
+  assert.ok(state.weeks['arch:act_new:2'], 'the displaced current run remains archived');
+  assert.equal(state.weeks['arch:act_new:2'].lifts.mon.Squat[0].w, 100);
+  assert.equal(state.activations.find((a) => a.id === 'act_new').status, 'paused');
+  assert.equal(state.activations.find((a) => a.id === 'act_old').status, 'active');
+});
+
+test('starting another activation pauses the current record and lists it as prior', () => {
+  const state = {
+    activeActivationId: 'act_a', activeProgramId: 'progA', currentWeek: '4',
+    activations: [{ id: 'act_a', programId: 'progA', startWeek: 1, startedAt: '2026-07-01T00:00:00.000Z', status: 'active' }],
+    weeks: { '4': { activationId: 'act_a', lifts: { mon: { Squat: [done(100, 5)] } }, dates: { mon: '2026-07-14' } } },
+  };
+
+  const nextId = beginActivation(state, 'progB', 1);
+  const prior = priorActivationSummaries(state);
+  assert.equal(state.activations.find((a) => a.id === 'act_a').lastWeek, 4);
+  assert.equal(state.activations.find((a) => a.id === 'act_a').status, 'paused');
+  assert.equal(state.activations.find((a) => a.id === nextId).status, 'active');
+  assert.deepEqual(prior.map((run) => ({ id: run.id, lastWeek: run.lastWeek, loggedWeeks: run.loggedWeeks })), [
+    { id: 'act_a', lastWeek: 4, loggedWeeks: 1 },
+  ]);
 });
 
 // ---- MIGRATION --------------------------------------------------------------

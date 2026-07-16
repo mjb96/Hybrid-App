@@ -7,8 +7,9 @@ import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAct
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 import { openCompareModal, closeCompareModal, pickCompareB, renderComparePicker, handleCompareSearch } from './programs/compare-ui.js';
 import { getCatalogEntry } from './programs/catalog.js';
-import { activateProgramWithConfirm } from './programs/activation.js';
-import { escapeHtml, programProgressPct } from './util.js';
+import { activateProgramWithConfirm, resumeActivationWithConfirm } from './programs/activation.js';
+import { priorActivationSummaries, resumeActivation } from './state/activation-identity.js';
+import { escapeHtml, programProgressPct, safeCssColor } from './util.js';
 import { getWeekModifier } from './schema.js';
 import { resolveProgramPhase } from './programs/phase.js';
 
@@ -54,7 +55,8 @@ import {
   openAddExerciseModal, closeAddExerciseModal, confirmAddExercise,
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
   openFinishSessionModal, closeFinishSessionModal,
-  handleExerciseSearch, addExerciseToDayFromLibrary
+  handleExerciseSearch, addExerciseToDayFromLibrary,
+  activeWorkoutSwitchStatus, resolveWorkoutBeforeProgramSwitch,
 } from './workout.js';
 
 import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad, getWorkoutElapsedSeconds } from './timers.js';
@@ -366,13 +368,17 @@ export function triggerMakeActiveProgram(newProgramId) {
   activateProgramWithConfirm(appState, newProgramId, {
     resolveProgram: getProgramById,
     resolveName: (id) => getCatalogEntry(id)?.name || getProgramById(id)?.name,
-    workoutInProgress: () => { try { return getWorkoutElapsedSeconds() > 0; } catch { return false; } },
+    workoutStatus: activeWorkoutSwitchStatus,
+    resolveWorkout: resolveWorkoutBeforeProgramSwitch,
     apply: applyProgramSwitch,
     onError: (msg) => showToast(msg, true),
   }).catch(err => console.warn('Activation failed:', err));
 }
 
 function applyProgramSwitch(newProgramId, startWeek = 1) {
+  // Pause/archive the current activation while its actual current week is still
+  // available; only then point state at the new run and chosen start week.
+  startProgramActivation(newProgramId, startWeek);
   appState.activeProgramId = newProgramId;
   // A freshly-activated program begins at the chosen week (Week 1 by default),
   // not wherever the previous program happened to be.
@@ -384,13 +390,38 @@ function applyProgramSwitch(newProgramId, startWeek = 1) {
   // and its scaffolding is cleared, so no completed exercise from the old program
   // can leak into the new program's workout. The new run then seeds its start week
   // clean; future weeks materialise lazily under the new activation.
-  startProgramActivation(newProgramId, appState.currentWeek);
   reseedActiveProgramIntoWeek(appState.currentWeek);
   saveStateToLocalStorage(true);
   try { updateLibraryState(appState); renderLibrary(); } catch (_) {}
   hydrateCurrentView();
   showActivePlanView(true);
   showToast('Program activated ✓');
+}
+
+function applyResumedActivation(activationId) {
+  const result = resumeActivation(appState, activationId);
+  if (!result.ok) return false;
+  // A previously empty week may have been intentionally dropped when paused;
+  // materialise only the resumed current week while preserving restored logs.
+  reseedActiveProgramIntoWeek(appState.currentWeek);
+  saveStateToLocalStorage(true);
+  try { updateLibraryState(appState); renderLibrary(); } catch (_) {}
+  hydrateCurrentView();
+  showActivePlanView(true);
+  showToast('Previous program resumed ✓');
+  return true;
+}
+
+function triggerResumeProgramActivation(activationId) {
+  if (!activationId) return;
+  resumeActivationWithConfirm(appState, activationId, {
+    resolveProgram: getProgramById,
+    resolveName: (id) => getCatalogEntry(id)?.name || getProgramById(id)?.name,
+    workoutStatus: activeWorkoutSwitchStatus,
+    resolveWorkout: resolveWorkoutBeforeProgramSwitch,
+    apply: applyResumedActivation,
+    onError: (message) => showToast(message, true),
+  }).catch((error) => console.warn('Resume failed:', error));
 }
 
 export function handleMacroWeekSwitch() {
@@ -464,6 +495,7 @@ export function switchBrowserSectionTab(tabName) {
 
   _renderActivePlanHero();
   _renderActivePlanWeekNav();
+  _renderPreviousProgramRuns();
 
   const prog = getProgramById(appState.activeProgramId);
   const catalog = getCatalogEntry(appState.activeProgramId);
@@ -479,6 +511,46 @@ export function switchBrowserSectionTab(tabName) {
   }
 }
 
+function _renderPreviousProgramRuns() {
+  const container = document.getElementById('previousProgramRuns');
+  if (!container) return;
+  const previous = priorActivationSummaries(appState);
+  if (!previous.length) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = '';
+  container.innerHTML = `
+    <div class="previous-program-runs__header">
+      <div>
+        <div class="previous-program-runs__eyebrow">PROGRAM HISTORY</div>
+        <h3>Previous program runs</h3>
+      </div>
+      <span>${previous.length}</span>
+    </div>
+    <div class="previous-program-runs__list">
+      ${previous.map((run) => {
+        const program = getProgramById(run.programId);
+        const name = program?.name || getCatalogEntry(run.programId)?.name || 'Previous program';
+        const paused = run.pausedAt ? new Date(run.pausedAt) : null;
+        const pausedLabel = paused && !Number.isNaN(paused.getTime())
+          ? paused.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'Date unavailable';
+        return `<article class="previous-program-run-card">
+          <div class="previous-program-run-card__copy">
+            <strong>${escapeHtml(name)}</strong>
+            <span>Paused at Week ${run.lastWeek} · ${run.loggedWeeks} logged week${run.loggedWeeks === 1 ? '' : 's'} · ${escapeHtml(pausedLabel)}</span>
+          </div>
+          <div class="previous-program-run-card__actions">
+            <button class="btn-pad" data-action="view-activation-activities" data-activation-id="${escapeHtml(run.id)}">View activities</button>
+            <button class="btn-pad btn-blue" data-action="resume-program-activation" data-activation-id="${escapeHtml(run.id)}"${program ? '' : ' disabled'}>${program ? 'Resume' : 'Unavailable'}</button>
+          </div>
+        </article>`;
+      }).join('')}
+    </div>`;
+}
+
 function _renderActivePlanHero() {
   const heroEl = document.getElementById('activePlanHero');
   if (!heroEl) return;
@@ -487,8 +559,11 @@ function _renderActivePlanHero() {
   const prog = getProgramById(appState.activeProgramId);
   const name = catalog?.name || prog?.name || 'Active Program';
   const icon = catalog?.icon || '📋';
-  const g = catalog?.coverGradient || ['#1a0e2e', '#0d1b2a'];
-  const accentColor = catalog?.accentColor || '#8b5cf6';
+  const g = [
+    safeCssColor(catalog?.coverGradient?.[0], '#1a0e2e'),
+    safeCssColor(catalog?.coverGradient?.[1], '#0d1b2a'),
+  ];
+  const accentColor = safeCssColor(catalog?.accentColor, '#8b5cf6');
   const displayWk = parseInt(_activePlanDisplayWeek || appState.currentWeek || '1', 10);
   const actualWk  = parseInt(appState.currentWeek || '1', 10);
   const totalWeeks = catalog?.durationWeeks || prog?.totalWeeks || 12;
@@ -497,7 +572,7 @@ function _renderActivePlanHero() {
 
   heroEl.innerHTML = `
     <div class="aplan-hero-inner" style="background: linear-gradient(135deg, ${g[0]}, ${g[1]})">
-      <div class="aplan-hero-icon">${icon}</div>
+      <div class="aplan-hero-icon">${escapeHtml(icon)}</div>
       <div class="aplan-hero-content">
         <div class="aplan-hero-eyebrow">ACTIVE PROGRAM</div>
         <div class="aplan-hero-name">${escapeHtml(name)}</div>
@@ -510,7 +585,7 @@ function _renderActivePlanHero() {
         </div>
         <div class="aplan-hero-weeks">${actualWk} of ${totalWeeks} weeks</div>
       </div>
-      <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${appState.activeProgramId || ''}" title="Rate this program">★</button>
+      <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${escapeHtml(appState.activeProgramId || '')}" title="Rate this program">★</button>
     </div>
   `;
 }
@@ -537,8 +612,8 @@ function _renderThisWeekTab(catalog, prog) {
     const ld = legacyDays[dayKey];
     const isToday = dayKey === todayKey;
     const title = cd?.title || ld?.title || (dayKey === 'sun' ? 'Rest Day' : 'Training');
-    const badge = cd?.badge || '';
-    const color = cd?.color || 'var(--accent-blue)';
+    const badge = cd?.badge || ld?.badge || '';
+    const color = safeCssColor(cd?.color || ld?.color, 'var(--accent-blue)');
     const isRest = !cd?.lifts?.length && (!cd?.runs || cd?.runs === 'Rest')
                 && !ld?.lifts?.length && (!ld?.runs || ld?.runs === 'Rest');
     const hasPreview = !isRest && !!(
@@ -548,11 +623,11 @@ function _renderThisWeekTab(catalog, prog) {
     );
     return `
       <div class="aplan-day-card ${isToday ? 'aplan-day-card--today' : ''} ${isRest ? 'aplan-day-card--rest' : ''}"
-           ${hasPreview ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${appState.activeProgramId}" role="button" tabindex="0"` : ''}>
+           ${hasPreview ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${escapeHtml(appState.activeProgramId || '')}" role="button" tabindex="0"` : ''}>
         <div class="aplan-day-label">${dayShort[dayKey]}</div>
         <div class="aplan-day-body">
-          <div class="aplan-day-title">${title}</div>
-          ${badge ? `<div class="aplan-day-badge" style="color:${color};border-color:${color}40">${badge}</div>` : ''}
+          <div class="aplan-day-title">${escapeHtml(title)}</div>
+          ${badge ? `<div class="aplan-day-badge" style="color:${color};border-color:${color}40">${escapeHtml(badge)}</div>` : ''}
         </div>
         ${hasPreview ? '<span class="aplan-day-chevron">›</span>' : ''}
         ${isToday ? '<div class="aplan-today-pip"></div>' : ''}
@@ -916,6 +991,16 @@ document.addEventListener('click', (e) => {
   else if (action === 'cancel-week-advance') cancelWeekAdvance();
   else if (action === 'confirm-week-advance') confirmWeekAdvance();
   else if (action === 'make-active-program') triggerMakeActiveProgram(progId);
+  else if (action === 'resume-program-activation') triggerResumeProgramActivation(target.getAttribute('data-activation-id'));
+  else if (action === 'view-activation-activities') {
+    const activationId = target.getAttribute('data-activation-id');
+    const run = priorActivationSummaries(appState).find((item) => item.id === activationId);
+    const program = run ? getProgramById(run.programId) : null;
+    if (activationId) openActivities({
+      activationId,
+      label: `${program?.name || 'Previous program'} history`,
+    });
+  }
   else if (action === 'open-builder') openBuilder(progId);
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
@@ -1135,6 +1220,7 @@ document.addEventListener('change', (e) => {
   }
   if (target.id === 'settingsImportFile') {
     handleImportFile(target.files?.[0]);
+    target.value = '';
     return;
   }
   if (target.id === 'avatarFilePicker') {

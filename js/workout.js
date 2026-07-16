@@ -27,7 +27,7 @@ import { completionPresentation, evaluateSessionCompletion } from './workout/com
 import { detectRunType } from './workout/run-type.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
-import { deleteDayWorkoutData } from './workout/delete-day.js';
+import { deleteDayWorkoutData, hasDayWorkoutDraft } from './workout/delete-day.js';
 import {
   activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
   clearActiveOneOffSession, oneOffBlueprint,
@@ -135,6 +135,84 @@ export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn
   _scheduleSave = scheduleSaveFn || (() => saveStateFn(true));
 }
 
+/**
+ * Durable status used by program activation. A running timer or any user edit
+ * makes the workout unresolved; a program switch must explicitly save or
+ * discard it before activation state can change.
+ */
+export function activeWorkoutSwitchStatus() {
+  const state = _getState?.();
+  if (!state) return { unresolved: false, hasDraft: false, timerActive: false, week: null, day: null };
+  const week = activeWorkoutWeekKey(state);
+  const day = activeWorkoutDay(state, _getSelectedDay?.());
+  const timerActive = getWorkoutElapsedSeconds() > 0;
+  const hasDraft = !!day && hasDayWorkoutDraft(state.weeks?.[week], day);
+  return { unresolved: timerActive || hasDraft, hasDraft, timerActive, week, day };
+}
+
+function blankProgramDay(state, week, day) {
+  const program = getProgramById(state.activeProgramId);
+  const blueprint = program?.days?.[day];
+  const lifts = {};
+  const liftOrder = [];
+  if (!program || !blueprint) return { lifts, liftOrder };
+  const modifier = getWeekModifier(program, week);
+  for (const liftName of (blueprint.lifts || [])) {
+    if (typeof liftName !== 'string' || !liftName.trim()) continue;
+    lifts[liftName] = prescribeSetsForLift(week, day, liftName, blueprint.desc, modifier);
+    liftOrder.push(liftName);
+  }
+  return { lifts, liftOrder };
+}
+
+/**
+ * Resolve the active workout before a program switch. Saving commits the live
+ * controls and records elapsed time; discarding restores the blank prescription
+ * (or removes a one-off session). Both stop the session timers before returning.
+ * @param {'save'|'discard'} action
+ */
+export async function resolveWorkoutBeforeProgramSwitch(action) {
+  if (action !== 'save' && action !== 'discard') return false;
+  const state = _getState?.();
+  if (!state) return false;
+  const status = activeWorkoutSwitchStatus();
+  const week = status.week;
+  const day = status.day;
+  if (!week || !day) return false;
+
+  const oneOff = activeOneOffSession(state);
+  if (action === 'save') {
+    commitWorkoutUIState();
+    const elapsed = getWorkoutElapsedSeconds();
+    const weekData = state.weeks?.[week];
+    if (elapsed > 0 && weekData) {
+      if (!weekData.gymStats) weekData.gymStats = {};
+      if (!weekData.gymStats[day]) weekData.gymStats[day] = { time: '', avgHR: '', maxHR: '', cals: '' };
+      if (!weekData.gymStats[day].time) {
+        weekData.gymStats[day].time = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+      }
+    }
+    if (oneOff?.key === week) {
+      clearActiveOneOffSession(state);
+      if (!hasDayWorkoutDraft(state.weeks?.[week], day)) delete state.weeks[week];
+    }
+  } else if (oneOff?.key === week) {
+    delete state.weeks[week];
+    clearActiveOneOffSession(state);
+  } else {
+    const replacement = blankProgramDay(state, week, day);
+    deleteDayWorkoutData(state.weeks?.[week], day, replacement);
+    try {
+      await deleteMapFromDB(week, day, { activationId: state.activeActivationId });
+    } catch (_) { /* state deletion remains authoritative; route cleanup is best-effort */ }
+  }
+
+  stopAndResetWorkoutTimer();
+  dismissRestTimer();
+  _saveState(true);
+  return true;
+}
+
 // ==========================================
 // PRIVATE HELPERS
 // ==========================================
@@ -222,8 +300,8 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     }
   }
 
-  const safeLiftName   = liftName.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-  const displaySafeName = displayLiftName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const safeLiftName = escapeHtml(liftName);
+  const displaySafeName = escapeHtml(displayLiftName);
 
   // The auto-progression suggestion becomes the ghost target on every set row.
   // When there is no suggestion yet (first-ever exposure to this lift) we fall
@@ -1412,15 +1490,15 @@ export function showSupersetLinkPanel(exCard) {
     const partners = Object.keys(dayMeta).filter(n => n !== liftName && dayMeta[n]?.groupId === myGroupId);
     panel.innerHTML = `
       <div class="ss-panel-title">Superset ${escapeHtml(String(myGroupId))} — paired with: ${partners.map(n => escapeHtml(n)).join(', ') || 'none'}</div>
-      <button class="btn-pad" style="color:#ef4444;border-color:rgba(239,68,68,0.3);" data-action="unlink-superset" data-liftname="${liftName}">Unlink superset</button>`;
+      <button class="btn-pad" style="color:#ef4444;border-color:rgba(239,68,68,0.3);" data-action="unlink-superset" data-liftname="${escapeHtml(liftName)}">Unlink superset</button>`;
   } else if (others.length === 0) {
     panel.innerHTML = `<div class="ss-panel-title" style="color:#94a3b8;">Add more exercises to pair as a superset.</div>`;
   } else {
     let html = '<div class="ss-panel-title">Pair with:</div>';
     others.forEach(name => {
-      const safe    = name.replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+      const safe    = escapeHtml(name);
       const display = name;
-      html += `<button class="btn-pad" data-action="link-superset" data-liftname="${liftName}" data-partner="${safe}">${escapeHtml(display)}</button>`;
+      html += `<button class="btn-pad" data-action="link-superset" data-liftname="${escapeHtml(liftName)}" data-partner="${safe}">${escapeHtml(display)}</button>`;
     });
     panel.innerHTML = html;
   }
@@ -1528,7 +1606,7 @@ export function toggleAccordionManual(elementNode) {
 function _exChip(name, appState) {
   const pr = appState.exerciseStats?.[name]?.allTimeMax;
   const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
-  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${name.replace(/"/g, '&quot;')}">${escapeHtml(name)}${prStr}</button>`;
+  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}">${escapeHtml(name)}${prStr}</button>`;
 }
 
 function _renderExerciseLibraryList(query) {
@@ -1623,8 +1701,8 @@ function _renderSwapList(liftName) {
     return;
   }
   list.innerHTML = subs.map(s => `
-    <button class="el-chip tactile-scale" data-action="swap-pick" data-exname="${s.name.replace(/"/g, '&quot;')}">
-      ${escapeHtml(s.name)}<span class="el-pr">${s.bodyweight ? 'Bodyweight' : s.equip.map(labelEquip).join(' · ')}</span>
+    <button class="el-chip tactile-scale" data-action="swap-pick" data-exname="${escapeHtml(s.name)}">
+      ${escapeHtml(s.name)}<span class="el-pr">${s.bodyweight ? 'Bodyweight' : escapeHtml(s.equip.map(labelEquip).join(' · '))}</span>
     </button>
   `).join('');
 }

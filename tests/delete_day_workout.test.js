@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { deleteDayWorkoutData, hasDayWorkoutData } from '../js/workout/delete-day.js';
+import { deleteDayWorkoutData, hasDayWorkoutData, hasDayWorkoutDraft } from '../js/workout/delete-day.js';
 
 function loggedWeek() {
   return {
@@ -44,6 +44,28 @@ test('workout deletion preserves the day date and body-weight measurement', () =
 test('deleting a missing or already-empty day is an honest no-op', () => {
   assert.equal(deleteDayWorkoutData(null, 'mon'), false);
   assert.equal(deleteDayWorkoutData({ bodyWeight: { mon: '80' } }, 'mon'), false);
+});
+
+test('unchecked user edits count as an unresolved draft but blank prescriptions do not', () => {
+  assert.equal(hasDayWorkoutDraft({ lifts: { mon: { Squat: [{ w: '', r: '', c: false }] } } }, 'mon'), false);
+  assert.equal(hasDayWorkoutDraft({ lifts: { mon: { Squat: [{ w: '100', r: '5', c: false }] } } }, 'mon'), true);
+  assert.equal(hasDayWorkoutDraft({ lifts: { mon: { Squat: [{ w: '', r: '', c: false, rpe: 8 }] } } }, 'mon'), true);
+});
+
+test('finished history is resolved while an unfinished session remains a draft', () => {
+  assert.equal(hasDayWorkoutDraft({ lifts: { mon: { Squat: [{ w: '100', r: '5', c: true }] } } }, 'mon'), false);
+  assert.equal(hasDayWorkoutDraft({ lifts: { mon: { Squat: [
+    { w: '100', r: '5', c: true }, { w: '', r: '', c: false },
+  ] } } }, 'mon'), true);
+  assert.equal(hasDayWorkoutDraft({
+    lifts: { mon: { Squat: [{ w: '100', r: '5', c: true }, { w: '', r: '', c: false }] } },
+    gymStats: { mon: { time: '30:00' } },
+  }, 'mon'), false);
+  assert.equal(hasDayWorkoutDraft({
+    runs: { mon: { dist: '5', time: '25:00' } },
+    runSessions: { mon: [{ sessionId: 'run_1', dist: '5', time: '25:00' }] },
+  }, 'mon'), false);
+  assert.equal(hasDayWorkoutDraft({ runs: { mon: { dist: '5', time: '' } } }, 'mon'), true);
 });
 
 test('activity detail exposes exact deletion and Undo outside the logger', async () => {

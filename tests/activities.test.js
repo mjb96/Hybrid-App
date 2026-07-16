@@ -40,7 +40,21 @@ test('history creates one strength row and one row for every same-day run', () =
   assert.deepEqual(rows.map((row) => row.kind).sort(), ['run', 'run', 'strength']);
   assert.deepEqual(rows.filter((row) => row.kind === 'run').map((row) => row.sessionId), ['run_b', 'run_a']);
   assert.equal(rows.find((row) => row.kind === 'strength').workingSets, 1);
+  assert.ok(rows.every((row) => row.activationId === 'act_1'));
   assert.equal(filterActivityHistory(rows, 'run', '2026-07-13').length, 2);
+});
+
+test('history can be scoped to one exact program activation', () => {
+  const state = fixture();
+  state.weeks['arch:act_old:1'] = {
+    activationId: 'act_old', dates: { tue: '2026-06-01' },
+    lifts: { tue: { Bench: [{ c: true, w: '80', r: '8' }] } },
+  };
+  const rows = buildActivityHistory(state);
+  const old = filterActivityHistory(rows, 'all', null, 'act_old');
+  assert.equal(old.length, 1);
+  assert.equal(old[0].activationId, 'act_old');
+  assert.equal(old[0].exercises[0], 'Bench');
 });
 
 test('one-off strength sessions keep their identity and title in history', () => {

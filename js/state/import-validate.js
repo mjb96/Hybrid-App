@@ -61,12 +61,31 @@ export function importCounts(state) {
   let runs = 0, loggedDays = 0;
   for (const wk of Object.values(weeks)) {
     if (!wk || typeof wk !== 'object') continue;
-    const rs = /** @type {any} */ (wk).runSessions;
-    if (rs && typeof rs === 'object') {
-      for (const arr of Object.values(rs)) if (Array.isArray(arr)) runs += arr.length;
+    const week = /** @type {any} */ (wk);
+    const dayKeys = new Set([
+      ...Object.keys(week.lifts || {}), ...Object.keys(week.runs || {}),
+      ...Object.keys(week.runSessions || {}), ...Object.keys(week.notes || {}),
+      ...Object.keys(week.gymRpe || {}), ...Object.keys(week.gymStats || {}),
+    ]);
+    for (const day of dayKeys) {
+      const sessions = Array.isArray(week.runSessions?.[day])
+        ? week.runSessions[day].filter(hasImportedRunData)
+        : [];
+      const legacyRun = sessions.length === 0 && hasImportedRunData(week.runs?.[day]) ? 1 : 0;
+      runs += sessions.length + legacyRun;
+      const strength = Object.values(week.lifts?.[day] || {}).some((sets) =>
+        Array.isArray(sets) && sets.some((set) => isRecord(set) && (
+          set.c === true || set.c === 'true' || set.c === 'on' || set.c === 1 ||
+          String(set.w ?? '').trim() || String(set.r ?? '').trim()
+        ))
+      );
+      const metadata = !!String(week.notes?.[day] || '').trim()
+        || !!String(week.gymRpe?.[day] || '').trim()
+        || Object.values(week.gymStats?.[day] || {}).some((value) =>
+          Array.isArray(value) ? value.length > 0 : value != null && String(value).trim() !== ''
+        );
+      if (strength || sessions.length > 0 || legacyRun || metadata) loggedDays++;
     }
-    const lifts = /** @type {any} */ (wk).lifts;
-    if (lifts && typeof lifts === 'object') loggedDays += Object.keys(lifts).length;
   }
   return {
     weeks: Object.keys(weeks).length,
@@ -75,6 +94,61 @@ export function importCounts(state) {
     runs,
     loggedDays,
   };
+}
+
+function hasImportedRunData(run) {
+  if (!isRecord(run)) return false;
+  return ['dist', 'time', 'rpe', 'pace', 'avgHR', 'maxHR', 'elev', 'cals', 'notes', 'splits']
+    .some((key) => Array.isArray(run[key]) ? run[key].length > 0 : run[key] != null && String(run[key]).trim() !== '');
+}
+
+/** Honest, compact copy for the destructive import confirmation modal. */
+export function importPreviewMessage(counts, routeCount = 0) {
+  const c = counts || { loggedDays: 0, runs: 0, programs: 0, bodyWeights: 0 };
+  const routes = Math.max(0, Number(routeCount) || 0);
+  return [
+    `${c.loggedDays || 0} logged day${c.loggedDays === 1 ? '' : 's'} · ${c.runs || 0} run${c.runs === 1 ? '' : 's'}`,
+    `${c.programs || 0} custom program${c.programs === 1 ? '' : 's'} · ${c.bodyWeights || 0} body-weight entr${c.bodyWeights === 1 ? 'y' : 'ies'}`,
+    `${routes} GPS route${routes === 1 ? '' : 's'}`,
+    '',
+    'This replaces the data currently on this device. A local backup is created first.',
+  ].join('\n');
+}
+
+function isRecord(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidWeek(week) {
+  if (!isRecord(week)) return false;
+  const objectMaps = ['lifts', 'runs', 'runSessions', 'notes', 'gymRpe', 'bodyWeight', 'gymStats', 'liftMeta', 'liftOrder', 'dates'];
+  for (const key of objectMaps) {
+    if (week[key] != null && !isRecord(week[key])) return false;
+  }
+  for (const dayLifts of Object.values(week.lifts || {})) {
+    if (!isRecord(dayLifts)) return false;
+    for (const sets of Object.values(dayLifts)) {
+      if (!Array.isArray(sets) || sets.some(set => !isRecord(set))) return false;
+    }
+  }
+  for (const sessions of Object.values(week.runSessions || {})) {
+    if (!Array.isArray(sessions) || sessions.some(session => !isRecord(session))) return false;
+  }
+  return true;
+}
+
+function isValidCustomProgram(program) {
+  if (!isRecord(program) || typeof program.id !== 'string' || typeof program.name !== 'string') return false;
+  if (!isRecord(program.days)) return false;
+  if (program.totalWeeks != null && (!Number.isFinite(Number(program.totalWeeks)) || Number(program.totalWeeks) < 1)) return false;
+  for (const day of Object.values(program.days)) {
+    if (!isRecord(day)) return false;
+    if (day.lifts != null && (!Array.isArray(day.lifts) || day.lifts.some(lift => typeof lift !== 'string'))) return false;
+    for (const field of ['title', 'badge', 'color', 'desc', 'runs']) {
+      if (day[field] != null && typeof day[field] !== 'string') return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -91,10 +165,11 @@ export function validateImport(parsed, { currentSchemaVersion = Infinity, rawTex
   if (typeof parsed.currentWeek !== 'string' && typeof parsed.currentWeek !== 'number') return { ok: false, reason: 'no-current-week' };
   if (!parsed.weeks || typeof parsed.weeks !== 'object' || Array.isArray(parsed.weeks)) return { ok: false, reason: 'no-weeks' };
   if (Object.keys(parsed.weeks).length === 0) return { ok: false, reason: 'empty-weeks' };
-  for (const wk of Object.values(parsed.weeks)) {
-    if (!wk || typeof wk !== 'object' || Array.isArray(wk)) return { ok: false, reason: 'bad-week' };
-  }
+  for (const wk of Object.values(parsed.weeks)) if (!isValidWeek(wk)) return { ok: false, reason: 'bad-week' };
   if (parsed.customPrograms != null && !Array.isArray(parsed.customPrograms)) return { ok: false, reason: 'bad-programs' };
+  if (Array.isArray(parsed.customPrograms) && parsed.customPrograms.some(program => !isValidCustomProgram(program))) {
+    return { ok: false, reason: 'bad-program' };
+  }
   if (parsed.bodyWeightLog != null && !Array.isArray(parsed.bodyWeightLog)) return { ok: false, reason: 'bad-bodyweight' };
   if (parsed.settings != null && (typeof parsed.settings !== 'object' || Array.isArray(parsed.settings))) return { ok: false, reason: 'bad-settings' };
   // Future schema: refuse rather than run partial/unknown migrations. (migrateState

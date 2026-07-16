@@ -9,7 +9,7 @@ import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { renderProgramCard, isWod, coverGlyphFor } from './program-card.js';
 import { icon as svgIcon } from '../ui/icons.js';
 import { toggleBookmark, recordRecentlyViewed, getProgramById, getActiveProgramIssue, saveStateToLocalStorage } from '../state.js';
-import { escapeHtml, programProgressPct } from '../util.js';
+import { escapeHtml, programProgressPct, safeCssColor } from '../util.js';
 
 // V2-6 — the curated home rails (in order) shown on the lean Discover surface.
 // Everything else stays reachable via the category chips + Browse-all grid.
@@ -143,21 +143,21 @@ export function renderActiveProgramBanner() {
   // without a catalog duration don't all collapse to a hard-coded "of 12".
   const totalWeeks = catalog?.durationWeeks || getProgramById(activeId)?.totalWeeks || 12;
   const pct = programProgressPct(currentWeek, totalWeeks);
-  const accent = catalog?.accentColor || '#8b5cf6';
+  const accent = safeCssColor(catalog?.accentColor, '#8b5cf6');
   const circumference = 113;
   const dashArray = Math.round((pct / 100) * circumference);
   const nextWorkout = getNextWorkoutInfo(activeId);
 
   banner.style.display = 'block';
   banner.innerHTML = `
-    <div class="active-prog-card" data-action="open-program-detail" data-program-id="${activeId}">
+    <div class="active-prog-card" data-action="open-program-detail" data-program-id="${escapeHtml(activeId)}">
       <div class="active-prog-glow" style="background: ${accent}22"></div>
       <div class="active-prog-inner">
         <div class="active-prog-left">
           <span class="active-prog-badge">NOW TRAINING</span>
-          <div class="active-prog-name">${programName}</div>
+          <div class="active-prog-name">${escapeHtml(programName)}</div>
           <div class="active-prog-meta">Week ${currentWeek} of ${totalWeeks}
-            ${nextWorkout ? `<span class="active-prog-meta-sep">·</span> <span class="active-prog-next-label">${nextWorkout.label}: ${nextWorkout.title}</span>` : ''}
+            ${nextWorkout ? `<span class="active-prog-meta-sep">·</span> <span class="active-prog-next-label">${escapeHtml(nextWorkout.label)}: ${escapeHtml(nextWorkout.title)}</span>` : ''}
           </div>
         </div>
         <div class="active-prog-right">
@@ -535,10 +535,11 @@ function renderCustomProgramCard(p) {
     (d?.lifts || []).some(n => typeof n === 'string' && n.trim()) ||
     (d?.runs && d.runs !== 'Rest')
   ).length;
+  const safeId = escapeHtml(p.id || '');
 
   return `
     <div class="card-dark p-3" style="border:1px solid var(--overlay-sm);${isActive ? 'border-color:var(--accent-blue);' : ''}">
-      <div class="flex-between align-center mb-2" data-action="open-program-detail" data-program-id="${p.id}" role="button" tabindex="0" style="cursor:pointer;">
+      <div class="flex-between align-center mb-2" data-action="open-program-detail" data-program-id="${safeId}" role="button" tabindex="0" style="cursor:pointer;">
         <div>
           <div class="font-heavy text-inverse">${escapeHtml(p.name)}${isActive ? ' <span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}</div>
           <div class="text-xs text-muted">${escapeHtml(focus)} · ${weeks}w · ${trainingDays} training day${trainingDays !== 1 ? 's' : ''}</div>
@@ -546,27 +547,29 @@ function renderCustomProgramCard(p) {
         <span class="text-muted" aria-hidden="true">›</span>
       </div>
       <div class="flex gap-2" style="flex-wrap:wrap;">
-        ${isActive ? '' : `<button class="btn-pad btn-blue" style="font-size:0.75rem;" data-action="make-active-program" data-program-id="${p.id}">Make Active</button>`}
-        <button class="btn-pad" style="font-size:0.75rem;" data-action="open-builder" data-program-id="${p.id}">Edit</button>
-        <button class="btn-pad" style="font-size:0.75rem;" data-action="duplicate-program" data-program-id="${p.id}">Duplicate</button>
-        <button class="btn-pad" style="font-size:0.75rem;color:var(--accent-red);border-color:rgba(239,68,68,0.2);" data-action="delete-program" data-program-id="${p.id}">Delete</button>
+        ${isActive ? '' : `<button class="btn-pad btn-blue" style="font-size:0.75rem;" data-action="make-active-program" data-program-id="${safeId}">Make Active</button>`}
+        <button class="btn-pad" style="font-size:0.75rem;" data-action="open-builder" data-program-id="${safeId}">Edit</button>
+        <button class="btn-pad" style="font-size:0.75rem;" data-action="duplicate-program" data-program-id="${safeId}">Duplicate</button>
+        <button class="btn-pad" style="font-size:0.75rem;color:var(--accent-red);border-color:rgba(239,68,68,0.2);" data-action="delete-program" data-program-id="${safeId}">Delete</button>
       </div>
     </div>
   `;
 }
 
 function renderHeroBanner(programs) {
-  const slides = programs.map((p, i) => `
+  const slides = programs.map((p, i) => {
+    const cover = [safeCssColor(p.coverGradient?.[0], '#1a0e2e'), safeCssColor(p.coverGradient?.[1], '#0d1b2a')];
+    return `
     <div class="hero-slide ${i === 0 ? 'active' : ''}"
-         style="background: linear-gradient(145deg, ${p.coverGradient[0]}, ${p.coverGradient[1]})"
+         style="background: linear-gradient(145deg, ${cover[0]}, ${cover[1]})"
          data-action="open-program-detail"
-         data-program-id="${p.id}">
+         data-program-id="${escapeHtml(p.id)}">
       <div class="hero-slide-overlay"></div>
       <div class="hero-slide-icon" aria-hidden="true">${svgIcon(coverGlyphFor(p), { size: 104 })}</div>
       <div class="hero-slide-content">
-        <span class="hero-badge">${CATEGORIES[p.category]?.label || p.category}</span>
-        <h2 class="hero-title">${p.name}</h2>
-        <p class="hero-tagline">${p.tagline}</p>
+        <span class="hero-badge">${escapeHtml(CATEGORIES[p.category]?.label || p.category)}</span>
+        <h2 class="hero-title">${escapeHtml(p.name)}</h2>
+        <p class="hero-tagline">${escapeHtml(p.tagline)}</p>
         <div class="hero-meta">
           <span>${p.durationWeeks} weeks</span>
           <span class="hero-dot">·</span>
@@ -576,7 +579,7 @@ function renderHeroBanner(programs) {
         </div>
       </div>
     </div>
-  `).join('');
+  `; }).join('');
 
   const dots = programs.map((_, i) => `
     <button class="hero-dot-btn ${i === 0 ? 'active' : ''}" data-action="hero-dot" data-slide="${i}"></button>

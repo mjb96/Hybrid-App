@@ -126,7 +126,7 @@ function renderStrengthProgression(sa, weekLabels) {
 
     html += `<article class="card-dark p-3 mb-3" style="border:1px solid rgba(59,130,246,0.15);">
       <div class="flex-between mb-2">
-        <span class="text-sm font-bold text-inverse">${liftName}${prBadge}</span>
+        <span class="text-sm font-bold text-inverse">${esc(liftName)}${prBadge}</span>
         <span class="text-base font-heavy" style="color:#3b82f6;">${Math.round(prog.lifetimePR)} kg <span class="text-xs text-muted">Lifetime PR</span></span>
       </div>
       <div class="grid-2-col gap-2 mb-2">
@@ -511,7 +511,7 @@ export function render1RMList(container, dynamicStats, calStats = null) {
 
     return `<div class="mb-4">
       <div class="flex-between font-bold mb-1">
-        <span class="text-inverse text-sm">${name}${badge}</span>
+        <span class="text-inverse text-sm">${esc(name)}${badge}</span>
         <span style="color:#3b82f6;" class="text-base">${Math.round(statData.allTimeMax)} kg</span>
       </div>
       ${deltaHtml ? `<div class="mb-2">${deltaHtml}</div>` : ''}

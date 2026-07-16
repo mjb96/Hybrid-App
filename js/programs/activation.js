@@ -32,12 +32,14 @@ import { closeManagedModal, openManagedModal } from '../ui/modal-stack.js';
  *   resolveProgram?: (id:string)=>any,
  *   resolveName?: (id:string)=>string|undefined,
  *   workoutInProgress?: boolean,
+ *   workoutStatus?: {unresolved?:boolean,hasDraft?:boolean,timerActive?:boolean}|null,
  * }} [deps]
  */
 export function buildActivationPlan(state, programId, deps = {}) {
   const resolveProgram = deps.resolveProgram || (() => null);
   const resolveName = deps.resolveName || ((id) => id);
-  const workoutInProgress = !!deps.workoutInProgress;
+  const workoutStatus = deps.workoutStatus || null;
+  const workoutInProgress = !!(workoutStatus?.unresolved || deps.workoutInProgress);
 
   const target = resolveProgram(programId) || null;
   const targetName = (resolveName(programId) || target?.name || 'this program');
@@ -70,7 +72,7 @@ export function buildActivationPlan(state, programId, deps = {}) {
   if (mode === 'restart') impact.push({ tone: 'info', text: `Restarts ${targetName} from the beginning` });
   impact.push({ tone: 'safe', text: 'Your logged history and completed weeks are kept' });
   if (workoutInProgress) {
-    impact.push({ tone: 'warn', text: 'A workout is in progress — finish or discard it first to avoid mixing sessions' });
+    impact.push({ tone: 'warn', text: 'Your current workout must be saved or discarded before the program can change' });
   }
 
   // Start-week choice. A freshly-activated program should begin at Week 1; when
@@ -90,8 +92,43 @@ export function buildActivationPlan(state, programId, deps = {}) {
     ok: !!target,
     programId, targetName, weeks, daysPerWeek, level, type,
     mode, currentId, currentName, currentWeek, sameAsCurrent,
-    workoutInProgress, historyPreserved: true,
+    workoutInProgress, workoutStatus, requiresWorkoutResolution: workoutInProgress, historyPreserved: true,
     title, summary, impact, startWeekChoices, defaultStartWeek: 1,
+  };
+}
+
+/** Build the same confirmation contract for resuming an existing run. */
+export function buildResumePlan(state, activationId, deps = {}) {
+  const activation = Array.isArray(state?.activations)
+    ? state.activations.find((record) => record?.id === activationId)
+    : null;
+  if (!activation?.programId || activationId === state?.activeActivationId) {
+    return {
+      ok: false, activationId, mode: 'resume', title: 'Program run unavailable',
+      summary: [], impact: [], startWeekChoices: [], defaultStartWeek: 1,
+      workoutInProgress: false, requiresWorkoutResolution: false,
+    };
+  }
+  const plan = buildActivationPlan(state, activation.programId, deps);
+  const resumeWeek = Math.max(1, parseInt(String(activation.lastWeek || activation.startWeek), 10) || 1);
+  const targetName = plan.targetName || 'this program';
+  const currentName = plan.currentName || 'your current program';
+  return {
+    ...plan,
+    ok: plan.ok,
+    mode: 'resume',
+    activationId,
+    activation,
+    title: `Resume ${targetName}?`,
+    summary: [`Continue from Week ${resumeWeek}`],
+    impact: [
+      { tone: 'info', text: `Pauses ${currentName} at Week ${plan.currentWeek}` },
+      { tone: 'safe', text: `Restores ${targetName} with its original logged weeks` },
+      { tone: 'safe', text: 'All program and activity history is kept' },
+      ...(plan.workoutInProgress ? [{ tone: 'warn', text: 'Your current workout must be saved or discarded before the program can change' }] : []),
+    ],
+    startWeekChoices: [{ week: resumeWeek, label: `Resume at Week ${resumeWeek}`, primary: true }],
+    defaultStartWeek: resumeWeek,
   };
 }
 
@@ -127,7 +164,11 @@ function ensureStyles() {
     cursor: pointer; border: 1px solid transparent; text-align: center; }
   .actm__btn--primary { background: var(--color-blue,#3b82f6); color: #fff; }
   .actm__btn--secondary { background: rgba(255,255,255,0.06); color: var(--text-inverse,#f8fafc); border-color: rgba(255,255,255,0.14); }
+  .actm__btn--danger { background: rgba(239,68,68,0.12); color: #fca5a5; border-color: rgba(239,68,68,0.35); }
   .actm__btn--cancel { background: transparent; color: var(--text-muted,#94a3b8); }
+  .actm__start { margin: 0 0 14px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.05); }
+  .actm__start-title { display:block; margin-bottom:7px; color:var(--text-muted,#94a3b8); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .actm__choice { display:flex; align-items:center; gap:8px; min-height:34px; color:var(--text-secondary,#cbd5e1); font-size:.8rem; }
   @media (prefers-reduced-motion: reduce) { .actm-overlay, .actm { transition: none !important; transform: none !important; } }`;
   document.head.appendChild(s);
 }
@@ -138,7 +179,7 @@ const _toneIcon = (tone) => (tone === 'safe' ? '✓' : tone === 'warn' ? '⚠' :
 /**
  * Present the activation plan and resolve the user's choice.
  * @param {ReturnType<typeof buildActivationPlan>} plan
- * @returns {Promise<{ activate: boolean, startWeek: number }>}
+ * @returns {Promise<{ activate: boolean, startWeek: number, sessionAction?:'save'|'discard' }>}
  */
 export function confirmActivation(plan) {
   if (typeof document === 'undefined') return Promise.resolve({ activate: false, startWeek: 1 });
@@ -154,15 +195,25 @@ export function confirmActivation(plan) {
     const impactHTML = plan.impact.map(i =>
       `<div class="actm__item actm__item--${i.tone}"><span class="actm__ico" aria-hidden="true">${_toneIcon(i.tone)}</span><span>${_esc(i.text)}</span></div>`
     ).join('');
-    const btnsHTML = plan.startWeekChoices.map((c, idx) =>
-      `<button class="actm__btn actm__btn--${c.primary ? 'primary' : 'secondary'}" data-act-week="${c.week}"${idx === 0 ? ' data-act-default="1"' : ''}>${_esc(c.label)}</button>`
-    ).join('') + `<button class="actm__btn actm__btn--cancel" data-act-cancel="1">Cancel</button>`;
+    const startChoices = plan.requiresWorkoutResolution && plan.startWeekChoices.length > 1
+      ? `<div class="actm__start"><span class="actm__start-title">New program starts</span>${plan.startWeekChoices.map((c, idx) =>
+        `<label class="actm__choice"><input type="radio" name="act-start-week" value="${c.week}"${idx === 0 ? ' checked' : ''}> <span>${_esc(c.label)}</span></label>`
+      ).join('')}</div>`
+      : '';
+    const btnsHTML = plan.requiresWorkoutResolution
+      ? `<button class="actm__btn actm__btn--primary" data-act-resolution="save" data-act-default="1">Save workout and ${plan.mode === 'resume' ? 'resume' : 'switch'}</button>
+         <button class="actm__btn actm__btn--danger" data-act-resolution="discard">Discard this workout and ${plan.mode === 'resume' ? 'resume' : 'switch'}</button>
+         <button class="actm__btn actm__btn--cancel" data-act-cancel="1">Cancel</button>`
+      : plan.startWeekChoices.map((c, idx) =>
+        `<button class="actm__btn actm__btn--${c.primary ? 'primary' : 'secondary'}" data-act-week="${c.week}"${idx === 0 ? ' data-act-default="1"' : ''}>${_esc(c.label)}</button>`
+      ).join('') + `<button class="actm__btn actm__btn--cancel" data-act-cancel="1">Cancel</button>`;
 
     overlay.innerHTML = `
       <div class="actm">
         <div class="actm__title">${_esc(plan.title)}</div>
         ${summaryLine}
         <div class="actm__list">${impactHTML}</div>
+        ${startChoices}
         <div class="actm__btns">${btnsHTML}</div>
       </div>`;
     document.body.appendChild(overlay);
@@ -181,6 +232,16 @@ export function confirmActivation(plan) {
     overlay.addEventListener('click', (e) => {
       const t = /** @type {HTMLElement} */ (e.target);
       if (t === overlay || t.closest('[data-act-cancel]')) return finish({ activate: false, startWeek: 1 });
+      const resolutionBtn = t.closest('[data-act-resolution]');
+      if (resolutionBtn) {
+        const selected = /** @type {HTMLInputElement|null} */ (overlay.querySelector('input[name="act-start-week"]:checked'));
+        const startWeek = parseInt(selected?.value, 10) || plan.defaultStartWeek || 1;
+        return finish({
+          activate: true,
+          startWeek,
+          sessionAction: resolutionBtn.getAttribute('data-act-resolution') === 'discard' ? 'discard' : 'save',
+        });
+      }
       const weekBtn = t.closest('[data-act-week]');
       if (weekBtn) finish({ activate: true, startWeek: parseInt(weekBtn.getAttribute('data-act-week'), 10) || 1 });
     });
@@ -202,20 +263,60 @@ export function confirmActivation(plan) {
  * @param {{
  *   resolveProgram:(id:string)=>any, resolveName:(id:string)=>string|undefined,
  *   workoutInProgress?:()=>boolean, apply:(id:string, startWeek:number)=>void,
- *   confirm?:(plan:any)=>Promise<{activate:boolean,startWeek:number}>,
+ *   workoutStatus?:()=>any, resolveWorkout?:(action:'save'|'discard',status:any)=>boolean|Promise<boolean>,
+ *   confirm?:(plan:any)=>Promise<{activate:boolean,startWeek:number,sessionAction?:'save'|'discard'}>,
  *   onError?:(msg:string)=>void,
  * }} deps
  * @returns {Promise<boolean>}
  */
 export async function activateProgramWithConfirm(state, programId, deps) {
+  const workoutStatus = deps.workoutStatus ? deps.workoutStatus() : null;
   const plan = buildActivationPlan(state, programId, {
     resolveProgram: deps.resolveProgram,
     resolveName: deps.resolveName,
-    workoutInProgress: deps.workoutInProgress ? deps.workoutInProgress() : false,
+    workoutStatus,
+    workoutInProgress: workoutStatus ? false : (deps.workoutInProgress ? deps.workoutInProgress() : false),
   });
   if (!plan.ok) { deps.onError?.('That program could not be found.'); return false; }
   const choice = await (deps.confirm || confirmActivation)(plan);
   if (!choice || !choice.activate) return false;
+  if (plan.requiresWorkoutResolution) {
+    if (!choice.sessionAction || !deps.resolveWorkout) {
+      deps.onError?.('Save or discard the current workout before switching programs.');
+      return false;
+    }
+    const resolved = await deps.resolveWorkout(choice.sessionAction, workoutStatus);
+    if (!resolved) {
+      deps.onError?.('The current workout could not be resolved safely.');
+      return false;
+    }
+  }
   deps.apply(programId, choice.startWeek || 1);
   return true;
+}
+
+/** Resume a prior activation through the same save/discard/cancel gate. */
+export async function resumeActivationWithConfirm(state, activationId, deps) {
+  const workoutStatus = deps.workoutStatus ? deps.workoutStatus() : null;
+  const plan = buildResumePlan(state, activationId, {
+    resolveProgram: deps.resolveProgram,
+    resolveName: deps.resolveName,
+    workoutStatus,
+  });
+  if (!plan.ok) { deps.onError?.('That previous program run could not be resumed.'); return false; }
+  const choice = await (deps.confirm || confirmActivation)(plan);
+  if (!choice || !choice.activate) return false;
+  if (plan.requiresWorkoutResolution) {
+    if (!choice.sessionAction || !deps.resolveWorkout) {
+      deps.onError?.('Save or discard the current workout before resuming a program.');
+      return false;
+    }
+    const resolved = await deps.resolveWorkout(choice.sessionAction, workoutStatus);
+    if (!resolved) {
+      deps.onError?.('The current workout could not be resolved safely.');
+      return false;
+    }
+  }
+  const applied = await deps.apply(activationId);
+  return applied !== false;
 }

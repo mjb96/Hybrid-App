@@ -6,7 +6,7 @@
 // =============================================================================
 import { CATEGORIES, DIFFICULTY_LABELS } from './catalog.js';
 import { isBookmarked, isProgramCompleted, appState } from '../state.js';
-import { escapeHtml } from '../util.js';
+import { escapeHtml, safeCssColor } from '../util.js';
 import { icon as svgIcon } from '../ui/icons.js';
 import { programAttribution } from './attribution.js';
 
@@ -57,10 +57,12 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   const categoryLabel = wod ? 'Workout' : (CATEGORIES[program.category]?.label || program.category || 'Custom');
   // Non-catalog (custom) programs lack visual metadata — supply safe fallbacks
   // so the shared card renderer never throws on a missing gradient/icon/accent.
-  const cover = Array.isArray(program.coverGradient) && program.coverGradient.length >= 2
+  const rawCover = Array.isArray(program.coverGradient) && program.coverGradient.length >= 2
     ? program.coverGradient : ['#1a0e2e', '#0d1b2a'];
+  const cover = [safeCssColor(rawCover[0], '#1a0e2e'), safeCssColor(rawCover[1], '#0d1b2a')];
   const coverGlyph = svgIcon(coverGlyphFor(program), { size: 96, cls: 'prog-card-glyph__svg' });
-  const accentColor = program.accentColor || '#8b5cf6';
+  const accentColor = safeCssColor(program.accentColor, '#8b5cf6');
+  const safeId = escapeHtml(program.id || '');
 
   // No star ratings or "N athletes / % finish" until there are real users to
   // count — the catalog's rating/enrolled/completion values drive curation
@@ -81,7 +83,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   return `
     <div class="prog-card prog-card--${size} ${isActive ? 'prog-card--active' : ''} ${completed ? 'prog-card--completed' : ''}"
          data-action="open-program-detail"
-         data-program-id="${program.id}">
+         data-program-id="${safeId}">
       <div class="prog-card-cover"
            style="background: linear-gradient(145deg, ${cover[0]}, ${cover[1]})">
         <div class="prog-card-glyph" aria-hidden="true">${coverGlyph}</div>
@@ -94,7 +96,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
         </div>
         <button class="prog-card-bookmark ${saved ? 'saved' : ''}"
                 data-action="toggle-bookmark"
-                data-program-id="${program.id}"
+                data-program-id="${safeId}"
                 aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
           ${saved ? '🔖' : '🤍'}
         </button>
@@ -104,7 +106,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
         <div class="prog-card-name">${escapeHtml(program.name)}</div>
         ${authorHTML}
         <div class="prog-card-meta">
-          <span class="prog-card-category" style="color: ${accentColor}">${categoryLabel}</span>
+          <span class="prog-card-category" style="color: ${accentColor}">${escapeHtml(categoryLabel)}</span>
           <span class="prog-card-sep">·</span>
           <span>${durationLabel}</span>
           ${!wod && program.sessionsPerWeek ? `<span class="prog-card-sep">·</span><span>${program.sessionsPerWeek}×/wk</span>` : ''}

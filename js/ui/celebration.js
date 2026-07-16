@@ -14,6 +14,7 @@ import { closeManagedModal, openManagedModal } from './modal-stack.js';
 //   confettiBurst()                       — burst only (e.g. over the recap)
 // =============================================================================
 import { hapticSuccess } from '../haptics.js';
+import { escapeHtml } from '../util.js';
 
 const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#f8fafc', '#8b5cf6'];
 const AUTO_DISMISS_MS = 3600;
@@ -22,6 +23,16 @@ let _stylesInjected = false;
 let _active = false;
 /** @type {{icon:string,title:string,subtitle:string}[]} */
 let _queue = [];
+
+export function celebrationContentHtml({ icon = '', title = '', subtitle = '' } = {}) {
+  return `
+    <div class="celebration-card">
+      <div class="celebration-icon">${escapeHtml(icon)}</div>
+      <div class="celebration-title">${escapeHtml(title)}</div>
+      <div class="celebration-sub">${escapeHtml(subtitle)}</div>
+      <div class="celebration-hint">Tap to continue</div>
+    </div>`;
+}
 
 function reducedMotion() {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
@@ -126,13 +137,7 @@ function showNext() {
   overlay.className = 'celebration-overlay';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-label', next.title);
-  overlay.innerHTML = `
-    <div class="celebration-card">
-      <div class="celebration-icon">${next.icon}</div>
-      <div class="celebration-title">${next.title}</div>
-      <div class="celebration-sub">${next.subtitle}</div>
-      <div class="celebration-hint">Tap to continue</div>
-    </div>`;
+  overlay.innerHTML = celebrationContentHtml(next);
   document.body.appendChild(overlay);
 
   let closed = false;
@@ -153,7 +158,8 @@ function showNext() {
 }
 
 // Queued so simultaneous milestones (e.g. level-up + streak) play in sequence
-// rather than stacking. Text is app-generated only — never user input.
+// rather than stacking. Values are escaped because welcome copy may contain an
+// imported profile name.
 export function celebrate({ icon = '🎉', title = '', subtitle = '' } = {}) {
   if (typeof document === 'undefined' || !title) return;
   _queue.push({ icon, title, subtitle });

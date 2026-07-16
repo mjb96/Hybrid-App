@@ -10,7 +10,10 @@
 // ==========================================
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildActivationPlan, activateProgramWithConfirm } from '../js/programs/activation.js';
+import {
+  buildActivationPlan, buildResumePlan,
+  activateProgramWithConfirm, resumeActivationWithConfirm,
+} from '../js/programs/activation.js';
 
 const PROGRAMS = {
   hybridhq_foundations: { name: 'Helyx Foundations', durationWeeks: 12, sessionsPerWeek: 5, difficulty: 'intermediate', category: 'hybrid' },
@@ -84,12 +87,27 @@ test('start-week default is Week 1; "Keep Week N" offered only when switching mi
 
 // ---- In-progress workout guard ---------------------------------------------
 
-test('an in-progress workout adds a warning (but does not block activation)', () => {
+test('an in-progress workout requires an explicit save or discard choice', () => {
   const plan = buildActivationPlan({ activeProgramId: 'sub20_5k_hybrid', currentWeek: '2' }, 'hybridhq_foundations',
-    { ...deps, workoutInProgress: true });
+    { ...deps, workoutStatus: { unresolved: true, hasDraft: true, timerActive: false } });
   assert.equal(plan.workoutInProgress, true);
-  assert.ok(plan.impact.some(i => i.tone === 'warn' && /workout is in progress/i.test(i.text)));
+  assert.equal(plan.requiresWorkoutResolution, true);
+  assert.ok(plan.impact.some(i => i.tone === 'warn' && /saved or discarded/i.test(i.text)));
   assert.ok(plan.startWeekChoices.length >= 1, 'activation is still offered');
+});
+
+test('resume plan names the prior program and restores its last week', () => {
+  const state = {
+    activeProgramId: 'sub20_5k_hybrid', activeActivationId: 'act_new', currentWeek: '2',
+    activations: [{ id: 'act_old', programId: 'hybridhq_foundations', startWeek: 1, lastWeek: 5 }],
+  };
+  const plan = buildResumePlan(state, 'act_old', deps);
+  assert.equal(plan.ok, true);
+  assert.equal(plan.mode, 'resume');
+  assert.match(plan.title, /^Resume Helyx Foundations\?$/);
+  assert.equal(plan.defaultStartWeek, 5);
+  assert.deepEqual(plan.startWeekChoices.map((choice) => choice.week), [5]);
+  assert.ok(plan.impact.some((item) => /original logged weeks/.test(item.text)));
 });
 
 // ---- No raw internal IDs surface -------------------------------------------
@@ -119,6 +137,62 @@ test('activateProgramWithConfirm applies with the chosen start week on confirm',
   });
   assert.equal(ok, true);
   assert.deepEqual(applied, { id: 'hybridhq_foundations', wk: 4 });
+});
+
+test('activation resolves a current workout before applying the switch', async () => {
+  const events = [];
+  const ok = await activateProgramWithConfirm({ activeProgramId: 'sub20_5k_hybrid', currentWeek: '4' }, 'hybridhq_foundations', {
+    ...deps,
+    workoutStatus: () => ({ unresolved: true, hasDraft: true }),
+    confirm: async () => ({ activate: true, startWeek: 1, sessionAction: 'save' }),
+    resolveWorkout: async (action) => { events.push(`resolve:${action}`); return true; },
+    apply: () => { events.push('apply'); },
+  });
+  assert.equal(ok, true);
+  assert.deepEqual(events, ['resolve:save', 'apply']);
+});
+
+test('activation is blocked if an unresolved workout has no resolution action', async () => {
+  let applied = false;
+  const ok = await activateProgramWithConfirm({ activeProgramId: 'sub20_5k_hybrid', currentWeek: '4' }, 'hybridhq_foundations', {
+    ...deps,
+    workoutStatus: () => ({ unresolved: true, hasDraft: true }),
+    confirm: async () => ({ activate: true, startWeek: 1 }),
+    resolveWorkout: async () => true,
+    apply: () => { applied = true; },
+  });
+  assert.equal(ok, false);
+  assert.equal(applied, false);
+});
+
+test('failed discard cannot activate a new program', async () => {
+  let applied = false;
+  const ok = await activateProgramWithConfirm({ activeProgramId: 'sub20_5k_hybrid', currentWeek: '4' }, 'hybridhq_foundations', {
+    ...deps,
+    workoutStatus: () => ({ unresolved: true, hasDraft: true }),
+    confirm: async () => ({ activate: true, startWeek: 1, sessionAction: 'discard' }),
+    resolveWorkout: async () => false,
+    apply: () => { applied = true; },
+  });
+  assert.equal(ok, false);
+  assert.equal(applied, false);
+});
+
+test('resume resolves the workout before restoring the previous activation', async () => {
+  const state = {
+    activeProgramId: 'sub20_5k_hybrid', activeActivationId: 'act_new', currentWeek: '2',
+    activations: [{ id: 'act_old', programId: 'hybridhq_foundations', startWeek: 1, lastWeek: 5 }],
+  };
+  const events = [];
+  const ok = await resumeActivationWithConfirm(state, 'act_old', {
+    ...deps,
+    workoutStatus: () => ({ unresolved: true, timerActive: true }),
+    confirm: async () => ({ activate: true, startWeek: 5, sessionAction: 'save' }),
+    resolveWorkout: async (action) => { events.push(`resolve:${action}`); return true; },
+    apply: async (id) => { events.push(`resume:${id}`); return true; },
+  });
+  assert.equal(ok, true);
+  assert.deepEqual(events, ['resolve:save', 'resume:act_old']);
 });
 
 test('activateProgramWithConfirm does NOT apply when cancelled', async () => {

@@ -86,6 +86,7 @@ export function buildActivityHistory(state) {
         rows.push({
           id: week.sessionId ? `strength:${week.sessionId}` : `strength:${encodeURIComponent(weekKey)}:${day}`,
           kind: 'strength', week: weekKey, day, sessionId: week.sessionId || null,
+          activationId: week.activationId || null,
           localDate, dateLabel: activityDateLabel(localDate),
           timestamp: dateStamp(localDate, null, ++fallbackIndex),
           title: week.sessionTitle || 'Strength Workout',
@@ -107,6 +108,7 @@ export function buildActivityHistory(state) {
           id: `run:${run.sessionId || `${encodeURIComponent(weekKey)}:${day}:${index}`}`,
           kind: 'run', week: weekKey, day,
           sessionId: run.sessionId || null,
+          activationId: run.activationId || week.activationId || null,
           localDate: localRunDate,
           dateLabel: activityDateLabel(localRunDate),
           timestamp: dateStamp(localRunDate, run.startTs || run.updatedTs, ++fallbackIndex),
@@ -121,9 +123,11 @@ export function buildActivityHistory(state) {
   return rows.sort((a, b) => b.timestamp - a.timestamp || b.id.localeCompare(a.id));
 }
 
-export function filterActivityHistory(rows, kind = 'all', localDate = null) {
+export function filterActivityHistory(rows, kind = 'all', localDate = null, activationId = null) {
   return (rows || []).filter((row) =>
-    (kind === 'all' || row.kind === kind) && (!localDate || row.localDate === localDate)
+    (kind === 'all' || row.kind === kind)
+    && (!localDate || row.localDate === localDate)
+    && (!activationId || row.activationId === activationId)
   );
 }
 

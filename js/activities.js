@@ -21,6 +21,8 @@ let _getState = null;
 let _saveState = null;
 let _filter = 'all';
 let _dateFilter = null;
+let _activationFilter = null;
+let _activationLabel = null;
 let _selected = null;
 let _detailTab = 'summary';
 let _pendingUndo = null;
@@ -76,6 +78,8 @@ export function openActivities(options = {}) {
   _selected = null;
   _detailTab = 'summary';
   _dateFilter = options.date || null;
+  _activationFilter = options.activationId || null;
+  _activationLabel = options.label || null;
   _filter = options.filter || 'all';
   if (options.directIfSingle && _dateFilter) {
     _selected = activityDestinationForDate(buildActivityHistory(_getState()), _dateFilter).activity;
@@ -120,14 +124,16 @@ function renderList() {
   if (actions) actions.innerHTML = '';
 
   const all = buildActivityHistory(state);
-  const rows = filterActivityHistory(all, _filter, _dateFilter);
-  const filterLabel = _dateFilter ? dateHeading(_dateFilter) : 'All training history';
+  const rows = filterActivityHistory(all, _filter, _dateFilter, _activationFilter);
+  const filterLabel = _dateFilter ? dateHeading(_dateFilter)
+    : _activationFilter ? (_activationLabel || 'Previous program run')
+      : 'All training history';
   content.innerHTML = `
     <div class="activity-history-hero">
       <span class="activity-history-eyebrow">Training history</span>
       <h2>${esc(filterLabel)}</h2>
       <p>${rows.length} ${rows.length === 1 ? 'activity' : 'activities'}</p>
-      ${_dateFilter ? '<button class="activity-date-clear" data-action="clear-activity-date">View all dates</button>' : ''}
+      ${_dateFilter || _activationFilter ? '<button class="activity-date-clear" data-action="clear-activity-date">View all activities</button>' : ''}
     </div>
     <div class="activity-filter-bar" role="group" aria-label="Activity type">
       ${[['all', 'All'], ['strength', 'Strength'], ['run', 'Runs']].map(([value, label]) =>
@@ -269,7 +275,10 @@ export function handleActivityAction(action, element) {
     _filter = element.getAttribute('data-filter') || 'all';
     renderList(); return true;
   }
-  if (action === 'clear-activity-date') { _dateFilter = null; renderList(); return true; }
+  if (action === 'clear-activity-date') {
+    _dateFilter = null; _activationFilter = null; _activationLabel = null;
+    renderList(); return true;
+  }
   if (action === 'open-activity-detail') {
     const found = findSelected(element.getAttribute('data-activity-id'));
     if (found) {
