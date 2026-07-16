@@ -65,7 +65,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
   // No star ratings or "N athletes / % finish" until there are real users to
   // count — the catalog's rating/enrolled/completion values drive curation
   // (rails + recommendations) only, never displayed as if they were real
-  // community numbers. See PRODUCT_AUDIT §4.5.
+  // community numbers.
   const ratingHTML = '';
   const statsHTML = '';
 

@@ -4,7 +4,7 @@
 //
 // Pure, DOM-free. "What do I load per side?" — table stakes for barbell lifters
 // and a gap vs every competitor. Greedy breakdown of a target weight onto a bar,
-// per side, from the standard plate set. C4b of the audit plan; surfaced inline
+// per side, from the standard plate set; surfaced inline
 // on the cockpit's coach-target line (no new buttons).
 // =============================================================================
 

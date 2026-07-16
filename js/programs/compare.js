@@ -4,7 +4,7 @@
 //
 // Pure, DOM-free. Distils a program into decision stats and diffs two programs
 // side by side — so choosing between (say) StrongLifts and Starting Strength is
-// an informed call, not a coin toss. B4 of the launch-audit plan.
+// an informed call, not a coin toss.
 //
 // `programStats` is also the commitment helper A2 will reuse for the detail
 // page's time-cost / weekly-volume / equipment strip.

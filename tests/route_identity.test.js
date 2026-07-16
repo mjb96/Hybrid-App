@@ -1,4 +1,4 @@
-// Phase 3.1 — stable route identity (pure). See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md §3.1.
+// Stable route identity (pure).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

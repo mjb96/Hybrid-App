@@ -3,8 +3,8 @@
 // PROGRAM PROGRESSION EDITORS (js/programs/progression.js)
 //
 // Pure, DOM-free editors for a program's weekly progression — its
-// `weeklyVolModifiers` map ({ '1': { sets, reps, intensityLabel }, … }). B2 of
-// the launch-audit plan: this is the lever that makes a forked/custom program
+// `weeklyVolModifiers` map ({ '1': { sets, reps, intensityLabel }, … }). This is
+// the lever that makes a forked/custom program
 // genuinely re-programmable.
 //
 // Why per-WEEK and not per-LIFT: the cockpit resolves each lift's sets/reps via

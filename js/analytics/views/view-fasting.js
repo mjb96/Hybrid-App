@@ -694,7 +694,7 @@ function _tabBar(active) {
 function _renderOverviewTab(body, calcs, insights) {
   // When no fast is running, always offer to start one right here — otherwise a
   // returning faster (who has history, so the empty state no longer shows) has
-  // no way to begin a new fast from this screen. (PRODUCT_AUDIT §4.7.)
+  // no way to begin a new fast from this screen.
   const startCTA = calcs.active ? '' :
     `<button class="btn-action-block btn-blue mb-3" data-action="fast-start">⏱️ Start a fast</button>`;
   body.innerHTML = `

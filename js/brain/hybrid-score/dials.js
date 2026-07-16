@@ -4,14 +4,14 @@
 //
 // V2 presentation layer: the eight pillars a human can't hold collapse into
 // three a human can — TRAIN, RECOVER, PROGRESS. The composite MATH is untouched
-// (see PRODUCT_V2 §2). This is a pure re-grouping of the pillar sub-scores the
+// This is a pure re-grouping of the pillar sub-scores the
 // engine already produced, weighted by each pillar's own renormalised weight so
 // a dial stays consistent with the score it helps explain. The 8 pillars remain
 // available underneath as the "under the hood" expansion.
 // =============================================================================
 import { PILLAR_WEIGHTS } from './config.js';
 
-// Which pillars feed each dial. (PRODUCT_V2 §2.1 lists TRAIN/RECOVER/PROGRESS;
+// Which pillars feed each TRAIN/RECOVER/PROGRESS dial;
 // Body — body-composition-vs-goal — is a "getting fitter" signal, so it lives in
 // PROGRESS, the honest home the doc leaves it out of.)
 export const DIAL_MAP = Object.freeze({

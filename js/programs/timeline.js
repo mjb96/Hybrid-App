@@ -3,8 +3,7 @@
 // PROGRAM TIMELINE (js/programs/timeline.js)
 //
 // Pure, DOM-free. Turns a program's weekly progression into a readable
-// week-by-week arc — the data the detail page's "Plan" tab renders. A1 of the
-// launch-audit plan, and the fix for its headline finding: every program already
+// week-by-week arc — the data the detail page's "Plan" tab renders. Every program already
 // carries this (weeklyVolModifiers), it was just never surfaced.
 //
 // Exercise *selection* is constant across weeks by design in this app — only

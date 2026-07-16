@@ -32,7 +32,7 @@ export const WEB_ROOT_ALLOWLIST = [
 export const WEB_ROOT_FORBIDDEN = [
   'docs', 'supabase', 'scripts', 'tests', 'android', '.git', '.github',
   'node_modules', 'package.json', 'package-lock.json', 'jsconfig.json',
-  'PROGRESS.md', 'PRODUCT_AUDIT.md', 'PRODUCT_PROGRESS.md', 'CLAUDE.md',
+  'PROGRESS.md', 'PRODUCT_PROGRESS.md', 'CLAUDE.md',
 ];
 
 export function stageWebRoot(destDir) {
