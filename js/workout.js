@@ -28,6 +28,10 @@ import { detectRunType } from './workout/run-type.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { deleteDayWorkoutData } from './workout/delete-day.js';
+import {
+  activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
+  clearActiveOneOffSession, oneOffBlueprint,
+} from './workout/one-off-session.js';
 
 let _getState;
 let _getSelectedDay;
@@ -165,14 +169,20 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   // if an old/custom program cannot be resolved.
   let target = { sets: setsArr.length, reps: '' };
   try {
-    // Resolve the prescribed target first so the auto-progression engine can
-    // judge whether last session actually hit the rep goal.
-    const weekModifier = getWeekModifier(getProgramById(appState.activeProgramId), wk);
-    target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
-    diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, repGoalFromTarget(target.reps) || 0);
-    // Label shows the SAME target we materialise (inline spec or week modifier),
-    // so "Target: 4 × 5" always matches the number of set rows populated.
-    blueprintLabel = `Target: ${target.sets} × ${target.reps}`;
+    if (homeBlueprint.oneOff) {
+      const reps = setsArr.find((set) => String(set?.r || '').trim())?.r || '';
+      target = { sets: setsArr.length, reps };
+      blueprintLabel = reps ? `Copied target: ${target.sets} × ${reps}` : 'Your workout';
+    } else {
+      // Resolve the prescribed target first so the auto-progression engine can
+      // judge whether last session actually hit the rep goal.
+      const weekModifier = getWeekModifier(getProgramById(appState.activeProgramId), wk);
+      target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
+      diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, repGoalFromTarget(target.reps) || 0);
+      // Label shows the SAME target we materialise (inline spec or week modifier),
+      // so "Target: 4 × 5" always matches the number of set rows populated.
+      blueprintLabel = `Target: ${target.sets} × ${target.reps}`;
+    }
     // Auto-progression hint: a concrete next move derived from last session.
     const prog = diagnostic.progression;
     if (prog && prog.action !== 'baseline') {
@@ -258,9 +268,9 @@ export function renderWorkout() {
   if (!_getState || !_getSelectedDay) return;
   
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
 
-  const wk = appState.currentWeek || "1";
+  const wk = activeWorkoutWeekKey(appState);
   
   if (!appState.weeks) appState.weeks = {};
   if (!appState.weeks[wk]) appState.weeks[wk] = { runs: {}, lifts: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {} };
@@ -276,14 +286,16 @@ export function renderWorkout() {
   const weekData = appState.weeks[wk];
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const homeBlueprint = activeProgram?.days?.[selectedDay] || { lifts: [], runs: "Rest" };
+  const oneOff = activeOneOffSession(appState);
+  const homeBlueprint = oneOffBlueprint(appState,
+    activeProgram?.days?.[selectedDay] || { lifts: [], runs: "Rest" });
   const todayProgramDay = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
-  const movedContext = rescheduledWorkoutContext(activeProgram, selectedDay, todayProgramDay);
+  const movedContext = oneOff ? null : rescheduledWorkoutContext(activeProgram, selectedDay, todayProgramDay);
   const cockpitTitle = document.getElementById('cockpitWorkoutTitle');
   const cockpitDayBadge = document.getElementById('cockpitDayBadge');
   const scheduleContext = document.getElementById('cockpitScheduleContext');
   if (cockpitTitle) cockpitTitle.textContent = homeBlueprint.title || 'Workout';
-  if (cockpitDayBadge) cockpitDayBadge.textContent = movedContext ? 'Logging today' : 'Today';
+  if (cockpitDayBadge) cockpitDayBadge.textContent = oneOff ? 'One-off' : movedContext ? 'Logging today' : 'Today';
   if (scheduleContext) {
     scheduleContext.hidden = !movedContext;
     scheduleContext.textContent = movedContext
@@ -386,7 +398,7 @@ export function renderWorkout() {
   if (gymStatsRow) gymStatsRow.style.display = hasGymStats ? 'block' : 'none';
 
   // --- MAP GARMIN DATA TO INPUTS ---
-  const rStats = appState.weeks[appState.currentWeek].runs?.[selectedDay] || {};
+  const rStats = appState.weeks[wk].runs?.[selectedDay] || {};
 
   const cadenceEl = document.getElementById('runInputCadence');
   if (cadenceEl) cadenceEl.value = rStats.avgCadence || '--';
@@ -431,7 +443,7 @@ export function renderWorkout() {
       }
   }
 
-  const gStats = appState.weeks[appState.currentWeek].gymStats?.[selectedDay] || {};
+  const gStats = appState.weeks[wk].gymStats?.[selectedDay] || {};
   const gymSetsContainer = document.getElementById('gymSetsBreakdown');
   const gymSetsTable = document.getElementById('gymSetsTable');
   if (gymSetsContainer && gymSetsTable) {
@@ -505,6 +517,7 @@ export function renderWorkout() {
 
   const daySelectorBar = document.getElementById('cockpitDaySelectorBar');
   if (daySelectorBar) {
+    daySelectorBar.hidden = !!oneOff;
     const pills = daySelectorBar.querySelectorAll('.day-pill');
     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     const todayKey = todayProgramDay;
@@ -682,6 +695,11 @@ export function updateCockpitCoaching(appState, selectedDay, activeProgram) {
   const statusEl = document.getElementById('cockpitSessionStatus');
   const hookEl   = document.getElementById('cockpitScoreHook');
   if (!statusEl && !hookEl) return;
+  if (activeOneOffSession(appState)) {
+    if (statusEl) statusEl.textContent = 'One-off strength workout';
+    if (hookEl) hookEl.textContent = 'This session stays separate from your program schedule.';
+    return;
+  }
   try {
     const days    = _getDays ? _getDays() : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     const program = activeProgram || getProgramById(appState.activeProgramId);
@@ -714,8 +732,8 @@ function _ensureWorkoutDateStamp(appState, wk, day) {
 export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   if (!labelNode) return;
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   
   const parentRow = labelNode.closest('.cockpit-set-row');
   if (!parentRow) return;
@@ -837,8 +855,8 @@ export function logAllAtTarget(liftName) {
 export function updateInputState(inputNode) {
   if (!inputNode) return;
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const exCard = inputNode.closest('.cockpit-exercise');
   if (!exCard) return;
   
@@ -876,8 +894,8 @@ export function updateInputState(inputNode) {
 
 export function commitWorkoutUIState() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const weekData = appState.weeks[wk];
 
   const distEl     = document.getElementById('runInputDist');
@@ -992,8 +1010,8 @@ export function toggleGymCheckLoggingState(checkboxNode) {
     
     if (wInput && rInput && (!wInput.value || !rInput.value)) {
       const appState = _getState();
-      const selectedDay = _getSelectedDay();
-      const wk = appState.currentWeek;
+      const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+      const wk = activeWorkoutWeekKey(appState);
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const sIdx = Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow);
       
@@ -1040,7 +1058,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const setRpe = gymRpeEl && gymRpeEl.value ? parseFloat(gymRpeEl.value) : null;
       const _appState = _getState();
       const _selDay = _getSelectedDay();
-      const _wk = _appState.currentWeek;
+      const _wk = activeWorkoutWeekKey(_appState);
       const _sIdx = exCard ? Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow) : -1;
       const setType = _appState.weeks[_wk].lifts?.[_selDay]?.[liftName]?.[_sIdx]?.type || '';
       triggerRestTimerEngine(liftName, setRpe, setType);
@@ -1142,8 +1160,8 @@ export function evaluateAccordionAutoFlowTransitions() {
 
 export function appendCustomSetRow(btnNode, liftName) {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
@@ -1156,8 +1174,8 @@ export function appendCustomSetRow(btnNode, liftName) {
 
 export function appendWarmupSetRow(btnNode, liftName) {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
 
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
@@ -1176,8 +1194,8 @@ export function appendWarmupSetRow(btnNode, liftName) {
 
 export function removeCustomSetRow(liftName, setIndex) {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const dayLifts = appState.weeks[wk]?.lifts?.[selectedDay];
   if (!dayLifts?.[liftName]) return;
 
@@ -1250,8 +1268,8 @@ function _offerSetUndo(u) {
 
 export function cycleSetType(liftName, sIdx) {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
   if (!setArr || sIdx >= setArr.length) return;
 
@@ -1314,8 +1332,8 @@ function _syncLoadModeRow(liftName, sIdx, set) {
 export function setSetLoadMode(liftName, sIdx, mode) {
   if (!['bodyweight', 'weighted', 'assisted'].includes(mode)) return;
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
   if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
   const next = applyLoadMode(setArr[sIdx], mode, {
@@ -1332,8 +1350,8 @@ export function setSetLoadMode(liftName, sIdx, mode) {
 // positive lifted load.
 export function cycleSetLoad(liftName, sIdx) {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
   if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
   const set = setArr[sIdx];
@@ -1374,8 +1392,8 @@ export function cycleSetLoad(liftName, sIdx) {
 export function showSupersetLinkPanel(exCard) {
   if (!exCard) return;
   const appState   = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const liftName = exCard.getAttribute('data-liftname');
 
   document.querySelectorAll('.ss-link-panel').forEach(p => p.remove());
@@ -1424,8 +1442,8 @@ export function showSupersetLinkPanel(exCard) {
 
 export function pairAsSuperset(liftName, partnerName) {
   const appState   = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
 
   if (!appState.weeks[wk].liftMeta) appState.weeks[wk].liftMeta = {};
   if (!appState.weeks[wk].liftMeta[selectedDay]) appState.weeks[wk].liftMeta[selectedDay] = {};
@@ -1444,8 +1462,8 @@ export function pairAsSuperset(liftName, partnerName) {
 
 export function unpairSuperset(liftName) {
   const appState   = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
 
   const dayMeta = appState.weeks?.[wk]?.liftMeta?.[selectedDay];
   if (!dayMeta) return;
@@ -1460,7 +1478,7 @@ export function unpairSuperset(liftName) {
 export function setPerSetRir(liftName, sIdx, rir) {
   const appState = _getState();
   const day = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const wk = activeWorkoutWeekKey(appState);
   const sets = appState.weeks[wk].lifts?.[day]?.[liftName];
   if (!sets || !sets[sIdx]) return;
   const cleared = sets[sIdx].rir === rir; // tap the active chip to clear
@@ -1553,8 +1571,8 @@ export function handleExerciseSearch(query) {
 export function addExerciseToDayFromLibrary(name) {
   if (!name) return;
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][name]) {
     appState.weeks[wk].lifts[selectedDay][name] = [{ w: '', r: '10', c: false }];
@@ -1621,9 +1639,10 @@ function labelEquip(k) {
 export function executeSwapExercise(newName) {
   const oldName = _swapSourceLift;
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
-  const blueprint = getProgramById(appState.activeProgramId)?.days?.[selectedDay] || {};
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
+  const blueprint = oneOffBlueprint(appState,
+    getProgramById(appState.activeProgramId)?.days?.[selectedDay] || {});
 
   const res = applyExerciseSwap(appState.weeks?.[wk], selectedDay, oldName, newName, blueprint);
   if (!res.ok) {
@@ -1683,16 +1702,23 @@ export function closeConfirmResetModal() {
 
 export function executeResetActiveDayMetrics() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const blueprint = activeProgram?.days?.[selectedDay];
+  const oneOff = activeOneOffSession(appState);
+  const blueprint = oneOffBlueprint(appState, activeProgram?.days?.[selectedDay]);
   /** @type {Record<string, any[]>} */
   const lifts = {};
   const liftOrder = [];
 
-  if (blueprint && blueprint.lifts) {
+  if (oneOff) {
+    for (const liftName of blueprint?.lifts || []) {
+      const current = appState.weeks[wk]?.lifts?.[selectedDay]?.[liftName] || [];
+      lifts[liftName] = current.map((set) => ({ ...set, w: '', r: '', c: false, isPR: undefined }));
+      liftOrder.push(liftName);
+    }
+  } else if (blueprint && blueprint.lifts) {
     blueprint.lifts.forEach(liftName => {
       try {
         const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
@@ -1711,7 +1737,7 @@ export function executeResetActiveDayMetrics() {
   
   _saveState(true);
   
-  deleteMapFromDB(wk, selectedDay, { activationId: appState.activeActivationId }).then(() => {
+  deleteMapFromDB(wk, selectedDay, { activationId: oneOff ? null : appState.activeActivationId }).then(() => {
     renderWorkout();
   }).catch(() => renderWorkout());
   
@@ -1734,8 +1760,8 @@ function _normalizeDuration(v) {
 
 export function openFinishSessionModal() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   let vol = 0, setsDone = 0;
   const liftsData = appState.weeks[wk]?.lifts?.[selectedDay] || {};
   
@@ -1813,8 +1839,8 @@ export function cancelFinishSessionModal() {
 
 export function closeFinishSessionModal() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
-  const wk = appState.currentWeek;
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
   const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
   if (!appState.weeks[wk].gymRpe) appState.weeks[wk].gymRpe = {};
 
@@ -1853,6 +1879,11 @@ export function closeFinishSessionModal() {
   }
 
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
+  const oneOff = activeOneOffSession(appState);
+  if (oneOff?.key === wk) {
+    clearActiveOneOffSession(appState);
+    if (!completion.anyLogged) delete appState.weeks[wk];
+  }
   _saveState(true);
   
   const sumModalEl = document.getElementById('summaryModal');

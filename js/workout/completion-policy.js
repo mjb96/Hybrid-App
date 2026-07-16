@@ -73,6 +73,23 @@ function runWasLogged(weekData, day) {
 export function evaluateSessionCompletion(state, program, week, day) {
   const weekKey = String(week || state?.currentWeek || '1');
   const weekData = state?.weeks?.[weekKey] || {};
+  if (weekData.sessionId && (weekData.sessionKind === 'empty' || weekData.sessionKind === 'copy')) {
+    const working = currentWorkingSets(weekData.lifts?.[day]);
+    const anyLogged = working.complete > 0;
+    const complete = anyLogged && working.total > 0 && working.complete >= working.total;
+    return {
+      outcome: complete ? 'complete' : anyLogged ? 'partial' : 'empty',
+      complete,
+      partial: anyLogged && !complete,
+      componentOutcome: null,
+      anyLogged,
+      modified: false,
+      label: 'Strength Workout',
+      planned: { gym: true, run: false, sets: working.total, components: 1 },
+      actual: { sets: working.complete, materializedSets: working.total, run: false, components: Number(complete) },
+      progressLabel: working.total ? `${working.complete} of ${working.total} sets logged` : 'Add an exercise to begin',
+    };
+  }
   const blueprint = program?.days?.[day] || null;
   const plan = classifyPlannedSession(blueprint);
   const expectedSets = plan.hasGym ? plannedWorkingSets(program, weekKey, blueprint) : 0;

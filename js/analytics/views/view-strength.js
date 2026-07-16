@@ -418,16 +418,15 @@ export function strengthSessionChipModels(appState, days, opts = {}) {
   // program/week/day so a rescheduled workout is named and opened correctly.
   const weekStart = opts.weekStart || weekStartOf(localDayKey(new Date()));
   const weekData = collectCalendarWeek(appState, weekStart);
-  const sourceSlotOf = {};
-  weekData.sourceSlots.forEach(s => { sourceSlotOf[s.day] = s; });
   const activeProgram = resolveProgramForState(appState, appState.activeProgramId);
   const unit = appState.settings?.weightUnit || 'kg';
 
   const chips = [];
-  (days || []).forEach(d => {
-    const { totalVolume } = summarizeSessionLifts(weekData, d);
+  weekData.sourceSlots.forEach((source) => {
+    const d = source.day;
+    const sourceWeek = appState.weeks?.[source.weekKey] || {};
+    const { totalVolume } = summarizeSessionLifts({ lifts: sourceWeek.lifts || {} }, source.sourceDay);
     if (totalVolume <= 0) return; // only days with logged lifting
-    const source = sourceSlotOf[d] || {};
     const sourceDay = source.sourceDay || d;
     const sourceProgram = source.programId
       ? resolveProgramForState(appState, source.programId)
@@ -436,7 +435,7 @@ export function strengthSessionChipModels(appState, days, opts = {}) {
       calendarDay: d,
       sourceDay,
       weekKey: String(source.weekKey ?? source.weekNum ?? appState.currentWeek ?? '1'),
-      title: sourceProgram?.days?.[sourceDay]?.title || 'Workout',
+      title: source.sessionTitle || sourceProgram?.days?.[sourceDay]?.title || 'Workout',
       totalVolume,
       unit,
     });

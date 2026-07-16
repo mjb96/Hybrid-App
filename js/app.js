@@ -87,6 +87,10 @@ import { newRunSessionId, runDaySummary, upsertRunSession } from './state/run-se
 import { FASTING_ACTIONS, handleFastingClickAction } from './fasting/fasting-actions.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 import { buildProgramSessionChoices } from './workout/program-session-picker.js';
+import { buildActivityHistory } from './activities/model.js';
+import {
+  clearActiveOneOffSession, createOneOffStrengthSession,
+} from './workout/one-off-session.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -190,8 +194,21 @@ export function openProgramWorkoutPicker() {
   const list = document.getElementById('programWorkoutPickerList');
   const program = getProgramById(appState.activeProgramId);
   if (!sheet || !list || !program) return;
+  const title = document.getElementById('programWorkoutPickerTitle');
+  if (title) title.textContent = 'Choose a workout';
   const choices = buildProgramSessionChoices(appState, program, _todayProgramDay());
-  list.innerHTML = choices.map((choice) => {
+  list.innerHTML = `<div class="program-workout-picker__quick">
+    <button class="program-workout-choice" data-action="start-empty-workout">
+      <span class="program-workout-choice__day" aria-hidden="true">＋</span>
+      <span class="program-workout-choice__main"><strong>Empty workout</strong><span>Build a one-off strength session</span></span>
+      <span class="program-workout-choice__chev" aria-hidden="true">›</span>
+    </button>
+    <button class="program-workout-choice" data-action="show-copy-workouts">
+      <span class="program-workout-choice__day" aria-hidden="true">⧉</span>
+      <span class="program-workout-choice__main"><strong>Copy past workout</strong><span>Reuse exercises, weights and reps</span></span>
+      <span class="program-workout-choice__chev" aria-hidden="true">›</span>
+    </button>
+  </div><div class="program-workout-picker__section-label">Programmed this week</div>` + choices.map((choice) => {
     const status = choice.status === 'complete'
       ? `Completed${choice.moved ? ` ${escapeHtml(choice.performedLabel)}` : ''}`
       : choice.status === 'partial' ? 'In progress'
@@ -219,8 +236,47 @@ export function closeProgramWorkoutPicker() {
 
 export function selectProgramWorkout(day) {
   if (!day) return;
+  clearActiveOneOffSession(appState);
+  saveStateToLocalStorage(true);
   closeProgramWorkoutPicker();
   setCockpitActiveDay(day);
+  launchActiveWorkoutCockpit();
+}
+
+export function startEmptyWorkout() {
+  const session = createOneOffStrengthSession(appState);
+  setSelectedDay(session.day);
+  saveStateToLocalStorage(true);
+  closeProgramWorkoutPicker();
+  launchActiveWorkoutCockpit();
+}
+
+export function showCopyWorkouts() {
+  const list = document.getElementById('programWorkoutPickerList');
+  const title = document.getElementById('programWorkoutPickerTitle');
+  if (!list) return;
+  const rows = buildActivityHistory(appState).filter((row) => row.kind === 'strength').slice(0, 20);
+  if (title) title.textContent = 'Copy past workout';
+  list.innerHTML = `<button class="program-workout-picker__back" data-action="show-program-workouts">← Choose workout</button>
+    ${rows.length ? rows.map((row) => `<button class="program-workout-choice" data-action="copy-past-workout" data-activity-id="${escapeHtml(row.id)}">
+      <span class="program-workout-choice__day">${escapeHtml(row.localDate ? new Date(`${row.localDate}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Past')}</span>
+      <span class="program-workout-choice__main"><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.subtitle || row.dateLabel)} · ${row.workingSets || 0} sets</span></span>
+      <span class="program-workout-choice__chev" aria-hidden="true">›</span>
+    </button>`).join('') : '<p class="program-workout-picker-empty">Complete a strength workout first, then it can be copied here.</p>'}`;
+}
+
+export function copyPastWorkout(activityId) {
+  const row = buildActivityHistory(appState).find((item) => item.kind === 'strength' && item.id === activityId);
+  const sourceWeek = row && appState.weeks?.[row.week];
+  if (!row || !sourceWeek) { showToast('That workout could not be found', true); return; }
+  const sourceTitle = row.title === 'Strength Workout' ? row.subtitle || 'Workout' : row.title;
+  const session = createOneOffStrengthSession(appState, {
+    kind: 'copy', title: `Copy of ${sourceTitle}`, sourceWeek, sourceDay: row.day,
+    sourceActivityId: row.id,
+  });
+  setSelectedDay(session.day);
+  saveStateToLocalStorage(true);
+  closeProgramWorkoutPicker();
   launchActiveWorkoutCockpit();
 }
 
@@ -842,6 +898,10 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-program-workout-picker') openProgramWorkoutPicker();
   else if (action === 'close-program-workout-picker') closeProgramWorkoutPicker();
   else if (action === 'select-program-workout') selectProgramWorkout(target.getAttribute('data-day'));
+  else if (action === 'start-empty-workout') startEmptyWorkout();
+  else if (action === 'show-copy-workouts') showCopyWorkouts();
+  else if (action === 'show-program-workouts') openProgramWorkoutPicker();
+  else if (action === 'copy-past-workout') copyPastWorkout(target.getAttribute('data-activity-id'));
   else if (action === 'coach-ask') answerCoachOnHome(target.getAttribute('data-q'));
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   

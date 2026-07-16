@@ -241,6 +241,52 @@ try {
     console.error('FAIL: Home workout picker did not expose the programmed Legs Power session accessibly.');
     failed = true;
   }
+  const oneOffActions = await page2.$eval('#programWorkoutPicker', el => ({
+    empty: !!el.querySelector('[data-action="start-empty-workout"]'),
+    copy: !!el.querySelector('[data-action="show-copy-workouts"]'),
+  }));
+  if (!oneOffActions.empty || !oneOffActions.copy) {
+    console.error('FAIL: workout picker is missing Empty Workout or Copy Past Workout.');
+    failed = true;
+  }
+  await page2.click('[data-action="start-empty-workout"]');
+  await page2.waitForSelector('#view-workout.active', { timeout: 10000 });
+  const emptyState = await page2.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem('hybrid_engine_v2_state') || '{}');
+    const key = state.activeStrengthSessionKey;
+    return {
+      key,
+      kind: state.weeks?.[key]?.sessionKind,
+      programBenchStillComplete: state.weeks?.['3']?.lifts?.wed?.['Bench Press']?.[0]?.c,
+      daySelectorHidden: document.getElementById('cockpitDaySelectorBar')?.hidden,
+    };
+  });
+  if (!/^session:str_/.test(emptyState.key || '') || emptyState.kind !== 'empty'
+      || !emptyState.programBenchStillComplete || !emptyState.daySelectorHidden) {
+    console.error('FAIL: Empty Workout was not isolated from the programmed session.', emptyState);
+    failed = true;
+  }
+  await page2.click('.nav-item[data-target="home"]');
+  await page2.click('#homeChooseWorkout');
+  await page2.click('[data-action="show-copy-workouts"]');
+  await page2.waitForSelector('[data-action="copy-past-workout"]', { timeout: 10000 });
+  await page2.click('[data-action="copy-past-workout"]');
+  await page2.waitForSelector('#view-workout.active', { timeout: 10000 });
+  const copyState = await page2.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem('hybrid_engine_v2_state') || '{}');
+    const key = state.activeStrengthSessionKey;
+    const week = state.weeks?.[key];
+    const day = week?.sessionDay;
+    const sets = Object.values(week?.lifts?.[day] || {}).flat();
+    return { kind: week?.sessionKind, title: week?.sessionTitle, setCount: sets.length, anyComplete: sets.some(s => s.c) };
+  });
+  if (copyState.kind !== 'copy' || !/^Copy of /.test(copyState.title || '')
+      || copyState.setCount < 1 || copyState.anyComplete) {
+    console.error('FAIL: Copy Past Workout did not preserve an editable, incomplete copy.', copyState);
+    failed = true;
+  }
+  await page2.click('.nav-item[data-target="home"]');
+  await page2.click('#homeChooseWorkout');
   const alternateDay = DAY[(new Date().getDay() + 6) % 7] === 'wed' ? 'fri' : 'wed';
   const alternateTitle = alternateDay === 'wed' ? 'Legs Power' : 'Pull B + Easy Run';
   await page2.click(`#programWorkoutPicker [data-action="select-program-workout"][data-day="${alternateDay}"]`);

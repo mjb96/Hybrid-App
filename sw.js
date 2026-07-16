@@ -198,6 +198,7 @@ const REQUIRED_ASSETS = [
   "./js/workout/completion-policy.js",
   "./js/workout/delete-day.js",
   "./js/workout/load-mode.js",
+  "./js/workout/one-off-session.js",
   "./js/workout/plates.js",
   "./js/workout/program-session-picker.js",
   "./js/workout/run-type.js",

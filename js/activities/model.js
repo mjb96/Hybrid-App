@@ -84,11 +84,11 @@ export function buildActivityHistory(state) {
         const summary = strengthSummary(week, day);
         const duration = week.gymStats?.[day]?.time || '';
         rows.push({
-          id: `strength:${encodeURIComponent(weekKey)}:${day}`,
-          kind: 'strength', week: weekKey, day, sessionId: null,
+          id: week.sessionId ? `strength:${week.sessionId}` : `strength:${encodeURIComponent(weekKey)}:${day}`,
+          kind: 'strength', week: weekKey, day, sessionId: week.sessionId || null,
           localDate, dateLabel: activityDateLabel(localDate),
           timestamp: dateStamp(localDate, null, ++fallbackIndex),
-          title: 'Strength Workout',
+          title: week.sessionTitle || 'Strength Workout',
           subtitle: summary.exercises.slice(0, 2).join(', ') + (summary.exercises.length > 2 ? ` +${summary.exercises.length - 2}` : ''),
           metrics: [
             summary.workingSets ? `${summary.workingSets} sets` : '',

@@ -43,6 +43,20 @@ test('history creates one strength row and one row for every same-day run', () =
   assert.equal(filterActivityHistory(rows, 'run', '2026-07-13').length, 2);
 });
 
+test('one-off strength sessions keep their identity and title in history', () => {
+  const state = fixture();
+  state.weeks['session:str_1'] = {
+    sessionId: 'str_1', sessionKind: 'copy', sessionTitle: 'Copy of Upper',
+    dates: { mon: '2026-07-13' },
+    lifts: { mon: { Bench: [{ c: true, w: '80', r: '8' }] } },
+  };
+  const rows = buildActivityHistory(state).filter((row) => row.kind === 'strength');
+  assert.equal(rows.length, 2);
+  const copied = rows.find((row) => row.sessionId === 'str_1');
+  assert.equal(copied.id, 'strength:str_1');
+  assert.equal(copied.title, 'Copy of Upper');
+});
+
 test('a date with one activity opens it directly', () => {
   const rows = buildActivityHistory(fixture());
   const destination = activityDestinationForDate(rows, '2026-07-13');

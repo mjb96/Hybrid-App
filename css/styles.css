@@ -1831,6 +1831,15 @@ body.sheet-scroll-locked {
   display: grid; gap: 8px; padding: 4px 16px calc(20px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
+.program-workout-picker__quick { display: grid; gap: 8px; margin-bottom: 16px; }
+.program-workout-picker__section-label {
+  padding: 2px 2px 8px; color: var(--text-secondary); font-size: .72rem;
+  font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+}
+.program-workout-picker__back {
+  min-height: 44px; margin-bottom: 8px; border: 0; background: transparent;
+  color: var(--accent-blue); font: inherit; font-weight: 750; text-align: left;
+}
 .program-workout-choice {
   display: grid; grid-template-columns: 64px minmax(0, 1fr) 18px; gap: 12px;
   align-items: center; width: 100%; min-height: 66px; padding: 12px 14px;
