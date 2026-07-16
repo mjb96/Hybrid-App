@@ -15,9 +15,10 @@
 // IndexedDB read/write lives in js/db.js.
 // =============================================================================
 import { makeRouteRecord } from './route-identity.js';
+import { sanitizeGpsQuality } from '../gps/route-quality.js';
 
 export const EXPORT_FORMAT = 'helyx-export';
-export const EXPORT_VERSION = 3;
+export const EXPORT_VERSION = 4;
 
 // Guards against malformed or maliciously huge route payloads on import.
 export const ROUTE_LIMITS = {
@@ -124,6 +125,7 @@ export function sanitizeRouteRecords(raw, limits = ROUTE_LIMITS) {
       startTs: Number.isFinite(startTs) && startTs > 0 ? startTs : undefined,
       updatedTs: Number.isFinite(updatedTs) && updatedTs > 0 ? updatedTs : undefined,
       legacyKey: safeMeta(value.legacyKey, limits.maxKeyLength) || undefined,
+      quality: sanitizeGpsQuality(value.quality),
       coordinates,
     }));
     seen.add(id);
@@ -153,6 +155,7 @@ export function wrapExport(state, routePayload = {}, meta = {}) {
 
 /**
  * Parse an imported file into state + route payloads, accepting:
+ *   • v4 envelope: rich routeRecords + GPS quality audit metadata
  *   • v3 envelope: rich routeRecords (same-day sessions preserved)
  *   • v2 envelope: legacy { "week_day": coordinates } route map
  *   • legacy: a raw appState object (has currentWeek + weeks) — no routes

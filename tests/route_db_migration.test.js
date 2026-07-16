@@ -1,6 +1,6 @@
 // Phase 3.2 — IndexedDB route storage: non-destructive v1→v2 migration, stable
 // activation-aware identity, blocked-upgrade safety, deletion, export/import.
-// Runs against fake-indexeddb (dev-only). See docs/HARDENING_PLAN.md §3.2.
+// Runs against fake-indexeddb (dev-only). See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md §3.2.
 import 'fake-indexeddb/auto';
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -100,6 +100,15 @@ test('two sessions in the same activation/week/day keep independent routes', asy
   const records = await getAllRouteRecords();
   assert.equal(records.length, 2);
   assert.deepEqual(new Set(records.map((r) => r.sessionId)), new Set(['run_a', 'run_b']));
+});
+
+test('route records retain compact GPS quality audit metadata', async () => {
+  const quality = { version: 1, confidence: 'high', rawPointCount: 4 };
+  await saveMapToDB(1, 'tue', [[1, 1], [2, 2]], {
+    activationId: 'act_A', sessionId: 'run_quality', quality,
+  });
+  const record = (await getAllRouteRecords()).find((item) => item.sessionId === 'run_quality');
+  assert.deepEqual(record.quality, quality);
 });
 
 test('deleting one session route leaves its same-slot sibling intact', async () => {

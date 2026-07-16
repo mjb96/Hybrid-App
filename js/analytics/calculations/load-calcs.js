@@ -59,7 +59,7 @@ export function fatigueTrend(atlSeries, lookback = 4) {
 // load-management signal with wide individual variation, and universal "danger"
 // cut-offs overstate the evidence. Zones are unchanged so downstream logic and
 // styling that key on `zone` keep working; only the human-facing `status`
-// strings are neutralised. See docs/HARDENING_PLAN.md §5.8.
+// strings are neutralised. See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md §5.8.
 export function trainingLoadStatus(atl, ctl) {
   if (!ctl || ctl === 0) return { status: 'Insufficient baseline', tone: 'neutral', zone: 'unknown' };
   const ratio = atl / ctl;

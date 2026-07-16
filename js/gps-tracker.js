@@ -24,10 +24,11 @@ import {
   nativeDiscardRun, nativeDrainSince, nativeDrainDisposition,
 } from './gps/native-bridge.js';
 import { newRunSessionId, upsertRunSession } from './state/run-sessions.js';
+import {
+  createGpsQualityState, ingestGpsQualityFix, summarizeGpsQuality,
+} from './gps/route-quality.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
-const MAX_ACCURACY_M   = 50;   // discard readings worse than 50 m accuracy
-const MIN_POINT_DIST_M = 5;    // skip points within 5 m of the last (GPS jitter)
 const TICK_MS          = 1000; // stats update interval
 
 // ── UI scopes ───────────────────────────────────────────────────────────────
@@ -59,6 +60,8 @@ let _quickActivity = false; // true when launched via Home Quick Start (auto-ope
 let _sessionId = null;      // stable across pause/reload; links state ↔ IndexedDB route
 let _sessionStartTs = null; // original session start, never the last resumed segment
 let _sessionContext = {};   // { week, day, localDate }
+let _qualityState = createGpsQualityState();
+let _forceSegmentBreak = false;
 let _liveMap   = null;   // Leaflet instance for the live tracking map
 let _liveLine  = null;   // Leaflet Polyline
 let _liveMarker = null;  // Leaflet CircleMarker (current position dot)
@@ -114,18 +117,6 @@ function clearSessionIdentity() {
 }
 
 // ── Math helpers ──────────────────────────────────────────────────────────
-
-function haversineKm([lat1, lng1], [lat2, lng2]) {
-  const R = 6371;
-  const toRad = deg => deg * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function elapsedMs() {
   if (_nativeMode) return _nativeElapsedMs; // refreshed on every drain tick
@@ -237,13 +228,23 @@ function showPanel(which) {
 
 function onPosition(pos) {
   const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-  ingestFix(lat, lng, accuracy);
+  ingestFix(lat, lng, accuracy, Number(pos.timestamp) || Date.now());
 }
 
 // Shared fix pipeline for both sources (web watchPosition + native drain):
-// accuracy filter, waiting→tracking transition, distance/split accumulation.
-function ingestFix(lat, lng, accuracy) {
-  if (accuracy > MAX_ACCURACY_M) return;
+// deterministic quality screening, waiting→tracking transition, and
+// filtered distance/split accumulation. Completed runs retain only a compact
+// raw-vs-filtered audit summary, not a duplicate raw location stream.
+function ingestFix(lat, lng, accuracy, timestampMs) {
+  if (_status !== 'waiting' && _status !== 'tracking') return;
+  const result = ingestGpsQualityFix(_qualityState, {
+    lat, lng, accuracyM: accuracy, timestampMs,
+  }, {
+    forceBreak: _forceSegmentBreak,
+    limits: _activityType === 'walk' ? { maxSpeedMps: 5 } : {},
+  });
+  if (!result.accepted) return;
+  _forceSegmentBreak = false;
 
   // Transition from waiting on first valid fix
   if (_status === 'waiting') {
@@ -256,11 +257,9 @@ function ingestFix(lat, lng, accuracy) {
 
   if (_status !== 'tracking') return;
 
-  const point = [lat, lng];
+  const point = [result.point.lat, result.point.lng];
   if (_coords.length > 0) {
-    const segM = haversineKm(_coords[_coords.length - 1], point) * 1000;
-    if (segM < MIN_POINT_DIST_M) return;
-    _distKm += segM / 1000;
+    _distKm += result.distanceM / 1000;
 
     // Detect km boundary crossings (may cross multiple in one jump)
     while (_distKm >= _nextKmMark) {
@@ -279,7 +278,7 @@ function ingestFix(lat, lng, accuracy) {
     }
   }
   _coords.push(point);
-  pushToLiveMap(lat, lng);
+  pushToLiveMap(result.point.lat, result.point.lng);
   tickStats();
 }
 
@@ -292,7 +291,7 @@ function drainNative() {
   const disposition = nativeDrainDisposition(payload);
   _nativeSeq       = payload.seq;
   _nativeElapsedMs = payload.elapsedMs;
-  for (const p of payload.points) ingestFix(p.lat, p.lng, p.acc);
+  for (const p of payload.points) ingestFix(p.lat, p.lng, p.acc, p.t);
   if (disposition.shouldPause && _status !== 'paused') {
     showRecoveredPausedState(payload.status);
   }
@@ -369,6 +368,8 @@ function recoverNativeRun() {
   _nativeFinalizing = p.status === 'FINALIZING';
   _nativeDurabilityWarned = !p.durable;
   _coords = []; _distKm = 0; _splits = [];
+  _qualityState = createGpsQualityState();
+  _forceSegmentBreak = false;
   _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
   const saved = readStoredSessionIdentity() || {};
   _sessionId = saved.sessionId || newRunSessionId();
@@ -445,6 +446,8 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
   _nativeElapsedMs = 0;
   _nativeFinalizing = false;
   _nativeDurabilityWarned = false;
+  _qualityState = createGpsQualityState();
+  _forceSegmentBreak = false;
 
   // Preferred path (Android app): the native foreground service keeps GPS
   // alive when the screen locks or the user switches apps. No wake lock
@@ -511,6 +514,7 @@ export function cancelTracking() {
   _splits = []; _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
   _nativeMode = false; _nativeSeq = 0; _nativeElapsedMs = 0;
   _nativeFinalizing = false; _nativeDurabilityWarned = false;
+  _qualityState = createGpsQualityState(); _forceSegmentBreak = false;
   clearSessionIdentity();
 
   destroyLiveMap();
@@ -531,6 +535,7 @@ export function pauseTracking() {
     _pausedMs += Date.now() - _startTime;
   }
   _startTime = null;
+  _forceSegmentBreak = true;
   clearInterval(_tickTimer);
 
   const btn = document.getElementById(ui().pauseBtn);
@@ -545,6 +550,7 @@ export function resumeTracking() {
   }
   _status    = 'tracking';
   _startTime = Date.now();
+  _forceSegmentBreak = true;
   _tickTimer = setInterval(tickStats, TICK_MS);
 
   const btn = document.getElementById(ui().pauseBtn);
@@ -570,6 +576,7 @@ export async function stopTracking(week, day) {
   const finalDist   = _distKm;
   const finalCoords = [..._coords];
   const finalSplits = [..._splits];
+  const finalQuality = summarizeGpsQuality(_qualityState);
   const sessionId = _sessionId || newRunSessionId();
   const sessionStartTs = _sessionStartTs || Math.max(1, Date.now() - finalMs);
   const finalWeek = String(_sessionContext.week || week || '');
@@ -591,6 +598,8 @@ export async function stopTracking(week, day) {
   _nativeElapsedMs = 0;
   _nativeFinalizing = false;
   _nativeDurabilityWarned = false;
+  _qualityState = createGpsQualityState();
+  _forceSegmentBreak = false;
 
   destroyLiveMap();
   showPanel('start');
@@ -609,6 +618,7 @@ export async function stopTracking(week, day) {
         programId: appState.activeProgramId,
         startTs: sessionStartTs,
         localDate,
+        quality: finalQuality,
       });
       if (!routeId) routeSaveFailed = true;
     } catch (_) { routeSaveFailed = true; }
@@ -626,6 +636,7 @@ export async function stopTracking(week, day) {
       type: activityType,
       splits: finalSplits,
       routeId,
+      gpsQuality: finalQuality,
     }, {
       sessionId,
       source: 'gps',
@@ -670,6 +681,7 @@ export async function stopTracking(week, day) {
       detail: {
         week: finalWeek, day: finalDay, sessionId, routeId,
         distKm: finalDist, splits: finalSplits, coords: finalCoords,
+        gpsQuality: finalQuality,
         quickActivity: wasQuick,
       },
     })
@@ -694,5 +706,5 @@ export async function stopTracking(week, day) {
   _quickActivity = false;
   _scope = 'cockpit'; // back to the default surface for the next session
 
-  return { sessionId, routeId, distKm: finalDist, timeStr: fmtTime(finalMs) };
+  return { sessionId, routeId, distKm: finalDist, timeStr: fmtTime(finalMs), gpsQuality: finalQuality };
 }

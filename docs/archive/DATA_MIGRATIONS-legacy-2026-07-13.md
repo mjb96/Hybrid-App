@@ -51,7 +51,7 @@ Android-shell-only (Kotlin + manifest + XML); reads/transforms no persisted stor
 
 ---
 
-## Planned migrations (designed, not yet shipped) — see HARDENING_PLAN.md
+## Historical migration designs — see archive/HARDENING_PLAN-legacy-2026-07-13.md
 
 ### PLAN-B · Application-state transactional migrations (Phase 4.1) — **not shipped**
 - Each step: deep-clone → validate prerequisites → apply one version → validate output

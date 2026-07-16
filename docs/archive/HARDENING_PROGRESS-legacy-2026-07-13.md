@@ -1,7 +1,7 @@
 # Hardening Progress Log
 
 Live status for the production-hardening effort. Updated as work lands, not only at
-the end. See `HARDENING_PLAN.md` for the full item list and verified findings.
+the end. See `HARDENING_PLAN-legacy-2026-07-13.md` for the full item list and verified findings.
 
 ---
 
@@ -140,7 +140,7 @@ asserted the old monotony math or status strings.
 ## Phases 4, 6, 7, 9 — ⏳ planned, not yet implemented this session
 
 Verified current behaviour and concrete remediation steps are recorded in
-`HARDENING_PLAN.md`. Key confirmed findings so the next session starts from evidence,
+`HARDENING_PLAN-legacy-2026-07-13.md`. Key confirmed findings so the next session starts from evidence,
 not assumption:
 
 - **3.1** `js/db.js` routes keyed `"week_day"` → collisions across activations and

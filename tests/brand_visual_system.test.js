@@ -44,3 +44,8 @@ test('burnt orange stays a restrained today marker, not a primary action', () =>
   assert.equal(orangeUses.length, 3); // semantic alias + today's border + today's dot
   assert.doesNotMatch(brand, /#homePrimaryCta[\s\S]{0,250}brand-burnt-orange/);
 });
+
+test('brand gradient never paints over a Home profile photo', () => {
+  assert.match(brand, /\.home-avatar:not\(\.home-avatar--img\)/);
+  assert.doesNotMatch(brand, /(?:^|,)\s*\.home-avatar\s*,[\s\S]{0,160}background:\s*var\(--brand-gradient\)\s*!important/m);
+});

@@ -45,8 +45,10 @@ Each step points at the artifact that makes it quick.
       testers' first run should show the fixed day-0 experience, not the current one.
 
 ## 6. Device testing (needs a physical Android phone)
-- [ ] GPS: track a real run with the **screen locked** — distance keeps counting,
-      route saves, run restores if the app is killed mid-run.
+- [ ] GPS: complete every row in
+      [`android-gps-device-checklist.md`](android-gps-device-checklist.md) on minimum/current
+      phones — screen-lock distance, journal recovery, route-quality audit and exact save/delete
+      behavior all pass with attached evidence.
 - [ ] Notifications: enable reminders; confirm the permission prompt and that a
       reminder fires (including with the app closed).
 - [ ] Health Connect: connect and confirm data pulls in.

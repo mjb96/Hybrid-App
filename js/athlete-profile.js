@@ -4,17 +4,11 @@
 // =============================================================================
 import { getCatalogEntry, DIFFICULTY_LABELS } from './programs/catalog.js';
 import { getFastingContext, fmtHoursLabel, FASTING_ZONES } from './fasting.js';
-import { getProgramById, showToast } from './state.js';
+import { showToast } from './state.js';
 import { computeStreak } from './home/dashboard-model.js';
 import { levelFromXp } from './brain/hybrid-score/levels.js';
 import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
-import { compareSessionToPrevWeek } from './analytics/calculations/session-compare.js';
-import { runDaySummary } from './state/run-sessions.js';
-import { getWeekModifier } from './schema.js';
-import { prescribeSetsForLift } from './engine.js';
-import { deleteMapFromDB } from './db.js';
-import { confirmModal } from './ui/confirm-modal.js';
-import { deleteDayWorkoutData } from './workout/delete-day.js';
+import { buildActivityHistory } from './activities/model.js';
 
 // V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
 // the full depth. Fixed, curated order — the doctrine is "simple front, powerful
@@ -98,7 +92,7 @@ export function renderAthleteProfile() {
 
   // Heatmap + recent sessions
   const heatmapRows    = _heatmapData(state, days, 12);
-  const recentSessions = _recentSessions(state, days, 5);
+  const recentSessions = buildActivityHistory(state).slice(0, 5);
 
   // Profile hero — always shown
   const avatarUrl  = state.settings?.avatarDataUrl || null;
@@ -259,8 +253,9 @@ export function renderAthleteProfile() {
       <div class="profile-section">
         <div class="profile-section-title">Recent Sessions</div>
         <div class="profile-recent-list">
-          ${recentSessions.map(s => _recentRow(s)).join('')}
+          ${recentSessions.map(s => _activityRecentRow(s)).join('')}
         </div>
+        <button class="btn-history-link" data-action="open-activities"><span>View all activities</span><span class="btn-history-arrow">→</span></button>
       </div>
     ` : '',
     completed: completions.length > 0 ? `
@@ -458,11 +453,9 @@ import {
   _computeRunningPBs,
   _liftTrend,
   _heatmapData,
-  _recentSessions,
   _statCard,
   _prRow,
   _runPBRow,
-  _recentRow,
   _completionRow,
   _latestBodyWeight,
   _lifetimeTotals,
@@ -478,269 +471,19 @@ import {
   _renderProgressionSection,
 } from './profile-stats.js';
 
-// ── Session detail modal ──────────────────────────────────────────────────────
-
-// Compact "this session vs the same weekday last week" block for the session
-// detail modal. Top set (weight × reps) + total tonnage per exercise, with
-// deltas. Returns '' when there's no previous-week session to compare against.
-function _sessionCompareHTML(state, week, day, weightUnit) {
-  const cmp = compareSessionToPrevWeek(state.weeks || {}, week, day);
-  if (!cmp.hasPrev || cmp.rows.length === 0) return '';
-  const u = weightUnit;
-  const kg = (n) => `${Math.round(n)} ${u}`;
-
-  const deltaChip = (val, suffix) => {
-    if (val == null) return '';
-    const up = val > 0, flat = val === 0;
-    const cls = flat ? 'sds-cmp-delta--flat' : up ? 'sds-cmp-delta--up' : 'sds-cmp-delta--down';
-    const arrow = flat ? '·' : up ? '▲' : '▼';
-    return `<span class="sds-cmp-delta ${cls}">${arrow} ${up ? '+' : ''}${Math.round(val * 100) / 100}${suffix}</span>`;
-  };
-
-  const setStr = (s) => s ? `${s.topWeight} ${u} × ${s.topReps} · ${kg(s.volume)}` : '—';
-
-  const rows = cmp.rows.map(r => {
-    let chips = '';
-    if (r.cur && r.prev) chips = deltaChip(r.topWeightDelta, ` ${u} top`) + deltaChip(r.volumeDelta, ` ${u} vol`);
-    else if (r.cur && !r.prev) chips = `<span class="sds-cmp-delta sds-cmp-delta--up">New this week</span>`;
-    else if (!r.cur && r.prev) chips = `<span class="sds-cmp-delta sds-cmp-delta--flat">Not trained this week</span>`;
-    return `<div class="sds-cmp-row">
-      <div class="sds-cmp-head"><span class="sds-cmp-name">${_esc(r.name)}</span><span class="sds-cmp-chips">${chips}</span></div>
-      <div class="sds-cmp-body">
-        <span class="sds-cmp-this">This: ${setStr(r.cur)}</span>
-        <span class="sds-cmp-prev">Last: ${setStr(r.prev)}</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  const totalChip = deltaChip(cmp.totalDelta, ` ${u}`);
-  return `<div class="sds-section sds-cmp">
-    <div class="sds-section-title">vs last week · Week ${cmp.prevWeek}</div>
-    <div class="sds-cmp-total">
-      <span class="sds-cmp-total-lbl">Total volume</span>
-      <span class="sds-cmp-total-val">${kg(cmp.totalCur)} <span class="sds-cmp-total-prev">vs ${kg(cmp.totalPrev)}</span></span>
-      ${totalChip}
-    </div>
-    ${rows}
-  </div>`;
-}
-
-function openSessionDetailModal(el) {
-  if (!_getState) return;
-  const week      = el.getAttribute('data-week');
-  const day       = el.getAttribute('data-day');
-  const dateLabel = el.getAttribute('data-datelabel') || `Week ${week}`;
-  if (!week || !day) return;
-
-  const state      = _getState();
-  const weekData   = (state.weeks || {})[week];
-  const modal      = document.getElementById('sessionDetailModal');
-  const body       = document.getElementById('sessionDetailBody');
-  const dateEl     = document.getElementById('sessionDetailDate');
-  const deleteBtn  = document.getElementById('sessionDetailDelete');
-  if (!modal || !body) return;
-
-  if (dateEl) dateEl.textContent = dateLabel;
-  if (deleteBtn) {
-    deleteBtn.dataset.week = week;
-    deleteBtn.dataset.day = day;
-    deleteBtn.dataset.datelabel = dateLabel;
-  }
-
-  const weightUnit = state.settings?.weightUnit || 'kg';
-  let html = '';
-
-  if (weekData) {
-    // ── Lifts ─────────────────────────────────────────────────────────────────
-    const dayLifts  = weekData.lifts?.[day] || {};
-    const liftMeta  = weekData.liftMeta?.[day] || {};
-
-    // Build superset group map (mirrors cockpit render logic)
-    const groupMap = {};
-    for (const ln of Object.keys(dayLifts)) {
-      const gId = liftMeta[ln]?.groupId;
-      if (gId) {
-        if (!groupMap[gId]) groupMap[gId] = [];
-        if (!groupMap[gId].includes(ln)) groupMap[gId].push(ln);
-      }
-    }
-
-    // Produce ordered list matching cockpit render order exactly:
-    // iterate storage order, but when a superset is first encountered pull all
-    // its members together (same as the cockpit does with renderedLifts).
-    const seen = new Set();
-    const orderedLifts = [];
-    for (const liftName of Object.keys(dayLifts)) {
-      if (seen.has(liftName)) continue;
-      const gId     = liftMeta[liftName]?.groupId;
-      const members = gId && groupMap[gId]?.length > 1 ? groupMap[gId] : null;
-      if (members) {
-        members.forEach(m => { if (!seen.has(m)) { orderedLifts.push(m); seen.add(m); } });
-      } else {
-        orderedLifts.push(liftName);
-        seen.add(liftName);
-      }
-    }
-
-    // Keep only exercises that have at least one completed set
-    const liftNames = orderedLifts.filter(l => {
-      const sets = dayLifts[l];
-      return Array.isArray(sets) && sets.some(s => s && s.c);
-    });
-
-    if (liftNames.length > 0) {
-      html += `<div class="sds-section"><div class="sds-section-title">Exercises</div>`;
-      liftNames.forEach(lift => {
-        const allSets       = dayLifts[lift];
-        const completedSets = allSets.filter(s => s && s.c);
-        if (completedSets.length === 0) return;
-        const displayName = lift;
-        html += `<div class="sds-lift"><div class="sds-lift-name">${_esc(displayName)}</div>`;
-        let workingSetNum = 0;
-        completedSets.forEach(s => {
-          const isWarmup = s.type === 'W';
-          if (!isWarmup) workingSetNum++;
-          const typeLabel = isWarmup ? 'Warmup' : s.type === 'D' ? `Drop ${workingSetNum}` : s.type === 'F' ? 'Fail' : `Set ${workingSetNum}`;
-          const wt        = parseFloat(s.w) || 0;
-          const reps      = parseInt(s.r, 10) || 0;
-          const prBadge   = s.isPR ? ' <span class="sds-pr-badge">PR</span>' : '';
-          const rpeText   = s.rpe ? ` · RPE ${_esc(String(s.rpe))}` : '';
-          html += `<div class="sds-set-row${isWarmup ? ' sds-set-row--warmup' : ''}">
-            <span class="sds-set-label">${typeLabel}</span>
-            <span class="sds-set-detail">${wt}&nbsp;${weightUnit}&nbsp;×&nbsp;${reps}&nbsp;reps${rpeText}${prBadge}</span>
-          </div>`;
-        });
-        html += `</div>`;
-      });
-      html += `</div>`;
-
-      // Gym stats
-      const gymStats    = weekData.gymStats?.[day] || {};
-      const gymRpe      = weekData.gymRpe?.[day] || '';
-      const hasGymStats = gymStats.time || gymStats.avgHR || gymStats.maxHR || gymStats.cals || gymRpe;
-      if (hasGymStats) {
-        html += `<div class="sds-section"><div class="sds-section-title">Gym Stats</div>`;
-        if (gymStats.time)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Duration</span><span class="sds-stat-value">${_esc(gymStats.time)}</span></div>`;
-        if (gymStats.avgHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Avg HR</span><span class="sds-stat-value">${_esc(gymStats.avgHR)} bpm</span></div>`;
-        if (gymStats.maxHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Max HR</span><span class="sds-stat-value">${_esc(gymStats.maxHR)} bpm</span></div>`;
-        if (gymStats.cals)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Calories</span><span class="sds-stat-value">${_esc(gymStats.cals)} kcal</span></div>`;
-        if (gymRpe)         html += `<div class="sds-stat-row"><span class="sds-stat-label">Session RPE</span><span class="sds-stat-value">${_esc(gymRpe)} / 10</span></div>`;
-        html += `</div>`;
-      }
-
-      // ── vs last week (same weekday) ───────────────────────────────────────
-      html += _sessionCompareHTML(state, week, day, weightUnit);
-    }
-
-    // ── Run ───────────────────────────────────────────────────────────────────
-    const runData = runDaySummary(weekData, day);
-    const runDist = parseFloat(runData.dist) || 0;
-    if (runDist > 0 || runData.time) {
-      html += `<div class="sds-section"><div class="sds-section-title">Run</div>`;
-      if (runDist > 0)   html += `<div class="sds-stat-row"><span class="sds-stat-label">Distance</span><span class="sds-stat-value">${runDist.toFixed(2)} km</span></div>`;
-      if (runData.time)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Time</span><span class="sds-stat-value">${_esc(runData.time)}</span></div>`;
-      if (runData.pace)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Pace</span><span class="sds-stat-value">${_esc(runData.pace)} /km</span></div>`;
-      if (runData.avgHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Avg HR</span><span class="sds-stat-value">${_esc(runData.avgHR)} bpm</span></div>`;
-      if (runData.maxHR) html += `<div class="sds-stat-row"><span class="sds-stat-label">Max HR</span><span class="sds-stat-value">${_esc(runData.maxHR)} bpm</span></div>`;
-      if (runData.elev)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Elevation</span><span class="sds-stat-value">${_esc(runData.elev)} m</span></div>`;
-      if (runData.cals)  html += `<div class="sds-stat-row"><span class="sds-stat-label">Calories</span><span class="sds-stat-value">${_esc(runData.cals)} kcal</span></div>`;
-      if (runData.rpe)   html += `<div class="sds-stat-row"><span class="sds-stat-label">RPE</span><span class="sds-stat-value">${_esc(runData.rpe)} / 10</span></div>`;
-      if (runData.notes?.trim()) html += `<div class="sds-stat-row sds-stat-row--notes"><span class="sds-stat-label">Notes</span><span class="sds-stat-value sds-notes-value">${_esc(runData.notes)}</span></div>`;
-      html += `</div>`;
-    }
-
-    // ── Body weight ───────────────────────────────────────────────────────────
-    const bw = weekData.bodyWeight?.[day];
-    if (bw) {
-      html += `<div class="sds-section"><div class="sds-section-title">Body</div>`;
-      html += `<div class="sds-stat-row"><span class="sds-stat-label">Body Weight</span><span class="sds-stat-value">${_esc(bw)} ${weightUnit}</span></div>`;
-      html += `</div>`;
-    }
-
-    // ── Session notes ─────────────────────────────────────────────────────────
-    const sessionNotes = weekData.notes?.[day] || '';
-    if (sessionNotes.trim()) {
-      html += `<div class="sds-section"><div class="sds-section-title">Notes</div>`;
-      html += `<p class="sds-notes-value">${_esc(sessionNotes)}</p>`;
-      html += `</div>`;
-    }
-  }
-
-  if (!html) {
-    html = '<p class="text-sm text-muted">No data found for this session.</p>';
-  }
-
-  body.innerHTML = html;
-  modal.classList.add('active');
-}
-
-function closeSessionDetailModal() {
-  document.getElementById('sessionDetailModal')?.classList.remove('active');
-}
-
-/** @returns {{lifts: Record<string, any[]>, liftOrder: string[]}} */
-function replacementPrescription(state, weekKey, day) {
-  const week = state.weeks?.[weekKey];
-  const isActiveSlot = /^\d+$/.test(String(weekKey)) &&
-    (!week?.activationId || week.activationId === state.activeActivationId);
-  if (!isActiveSlot) return { lifts: {}, liftOrder: [] };
-
-  const program = getProgramById(state.activeProgramId);
-  const blueprint = program?.days?.[day];
-  const names = (blueprint?.lifts || []).filter((name) => typeof name === 'string' && name.trim());
-  if (!program || names.length === 0) return { lifts: {}, liftOrder: [] };
-
-  /** @type {Record<string, any[]>} */
-  const lifts = {};
-  const modifier = getWeekModifier(program, weekKey);
-  for (const name of names) {
-    try {
-      lifts[name] = prescribeSetsForLift(weekKey, day, name, blueprint.desc, modifier);
-    } catch (error) {
-      console.warn(`Could not restore prescription for ${name}:`, error);
-    }
-  }
-  return { lifts, liftOrder: Object.keys(lifts) };
-}
-
-async function deleteSessionWorkout(el) {
-  if (!_getState) return;
-  const weekKey = el.getAttribute('data-week');
-  const day = el.getAttribute('data-day');
-  const dateLabel = el.getAttribute('data-datelabel') || 'this day';
-  const state = _getState();
-  const week = weekKey ? state.weeks?.[weekKey] : null;
-  if (!weekKey || !day || !week) {
-    showToast('Workout could not be found', true);
-    return;
-  }
-
-  const confirmed = await confirmModal({
-    title: 'Delete this workout?',
-    message: `${dateLabel} will be removed from your training history, including its GPS route. Body-weight data for the day will be kept. This cannot be undone.`,
-    confirmLabel: 'Delete workout',
-    danger: true,
-  });
-  if (!confirmed) return;
-
-  const activationId = week.activationId || state.activeActivationId;
-  const replacement = replacementPrescription(state, weekKey, day);
-  const deleted = deleteDayWorkoutData(week, day, replacement);
-  if (!deleted) {
-    closeSessionDetailModal();
-    renderAthleteProfile();
-    showToast('Workout was already empty');
-    return;
-  }
-
-  await Promise.resolve(_saveState?.(true));
-  await deleteMapFromDB(weekKey, day, { activationId });
-  closeSessionDetailModal();
-  renderAthleteProfile();
-  try {
-    document.dispatchEvent(new CustomEvent('session:deleted', { detail: { week: weekKey, day } }));
-  } catch (_) {}
-  showToast('Workout deleted');
+function _activityRecentRow(activity) {
+  const isRun = activity.kind === 'run';
+  return `
+    <button class="profile-recent-row profile-recent-row--clickable"
+         data-action="open-activity-detail" data-activity-id="${_esc(activity.id)}"
+         aria-label="View ${_esc(activity.title)} from ${_esc(activity.dateLabel)}">
+      <span class="profile-recent-icon profile-recent-icon--${isRun ? 'run' : 'lift'}">${isRun ? '🏃' : '🏋️'}</span>
+      <span class="profile-recent-info">
+        <span class="profile-recent-date">${_esc(activity.title)}</span>
+        <span class="profile-recent-desc">${_esc(activity.dateLabel)}${activity.metrics.length ? ` · ${_esc(activity.metrics.join(' · '))}` : ''}</span>
+      </span>
+      <span class="profile-recent-chevron">›</span>
+    </button>`;
 }
 
 // ── Action handler ────────────────────────────────────────────────────────────
@@ -807,21 +550,4 @@ export function handleProfileAction(action, el) {
     return;
   }
 
-  if (action === 'open-session-detail') {
-    openSessionDetailModal(el);
-    return;
-  }
-
-  if (action === 'close-session-detail') {
-    closeSessionDetailModal();
-    return;
-  }
-
-  if (action === 'delete-session-workout') {
-    deleteSessionWorkout(el).catch((error) => {
-      console.warn('Workout deletion failed:', error);
-      showToast('Workout could not be deleted', true);
-    });
-    return;
-  }
 }

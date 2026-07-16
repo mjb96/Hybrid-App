@@ -482,7 +482,7 @@ export function _heatmapData(state, days, numWeeks) {
   const curWk    = parseInt(state.currentWeek || '1', 10);
   const startWk  = Math.max(1, curWk - numWeeks + 1);
 
-  // Week → representative start date (for month labels), mirroring _recentSessions.
+  // Week → representative start date for month labels.
   const DAY_JS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   let weekAnchor = null;
   if (state.weekStartedAt) {
@@ -572,56 +572,6 @@ export function _parseDurationMin(str) {
   return 0;
 }
 
-// Returns last N active sessions, newest first.
-export function _recentSessions(state, days, limit = 5) {
-  const sessions = [];
-  const curWk    = parseInt(state.currentWeek || '1', 10);
-
-  // Normalise weekStartedAt to the start of the current logical week so that
-  // date arithmetic aligns with the days[] array regardless of which weekday
-  // the user happened to click "Next Week".
-  const DAY_JS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-  let weekAnchor = null;
-  if (state.weekStartedAt) {
-    weekAnchor = new Date(state.weekStartedAt);
-    const jsDay    = weekAnchor.getDay();
-    const firstJs  = DAY_JS[days[0]] ?? 1;
-    const diff     = (jsDay - firstJs + 7) % 7;
-    weekAnchor.setDate(weekAnchor.getDate() - diff);
-  }
-
-  outer: for (let w = curWk; w >= 1; w--) {
-    const wkData = (state.weeks || {})[String(w)];
-    if (!wkData) continue;
-
-    for (let di = days.length - 1; di >= 0; di--) {
-      const d = days[di];
-      const liftDone = Object.keys(wkData.lifts?.[d] || {}).filter(l => {
-        const sets = wkData.lifts[d][l];
-        return Array.isArray(sets) && sets.some(_isSet);
-      });
-      const runDist = parseFloat(runDaySummary(wkData, d).dist) || 0;
-      if (liftDone.length === 0 && runDist === 0) continue;
-
-      const type = liftDone.length > 0 && runDist > 0 ? 'both' : liftDone.length > 0 ? 'lift' : 'run';
-
-      let dateLabel;
-      if (weekAnchor) {
-        const date = new Date(weekAnchor);
-        date.setDate(date.getDate() - (curWk - w) * 7 + di);
-        dateLabel = date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-      } else {
-        const dName = d.charAt(0).toUpperCase() + d.slice(1, 3);
-        dateLabel = `Week ${w} · ${dName}`;
-      }
-
-      sessions.push({ type, dateLabel, liftDone, runDist, week: w, day: d });
-      if (sessions.length >= limit) break outer;
-    }
-  }
-  return sessions;
-}
-
 // ── Render helpers ────────────────────────────────────────────────────────────
 
 export function _statCard(value, label, icon, accentColor, extra = '') {
@@ -694,38 +644,6 @@ export function _runPBRow(pb) {
     <div class="profile-pr-row">
       <span class="profile-pr-lift">${pb.label}</span>
       <span class="profile-pr-value">${timeFormatted} <span class="profile-pr-tag">${paceFormatted}</span></span>
-    </div>
-  `;
-}
-
-export function _recentRow(session) {
-  const icons  = { lift: '🏋️', run: '🏃', both: '🔥' };
-  const icon   = icons[session.type] || '🏋️';
-
-  let desc = '';
-  if (session.liftDone.length > 0) {
-    const shown = session.liftDone.slice(0, 2).map(_esc).join(', ');
-    const more  = session.liftDone.length > 2 ? ` +${session.liftDone.length - 2}` : '';
-    desc = shown + more;
-  }
-  if (session.runDist > 0) {
-    const runPart = `${session.runDist.toFixed(1)}km run`;
-    desc = desc ? `${desc} · ${runPart}` : runPart;
-  }
-
-  return `
-    <div class="profile-recent-row profile-recent-row--clickable"
-         data-action="open-session-detail"
-         data-week="${session.week}"
-         data-day="${_esc(session.day)}"
-         data-datelabel="${_esc(session.dateLabel)}"
-         role="button" tabindex="0" aria-label="View ${_esc(session.dateLabel)} session details">
-      <div class="profile-recent-icon profile-recent-icon--${session.type}">${icon}</div>
-      <div class="profile-recent-info">
-        <div class="profile-recent-date">${_esc(session.dateLabel)}</div>
-        ${desc ? `<div class="profile-recent-desc">${desc}</div>` : ''}
-      </div>
-      <span class="profile-recent-chevron">›</span>
     </div>
   `;
 }

@@ -1,5 +1,5 @@
 // Phase 5.7 / 5.8 — Foster training monotony (daily-load method) + neutral
-// acute:chronic load wording. See docs/HARDENING_PLAN.md.
+// acute:chronic load wording. See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

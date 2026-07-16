@@ -18,6 +18,7 @@ import { hapticSuccess } from './haptics.js';
 import { MUSCLE_MAP } from './metrics/metrics-strength.js';
 import { sharePRCard, topPR } from './brain/pr-share.js';
 import { showToast } from './state.js';
+import { sanitizeGpsQuality } from './gps/route-quality.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
@@ -83,13 +84,15 @@ function pacePerKm(distKm, timeStr) {
 }
 
 // Pure: assemble the recap for one (week, day). Never throws on sparse data.
-export function buildSessionRecap(state, week, day, sessionId = null) {
+export function buildSessionRecap(state, week, day, sessionId = null, activityKind = 'all') {
   const wd       = state?.weeks?.[week] || {};
   const dayLifts = wd.lifts?.[day] || {};
   const exactRun = sessionId
     ? runSessionsForDay(wd, day).find(run => run.sessionId === sessionId)
     : null;
-  const runSummary = sessionId ? (exactRun || {}) : runDaySummary(wd, day);
+  const runSummary = activityKind === 'strength'
+    ? {}
+    : (sessionId ? (exactRun || {}) : runDaySummary(wd, day));
   const run      = Object.keys(runSummary).length ? runSummary : null;
   const gymStats = wd.gymStats?.[day] || {};
   const gymRpe   = wd.gymRpe?.[day] || '';
@@ -100,6 +103,7 @@ export function buildSessionRecap(state, week, day, sessionId = null) {
   const lifts = [];
   const muscleCredits = {};   // muscle → weighted working-set credits (primary 1, secondary 0.5)
   for (const name in dayLifts) {
+    if (activityKind === 'run') break;
     const sets = dayLifts[name];
     if (!Array.isArray(sets)) continue;
     const done = sets.filter((s) => isCompletedSet(s) && !isWarmupSet(s));
@@ -163,6 +167,7 @@ export function buildSessionRecap(state, week, day, sessionId = null) {
       te:      run.trainingEffect || run.te || '',
       hrZones: Array.isArray(run.hrZones) ? run.hrZones : null,
       splits:  Array.isArray(run.splits) ? run.splits : [],
+      gpsQuality: sanitizeGpsQuality((sessionId || runSummary.sessionCount === 1) ? run.gpsQuality : null),
     };
   }
 
@@ -225,6 +230,7 @@ function _summaryTiles(r) {
     r.run ? statTile('Pace', r.run.pace ? `${r.run.pace} /km` : '') : '',
     r.run ? statTile('Run time', r.run.time) : '',
     r.run && r.run.avgHR ? statTile('Avg HR', `${r.run.avgHR} bpm`) : '',
+    r.run?.gpsQuality ? statTile('GPS quality', esc(r.run.gpsQuality.confidence)) : '',
   ].join('');
 }
 
@@ -348,6 +354,25 @@ function _splitTableFull(r, thresholdSec) {
     <div class="rc-splittable"><div class="rc-split rc-split--head"><span>KM</span><span>Pace</span><span>Avg HR</span></div>${rows}</div>`;
 }
 
+function _gpsQualityAudit(r) {
+  const q = r.run?.gpsQuality;
+  if (!q) return '';
+  const label = q.confidence.charAt(0).toUpperCase() + q.confidence.slice(1);
+  const removed = q.distanceRemovedKm > 0 ? `${q.distanceRemovedKm.toFixed(3)} km removed` : 'No distance removed';
+  const accuracy = q.avgAccuracyM == null ? '—' : `${q.avgAccuracyM.toFixed(1)} m`;
+  const note = q.confidence === 'high'
+    ? 'The saved distance passed the route-quality checks cleanly.'
+    : (q.confidence === 'medium'
+      ? 'The saved distance is usable, with some GPS fixes filtered.'
+      : 'Review this result cautiously; the GPS evidence was limited or noisy.');
+  return `<div class="recap-section-title">GPS quality audit</div>
+    <div class="recap-quality recap-quality--${esc(q.confidence)}">
+      <div class="recap-quality__head"><strong>${esc(label)} confidence</strong><span>${esc(removed)}</span></div>
+      <div class="recap-quality__meta">${q.acceptedPointCount} accepted · ${q.rejectedPointCount} filtered · ${q.segmentBreaks} segment breaks · ${esc(accuracy)} avg accuracy</div>
+      <div class="recap-quality__note">${esc(note)}</div>
+    </div>`;
+}
+
 // V2 — Summary (the story + essentials) | Breakdown (every set · muscle focus ·
 // full run detail). All from data we already capture — the front got leaner, the
 // depth got deeper. `tab` selects which face to render.
@@ -373,7 +398,7 @@ export function renderSessionRecapHTML(r, insights = [], thresholdSec = null, ta
     body = `
       ${r.lifts.length ? `<div class="recap-section-title">Every set</div>${_liftSetGrid(r)}${_sessionTotals(r)}` : ''}
       ${r.muscles && r.muscles.length ? `<div class="recap-section-title">Muscle focus · weighted sets</div>${_muscleBar(r)}` : ''}
-      ${r.run ? `<div class="recap-section-title">Run detail</div>${_runTilesFull(r)}${_hrZoneBar(r)}${_splitTableFull(r, thresholdSec)}` : ''}
+      ${r.run ? `<div class="recap-section-title">Run detail</div>${_runTilesFull(r)}${_hrZoneBar(r)}${_splitTableFull(r, thresholdSec)}${_gpsQualityAudit(r)}` : ''}
     `;
   } else {
     body = `

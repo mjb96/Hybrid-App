@@ -18,7 +18,7 @@ Baseline (2026-07-13, this branch, pre-change):
 ## Phase 1 — Baseline & safety  `[x]`
 - Verified: full suite green (above). Dependencies were not installed; ran
   `npm install` (23 pkgs) then the suite.
-- Subsystem map recorded in `docs/HARDENING_PROGRESS.md` §Phase 1.
+- Subsystem map recorded in `HARDENING_PROGRESS-legacy-2026-07-13.md` §Phase 1.
 - No uncommitted user work existed (clean tree).
 
 ---
@@ -105,7 +105,7 @@ Baseline (2026-07-13, this branch, pre-change):
   working; blocked upgrades reject + close late connections (no leak); connections
   closed per op. Tests (`route_db_migration.test.js`, fake-indexeddb): legacy
   migration, two same-week/day activations (no overwrite), slot upsert, delete,
-  export/import round-trip, blocked upgrade. See DATA_MIGRATIONS.md (MIG-2026-07-B).
+  export/import round-trip, blocked upgrade. See DATA_MIGRATIONS-legacy-2026-07-13.md (MIG-2026-07-B).
 
 ### 3.3 Local/cloud sync decision  `[~]`
 - **Verified (partial mitigation already exists):** `js/state.js` keeps a

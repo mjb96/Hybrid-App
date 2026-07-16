@@ -76,6 +76,7 @@ import {
   openAvatarPicker, handleAvatarFile,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
+import { initActivities, openActivities, closeActivities, isActivitiesOpen, handleActivityAction } from './activities.js';
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, cancelTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
@@ -778,6 +779,8 @@ document.addEventListener('click', (e) => {
   const action = target.getAttribute('data-action');
   const progId = target.getAttribute('data-program-id');
 
+  if (handleActivityAction(action, target)) return;
+
   // Tab & Navigation
   if (action === 'switch-tab') {
     const tgt = target.getAttribute('data-target');
@@ -950,7 +953,7 @@ else if (action === 'export-csv') triggerCSVExport();
   }
   
   // Athlete Profile
-  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'delete-session-workout', 'share-profile'].includes(action))
+  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'share-profile'].includes(action))
     handleProfileAction(action, target);
   else if (action === 'pick-avatar')              openAvatarPicker();
 
@@ -1159,6 +1162,11 @@ initRunLogger(getState);
 initOnboarding(getState);
 initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
+initActivities(getState, saveState);
+
+document.addEventListener('session:deleted', () => {
+  try { hydrateCurrentView(); } catch (_) {}
+});
 
 // Save auto-filled inputs, persist km splits, and render the pace-zone map after GPS tracking finishes.
 document.addEventListener('gps:recovered', (e) => {
@@ -1358,7 +1366,8 @@ if (typeof window !== 'undefined') {
     // semantics. This also covers surfaces whose visual class is not `.active`.
     if (requestCloseTopModal()) return 'handled';
 
-    // 0) Full-screen session recap sits above everything — close it first.
+    // 0) Full-screen history/detail and session recap sit above everything.
+    if (isActivitiesOpen()) { closeActivities(); return 'handled'; }
     if (isSessionRecapOpen()) { closeSessionRecap(); return 'handled'; }
 
     // 0b) Quick Start Activity tracker — back cancels the in-progress activity.
@@ -1436,6 +1445,7 @@ async function bootstrapApp() {
       openSessionRecap(e.detail?.week, e.detail?.day, e.detail?.sessionId);
     });
     document.addEventListener('app:open-recap',   (e) => openSessionRecap(e.detail?.week, e.detail?.day));
+    document.addEventListener('app:open-activities', (e) => openActivities({ date: e.detail?.date || null }));
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();

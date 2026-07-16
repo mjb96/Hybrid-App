@@ -59,6 +59,26 @@ test('walk type is carried through', () => {
   assert.deepEqual(r.types, ['walk']);
 });
 
+test('GPS quality audit is sanitized and shown in the run breakdown', () => {
+  const gpsQuality = {
+    version: 1, confidence: 'medium', rawPointCount: 6, acceptedPointCount: 5,
+    rejectedPointCount: 1,
+    rejected: { invalid: 0, poorAccuracy: 1, jitter: 0, timestamp: 0, teleport: 0 },
+    rawDistanceKm: 5.2, filteredDistanceKm: 5, distanceRemovedKm: 0.2,
+    avgAccuracyM: 18.2, maxObservedSpeedMps: 4.2, segmentBreaks: 1,
+    injected: '<img src=x onerror=alert(1)>',
+  };
+  const wd = { lifts: {}, runs: { mon: { dist: 5, time: '25:00', type: 'run', gpsQuality } } };
+  const recap = buildSessionRecap(stateWith(wd), '1', 'mon');
+  assert.equal(recap.run.gpsQuality.confidence, 'medium');
+  assert.equal('injected' in recap.run.gpsQuality, false);
+  const html = renderSessionRecapHTML(recap, [], null, 'breakdown');
+  assert.match(html, /GPS quality audit/);
+  assert.match(html, /Medium confidence/);
+  assert.match(html, /0\.200 km removed/);
+  assert.doesNotMatch(html, /onerror/);
+});
+
 test('flags a PR when a lift beats its best from every prior session', () => {
   const state = {
     weeks: {
@@ -110,6 +130,21 @@ test('sessionId recap selects one exact same-day run while day recap aggregates 
   assert.equal(exact.run.sessionId, 'run_one');
   assert.equal(exact.run.distKm, 5);
   assert.equal(exact.run.time, '25:00');
+});
+
+test('an aggregated same-day recap never labels combined distance with one run GPS audit', () => {
+  const quality = {
+    version: 1, confidence: 'high', rawPointCount: 2, acceptedPointCount: 2,
+    rejectedPointCount: 0,
+    rejected: { invalid: 0, poorAccuracy: 0, jitter: 0, timestamp: 0, teleport: 0 },
+    rawDistanceKm: 1, filteredDistanceKm: 1, distanceRemovedKm: 0,
+    avgAccuracyM: 8, maxObservedSpeedMps: 3, segmentBreaks: 0,
+  };
+  const wd = { lifts: {}, runs: {}, runSessions: {}, dates: { mon: '2026-07-13' } };
+  upsertRunSession(wd, 'mon', { dist: 1, time: '5:00', gpsQuality: quality }, { sessionId: 'gps' });
+  upsertRunSession(wd, 'mon', { dist: 2, time: '10:00' }, { sessionId: 'manual' });
+  assert.equal(buildSessionRecap(stateWith(wd), '1', 'mon').run.gpsQuality, null);
+  assert.equal(buildSessionRecap(stateWith(wd), '1', 'mon', 'gps').run.gpsQuality.confidence, 'high');
 });
 
 test('renderSessionRecapHTML escapes lift names and includes stats', () => {

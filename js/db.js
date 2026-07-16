@@ -171,7 +171,7 @@ function latest(records) {
 // (activation, week, day) in place — keeping its stable id — or creates a new
 // one, so re-saving the same session never duplicates while different
 // activations get distinct records. Returns the record id (or null on failure).
-// ctx: { sessionId, activationId, programId, startTs, localDate }
+// ctx: { sessionId, activationId, programId, startTs, localDate, quality }
 export async function saveMapToDB(week, day, coordinates, ctx = {}) {
   if (typeof indexedDB === 'undefined') return null;
   if (!Array.isArray(coordinates) || coordinates.length === 0) return null;
@@ -191,6 +191,7 @@ export async function saveMapToDB(week, day, coordinates, ctx = {}) {
     coordinates,
     startTs: existing ? existing.startTs : ctx.startTs,
     localDate: ctx.localDate || (existing && existing.localDate) || null,
+    quality: ctx.quality || (existing && existing.quality) || null,
   });
   return new Promise((resolve) => {
     try {
