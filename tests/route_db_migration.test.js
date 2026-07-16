@@ -1,6 +1,6 @@
 // Phase 3.2 — IndexedDB route storage: non-destructive v1→v2 migration, stable
 // activation-aware identity, blocked-upgrade safety, deletion, export/import.
-// Runs against fake-indexeddb (dev-only). See docs/HARDENING_PLAN.md §3.2.
+// Runs against fake-indexeddb (dev-only). See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md §3.2.
 import 'fake-indexeddb/auto';
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

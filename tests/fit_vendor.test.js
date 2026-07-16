@@ -1,5 +1,5 @@
 // Phase 8.1 / 2.5 — FIT parser is vendored locally (no remote esm.sh code in the
-// privileged WebView) and works offline. See docs/HARDENING_PLAN.md §8.1.
+// privileged WebView) and works offline. See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md §8.1.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

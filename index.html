@@ -581,8 +581,8 @@
 
       <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
 
-      <button class="btn-history-link mb-4" data-action="open-analytics" data-context="activity">
-        <span>📅 Activity History</span>
+      <button class="btn-history-link mb-4" data-action="open-activities">
+        <span>📅 Activities</span>
         <span class="btn-history-arrow">→</span>
       </button>
 
@@ -1697,6 +1697,21 @@
     <div id="sessionRecapContent"></div>
   </section>
 
+  <!-- Activities — separate history rows and exact strength/run detail -->
+  <section id="activitiesScreen" style="display:none;" aria-label="Activities">
+    <header class="activities-topbar">
+      <button id="activitiesBack" class="subview-back-btn" data-action="close-activities">← Done</button>
+      <h1 id="activitiesTitle">Activities</h1>
+      <div id="activitiesHeaderActions"></div>
+    </header>
+    <main id="activitiesContent"></main>
+  </section>
+
+  <div id="activityUndoBar" class="activity-undo-bar" role="status" aria-live="polite" hidden>
+    <span id="activityUndoMessage">Activity deleted</span>
+    <button data-action="undo-activity-delete">Undo</button>
+  </div>
+
   <!-- Quick Activity — clean full-screen live tracker for a Home Quick Start walk/run -->
   <section id="activityScreen" style="display:none;" aria-label="Quick Activity">
     <div class="activity-topbar">
@@ -1932,24 +1947,6 @@
       <div class="flex gap-2">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-pr-goal-modal">Cancel</button>
         <button class="btn-action-block btn-blue mt-0" data-action="confirm-pr-goal">Save Goal</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Session Detail Modal -->
-  <div id="sessionDetailModal" class="modal-overlay" role="dialog" aria-labelledby="sessionDetailTitle" data-modal-root data-modal-close-action="close-session-detail" inert aria-hidden="true">
-    <div class="modal-content sds-modal-content">
-      <div class="sds-header">
-        <div>
-          <h2 id="sessionDetailTitle" class="text-xl font-heavy text-main mb-0">Session Details</h2>
-          <p id="sessionDetailDate" class="sds-date-label"></p>
-        </div>
-        <button class="settings-close-btn" data-action="close-session-detail" aria-label="Close">✕</button>
-      </div>
-      <div id="sessionDetailBody" class="sds-body"></div>
-      <div class="flex gap-2 mt-4">
-        <button id="sessionDetailDelete" class="btn-action-block btn-danger-ghost mt-0" data-action="delete-session-workout">Delete workout</button>
-        <button class="btn-action-block btn-ghost mt-0" data-action="close-session-detail">Close</button>
       </div>
     </div>
   </div>

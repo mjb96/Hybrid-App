@@ -46,9 +46,12 @@ test('deleting a missing or already-empty day is an honest no-op', () => {
   assert.equal(deleteDayWorkoutData({ bodyWeight: { mon: '80' } }, 'mon'), false);
 });
 
-test('session detail exposes an explicit delete action', async () => {
+test('activity detail exposes exact deletion and Undo outside the logger', async () => {
   const { readFile } = await import('node:fs/promises');
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /id="sessionDetailDelete"[^>]+data-action="delete-session-workout"/);
-  assert.match(html, />Delete workout</);
+  const activities = await readFile(new URL('../js/activities.js', import.meta.url), 'utf8');
+  assert.match(html, /id="activitiesScreen"/);
+  assert.match(html, /data-action="undo-activity-delete"/);
+  assert.match(activities, /data-action=\"delete-activity\"/);
+  assert.match(activities, /Only this .* will be removed/);
 });

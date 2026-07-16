@@ -68,9 +68,24 @@ const state = {
   schemaVersion: 4,
   currentWeek: '1',
   activeProgramId: 'hybrid_engine',
+  activeActivationId: 'act_ergonomics',
   onboardingComplete: true,
   settings: { name: 'Ergonomics Athlete', weightUnit: 'kg', distanceUnit: 'km' },
-  weeks: {},
+  weeks: {
+    '1': {
+      activationId: 'act_ergonomics',
+      dates: { mon: '2026-07-13' },
+      lifts: { mon: { Squat: [{ c: true, w: '100', r: '5' }] } },
+      liftOrder: { mon: ['Squat'] }, liftMeta: { mon: {} },
+      gymStats: { mon: { time: '45:00' } }, gymRpe: { mon: '8' }, notes: { mon: '' },
+      runSessions: { mon: [
+        { sessionId: 'run_erg_a', source: 'gps', localDate: '2026-07-13', startTs: 100, dist: '5', time: '25:00' },
+        { sessionId: 'run_erg_b', source: 'manual', localDate: '2026-07-13', startTs: 200, dist: '3', time: '15:00' },
+      ] },
+      runs: { mon: { sessionId: 'run_erg_b', source: 'manual', localDate: '2026-07-13', startTs: 200, dist: '3', time: '15:00' } },
+      bodyWeight: {},
+    },
+  },
 };
 
 async function inspect(page, label, selectors) {
@@ -124,6 +139,19 @@ try {
   for (const width of WIDTHS) {
     const { context, page } = await appPage(width);
     await inspect(page, `home ${width}px`, ['.bottom-nav .nav-item', '.home-avatar', '.log-run-fab', '.btn-history-link']);
+
+    await page.click('#view-home .btn-history-link[data-action="open-activities"]');
+    await page.waitForSelector('#activitiesScreen .activity-history-row');
+    await inspect(page, `activities ${width}px`, ['#activitiesScreen .activity-filter', '#activitiesScreen .activity-history-row', '#activitiesScreen .subview-back-btn']);
+    const activityKinds = await page.$$eval('#activitiesScreen .activity-history-row', (rows) => rows.map((row) => row.className));
+    check(activityKinds.length === 3, `activities ${width}px: expected separate strength + two run rows, got ${activityKinds.length}`);
+    check(activityKinds.filter((name) => name.includes('activity-history-row--run')).length === 2,
+      `activities ${width}px: same-day runs were not shown separately`);
+    await page.click('#activitiesScreen .activity-history-row--run');
+    await page.waitForSelector('#activitiesScreen .activity-detail-shell');
+    await inspect(page, `activity detail ${width}px`, ['#activitiesScreen .subview-back-btn', '#activitiesScreen .activity-menu-btn', '#activitiesScreen .an-tab']);
+    await page.click('#activitiesScreen .subview-back-btn');
+    await page.click('#activitiesScreen .subview-back-btn');
 
     await page.click('.home-avatar');
     await page.waitForSelector('#view-profile.active');

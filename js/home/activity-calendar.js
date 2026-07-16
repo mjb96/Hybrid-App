@@ -106,9 +106,10 @@ export function renderActivityCalendar(appState, containerId = 'homeCalendarCont
     if (!cell) return;
     const ds    = cell.getAttribute('data-cal-date');
     const entry = map[ds];
-    // Logged day → open the full session recap; empty day → nothing.
+    // Logged day → open Activities filtered to that calendar date so separate
+    // strength and same-day run sessions remain independently selectable.
     if (entry && entry.day) {
-      document.dispatchEvent(new CustomEvent('app:open-recap', { detail: { week: entry.week, day: entry.day } }));
+      document.dispatchEvent(new CustomEvent('app:open-activities', { detail: { date: ds } }));
     }
   };
 }

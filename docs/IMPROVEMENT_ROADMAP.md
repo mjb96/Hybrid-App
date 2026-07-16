@@ -226,6 +226,14 @@
   state, partial-tail recovery, corruption and bounds; JS contract/persistence tests cover
   replay and two-phase acknowledgement. Route outlier/quality modelling, CI Android evidence,
   and the physical lock/process-kill matrix remain open before R15 is complete.
+- **Activity-history safety quick win implemented — 16 July 2026** on
+  `codex/gps-route-quality`. Home and Profile now open one full-screen Activities
+  history where strength and every same-day run are separate records. Exact activity
+  details reuse the complete set/split/map breakdown; deleting a run cannot remove a
+  sibling run or strength work, deleting strength preserves runs/body weight, and a
+  10-second Undo precedes exact route removal. The former whole-day profile modal and
+  its dead helpers/styles were removed. The required mobile browser contract proves
+  separate same-day rows, 320–412px fit, 44px targets and 200% text.
 
 ## Prioritization model
 
@@ -383,6 +391,13 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · Garmin-inspired Activities history + repository cleanup on
+  `codex/gps-route-quality`: separate strength and same-day run rows, dedicated full
+  details (maps/splits/every set), exact type-safe deletion and 10-second Undo; Home
+  calendar date filtering and Profile history entry points. Removed the obsolete
+  whole-day detail path and dead CSS/helpers, archived superseded hardening/migration
+  trackers, and removed OS junk. 945 tests, typecheck, smoke and required browser checks
+  green. · Next: resume R15 route-quality/outlier integration from the preserved module.
 - 2026-07-16 · R15 durable Android GPS foundation on `codex/gps-durable-session`:
   append-only/fsynced point journal, atomic metadata, explicit paused/finalizing/corrupt
   recovery, foreground-service redelivery, and two-phase JS save acknowledgement. Targeted
@@ -449,6 +464,9 @@ implementation register.
 Historical implementation logs through 14 July 2026 are preserved in
 `docs/archive/PROGRESS-legacy-2026-07-14.md` and
 `docs/archive/PRODUCT_PROGRESS-legacy-2026-07-14.md`; they are evidence, not active plans.
+The superseded 13 July production-hardening plan and progress log are likewise retained
+under `docs/archive/`, together with their dated migration register; this roadmap remains
+the only live execution tracker.
 
 ## Stop conditions
 

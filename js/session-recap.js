@@ -83,13 +83,15 @@ function pacePerKm(distKm, timeStr) {
 }
 
 // Pure: assemble the recap for one (week, day). Never throws on sparse data.
-export function buildSessionRecap(state, week, day, sessionId = null) {
+export function buildSessionRecap(state, week, day, sessionId = null, activityKind = 'all') {
   const wd       = state?.weeks?.[week] || {};
   const dayLifts = wd.lifts?.[day] || {};
   const exactRun = sessionId
     ? runSessionsForDay(wd, day).find(run => run.sessionId === sessionId)
     : null;
-  const runSummary = sessionId ? (exactRun || {}) : runDaySummary(wd, day);
+  const runSummary = activityKind === 'strength'
+    ? {}
+    : (sessionId ? (exactRun || {}) : runDaySummary(wd, day));
   const run      = Object.keys(runSummary).length ? runSummary : null;
   const gymStats = wd.gymStats?.[day] || {};
   const gymRpe   = wd.gymRpe?.[day] || '';
@@ -100,6 +102,7 @@ export function buildSessionRecap(state, week, day, sessionId = null) {
   const lifts = [];
   const muscleCredits = {};   // muscle → weighted working-set credits (primary 1, secondary 0.5)
   for (const name in dayLifts) {
+    if (activityKind === 'run') break;
     const sets = dayLifts[name];
     if (!Array.isArray(sets)) continue;
     const done = sets.filter((s) => isCompletedSet(s) && !isWarmupSet(s));
