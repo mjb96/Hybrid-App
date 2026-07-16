@@ -10,9 +10,9 @@ export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75) {
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null) {
   const ghostWeight = historicalSetData?.w || weightUnit;
-  const ghostReps   = historicalSetData?.r || 'reps';
+  const ghostReps   = historicalSetData?.r || prescribedReps || 'reps';
   const type = sData.type || '';
 
   const numLabels  = { '': `S${sIdx + 1}`, 'W': 'W', 'D': 'D', 'F': 'F' };
@@ -54,7 +54,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
       <input type="number" inputmode="decimal" class="input-weight-node" aria-label="Effective load for set ${sIdx + 1}" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(effectiveValue)}">
     </div>
     <div>
-      <input type="number" inputmode="numeric" class="input-reps-node" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
+      <input type="number" inputmode="numeric" class="input-reps-node" data-target-reps="${escapeHtml(String(prescribedRepGoal || ''))}" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
     </div>
     <div class="gym-check-container">
       <label class="gym-check-wrap">

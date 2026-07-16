@@ -107,36 +107,59 @@ export function computeGAP(distKm, elapsedSec, altitude) {
 // TEXT DESCRIPTION PARSER ENGINE
 // ==========================================
 export function parseTargetFromDescription(descString, liftName) {
+  /** @type {{sets:number, reps:number|string, matched:boolean}} */
   let result = { sets: 3, reps: 10, matched: false };
-  if (!descString || !liftName) return result;
+  // Production catalogue lifts are bare strings. Some callers can still hand
+  // us richer/custom values; fail closed to the week modifier without noisy
+  // parser errors or stringifying an object into a fake exercise name.
+  if (typeof liftName !== 'string' || !liftName.trim()) return result;
 
   try {
     const escapedLift = liftName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    
-    // UPDATED REGEX: Catches normal 'x', capital 'X', and the formal multiplication sign '×'
     const regex = new RegExp(escapedLift + '\\s*\\((\\d+)\\s*[xX×]\\s*([^\\)]+)\\)', 'i');
-    const match = descString.match(regex);
+    const descriptionMatch = descString ? descString.match(regex) : null;
+    // A sizeable legacy part of the catalogue carries the prescription inside
+    // the bare-string lift itself ("Push-Ups 4×max", "Curl 3×10-12") while the
+    // day description is generic. That string is still the program's authored
+    // source, so read its trailing sets×reps spec before falling back to the
+    // week-wide modifier.
+    const liftMatch = liftName.match(/^(.+?)\s+(\d+)\s*[xX×]\s*(.+)$/i);
+    const match = descriptionMatch || liftMatch;
 
     if (match) {
       result.matched = true;
-      result.sets = parseInt(match[1], 10) || 3;
-      
-      // Normalize en-dashes (–) to standard hyphens (-) before splitting
-      let repValue = match[2].trim().toLowerCase().replace(/–/g, '-');
-
-      if (repValue.includes('-')) {
-        // If it's a range like "8-10", grab the higher number
-        result.reps = parseInt(repValue.split('-')[1], 10) || 10;
-      } else if (repValue === 'max') {
-        result.reps = 10; // Fallback visual target for 'max' reps
-      } else {
-        result.reps = parseInt(repValue, 10) || 10;
-      }
+      // Description capture groups are [sets,reps]; lift-name groups are
+      // [baseName,sets,reps].
+      const setsRaw = descriptionMatch ? match[1] : match[2];
+      const repsRaw = descriptionMatch ? match[2] : match[3];
+      result.sets = parseInt(setsRaw, 10) || 3;
+      result.reps = normalizeRepPrescription(repsRaw);
     }
   } catch (e) {
     console.error("Failed to parse exercise specs:", e);
   }
   return result;
+}
+
+function normalizeRepPrescription(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 10;
+  if (/^\d+$/.test(raw)) return parseInt(raw, 10);
+  if (/^max(?:\s+reps?)?$/i.test(raw)) return 'max reps';
+  // Canonical display dash while preserving meaningful text such as "each
+  // side", seconds, metres and 5/3/1+ instead of coercing it to a fake number.
+  return raw.replace(/(\d)\s*[-–—]\s*(\d)/g, '$1–$2');
+}
+
+/** Numeric top-of-range used only by progression/quality maths. */
+export function repGoalFromTarget(value) {
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
+  const raw = String(value || '').trim();
+  if (/^\d+$/.test(raw)) return parseInt(raw, 10);
+  const range = raw.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+  if (range) return parseInt(range[2], 10);
+  const each = raw.match(/^(\d+)\s+each\b/i);
+  return each ? parseInt(each[1], 10) : null;
 }
 
 // ==========================================
@@ -367,6 +390,25 @@ export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier) {
     sets.push({ w: '', r: '', c: false });
   }
   return sets;
+}
+
+/**
+ * Reconcile an already-materialised set array after prescription parsing gets
+ * more accurate. Untouched scaffolding may be resized exactly; any user-edited
+ * or completed row is never removed, and missing prescribed rows are appended.
+ */
+export function reconcilePrescribedSets(existing, desiredCount) {
+  const count = Math.max(0, Math.floor(Number(desiredCount) || 0));
+  const blank = () => ({ w: '', r: '', c: false });
+  if (!Array.isArray(existing)) return Array.from({ length: count }, blank);
+
+  const hasUserData = existing.some((set) => set && (
+    set.c || String(set.w ?? '').trim() || String(set.r ?? '').trim() ||
+    set.type || set.rpe != null || set.rir != null || set.bw || set.band || set.loadMode
+  ));
+  if (!hasUserData) return Array.from({ length: count }, blank);
+  if (existing.length >= count) return existing;
+  return [...existing, ...Array.from({ length: count - existing.length }, blank)];
 }
 
 // ==========================================
