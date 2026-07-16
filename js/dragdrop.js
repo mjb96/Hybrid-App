@@ -4,6 +4,7 @@
 import { showToast } from './state.js';
 import { createSortable } from './ui/sortable.js';
 import { DEFAULT_HIDDEN_TILES } from './dashboard.js';
+import { activeWorkoutDay, activeWorkoutWeekKey } from './workout/one-off-session.js';
 
 let _getState;
 let _getSelectedDay;
@@ -34,10 +35,10 @@ export function mountExerciseDragAndDropSystems() {
 
 export function commitReorderedDOMStateToStorage() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const container = document.getElementById('cockpitExercisesContainer');
   if (!container) return;
-  const wk = appState.currentWeek;
+  const wk = activeWorkoutWeekKey(appState);
   const dayLifts = appState.weeks?.[wk]?.lifts?.[selectedDay] || {};
 
   // Persist the new sequence as an explicit `liftOrder` array. We deliberately

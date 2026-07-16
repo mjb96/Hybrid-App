@@ -1815,6 +1815,54 @@ body.sheet-scroll-locked {
 }
 .qs-item--primary:hover { border-color: var(--color-green, #10b981); background: rgba(16,185,129,0.16); }
 
+.home-choose-workout-btn {
+  width: 100%; min-height: 44px; margin-top: -10px; padding: 10px 16px;
+  border: 0; background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 0.84rem; font-weight: 750; cursor: pointer;
+}
+.home-choose-workout-btn:active { transform: scale(0.98); }
+
+.program-workout-picker { max-height: min(82vh, 680px); }
+.program-workout-picker__sub {
+  margin: 4px 0 0; max-width: 290px; color: var(--text-secondary);
+  font-size: 0.76rem; line-height: 1.35;
+}
+.program-workout-picker__list {
+  display: grid; gap: 8px; padding: 4px 16px calc(20px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.program-workout-picker__quick { display: grid; gap: 8px; margin-bottom: 16px; }
+.program-workout-picker__section-label {
+  padding: 2px 2px 8px; color: var(--text-secondary); font-size: .72rem;
+  font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+}
+.program-workout-picker__back {
+  min-height: 44px; margin-bottom: 8px; border: 0; background: transparent;
+  color: var(--accent-blue); font: inherit; font-weight: 750; text-align: left;
+}
+.program-workout-choice {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) 18px; gap: 12px;
+  align-items: center; width: 100%; min-height: 66px; padding: 12px 14px;
+  border: 1px solid var(--overlay-sm); border-radius: 14px;
+  background: var(--surface-card); color: var(--text-primary); text-align: left; cursor: pointer;
+}
+.program-workout-choice--today { border-color: color-mix(in srgb, var(--color-green) 48%, transparent); }
+.program-workout-choice__day {
+  color: var(--text-secondary); font-size: 0.7rem; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.program-workout-choice__main { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.program-workout-choice__main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+.program-workout-choice__main span { color: var(--text-secondary); font-size: 0.72rem; }
+.program-workout-choice__chev { color: var(--text-faint); font-size: 1.35rem; }
+.program-workout-picker-empty { padding: 20px; color: var(--text-secondary); text-align: center; }
+
+.cockpit-schedule-context {
+  margin: -4px 0 14px; padding: 10px 12px; border: 1px solid rgba(59,130,246,0.26);
+  border-radius: 12px; background: rgba(59,130,246,0.08); color: var(--text-secondary);
+  font-size: 0.78rem; line-height: 1.45;
+}
+
 
 /* --- Edit button in At a Glance header --- */
 .tile-customise-btn {
@@ -6604,6 +6652,7 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
 }
 .wfg-bb:active { opacity: 0.7; }
 .wfg-bb:focus-visible { outline: 1px solid rgba(59,130,246,0.6); }
+.wfg-bb--disabled { cursor: default; opacity: 0.45; }
 
 /* Visual bar fill */
 .wfg-b {
@@ -6683,115 +6732,6 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
   letter-spacing: -0.02em;
 }
 
-/* ── Workout Summary Modal (bottom sheet) ── */
-#wfgModal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.75);
-  z-index: 210;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.22s;
-}
-#wfgModal.wfg-modal--open {
-  opacity: 1;
-  pointer-events: all;
-}
-.wfg-msheet {
-  background: #0d1117;
-  border: 1px solid var(--border-medium);
-  border-radius: 20px 20px 0 0;
-  padding: 16px 20px 36px;
-  width: 100%;
-  max-width: 480px;
-  transform: translateY(100%);
-  transition: transform 0.28s cubic-bezier(0.25,1,0.5,1);
-}
-#wfgModal.wfg-modal--open .wfg-msheet { transform: translateY(0); }
-.wfg-mhandle {
-  width: 36px; height: 4px;
-  background: var(--overlay-2xl);
-  border-radius: 2px;
-  margin: 0 auto 14px;
-}
-.wfg-mdate {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-}
-.wfg-mtitle {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  letter-spacing: -0.03em;
-}
-.wfg-msummary {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin: 0 0 14px;
-  line-height: 1.4;
-}
-.wfg-mstats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.wfg-ms {
-  background: var(--overlay-sm);
-  border: 1px solid var(--border-default);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-/* Full-width for stat items that contain long text (e.g. Notes, Pace) */
-.wfg-ms:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.wfg-msl {
-  font-size: 0.58rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-}
-.wfg-msv {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-.wfg-mempty {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  grid-column: 1 / -1;
-}
-.wfg-mclose {
-  width: 100%;
-  padding: 13px;
-  background: rgba(59,130,246,0.14);
-  border: 1px solid rgba(59,130,246,0.3);
-  border-radius: 12px;
-  color: #60a5fa;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.wfg-mclose:active { background: rgba(59,130,246,0.25); }
-
-/* Light theme adjustments */
-html[data-theme="light"] #wfgModal { background: rgba(0,0,0,0.55); }
-html[data-theme="light"] .wfg-msheet { background: #ffffff; border-color: rgba(0,0,0,0.1); }
-html[data-theme="light"] .wfg-ms { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
 
 /* ── In Focus carousel layout — two stacked cards, no horizontal scroll ── */
 .in-focus-carousel {

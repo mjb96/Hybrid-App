@@ -5,7 +5,7 @@
 // Pure, DOM-free. Ranks catalog programs for a brand-new user from the three
 // onboarding self-reports — goal, experience level, available equipment — so the
 // first program actually fits (a bodyweight beginner isn't handed an advanced
-// barbell block). C1 of the launch-audit plan; measurably upgrades the old
+// barbell block); measurably upgrades the old
 // goal-only static list, which ignored level and equipment entirely.
 // =============================================================================
 import { PROGRAM_CATALOG } from '../programs/catalog.js';

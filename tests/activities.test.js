@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildActivityHistory, filterActivityHistory } from '../js/activities/model.js';
+import {
+  activityDestinationForDate, buildActivityHistory, filterActivityHistory,
+} from '../js/activities/model.js';
 import {
   deleteRunActivity, deleteStrengthActivity,
   restoreRunActivity, restoreStrengthActivity,
@@ -39,6 +41,38 @@ test('history creates one strength row and one row for every same-day run', () =
   assert.deepEqual(rows.filter((row) => row.kind === 'run').map((row) => row.sessionId), ['run_b', 'run_a']);
   assert.equal(rows.find((row) => row.kind === 'strength').workingSets, 1);
   assert.equal(filterActivityHistory(rows, 'run', '2026-07-13').length, 2);
+});
+
+test('one-off strength sessions keep their identity and title in history', () => {
+  const state = fixture();
+  state.weeks['session:str_1'] = {
+    sessionId: 'str_1', sessionKind: 'copy', sessionTitle: 'Copy of Upper',
+    dates: { mon: '2026-07-13' },
+    lifts: { mon: { Bench: [{ c: true, w: '80', r: '8' }] } },
+  };
+  const rows = buildActivityHistory(state).filter((row) => row.kind === 'strength');
+  assert.equal(rows.length, 2);
+  const copied = rows.find((row) => row.sessionId === 'str_1');
+  assert.equal(copied.id, 'strength:str_1');
+  assert.equal(copied.title, 'Copy of Upper');
+});
+
+test('a date with one activity opens it directly', () => {
+  const rows = buildActivityHistory(fixture());
+  const destination = activityDestinationForDate(rows, '2026-07-13');
+  assert.equal(destination.mode, 'list');
+
+  const onlyStrength = rows.filter((row) => row.kind === 'strength');
+  const single = activityDestinationForDate(onlyStrength, '2026-07-13');
+  assert.equal(single.mode, 'detail');
+  assert.equal(single.activity.kind, 'strength');
+});
+
+test('multiple same-day activities stay as a chooser instead of picking arbitrarily', () => {
+  const destination = activityDestinationForDate(buildActivityHistory(fixture()), '2026-07-13');
+  assert.equal(destination.mode, 'list');
+  assert.equal(destination.activity, null);
+  assert.equal(destination.rows.length, 3);
 });
 
 test('deleting an exact run preserves its sibling and all strength data', () => {

@@ -3,14 +3,14 @@
 //
 // Seven daily bars for the selected week (Mon–Sun), a clear week-range label,
 // prev/next navigation, an honest week-to-week comparison, and a tap target
-// into the matching analytics detail view. Clean + glanceable, Helyx-styled.
+// into the matching activity or analytics detail view. Clean + glanceable,
+// Helyx-styled.
 //
 // ALL numbers come from the shared `buildWeekChart` model (analytics/
 // week-chart-model.js) — the graph never computes analytics itself, so it can
 // never diverge from the detail views. This component only formats + renders.
 // ==========================================
 import { buildWeekChart, STRENGTH_METRICS, RUNNING_METRICS, DAY_KEYS } from '../analytics/week-chart-model.js';
-import { runDaySummary } from '../state/run-sessions.js';
 
 const CHART_H = 120;  // bars area height in px
 const Y_STEPS = 4;    // intervals between Y-axis labels (5 labels total)
@@ -40,15 +40,6 @@ export function refreshWeeklyFitnessGraph(containerId) {
   _registry[containerId]?._render();
 }
 
-// ── Global modal close handler ──────────────────────────────────────────────
-document.addEventListener('click', e => {
-  const modal = document.getElementById('wfgModal');
-  if (!modal || !modal.classList.contains('wfg-modal--open')) return;
-  if (e.target === modal || e.target.closest('[data-wfg-action="close-modal"]')) {
-    modal.classList.remove('wfg-modal--open');
-  }
-});
-
 // ── Component class ─────────────────────────────────────────────────────────
 
 class WeeklyFitnessGraph {
@@ -65,7 +56,7 @@ class WeeklyFitnessGraph {
     const catalog     = this.type === 'strength' ? STRENGTH_METRICS : RUNNING_METRICS;
     this.activeMetric = Object.keys(catalog)[0]; // sets / distance
     this._container   = null;
-    this._weekData    = null; // raw stored week (for the tap-to-detail modal)
+    this._weekData    = null; // selected calendar week's assembled activity data
   }
 
   // ── Mount / update ──────────────────────────────────────────────────────
@@ -112,7 +103,7 @@ class WeeklyFitnessGraph {
         this._render();
         break;
       case 'bar-click':
-        this._openModal(el.getAttribute('data-wfg-day'));
+        this._openActivities(el.getAttribute('data-wfg-day'));
         break;
       case 'open-detail':
         this._openDetail();
@@ -131,6 +122,14 @@ class WeeklyFitnessGraph {
     cta.remove();
   }
 
+  _openActivities(dayKey) {
+    const date = this._weekData?.dates?.[dayKey] || null;
+    if (!date) return;
+    document.dispatchEvent(new CustomEvent('app:open-activities', {
+      detail: { date, directIfSingle: true, source: 'in-focus' },
+    }));
+  }
+
   // ── Core render ──────────────────────────────────────────────────────────
 
   _render() {
@@ -144,8 +143,8 @@ class WeeklyFitnessGraph {
       weekOffset: this.weekOffset,
       today: this._today, // undefined in production → real local today
     });
-    // Keep the calendar week's assembled data for the tap-to-detail modal (it
-    // carries the real dates + the slots that own them).
+    // Keep the calendar week's assembled data so a bar tap routes by its real
+    // date rather than by the active program-week counter.
     this._weekData = chart.weekData || null;
 
     // Respect the user's week-start preference for DISPLAY ordering only.
@@ -179,8 +178,15 @@ class WeeklyFitnessGraph {
       const aria = this._barAria(d, settings);
       const cls  = 'wfg-b wfg-b--' + this.type + (d.isToday ? ' wfg-b--today' : '');
       if (d.hasData && barH > 0) {
+        if (d.isFuture) {
+          return `<div class="wfg-dc wfg-dc--future">
+            <div class="wfg-bb wfg-bb--disabled" role="img" aria-label="${aria}">
+              <div class="${cls}" style="height:${barH}px"></div>
+            </div>
+          </div>`;
+        }
         return `<div class="wfg-dc${d.isToday ? ' wfg-dc--today' : ''}">
-          <button class="wfg-bb" data-wfg-action="bar-click" data-wfg-day="${d.dayKey}"
+          <button class="wfg-bb" data-wfg-action="bar-click" data-wfg-day="${d.dayKey}" data-wfg-date="${d.date}"
                   aria-label="${aria}" title="${this._fmtFull(val, settings)}">
             <div class="${cls}" style="height:${barH}px"></div>
           </button>
@@ -275,8 +281,9 @@ class WeeklyFitnessGraph {
     const dayName = d.dayFull + (d.isToday ? ' (today)' : '');
     // A day still to come is "upcoming", not a missed session — never let an
     // empty future bar read as "no activity" (that's a day you trained nothing).
-    if (!d.hasData) return `${dayName}, ${d.isFuture ? 'upcoming' : 'no activity'}`;
-    return `${dayName}, ${this._fmtFull(d.value, settings)}`;
+    if (d.isFuture) return `${dayName}, upcoming`;
+    if (!d.hasData) return `${dayName}, no activity`;
+    return `Open activities for ${dayName}, ${this._fmtFull(d.value, settings)}`;
   }
 
   _chartSummaryAria(chart, orderedDays, settings, rangeStr) {
@@ -291,126 +298,8 @@ class WeeklyFitnessGraph {
       + `${parts.join(', ')}. Total ${this._fmtFull(chart.total, settings)}. ${compStr}.`;
   }
 
-  // ── Tap-to-detail modal (per-day session summary) ────────────────────────
-
-  _openModal(dayKey) {
-    const modal   = document.getElementById('wfgModal');
-    const content = document.getElementById('wfgModalContent');
-    if (!modal || !content) return;
-    const appState = this.getState?.() || {};
-    const settings = appState.settings || {};
-    const wd = this._weekData;
-    const date = wd?.dates?.[dayKey] || null;
-
-    const MN = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const DN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    let dateLine = '';
-    if (date) {
-      const [y, mo, d] = date.split('-').map(Number);
-      const dow = DN[new Date(`${date}T12:00:00`).getDay()];
-      dateLine = `<p class="wfg-mdate">${dow}, ${d} ${MN[mo]} ${y}</p>`;
-    }
-
-    const icon  = this.type === 'strength' ? '🏋️' : '🏃';
-    const title = this.type === 'strength' ? 'Gym Session' : 'Run Session';
-    const summary = this._daySummary(dayKey, wd, settings);
-    const stats = this._modalStats(dayKey, wd, settings);
-    const statsHTML = stats.map(s =>
-      `<div class="wfg-ms"><span class="wfg-msl">${s.label}</span><span class="wfg-msv">${s.value}</span></div>`
-    ).join('');
-
-    content.innerHTML = `
-      <div class="wfg-mhandle"></div>
-      ${dateLine}
-      <h3 class="wfg-mtitle">${icon} ${title}</h3>
-      ${summary ? `<p class="wfg-msummary">${summary}</p>` : ''}
-      <div class="wfg-mstats">${statsHTML || '<p class="wfg-mempty">No detailed stats recorded.</p>'}</div>
-      <button class="wfg-mclose" data-wfg-action="close-modal">Done</button>
-    `;
-    modal.classList.add('wfg-modal--open');
-  }
-
-  // A compact, glanceable one-liner for the tapped day, e.g.
-  // "14 working sets across 2 exercises · 4,250 kg" or "6.4 km in 34:10".
-  _daySummary(dayKey, wd, settings) {
-    if (this.type === 'strength') {
-      let sets = 0, vol = 0, exercises = 0;
-      const lifts = wd?.lifts?.[dayKey] || {};
-      for (const l in lifts) {
-        if (!Array.isArray(lifts[l])) continue;
-        let liftSets = 0;
-        lifts[l].forEach(s => {
-          const done = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
-          const warm = s.type === 'W' || s.isWarmup;
-          if (done && !warm) { liftSets++; vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
-        });
-        if (liftSets > 0) { sets += liftSets; exercises++; }
-      }
-      if (sets === 0) return '';
-      const setLbl = `${sets} working ${sets === 1 ? 'set' : 'sets'}`;
-      const exLbl  = `${exercises} ${exercises === 1 ? 'exercise' : 'exercises'}`;
-      const volLbl = vol > 0 ? ` · ${Math.round(vol).toLocaleString()} ${settings.weightUnit || 'kg'}` : '';
-      return `${setLbl} across ${exLbl}${volLbl}`;
-    }
-    const run = runDaySummary(wd, dayKey);
-    const distKm = parseFloat(run.dist) || 0;
-    const secs   = this._parseTime(run.time);
-    if (distKm <= 0 && secs <= 0) return '';
-    const parts = [];
-    if (distKm > 0) parts.push(this._fmtDistance(distKm, settings));
-    if (secs > 0)   parts.push(`in ${this._fmtTime(secs)}`);
-    return parts.join(' ');
-  }
-
-  _modalStats(dayKey, wd, settings) {
-    const stats = [];
-    const add = (label, value) => { if (value) stats.push({ label, value }); };
-
-    if (this.type === 'strength') {
-      // Working sets + volume come from the same shared definition as the bars.
-      let sets = 0, vol = 0;
-      const lifts = wd?.lifts?.[dayKey] || {};
-      for (const l in lifts) {
-        if (!Array.isArray(lifts[l])) continue;
-        lifts[l].forEach(s => {
-          const done = s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
-          const warm = s.type === 'W' || s.isWarmup;
-          if (done && !warm) { sets++; vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
-        });
-      }
-      add('Working Sets', sets > 0 ? String(sets) : '');
-      add('Volume', vol > 0 ? `${Math.round(vol).toLocaleString()} ${settings.weightUnit || 'kg'}` : '');
-      const gs = wd?.gymStats?.[dayKey];
-      if (gs) {
-        const secs = this._parseTime(gs.time);
-        if (secs > 0) add('Duration', this._fmtTime(secs));
-        if (parseFloat(gs.cals) > 0) add('Calories', `${Math.round(parseFloat(gs.cals))} kcal`);
-        if (parseFloat(gs.avgHR) > 0) add('Avg HR', `${Math.round(parseFloat(gs.avgHR))} bpm`);
-      }
-    } else {
-      const run = runDaySummary(wd, dayKey);
-      const distKm = parseFloat(run.dist) || 0;
-      const secs   = this._parseTime(run.time);
-      if (distKm > 0) add('Distance', this._fmtDistance(distKm, settings));
-      if (secs > 0)   add('Time', this._fmtTime(secs));
-      if (distKm > 0 && secs > 0) add('Avg Pace', this._fmtPace(distKm, secs, settings));
-      if (parseFloat(run.elev) > 0) add('Elevation', `${Math.round(parseFloat(run.elev))} m`);
-      if (parseFloat(run.cals) > 0) add('Calories', `${Math.round(parseFloat(run.cals))} kcal`);
-      if (parseFloat(run.avgHR) > 0) add('Avg HR', `${Math.round(parseFloat(run.avgHR))} bpm`);
-    }
-    return stats;
-  }
 
   // ── Formatting helpers ───────────────────────────────────────────────────
-
-  _parseTime(str) {
-    if (!str) return 0;
-    const p = String(str).split(':').map(Number);
-    if (p.some(isNaN)) return 0;
-    if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
-    if (p.length === 2) return p[0] * 60 + p[1];
-    return parseInt(str, 10) || 0;
-  }
 
   _fmtTime(secs) {
     const h = Math.floor(secs / 3600);
@@ -425,16 +314,6 @@ class WeeklyFitnessGraph {
     const mi = (settings.distanceUnit === 'mi');
     const val = mi ? km * 0.621371 : km;
     return `${val.toFixed(1)} ${mi ? 'mi' : 'km'}`;
-  }
-
-  _fmtPace(km, secs, settings) {
-    const mi = (settings.distanceUnit === 'mi');
-    const dist = mi ? km * 0.621371 : km;
-    if (dist <= 0) return '';
-    const pps = secs / dist;
-    const pm = Math.floor(pps / 60);
-    const ps = Math.round(pps % 60);
-    return `${pm}:${String(ps).padStart(2, '0')} /${mi ? 'mi' : 'km'}`;
   }
 
   // Y-axis abbreviated label.

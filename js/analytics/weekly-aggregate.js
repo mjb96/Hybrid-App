@@ -79,12 +79,16 @@ export function strengthDayStats(dayLifts) {
 
 /**
  * @typedef {Object} DatedSlot
+ * @property {string} weekKey       exact storage key (including archived keys)
  * @property {number} weekNum      program week the slot lives in
  * @property {string} day          weekday key (mon..sun)
+ * @property {string|null} programId program that prescribed this stored week
  * @property {string} dateISO      resolved local calendar date
  * @property {Record<string, any[]>|undefined} lifts
  * @property {object|undefined} run
  * @property {object|undefined} gymStats
+ * @property {string|null} sessionId
+ * @property {string|null} sessionTitle
  * @property {{workingSets:number,reps:number,volumeKg:number}} stats
  */
 
@@ -101,12 +105,14 @@ export function strengthDayStats(dayLifts) {
  *
  * @param {object} state  appState (reads state.weeks)
  * @param {{ tz?: string }} [opts]
- * @returns {{ byDate: Map<string, DatedSlot>, undated: DatedSlot[], duplicates: DatedSlot[] }}
+ * @returns {{ byDate: Map<string, DatedSlot>, allByDate: Map<string, DatedSlot[]>, undated: DatedSlot[], duplicates: DatedSlot[] }}
  */
 export function indexSlotsByDate(state, opts = {}) {
   const weeks = state?.weeks || {};
   /** @type {Map<string, DatedSlot>} */
   const byDate = new Map();
+  /** @type {Map<string, DatedSlot[]>} */
+  const allByDate = new Map();
   /** @type {DatedSlot[]} */
   const undated = [];
   /** @type {DatedSlot[]} slots that lost dedup on a shared date (never counted) */
@@ -131,22 +137,38 @@ export function indexSlotsByDate(state, opts = {}) {
       if (!hasActivity) return; // scaffolding / rest day — nothing to attribute
 
       const slot = {
+        weekKey: w,
         weekNum, day, lifts, run, gymStats, stats,
+        programId: wd.programId || state?.activeProgramId || null,
+        sessionId: wd.sessionId || null,
+        sessionTitle: wd.sessionTitle || null,
         dateISO: /** @type {string} */ (localDayKey(storedDates[day], opts.tz)),
       };
 
       if (!slot.dateISO) { undated.push(slot); return; }
 
-      const existing = byDate.get(slot.dateISO);
-      if (!existing) { byDate.set(slot.dateISO, slot); return; }
-      // Two slots on one date → keep the canonical one, record the other as a
-      // suppressed duplicate (so a cloud/local copy can never double-count).
-      if (_preferSlot(slot, existing)) { byDate.set(slot.dateISO, slot); duplicates.push(existing); }
-      else duplicates.push(slot);
+      const dateSlots = allByDate.get(slot.dateISO) || [];
+      // Stable strength session IDs define independent records. Legacy/program
+      // slots have no strength session ID and remain one deduplicated family.
+      const sameIdentityIndex = dateSlots.findIndex((candidate) => slot.sessionId
+        ? candidate.sessionId === slot.sessionId
+        : !candidate.sessionId);
+      if (sameIdentityIndex < 0) {
+        dateSlots.push(slot);
+      } else {
+        const existing = dateSlots[sameIdentityIndex];
+        if (_preferSlot(slot, existing)) {
+          dateSlots[sameIdentityIndex] = slot;
+          duplicates.push(existing);
+        } else duplicates.push(slot);
+      }
+      allByDate.set(slot.dateISO, dateSlots);
+      byDate.set(slot.dateISO, dateSlots.reduce((best, candidate) =>
+        _preferSlot(candidate, best) ? candidate : best));
     });
   }
 
-  return { byDate, undated, duplicates };
+  return { byDate, allByDate, undated, duplicates };
 }
 
 // Deterministic winner between two slots that claim the same calendar date.
@@ -164,7 +186,7 @@ function _preferSlot(a, b) {
  *
  * @param {object} state
  * @param {string} weekStartISO  Monday YYYY-MM-DD
- * @param {{ tz?: string, index?: {byDate: Map<string, DatedSlot>} }} [opts]
+ * @param {{ tz?: string, index?: {byDate: Map<string, DatedSlot>, allByDate?: Map<string, DatedSlot[]>} }} [opts]
  * @returns {{ lifts:object, runs:object, gymStats:object, dates:object, sourceSlots:Array }}
  */
 export function collectCalendarWeek(state, weekStartISO, opts = {}) {
@@ -175,12 +197,32 @@ export function collectCalendarWeek(state, weekStartISO, opts = {}) {
   DAY_KEYS.forEach((day, i) => {
     const dateISO = addDaysISO(weekStartISO, i);
     dates[day] = dateISO;
-    const slot = index.byDate.get(dateISO);
-    if (!slot) return;
-    if (slot.lifts) lifts[day] = slot.lifts;
-    if (slot.run) runs[day] = slot.run;
-    if (slot.gymStats) gymStats[day] = slot.gymStats;
-    sourceSlots.push({ date: dateISO, day, weekNum: slot.weekNum });
+    const slots = index.allByDate?.get(dateISO) || (index.byDate.get(dateISO) ? [index.byDate.get(dateISO)] : []);
+    if (!slots.length) return;
+    for (const slot of slots) {
+      if (slot.lifts) {
+        if (!lifts[day]) lifts[day] = {};
+        for (const [name, sets] of Object.entries(slot.lifts)) {
+          if (!Array.isArray(sets)) continue;
+          lifts[day][name] = [...(lifts[day][name] || []), ...sets];
+        }
+      }
+      if (slot.run) runs[day] = slot.run;
+      if (slot.gymStats) gymStats[day] = slot.gymStats;
+    // `day` is the CALENDAR column where the session is displayed. `sourceDay`
+    // is the PROGRAM slot the athlete actually selected. They differ when, for
+    // example, Monday's Upper workout is completed on Tuesday.
+      sourceSlots.push({
+        date: dateISO,
+        day,
+        sourceDay: slot.day,
+        weekKey: slot.weekKey,
+        weekNum: slot.weekNum,
+        programId: slot.programId,
+        ...(slot.sessionId ? { sessionId: slot.sessionId } : {}),
+        ...(slot.sessionTitle ? { sessionTitle: slot.sessionTitle } : {}),
+      });
+    }
   });
 
   return { lifts, runs, gymStats, dates, sourceSlots };
@@ -195,7 +237,7 @@ export function collectCalendarWeek(state, weekStartISO, opts = {}) {
  *
  * @param {object} state
  * @param {{ weekStart?: string, today?: string, tz?: string,
- *           index?: {byDate: Map<string, DatedSlot>} }} [opts]
+ *           index?: {byDate: Map<string, DatedSlot>, allByDate?: Map<string, DatedSlot[]>} }} [opts]
  * @returns {{
  *   weekKey:string, startDate:string, endDate:string,
  *   days: Array<{date:string, dayKey:string, workingSets:number, reps:number, volumeKg:number, sourceWeekNum:number|null}>,
@@ -210,12 +252,16 @@ export function buildCalendarWeekStrength(state, opts = {}) {
 
   const days = DAY_KEYS.map((dayKey, i) => {
     const date = addDaysISO(weekStart, i);
-    const slot = index.byDate.get(date);
-    const s = slot ? slot.stats : { workingSets: 0, reps: 0, volumeKg: 0 };
+    const slots = index.allByDate?.get(date) || (index.byDate.get(date) ? [index.byDate.get(date)] : []);
+    const s = slots.reduce((total, slot) => ({
+      workingSets: total.workingSets + slot.stats.workingSets,
+      reps: total.reps + slot.stats.reps,
+      volumeKg: total.volumeKg + slot.stats.volumeKg,
+    }), { workingSets: 0, reps: 0, volumeKg: 0 });
     return {
       date, dayKey,
       workingSets: s.workingSets, reps: s.reps, volumeKg: s.volumeKg,
-      sourceWeekNum: slot ? slot.weekNum : null,
+      sourceWeekNum: slots[0]?.weekNum ?? null,
     };
   });
 
@@ -254,18 +300,18 @@ export function explainWeeklyMetric(state, opts = {}) {
   const today = opts.today || localDayKey(now, tz);
   const weekStart = opts.weekStart || weekStartOf(today);
   const weekEnd = addDaysISO(weekStart, 6);
-  const { byDate, undated, duplicates } = indexSlotsByDate(state, { tz });
+  const { byDate, allByDate, undated, duplicates } = indexSlotsByDate(state, { tz });
 
   // One row per stored slot, tagged with its dedup disposition so the trace shows
   // exactly what was counted, what was a suppressed duplicate, and what was undated.
   const rows = [
-    ...[...byDate.values()].map(s => ({ slot: s, disposition: 'counted' })),
+    ...[...allByDate.values()].flat().map(s => ({ slot: s, disposition: 'counted' })),
     ...duplicates.map(s => ({ slot: s, disposition: 'duplicate-suppressed' })),
     ...undated.map(s => ({ slot: s, disposition: 'undated' })),
   ];
 
   const sessions = rows.map(({ slot, disposition }) => {
-    const wd = (state?.weeks || {})[String(slot.weekNum)] || {};
+    const wd = (state?.weeks || {})[slot.weekKey] || {};
     const rawStored = wd.dates?.[slot.day];
     const resolvedLocalDate = slot.dateISO || null;
     const resolvedWeekKey = resolvedLocalDate ? weekKeyOf(resolvedLocalDate) : null;

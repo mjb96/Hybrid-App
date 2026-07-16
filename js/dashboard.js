@@ -537,7 +537,7 @@ export const DEFAULT_HIDDEN_TILES = Object.freeze([
 // V2 (S3): the Home dashboard shows exactly four fixed tiles — no customiser,
 // no hidden/order state. One glanceable number per hybrid dimension:
 // recovery (Readiness) · strength volume (Weekly Volume) · a strength number
-// (Top Lifts) · a running number (Avg Pace). Chosen by us, per PRODUCT_V2 §3.
+// (Top Lifts) · a running number (Avg Pace). These are curated defaults.
 export const HOME_TILE_IDS = Object.freeze(['readiness', 'weekly-volume', 'top-lifts', 'avg-pace']);
 
 // Synthetic full-width tile shown in place of the Health-Connect metric tiles

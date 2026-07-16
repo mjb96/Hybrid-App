@@ -39,7 +39,7 @@ function qs(id) { return document.getElementById(id); }
 
 // ---- V2: unified Recovery & Load screen (Overview | Stats) --------------
 // Absorbs recovery, recovery-score, training-status, load-focus, stress-balance —
-// "three names for one concept: load vs recovery" (PRODUCT_V2 §4). The hero is
+// Avoid three names for one load-vs-recovery concept. The hero is
 // the readiness gauge; the full recovery+load detail lives one tap away in Stats.
 let _recoveryTab = 'overview';
 export function setRecoveryTab(tab) { _recoveryTab = tab === 'stats' ? 'stats' : 'overview'; }

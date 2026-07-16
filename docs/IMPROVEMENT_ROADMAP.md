@@ -5,6 +5,49 @@
 **Goal:** reach a trustworthy Android public beta without expanding scope  
 **Constraint:** iOS, billing, paywalls, and new feature categories remain deferred
 
+## Product rules and document map
+
+This roadmap is the single source of truth for product direction, implementation status,
+release gates, and session history. Enduring rules formerly spread across dated audits are:
+
+1. One hero per screen; no competing primary messages.
+2. Payoff before homework; show value before requesting setup or data entry.
+3. Keep advanced power one tap deeper instead of crowding the default surface.
+4. Prefer opinionated defaults over avoidable configuration.
+5. Use one synthesized coaching sentence, not a mechanism dump.
+6. Data safety comes before presentation or convenience.
+7. One truth per day: plan, completion, readiness, and weekly totals must agree everywhere.
+8. Calendar-week analytics use stamped local dates; program weeks are plan position only;
+   rolling readiness/load metrics keep their explicitly named windows.
+
+The active beta scope is Android, strength + running logging, programs, honest analytics,
+and reliable local/cloud portability. iOS, billing/paywalls, social feeds, live coaching,
+nutrition expansion, and unrelated feature categories are explicitly rejected for this
+launch cycle. Implementation contracts that need more detail remain in
+`docs/ARCHITECTURE_DECISIONS.md` and `docs/HYBRID-SCORE.md`. Store copy/version policy stay
+in `docs/store-listing.md` and `docs/versioning.md`. The five `android-*-device-checklist.md`
+files are retained only as executable physical-device evidence forms; their completion
+status lives here under Human-owned validation and release items.
+
+### Direction and evidence gates
+
+Helyx should earn the right to become a public product in three stages:
+
+1. **Personal daily driver (now):** one owner uses it for 30 consecutive days with no
+   lost, overwritten, misdated, or misclassified activity; the plan → log → review loop
+   needs no workaround or developer explanation.
+2. **Small private beta:** 5–10 hybrid athletes use it for four weeks. Track weekly return,
+   completed/logged sessions, failed or abandoned logging flows, data corrections, and the
+   specific moments they would miss if Helyx disappeared.
+3. **Public-product decision:** proceed beyond a personal app only if several testers use
+   the core loop weekly without prompting and independently value the combined strength +
+   running history/coaching. If that evidence is weak, keep Helyx as a polished personal
+   tool rather than adding breadth to manufacture demand.
+
+The near-term outcome is therefore: **the fastest, most trustworthy way for one athlete to
+plan and record mixed strength + running training.** Reliability and repeat use—not feature
+count, downloads, or monetization—are the decision metrics.
+
 ## Implementation status
 
 - **R1 / PR-1 complete — 14 July 2026** on `codex/beta-integrity-dates`.
@@ -236,9 +279,28 @@
   history where strength and every same-day run are separate records. Exact activity
   details reuse the complete set/split/map breakdown; deleting a run cannot remove a
   sibling run or strength work, deleting strength preserves runs/body weight, and a
-  10-second Undo precedes exact route removal. The former whole-day profile modal and
-  its dead helpers/styles were removed. The required mobile browser contract proves
-  separate same-day rows, 320–412px fit, 44px targets and 200% text.
+  10-second Undo precedes exact route removal. Populated In Focus bars now route by their
+  real calendar date: one activity opens its complete detail directly, while strength +
+  run or multiple same-day runs open the date-filtered chooser without guessing. Empty and
+  future bars do not navigate. The former whole-day profile modal and duplicate graph-summary
+  modal plus their dead helpers/styles were removed. The required mobile browser contract
+  proves exact bar-to-activity navigation, separate same-day rows, 320–412px fit, 44px core
+  targets and 200% text.
+- **Schedule-flexible program logging quick win implemented — 16 July 2026** on
+  `codex/gps-route-quality`. Home now offers a current-week workout picker so an athlete can
+  intentionally start any programmed session today. The log preserves two truths: the source
+  program day still owns prescription/completion/progression, while the stamped date owns
+  calendar history. The cockpit states “scheduled Monday · logged Tuesday”; Strength Insights
+  shows Tuesday as the performed day but names/opens Monday's actual workout instead of
+  Tuesday's plan. Analytics leaves opened from Home now return Home, while leaves opened from
+  the Insights hub still return to that hub.
+- **Independent strength sessions + document consolidation implemented — 16 July 2026** on
+  `codex/gps-route-quality`. Empty Workout and Copy Past Workout now create stable, non-program
+  strength-session records; copied values remain editable/incomplete, programmed completion is
+  untouched, same-day sessions count independently, and each receives its own history/detail/
+  delete identity. The roadmap now owns product rules, direction, status, and release gates;
+  dated audit/progress/launch-checklist files were removed. Five physical Android matrices remain
+  as executable evidence forms, not parallel status trackers.
 
 ## Prioritization model
 
@@ -310,7 +372,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R4 | Create one portability service with web and Android file adapters; include archived weeks and every route; correctly escape CSV. | Blocker | Gives Android users a real, complete backup and migration path. | 4–6 days | Medium: WebView/file-provider UX. | R2 route format; native save/share contract. | Android emulator + physical device save/cancel/overwrite checks; clear app data then reimport; CSV parser round trip with commas, quotes, line breaks, archives. | Success is shown only after a platform-confirmed file operation, and exported counts match stored counts. |
 | R5 | Gate Pages and signed Android publication on JS verify plus Android unit/lint/assemble; make skipped browser checks fail when required. | Blocker | Prevents a known-broken build from reaching users. | 2–3 days | Low–Medium: workflow changes. | Declared Playwright/browser dependency or explicit optional split; reusable workflow design. | Injected failing test/lint blocks deploy/sign/upload; green run produces expected artifacts; branch protection requires checks. | No production deployment or signed artifact job can execute without all required upstream checks succeeding. |
 
-**Phase 0 exit gate:** R1–R5 complete, full suite green, Android export/device evidence attached, and no unresolved blocker in the evidence index.
+**Phase 0 exit gate:** R1–R5 complete, full suite green, Android export/device evidence attached, and no unresolved blocker in this roadmap.
 
 ## Phase 1 — Core-loop truth and accessibility
 
@@ -396,6 +458,37 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · PR #141 CI portability fix on `codex/gps-route-quality`: one-off strength
+  sessions now derive their weekday and stored calendar date from the same explicit/device
+  timezone, preventing disagreement around UTC date boundaries. Sydney and UTC regression
+  fixtures cover the original failure. `npm run verify` is green with 978 tests. · Next:
+  push the fix and confirm the required PR checks pass.
+- 2026-07-16 · Independent strength sessions, product direction, and complete document
+  consolidation on `codex/gps-route-quality`: Empty Workout and Copy Past Workout now use
+  stable non-program records, preserve copied values as editable unchecked sets, keep program
+  completion untouched, count multiple same-date strength sessions, and retain exact history/
+  detail/delete identity. Added a personal-daily-driver → small-private-beta → public-product
+  evidence gate. Folded enduring product rules and release status into this roadmap; removed
+  superseded audits, progress archives, the duplicate launch checklist, and OS junk while
+  retaining only current technical/legal references and five physical-device evidence forms.
+  `npm run verify` is green with 977 tests, and every required Chromium journey passes at
+  phone widths and 200% text. · Next: commit locally, then update draft PR #140 only after
+  owner approval.
+- 2026-07-16 · Flexible program-day logging + navigation truth on
+  `codex/gps-route-quality`: added Home's current-week workout picker and explicit rescheduled
+  cockpit context; retained program source day + actual calendar date through Strength Insights
+  and exact activity navigation; Home deep-links now Back to Home instead of the Insights hub.
+  Moved-workout, picker, source-slot and origin-route regressions added. `npm run verify`
+  (972 tests) and every required Chromium journey are green. · Next: commit locally; after
+  owner approval push both pending commits to draft PR #140. Empty/copy requires independent
+  strength-session identity and remains the next scoped design/data slice.
+- 2026-07-16 · In Focus activity navigation on `codex/gps-route-quality`: populated
+  strength/running bars open Activities using the bar's stamped calendar date; a sole
+  activity opens directly and multiple same-day sessions stay as a chooser. Empty/future
+  bars remain non-interactive. Removed the obsolete graph workout-summary modal and its
+  duplicate calculation/CSS path. `npm run verify` (965 tests) and the required real-browser
+  suite, including exact previous-week bar → Strength Workout evidence, are green. · Next:
+  push this commit to refresh draft PR #140 after owner approval.
 - 2026-07-16 · R15 engineering completed on `codex/gps-route-quality`: shared web/native
   route-quality screening, honest pause/gap segmentation, compact run+route audit metadata,
   Activity Breakdown confidence detail, portable v4 route records with v2/v3 compatibility,
@@ -422,8 +515,7 @@ implementation register.
   required mobile-browser gates green. · Next: validate on the Android beta build.
 - 2026-07-16 · Reconciled the live roadmap with GitHub `main` after PRs #133–#138.
   Removed the shipped first-PR, priority-band, top-10, quick-win, and duplicate
-  major-project queues; `PRODUCT_AUDIT.md` now points here instead of carrying a stale
-  sprint plan. · Next: R15 durable GPS-session design and recovery slice while the owner
+  major-project queues and made this roadmap the sole product/status source. · Next: R15 durable GPS-session design and recovery slice while the owner
   progresses the device/release evidence.
 - 2026-07-14 · R17 (import safety core) on `claude/helyx-r17-safe-import`. Deep in-memory
   import validation + sanitization (`js/state/import-validate.js`) so malformed/oversize/
@@ -472,13 +564,6 @@ implementation register.
   recovery. Duplicate progress trackers were archived into this single live roadmap.
   `npm run verify` (874 tests) and required Playwright journeys pass. Merged via PR #133;
   the human-owned device/release matrix remains open.
-
-Historical implementation logs through 14 July 2026 are preserved in
-`docs/archive/PROGRESS-legacy-2026-07-14.md` and
-`docs/archive/PRODUCT_PROGRESS-legacy-2026-07-14.md`; they are evidence, not active plans.
-The superseded 13 July production-hardening plan and progress log are likewise retained
-under `docs/archive/`, together with their dated migration register; this roadmap remains
-the only live execution tracker.
 
 ## Stop conditions
 

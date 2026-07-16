@@ -20,10 +20,12 @@ import { showToast } from './toast.js';
 import { renderReview, setReviewTab } from './analytics/views/view-weekly-review.js';
 import { renderProjections } from './analytics/views/view-projections.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
+import { analyticsBackDestination } from './analytics/navigation.js';
 
 let _getState;
 let _getDays;
 let _analyticsContext = 'weekly-summary';
+let _analyticsOrigin = 'insights';
 let _lastScoreResult = null;   // most recent Score-detail result, for the Share card
 
 // V2-5 — share the Hybrid Score card. Uses the result last rendered into the
@@ -40,7 +42,11 @@ export function shareScoreCard() {
   shareHybridScoreCard(result, st, { showToast });
 }
 
-export function setAnalyticsContext(ctx) { _analyticsContext = ctx || 'weekly-summary'; resetWeekNav(); }
+export function setAnalyticsContext(ctx, options = {}) {
+  _analyticsContext = ctx || 'weekly-summary';
+  _analyticsOrigin = options.origin === 'home' ? 'home' : 'insights';
+  resetWeekNav();
+}
 
 export function initAnalytics(getStateFn, getDaysFn) {
   _getState = getStateFn;
@@ -305,22 +311,26 @@ export function renderAnalytics() {
 
   document.querySelectorAll('.analytics-section').forEach(sec => sec.classList.remove('active'));
 
-  // The hub is an index screen: hide the week navigator (it has no meaning there)
-  // and send "back" to the dashboard. Every leaf section instead routes "back" to
-  // the hub, so you can browse multiple sections without bouncing home each time.
+  // The hub is an index screen: hide the week navigator (it has no meaning there).
+  // A leaf remembers where it was opened: Home deep-links return Home, while
+  // leaves opened from the Insights hub return to that hub.
   const weekNav = document.getElementById('analyticsWeekNav');
   if (weekNav) weekNav.style.display = (context === 'hub' || context === 'hybrid-score' || context === 'weekly-review' || context === 'projections' || context === 'monthly-report') ? 'none' : '';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
-    if (context === 'hub') {
+    const destination = analyticsBackDestination(context, _analyticsOrigin);
+    if (!destination) {
       // The hub is now a top-level nav destination — the bottom nav is the way
       // out, so no back button is needed on the index itself.
       backBtn.style.display = 'none';
     } else {
       backBtn.style.display = '';
-      backBtn.setAttribute('data-action', 'open-analytics');
-      backBtn.setAttribute('data-context', 'hub');
-      backBtn.textContent = '← Back to Insights';
+      backBtn.setAttribute('data-action', destination.action);
+      backBtn.textContent = destination.label;
+      if (destination.context) backBtn.setAttribute('data-context', destination.context);
+      else backBtn.removeAttribute('data-context');
+      if (destination.target) backBtn.setAttribute('data-target', destination.target);
+      else backBtn.removeAttribute('data-target');
     }
   }
 

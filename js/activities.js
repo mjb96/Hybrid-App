@@ -2,7 +2,9 @@
 // =============================================================================
 // ACTIVITIES — full-screen history and exact activity detail/deletion.
 // =============================================================================
-import { buildActivityHistory, filterActivityHistory } from './activities/model.js';
+import {
+  activityDestinationForDate, buildActivityHistory, filterActivityHistory,
+} from './activities/model.js';
 import {
   deleteRunActivity, deleteStrengthActivity,
   restoreRunActivity, restoreStrengthActivity,
@@ -75,6 +77,9 @@ export function openActivities(options = {}) {
   _detailTab = 'summary';
   _dateFilter = options.date || null;
   _filter = options.filter || 'all';
+  if (options.directIfSingle && _dateFilter) {
+    _selected = activityDestinationForDate(buildActivityHistory(_getState()), _dateFilter).activity;
+  }
   screen.style.display = 'block';
   screen.scrollTop = 0;
   renderActivities();

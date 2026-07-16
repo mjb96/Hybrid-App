@@ -59,7 +59,7 @@ export function fatigueTrend(atlSeries, lookback = 4) {
 // load-management signal with wide individual variation, and universal "danger"
 // cut-offs overstate the evidence. Zones are unchanged so downstream logic and
 // styling that key on `zone` keep working; only the human-facing `status`
-// strings are neutralised. See docs/archive/HARDENING_PLAN-legacy-2026-07-13.md §5.8.
+// strings are neutralised before they reach the load calculation.
 export function trainingLoadStatus(atl, ctl) {
   if (!ctl || ctl === 0) return { status: 'Insufficient baseline', tone: 'neutral', zone: 'unknown' };
   const ratio = atl / ctl;
@@ -167,7 +167,7 @@ export function computeLoadAnalytics(state, days, maxWeek) {
   // series padded out to the program's total weeks. Reading the last slot made
   // ATL/CTL/ACWR collapse to "--" for anyone mid-program (weeks past today are
   // empty), contradicting the Score, which reads the live load. Index the
-  // current week so both surfaces report the same load. (PRODUCT_AUDIT §4.4.)
+  // current week so both surfaces report the same load.
   const lastIdx       = atlSeries.length - 1;
   const wkNum         = parseInt(state?.currentWeek, 10);
   const ci            = Number.isFinite(wkNum) ? Math.max(0, Math.min(wkNum - 1, lastIdx)) : lastIdx;

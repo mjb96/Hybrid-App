@@ -4,7 +4,7 @@
 //
 // A shareable image for a new estimated-1RM personal record — Strava-grade
 // shareability is free acquisition. Mirrors the Hybrid Score share flow
-// (canvas → navigator.share → download fallback). C6b of the audit plan.
+// (canvas → navigator.share → download fallback).
 //
 // prShareCaption is pure + tested; the draw/share touch canvas + navigator and
 // are best-effort (device-verified).

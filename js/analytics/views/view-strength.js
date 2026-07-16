@@ -26,7 +26,7 @@ import {
 import { isCompletedSet } from '../../set-utils.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
-import { getProgramById } from '../../state.js';
+import { resolveProgramForState } from '../../state.js';
 import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
 import { getCalendarWeekOffset, getSelectedWeekStart } from '../week-nav.js';
 import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
@@ -349,7 +349,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
 
   // On a deload week, show the deload line — never "below effective volume, add
   // sets", which is exactly the plan and would contradict the coach (§2.2).
-  const shownInsights = isProgramDeloadWeek(appState, getProgramById(appState.activeProgramId))
+  const shownInsights = isProgramDeloadWeek(appState, resolveProgramForState(appState, appState.activeProgramId))
     ? [deloadInsight()] : insights.slice(0, 1);
 
   body.innerHTML = `
@@ -393,34 +393,54 @@ function _weeklyE1rmCard(cs) {
 // vs this week's Push".
 const _DAY_ABBR = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 function _thisWeekSessionsStripHTML(appState, days) {
-  // "This week" = the current CALENDAR week. Assemble it from real stamped dates
-  // (a day may live in any program-week slot) so the strip can never echo a
-  // frozen program week's stale sessions. Each chip keeps the day's SOURCE
-  // program week so the session-detail modal still opens the right stored slot.
-  const weekData = collectCalendarWeek(appState, weekStartOf(localDayKey(new Date())));
-  const slotWeekOf = {};
-  weekData.sourceSlots.forEach(s => { slotWeekOf[s.day] = s.weekNum; });
-  const program = getProgramById(appState.activeProgramId);
-  const unit = appState.settings?.weightUnit || 'kg';
-
-  const chips = [];
-  (days || []).forEach(d => {
-    const { totalVolume } = summarizeSessionLifts(weekData, d);
-    if (totalVolume <= 0) return; // only days with logged lifting
-    const wk = String(slotWeekOf[d] ?? appState.currentWeek ?? '1');
-    const title = program?.days?.[d]?.title || 'Workout';
-    chips.push(`<button class="sw-session-chip" data-action="open-session-detail" data-week="${wk}" data-day="${d}" data-datelabel="${esc(title)}">
-      <span class="sw-session-chip__day">${_DAY_ABBR[d] || esc(d)}</span>
-      <span class="sw-session-chip__title">${esc(title)}</span>
-      <span class="sw-session-chip__vol">${Math.round(totalVolume)} ${esc(unit)} vol</span>
-    </button>`);
-  });
+  const chips = strengthSessionChipModels(appState, days);
   if (!chips.length) return '';
   return `<div class="sw-sessions">
     <div class="sw-sessions__title">This week's sessions</div>
-    <div class="sw-sessions__row">${chips.join('')}</div>
+    <div class="sw-sessions__row">${chips.map(chip => `<button class="sw-session-chip" data-action="open-session-detail" data-week="${esc(chip.weekKey)}" data-day="${esc(chip.sourceDay)}" data-datelabel="${esc(chip.title)}">
+      <span class="sw-session-chip__day">${_DAY_ABBR[chip.calendarDay] || esc(chip.calendarDay)}</span>
+      <span class="sw-session-chip__title">${esc(chip.title)}</span>
+      <span class="sw-session-chip__vol">${Math.round(chip.totalVolume)} ${esc(chip.unit)} vol</span>
+    </button>`).join('')}</div>
     <div class="sw-sessions__hint">Tap a session to see it and compare with last week.</div>
   </div>`;
+}
+
+/**
+ * Resolve each calendar-day chip back to the exact program workout that was
+ * logged. A moved workout keeps Tuesday as its performed day while retaining
+ * Monday as its prescription/detail identity.
+ */
+export function strengthSessionChipModels(appState, days, opts = {}) {
+  // "This week" = the current CALENDAR week. Assemble it from real stamped dates
+  // (a day may live in any program-week slot) so the strip can never echo a
+  // frozen program week's stale sessions. Each chip also keeps its SOURCE
+  // program/week/day so a rescheduled workout is named and opened correctly.
+  const weekStart = opts.weekStart || weekStartOf(localDayKey(new Date()));
+  const weekData = collectCalendarWeek(appState, weekStart);
+  const activeProgram = resolveProgramForState(appState, appState.activeProgramId);
+  const unit = appState.settings?.weightUnit || 'kg';
+
+  const chips = [];
+  weekData.sourceSlots.forEach((source) => {
+    const d = source.day;
+    const sourceWeek = appState.weeks?.[source.weekKey] || {};
+    const { totalVolume } = summarizeSessionLifts({ lifts: sourceWeek.lifts || {} }, source.sourceDay);
+    if (totalVolume <= 0) return; // only days with logged lifting
+    const sourceDay = source.sourceDay || d;
+    const sourceProgram = source.programId
+      ? resolveProgramForState(appState, source.programId)
+      : activeProgram;
+    chips.push({
+      calendarDay: d,
+      sourceDay,
+      weekKey: String(source.weekKey ?? source.weekNum ?? appState.currentWeek ?? '1'),
+      title: source.sessionTitle || sourceProgram?.days?.[sourceDay]?.title || 'Workout',
+      totalVolume,
+      unit,
+    });
+  });
+  return chips;
 }
 
 // Stats: the full strength engine, one tap deeper. Absorbs the old 1RM (strength_pr)

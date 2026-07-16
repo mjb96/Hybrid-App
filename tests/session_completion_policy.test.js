@@ -97,3 +97,19 @@ test('only policy-complete work receives the completion action and recap', () =>
   assert.match(presentation.title, /complete/i);
   assert.equal(presentation.emitsRecap, true);
 });
+
+test('one-off strength completion is isolated from the program prescription', () => {
+  const oneOff = {
+    currentWeek: '1',
+    weeks: {
+      'session:str_1': {
+        sessionId: 'str_1', sessionKind: 'empty',
+        lifts: { thu: { Bench: [set(true), set(true)] } },
+      },
+    },
+  };
+  const result = evaluateSessionCompletion(oneOff, PROGRAM, 'session:str_1', 'thu');
+  assert.equal(result.complete, true);
+  assert.equal(result.planned.sets, 2);
+  assert.equal(result.planned.run, false);
+});

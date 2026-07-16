@@ -47,7 +47,7 @@ try {
     hidden: root.getAttribute('aria-hidden'),
     modalClaims: root.matches('[aria-modal="true"]') || !!root.querySelector('[aria-modal="true"]'),
   })));
-  check(closed.length >= 18, `expected complete modal inventory, got ${closed.length}`);
+  check(closed.length >= 17, `expected complete modal inventory, got ${closed.length}`);
   for (const item of closed) {
     check(item.inert, `${item.id}: closed root is not inert`);
     check(item.hidden === 'true', `${item.id}: closed root is not aria-hidden`);

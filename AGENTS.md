@@ -43,8 +43,7 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   (`js/analytics/week-nav.js`) is also CALENDAR-based (`getCalendarWeekOffset()`, ephemeral
   offset, reset on view entry) — it never reads `state.currentWeek`. `explainWeeklyMetric`
   is a dev-only attribution trace (program week is metadata; the date decides the week).
-  `docs/TIME-MODEL-AUDIT.md` classifies every week-based reference (calendar vs program vs
-  rolling); `tests/analytics_calendar_guard.test.js` keeps the calendar-core modules
+  `tests/analytics_calendar_guard.test.js` keeps the calendar-core modules
   program-week-free. Program adherence, "Week N" labels, deload detection and today's
   planned session stay PROGRAM-week based; CTL/ATL/readiness stay rolling-window. The
   Strength overview's per-lift **estimated-1RM "this week" change + PR indicators** use
@@ -87,10 +86,9 @@ Active goal: Android public beta on Google Play (free at launch). See
 release checklist, and session log. iOS/Capacitor and any billing/paywall are
 explicitly deferred — do not build them now.
 
-Product/UX source of truth: `PRODUCT_AUDIT.md` (design blueprint, laws, prioritised
-principles, rejected ideas) + `docs/IMPROVEMENT_ROADMAP.md` (the only live execution
-roadmap/status tracker). Read both before product-facing work. Superseded plans and
-logs live in `docs/archive/` — historical context only, never execute from them.
+Product/UX source of truth: `docs/IMPROVEMENT_ROADMAP.md`. It owns the settled product
+rules, rejected scope, execution status, release gates, and session log. Read it before
+product-facing work; do not create parallel progress, audit, or checklist trackers.
 
 ### Session protocol
 - START: read this file, `docs/IMPROVEMENT_ROADMAP.md`, and `git log --oneline -15`. State in one line

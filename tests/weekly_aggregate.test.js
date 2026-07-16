@@ -220,6 +220,23 @@ test('a duplicate slot on the same date is counted once, never doubled', () => {
   assert.equal(cur.sourceWeekNums.length, 1);
 });
 
+test('independent strength sessions on the same date are both counted', () => {
+  const state = {
+    currentWeek: '1', settings: {},
+    weeks: {
+      'session:str_1': { sessionId: 'str_1', sessionKind: 'empty', dates: { mon: '2026-07-13' }, lifts: { mon: { Bench: nSets(2, 80, 8) } } },
+      '1': { dates: { mon: '2026-07-13' }, lifts: { mon: { Squat: nSets(3, 100, 5) } } },
+      '2': { dates: { mon: '2026-07-13' }, lifts: { mon: { Squat: nSets(3, 100, 5) } } },
+    },
+  };
+  const index = indexSlotsByDate(state);
+  assert.equal(index.allByDate.get('2026-07-13').length, 2);
+  assert.equal(index.duplicates.length, 1, 'legacy/program duplicate is still suppressed');
+  const cur = buildCalendarWeekStrength(state, { today: TODAY, index });
+  assert.equal(cur.totalWorkingSets, 5);
+  assert.equal(cur.totalVolumeKg, 2780);
+});
+
 // ---------------------------------------------------------------------------
 // Legacy slot with no recoverable date is preserved but NOT put in any week.
 // ---------------------------------------------------------------------------

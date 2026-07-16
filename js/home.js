@@ -206,7 +206,7 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
   }
 
   // V2 (S3): exactly four fixed tiles, in order — no customiser, no hidden/order
-  // state. Curated defaults beat a customiser (PRODUCT_V2 §3).
+  // state. Curated defaults beat a customiser.
   const byId = new Map(TILE_REGISTRY.map(t => [t.id, t]));
   const visible = HOME_TILE_IDS.map(id => byId.get(id)).filter(Boolean);
 

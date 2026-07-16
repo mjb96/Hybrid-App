@@ -84,11 +84,11 @@ export function buildActivityHistory(state) {
         const summary = strengthSummary(week, day);
         const duration = week.gymStats?.[day]?.time || '';
         rows.push({
-          id: `strength:${encodeURIComponent(weekKey)}:${day}`,
-          kind: 'strength', week: weekKey, day, sessionId: null,
+          id: week.sessionId ? `strength:${week.sessionId}` : `strength:${encodeURIComponent(weekKey)}:${day}`,
+          kind: 'strength', week: weekKey, day, sessionId: week.sessionId || null,
           localDate, dateLabel: activityDateLabel(localDate),
           timestamp: dateStamp(localDate, null, ++fallbackIndex),
-          title: 'Strength Workout',
+          title: week.sessionTitle || 'Strength Workout',
           subtitle: summary.exercises.slice(0, 2).join(', ') + (summary.exercises.length > 2 ? ` +${summary.exercises.length - 2}` : ''),
           metrics: [
             summary.workingSets ? `${summary.workingSets} sets` : '',
@@ -125,4 +125,14 @@ export function filterActivityHistory(rows, kind = 'all', localDate = null) {
   return (rows || []).filter((row) =>
     (kind === 'all' || row.kind === kind) && (!localDate || row.localDate === localDate)
   );
+}
+
+/** Resolve a date tap without choosing arbitrarily between same-day sessions. */
+export function activityDestinationForDate(rows, localDate) {
+  const matches = filterActivityHistory(rows, 'all', localDate);
+  return {
+    mode: matches.length === 1 ? 'detail' : 'list',
+    activity: matches.length === 1 ? matches[0] : null,
+    rows: matches,
+  };
 }

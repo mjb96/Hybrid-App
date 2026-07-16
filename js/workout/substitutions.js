@@ -4,7 +4,7 @@
 //
 // Pure, DOM-free. Given an exercise, return sensible in-session swaps — same
 // movement pattern, filtered by the equipment the athlete actually has
-// (settings.equipment). B3 of the launch-audit plan: removes the #1 reason a
+// (settings.equipment): removes the main reason a
 // lifter abandons a plan ("the rack's taken / I don't have that machine").
 //
 // The engine keys everything by movement PATTERN so a swap trains the same

@@ -7,7 +7,7 @@
 // "am I overtraining?", "what's my next PR?" — entirely from the engine numbers
 // already computed for Home (readiness model, Hybrid Score + deltaBreakdown,
 // overtraining risk, projection). No LLM: every answer is literally true of the
-// data, which is exactly what makes a coach trustworthy. C2 of the audit plan.
+// data, which is exactly what makes a coach trustworthy.
 //
 // A guarded LLM phrasing layer over these same facts is the deferred follow-up.
 // =============================================================================
