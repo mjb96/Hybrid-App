@@ -458,6 +458,11 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · PR #141 CI portability fix on `codex/gps-route-quality`: one-off strength
+  sessions now derive their weekday and stored calendar date from the same explicit/device
+  timezone, preventing disagreement around UTC date boundaries. Sydney and UTC regression
+  fixtures cover the original failure. `npm run verify` is green with 978 tests. · Next:
+  push the fix and confirm the required PR checks pass.
 - 2026-07-16 · Independent strength sessions, product direction, and complete document
   consolidation on `codex/gps-route-quality`: Empty Workout and Copy Past Workout now use
   stable non-program records, preserve copied values as editable unchecked sets, keep program

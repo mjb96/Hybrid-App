@@ -45,17 +45,23 @@ function blankCopiedSet(set) {
   return next;
 }
 
+function weekdayForDateKey(localDate) {
+  const [year, month, day] = localDate.split('-').map(Number);
+  return DAYS[new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay()];
+}
+
 /**
  * @param {any} state
  * @param {{ kind?:'empty'|'copy', title?:string, sourceWeek?:any, sourceDay?:string,
- * sourceActivityId?:string, now?:Date }} [options]
+ * sourceActivityId?:string, now?:Date, tz?:string }} [options]
  */
 export function createOneOffStrengthSession(state, options = {}) {
   if (!state.weeks || typeof state.weeks !== 'object') state.weeks = {};
   const now = options.now || new Date();
   const sessionId = newStrengthSessionId();
   const key = `${PREFIX}${sessionId}`;
-  const day = DAYS[now.getDay()];
+  const localDate = dateKey(now, options.tz);
+  const day = weekdayForDateKey(localDate);
   const sourceLifts = options.sourceWeek?.lifts?.[options.sourceDay] || {};
   const sourceOrder = options.sourceWeek?.liftOrder?.[options.sourceDay];
   const lifts = {};
@@ -74,7 +80,7 @@ export function createOneOffStrengthSession(state, options = {}) {
     sourceActivityId: options.sourceActivityId || null,
     startedAt: now.toISOString(),
     programId: null,
-    dates: { [day]: dateKey(now) },
+    dates: { [day]: localDate },
     runs: {}, runSessions: {},
     lifts: { [day]: lifts },
     liftOrder: { [day]: liftOrder },
