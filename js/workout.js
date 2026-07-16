@@ -25,6 +25,7 @@ import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 import { detectRunType } from './workout/run-type.js';
+import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { deleteDayWorkoutData } from './workout/delete-day.js';
 
@@ -276,6 +277,19 @@ export function renderWorkout() {
 
   const activeProgram = getProgramById(appState.activeProgramId);
   const homeBlueprint = activeProgram?.days?.[selectedDay] || { lifts: [], runs: "Rest" };
+  const todayProgramDay = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+  const movedContext = rescheduledWorkoutContext(activeProgram, selectedDay, todayProgramDay);
+  const cockpitTitle = document.getElementById('cockpitWorkoutTitle');
+  const cockpitDayBadge = document.getElementById('cockpitDayBadge');
+  const scheduleContext = document.getElementById('cockpitScheduleContext');
+  if (cockpitTitle) cockpitTitle.textContent = homeBlueprint.title || 'Workout';
+  if (cockpitDayBadge) cockpitDayBadge.textContent = movedContext ? 'Logging today' : 'Today';
+  if (scheduleContext) {
+    scheduleContext.hidden = !movedContext;
+    scheduleContext.textContent = movedContext
+      ? `${movedContext.title} is scheduled ${movedContext.sourceLabel}. This workout will be logged today, ${movedContext.todayLabel}.`
+      : '';
+  }
 
   // --- RUN METRICS ---
   const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '', pace: '', notes: '' };
@@ -493,7 +507,7 @@ export function renderWorkout() {
   if (daySelectorBar) {
     const pills = daySelectorBar.querySelectorAll('.day-pill');
     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    const todayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+    const todayKey = todayProgramDay;
     pills.forEach((pill, idx) => {
       const dayKey = days[idx];
       const dayData = activeProgram.days?.[dayKey];

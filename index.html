@@ -494,6 +494,7 @@
            are set day-aware in renderHome (a rest day routes to the check-in,
            not "Go to Today's Workout", which contradicts the rest-day coach). -->
       <button id="homePrimaryCta" class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
+      <button id="homeChooseWorkout" class="home-choose-workout-btn mb-4" data-action="open-program-workout-picker">Choose another workout</button>
 
       <!-- Starting a run / walk / fast now lives in the centre "+" nav FAB, so
            Home stays quiet. The only thing that surfaces here is a live status
@@ -593,14 +594,16 @@
       <div class="workout-cockpit-header">
         <div class="wch-meta">
           <span class="wch-label">Workout</span>
-          <h2 class="wch-title">Today's Session</h2>
+          <h2 class="wch-title" id="cockpitWorkoutTitle">Today's Session</h2>
           <span class="wch-sub" id="cockpitSessionStatus">Ready to train</span>
         </div>
-        <div class="wch-badge">
+        <div class="wch-badge" id="cockpitDayBadge">
           <span class="wch-badge-dot"></span>
           Today
         </div>
       </div>
+
+      <div id="cockpitScheduleContext" class="cockpit-schedule-context" role="status" hidden></div>
 
       <div id="cockpitScoreHook" class="cockpit-hook" style="display:none"></div>
 
@@ -1891,6 +1894,20 @@
     </div>
   </div>
 
+
+  <!-- Program workout picker — start any session from the current week today. -->
+  <div id="programWorkoutPickerBackdrop" class="sheet-backdrop" data-action="close-program-workout-picker"></div>
+  <div id="programWorkoutPicker" class="bottom-sheet program-workout-picker" role="dialog" aria-labelledby="programWorkoutPickerTitle" data-modal-root data-modal-close-action="close-program-workout-picker" data-modal-companion="#programWorkoutPickerBackdrop" inert aria-hidden="true">
+    <div class="bottom-sheet-handle"></div>
+    <div class="bottom-sheet-header">
+      <div>
+        <h3 id="programWorkoutPickerTitle" class="bottom-sheet-title">Choose this workout</h3>
+        <p class="program-workout-picker__sub">It stays tied to its programmed session and is logged on today’s date.</p>
+      </div>
+      <button class="sheet-close-btn" data-action="close-program-workout-picker" aria-label="Close">✕</button>
+    </div>
+    <div id="programWorkoutPickerList" class="program-workout-picker__list"></div>
+  </div>
 
   <!-- Quick-start sheet — opened by the centre "+" nav FAB; start Run / Walk / Fast from any tab. -->
   <div id="quickStartBackdrop" class="sheet-backdrop" data-action="close-quick-start"></div>

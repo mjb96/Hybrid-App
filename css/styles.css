@@ -1815,6 +1815,45 @@ body.sheet-scroll-locked {
 }
 .qs-item--primary:hover { border-color: var(--color-green, #10b981); background: rgba(16,185,129,0.16); }
 
+.home-choose-workout-btn {
+  width: 100%; min-height: 44px; margin-top: -10px; padding: 10px 16px;
+  border: 0; background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 0.84rem; font-weight: 750; cursor: pointer;
+}
+.home-choose-workout-btn:active { transform: scale(0.98); }
+
+.program-workout-picker { max-height: min(82vh, 680px); }
+.program-workout-picker__sub {
+  margin: 4px 0 0; max-width: 290px; color: var(--text-secondary);
+  font-size: 0.76rem; line-height: 1.35;
+}
+.program-workout-picker__list {
+  display: grid; gap: 8px; padding: 4px 16px calc(20px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.program-workout-choice {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) 18px; gap: 12px;
+  align-items: center; width: 100%; min-height: 66px; padding: 12px 14px;
+  border: 1px solid var(--overlay-sm); border-radius: 14px;
+  background: var(--surface-card); color: var(--text-primary); text-align: left; cursor: pointer;
+}
+.program-workout-choice--today { border-color: color-mix(in srgb, var(--color-green) 48%, transparent); }
+.program-workout-choice__day {
+  color: var(--text-secondary); font-size: 0.7rem; font-weight: 800;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.program-workout-choice__main { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.program-workout-choice__main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+.program-workout-choice__main span { color: var(--text-secondary); font-size: 0.72rem; }
+.program-workout-choice__chev { color: var(--text-faint); font-size: 1.35rem; }
+.program-workout-picker-empty { padding: 20px; color: var(--text-secondary); text-align: center; }
+
+.cockpit-schedule-context {
+  margin: -4px 0 14px; padding: 10px 12px; border: 1px solid rgba(59,130,246,0.26);
+  border-radius: 12px; background: rgba(59,130,246,0.08); color: var(--text-secondary);
+  font-size: 0.78rem; line-height: 1.45;
+}
+
 
 /* --- Edit button in At a Glance header --- */
 .tile-customise-btn {

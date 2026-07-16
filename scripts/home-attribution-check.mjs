@@ -179,6 +179,29 @@ try {
     failed = true;
   }
 
+  // A leaf opened from a Home deep-link must return to Home, not strand the
+  // athlete at the Insights hub.
+  const homeBack = await page.$eval('#view-analytics .subview-back-btn', el => ({
+    action: el.getAttribute('data-action'), target: el.getAttribute('data-target'), text: el.textContent.trim(),
+  }));
+  console.log('Home deep-link back route:', JSON.stringify(homeBack));
+  if (homeBack.action !== 'switch-tab' || homeBack.target !== 'home' || !/Back to Home/.test(homeBack.text)) {
+    console.error('FAIL: an Insights leaf opened from Home should route Back to Home.');
+    failed = true;
+  }
+  await page.click('#view-analytics .subview-back-btn');
+  if (!await page.$eval('#view-home', el => el.classList.contains('active'))) {
+    console.error('FAIL: selecting Back from the Home-opened leaf did not activate Home.');
+    failed = true;
+  }
+  // Re-open the leaf for the historical-week navigator check below.
+  await page.evaluate(() => {
+    const b = document.createElement('button');
+    b.setAttribute('data-action', 'open-analytics'); b.setAttribute('data-context', 'strength');
+    b.style.display = 'none'; document.body.appendChild(b); b.click(); b.remove();
+  });
+  await page.waitForSelector('#analytics-strength.active', { timeout: 10000 });
+
   await page.click('#weekNavPrev');
   await page.waitForTimeout(150);
   const navPrev = await page.$eval('#weekNavLabel', el => el.textContent.trim());
@@ -204,6 +227,36 @@ try {
   await ctx2.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} }, [STORAGE_KEY, JSON.stringify(s2)]);
   const page2 = await ctx2.newPage();
   await page2.goto(BASE, { waitUntil: 'networkidle' });
+
+  // Home exposes a current-week picker. Starting Wednesday's programmed
+  // Legs Power session on a different real weekday keeps Wednesday as the
+  // source identity and explains that it is being logged today.
+  await page2.click('#homeChooseWorkout');
+  await page2.waitForSelector('#programWorkoutPicker.active', { timeout: 10000 });
+  const pickerState = await page2.$eval('#programWorkoutPicker', el => ({
+    modal: el.getAttribute('aria-modal'),
+    hasLegsPower: [...el.querySelectorAll('.program-workout-choice')].some(b => /Legs Power/.test(b.textContent)),
+  }));
+  if (pickerState.modal !== 'true' || !pickerState.hasLegsPower) {
+    console.error('FAIL: Home workout picker did not expose the programmed Legs Power session accessibly.');
+    failed = true;
+  }
+  const alternateDay = DAY[(new Date().getDay() + 6) % 7] === 'wed' ? 'fri' : 'wed';
+  const alternateTitle = alternateDay === 'wed' ? 'Legs Power' : 'Pull B + Easy Run';
+  await page2.click(`#programWorkoutPicker [data-action="select-program-workout"][data-day="${alternateDay}"]`);
+  await page2.waitForSelector('#view-workout.active', { timeout: 10000 });
+  const movedCockpit = await page2.evaluate(() => ({
+    title: document.getElementById('cockpitWorkoutTitle')?.textContent?.trim(),
+    context: document.getElementById('cockpitScheduleContext')?.textContent?.trim(),
+    contextHidden: document.getElementById('cockpitScheduleContext')?.hidden,
+  }));
+  console.log('Moved workout cockpit:', JSON.stringify(movedCockpit));
+  if (movedCockpit.title !== alternateTitle || movedCockpit.contextHidden || !/logged today/.test(movedCockpit.context || '')) {
+    console.error('FAIL: selecting another programmed workout did not retain and explain its source identity.');
+    failed = true;
+  }
+  await page2.click('.nav-item[data-target="home"]');
+
   await page2.evaluate(() => {
     const b = document.createElement('button');
     b.setAttribute('data-action', 'open-analytics'); b.setAttribute('data-context', 'strength');
@@ -213,10 +266,18 @@ try {
   await page2.waitForTimeout(200);
   const s2text = await page2.$eval('#analytics-strength', el => el.textContent);
   const s2ok = /Bench Press vs previous week/.test(s2text) && /\+\d+\s*kg/.test(s2text);
+  const movedChip = await page2.$eval('.sw-session-chip[data-day="wed"]', el => ({
+    day: el.querySelector('.sw-session-chip__day')?.textContent?.trim(),
+    title: el.querySelector('.sw-session-chip__title')?.textContent?.trim(),
+  })).catch(() => null);
   console.log('Scenario 2 (named same-exercise change):', JSON.stringify({
-    namesBench: /Bench Press vs previous week/.test(s2text), hasKgDelta: /\+\d+\s*kg/.test(s2text),
+    namesBench: /Bench Press vs previous week/.test(s2text), hasKgDelta: /\+\d+\s*kg/.test(s2text), movedChip,
   }));
   if (!s2ok) { console.error('FAIL: this-week Bench change should name "Bench Press vs previous week" with a +kg delta.'); failed = true; }
+  if (!movedChip || movedChip.day !== 'Mon' || movedChip.title !== 'Legs Power') {
+    console.error('FAIL: Strength Insights should show Monday as performed date but Legs Power as the workout logged.');
+    failed = true;
+  }
   await ctx2.close();
 } catch (e) {
   console.error('ERROR:', e.message);

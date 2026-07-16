@@ -79,8 +79,10 @@ export function strengthDayStats(dayLifts) {
 
 /**
  * @typedef {Object} DatedSlot
+ * @property {string} weekKey       exact storage key (including archived keys)
  * @property {number} weekNum      program week the slot lives in
  * @property {string} day          weekday key (mon..sun)
+ * @property {string|null} programId program that prescribed this stored week
  * @property {string} dateISO      resolved local calendar date
  * @property {Record<string, any[]>|undefined} lifts
  * @property {object|undefined} run
@@ -131,7 +133,9 @@ export function indexSlotsByDate(state, opts = {}) {
       if (!hasActivity) return; // scaffolding / rest day — nothing to attribute
 
       const slot = {
+        weekKey: w,
         weekNum, day, lifts, run, gymStats, stats,
+        programId: wd.programId || state?.activeProgramId || null,
         dateISO: /** @type {string} */ (localDayKey(storedDates[day], opts.tz)),
       };
 
@@ -180,7 +184,17 @@ export function collectCalendarWeek(state, weekStartISO, opts = {}) {
     if (slot.lifts) lifts[day] = slot.lifts;
     if (slot.run) runs[day] = slot.run;
     if (slot.gymStats) gymStats[day] = slot.gymStats;
-    sourceSlots.push({ date: dateISO, day, weekNum: slot.weekNum });
+    // `day` is the CALENDAR column where the session is displayed. `sourceDay`
+    // is the PROGRAM slot the athlete actually selected. They differ when, for
+    // example, Monday's Upper workout is completed on Tuesday.
+    sourceSlots.push({
+      date: dateISO,
+      day,
+      sourceDay: slot.day,
+      weekKey: slot.weekKey,
+      weekNum: slot.weekNum,
+      programId: slot.programId,
+    });
   });
 
   return { lifts, runs, gymStats, dates, sourceSlots };

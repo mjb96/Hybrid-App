@@ -243,6 +243,16 @@
   modal plus their dead helpers/styles were removed. The required mobile browser contract
   proves exact bar-to-activity navigation, separate same-day rows, 320–412px fit, 44px core
   targets and 200% text.
+- **Schedule-flexible program logging quick win implemented — 16 July 2026** on
+  `codex/gps-route-quality`. Home now offers a current-week workout picker so an athlete can
+  intentionally start any programmed session today. The log preserves two truths: the source
+  program day still owns prescription/completion/progression, while the stamped date owns
+  calendar history. The cockpit states “scheduled Monday · logged Tuesday”; Strength Insights
+  shows Tuesday as the performed day but names/opens Monday's actual workout instead of
+  Tuesday's plan. Analytics leaves opened from Home now return Home, while leaves opened from
+  the Insights hub still return to that hub. Starting an empty workout or copying a past workout
+  remains a separate session-model follow-up: the current one-strength-record-per-day shape must
+  not let ad-hoc work falsely complete a programmed session.
 
 ## Prioritization model
 
@@ -400,6 +410,14 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · Flexible program-day logging + navigation truth on
+  `codex/gps-route-quality`: added Home's current-week workout picker and explicit rescheduled
+  cockpit context; retained program source day + actual calendar date through Strength Insights
+  and exact activity navigation; Home deep-links now Back to Home instead of the Insights hub.
+  Moved-workout, picker, source-slot and origin-route regressions added. `npm run verify`
+  (972 tests) and every required Chromium journey are green. · Next: commit locally; after
+  owner approval push both pending commits to draft PR #140. Empty/copy requires independent
+  strength-session identity and remains the next scoped design/data slice.
 - 2026-07-16 · In Focus activity navigation on `codex/gps-route-quality`: populated
   strength/running bars open Activities using the bar's stamped calendar date; a sole
   activity opens directly and multiple same-day sessions stay as a chooser. Empty/future

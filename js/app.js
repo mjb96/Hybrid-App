@@ -86,6 +86,7 @@ import { resolveDateToSlot, resolveSlotDate } from './analytics/logged-days.js';
 import { newRunSessionId, runDaySummary, upsertRunSession } from './state/run-sessions.js';
 import { FASTING_ACTIONS, handleFastingClickAction } from './fasting/fasting-actions.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
+import { buildProgramSessionChoices } from './workout/program-session-picker.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -124,7 +125,7 @@ document.addEventListener('app:navigate', (e) => {
 let _activePlanDisplayWeek = null;
 
 export function openAnalyticsView(context, scrollToId) {
-  setAnalyticsContext(context);
+  setAnalyticsContext(context, { origin: activeTab === 'home' ? 'home' : 'insights' });
   switchGlobalAppTab('analytics');
   // Optional deep-link to a sub-section (e.g. the rest-day mission → the wellness
   // check-in form, which otherwise sits several screens below the recovery hero).
@@ -177,6 +178,50 @@ export function setCockpitActiveDay(dayKey) {
 export function launchActiveWorkoutCockpit() {
   switchGlobalAppTab('workout');
   setCockpitActiveDay(selectedDay);
+}
+
+function _todayProgramDay() {
+  return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+}
+
+export function openProgramWorkoutPicker() {
+  const sheet = document.getElementById('programWorkoutPicker');
+  const backdrop = document.getElementById('programWorkoutPickerBackdrop');
+  const list = document.getElementById('programWorkoutPickerList');
+  const program = getProgramById(appState.activeProgramId);
+  if (!sheet || !list || !program) return;
+  const choices = buildProgramSessionChoices(appState, program, _todayProgramDay());
+  list.innerHTML = choices.map((choice) => {
+    const status = choice.status === 'complete'
+      ? `Completed${choice.moved ? ` ${escapeHtml(choice.performedLabel)}` : ''}`
+      : choice.status === 'partial' ? 'In progress'
+      : choice.isToday ? "Today's plan" : 'Planned this week';
+    return `<button class="program-workout-choice${choice.isToday ? ' program-workout-choice--today' : ''}" data-action="select-program-workout" data-day="${choice.day}">
+      <span class="program-workout-choice__day">${escapeHtml(choice.dayLabel)}</span>
+      <span class="program-workout-choice__main">
+        <strong>${escapeHtml(choice.title)}</strong>
+        <span>${escapeHtml(choice.sessionLabel)} · ${escapeHtml(status)}</span>
+      </span>
+      <span class="program-workout-choice__chev" aria-hidden="true">›</span>
+    </button>`;
+  }).join('') || '<p class="program-workout-picker-empty">No programmed sessions are available this week.</p>';
+  sheet.classList.add('active');
+  backdrop?.classList.add('active');
+  openManagedModal(sheet, { initialFocus: '.program-workout-choice' });
+}
+
+export function closeProgramWorkoutPicker() {
+  const sheet = document.getElementById('programWorkoutPicker');
+  document.getElementById('programWorkoutPickerBackdrop')?.classList.remove('active');
+  sheet?.classList.remove('active');
+  closeManagedModal(sheet);
+}
+
+export function selectProgramWorkout(day) {
+  if (!day) return;
+  closeProgramWorkoutPicker();
+  setCockpitActiveDay(day);
+  launchActiveWorkoutCockpit();
 }
 
 // Quick Start (from Home): begin a GPS walk/run untethered from the program on
@@ -794,6 +839,9 @@ document.addEventListener('click', (e) => {
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
+  else if (action === 'open-program-workout-picker') openProgramWorkoutPicker();
+  else if (action === 'close-program-workout-picker') closeProgramWorkoutPicker();
+  else if (action === 'select-program-workout') selectProgramWorkout(target.getAttribute('data-day'));
   else if (action === 'coach-ask') answerCoachOnHome(target.getAttribute('data-q'));
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
