@@ -19,6 +19,7 @@ const CORE = [
   './index.html',
   './manifest.json',
   './css/analytics.css',
+  './css/brand-consistency.css',
   './css/hybrid-score.css',
   './css/programs.css',
   './css/styles.css',
