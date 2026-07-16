@@ -99,7 +99,7 @@ body {
 .nav-item.active::before { background: rgba(var(--brand-cobalt-rgb), 0.14) !important; }
 .nav-item::after { background: var(--brand-cobalt) !important; }
 
-.home-avatar,
+.home-avatar:not(.home-avatar--img),
 .profile-avatar-btn,
 .profile-hero-avatar {
   background: var(--brand-gradient) !important;
