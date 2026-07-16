@@ -68,14 +68,14 @@ export function heroHTML(r, opts = {}) {
   const showAction = opts.showAction !== false;
   const color = r.band.color;
   const gauge = gaugeSVG(r.score, color);
-  const levelStr = r.level ? `${r.level.icon} ${esc(r.level.name)}` : '';
+  const goalLabel = esc(r.goalLabel || 'Hybrid focus');
 
   if (!r.hasData) {
     return `
     <article class="hs-hero hs-hero--calibrating" role="button" tabindex="0"
              data-action="open-analytics" data-context="hybrid-score"
              aria-label="Hybrid Score is calibrating — tap to learn more">
-      <div class="hs-hero__head"><div class="hs-brand"><span class="hs-brand__mark">◇</span> Hybrid Score</div><div class="hs-level">${levelStr}</div></div>
+      <div class="hs-hero__head"><div class="hs-brand"><span class="hs-brand__mark">◇</span> Hybrid Score</div><div class="hs-level">${goalLabel}</div></div>
       <div class="hs-hero__body">
         <div class="hs-gauge">${gauge}</div>
         <div class="hs-hero__side">
@@ -104,7 +104,7 @@ export function heroHTML(r, opts = {}) {
            aria-label="Hybrid Score ${r.score}, ${esc(r.band.status)} — tap for the full breakdown">
     <div class="hs-hero__head">
       <div class="hs-brand"><span class="hs-brand__mark">◇</span> Hybrid Score</div>
-      <div class="hs-level">${levelStr}</div>
+      <div class="hs-level">${goalLabel}</div>
     </div>
     <div class="hs-hero__body">
       <div class="hs-gauge">${gauge}<div class="hs-status" style="color:${color}">${esc(r.band.status)}</div></div>
@@ -168,18 +168,11 @@ export function detailHTML(r, state) {
     </div>`;
   }
 
-  const lvl = r.level;
-  const levelBar = lvl?.next
-    ? `<div class="hs-levelbar">
-         <div class="hs-levelbar__row"><span>${lvl.icon} ${esc(lvl.name)}</span><span>${esc(lvl.next.name)}</span></div>
-         <div class="hs-levelbar__track"><div class="hs-levelbar__fill" style="width:${lvl.progressPct}%"></div></div>
-         <div class="hs-levelbar__hint">${lvl.next.xpToGo} XP to ${esc(lvl.next.name)}</div>
-       </div>`
-    : `<div class="hs-levelbar__hint center">${lvl ? esc(lvl.name) + ' — top tier reached' : ''}</div>`;
-
   const drivers = r.drivers.slice(0, 6).map(driverRow).join('');
   const pillarKeys = ['consistency', 'recovery', 'strength', 'endurance', 'load', 'momentum', 'body', 'lifestyle'];
-  const pillars = pillarKeys.map(k => pillarBar(k, r.pillars[k])).join('');
+  const pillars = pillarKeys
+    .filter(k => !r.goalWeights || r.goalWeights[k] > 0)
+    .map(k => pillarBar(k, r.pillars[k])).join('');
 
   const daily = dailySeries(state, 30);
   const weekly = bucketedTrend(state, 'week').slice(-8);
@@ -206,6 +199,7 @@ export function detailHTML(r, state) {
       ${gaugeSVG(r.score, color, 150)}
       <div class="hs-detail__meta">
         <div class="hs-status" style="color:${color}">${esc(r.band.status)}</div>
+        <div class="muted">${esc(r.goalLabel || 'Hybrid focus')}</div>
         <div class="hs-chips">${deltaChip(r.delta)} ${momentumChip(r.momentum)}</div>
         <div class="hs-confidence__row muted">Confidence ${r.confidence}% · based on the data you've logged</div>
       </div>
@@ -214,8 +208,6 @@ export function detailHTML(r, state) {
     ${dialsRow(r)}
 
     ${whyChanged}
-    ${levelBar}
-
     <div class="hs-action hs-action--detail">
       <span class="hs-action__k">Do this next</span>
       <span class="hs-action__v">${esc(r.recommendation)}</span>
@@ -229,7 +221,7 @@ export function detailHTML(r, state) {
     <ul class="hs-drivers">${drivers || '<li class="hs-driver hs-driver--neutral">Balanced day — no single factor dominated.</li>'}</ul>
 
     <details class="hs-underhood">
-      <summary class="hs-underhood__summary">Under the hood · the 8 pillars</summary>
+      <summary class="hs-underhood__summary">Under the hood · goal-weighted pillars</summary>
       <div class="hs-pillars">${pillars}</div>
     </details>
 

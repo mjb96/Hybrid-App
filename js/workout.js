@@ -1858,7 +1858,12 @@ export function closeFinishSessionModal() {
       document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay, outcome: 'complete' } }));
     } catch (_) {}
   } else if (completion.partial) {
-    showToast('Partial session saved — not marked complete');
+    const savedMessage = completion.componentOutcome === 'strength-complete'
+      ? 'Strength workout saved · run still open'
+      : completion.componentOutcome === 'run-complete'
+        ? 'Run saved · strength workout still open'
+        : 'Partial session saved — planned work remains';
+    showToast(savedMessage);
     try { document.dispatchEvent(new CustomEvent('session:saved-partial', { detail: { week: wk, day: selectedDay } })); } catch (_) {}
   }
 }
