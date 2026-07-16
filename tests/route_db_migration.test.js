@@ -102,6 +102,15 @@ test('two sessions in the same activation/week/day keep independent routes', asy
   assert.deepEqual(new Set(records.map((r) => r.sessionId)), new Set(['run_a', 'run_b']));
 });
 
+test('route records retain compact GPS quality audit metadata', async () => {
+  const quality = { version: 1, confidence: 'high', rawPointCount: 4 };
+  await saveMapToDB(1, 'tue', [[1, 1], [2, 2]], {
+    activationId: 'act_A', sessionId: 'run_quality', quality,
+  });
+  const record = (await getAllRouteRecords()).find((item) => item.sessionId === 'run_quality');
+  assert.deepEqual(record.quality, quality);
+});
+
 test('deleting one session route leaves its same-slot sibling intact', async () => {
   await saveMapToDB(2, 'wed', [[1, 1], [2, 2]], { activationId: 'act_A', sessionId: 'run_a' });
   await saveMapToDB(2, 'wed', [[3, 3], [4, 4]], { activationId: 'act_A', sessionId: 'run_b' });

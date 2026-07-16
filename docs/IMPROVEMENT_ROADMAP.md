@@ -216,16 +216,21 @@
   escaping pass over remaining `innerHTML` sinks for other imported strings (custom
   program/exercise names, celebration copy) is a documented follow-up, and an explicit
   pre-import preview/confirm modal was left for a later slice. No Android changes.
-- **R15 durable-session foundation implemented — 16 July 2026** on
-  `codex/gps-durable-session`. Android now journals active-run metadata and GPS fixes in
-  app-private storage before accepting them into memory, reloads a supported process-death
-  session explicitly paused at its last durable fix, retains finalizing data until JS has
-  durably saved the workout, and requires an explicit discard for damaged recovery data.
-  The service redelivers restart intent, lifecycle commands fail closed, and an empty bridge
-  response no longer masquerades as a storage failure. JVM journal fixtures cover atomic
-  state, partial-tail recovery, corruption and bounds; JS contract/persistence tests cover
-  replay and two-phase acknowledgement. Route outlier/quality modelling, CI Android evidence,
-  and the physical lock/process-kill matrix remain open before R15 is complete.
+- **R15 GPS reliability implementation complete — 16 July 2026** across
+  `codex/gps-durable-session` and `codex/gps-route-quality`. Android journals active-run
+  metadata and raw fixes in app-private storage before accepting them into memory, restores a
+  supported process-death session explicitly paused at its last durable fix, retains finalizing
+  data until JS acknowledges both route and state persistence, and requires explicit discard for
+  damaged recovery. One deterministic web/native point pipeline now rejects invalid, poor-
+  accuracy, jitter, out-of-order and teleport fixes, applies a stricter walk-speed ceiling, and
+  starts a zero-distance segment after pause or long gaps. Completed activities and portable v4
+  route records retain a sanitized raw-vs-filtered audit (confidence, accepted/rejected counts,
+  distance removed, accuracy and breaks), visible under Activity Breakdown. JVM journal tests
+  cover atomic state, partial-tail recovery, corruption and bounds; JS fixtures cover live/native
+  replay, recovery equivalence, poor accuracy, teleport continuation, pause/gap segmentation,
+  audit validation and v2/v3/v4 portability. `npm run verify` (962 tests) and all required browser
+  checks pass. PR Android CI plus the supplied physical minimum/current-device matrix remain
+  release evidence, not unfinished product code.
 - **Activity-history safety quick win implemented — 16 July 2026** on
   `codex/gps-route-quality`. Home and Profile now open one full-screen Activities
   history where strength and every same-day run are separate records. Exact activity
@@ -244,15 +249,14 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 Completed recommendations remain in the implementation register and phase tables as
 acceptance evidence; they are not the active queue. The next engineering slices are:
 
-1. **R15 — GPS completion evidence:** land the durable-session foundation, then add route
-   quality/outlier fixtures and complete the supported restart/device matrix before calling
-   the recommendation complete.
-2. **R18 — activation continuity:** first block unresolved mid-session program switches
+1. **R18 — activation continuity:** first block unresolved mid-session program switches
    behind save/discard/cancel, then define prior-activation view/resume semantics without
    changing historical attribution.
-3. **R17 follow-ups — imported-content safety:** audit remaining imported free-text HTML
+2. **R17 follow-ups — imported-content safety:** audit remaining imported free-text HTML
    sinks and add an explicit pre-import preview/confirm step. The destructive-import and
    avatar/name security core is already merged.
+3. **R15 release evidence:** let the PR's required Android JVM/lint/APK workflow pass, then the
+   owner completes `docs/android-gps-device-checklist.md`; failures return to R15 before beta.
 
 In parallel, complete the human-owned device and release evidence below. Phase 3 work
 (R20–R26) remains deferred until the public-beta gate is satisfied; R24 additionally
@@ -278,7 +282,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R12 | Workout logger | Bodyweight mode and quick-log behavior are hidden. | Direct Bodyweight/Weighted choice and labelled shortcut. | Workout set-row renderer/model and exercise metadata. | Bodyweight/weighted/assisted behavior + accessibility tests. | Phase 1 / small PR `codex/bodyweight-entry`. |
 | R13 | Analytics/Brain | Readiness renormalizes sparse inputs; PR/time-trial advice lacks specific evidence. | Return confidence/input/evidence/scope and gate copy. | readiness scoring, recommendations, views, dev attribution. | Missing/stale/outlier scenario and copy golden tests. | Phase 2 / `codex/readiness-confidence`. |
 | R14 | Health Connect/privacy | Settings selections do not filter permission/request/apply paths; shown/native types diverge. | One supported-field contract from settings to native result. | health bridge JS, Settings, `HybridHealthBridge.kt`, manifest, worker. | Grant/deny/revoke/no-data/partial-error device matrix. | Phase 2 / `codex/health-connect-contract`. |
-| R15 | Android GPS | `GpsPointStore` is process memory and service is non-sticky; filtering lacks teleport-quality model. | Durable active-session journal, restore UX, raw/filtered quality. | GPS service/store/bridge, JS tracker, route model. | Instrumentation kill/restart and point-quality fixtures/device runs. | Phase 2 / migration PR series `codex/gps-durable-session`. |
+| R15 | Android GPS | `GpsPointStore` was process memory and filtering lacked a teleport-quality model. | Durable active-session journal, explicit restore/discard UX, shared web/native outlier filtering, portable raw/filtered audit. | GPS service/store/bridge, JS tracker, route model, Activity Breakdown. | JVM journal recovery/corruption; deterministic replay/teleport/accuracy/gap fixtures; required PR Android CI; owner device matrix. | Engineering complete on `codex/gps-route-quality`; PR CI + `[You]` device evidence pending. |
 | R16 | Security/build | Remote runtime JS shares the trusted appassets page; bridge escaping is inconsistent. | Vendor runtime JS/narrow CSP and centralize all evaluate-JS escaping. | HTML/CSP/staging, vendor assets, Android bridges/`BridgeSafe`. | Offline/no-remote-request, CSP, malicious-string, reproducible-build tests. | Phase 2 / separate security PRs. |
 | R17 | Import/security | `isAppState` is shallow and imported name/avatar content reaches HTML-building paths. | In-memory schema validation/migration/preview and safe DOM properties. | import/export, migrations, settings/avatar, celebration. | Invalid/future/fuzz/oversize/markup/rollback fixtures. | Phase 2 / `codex/safe-import`. |
 | R18 | Program activation | Mid-session switching can archive partial work; prior activation cannot be resumed. | Resolve session first and expose prior activation history/resume semantics. | activation UI/state, program detail/library, workout completion. | Switch/resume/history scenarios across partial/full states. | Phase 2 / `codex/activation-continuity`. |
@@ -367,8 +371,9 @@ These require the product owner/device/accounts and must not be simulated as com
 
 - [ ] Confirm the Google Play Developer account, Play Console access, at least one physical
   Android test phone, and Supabase owner access are available.
-- [ ] Run the supplied foreground/background/lock/process-kill GPS matrix and attach route
-  comparisons; prepare the Play foreground-service declaration and demonstration video.
+- [ ] Run [`android-gps-device-checklist.md`](android-gps-device-checklist.md) on minimum/current
+  phones and attach foreground/background/lock/process-kill plus raw-vs-filtered route evidence;
+  prepare the Play foreground-service declaration and demonstration video.
 - [ ] Grant, deny, and revoke each Health Connect permission on minimum/current supported
   Android versions; test notifications, resume, offline behavior, and capture Settings/result evidence.
 - [ ] Complete the TalkBack, touch-target, Android system save/share, cancel, overwrite, and
@@ -391,6 +396,13 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · R15 engineering completed on `codex/gps-route-quality`: shared web/native
+  route-quality screening, honest pause/gap segmentation, compact run+route audit metadata,
+  Activity Breakdown confidence detail, portable v4 route records with v2/v3 compatibility,
+  deterministic recovery/outlier fixtures, and an exact minimum/current-device release matrix.
+  `npm run verify` (962 tests) and required browser checks green; local Android Gradle is
+  unavailable in this checkout, so required JVM/lint/APK evidence will come from PR CI. · Next:
+  open the PR to `main`, then complete the owner device checklist before beta.
 - 2026-07-16 · Garmin-inspired Activities history + repository cleanup on
   `codex/gps-route-quality`: separate strength and same-day run rows, dedicated full
   details (maps/splits/every set), exact type-safe deletion and 10-second Undo; Home

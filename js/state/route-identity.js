@@ -17,7 +17,7 @@
 // read/write lives in js/db.js.
 // =============================================================================
 
-export const ROUTE_RECORD_VERSION = 3;
+export const ROUTE_RECORD_VERSION = 4;
 
 /** Stable, collision-resistant id for one route. Uses crypto.randomUUID when
  *  available (secure-context browsers + the Android WebView + Node ≥ 16.7),
@@ -55,6 +55,7 @@ export function parseLegacyKey(key) {
  *   id?: string, sessionId?: string, activationId?: string, programId?: string,
  *   week: string|number, day: string, coordinates: any[],
  *   startTs?: number, updatedTs?: number, localDate?: string, legacyKey?: string,
+ *   quality?: any,
  * }} input
  */
 export function makeRouteRecord(input) {
@@ -76,6 +77,7 @@ export function makeRouteRecord(input) {
     version: ROUTE_RECORD_VERSION,
     legacyKey: input.legacyKey || null,
     slotKey: slotKey(activationId, week, day),
+    quality: input.quality || null,
     coordinates: Array.isArray(input.coordinates) ? input.coordinates : [],
   };
 }

@@ -31,9 +31,10 @@ test('parseLegacyKey handles week_day and rejects junk', () => {
 });
 
 test('makeRouteRecord fills stable id, slotKey, version and keeps metadata', () => {
+  const quality = { version: 1, confidence: 'high' };
   const r = makeRouteRecord({
     activationId: 'act_9', programId: 'hybrid_engine', week: 1, day: 'mon',
-    coordinates: [[1, 2], [3, 4]], updatedTs: 1000, startTs: 900, legacyKey: '1_mon',
+    coordinates: [[1, 2], [3, 4]], updatedTs: 1000, startTs: 900, legacyKey: '1_mon', quality,
   });
   assert.equal(r.version, ROUTE_RECORD_VERSION);
   assert.equal(r.slotKey, 'act_9|1|mon');
@@ -41,6 +42,7 @@ test('makeRouteRecord fills stable id, slotKey, version and keeps metadata', () 
   assert.equal(r.programId, 'hybrid_engine');
   assert.equal(r.startTs, 900);
   assert.equal(r.legacyKey, '1_mon');
+  assert.equal(r.quality, quality);
   assert.ok(r.id);
   assert.deepEqual(r.coordinates, [[1, 2], [3, 4]]);
 });

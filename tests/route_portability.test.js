@@ -23,6 +23,13 @@ const sampleRecords = () => ([
   {
     id: 'route:run_one', sessionId: 'run_one', activationId: 'act_1', programId: 'hybrid',
     week: '1', day: 'mon', localDate: '2026-07-13', startTs: 100, updatedTs: 101,
+    quality: {
+      version: 1, confidence: 'high', rawPointCount: 5, acceptedPointCount: 5,
+      rejectedPointCount: 0,
+      rejected: { invalid: 0, poorAccuracy: 0, jitter: 0, timestamp: 0, teleport: 0 },
+      rawDistanceKm: 0.044, filteredDistanceKm: 0.044, distanceRemovedKm: 0,
+      avgAccuracyM: 8, maxObservedSpeedMps: 11.1, segmentBreaks: 0,
+    },
     coordinates: [[51.5, -0.12], [51.51, -0.13]],
   },
   {
@@ -60,7 +67,7 @@ test('an export with no routes yields an empty routes map, not undefined', () =>
   assert.deepEqual(parsed.routeRecords, []);
 });
 
-test('v3 rich records preserve two routes in the same week/day slot', () => {
+test('v4 rich records preserve same-day routes and quality audit metadata', () => {
   const wrapped = wrapExport(sampleState(), sampleRecords());
   const parsed = parseImport(JSON.parse(JSON.stringify(wrapped)));
   assert.ok(parsed);
@@ -69,6 +76,20 @@ test('v3 rich records preserve two routes in the same week/day slot', () => {
   assert.deepEqual(parsed.routeRecords.map(r => r.id), ['route:run_one', 'route:run_two']);
   assert.deepEqual(parsed.routeRecords.map(r => r.sessionId), ['run_one', 'run_two']);
   assert.equal(parsed.routeRecords[0].slotKey, parsed.routeRecords[1].slotKey);
+  assert.equal(parsed.routeRecords[0].quality.confidence, 'high');
+  assert.equal(parsed.routeRecords[1].quality, null);
+});
+
+test('v3 rich-record envelopes remain importable without quality metadata', () => {
+  const parsed = parseImport({
+    format: EXPORT_FORMAT,
+    version: 3,
+    state: sampleState(),
+    routeRecords: sampleRecords().map(({ quality, ...record }) => record),
+  });
+  assert.ok(parsed);
+  assert.equal(parsed.routeRecords.length, 2);
+  assert.ok(parsed.routeRecords.every((record) => record.quality === null));
 });
 
 test('v2 route-map envelope remains importable', () => {

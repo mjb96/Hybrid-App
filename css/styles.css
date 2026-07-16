@@ -7993,6 +7993,12 @@ html[data-theme="light"] .activity-filter--active { color: #07566b; }
 .recap-stat__v { display: block; font-size: 1.12rem; font-weight: 800; color: var(--text-primary, #fff); }
 .recap-stat__l { display: block; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted, #94a3b8); margin-top: 3px; }
 .recap-section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted, #94a3b8); font-weight: 700; margin: 20px 0 10px; }
+.recap-quality { padding: 14px; border: 1px solid var(--border, #23272e); border-left: 3px solid var(--accent-blue, #3b82f6); border-radius: 12px; background: var(--bg-card, #161b22); }
+.recap-quality--low, .recap-quality--insufficient { border-left-color: var(--accent-orange, #f97316); }
+.recap-quality__head { display: flex; justify-content: space-between; gap: 12px; color: var(--text-primary, #fff); font-size: 0.86rem; }
+.recap-quality__head span { color: var(--text-muted, #94a3b8); font-weight: 600; text-align: right; }
+.recap-quality__meta, .recap-quality__note { margin-top: 7px; color: var(--text-muted, #94a3b8); font-size: 0.76rem; line-height: 1.45; }
+.recap-quality__note { color: var(--text-secondary, #cbd5e1); }
 .recap-insights { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .recap-insights li {
   --ic: var(--accent-blue, #3b82f6);
