@@ -116,6 +116,27 @@ try {
     failed = true;
   }
 
+  // A populated bar routes by its REAL calendar date into the exact activity.
+  // Monday has one strength activity, so it should bypass the date chooser and
+  // open the complete Activity detail directly.
+  await page.click('#strengthBarChart [data-wfg-action="bar-click"][data-wfg-day="mon"]');
+  await page.waitForSelector('#activitiesScreen .activity-detail-shell', { timeout: 10000 });
+  const barDestination = await page.$eval('#activitiesScreen', el => ({
+    visible: getComputedStyle(el).display !== 'none',
+    title: el.querySelector('#activitiesTitle')?.textContent?.trim(),
+    text: el.querySelector('#activitiesContent')?.textContent || '',
+  }));
+  console.log('In Focus bar destination:', JSON.stringify({
+    visible: barDestination.visible, title: barDestination.title,
+    hasWorkout: /Squat/.test(barDestination.text),
+  }));
+  if (!barDestination.visible || barDestination.title !== 'Strength Workout' || !/Squat/.test(barDestination.text)) {
+    console.error('FAIL: populated In Focus bar should open the exact dated strength activity.');
+    failed = true;
+  }
+  await page.click('#activitiesBack'); // detail → date-filtered activity list
+  await page.click('#activitiesBack'); // list → Home
+
   // Program card still shows the PROGRAM week (not "this week").
   const progWeek = await page.$eval('#homeWeekBlockIndicator', el => el.textContent.trim()).catch(() => '');
   console.log('Home program indicator:', JSON.stringify(progWeek));

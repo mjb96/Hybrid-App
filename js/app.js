@@ -1445,7 +1445,10 @@ async function bootstrapApp() {
       openSessionRecap(e.detail?.week, e.detail?.day, e.detail?.sessionId);
     });
     document.addEventListener('app:open-recap',   (e) => openSessionRecap(e.detail?.week, e.detail?.day));
-    document.addEventListener('app:open-activities', (e) => openActivities({ date: e.detail?.date || null }));
+    document.addEventListener('app:open-activities', (e) => openActivities({
+      date: e.detail?.date || null,
+      directIfSingle: e.detail?.directIfSingle === true,
+    }));
     determineDefaultCalendarDay();
     await checkActiveSession();
     await pullEngineDataFromStorage();

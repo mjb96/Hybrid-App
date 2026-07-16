@@ -3,9 +3,8 @@
 //
 // Uses a tiny fake DOM (the project has no jsdom dependency) to render the
 // component to an HTML string and assert on structure, accessible labels,
-// today-highlighting, honest comparison copy and the absence of NaN/Infinity.
-// The graph is imported dynamically AFTER the DOM globals are installed, because
-// the module attaches a document-level listener at import time.
+// today-highlighting, honest comparison copy, date-aware activity navigation,
+// and the absence of NaN/Infinity.
 // =============================================================================
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,12 +34,17 @@ const store = new Map();
 function getEl(id) { if (!store.has(id)) store.set(id, makeEl(id)); return store.get(id); }
 
 let initWeeklyFitnessGraph, refreshWeeklyFitnessGraph;
+let dispatchedEvent = null;
 
 before(async () => {
   globalThis.document = {
     addEventListener() {}, removeEventListener() {},
+    dispatchEvent(event) { dispatchedEvent = event; return true; },
     getElementById: getEl, createElement: () => makeEl(),
     body: makeEl('body'),
+  };
+  globalThis.CustomEvent = class CustomEvent {
+    constructor(type, options = {}) { this.type = type; this.detail = options.detail; }
   };
   ({ initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } =
     await import('../js/home/weekly-fitness-graph.js'));
@@ -92,9 +96,9 @@ test('default strength metric is Working Sets and the tab is present', () => {
   assert.match(html, /wfg-tab--on[^>]*>Sets|>Sets<\/button>/);
 });
 
-test('each populated bar has a readable accessible label like "Monday, 3 sets"', () => {
+test('each populated bar has a readable accessible activity label', () => {
   const html = mountStrength(strengthState(), '2026-06-10'); // today in week 2 (Jun 8–14)
-  assert.match(html, /aria-label="Monday, 3 sets"/);
+  assert.match(html, /aria-label="Open activities for Monday, 3 sets"/);
   // an empty day is announced as no activity, not a fake zero bar
   assert.match(html, /aria-label="Tuesday, no activity"/);
 });
@@ -155,6 +159,21 @@ test('future days of the current week read as "upcoming", not "no activity"', ()
   }
 });
 
+test('future-dated activity is visible but cannot open a workout', () => {
+  const state = {
+    settings: { weightUnit: 'kg' },
+    weeks: { '1': {
+      dates: weekDates('2026-06-01'),
+      lifts: { sun: { A: [work(50, 5)] } },
+    } },
+  };
+  const id = 'strengthBarChart_future_data';
+  initWeeklyFitnessGraph(id, 'strength', () => state, { today: '2026-06-01' });
+  const html = getEl(id).innerHTML;
+  assert.match(html, /wfg-bb--disabled/);
+  assert.doesNotMatch(html, /data-wfg-action="bar-click" data-wfg-day="sun"/);
+});
+
 test('nav buttons have accessible names', () => {
   const html = mountStrength(strengthState());
   assert.match(html, /aria-label="Previous week"/);
@@ -180,7 +199,7 @@ test('running graph defaults to Distance and honours mile units', () => {
   assert.match(html, /6\.2 mi/);
 });
 
-test('bar tap shows a compact daily summary with the exercise count', () => {
+test('strength bar tap opens Activities using the real calendar date', () => {
   const state = {
     currentWeek: '1',
     settings: { weightUnit: 'kg' },
@@ -194,26 +213,28 @@ test('bar tap shows a compact daily summary with the exercise count', () => {
       },
     },
   };
-  const id = 'strengthBarChart_modal';
+  const id = 'strengthBarChart_activity';
   const g = initWeeklyFitnessGraph(id, 'strength', () => state, { today: '2026-06-03' });
-  g._openModal('mon');
-  const html = getEl('wfgModalContent').innerHTML;
-  // 5 working sets across 2 exercises, volume 100×5×3 + 140×5×2 = 1500 + 1400 = 2900
-  assert.match(html, /5 working sets across 2 exercises/);
-  assert.match(html, /2,900 kg/);
+  dispatchedEvent = null;
+  g._openActivities('mon');
+  assert.equal(dispatchedEvent.type, 'app:open-activities');
+  assert.deepEqual(dispatchedEvent.detail, {
+    date: '2026-06-01', directIfSingle: true, source: 'in-focus',
+  });
 });
 
-test('running bar tap summary reads "distance in time"', () => {
+test('running bar tap uses its selected historical week date', () => {
   const state = {
     currentWeek: '1',
     settings: { distanceUnit: 'km' },
     weeks: { '1': { dates: weekDates('2026-06-01'), runs: { sat: { dist: '6.4', time: '34:10' } } } },
   };
-  const id = 'runBarChart_modal';
+  const id = 'runBarChart_activity';
   const g = initWeeklyFitnessGraph(id, 'running', () => state, { today: '2026-06-03' });
-  g._openModal('sat');
-  const html = getEl('wfgModalContent').innerHTML;
-  assert.match(html, /6\.4 km in 34:10/);
+  dispatchedEvent = null;
+  g._openActivities('sat');
+  assert.equal(dispatchedEvent.detail.date, '2026-06-06');
+  assert.equal(dispatchedEvent.detail.directIfSingle, true);
 });
 
 test('refresh reflects data edits and unit changes without a remount (no stale cache)', () => {

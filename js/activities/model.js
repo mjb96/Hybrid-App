@@ -126,3 +126,13 @@ export function filterActivityHistory(rows, kind = 'all', localDate = null) {
     (kind === 'all' || row.kind === kind) && (!localDate || row.localDate === localDate)
   );
 }
+
+/** Resolve a date tap without choosing arbitrarily between same-day sessions. */
+export function activityDestinationForDate(rows, localDate) {
+  const matches = filterActivityHistory(rows, 'all', localDate);
+  return {
+    mode: matches.length === 1 ? 'detail' : 'list',
+    activity: matches.length === 1 ? matches[0] : null,
+    rows: matches,
+  };
+}

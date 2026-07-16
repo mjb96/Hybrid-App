@@ -236,9 +236,13 @@
   history where strength and every same-day run are separate records. Exact activity
   details reuse the complete set/split/map breakdown; deleting a run cannot remove a
   sibling run or strength work, deleting strength preserves runs/body weight, and a
-  10-second Undo precedes exact route removal. The former whole-day profile modal and
-  its dead helpers/styles were removed. The required mobile browser contract proves
-  separate same-day rows, 320–412px fit, 44px targets and 200% text.
+  10-second Undo precedes exact route removal. Populated In Focus bars now route by their
+  real calendar date: one activity opens its complete detail directly, while strength +
+  run or multiple same-day runs open the date-filtered chooser without guessing. Empty and
+  future bars do not navigate. The former whole-day profile modal and duplicate graph-summary
+  modal plus their dead helpers/styles were removed. The required mobile browser contract
+  proves exact bar-to-activity navigation, separate same-day rows, 320–412px fit, 44px core
+  targets and 200% text.
 
 ## Prioritization model
 
@@ -396,6 +400,13 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · In Focus activity navigation on `codex/gps-route-quality`: populated
+  strength/running bars open Activities using the bar's stamped calendar date; a sole
+  activity opens directly and multiple same-day sessions stay as a chooser. Empty/future
+  bars remain non-interactive. Removed the obsolete graph workout-summary modal and its
+  duplicate calculation/CSS path. `npm run verify` (965 tests) and the required real-browser
+  suite, including exact previous-week bar → Strength Workout evidence, are green. · Next:
+  push this commit to refresh draft PR #140 after owner approval.
 - 2026-07-16 · R15 engineering completed on `codex/gps-route-quality`: shared web/native
   route-quality screening, honest pause/gap segmentation, compact run+route audit metadata,
   Activity Breakdown confidence detail, portable v4 route records with v2/v3 compatibility,
