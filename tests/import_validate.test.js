@@ -12,6 +12,7 @@ import {
   isSafeImageDataUrl,
   sanitizeImportedState,
   importCounts,
+  importPreviewMessage,
   importReasonMessage,
 } from '../js/state/import-validate.js';
 
@@ -19,9 +20,12 @@ const okState = () => ({
   currentWeek: '1',
   weeks: {
     '1': { lifts: { mon: { Squat: [{ c: true, w: '100', r: '5' }] } }, runSessions: { tue: [{ dist: '5' }] } },
-    '2': { lifts: { wed: {} } },
+    '2': { lifts: { wed: {} }, notes: { wed: 'Mobility work' } },
   },
-  customPrograms: [{ id: 'p1' }, { id: 'p2' }],
+  customPrograms: [
+    { id: 'p1', name: 'First', totalWeeks: 4, days: {} },
+    { id: 'p2', name: 'Second', totalWeeks: 8, days: {} },
+  ],
   bodyWeightLog: [{ weight: 80 }],
 });
 
@@ -48,6 +52,13 @@ test('rejects wrong-typed top-level collections', () => {
   assert.equal(validateImport({ ...okState(), settings: [] }).reason, 'bad-settings');
 });
 
+test('rejects malformed nested weeks and custom programs', () => {
+  assert.equal(validateImport({ ...okState(), weeks: { '1': { lifts: { mon: [] } } } }).reason, 'bad-week');
+  assert.equal(validateImport({ ...okState(), weeks: { '1': { runSessions: { mon: [{}] } } } }).ok, true);
+  assert.equal(validateImport({ ...okState(), customPrograms: [{ id: 'broken', name: 'No days' }] }).reason, 'bad-program');
+  assert.equal(validateImport({ ...okState(), customPrograms: [{ id: 'broken', name: 'Bad lifts', days: { mon: { lifts: [3] } } }] }).reason, 'bad-program');
+});
+
 test('rejects a future schema version', () => {
   const r = validateImport({ ...okState(), schemaVersion: 99 }, { currentSchemaVersion: 5 });
   assert.equal(r.ok, false);
@@ -63,7 +74,19 @@ test('rejects an oversized payload', () => {
 test('accepts a well-formed snapshot and reports accurate counts', () => {
   const r = validateImport(okState(), { currentSchemaVersion: 5 });
   assert.equal(r.ok, true);
-  assert.deepEqual(r.counts, { weeks: 2, programs: 2, bodyWeights: 1, runs: 1, loggedDays: 2 });
+  assert.deepEqual(r.counts, { weeks: 2, programs: 2, bodyWeights: 1, runs: 1, loggedDays: 3 });
+});
+
+test('import counts ignore empty seeded days and include legacy runs without double-counting projections', () => {
+  assert.deepEqual(importCounts({
+    weeks: {
+      '1': {
+        lifts: { mon: { Squat: [{ w: '', r: '', c: false }] }, tue: {} },
+        runs: { wed: { dist: '5', time: '25:00' } },
+        runSessions: { wed: [{ sessionId: 'run_1', dist: '5', time: '25:00' }] },
+      },
+    },
+  }), { weeks: 1, programs: 0, bodyWeights: 0, runs: 1, loggedDays: 1 });
 });
 
 // ── avatar sanitization: hostile markup never survives an import ─────────────
@@ -102,4 +125,13 @@ test('importReasonMessage never blames the user data', () => {
   assert.match(importReasonMessage('future-schema'), /newer app version/);
   assert.match(importReasonMessage('too-large'), /too large/);
   assert.match(importReasonMessage('bad-week'), /not replaced/);
+});
+
+test('import preview reports replacement counts and backup warning honestly', () => {
+  const message = importPreviewMessage(importCounts(okState()), 3);
+  assert.match(message, /3 logged days · 1 run/);
+  assert.match(message, /2 custom programs · 1 body-weight entry/);
+  assert.match(message, /3 GPS routes/);
+  assert.match(message, /replaces the data currently on this device/);
+  assert.match(message, /local backup is created first/);
 });

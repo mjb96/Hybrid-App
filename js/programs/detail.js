@@ -15,7 +15,7 @@ import { resolveProgramPhase } from './phase.js';
 import { getWeekModifier } from '../schema.js';
 import { liftTarget } from '../engine.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
-import { escapeHtml } from '../util.js';
+import { escapeHtml, safeCssColor } from '../util.js';
 
 let _currentProgramId = null;
 let _appState = null;
@@ -63,6 +63,12 @@ export function renderProgramDetail(programId, appState) {
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const category = CATEGORIES[program.category] || { label: program.category || 'Program', icon: '📋', color: '#8b5cf6' };
   const wod = program.tags?.includes('hyrox-wod');
+  const safeProgramId = escapeHtml(programId || '');
+  const cover = [
+    safeCssColor(program.coverGradient?.[0], '#1a0e2e'),
+    safeCssColor(program.coverGradient?.[1], '#0d1b2a'),
+  ];
+  const accent = safeCssColor(program.accentColor || category.color, '#8b5cf6');
 
   const similarPrograms = getSimilarPrograms(program, 6);
 
@@ -90,7 +96,7 @@ export function renderProgramDetail(programId, appState) {
       <div class="detail-section">
         <div class="detail-section-title">${outcomesTitle}</div>
         <div class="detail-outcomes">
-          ${outcomes.map(o => `<div class="detail-outcome-chip"><span class="detail-outcome-arrow">→</span> ${o}</div>`).join('')}
+          ${outcomes.map(o => `<div class="detail-outcome-chip"><span class="detail-outcome-arrow">→</span> ${escapeHtml(o)}</div>`).join('')}
         </div>
       </div>` : ''}
     ${program.metrics ? `
@@ -135,11 +141,11 @@ export function renderProgramDetail(programId, appState) {
         ${completed ? '<span class="detail-completed-badge">COMPLETED</span>' : ''}
         <button class="detail-bookmark-btn"
                 data-action="rate-program"
-                data-program-id="${programId}"
+                data-program-id="${safeProgramId}"
                 aria-label="Rate this program">⭐</button>
         <button class="detail-bookmark-btn ${saved ? 'saved' : ''}"
                 data-action="detail-toggle-bookmark"
-                data-program-id="${programId}"
+                data-program-id="${safeProgramId}"
                 aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
           ${saved ? '🔖' : '🤍'}
         </button>
@@ -148,11 +154,11 @@ export function renderProgramDetail(programId, appState) {
 
     <!-- Hero -->
     <div class="detail-hero"
-         style="background: linear-gradient(165deg, ${program.coverGradient?.[0] || '#1a0e2e'}, ${program.coverGradient?.[1] || '#0d1b2a'})">
+         style="background: linear-gradient(165deg, ${cover[0]}, ${cover[1]})">
       <div class="detail-hero-icon" aria-hidden="true">${svgIcon(coverGlyphFor(program), { size: 72 })}</div>
       <div class="detail-hero-content">
-        <span class="detail-category-badge" style="background: ${program.accentColor || category.color}22; color: ${program.accentColor || category.color}; border-color: ${program.accentColor || category.color}40">
-          ${category.icon} ${category.label}
+        <span class="detail-category-badge" style="background: ${accent}22; color: ${accent}; border-color: ${accent}40">
+          ${escapeHtml(category.icon)} ${escapeHtml(category.label)}
         </span>
         <h1 class="detail-title">${escapeHtml(program.name)}</h1>
         <p class="detail-tagline">${escapeHtml(program.tagline || program.dossier?.philosophy?.slice(0, 100) || '')}</p>
@@ -212,8 +218,8 @@ export function renderProgramDetail(programId, appState) {
       <span class="detail-tag detail-tag--difficulty" style="color: ${diff.color}; border-color: ${diff.color}40">
         ${'●'.repeat(diff.dots)}${'○'.repeat(4 - diff.dots)} ${diff.label}
       </span>
-      ${program.equipmentTier ? `<span class="detail-tag detail-tag--equipment">${{ gym: '🏢 Full Gym', home: '🏠 Home Gym', garage_gym: '🔩 Garage Gym', bodyweight: '🤸 Bodyweight', minimal: '⚡ Minimal' }[program.equipmentTier] || program.equipmentTier}</span>` : ''}
-      ${(program.goals || []).slice(0, 3).map(g => `<span class="detail-tag detail-tag--goal">${g.replace(/-/g, ' ')}</span>`).join('')}
+      ${program.equipmentTier ? `<span class="detail-tag detail-tag--equipment">${escapeHtml({ gym: '🏢 Full Gym', home: '🏠 Home Gym', garage_gym: '🔩 Garage Gym', bodyweight: '🤸 Bodyweight', minimal: '⚡ Minimal' }[program.equipmentTier] || program.equipmentTier)}</span>` : ''}
+      ${(program.goals || []).slice(0, 3).map(g => `<span class="detail-tag detail-tag--goal">${escapeHtml(String(g).replace(/-/g, ' '))}</span>`).join('')}
     </div>
 
     <!-- CTA -->
@@ -223,29 +229,29 @@ export function renderProgramDetail(programId, appState) {
               View Active Program
            </button>`
         : completed
-        ? `<button class="detail-cta-btn detail-cta-btn--completed" data-action="make-active-from-detail" data-program-id="${programId}">
+        ? `<button class="detail-cta-btn detail-cta-btn--completed" data-action="make-active-from-detail" data-program-id="${safeProgramId}">
               Train Again
            </button>`
-        : `<button class="detail-cta-btn" data-action="make-active-from-detail" data-program-id="${programId}">
+        : `<button class="detail-cta-btn" data-action="make-active-from-detail" data-program-id="${safeProgramId}">
               ${wod ? 'Start This Workout' : 'Start This Program'}
            </button>`
       }
       ${isActive && !completed ? `
-        <button class="detail-complete-btn" data-action="mark-program-complete" data-program-id="${programId}">
+        <button class="detail-complete-btn" data-action="mark-program-complete" data-program-id="${safeProgramId}">
           Mark as Complete
         </button>
       ` : ''}
       <div class="detail-cta-secondary" style="display:flex;gap:8px;margin-top:8px;">
-        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="customize-program" data-program-id="${programId}">✏️ Customize</button>
-        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="open-compare" data-program-id="${programId}">⚖️ Compare</button>
+        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="customize-program" data-program-id="${safeProgramId}">✏️ Customize</button>
+        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="open-compare" data-program-id="${safeProgramId}">⚖️ Compare</button>
       </div>
       ${personalRating
-        ? `<div class="detail-your-rating" data-action="rate-program" data-program-id="${programId}" role="button" tabindex="0">
+        ? `<div class="detail-your-rating" data-action="rate-program" data-program-id="${safeProgramId}" role="button" tabindex="0">
              <span class="detail-your-rating-label">Your rating</span>
              ${renderStars(personalRating.rating)}
              <span class="detail-rating-value">${personalRating.rating}/5</span>
            </div>`
-        : `<button class="detail-rating detail-rating--empty" data-action="rate-program" data-program-id="${programId}">
+        : `<button class="detail-rating detail-rating--empty" data-action="rate-program" data-program-id="${safeProgramId}">
              <span class="detail-rating-empty-text">☆ Rate this program</span>
            </button>`
       }
@@ -386,8 +392,8 @@ function renderSampleWorkout(program, programData, wod = false) {
       <div class="sample-run-phases">
         ${preview.phases.map(ph => `
           <div class="sample-run-phase">
-            <span class="sample-run-phase-name">${ph.name}</span>
-            <span class="sample-run-phase-detail">${ph.duration} · ${ph.pace}</span>
+            <span class="sample-run-phase-name">${escapeHtml(ph.name)}</span>
+            <span class="sample-run-phase-detail">${escapeHtml(ph.duration)} · ${escapeHtml(ph.pace)}</span>
           </div>
         `).join('')}
       </div>`;
@@ -396,16 +402,16 @@ function renderSampleWorkout(program, programData, wod = false) {
     const extra = chosenDay.lifts.length - shown.length;
     bodyHtml = `
       <div class="sample-exercise-list">
-        ${shown.map(l => `<div class="sample-exercise-row"><span class="sample-ex-name">${l}</span></div>`).join('')}
+        ${shown.map(l => `<div class="sample-exercise-row"><span class="sample-ex-name">${escapeHtml(l)}</span></div>`).join('')}
         ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
       </div>`;
   } else if (chosenDay.runs && chosenDay.runs !== 'Rest') {
-    bodyHtml = `<div class="sample-run-text">${chosenDay.runs}</div>`;
+    bodyHtml = `<div class="sample-run-text">${escapeHtml(chosenDay.runs)}</div>`;
   }
 
   if (!bodyHtml) return '';
 
-  const accentColor = chosenDay.color?.startsWith('var(') ? null : chosenDay.color;
+  const accentColor = chosenDay.color?.startsWith('var(') ? null : safeCssColor(chosenDay.color, '');
   const badgeStyle = accentColor
     ? `color: ${accentColor}; border-color: ${accentColor}40`
     : `color: var(--text-secondary); border-color: rgba(255,255,255,0.12)`;
@@ -413,16 +419,16 @@ function renderSampleWorkout(program, programData, wod = false) {
   // WODs: drop the day-of-week label (it's irrelevant) and use "The Workout" as section title
   const sectionTitle = wod ? 'The Workout' : 'Sample Session';
   const headerHtml = wod
-    ? (chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : '')
+    ? (chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${escapeHtml(chosenDay.badge)}</span>` : '')
     : `<span class="sample-workout-dayname">${dayNames[chosenKey]}</span>
-       ${chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${chosenDay.badge}</span>` : ''}`;
+       ${chosenDay.badge ? `<span class="sample-workout-badge" style="${badgeStyle}">${escapeHtml(chosenDay.badge)}</span>` : ''}`;
 
   return `
     <div class="detail-section">
       <div class="detail-section-title">${sectionTitle}</div>
       <div class="sample-workout-card">
         ${headerHtml ? `<div class="sample-workout-header">${headerHtml}</div>` : ''}
-        <div class="sample-workout-title">${isRun ? '🏃' : '🏋️'} ${chosenDay.title || 'Training Session'}</div>
+        <div class="sample-workout-title">${isRun ? '🏃' : '🏋️'} ${escapeHtml(chosenDay.title || 'Training Session')}</div>
         ${bodyHtml}
       </div>
     </div>
@@ -643,15 +649,16 @@ function renderDaySplit(days) {
         if (!day) return '';
         const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
         const hasPreview = !isRest && !!(day.workoutPreview || day.lifts?.length || (day.runs && day.runs !== 'Rest'));
+        const dayColor = safeCssColor(day.color, 'var(--text-muted)');
         const interactiveAttrs = hasPreview
-          ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${_currentProgramId}" role="button" tabindex="0"`
+          ? `data-action="open-day-preview" data-day="${dayKey}" data-program-id="${escapeHtml(_currentProgramId || '')}" role="button" tabindex="0"`
           : '';
         return `
           <div class="day-split-row ${isRest ? 'day-split-row--rest' : ''} ${hasPreview ? 'day-split-row--interactive' : ''}" ${interactiveAttrs}>
             <div class="day-split-day">${dayNames[dayKey]}</div>
-            <div class="day-split-title">${day.title || dayKey}</div>
-            <div class="day-split-badge" style="border-color: ${day.color || 'transparent'}; color: ${day.color || 'var(--text-muted)'}">
-              ${day.badge || '—'}
+            <div class="day-split-title">${escapeHtml(day.title || dayKey)}</div>
+            <div class="day-split-badge" style="border-color: ${dayColor}; color: ${dayColor}">
+              ${escapeHtml(day.badge || '—')}
             </div>
             ${hasPreview ? `<span class="day-split-chevron">›</span>` : ''}
           </div>
@@ -758,8 +765,9 @@ export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
 
   titleEl.textContent = day.title || dayLabels[dayKey] || dayKey;
   badgeEl.textContent = day.badge || '';
-  badgeEl.style.color = day.color || 'var(--accent-blue)';
-  badgeEl.style.borderColor = (day.color || 'var(--accent-blue)') + '55';
+  const dayColor = safeCssColor(day.color, 'var(--accent-blue)');
+  badgeEl.style.color = dayColor;
+  badgeEl.style.borderColor = dayColor + '55';
 
   // Week context bar with a stepper (only when the program spans >1 week).
   const weekBar = totalWeeks > 1 ? `
@@ -847,7 +855,7 @@ function renderFallbackPreview(day, mod) {
   if (hasRun) {
     html += `
       <div class="wpm-type-label wpm-type-label--running">🏃 Running</div>
-      <div class="wpm-fallback-run">${day.runs}</div>
+      <div class="wpm-fallback-run">${escapeHtml(day.runs)}</div>
     `;
   }
 
@@ -864,9 +872,9 @@ function renderFallbackPreview(day, mod) {
           </div>
           ${parsed.map(ex => `
             <div class="wpm-grid-row">
-              <span class="wpm-ex-name">${ex.name}</span>
-              <span class="wpm-ex-val">${ex.sets}</span>
-              <span class="wpm-ex-val">${ex.reps}</span>
+              <span class="wpm-ex-name">${escapeHtml(ex.name)}</span>
+              <span class="wpm-ex-val">${escapeHtml(ex.sets)}</span>
+              <span class="wpm-ex-val">${escapeHtml(ex.reps)}</span>
             </div>
           `).join('')}
         </div>
@@ -875,12 +883,12 @@ function renderFallbackPreview(day, mod) {
       html += `
         <div class="wpm-exercise-list">
           ${day.lifts.map(lift => `<div class="wpm-exercise-item" style="display:flex;justify-content:space-between;gap:10px;">
-            <span>${lift}</span>${wkSpec ? `<span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${wkSpec}</span>` : ''}
+            <span>${escapeHtml(lift)}</span>${wkSpec ? `<span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${escapeHtml(wkSpec)}</span>` : ''}
           </div>`).join('')}
         </div>
       `;
       if (day.desc && day.desc !== 'Rest') {
-        html += `<div class="wpm-fallback-desc">${day.desc}</div>`;
+        html += `<div class="wpm-fallback-desc">${escapeHtml(day.desc)}</div>`;
       }
     }
   }
@@ -957,22 +965,22 @@ function renderHyroxPreview(preview) {
   const formatLabel = formatLabels[format] || '🏟️ HYROX';
 
   return `
-    <div class="wpm-type-label wpm-type-label--hyrox">${formatLabel}</div>
-    ${totalTime ? `<div class="wpm-hyrox-meta">⏱️ Est. time: <strong>${totalTime}</strong></div>` : ''}
+    <div class="wpm-type-label wpm-type-label--hyrox">${escapeHtml(formatLabel)}</div>
+    ${totalTime ? `<div class="wpm-hyrox-meta">⏱️ Est. time: <strong>${escapeHtml(totalTime)}</strong></div>` : ''}
     <div class="wpm-hyrox-legs">
-      ${stations.map((s, i) => `
-        ${s.run ? `<div class="wpm-hyrox-run-leg"><span class="wpm-hyrox-run-icon">🏃</span><span class="wpm-hyrox-run-text">Run ${s.run}</span></div>` : ''}
+      ${(Array.isArray(stations) ? stations : []).map((s, i) => `
+        ${s.run ? `<div class="wpm-hyrox-run-leg"><span class="wpm-hyrox-run-icon">🏃</span><span class="wpm-hyrox-run-text">Run ${escapeHtml(s.run)}</span></div>` : ''}
         <div class="wpm-hyrox-station-leg">
           <span class="wpm-hyrox-station-num">${i + 1}</span>
           <div class="wpm-hyrox-station-body">
-            <span class="wpm-hyrox-station-name">${s.station}</span>
-            ${s.weight ? `<span class="wpm-hyrox-station-weight">${s.weight}</span>` : ''}
-            ${s.notes ? `<span class="wpm-hyrox-station-note">${s.notes}</span>` : ''}
+            <span class="wpm-hyrox-station-name">${escapeHtml(s.station || '')}</span>
+            ${s.weight ? `<span class="wpm-hyrox-station-weight">${escapeHtml(s.weight)}</span>` : ''}
+            ${s.notes ? `<span class="wpm-hyrox-station-note">${escapeHtml(s.notes)}</span>` : ''}
           </div>
         </div>
       `).join('')}
     </div>
-    ${notes ? `<div class="wpm-hyrox-notes">💡 ${notes}</div>` : ''}
+    ${notes ? `<div class="wpm-hyrox-notes">💡 ${escapeHtml(notes)}</div>` : ''}
   `;
 }
 
@@ -996,12 +1004,12 @@ function renderRunningPreview(phases) {
             </div>
             <div class="wpm-phase-content">
               <div class="wpm-phase-header">
-                <span class="wpm-phase-name" style="color:${color}">${phase.name}</span>
-                <span class="wpm-phase-duration">${phase.duration}</span>
+                <span class="wpm-phase-name" style="color:${color}">${escapeHtml(phase.name || '')}</span>
+                <span class="wpm-phase-duration">${escapeHtml(phase.duration || '')}</span>
               </div>
-              <div class="wpm-phase-pace">${phase.pace}</div>
-              <div class="wpm-phase-desc">${phase.description}</div>
-              ${phase.notes ? `<div class="wpm-phase-note">💡 ${phase.notes}</div>` : ''}
+              <div class="wpm-phase-pace">${escapeHtml(phase.pace || '')}</div>
+              <div class="wpm-phase-desc">${escapeHtml(phase.description || '')}</div>
+              ${phase.notes ? `<div class="wpm-phase-note">💡 ${escapeHtml(phase.notes)}</div>` : ''}
             </div>
           </div>
         `;

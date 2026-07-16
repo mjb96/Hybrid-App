@@ -4,7 +4,7 @@
 import { saveStateToLocalStorage, STORAGE_KEY } from './state.js';
 import { getAllRouteRecords, putRouteRecords, putRoutes, clearRouteDatabase } from './db.js';
 import { wrapExport, parseImport } from './state/route-portability.js';
-import { isStateMigrationError, migrateState } from './state/migrations.js';
+import { CURRENT_SCHEMA_VERSION, isStateMigrationError, migrateState } from './state/migrations.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 import { todayKey } from './dates.js';
@@ -38,7 +38,13 @@ import { confirmModal } from './ui/confirm-modal.js';
 import { hasCloudPullSnapshot, recoverCloudPullSnapshot } from './state/import-export.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect, describeFieldStatus } from './health/health-bridge.js';
 import { HEALTH_FIELDS, normalizeSyncFields, selectedFieldIds, isSupportedField } from './health/health-fields.js';
-import { isSafeImageDataUrl } from './state/import-validate.js';
+import {
+  importPreviewMessage,
+  importCounts,
+  isSafeImageDataUrl,
+  validateImport,
+  importReasonMessage,
+} from './state/import-validate.js';
 
 let _getState;
 
@@ -670,7 +676,8 @@ export function handleImportFile(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     let parsed;
-    try { parsed = JSON.parse(e.target.result); }
+    const rawText = String(e.target?.result || '');
+    try { parsed = JSON.parse(rawText); }
     catch { showToast('Import failed: not a valid file', true); return; }
 
     // Accepts BOTH the versioned envelope (with routes) AND legacy raw-appState
@@ -679,9 +686,27 @@ export function handleImportFile(file) {
     if (!result) { showToast('Import failed: unrecognised file', true); return; }
 
     try {
+      const checked = validateImport(result.state, {
+        currentSchemaVersion: CURRENT_SCHEMA_VERSION,
+        rawText,
+      });
+      if (!checked.ok) {
+        showToast(importReasonMessage(checked.reason), true);
+        return;
+      }
+
       // Upgrade a detached in-memory copy before touching the live state key.
       // A migration failure therefore leaves the user's current bytes intact.
-      const migratedState = migrateState(result.state);
+      const migratedState = migrateState(checked.state);
+      const routeCount = result.routeRecords.length || Object.keys(result.routes).length;
+      const confirmed = await confirmModal({
+        title: 'Import this backup?',
+        message: importPreviewMessage(importCounts(migratedState), routeCount),
+        confirmLabel: 'Import backup',
+        cancelLabel: 'Cancel',
+      });
+      if (!confirmed) return;
+
       // Undo point before overwriting live data. NOTE: writes to STORAGE_KEY —
       // the previous code wrote to a dead 'hybridAppState' key, so import was a
       // silent no-op.
@@ -691,14 +716,14 @@ export function handleImportFile(file) {
 
       // Restore rich session-linked routes when present; v2 backups fall back to
       // their legacy week/day map. Stable ids make either path idempotent.
-      let routeCount = 0;
+      let restoredRouteCount = 0;
       try {
-        routeCount = result.routeRecords.length
+        restoredRouteCount = result.routeRecords.length
           ? await putRouteRecords(result.routeRecords)
           : await putRoutes(result.routes);
       } catch { /* routes best-effort */ }
 
-      showToast(routeCount ? `Import successful (${routeCount} routes) — reloading…` : 'Import successful — reloading…');
+      showToast(restoredRouteCount ? `Import successful (${restoredRouteCount} routes) — reloading…` : 'Import successful — reloading…');
       setTimeout(() => location.reload(), 1200);
     } catch (error) {
       showToast(isStateMigrationError(error)

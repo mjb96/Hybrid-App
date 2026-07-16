@@ -5,13 +5,14 @@
 // ==========================================
 import { uid, bezierPath, linearGradientV, gridLines, xAxisLabels, areaFill, dotSeries, refLine, trendLinePath, rollingAvgPath } from './chart-primitives.js';
 import { zoneColor } from '../calculations/volume-landmarks.js';
+import { escapeHtml } from '../../util.js';
 
 // 1RM Progression chart with projection line and rolling average.
 export function render1RMProgressionChart(container, weekLabels, series, trend, rolling4, lifetimePR, liftName) {
   if (!container) return;
   const nonZero = series.filter(v => v > 0);
   if (nonZero.length < 2) {
-    container.innerHTML = `<p style="color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 0;">Complete 2+ weeks of ${liftName} to see progression.</p>`;
+    container.innerHTML = `<p style="color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 0;">Complete 2+ weeks of ${escapeHtml(liftName)} to see progression.</p>`;
     return;
   }
 

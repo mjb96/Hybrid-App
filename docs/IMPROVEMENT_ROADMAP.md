@@ -254,11 +254,24 @@ count, downloads, or monetization—are the decision metrics.
   oversize rejection, accurate counts, avatar allow/deny + sanitize non-mutation, honest
   copy); 912 JS tests, typecheck, smoke, and required browser checks green. This slice also
   made `scripts/core-ergonomics-check.mjs` weekday-independent (it now selects a deterministic
-  bodyweight day instead of relying on today, which was a latent Rest-day flake). **Scope note:**
-  this closes the avatar vector end to end and the primary imported-name sink; a broader
-  escaping pass over remaining `innerHTML` sinks for other imported strings (custom
-  program/exercise names, celebration copy) is a documented follow-up, and an explicit
-  pre-import preview/confirm modal was left for a later slice. No Android changes.
+  bodyweight day instead of relying on today, which was a latent Rest-day flake). At merge,
+  this covered the avatar/name security core; the completion entry below closes the remaining
+  imported-string render paths and pre-import preview. No Android changes.
+- **R17 follow-ups + R18 activation continuity complete — 16 July 2026** on
+  `codex/activation-import-continuity`. Settings now routes the real JSON import path
+  through nested week/custom-program validation, migration in memory, and an explicit
+  preview showing logged-day/run/custom-program/body-weight/route counts before any write.
+  Cancel leaves storage untouched; confirm creates the local undo backup before replacement.
+  Imported profile, celebration, custom-program, day-preview, exercise and strength-chart
+  strings are escaped at their HTML boundaries, while imported inline colours are allowlisted.
+  Program changes now detect timers and edited/completed drafts and require an explicit
+  **Save workout and switch / Discard this workout and switch / Cancel** decision. Each
+  activation records paused/resumed status and its last program week; Previous program runs
+  are visible under Active Plan, can open exact activation-scoped Activities, and can be
+  resumed without reusing another run's numeric week slots or changing historical
+  attribution. Evidence: nested-invalid/markup/preview fixtures plus switch, cancel,
+  discard, archive, history-filter and repeated-resume tests; `npm run verify` is green with
+  995 tests and every required Chromium check passes. No Android changes.
 - **R15 GPS reliability implementation complete — 16 July 2026** across
   `codex/gps-durable-session` and `codex/gps-route-quality`. Android journals active-run
   metadata and raw fixes in app-private storage before accepting them into memory, restores a
@@ -309,16 +322,10 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 ## Current execution focus
 
 Completed recommendations remain in the implementation register and phase tables as
-acceptance evidence; they are not the active queue. The next engineering slices are:
-
-1. **R18 — activation continuity:** first block unresolved mid-session program switches
-   behind save/discard/cancel, then define prior-activation view/resume semantics without
-   changing historical attribution.
-2. **R17 follow-ups — imported-content safety:** audit remaining imported free-text HTML
-   sinks and add an explicit pre-import preview/confirm step. The destructive-import and
-   avatar/name security core is already merged.
-3. **R15 release evidence:** let the PR's required Android JVM/lint/APK workflow pass, then the
-   owner completes `docs/android-gps-device-checklist.md`; failures return to R15 before beta.
+acceptance evidence; they are not the active queue. R17 and R18 are engineering-complete.
+The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
+pass, then the owner completes `docs/android-gps-device-checklist.md`; failures return to R15
+before beta.
 
 In parallel, complete the human-owned device and release evidence below. Phase 3 work
 (R20–R26) remains deferred until the public-beta gate is satisfied; R24 additionally
@@ -458,6 +465,15 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · R17 follow-ups + R18 activation continuity on
+  `codex/activation-import-continuity`: the live Settings import now validates nested state,
+  migrates in memory and previews exact content/replacement risk before writing; imported
+  profile/program/exercise/preview strings and inline colours are safe at render boundaries.
+  Program switches/resumes now require save/discard/cancel for an unresolved workout, retain
+  paused activation metadata, expose exact prior-run Activities, and restore only that run's
+  archived weeks. `npm run verify` is green with 995 tests and all required Chromium journeys
+  pass. · Next: open one draft PR to `main`; after CI/merge, complete the R15 Android device
+  evidence before the public-beta gate.
 - 2026-07-16 · PR #141 CI portability fix on `codex/gps-route-quality`: one-off strength
   sessions now derive their weekday and stored calendar date from the same explicit/device
   timezone, preventing disagreement around UTC date boundaries. Sydney and UTC regression
