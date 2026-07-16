@@ -20,9 +20,10 @@ import java.util.concurrent.atomic.AtomicReference
  *   hasLocationPermission()          → Boolean
  *   requestLocationPermission(cbId)  → void; resolves window.__gpsCB[cbId]('true'|'false')
  *   startRun()                       → Boolean (false = no permission, use web fallback)
- *   pauseRun() / resumeRun() / stopRun()
+ *   pauseRun() / resumeRun() / stopRun() / completeRun() / discardRun()
  *   getPointsSince(seq)              → JSON string:
- *       { seq, status: "IDLE"|"TRACKING"|"PAUSED", elapsedMs, points: [[lat,lng,acc,t],…] }
+ *       { seq, status: "IDLE"|"TRACKING"|"PAUSED"|"FINALIZING"|"RECOVERY_ERROR",
+ *         elapsedMs, durable, restored, points: [[lat,lng,acc,t],…] }
  *     `seq` is the cursor to pass next call. Passing 0 replays the whole run —
  *     that is how a relaunched WebView recovers an in-flight run.
  */
@@ -32,6 +33,10 @@ class GpsBridge(
     private val requestLocationPermission: () -> Unit,
 ) {
     private val pendingPermCallbackId = AtomicReference<String?>()
+
+    init {
+        GpsPointStore.initialize(context)
+    }
 
     @JavascriptInterface
     fun hasLocationPermission(): Boolean =
@@ -56,18 +61,64 @@ class GpsBridge(
     @JavascriptInterface
     fun startRun(): Boolean {
         if (!hasLocationPermission()) return false
-        command(GpsTrackingService.ACTION_START, foreground = true)
-        return true
+        // Prepare the durable journal synchronously so JS never receives a successful
+        // start while native persistence is unavailable. Also refuses to overwrite an
+        // unfinalized run recovered from disk.
+        if (!GpsPointStore.startRun()) return false
+        return try {
+            command(GpsTrackingService.ACTION_START, foreground = true)
+            true
+        } catch (_: RuntimeException) {
+            GpsPointStore.clearRun()
+            false
+        }
     }
 
     @JavascriptInterface
-    fun pauseRun() = command(GpsTrackingService.ACTION_PAUSE)
+    fun pauseRun(): Boolean {
+        if (!GpsPointStore.pauseRun()) return false
+        return try {
+            command(GpsTrackingService.ACTION_PAUSE)
+            true
+        } catch (_: RuntimeException) {
+            // JS keeps presenting a live run when dispatch fails, so restore the
+            // store to TRACKING too. A failed rollback remains visibly PAUSED in
+            // the next drain rather than creating split-brain state.
+            GpsPointStore.resumeRun()
+            false
+        }
+    }
 
     @JavascriptInterface
-    fun resumeRun() = command(GpsTrackingService.ACTION_RESUME)
+    fun resumeRun(): Boolean {
+        if (!GpsPointStore.resumeRun()) return false
+        return try {
+            command(GpsTrackingService.ACTION_RESUME, foreground = true)
+            true
+        } catch (_: RuntimeException) {
+            GpsPointStore.pauseRun()
+            false
+        }
+    }
 
     @JavascriptInterface
-    fun stopRun() = command(GpsTrackingService.ACTION_STOP)
+    fun stopRun(): Boolean {
+        if (!GpsPointStore.finalizeRun()) return false
+        context.stopService(Intent(context, GpsTrackingService::class.java))
+        return true
+    }
+
+    /** JS calls this only after route + app-state persistence completed. */
+    @JavascriptInterface
+    fun completeRun(): Boolean = GpsPointStore.clearRun()
+
+    /** Explicit cancel: stop collection and remove the unsaved journal. */
+    @JavascriptInterface
+    fun discardRun(): Boolean {
+        if (!GpsPointStore.clearRun()) return false
+        context.stopService(Intent(context, GpsTrackingService::class.java))
+        return true
+    }
 
     @JavascriptInterface
     fun getPointsSince(seq: Int): String = GpsPointStore.drainJson(seq)
@@ -76,7 +127,7 @@ class GpsBridge(
 
     private fun command(action: String, foreground: Boolean = false) {
         val intent = Intent(context, GpsTrackingService::class.java).apply { this.action = action }
-        // START must go through startForegroundService (API 26+); control
+        // START/RESUME must go through startForegroundService (API 26+); control
         // actions reach the already-running service with plain startService.
         if (foreground) context.startForegroundService(intent) else context.startService(intent)
     }

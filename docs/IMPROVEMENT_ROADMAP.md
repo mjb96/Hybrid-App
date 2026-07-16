@@ -216,6 +216,16 @@
   escaping pass over remaining `innerHTML` sinks for other imported strings (custom
   program/exercise names, celebration copy) is a documented follow-up, and an explicit
   pre-import preview/confirm modal was left for a later slice. No Android changes.
+- **R15 durable-session foundation implemented — 16 July 2026** on
+  `codex/gps-durable-session`. Android now journals active-run metadata and GPS fixes in
+  app-private storage before accepting them into memory, reloads a supported process-death
+  session explicitly paused at its last durable fix, retains finalizing data until JS has
+  durably saved the workout, and requires an explicit discard for damaged recovery data.
+  The service redelivers restart intent, lifecycle commands fail closed, and an empty bridge
+  response no longer masquerades as a storage failure. JVM journal fixtures cover atomic
+  state, partial-tail recovery, corruption and bounds; JS contract/persistence tests cover
+  replay and two-phase acknowledgement. Route outlier/quality modelling, CI Android evidence,
+  and the physical lock/process-kill matrix remain open before R15 is complete.
 
 ## Prioritization model
 
@@ -226,9 +236,9 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 Completed recommendations remain in the implementation register and phase tables as
 acceptance evidence; they are not the active queue. The next engineering slices are:
 
-1. **R15 — durable GPS sessions:** persist points and session metadata outside process
-   memory, restore or explicitly discard after supported restart cases, and add route
-   quality/outlier evidence.
+1. **R15 — GPS completion evidence:** land the durable-session foundation, then add route
+   quality/outlier fixtures and complete the supported restart/device matrix before calling
+   the recommendation complete.
 2. **R18 — activation continuity:** first block unresolved mid-session program switches
    behind save/discard/cancel, then define prior-activation view/resume semantics without
    changing historical attribution.
@@ -373,6 +383,16 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-16 · R15 durable Android GPS foundation on `codex/gps-durable-session`:
+  append-only/fsynced point journal, atomic metadata, explicit paused/finalizing/corrupt
+  recovery, foreground-service redelivery, and two-phase JS save acknowledgement. Targeted
+  JS contracts pass; Android JVM/assemble evidence is CI-only in this checkout. · Next: merge
+  this foundation, add point-quality/outlier fixtures, and run the owner device matrix.
+- 2026-07-16 · Product fixes and approved visual consistency pass: canonical 10/20/30 kg
+  band loads, logged-day deletion, exact max/range workout prescriptions, goal-aware
+  Training Score language/penalties, and the approved midnight-navy/cobalt/ice/burnt-orange
+  system across core surfaces. Commits `ca514e0` through `a7e8840`; full JS/type/smoke and
+  required mobile-browser gates green. · Next: validate on the Android beta build.
 - 2026-07-16 · Reconciled the live roadmap with GitHub `main` after PRs #133–#138.
   Removed the shipped first-PR, priority-band, top-10, quick-win, and duplicate
   major-project queues; `PRODUCT_AUDIT.md` now points here instead of carrying a stale

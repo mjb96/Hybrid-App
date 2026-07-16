@@ -23,19 +23,22 @@ export function isNativeGpsAvailable() {
 
 /**
  * Parse + validate a getPointsSince() payload. Native sends:
- *   { seq, status: "IDLE"|"TRACKING"|"PAUSED", elapsedMs, points: [[lat,lng,acc,t],…] }
- * Returns a normalized { seq, status, elapsedMs, points:[{lat,lng,acc,t}] } —
+ *   { seq, status: "IDLE"|"TRACKING"|"PAUSED"|"FINALIZING"|"RECOVERY_ERROR",
+ *     elapsedMs, durable, restored, points: [[lat,lng,acc,t],…] }
+ * Returns a normalized { seq, status, elapsedMs, durable, restored, points } —
  * never throws, degrades to an empty payload on garbage so one bad drain can't
  * kill a live run.
  */
 export function parseDrainPayload(json, prevSeq = 0) {
-  const empty = { seq: prevSeq, status: 'IDLE', elapsedMs: 0, points: [] };
+  const empty = { seq: prevSeq, status: 'IDLE', elapsedMs: 0, durable: false, restored: false, points: [] };
   if (typeof json !== 'string' || !json) return empty;
   let raw;
   try { raw = JSON.parse(json); } catch { return empty; }
   if (!raw || typeof raw !== 'object') return empty;
 
-  const status = (raw.status === 'TRACKING' || raw.status === 'PAUSED') ? raw.status : 'IDLE';
+  const status = (raw.status === 'TRACKING' || raw.status === 'PAUSED' ||
+    raw.status === 'FINALIZING' || raw.status === 'RECOVERY_ERROR')
+    ? raw.status : 'IDLE';
   const seq = Number.isInteger(raw.seq) && raw.seq >= 0 ? raw.seq : prevSeq;
   const elapsedMs = Number.isFinite(raw.elapsedMs) && raw.elapsedMs >= 0 ? raw.elapsedMs : 0;
 
@@ -49,7 +52,22 @@ export function parseDrainPayload(json, prevSeq = 0) {
       points.push({ lat, lng, acc: Number.isFinite(acc) ? acc : 9999, t: Number.isFinite(t) ? t : 0 });
     }
   }
-  return { seq, status, elapsedMs, points };
+  return { seq, status, elapsedMs, durable: raw.durable === true, restored: raw.restored === true, points };
+}
+
+/**
+ * Translate a normalized drain payload into tracker actions. An empty/garbled
+ * bridge response normalizes to IDLE, so durability is meaningful only while
+ * native reports an active session.
+ */
+export function nativeDrainDisposition(payload) {
+  const status = payload?.status || 'IDLE';
+  const active = status === 'TRACKING' || status === 'PAUSED' || status === 'FINALIZING';
+  return {
+    recoveryError: status === 'RECOVERY_ERROR',
+    shouldPause: status === 'PAUSED' || status === 'FINALIZING',
+    durabilityFailed: active && payload?.durable !== true,
+  };
 }
 
 /**
@@ -83,9 +101,11 @@ export function nativeStartRun() {
   try { return b.startRun() === true; } catch { return false; }
 }
 
-export function nativePauseRun()  { try { _bridge()?.pauseRun(); }  catch {} }
-export function nativeResumeRun() { try { _bridge()?.resumeRun(); } catch {} }
-export function nativeStopRun()   { try { _bridge()?.stopRun(); }   catch {} }
+export function nativePauseRun()  { try { return _bridge()?.pauseRun() === true; } catch { return false; } }
+export function nativeResumeRun() { try { return _bridge()?.resumeRun() === true; } catch { return false; } }
+export function nativeStopRun()   { try { return _bridge()?.stopRun() === true; } catch { return false; } }
+export function nativeCompleteRun() { try { return _bridge()?.completeRun() === true; } catch { return false; } }
+export function nativeDiscardRun()  { try { return _bridge()?.discardRun() === true; } catch { return false; } }
 
 /** Drain fixes with index >= seq. Never throws; empty payload on failure. */
 export function nativeDrainSince(seq) {

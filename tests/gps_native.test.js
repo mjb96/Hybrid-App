@@ -9,8 +9,14 @@ import { test } from 'node:test';
 import {
   isNativeGpsAvailable,
   parseDrainPayload,
+  nativeDrainDisposition,
   ensureLocationPermission,
   nativeStartRun,
+  nativePauseRun,
+  nativeResumeRun,
+  nativeStopRun,
+  nativeCompleteRun,
+  nativeDiscardRun,
   nativeDrainSince,
 } from '../js/gps/native-bridge.js';
 
@@ -19,7 +25,9 @@ test('no window → native GPS unavailable, safe no-op fallbacks', async () => {
   assert.equal(nativeStartRun(), false);
   assert.equal(await ensureLocationPermission(), false);
   const drained = nativeDrainSince(7);
-  assert.deepEqual(drained, { seq: 7, status: 'IDLE', elapsedMs: 0, points: [] });
+  assert.deepEqual(drained, {
+    seq: 7, status: 'IDLE', elapsedMs: 0, durable: false, restored: false, points: [],
+  });
 });
 
 test('parses a valid tracking payload', () => {
@@ -27,6 +35,8 @@ test('parses a valid tracking payload', () => {
     seq: 3,
     status: 'TRACKING',
     elapsedMs: 65000,
+    durable: true,
+    restored: false,
     points: [
       [51.5007, -0.1246, 8.5, 1751370000000],
       [51.5009, -0.1244, 12.0, 1751370001000],
@@ -36,6 +46,8 @@ test('parses a valid tracking payload', () => {
   assert.equal(p.seq, 3);
   assert.equal(p.status, 'TRACKING');
   assert.equal(p.elapsedMs, 65000);
+  assert.equal(p.durable, true);
+  assert.equal(p.restored, false);
   assert.equal(p.points.length, 2);
   assert.deepEqual(p.points[0], { lat: 51.5007, lng: -0.1246, acc: 8.5, t: 1751370000000 });
 });
@@ -77,8 +89,64 @@ test('unknown status normalizes to IDLE; bad seq/elapsed clamp safely', () => {
   assert.equal(p.elapsedMs, 0);
 });
 
+test('drain health ignores empty IDLE fallbacks but fails closed for active sessions', () => {
+  assert.deepEqual(nativeDrainDisposition(parseDrainPayload(null, 3)), {
+    recoveryError: false,
+    shouldPause: false,
+    durabilityFailed: false,
+  });
+  assert.deepEqual(nativeDrainDisposition({ status: 'PAUSED', durable: false }), {
+    recoveryError: false,
+    shouldPause: true,
+    durabilityFailed: true,
+  });
+  assert.deepEqual(nativeDrainDisposition({ status: 'FINALIZING', durable: true }), {
+    recoveryError: false,
+    shouldPause: true,
+    durabilityFailed: false,
+  });
+});
+
 test('PAUSED status round-trips (recovery path relies on it)', () => {
-  const p = parseDrainPayload(JSON.stringify({ seq: 10, status: 'PAUSED', elapsedMs: 120000, points: [] }));
+  const p = parseDrainPayload(JSON.stringify({
+    seq: 10, status: 'PAUSED', elapsedMs: 120000, durable: true, restored: true, points: [],
+  }));
   assert.equal(p.status, 'PAUSED');
   assert.equal(p.elapsedMs, 120000);
+  assert.equal(p.durable, true);
+  assert.equal(p.restored, true);
+});
+
+test('FINALIZING status survives the native→JS contract until save acknowledgement', () => {
+  const p = parseDrainPayload(JSON.stringify({
+    seq: 3, status: 'FINALIZING', elapsedMs: 90000, durable: true, restored: true,
+    points: [[-33.86, 151.2, 5, 1751370000000]],
+  }));
+  assert.equal(p.status, 'FINALIZING');
+  assert.equal(p.points.length, 1);
+  assert.equal(p.durable, true);
+  assert.equal(p.restored, true);
+});
+
+test('native lifecycle acknowledgements fail closed', () => {
+  global.window = {
+    HybridGpsBridge: {
+      startRun: () => true,
+      getPointsSince: () => '{}',
+      pauseRun: () => true,
+      resumeRun: () => false,
+      stopRun: () => true,
+      completeRun: () => true,
+      discardRun: () => false,
+    },
+  };
+  try {
+    assert.equal(nativePauseRun(), true);
+    assert.equal(nativeResumeRun(), false);
+    assert.equal(nativeStopRun(), true);
+    assert.equal(nativeCompleteRun(), true);
+    assert.equal(nativeDiscardRun(), false);
+  } finally {
+    delete global.window;
+  }
 });

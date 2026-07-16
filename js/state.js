@@ -550,9 +550,11 @@ function writeLocalNow() {
   _localPending = false;
   appState.loadMetrics = memoizedLoadMetrics(appState);
   const t0 = _persistDebug ? _now() : 0;
+  let saved = false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
     _cloudDirty = true;
+    saved = true;
   } catch (e) {
     console.error('Failed to save state locally:', e);
   }
@@ -560,6 +562,7 @@ function writeLocalNow() {
     const dt = _now() - t0;
     if (dt > PERSIST_WARN_MS) console.warn(`[persist] local write ${dt.toFixed(1)}ms (state ~${JSON.stringify(appState).length} bytes)`);
   }
+  return saved;
 }
 
 function _scheduleCloudDebounce() {
@@ -717,18 +720,19 @@ if (typeof window !== 'undefined') {
 export async function saveStateToLocalStorage(suppressToast = false) {
   // Critical/explicit save: write local immediately (also cancels any pending
   // debounced local write, since we just persisted the latest state).
-  writeLocalNow();
+  const savedLocally = writeLocalNow();
 
   if (suppressToast) {
     // Autosave: coalesce network writes. localStorage already holds the latest.
     _scheduleCloudDebounce();
-    return;
+    return savedLocally;
   }
 
   // Explicit save: cancel any pending debounce and flush now so the toast is truthful.
   if (_cloudTimer) { clearTimeout(_cloudTimer); _cloudTimer = null; }
   _cloudPending = false;
   await cloudSave(false);
+  return savedLocally;
 }
 
 export async function pullEngineDataFromStorage() {

@@ -1161,6 +1161,15 @@ initProgramLibrary(appState);
 initAthleteProfile(getState, getDays, saveState);
 
 // Save auto-filled inputs, persist km splits, and render the pace-zone map after GPS tracking finishes.
+document.addEventListener('gps:recovered', (e) => {
+  const detail = /** @type {CustomEvent} */ (e).detail || {};
+  if (detail.quickActivity) {
+    openActivityScreen(detail.activityType === 'walk' ? 'walk' : 'run');
+  } else {
+    launchActiveWorkoutCockpit();
+  }
+});
+
 document.addEventListener('gps:route-saved', (e) => {
   const { week, day, sessionId, distKm, splits, quickActivity } = e.detail;
 

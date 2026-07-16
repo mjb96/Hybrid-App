@@ -17,9 +17,11 @@
 import { saveMapToDB } from './db.js';
 import { showToast, appState, saveStateToLocalStorage, verifyWeekStorageSchema } from './state.js';
 import { ensureLeaflet } from './ui/leaflet-loader.js';
+import { confirmModal } from './ui/confirm-modal.js';
 import {
   isNativeGpsAvailable, ensureLocationPermission,
-  nativeStartRun, nativePauseRun, nativeResumeRun, nativeStopRun, nativeDrainSince,
+  nativeStartRun, nativePauseRun, nativeResumeRun, nativeStopRun, nativeCompleteRun,
+  nativeDiscardRun, nativeDrainSince, nativeDrainDisposition,
 } from './gps/native-bridge.js';
 import { newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 
@@ -75,6 +77,8 @@ let _nativeMode      = false;
 let _nativeSeq       = 0;  // drain cursor into the native point buffer
 let _nativeElapsedMs = 0;  // native service is the source of truth for run time
 let _drainTimer      = null;
+let _nativeFinalizing = false;
+let _nativeDurabilityWarned = false;
 const ACTIVE_GPS_STORAGE_KEY = 'hybrid_engine_v2_state_active_gps_session';
 
 function readStoredSessionIdentity() {
@@ -285,10 +289,38 @@ function ingestFix(lat, lng, accuracy) {
 function drainNative() {
   if (!_nativeMode) return;
   const payload = nativeDrainSince(_nativeSeq);
+  const disposition = nativeDrainDisposition(payload);
   _nativeSeq       = payload.seq;
   _nativeElapsedMs = payload.elapsedMs;
   for (const p of payload.points) ingestFix(p.lat, p.lng, p.acc);
+  if (disposition.shouldPause && _status !== 'paused') {
+    showRecoveredPausedState(payload.status);
+  }
+  if (disposition.durabilityFailed && !_nativeDurabilityWarned) {
+    _nativeDurabilityWarned = true;
+    showToast('Tracking paused — Android could not safely journal this run', true);
+  }
   if (_status === 'tracking') tickStats();
+}
+
+function showRecoveredPausedState(nativeStatus) {
+  _nativeFinalizing = nativeStatus === 'FINALIZING';
+  _status = 'paused';
+  _startTime = null;
+  clearInterval(_tickTimer); _tickTimer = null;
+  showPanel('live');
+  if (!_liveMap && _coords.length) buildLiveMap();
+  tickStats();
+  const btn = document.getElementById(ui().pauseBtn);
+  if (!btn) return;
+  btn.style.display = '';
+  if (_nativeFinalizing) {
+    btn.textContent = 'Recovered — finish below';
+    btn.setAttribute('data-action', 'gps-stop');
+  } else {
+    btn.textContent = '▶ Resume';
+    btn.setAttribute('data-action', 'gps-resume');
+  }
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -325,11 +357,17 @@ export function initGpsTracker() {
 function recoverNativeRun() {
   if (!isNativeGpsAvailable()) return;
   const p = nativeDrainSince(0);
-  if (p.status !== 'TRACKING' && p.status !== 'PAUSED') return;
+  if (p.status === 'RECOVERY_ERROR') {
+    resolveNativeRecoveryError();
+    return;
+  }
+  if (p.status !== 'TRACKING' && p.status !== 'PAUSED' && p.status !== 'FINALIZING') return;
 
   _nativeMode      = true;
   _nativeSeq       = 0;
   _nativeElapsedMs = p.elapsedMs;
+  _nativeFinalizing = p.status === 'FINALIZING';
+  _nativeDurabilityWarned = !p.durable;
   _coords = []; _distKm = 0; _splits = [];
   _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
   const saved = readStoredSessionIdentity() || {};
@@ -346,9 +384,37 @@ function recoverNativeRun() {
   _status = 'waiting';           // ingestFix transitions to live on first valid fix
   showPanel('wait');
   drainNative();                 // replay everything collected so far
+  if (p.status === 'PAUSED' || p.status === 'FINALIZING') showRecoveredPausedState(p.status);
   _drainTimer = setInterval(drainNative, TICK_MS);
-  if (p.status === 'PAUSED' && _status === 'tracking') pauseTracking();
-  showToast('Run restored — GPS kept tracking ✓');
+  document.dispatchEvent(new CustomEvent('gps:recovered', {
+    detail: { quickActivity: _quickActivity, activityType: _activityType, status: p.status },
+  }));
+  showToast(p.restored
+    ? (p.status === 'FINALIZING'
+      ? 'Run recovered to the last saved GPS point — finish saving below'
+      : 'Run recovered to the last saved GPS point — resume or finish')
+    : 'Run restored — GPS kept tracking ✓');
+}
+
+async function resolveNativeRecoveryError() {
+  const discard = await confirmModal({
+    title: 'Run recovery needs attention',
+    message: 'Android found a damaged active-run journal. It will stay protected and no new run will overwrite it unless you explicitly discard it.',
+    confirmLabel: 'Discard damaged recovery',
+    cancelLabel: 'Keep protected',
+    danger: true,
+  });
+  if (!discard) {
+    showToast('Recovery copy kept — restart Helyx when you are ready to decide');
+    return;
+  }
+  if (!nativeDiscardRun()) {
+    showToast('Could not discard the damaged recovery copy', true);
+    return;
+  }
+  clearSessionIdentity();
+  showPanel('start');
+  showToast('Damaged recovery copy discarded');
 }
 
 export function onWorkoutTabActivated() {
@@ -377,6 +443,8 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
   _nativeMode      = false;
   _nativeSeq       = 0;
   _nativeElapsedMs = 0;
+  _nativeFinalizing = false;
+  _nativeDurabilityWarned = false;
 
   // Preferred path (Android app): the native foreground service keeps GPS
   // alive when the screen locks or the user switches apps. No wake lock
@@ -395,7 +463,10 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
       _drainTimer = setInterval(drainNative, TICK_MS);
       return true;
     }
-    // Native start failed unexpectedly — fall back to web tracking below.
+    // Do not silently fall back: native may be protecting a recovered journal or
+    // reporting that durable storage is unavailable.
+    showToast('Could not start safely — finish or discard the recovered run first', true);
+    return false;
   }
 
   // Web fallback (browser/PWA): watchPosition + screen wake lock. Honest
@@ -425,7 +496,10 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
 // persisted run data — nothing is written until stopTracking().
 export function cancelTracking() {
   if (_status === 'idle') return;
-  if (_nativeMode) { try { nativeStopRun(); } catch (_) {} }
+  if (_nativeMode && !nativeDiscardRun()) {
+    showToast('Could not discard safely — the recovery copy is still protected', true);
+    return;
+  }
   if (_drainTimer) { clearInterval(_drainTimer); _drainTimer = null; }
   if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
   clearInterval(_tickTimer); _tickTimer = null;
@@ -436,6 +510,7 @@ export function cancelTracking() {
   _coords = []; _distKm = 0;
   _splits = []; _nextKmMark = 1; _lapStartMs = 0; _lapStartIdx = 0;
   _nativeMode = false; _nativeSeq = 0; _nativeElapsedMs = 0;
+  _nativeFinalizing = false; _nativeDurabilityWarned = false;
   clearSessionIdentity();
 
   destroyLiveMap();
@@ -447,28 +522,33 @@ export function cancelTracking() {
 
 export function pauseTracking() {
   if (_status !== 'tracking') return;
+  if (_nativeMode && !nativePauseRun()) {
+    showToast('Could not pause safely — try again', true);
+    return;
+  }
   _status = 'paused';
-  if (_nativeMode) {
-    nativePauseRun();               // service stops GPS while paused (battery)
-  } else if (_startTime) {
+  if (!_nativeMode && _startTime) {
     _pausedMs += Date.now() - _startTime;
   }
   _startTime = null;
   clearInterval(_tickTimer);
 
   const btn = document.getElementById(ui().pauseBtn);
-  if (btn) { btn.textContent = '▶ Resume'; btn.setAttribute('data-action', 'gps-resume'); }
+  if (btn) { btn.style.display = ''; btn.textContent = '▶ Resume'; btn.setAttribute('data-action', 'gps-resume'); }
 }
 
 export function resumeTracking() {
-  if (_status !== 'paused') return;
+  if (_status !== 'paused' || _nativeFinalizing) return;
+  if (_nativeMode && !nativeResumeRun()) {
+    showToast('Run remains paused — Android could not reopen its journal', true);
+    return;
+  }
   _status    = 'tracking';
-  if (_nativeMode) nativeResumeRun();
   _startTime = Date.now();
   _tickTimer = setInterval(tickStats, TICK_MS);
 
   const btn = document.getElementById(ui().pauseBtn);
-  if (btn) { btn.textContent = '⏸ Pause'; btn.setAttribute('data-action', 'gps-pause'); }
+  if (btn) { btn.style.display = ''; btn.textContent = '⏸ Pause'; btn.setAttribute('data-action', 'gps-pause'); }
 }
 
 export async function stopTracking(week, day) {
@@ -476,7 +556,10 @@ export async function stopTracking(week, day) {
 
   if (_nativeMode) {
     drainNative();      // catch any fixes still buffered in the service
-    nativeStopRun();    // dismisses the persistent notification
+    if (!nativeStopRun()) {
+      showToast('Could not stop safely — tracking remains protected', true);
+      return null;
+    }
   }
   if (_drainTimer) { clearInterval(_drainTimer); _drainTimer = null; }
   if (_watchId !== null) { navigator.geolocation.clearWatch(_watchId); _watchId = null; }
@@ -493,6 +576,7 @@ export async function stopTracking(week, day) {
   const finalDay = String(_sessionContext.day || day || '');
   const localDate = _sessionContext.localDate || null;
   const wasQuick = _quickActivity;
+  const wasNative = _nativeMode;
   const activityType = _activityType;
 
   _status      = 'idle';
@@ -505,6 +589,8 @@ export async function stopTracking(week, day) {
   _nativeMode      = false;
   _nativeSeq       = 0;
   _nativeElapsedMs = 0;
+  _nativeFinalizing = false;
+  _nativeDurabilityWarned = false;
 
   destroyLiveMap();
   showPanel('start');
@@ -514,6 +600,7 @@ export async function stopTracking(week, day) {
   // Persist the route under the exact run session. Two runs in the same
   // activation/week/day now receive distinct records instead of slot-upserting.
   let routeId = null;
+  let routeSaveFailed = false;
   if (finalCoords.length >= 2 && finalWeek && finalDay) {
     try {
       routeId = await saveMapToDB(finalWeek, finalDay, finalCoords, {
@@ -523,11 +610,13 @@ export async function stopTracking(week, day) {
         startTs: sessionStartTs,
         localDate,
       });
-    } catch (_) {}
+      if (!routeId) routeSaveFailed = true;
+    } catch (_) { routeSaveFailed = true; }
   }
 
   // Persist the factual session immediately for BOTH quick and in-program GPS.
   // The cockpit may enrich this same sessionId with RPE/notes afterwards.
+  let stateSaved = false;
   if (finalWeek && finalDay) {
     verifyWeekStorageSchema(finalWeek);
     upsertRunSession(appState.weeks[finalWeek], finalDay, {
@@ -547,12 +636,14 @@ export async function stopTracking(week, day) {
       if (!appState.weeks[finalWeek].dates) appState.weeks[finalWeek].dates = {};
       appState.weeks[finalWeek].dates[finalDay] = localDate;
     }
-    clearSessionIdentity();
-    saveStateToLocalStorage(true);
+    stateSaved = await saveStateToLocalStorage(true);
   } else {
-    clearSessionIdentity();
-    saveStateToLocalStorage(true);
+    stateSaved = await saveStateToLocalStorage(true);
   }
+  const savedSession = !!(finalWeek && finalDay && stateSaved);
+  const nativeJournalCleared = !wasNative ||
+    (!routeSaveFailed && savedSession && nativeCompleteRun());
+  if (nativeJournalCleared) clearSessionIdentity();
   _activityType = 'run'; // reset for the next session
 
   // In-program run: auto-fill the cockpit run inputs so the user can review +
@@ -586,7 +677,15 @@ export async function stopTracking(week, day) {
 
   // A Home Quick Start is a standalone activity with no cockpit to review, so
   // surface the recap for this exact session immediately.
-  if (wasQuick && finalWeek && finalDay) {
+  if (!stateSaved || (wasNative && !savedSession)) {
+    showToast(wasNative
+      ? `${typeLabel} could not be saved on this device — Android recovery remains protected`
+      : `${typeLabel} could not be saved — check available device storage`, true);
+  } else if (routeSaveFailed) {
+    showToast(`${typeLabel} data saved, but the route needs recovery — restart to retry`, true);
+  } else if (!nativeJournalCleared) {
+    showToast(`${typeLabel} saved, but Android could not close its recovery journal — restart to retry`, true);
+  } else if (wasQuick && finalWeek && finalDay) {
     showToast(`${typeLabel} saved ✓`);
     try { document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: finalWeek, day: finalDay, sessionId } })); } catch (_) {}
   } else {
