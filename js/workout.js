@@ -22,10 +22,11 @@ import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './state/lift-id.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
-import { clearRunSessions, hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
+import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 import { detectRunType } from './workout/run-type.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { deleteDayWorkoutData } from './workout/delete-day.js';
 
 let _getState;
 let _getSelectedDay;
@@ -1655,33 +1656,25 @@ export function executeResetActiveDayMetrics() {
   const appState = _getState();
   const selectedDay = _getSelectedDay();
   const wk = appState.currentWeek;
-  
-  if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
-  if (!appState.weeks[wk].lifts) appState.weeks[wk].lifts = {};
-  if (!appState.weeks[wk].notes) appState.weeks[wk].notes = {};
-  if (!appState.weeks[wk].gymStats) appState.weeks[wk].gymStats = {};
-  
-  clearRunSessions(appState.weeks[wk], selectedDay);
-  appState.weeks[wk].gymStats[selectedDay] = { time: '', avgHR: '', maxHR: '', cals: '' };
-  appState.weeks[wk].lifts[selectedDay] = {};
-  appState.weeks[wk].notes[selectedDay] = '';
-  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
-  appState.weeks[wk].liftOrder[selectedDay] = [];
 
   const activeProgram = getProgramById(appState.activeProgramId);
-  const blueprint = activeProgram.days?.[selectedDay];
+  const blueprint = activeProgram?.days?.[selectedDay];
+  /** @type {Record<string, any[]>} */
+  const lifts = {};
+  const liftOrder = [];
 
   if (blueprint && blueprint.lifts) {
     blueprint.lifts.forEach(liftName => {
       try {
         const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
-        appState.weeks[wk].lifts[selectedDay][liftName] =
-          prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier);
+        lifts[liftName] = prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier);
+        liftOrder.push(liftName);
       } catch(e) { console.warn(e); }
     });
-    // Reset restores the prescribed program order.
-    appState.weeks[wk].liftOrder[selectedDay] = [...blueprint.lifts];
   }
+  // Reset restores the prescribed program order and clears every workout-only
+  // field through the same path used by historical-session deletion.
+  deleteDayWorkoutData(appState.weeks[wk], selectedDay, { lifts, liftOrder });
   try {
     stopAndResetWorkoutTimer();
     dismissRestTimer();

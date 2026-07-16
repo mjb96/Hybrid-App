@@ -950,7 +950,7 @@ else if (action === 'export-csv') triggerCSVExport();
   }
   
   // Athlete Profile
-  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'share-profile'].includes(action))
+  else if (['set-pr-goal', 'confirm-pr-goal', 'close-pr-goal-modal', 'open-session-detail', 'close-session-detail', 'delete-session-workout', 'share-profile'].includes(action))
     handleProfileAction(action, target);
   else if (action === 'pick-avatar')              openAvatarPicker();
 
