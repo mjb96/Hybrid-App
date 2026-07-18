@@ -370,6 +370,22 @@ count, downloads, or monetization—are the decision metrics.
   coaching were removed. Completion-flag truthiness was replaced with the canonical legacy-
   safe predicate in remaining consumers, and streak/month calendar walkers no longer invent
   dates for undated legacy records.
+- **R28 e1RM, load-target and history follow-up complete — 19 July 2026** on
+  `codex/exercise-volume-finish-audit`. Every active strength surface now uses one bounded
+  Epley helper: positive external-load working sets of 1–12 reps only. Higher-rep,
+  bodyweight/effective-load, assisted/band and conditioning work remains in session/volume
+  totals but cannot create an estimated-1RM PR, plateau or load target. e1RM remains a
+  directional trend, never a measured max or the source of the next-session weight.
+  Double progression now raises load only when every set at the session's heaviest working
+  weight meets the prescribed top target; a missed set chases one rep, same-exercise high RPE
+  holds, and a flat three-session trend prompts hold/review instead of an automatic 10%
+  deload. Run and unrelated-lift RPE cannot alter the recommendation. The logger's history
+  line, ghosts, PR comparison and recap now use the canonical dated all-program query, so a
+  program switch or weekday move retains prior exercise context and explicit aliases merge.
+  Evidence boundary: ACSM progression guidance (PMID 11828249), 1RM-equation cross-validation
+  using 4–10 repetitions to failure (PMID 39495260), RIR review (PMID 38563729), and load-vs-
+  repetition progression trial (PMID 36199287); the 12-rep ceiling is a conservative product
+  boundary, not a claim that Epley is exact through 12 reps.
 
 ### 19 July reliability audit findings
 
@@ -383,12 +399,14 @@ is the named source/test, not a prior report.
 | A3 | High | High | Muscle guidance read active program-week arrays and ignored archived/one-off sessions. | “This week” could omit real work or show a stale program position. | Fixed: selected Monday–Sunday calendar week from stamped dates across stored sessions. | Calendar-boundary/activation/one-off volume fixtures. |
 | A4 | Moderate | High | Fixed RP-labelled MEV/MAV/MRV boundaries were presented as exact and every secondary muscle received 0.5. | False precision and over-credit for compounds such as squat, bench, rows and deadlifts. | Fixed: explicit dominant/secondary/minor weights and typical-range language; thresholds remain general guidance, not a prescription. | Muscle-credit, compound and methodology tests. |
 | A5 | High | High | Multiple consumers used truthiness (`s.c`) rather than the canonical completion decoder. | Stored string `"false"` could be interpreted as completed in detail, calendar, notification or state paths. | Fixed in active consumers; only explicit `true|'true'|'on'|1` is complete. | Existing set-utils regressions plus source review. |
-| A6 | Moderate | High | Strength history/PR/overview compared display strings. | DB/Dumbbell and punctuation variants fragmented prior performance and PRs. | Fixed for explicit aliases; unknown custom exercises deliberately stay exact. | Historical alias, canonical PR and same-variation tests. |
-| A7 | Moderate | High | `forEachLoggedDay` reconstructed missing dates from the current program position. | Undated legacy work could enter a modern streak/month incorrectly. | Fixed: calendar reporting excludes undated records while retaining them in storage. | `logged_days.test.js` undated fixture. |
-| A8 | Moderate | High | Lifetime state still serializes/upserts as one JSON blob. | Write amplification and last-write-wins remain scale/conflict risks despite the existing conflict guard/backups. | Open as R24; no migration attempted without telemetry, ADR, dual-read/write and RLS proof. | Existing sync conflict/adversarial tests; R24 acceptance gate. |
-| A9 | Moderate | High | `workout.js`, `app.js`, `state.js` remain large cross-cutting modules. | Changes carry broader regression risk and hidden event coupling. | Open as incremental R25; this slice extracted catalogue and lifecycle seams only. | Full suite, smoke and browser core flow required per slice. |
-| A10 | Low | High | Two tests produced UTC/locale dates independently of the app's local-day API. | Suite failed depending on time of day/timezone despite correct runtime behavior. | Fixed: deterministic canonical date helpers/test seams. | Full suite under local timezone. |
-| A11 | Low | High | Three local browser-check servers omitted an explicit host and listened on every interface. | A developer test run could expose served repository assets beyond localhost. | Fixed: all real-browser servers bind `127.0.0.1` only. | Required browser suite runs all five journeys successfully. |
+| A6 | High | High | Epley maths was duplicated and accepted unlimited reps; some views special-cased one rep while others did not. | High-rep or non-comparable loads could inflate PRs, estimated strength and plateau advice. | Fixed: one shared bounded formula; unsupported reps/load modes retain workout credit but return no e1RM. | `strength_calendar_e1rm.test.js`, `session_recap.test.js`, formula source scan. |
+| A7 | High | High | Logger history only checked the prior numeric program week/same weekday; progression judged one best set and averaged unrelated lift/run RPE. | Program switches falsely read “first time,” ghosts disappeared, and unsafe load increases/holds could be recommended from the wrong evidence. | Fixed: canonical dated all-program logger/PR/recap history; all top-load sets gate progression; same-exercise RPE only; plateau holds for review. | `exercise_history.test.js`, `engine.test.js`, alias/program-switch/effort fixtures. |
+| A8 | Moderate | High | Strength history/PR/overview compared display strings. | DB/Dumbbell and punctuation variants fragmented prior performance and PRs. | Fixed for explicit aliases; unknown custom exercises deliberately stay exact. | Historical alias, canonical PR and same-variation tests. |
+| A9 | Moderate | High | `forEachLoggedDay` reconstructed missing dates from the current program position. | Undated legacy work could enter a modern streak/month incorrectly. | Fixed: calendar reporting excludes undated records while retaining them in storage. | `logged_days.test.js` undated fixture. |
+| A10 | Moderate | High | Lifetime state still serializes/upserts as one JSON blob. | Write amplification and last-write-wins remain scale/conflict risks despite the existing conflict guard/backups. | Open as R24; no migration attempted without telemetry, ADR, dual-read/write and RLS proof. | Existing sync conflict/adversarial tests; R24 acceptance gate. |
+| A11 | Moderate | High | `workout.js`, `app.js`, `state.js` remain large cross-cutting modules. | Changes carry broader regression risk and hidden event coupling. | Open as incremental R25; this slice extracted catalogue and lifecycle seams only. | Full suite, smoke and browser core flow required per slice. |
+| A12 | Low | High | Two tests produced UTC/locale dates independently of the app's local-day API. | Suite failed depending on time of day/timezone despite correct runtime behavior. | Fixed: deterministic canonical date helpers/test seams. | Full suite under local timezone. |
+| A13 | Low | High | Three local browser-check servers omitted an explicit host and listened on every interface. | A developer test run could expose served repository assets beyond localhost. | Fixed: all real-browser servers bind `127.0.0.1` only. | Required browser suite runs all five journeys successfully. |
 
 ### Volume methodology and exercise audit record
 
@@ -502,14 +520,14 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R18 | Program activation | Mid-session switching can archive partial work; prior activation cannot be resumed. | Resolve session first and expose prior activation history/resume semantics. | activation UI/state, program detail/library, workout completion. | Switch/resume/history scenarios across partial/full states. | Phase 2 / `codex/activation-continuity`. |
 | R19 | Program integrity | Unknown IDs silently fall back to Hybrid Engine. | Validate ID and show explicit recovery choices. | program registry/state load/import UI. | Missing/deleted/corrupt program fixtures. | Phase 2 / small PR with R17 or standalone. |
 | R20 | Program schema | Shared weekly targets/free-text cannot represent marketed prescriptions. | Legacy-compatible normalized prescription resolver and structured overrides. | schema, engine, builder, catalog adapters, preview/detail/workout. | Catalog golden corpus, consumer equality, custom round trip. | Phase 3 / design ADR then multiple PRs. |
-| R21 | Exercise progression | `computeDiagnosticForLift` only checked prior numeric weeks/same day; display-name variants split later history. | Chronological all-session query with explicit scope plus explicit canonical alias resolution. | engine/history query, exercise catalogue, activation/session records, progression tests. | Cross-day/program/archive/canonical-alias/custom-exact identity cases. | Complete; alias follow-up in R28. |
+| R21 | Exercise progression | `computeDiagnosticForLift` only checked prior numeric weeks/same day; display-name variants split later history. | Chronological all-session query with explicit scope plus explicit canonical alias resolution. | engine/history query, exercise catalogue, activation/session records, progression tests. | Cross-day/program/archive/canonical-alias/custom-exact identity cases. | Complete; aliases plus logger/ghost/recap carry-over completed in R28 follow-up. |
 | R22 | Analytics maintenance | Duplicate model exports can drift; “lifetime” scope is active-run-only. | One supported model per metric and scope-correct labels/queries. | metrics-load/readiness re-exports, strength calculations/views. | Golden formula and all-activation history tests. | Complete on `codex/r21-r22-release-hardening`. |
 | R23 | Running analytics | Broad best-run VDOT selection lacks effort and robust quality confidence. | Qualify source efforts, reject outliers, expose projection confidence. | running performance/projection modules, import/GPS quality metadata. | Race/easy/interval/manual/outlier/sparse-history fixtures. | Phase 3 / after R15 data quality. |
 | R24 | Persistence/sync scale | Critical saves serialize/upsert lifetime history as one blob. | Incrementally store immutable sessions while retaining versioned snapshot portability. | state repositories, Supabase schema/RLS, offline queue, migrations/export. | Dual-read/write, rollback, RLS, conflicts, large-history perf. | Phase 3 / dedicated ADR and multi-PR migration, only with telemetry. |
 | R25 | Maintainability/design | Large cross-cutting modules plus inline styles/`!important` raise regression cost. | Split along tested seams and migrate touched UI to primitives. | workout/app/settings/state and CSS/components. | Pre-split behavior coverage and visual regression. | Phase 3 / small per-seam PRs, never a mechanical rewrite. |
 | R26 | Product hierarchy | Program taxonomy and optional advanced/wellness surfaces repeat/compete with the core loop. | Simplify discovery and progressively disclose unused advanced areas based on beta evidence. | program library/Home/Start/navigation renderers. | Funnel/usability study plus no-regression discovery tests. | Phase 3 / product-evidence-led PRs. |
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
-| R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; 186/233 program labels were absent from exact-name volume tables; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time exercise identity; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue invariants/all program refs; direct/indirect/minor/invalid/calendar/alias fixtures; browser flow. | Engineering complete on `codex/exercise-volume-finish-audit`. |
+| R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; exercise/history tables split identity; unbounded duplicated e1RM and optimistic progression overstated certainty; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time identity/history; bounded e1RM; conservative set/RPE progression; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/e1RM/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue/all-program history; e1RM eligibility; top-load/RPE progression; volume-credit/browser flows. | Engineering complete on `codex/exercise-volume-finish-audit`. |
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -614,6 +632,16 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-19 · R28 e1RM/progression/history follow-up on
+  `codex/exercise-volume-finish-audit`: one bounded, exercise-aware Epley source now powers
+  every e1RM/PR surface; high-rep, bodyweight-effective, assisted/band and conditioning loads
+  cannot fabricate strength trends or kilogram targets. Load-up requires every top-load set
+  to meet the prescription, same-exercise/gym RPE can hold, unrelated lift/run RPE cannot,
+  and a flat trend holds for review rather than auto-deloading. Logger history, ghosts,
+  quick-log/manual autofill and recap/PR comparison now carry canonical dated history across
+  weekdays, programs and archived activations. `npm run verify` is green with 1,030 tests,
+  including the exact rendered program-switch card regression. · Next: review and open the
+  combined R28 PR to `main`; physical-device/Play/legal owner gates remain.
 - 2026-07-19 · R28 fresh logger/exercise/volume audit on
   `codex/exercise-volume-finish-audit`: explicit `in_progress|finished` lifecycle is now
   separate from adherence; deliberately skipped work can be finished while empty/warm-up-only

@@ -87,3 +87,14 @@ test('derived PR stats merge aliases under a canonical id while old keys still r
   assert.ok(stats.dumbbell_bench_press.allTimeMax > 31);
   assert.equal(exerciseStatForName(stats, 'Dumbbell Bench').allTimeMax, stats.dumbbell_bench_press.allTimeMax);
 });
+
+test('derived PR stats exclude high-rep, bodyweight and nominal-band loads', () => {
+  const state = { currentWeek: '1', weeks: {
+    '1': { lifts: { mon: {
+      Curl: [{ w: '20', r: '20', c: true }],
+      'Push-Ups': [{ w: '80', r: '10', c: true, loadMode: 'bodyweight', bw: true }],
+      'Band Chest Press': [{ w: '30', r: '10', c: true }],
+    } } },
+  } };
+  assert.deepEqual(computeExercisePRs(state, {}), {});
+});

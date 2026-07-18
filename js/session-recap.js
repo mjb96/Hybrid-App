@@ -19,6 +19,8 @@ import { muscleCreditsForExercise } from './exercises/catalog.js';
 import { sharePRCard, topPR } from './brain/pr-share.js';
 import { showToast } from './state.js';
 import { sanitizeGpsQuality } from './gps/route-quality.js';
+import { estimatedE1rmForSet } from './strength/e1rm.js';
+import { exercisePerformanceHistory } from './workout/exercise-history.js';
 
 let _getState = null;
 export function initSessionRecap(getStateFn) { _getState = getStateFn; }
@@ -38,33 +40,17 @@ export function sharePRFromRecap() {
 let _recapTab = 'summary';
 let _recapCtx = { week: null, day: null, sessionId: null };
 
-// Epley estimated 1RM (matches the app's convention: 1-rep sets are exact).
-function e1rm(w, r) {
-  const weight = parseFloat(w), reps = parseFloat(r);
-  if (!weight || !reps) return 0;
-  return reps === 1 ? weight : weight * (1 + reps / 30);
-}
-
 // Best working-set e1RM for a lift across every OTHER logged session (all
 // weeks/days except the one being recapped). Used to decide if this session set
 // a new personal best. Pure scan of state; tolerates sparse data.
 function priorBestE1rm(state, week, day, liftName) {
-  let best = 0;
-  const weeks = state?.weeks || {};
-  for (const w in weeks) {
-    const dayLifts = weeks[w]?.lifts || {};
-    for (const d in dayLifts) {
-      if (String(w) === String(week) && d === day) continue; // exclude this session
-      const sets = dayLifts[d]?.[liftName];
-      if (!Array.isArray(sets)) continue;
-      sets.forEach((s) => {
-        if (!isCompletedSet(s) || isWarmupSet(s)) return;
-        const est = e1rm(s.w, s.r);
-        if (est > best) best = est;
-      });
-    }
-  }
-  return best;
+  const beforeDate = state?.weeks?.[week]?.dates?.[day];
+  const history = exercisePerformanceHistory(state, liftName, {
+    scope: 'all',
+    exclude: { weekKey: week, day },
+    beforeDate,
+  });
+  return Math.max(0, ...history.map((performance) => performance.e1rm));
 }
 
 function timeToSeconds(t) {
@@ -112,8 +98,13 @@ export function buildSessionRecap(state, week, day, sessionId = null, activityKi
     done.forEach((s) => {
       liftVol += setVolume(s);
       liftReps += parseInt(s.r, 10) || 0;
-      const est = e1rm(s.w, s.r);
-      if (est > bestE1) { bestE1 = est; topSet = { w: parseFloat(s.w) || 0, r: parseFloat(s.r) || 0 }; }
+      const setWeight = parseFloat(s.w) || 0;
+      const setReps = parseInt(s.r, 10) || 0;
+      if (!topSet || setWeight > topSet.w || (setWeight === topSet.w && setReps > topSet.r)) {
+        topSet = { w: setWeight, r: setReps };
+      }
+      const est = estimatedE1rmForSet(name, s);
+      if (est > bestE1) bestE1 = est;
     });
     tonnage += liftVol;
     workingSets += done.length;
@@ -240,7 +231,7 @@ function _liftSummaryRows(r) {
       <div class="recap-lift__name">${esc(l.name)}${l.pr ? ` <span class="recap-pr" title="New estimated 1RM best">🏆 PR</span>` : ''}</div>
       <div class="recap-lift__detail">
         ${l.topSet ? `${l.topSet.w} ${UNIT} × ${l.topSet.r}` : `${l.sets} sets`}
-        <span class="recap-lift__e1rm">est. 1RM ${l.e1rm} ${UNIT}</span>
+        ${l.e1rm > 0 ? `<span class="recap-lift__e1rm">est. 1RM ${l.e1rm} ${UNIT}</span>` : ''}
       </div>
     </div>`).join('');
 }

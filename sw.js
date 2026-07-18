@@ -176,6 +176,7 @@ const REQUIRED_ASSETS = [
   "./js/state/supabase.js",
   "./js/state/sync-conflict-ui.js",
   "./js/state/sync-guard.js",
+  "./js/strength/e1rm.js",
   "./js/sw-reload.js",
   "./js/templates.js",
   "./js/timers.js",

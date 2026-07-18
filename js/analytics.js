@@ -21,6 +21,8 @@ import { renderReview, setReviewTab } from './analytics/views/view-weekly-review
 import { renderProjections } from './analytics/views/view-projections.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { analyticsBackDestination } from './analytics/navigation.js';
+import { estimatedE1rmForSet } from './strength/e1rm.js';
+import { resolveExercise } from './exercises/catalog.js';
 
 let _getState;
 let _getDays;
@@ -150,7 +152,7 @@ function collectAnalyticsData() {
         for (const lift in dayLifts) {
           if (!Array.isArray(dayLifts[lift])) continue;
 
-          const displayName = lift;
+          const displayName = resolveExercise(lift)?.name || lift;
 
           if (!data.dynamicStats[displayName]) {
             // priorBestMax = best e1RM from any week BEFORE the current one. It's
@@ -170,7 +172,7 @@ function collectAnalyticsData() {
             const reps   = parseInt(s.r, 10) || 0;
 
             if (completed && weight > 0 && reps > 0 && s.type !== 'W') {
-              const e1rm = weight * (1 + reps / 30);
+              const e1rm = estimatedE1rmForSet(lift, s);
               if (e1rm > data.dynamicStats[displayName].allTimeMax)          data.dynamicStats[displayName].allTimeMax = e1rm;
               if (wKey === appState.currentWeek && e1rm > data.dynamicStats[displayName].currentEstimatedMax) data.dynamicStats[displayName].currentEstimatedMax = e1rm;
               if (wKey === prevWeek && e1rm > data.dynamicStats[displayName].previousWeekMax)                 data.dynamicStats[displayName].previousWeekMax = e1rm;

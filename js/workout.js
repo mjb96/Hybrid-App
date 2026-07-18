@@ -30,6 +30,8 @@ import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadM
 import { deleteDayWorkoutData, hasDayWorkoutDraft } from './workout/delete-day.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
 import { exerciseStatForName } from './exercises/catalog.js';
+import { exerciseLoggerHistory } from './workout/exercise-history.js';
+import { estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import {
   activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
   clearActiveOneOffSession, oneOffBlueprint,
@@ -286,37 +288,41 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   // Weights are stored in the user's configured unit — label them with it, not a
   // hardcoded "kg" (which mislabelled every number for lbs users).
   const wUnit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+  const loggerHistory = exerciseLoggerHistory(appState, displayLiftName, {
+    weekKey: wk,
+    day: selectedDay,
+    beforeDate: weekData?.dates?.[selectedDay] || dateKey(),
+  });
+  const priorPerformance = loggerHistory.latest;
   let historicalLineText = 'First time logging this — today sets your baseline';
-  const globalStat = exerciseStatForName(appState.exerciseStats, displayLiftName);
-  if (globalStat) {
-    historicalLineText = 'Global PR: ' + Math.round(globalStat.allTimeMax || 0) + wUnit + ' (Est. 1RM)';
-  }
-
-  const pastWkNum = parseInt(wk, 10) - 1;
-  if (pastWkNum >= 1 && appState.weeks) {
-    const pastWkData = appState.weeks[pastWkNum.toString()];
-    if (pastWkData?.lifts?.[selectedDay]?.[liftName]) {
-      const doneSets = pastWkData.lifts[selectedDay][liftName].filter(s => isCompletedSet(s) && s.w && s.r);
-      if (doneSets.length > 0) {
-        historicalLineText = 'Last Session: [ ' + doneSets.map(s => escapeHtml(String(s.w)) + wUnit + ' × ' + escapeHtml(String(s.r))).join(', ') + ' ]';
-      }
-    }
+  if (priorPerformance) {
+    const doneSets = priorPerformance.workingSets;
+    historicalLineText = 'Last session: [ ' + doneSets.map((set) => {
+      const weight = parseFloat(set?.w) || 0;
+      const reps = parseInt(set?.r, 10) || 0;
+      return weight > 0
+        ? `${escapeHtml(String(weight))}${wUnit} × ${escapeHtml(String(reps))}`
+        : `${escapeHtml(String(reps))} reps`;
+    }).join(', ') + ' ]';
+  } else if (loggerHistory.globalBestEstimated1RM > 0) {
+    historicalLineText = `Previous best: ${Math.round(loggerHistory.globalBestEstimated1RM)}${wUnit} (estimated 1RM)`;
   }
 
   const safeLiftName = escapeHtml(liftName);
   const displaySafeName = escapeHtml(displayLiftName);
 
   // The auto-progression suggestion becomes the ghost target on every set row.
-  // When there is no suggestion yet (first-ever exposure to this lift) we fall
-  // back to the matching set from last week, preserving the per-set ghost.
+  // When a numeric progression is not possible (for example bodyweight or
+  // max-rep work), preserve the matching set from the latest dated performance
+  // across days, programs and archived activations.
   const suggestedGhost = (diagnostic.progression && diagnostic.progression.weight)
     ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
     : null;
   const setsMarkup = setsArr.map((sData, sIdx) => {
     let ghostSet = suggestedGhost;
-    if (!ghostSet && pastWkNum >= 1 && appState.weeks) {
-      const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
-      if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
+    if (!ghostSet) {
+      const hist = priorPerformance?.workingSets?.[sIdx];
+      if (hist && (hist.w || hist.r)) ghostSet = hist;
     }
     return buildSetRow(
       sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
@@ -839,13 +845,14 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   }
 
   if (!targetW || !targetR) {
-    const pastWkNum = parseInt(wk, 10) - 1;
-    if (pastWkNum >= 1 && appState.weeks) {
-      const historicalSet = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName]?.[sIdx];
-      if (historicalSet && historicalSet.w && historicalSet.r) {
-        if (!targetW) targetW = historicalSet.w;
-        if (!targetR) targetR = historicalSet.r;
-      }
+    const historicalSet = exerciseLoggerHistory(appState, liftName, {
+      weekKey: wk,
+      day: selectedDay,
+      beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
+    }).latest?.workingSets?.[sIdx];
+    if (historicalSet && historicalSet.w && historicalSet.r) {
+      if (!targetW) targetW = historicalSet.w;
+      if (!targetR) targetR = historicalSet.r;
     }
   }
 
@@ -1102,14 +1109,18 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const sIdx = Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow);
       
-      // 1) Prefer this set's *real* value from last week.
-      const pastWkNum = parseInt(wk, 10) - 1;
-      if (pastWkNum >= 1 && appState.weeks && liftName) {
-        const historicalSet = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName]?.[sIdx];
-        if (historicalSet && historicalSet.w && historicalSet.r) {
-          if (!wInput.value) wInput.value = historicalSet.w;
-          if (!rInput.value) rInput.value = historicalSet.r;
-        }
+      // 1) Prefer this set's real value from the latest dated performance,
+      // even when it belongs to another day, program or archived activation.
+      const historicalSet = liftName
+        ? exerciseLoggerHistory(appState, liftName, {
+            weekKey: wk,
+            day: selectedDay,
+            beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
+          }).latest?.workingSets?.[sIdx]
+        : null;
+      if (historicalSet && historicalSet.w && historicalSet.r) {
+        if (!wInput.value) wInput.value = historicalSet.w;
+        if (!rInput.value) rInput.value = historicalSet.r;
       }
       // 2) Otherwise carry forward the athlete's own earlier set this session —
       //    straight-set logging (3×8 at one weight) without re-typing, and the
@@ -1155,21 +1166,28 @@ export function toggleGymCheckLoggingState(checkboxNode) {
         _appState.weeks[_wk].dates[_selDay] = dateKey();
       }
 
-      // PR detection — compare this set's e1RM against stored all-time max
+      // PR detection — compare this set's bounded e1RM against prior dated
+      // performances (with aggregate stats only as a legacy-history fallback).
       if (liftName && setType !== 'W' && _sIdx >= 0) {
         const wIn = parentRow?.querySelector('.input-weight-node');
         const rIn = parentRow?.querySelector('.input-reps-node');
         const w = parseFloat(wIn?.value) || 0;
         const r = parseInt(rIn?.value, 10) || 0;
         if (w > 0 && r > 0) {
-          const e1rm = w * (1 + r / 30);
-          const prevMax = exerciseStatForName(_appState.exerciseStats, liftName)?.allTimeMax || 0;
+          const storedSet = _appState.weeks?.[_wk]?.lifts?.[_selDay]?.[liftName]?.[_sIdx] || {};
+          const e1rm = estimatedE1rmForSet(liftName, { ...storedSet, w, r });
+          const prior = exerciseLoggerHistory(_appState, liftName, {
+            weekKey: _wk,
+            day: _selDay,
+            beforeDate: _appState.weeks?.[_wk]?.dates?.[_selDay] || dateKey(),
+          });
+          const prevMax = Math.max(prior.datedBestEstimated1RM, prior.globalBestEstimated1RM);
           // Only celebrate a PR against *real* prior history. The first-ever log
           // of a lift always beats a 0 baseline, so firing "New PR" then made the
           // trophy noise on every exercise of a new user's first session. No
           // history ⇒ this is a baseline, not a record.
-          const hasHistory = prevMax > 0;
-          if (hasHistory && e1rm > prevMax + 0.01) {
+          const hasHistory = prior.hasHistory;
+          if (e1rm > 0 && hasHistory && e1rm > prevMax + 0.01) {
             parentRow.classList.add('is-pr');
             hapticSuccess();
             if (!parentRow.querySelector('.pr-badge')) {
@@ -1179,7 +1197,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
               parentRow.appendChild(badge);
             }
             showToast(`🏆 New PR — ${liftName}!`);
-          } else if (!hasHistory) {
+          } else if (e1rm > 0 && !hasHistory) {
             showToast(`Baseline set — ${liftName} ✓`);
           }
         }
@@ -1613,7 +1631,9 @@ export function toggleAccordionManual(elementNode) {
 }
 
 function _exChip(name, appState) {
-  const pr = exerciseStatForName(appState.exerciseStats, name)?.allTimeMax;
+  const pr = isE1rmExercise(name)
+    ? exerciseStatForName(appState.exerciseStats, name)?.allTimeMax
+    : 0;
   const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
   return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}">${escapeHtml(name)}${prStr}</button>`;
 }

@@ -21,13 +21,15 @@ const WK = '2026-07-13';
 const PREV = '2026-07-06';
 
 // ---- canonical formula ------------------------------------------------------
-test('estimatedE1rm is the canonical Epley formula and never returns NaN', () => {
+test('estimatedE1rm is one bounded Epley formula and never returns NaN', () => {
   assert.equal(estimatedE1rm(100, 5), 100 * (1 + 5 / 30));
   assert.equal(estimatedE1rm('102.5', '5'), 102.5 * (1 + 5 / 30)); // decimals + strings
   assert.equal(estimatedE1rm(0, 5), 0);        // bodyweight / no load → 0, not NaN
   assert.equal(estimatedE1rm(100, 0), 0);      // no reps → 0
   assert.equal(estimatedE1rm('x', 'y'), 0);    // junk → 0
-  assert.equal(estimatedE1rm(100, 30), 200);   // high reps: no cap (preserve existing behaviour)
+  assert.equal(estimatedE1rm(100, 12), 140);   // upper supported trend boundary
+  assert.equal(estimatedE1rm(100, 13), 0);     // high-rep work stays in volume, not e1RM/PRs
+  assert.equal(estimatedE1rm(100, 30), 0);
 });
 
 // ---- 1. program week spanning two calendar weeks ----------------------------
@@ -164,6 +166,21 @@ test('a bodyweight (zero-load) set never becomes a false e1RM', () => {
   const state = { currentWeek: '1', weeks: { '1': { dates: { mon: WK }, lifts: { mon: { 'Pull-Ups': [work(0, 10)] } } } } };
   const wk = bestE1rmByLiftForWeek(state, { weekStart: WK });
   assert.equal(wk['Pull-Ups'], undefined, 'no valid e1RM set → lift absent, not a 0 entry');
+});
+
+test('effective bodyweight and nominal band loads never become false e1RMs', () => {
+  const state = { weeks: { '1': {
+    dates: { mon: TODAY },
+    lifts: { mon: {
+      'Push-Ups': [{ ...work(82, 10), loadMode: 'bodyweight', bw: true }],
+      'Band Chest Press': [work(30, 10)],
+      'Custom Barbell Lift': [work(50, 5)],
+    } },
+  } } };
+  const wk = bestE1rmByLiftForWeek(state, { weekStart: WK });
+  assert.equal(wk['Push-Up'], undefined);
+  assert.equal(wk['Band Chest Press'], undefined);
+  assert.ok(wk['Custom Barbell Lift'].bestEstimated1RM > 50, 'unknown weighted custom lifts remain eligible');
 });
 
 // ---- 15,16. edits move to the correct calendar week -------------------------

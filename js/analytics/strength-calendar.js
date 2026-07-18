@@ -14,21 +14,13 @@
 import { isValidWorkingSet } from '../set-utils.js';
 import { indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { resolveExercise } from '../exercises/catalog.js';
+import { estimatedE1rmForSet } from '../strength/e1rm.js';
+
+// Backwards-compatible strength-metrics entry point. The implementation lives
+// in one dependency-free primitive shared by the logger, recap and analytics.
+export { estimatedE1rm } from '../strength/e1rm.js';
 
 const isWorkingSet = isValidWorkingSet;
-
-/**
- * The app's canonical estimated 1RM (Epley: weight × (1 + reps/30)). One formula
- * for every strength surface — coerces string inputs and never returns NaN.
- * @returns {number} estimated 1RM, or 0 for invalid/zero input.
- */
-export function estimatedE1rm(weight, reps) {
-  const w = parseFloat(weight) || 0;
-  const r = parseInt(reps, 10) || 0;
-  if (w <= 0 || r <= 0) return 0;
-  const e = w * (1 + r / 30);
-  return Number.isFinite(e) ? e : 0;
-}
 
 /**
  * Best working-set estimated 1RM for every lift, grouped by CALENDAR week.
@@ -52,7 +44,7 @@ export function liftE1rmByCalendarWeek(state, opts = {}) {
       if (!Array.isArray(sets)) continue;
       for (const s of sets) {
         if (!isWorkingSet(s)) continue;
-        const e = estimatedE1rm(s.w, s.r);
+        const e = estimatedE1rmForSet(lift, s);
         if (e <= 0) continue; // unsupported set (zero reps/weight) — never a false 0
         const m = out[identity] || (out[identity] = new Map());
         let rec = m.get(wk);

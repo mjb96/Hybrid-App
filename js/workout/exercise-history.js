@@ -10,7 +10,8 @@
 // =============================================================================
 import { localDayKey } from '../dates.js';
 import { isValidWorkingSet } from '../set-utils.js';
-import { canonicalExerciseId } from '../exercises/catalog.js';
+import { canonicalExerciseId, exerciseStatForName } from '../exercises/catalog.js';
+import { estimatedE1rmForSet, isE1rmExercise } from '../strength/e1rm.js';
 
 export const EXERCISE_HISTORY_SCOPE = Object.freeze({
   ALL: 'all',
@@ -34,19 +35,28 @@ function explicitSessionTimestamp(week, day) {
   return null;
 }
 
-function bestSet(sets) {
+function bestSet(exerciseName, sets) {
   let e1rm = 0, weight = 0, reps = 0;
+  let fallbackWeight = 0, fallbackReps = 0;
   for (const set of sets) {
     const w = parseFloat(set?.w) || 0;
     const r = parseInt(set?.r, 10) || 0;
-    const estimate = w > 0 && r > 0 ? w * (1 + r / 30) : 0;
+    if (w > fallbackWeight || (w === fallbackWeight && r > fallbackReps)) {
+      fallbackWeight = w;
+      fallbackReps = r;
+    }
+    const estimate = estimatedE1rmForSet(exerciseName, set);
     if (estimate > e1rm) {
       e1rm = estimate;
       weight = w;
       reps = r;
     }
   }
-  return { e1rm, weight, reps };
+  return {
+    e1rm,
+    weight: e1rm > 0 ? weight : fallbackWeight,
+    reps: e1rm > 0 ? reps : fallbackReps,
+  };
 }
 
 function inScope(state, week, scope, activationId, programId) {
@@ -60,9 +70,10 @@ function inScope(state, week, scope, activationId, programId) {
 }
 
 /**
- * Return completed working-set performances for one exact exercise key, newest
- * first. Same-day sessions use an explicit persisted start timestamp when one
- * exists; otherwise their storage identity provides a stable tie-break only.
+ * Return completed working-set performances for one exercise identity, newest
+ * first. Explicit catalogue aliases merge; unknown custom names stay exact.
+ * Same-day sessions use an explicit persisted start timestamp when one exists;
+ * otherwise their storage identity provides a stable tie-break only.
  *
  * @param {any} state
  * @param {string} exerciseName
@@ -107,7 +118,7 @@ export function exercisePerformanceHistory(state, exerciseName, options = {}) {
       const sets = matchingEntries.flatMap(([, values]) => values);
       const workingSets = sets.filter(isValidWorkingSet);
       if (!workingSets.length) continue;
-      const best = bestSet(workingSets);
+      const best = bestSet(exerciseName, workingSets);
       rows.push({
         exerciseName,
         canonicalExerciseId: requestedId,
@@ -135,4 +146,35 @@ export function exercisePerformanceHistory(state, exerciseName, options = {}) {
 /** Most recent eligible exact-name performance, or null. */
 export function latestExercisePerformance(state, exerciseName, options = {}) {
   return exercisePerformanceHistory(state, exerciseName, options)[0] || null;
+}
+
+/**
+ * One source for the workout logger's history line and per-set ghosts. Dated
+ * history wins; a legacy aggregate stat still prevents a false "first time"
+ * claim when the underlying session predates reliable date stamps.
+ *
+ * @param {any} state
+ * @param {string} exerciseName
+ * @param {{weekKey?:string|number, day?:string, beforeDate?:string|Date}} [options]
+ */
+export function exerciseLoggerHistory(state, exerciseName, options = {}) {
+  const performances = exercisePerformanceHistory(state, exerciseName, {
+    scope: EXERCISE_HISTORY_SCOPE.ALL,
+    exclude: options.weekKey == null
+      ? undefined
+      : { weekKey: options.weekKey, day: options.day },
+    beforeDate: options.beforeDate,
+  });
+  const latest = performances[0] || null;
+  const aggregate = exerciseStatForName(state?.exerciseStats, exerciseName);
+  const globalBestEstimated1RM = isE1rmExercise(exerciseName)
+    ? (Number(aggregate?.allTimeMax) || 0)
+    : 0;
+  const datedBestEstimated1RM = Math.max(0, ...performances.map((row) => row.e1rm));
+  return {
+    latest,
+    datedBestEstimated1RM,
+    globalBestEstimated1RM,
+    hasHistory: !!latest || globalBestEstimated1RM > 0,
+  };
 }

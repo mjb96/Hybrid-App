@@ -24,6 +24,8 @@ import { loggedDateSet } from '../analytics/logged-days.js';
 import { buildCalendarWeekStrength, indexSlotsByDate } from '../analytics/weekly-aggregate.js';
 import { addDaysISO, localDayKey, todayKey } from '../dates.js';
 import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
+import { estimatedE1rmForSet } from '../strength/e1rm.js';
+import { canonicalExerciseId } from '../exercises/catalog.js';
 
 const TONE_COLOR = {
   positive: 'var(--color-green)',
@@ -356,24 +358,21 @@ function latestVal(log, key) {
 
 function computeBig3(state) {
   let sq = 0, bp = 0, dl = 0;
-  const sqK = ['back squat', 'squat', 'front squat'];
-  const bpK = ['bench press', 'incline bench press', 'incline barbell press'];
-  const dlK = ['deadlift', 'romanian deadlift', 'deficit deadlift'];
   const weeks = state?.weeks || {};
   for (const w in weeks) {
     const lifts = weeks[w]?.lifts || {};
     for (const day in lifts) {
       for (const lift in lifts[day]) {
         if (!Array.isArray(lifts[day][lift])) continue;
-        const name = lift.toLowerCase();
+        const exerciseId = canonicalExerciseId(lift);
         lifts[day][lift].forEach(s => {
           if (!isDone(s) || s.type === 'W' || s.isWarmup) return;
           const w0 = num(s.w), r0 = parseInt(s.r, 10) || 0;
           if (w0 <= 0 || r0 <= 0) return;
-          const e = w0 * (1 + r0 / 30);
-          if (sqK.some(k => name.includes(k))) { if (e > sq) sq = e; }
-          else if (bpK.some(k => name.includes(k))) { if (e > bp) bp = e; }
-          else if (dlK.some(k => name.includes(k))) { if (e > dl) dl = e; }
+          const e = estimatedE1rmForSet(lift, s);
+          if (exerciseId === 'back_squat') { if (e > sq) sq = e; }
+          else if (exerciseId === 'barbell_bench_press') { if (e > bp) bp = e; }
+          else if (exerciseId === 'conventional_deadlift') { if (e > dl) dl = e; }
         });
       }
     }

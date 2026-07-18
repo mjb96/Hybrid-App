@@ -23,7 +23,7 @@ import {
   renderInsightsHTML,
   deloadInsight,
 } from '../insights/insight-engine.js';
-import { isCompletedSet } from '../../set-utils.js';
+import { isValidWorkingSet } from '../../set-utils.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { resolveProgramForState } from '../../state.js';
@@ -31,6 +31,8 @@ import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-ki
 import { getCalendarWeekOffset, getSelectedWeekStart } from '../week-nav.js';
 import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
 import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift, bestE1rmByLiftForWeek } from '../../metrics/metrics-strength.js';
+import { canonicalExerciseId } from '../../exercises/catalog.js';
+import { estimatedE1rmForSet } from '../../strength/e1rm.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -552,10 +554,6 @@ export function render1RMProgressSection(sectionEl, weekLabels, getState, getDay
 
   const appState    = getState();
   const defaultDays = getDays();
-  const sqNames     = ['back squat', 'squat', 'front squat'];
-  const bpNames     = ['bench press', 'incline bench press', 'incline barbell press'];
-  const dlNames     = ['deadlift', 'romanian deadlift', 'deficit deadlift'];
-
   const sqData = [], bpData = [], dlData = [];
 
   for (let w = 1; w <= weekLabels.length; w++) {
@@ -568,16 +566,15 @@ export function render1RMProgressSection(sectionEl, weekLabels, getState, getDay
         const dayLifts = wkData.lifts?.[d] || {};
         for (const lift in dayLifts) {
           if (!Array.isArray(dayLifts[lift])) continue;
-          const liftLower = lift.toLowerCase();
+          const exerciseId = canonicalExerciseId(lift);
           dayLifts[lift].forEach(s => {
-            const completed = isCompletedSet(s);
             const weight = parseFloat(s.w) || 0;
             const reps   = parseInt(s.r, 10) || 0;
-            if (!completed || weight <= 0 || reps <= 0) return;
-            const e1rm = weight * (1 + reps / 30);
-            if (sqNames.some(n => liftLower.includes(n))) sqMax = Math.max(sqMax, e1rm);
-            if (bpNames.some(n => liftLower.includes(n))) bpMax = Math.max(bpMax, e1rm);
-            if (dlNames.some(n => liftLower.includes(n))) dlMax = Math.max(dlMax, e1rm);
+            if (!isValidWorkingSet(s) || weight <= 0 || reps <= 0) return;
+            const e1rm = estimatedE1rmForSet(lift, s);
+            if (exerciseId === 'back_squat') sqMax = Math.max(sqMax, e1rm);
+            if (exerciseId === 'barbell_bench_press') bpMax = Math.max(bpMax, e1rm);
+            if (exerciseId === 'conventional_deadlift') dlMax = Math.max(dlMax, e1rm);
           });
         }
       });

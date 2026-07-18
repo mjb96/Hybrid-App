@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   EXERCISE_HISTORY_SCOPE,
+  exerciseLoggerHistory,
   exercisePerformanceHistory,
   latestExercisePerformance,
 } from '../js/workout/exercise-history.js';
@@ -116,4 +117,35 @@ test('diagnostic progression uses the newest dated cross-day archived performanc
   const result = computeDiagnosticForLift('2', 'tue', 'Squat', 5);
   assert.equal(result.suggestedWeight, 102.5);
   assert.equal(result.progression?.action, 'load-up');
+});
+
+test('logger history carries an exercise across a program switch and supplies set ghosts', () => {
+  const state = historyFixture();
+  const logger = exerciseLoggerHistory(state, 'Back Squat', {
+    weekKey: '2', day: 'tue', beforeDate: '2026-07-08',
+  });
+  assert.equal(logger.hasHistory, true);
+  assert.equal(logger.latest?.weekKey, 'arch:act_old:2');
+  assert.equal(logger.latest?.workingSets[0].w, '100');
+  assert.ok(logger.datedBestEstimated1RM > 100);
+});
+
+test('legacy aggregate history prevents a false first-time claim without inventing a session', () => {
+  const logger = exerciseLoggerHistory({
+    weeks: {},
+    exerciseStats: { back_squat: { allTimeMax: 140 } },
+  }, 'Squat');
+  assert.equal(logger.hasHistory, true);
+  assert.equal(logger.latest, null);
+  assert.equal(logger.globalBestEstimated1RM, 140);
+});
+
+test('high-rep history still carries set context without fabricating an e1RM', () => {
+  const state = { weeks: {
+    old: { dates: { mon: '2026-07-01' }, lifts: { mon: { Curl: [done(20, 20)] } } },
+  } };
+  const latest = latestExercisePerformance(state, 'Curl');
+  assert.equal(latest?.weight, 20);
+  assert.equal(latest?.reps, 20);
+  assert.equal(latest?.e1rm, 0);
 });

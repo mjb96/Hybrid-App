@@ -194,6 +194,32 @@ test('render guard: a stray lift_* key never surfaces as an exercise name', () =
   assert.equal(names.some(n => /lift_/.test(n)), false, 'raw internal id is never the displayed name');
 });
 
+test('workout card carries prior sets across program archives and exercise aliases', () => {
+  initWith(freshState());
+  state.weeks['1'].lifts.mon['Bench Press'] = [{ w: '', r: '', c: false }];
+  state.weeks['1'].liftOrder.mon = ['Bench Press'];
+  state.weeks['arch:old:1'] = {
+    activationId: 'old', programId: 'old_program',
+    dates: { tue: '2026-07-18' },
+    lifts: { tue: { 'Barbell Bench Press': [{ w: '80', r: '5', c: true }] } },
+    runs: {}, notes: {}, gymRpe: {}, gymStats: {},
+  };
+
+  const created = [];
+  const origCreate = globalThis.document.createElement;
+  globalThis.document.createElement = (tag) => { const el = origCreate(tag); created.push(el); return el; };
+  try {
+    workout.renderWorkout();
+  } finally {
+    globalThis.document.createElement = origCreate;
+  }
+
+  const benchCard = created.find((el) => /cockpit-ex-name">Bench Press</.test(el.innerHTML || ''));
+  assert.ok(benchCard, 'current program Bench Press card renders');
+  assert.match(benchCard.innerHTML, /Last session: \[ 80kg × 5 \]/);
+  assert.doesNotMatch(benchCard.innerHTML, /First time logging/);
+});
+
 test('pairAsSuperset / unpairSuperset tag and clear a shared groupId', () => {
   initWith(freshState());
   workout.appendCustomSetRow(null, 'Bench');

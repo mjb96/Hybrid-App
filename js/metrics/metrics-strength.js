@@ -13,15 +13,15 @@ export {
   estimatedE1rm, liftE1rmByCalendarWeek, bestE1rmByLiftForWeek,
   calendarStrengthSummary, calendarWeekE1rmSeriesForLift,
 } from '../analytics/strength-calendar.js';
-import { estimatedE1rm } from '../analytics/strength-calendar.js';
+import { estimatedE1rmForSet } from '../strength/e1rm.js';
 import { canonicalExerciseId, legacyMuscleMap, muscleCreditsForExercise, resolveExercise } from '../exercises/catalog.js';
 import { isValidWorkingSet } from '../set-utils.js';
 import { collectCalendarWeek, localDayKey, weekStartOf } from '../analytics/weekly-aggregate.js';
 
 // ---- internal helpers -----------------------------------------------------
 
-function e1rm(weight, reps) {
-  return estimatedE1rm(weight, reps);
+function e1rm(exerciseName, set) {
+  return estimatedE1rmForSet(exerciseName, set);
 }
 
 /**
@@ -86,7 +86,7 @@ export function weeklyE1rmByLift(state, days, maxWeek) {
         if (!result[identity]) result[identity] = new Array(maxWeek).fill(0);
         dayLifts[lift].forEach(s => {
           if (!isWorkingSet(s)) return;
-          const val = e1rm(parseFloat(s.w) || 0, parseInt(s.r, 10) || 0);
+          const val = e1rm(lift, s);
           if (val > result[identity][w - 1]) result[identity][w - 1] = val;
         });
       }
@@ -190,7 +190,7 @@ export function allLiftsStats(state, days) {
         if (!result[identity]) result[identity] = { allTimeMax: 0, currentWeekMax: 0, prevWeekMax: 0 };
         dayLifts[lift].forEach(s => {
           if (!isWorkingSet(s)) return;
-          const val = e1rm(parseFloat(s.w) || 0, parseInt(s.r, 10) || 0);
+          const val = e1rm(lift, s);
           if (val > result[identity].allTimeMax) result[identity].allTimeMax = val;
           if (wKey === curWk  && val > result[identity].currentWeekMax) result[identity].currentWeekMax = val;
           if (wKey === prevWk && val > result[identity].prevWeekMax)    result[identity].prevWeekMax = val;
@@ -218,7 +218,7 @@ export function big3Progression(state) {
           if (canonicalExerciseId(liftName) !== exerciseId || !Array.isArray(sets)) continue;
         sets.forEach(s => {
           if (!isWorkingSet(s)) return;
-          const val = e1rm(parseFloat(s.w) || 0, parseInt(s.r, 10) || 0);
+          const val = e1rm(liftName, s);
           if (val > result[key].allTime) result[key].allTime = val;
           if (!result[key].byWeek[wKey] || val > result[key].byWeek[wKey]) {
             result[key].byWeek[wKey] = val;
