@@ -5,11 +5,12 @@
 // Storage is organised by program week/day, but progression belongs to an
 // exercise across real sessions. This query therefore scans every stored week
 // key (numeric, archived and one-off), attributes a performance only by its
-// persisted local date, and compares the exact bare-string exercise key. It
-// never aliases similar names or invents a date for legacy data.
+// persisted local date, and resolves only explicit catalogue aliases. Unknown
+// custom exercises retain exact-name identity. Dates are never invented.
 // =============================================================================
 import { localDayKey } from '../dates.js';
-import { isCompletedSet, isWarmupSet } from '../set-utils.js';
+import { isValidWorkingSet } from '../set-utils.js';
+import { canonicalExerciseId } from '../exercises/catalog.js';
 
 export const EXERCISE_HISTORY_SCOPE = Object.freeze({
   ALL: 'all',
@@ -76,6 +77,7 @@ function inScope(state, week, scope, activationId, programId) {
  */
 export function exercisePerformanceHistory(state, exerciseName, options = {}) {
   if (typeof exerciseName !== 'string' || exerciseName === '') return [];
+  const requestedId = canonicalExerciseId(exerciseName);
   const scope = options.scope || EXERCISE_HISTORY_SCOPE.ALL;
   const activationId = options.activationId ?? state?.activeActivationId ?? null;
   const programId = options.programId ?? state?.activeProgramId ?? null;
@@ -96,13 +98,20 @@ export function exercisePerformanceHistory(state, exerciseName, options = {}) {
       if (weekKey === excludedWeek && (!excludedDay || day === excludedDay)) continue;
       const date = localDayKey(week.dates?.[day]);
       if (!date || (beforeDate && date > beforeDate)) continue;
-      const sets = week.lifts?.[day]?.[exerciseName];
-      if (!Array.isArray(sets)) continue;
-      const workingSets = sets.filter((set) => isCompletedSet(set) && !isWarmupSet(set));
+      const matchingEntries = Object.entries(week.lifts?.[day] || {}).filter(([storedName, sets]) =>
+        Array.isArray(sets) && (requestedId
+          ? canonicalExerciseId(storedName) === requestedId
+          : storedName === exerciseName)
+      );
+      if (!matchingEntries.length) continue;
+      const sets = matchingEntries.flatMap(([, values]) => values);
+      const workingSets = sets.filter(isValidWorkingSet);
       if (!workingSets.length) continue;
       const best = bestSet(workingSets);
       rows.push({
         exerciseName,
+        canonicalExerciseId: requestedId,
+        storedExerciseNames: matchingEntries.map(([storedName]) => storedName),
         weekKey,
         day,
         date,

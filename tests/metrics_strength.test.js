@@ -10,6 +10,7 @@ import {
   big3Progression,
   big3Maxes,
   weeklyVolumeByMuscle,
+  calendarVolumeByMuscle,
   isWeeklyPR,
 } from '../js/metrics/metrics-strength.js';
 
@@ -126,8 +127,8 @@ test('weeklyE1rmByLift excludes warmups from e1RM', () => {
 test('allLiftsStats returns all-time and current-week maxes', () => {
   const result = allLiftsStats(fixture(), DAYS);
   assert.ok('Back Squat' in result);
-  assert.ok('Bench Press' in result);
-  assert.ok('Deadlift' in result);
+  assert.ok('Barbell Bench Press' in result);
+  assert.ok('Conventional Deadlift' in result);
   // Squat all-time max: wk2 105×5 is higher than wk1 100×5
   assert.ok(result['Back Squat'].allTimeMax > result['Back Squat'].prevWeekMax);
   // currentWeekMax is wk2 (currentWeek = '2')
@@ -154,7 +155,7 @@ test('allLiftsStats excludes warmups from all-time max', () => {
   };
   const result = allLiftsStats(state, DAYS);
   const warmupE1rm = 200 * (1 + 10 / 30);
-  assert.ok(result['Bench Press'].allTimeMax < warmupE1rm);
+  assert.ok(result['Barbell Bench Press'].allTimeMax < warmupE1rm);
 });
 
 // ---- big3Progression ---------------------------------------------------
@@ -198,8 +199,7 @@ test('big3Progression handles empty state', () => {
 });
 
 // ---- weeklyVolumeByMuscle ----------------------------------------------
-test('weeklyVolumeByMuscle credits primary muscles at 1.0 per set', () => {
-  // Back Squat: primary = ['quads', 'glutes'] — 2 completed working sets in wk1
+test('weeklyVolumeByMuscle credits the dominant muscle at 1.0 per set', () => {
   const state = {
     currentWeek: '1',
     weeks: {
@@ -218,11 +218,10 @@ test('weeklyVolumeByMuscle credits primary muscles at 1.0 per set', () => {
   };
   const result = weeklyVolumeByMuscle(state, DAYS, 1);
   assert.equal(result['quads']?.[0], 2, 'quads should get 2 set credits');
-  assert.equal(result['glutes']?.[0], 2, 'glutes should get 2 set credits');
+  assert.equal(result['glutes']?.[0], 1, 'glutes receive meaningful-secondary credit, not another full set');
 });
 
-test('weeklyVolumeByMuscle credits secondary muscles at 0.5 per set', () => {
-  // Back Squat: secondary = ['erectors', 'adductors'] — 2 completed sets
+test('weeklyVolumeByMuscle supports minor 0.25 muscle credit', () => {
   const state = {
     currentWeek: '1',
     weeks: {
@@ -230,7 +229,7 @@ test('weeklyVolumeByMuscle credits secondary muscles at 0.5 per set', () => {
     },
   };
   const result = weeklyVolumeByMuscle(state, DAYS, 1);
-  assert.equal(result['erectors']?.[0], 1, 'secondary muscle should get 0.5 × 2 = 1 credit');
+  assert.equal(result['erectors']?.[0], 0.5, 'minor muscle should get 0.25 × 2 = 0.5 credit');
 });
 
 test('weeklyVolumeByMuscle returns one entry per week up to maxWeek', () => {
@@ -263,10 +262,7 @@ test('weeklyVolumeByMuscle returns empty object for empty state', () => {
   assert.deepEqual(result, {});
 });
 
-test('weeklyVolumeByMuscle accumulates across multiple exercises targeting same muscle', () => {
-  // Bench Press (primary: chest) + Incline Bench Press (primary: upper_chest, front_delts)
-  // Both have front_delts as primary → front_delts should accumulate from Bench Press secondary (1×0.5)
-  // and Standing OHP primary (1×1.0)
+test('weeklyVolumeByMuscle accumulates explicit credits across compound exercises', () => {
   const state = {
     currentWeek: '1',
     weeks: {
@@ -277,8 +273,31 @@ test('weeklyVolumeByMuscle accumulates across multiple exercises targeting same 
     },
   };
   const result = weeklyVolumeByMuscle(state, DAYS, 1);
-  // front_delts: 1 from Bench (primary) + 1 from OHP (primary) = 2
-  assert.ok(result['front_delts']?.[0] >= 2, `front_delts should be ≥2, got ${result['front_delts']?.[0]}`);
+  // front delts: bench minor 0.25 + overhead press dominant 1.0
+  assert.equal(result['front_delts']?.[0], 1.25);
+});
+
+test('weeklyVolumeByMuscle excludes blank, skipped, warm-up and zero-rep sets', () => {
+  const state = { weeks: { '1': { lifts: { mon: { 'Bench Press': [
+    { w: '', r: '', c: false },
+    { w: '100', r: '5', c: false },
+    { w: '60', r: '5', c: true, type: 'W' },
+    { w: '100', r: '0', c: true },
+    { w: '100', r: '5', c: true },
+  ] } } } } };
+  assert.equal(weeklyVolumeByMuscle(state, DAYS, 1).chest[0], 1);
+});
+
+test('calendarVolumeByMuscle resolves aliases across activations and Monday boundaries', () => {
+  const state = { weeks: {
+    'arch:a:1': { dates: { sun: '2026-07-12' }, lifts: { sun: { 'DB Bench Press': [{ w: '25', r: '10', c: true }] } } },
+    '1': { dates: { mon: '2026-07-13' }, lifts: { mon: { 'Dumbbell Bench Press': [{ w: '25', r: '10', c: true }] } } },
+    'session:x': { dates: { tue: '2026-07-14' }, lifts: { tue: { 'Push-Ups': [{ w: '', r: '12', c: true }] } } },
+  } };
+  const current = calendarVolumeByMuscle(state, { weekStart: '2026-07-13', today: '2026-07-14' });
+  const prior = calendarVolumeByMuscle(state, { weekStart: '2026-07-06', today: '2026-07-14' });
+  assert.equal(current.chest, 2, 'bodyweight work and canonical aliases both count once');
+  assert.equal(prior.chest, 1, 'Sunday remains in the prior calendar week');
 });
 
 // ---- big3Maxes ---------------------------------------------------------

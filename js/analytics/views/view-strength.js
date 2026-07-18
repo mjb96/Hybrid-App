@@ -185,8 +185,7 @@ function renderMuscleGroupAnalysis(sa) {
     .map(g => report.groups[g])
     .filter(Boolean);
 
-  // Per-muscle breakdown, organised under each group. Only muscles that carry a
-  // landmark appear; volume is the current week's weighted set credits.
+  // Per-muscle breakdown for the selected real calendar week.
   const muscleBreakdown = groups.map(g => {
     const members = (MUSCLE_GROUPS[g] || [])
       .map(m => report.muscles[m])
@@ -212,14 +211,17 @@ function renderMuscleGroupAnalysis(sa) {
   el.innerHTML = `
     <h2 class="section-header mt-2">Muscle Group Analysis</h2>
     <article class="card-dark p-3 mb-2">
-      <div class="text-xs text-muted mb-1">Weekly sets vs volume landmarks</div>
+      <div class="text-xs text-muted mb-1">Estimated set credits · selected calendar week</div>
       <div id="volumeLandmarkChart"></div>
       <div class="text-xs text-muted" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
-        <span><span style="color:${zoneColor('growth')};">■</span> Growth (MEV–MAV)</span>
-        <span><span style="color:${zoneColor('optimal')};">■</span> Optimal (MAV–MRV)</span>
-        <span><span style="color:${zoneColor('overreaching')};">■</span> Over MRV</span>
-        <span style="opacity:0.7;">┊ dashed = MAV target</span>
+        <span><span style="color:${zoneColor('growth')};">■</span> Typical productive range</span>
+        <span><span style="color:${zoneColor('optimal')};">■</span> Upper typical range</span>
+        <span><span style="color:${zoneColor('overreaching')};">■</span> Above typical range</span>
       </div>
+      <details class="text-xs text-muted" style="margin-top:10px;">
+        <summary>How is this calculated?</summary>
+        <p style="margin-top:6px;">Only completed working sets with recorded reps count. Dominant muscles receive 1 set credit, meaningful secondary muscles 0.5, minor contributors 0.25; warm-ups, blank rows and skipped sets receive 0. The ranges are general guidance, not a personal MEV or recovery limit.</p>
+      </details>
     </article>
     <h3 class="section-header text-sm mb-2" style="font-size:0.8rem;">Per-Muscle Volume</h3>
     <article class="card-dark p-3 mb-3">
@@ -288,7 +290,7 @@ export function renderStrengthAnalytics(data, getState, getDays) {
   const days      = getDays ? getDays() : [];
   const maxWeek   = data.weekLabels.length;
 
-  const sa = computeStrengthAnalytics(appState, days, maxWeek);
+  const sa = computeStrengthAnalytics(appState, days, maxWeek, { weekStart: getSelectedWeekStart() });
   const la = computeLoadAnalytics(appState, days, maxWeek);
   const allInsights = rankInsights([
     ...generateStrengthInsights({

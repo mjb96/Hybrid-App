@@ -53,11 +53,11 @@ test('exercise history follows stamped dates across weekdays, activations and ar
   assert.equal(history[0].workingSets.length, 1, 'warm-ups and incomplete sets are excluded');
 });
 
-test('exercise identity is the exact stored bare-string name', () => {
+test('exercise identity resolves explicit aliases but keeps different variations separate', () => {
   const state = historyFixture();
   assert.equal(latestExercisePerformance(state, 'Squat')?.weight, 105);
   assert.equal(latestExercisePerformance(state, 'Paused Squat')?.weight, 120);
-  assert.equal(latestExercisePerformance(state, 'squat'), null);
+  assert.equal(latestExercisePerformance(state, 'squat')?.weight, 105);
 });
 
 test('history scopes are explicit and current-slot exclusion is exact', () => {

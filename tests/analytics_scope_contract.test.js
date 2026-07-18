@@ -21,7 +21,7 @@ test('Lifetime PR is all-activation history while its chart stays current-run sc
       },
     },
   };
-  const progression = computeStrengthAnalytics(state, DAYS, 1).liftProgression.Squat;
+  const progression = computeStrengthAnalytics(state, DAYS, 1).liftProgression['Back Squat'];
   assert.equal(Math.round(progression.series[0]), 117, 'program chart uses active numeric week');
   assert.equal(progression.lifetimePR, 175, 'lifetime label includes archived activation');
   assert.equal(progression.seriesScope, 'active-program-run');

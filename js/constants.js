@@ -1,4 +1,5 @@
 // @ts-check
+import { exerciseLibraryByCategory } from './exercises/catalog.js';
 // ====================================================================
 // SYSTEM METADATA & TRAINING ARCHITECTURE (GLOBAL DATA LAYER)
 // ====================================================================
@@ -16,27 +17,9 @@ export const CONFIG = {
   rmCeilingMultiplier: 1.15
 };
 
-export const EXERCISE_LIBRARY = {
-  Push: [
-    "Bench Press", "Incline DB Press", "Standing Barbell OHP", "Standing OHP",
-    "Seated DB Shoulder Press", "Dips", "Push-Ups", "Close-Grip Bench", "Incline Barbell Press",
-    "Incline Bench Press", "Lateral Raise", "Tricep Band Pushdown", "Tricep Pushdown", 
-    "Close-Grip Push-Ups", "Lying DB Tricep Extension"
-  ],
-  Pull: [
-    "Deadlift", "Pull-Ups", "Barbell Bent-Over Row", "Barbell Row", "Single-Arm DB Row", 
-    "Single Arm DB Row", "Lat Pulldown", "Chest Supported Dumbbell Row", "Chest Supported Row", 
-    "Rear Delt Fly", "Face Pull", "Hammer Curl", "Barbell Curl (Heavy)", "Barbell Curl", 
-    "Chin-Ups", "Incline DB Curl", "Barbell Biceps Curl (Light)", "Bicep Curl", "EZ Bar Curl"
-  ],
-  Legs: [
-    "Back Squat", "Front Squat", "Romanian Deadlift", "Deficit Deadlift",
-    "Bulgarian Split Squat", "Leg Press", "Calf Raises", "Dumbbell Lying Hamstring Curl", "Hamstring Curl"
-  ],
-  Accessories: [
-    "Core/Plank", "Hanging Leg Raises", "Ab Wheel Rollouts", "Cable Crunches"
-  ]
-};
+// Searchable exercise picker, derived from the canonical catalogue so logger,
+// substitutions, history and analytics cannot drift into separate name lists.
+export const EXERCISE_LIBRARY = exerciseLibraryByCategory();
 
 export const PROGRAMS = {
   "hybrid_strength_5k": {

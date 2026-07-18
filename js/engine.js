@@ -5,6 +5,7 @@
 import { CONFIG } from './constants.js';
 import { devWarn } from './debug.js';
 import { isCompletedSet, isWarmupSet } from './set-utils.js';
+import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js';
 import { runSessionsForDay } from './state/run-sessions.js';
 import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
 
@@ -369,7 +370,7 @@ export function reconcilePrescribedSets(existing, desiredCount) {
   if (!Array.isArray(existing)) return Array.from({ length: count }, blank);
 
   const hasUserData = existing.some((set) => set && (
-    set.c || String(set.w ?? '').trim() || String(set.r ?? '').trim() ||
+    isCompletedSet(set) || String(set.w ?? '').trim() || String(set.r ?? '').trim() ||
     set.type || set.rpe != null || set.rir != null || set.bw || set.band || set.loadMode
   ));
   if (!hasUserData) return Array.from({ length: count }, blank);
@@ -410,7 +411,7 @@ export function computeEstimated1RMs() {
         const lName = lKey;
 
         setsArr.forEach(s => {
-          if (s && s.c && s.type !== 'W' && !s.isWarmup) {
+          if (isCompletedSet(s) && !isWarmupSet(s)) {
             const weight = parseFloat(s.w) || 0;
             const reps = parseInt(s.r, 10) || 0;
             const e1rm = weight * (1 + reps / 30);
@@ -448,12 +449,13 @@ export function computeExercisePRs(state, stats = {}) {
       if (!dayLifts) continue;
 
       for (let lift in dayLifts) {
+        const statKey = canonicalExerciseId(lift) || lift;
         let maxEstimated1RM = 0;
         const setsArr = dayLifts[lift];
         if (!Array.isArray(setsArr)) continue;
 
         setsArr.forEach(set => {
-          if (set && set.c && set.w && set.r && set.type !== 'W' && !set.isWarmup) {
+          if (isCompletedSet(set) && set.w && set.r && !isWarmupSet(set)) {
             const weight = parseFloat(set.w);
             const reps = parseInt(set.r);
             const e1RM = weight * (1 + (reps / 30));
@@ -462,15 +464,15 @@ export function computeExercisePRs(state, stats = {}) {
         });
 
         if (maxEstimated1RM > 0) {
-          if (!stats[lift]) {
-            stats[lift] = { allTimeMax: 0, currentEstimatedMax: 0 };
+          if (!stats[statKey]) {
+            stats[statKey] = exerciseStatForName(stats, lift) || { allTimeMax: 0, currentEstimatedMax: 0 };
           }
-          if (maxEstimated1RM > stats[lift].allTimeMax) {
-            stats[lift].allTimeMax = maxEstimated1RM;
+          if (maxEstimated1RM > stats[statKey].allTimeMax) {
+            stats[statKey].allTimeMax = maxEstimated1RM;
           }
           if (wKey === state.currentWeek) {
-            if (maxEstimated1RM > (stats[lift].currentEstimatedMax || 0)) {
-              stats[lift].currentEstimatedMax = maxEstimated1RM;
+            if (maxEstimated1RM > (stats[statKey].currentEstimatedMax || 0)) {
+              stats[statKey].currentEstimatedMax = maxEstimated1RM;
             }
           }
         }

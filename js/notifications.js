@@ -20,6 +20,7 @@ import { buildMorningBriefing, briefingToText } from './brain/morning-briefing.j
 import { buildWeeklyReview, reviewToText } from './brain/weekly-review.js';
 import { maybePushFastingNudge } from './fasting/fasting-nudge.js';
 import { makeBridgeCallbackId } from './util/bridge-callback-id.js';
+import { isCompletedSet } from './set-utils.js';
 import { runDaySummary } from './state/run-sessions.js';
 
 let _reminderTimer = null;
@@ -155,7 +156,7 @@ function _hasLoggedToday(dayKey) {
   if (!wk) return false;
   const hasLifts = Object.keys(wk.lifts?.[dayKey] || {}).some(l => {
     const sets = wk.lifts[dayKey][l];
-    return Array.isArray(sets) && sets.some(s => s?.c);
+    return Array.isArray(sets) && sets.some(isCompletedSet);
   });
   const hasRun = (parseFloat(runDaySummary(wk, dayKey).dist) || 0) > 0;
   return hasLifts || hasRun;
@@ -279,7 +280,7 @@ export function checkMissedWorkout() {
   if (!wk) return;
   const hasLifts = Object.keys(wk.lifts?.[yesterdayKey] || {}).some(l => {
     const sets = wk.lifts[yesterdayKey][l];
-    return Array.isArray(sets) && sets.some(s => s?.c);
+    return Array.isArray(sets) && sets.some(isCompletedSet);
   });
   const hasRun = (parseFloat(runDaySummary(wk, yesterdayKey).dist) || 0) > 0;
 

@@ -852,7 +852,7 @@ export function openTodaySummaryModal() {
       if (liftNames.length > 0) {
         let html = '<div class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:0.05em;">Set Breakdown</div>';
         liftNames.forEach(lift => {
-          const completedSets = dayLifts[lift].filter(s => s && s.c);
+          const completedSets = dayLifts[lift].filter(isCompletedSet);
           if (completedSets.length === 0) return;
           const displayLiftName = lift;
           html += `<div class="mb-2"><div class="text-sm font-bold text-inverse mb-1">${escapeHtml(displayLiftName)}</div>`;
@@ -887,7 +887,7 @@ export function openTodaySummaryModal() {
       for (const lift in prevLifts) {
         if (Array.isArray(prevLifts[lift])) {
           prevLifts[lift].forEach(s => {
-            if (s && s.c) { prevSets++; prevVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
+            if (isCompletedSet(s)) { prevSets++; prevVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
           });
         }
       }

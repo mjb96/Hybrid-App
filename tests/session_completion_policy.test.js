@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { completionPresentation, evaluateSessionCompletion } from '../js/workout/completion-policy.js';
+import { finishSession, markSessionInProgress } from '../js/workout/session-status.js';
 
 const PROGRAM = {
   days: {
@@ -40,9 +41,10 @@ test('hybrid session requires both the planned sets and run', () => {
   assert.equal(withoutRun.componentOutcome, 'strength-complete');
   assert.equal(withoutRun.progressLabel, 'Strength complete · run not logged');
   const strengthPresentation = completionPresentation(withoutRun);
-  assert.equal(strengthPresentation.title, 'Strength workout complete');
+  assert.equal(strengthPresentation.title, 'Finish workout?');
   assert.doesNotMatch(strengthPresentation.title, /partial/i);
-  assert.match(strengthPresentation.body, /run is still open/i);
+  assert.match(strengthPresentation.body, /treated as skipped/i);
+  assert.equal(strengthPresentation.emitsRecap, true);
   const withRun = evaluateSessionCompletion(state({ lifts, runSessions: { mon: [{ sessionId: 'run_1', dist: '5', time: '25:00' }] } }), PROGRAM, 1, 'mon');
   assert.equal(withRun.outcome, 'complete');
 });
@@ -51,8 +53,8 @@ test('a completed run on a hybrid day is credited while strength remains open', 
   const result = evaluateSessionCompletion(state({ runSessions: { mon: [{ sessionId: 'run_3', dist: '5', time: '25:00' }] } }), PROGRAM, 1, 'mon');
   assert.equal(result.componentOutcome, 'run-complete');
   const presentation = completionPresentation(result);
-  assert.equal(presentation.title, 'Run complete');
-  assert.match(presentation.body, /strength work is still open/i);
+  assert.equal(presentation.title, 'Finish workout?');
+  assert.match(presentation.body, /treated as skipped/i);
 });
 
 test('run-only plan does not invent a gym requirement despite its title', () => {
@@ -85,17 +87,54 @@ test('rest day is never a completed training session', () => {
   assert.equal(result.complete, false);
 });
 
-test('partial-save presentation never claims completion or opens the completed recap', () => {
-  const presentation = completionPresentation({ partial: true, complete: false });
-  assert.match(presentation.title, /partial/i);
-  assert.match(presentation.body, /not be marked complete/i);
-  assert.equal(presentation.emitsRecap, false);
+test('deliberately finishing skipped work never calls the session partial', () => {
+  const presentation = completionPresentation({ partial: true, complete: false, anyLogged: true });
+  assert.equal(presentation.title, 'Finish workout?');
+  assert.doesNotMatch(presentation.title + presentation.body, /partial/i);
+  assert.equal(presentation.emitsRecap, true);
 });
 
-test('only policy-complete work receives the completion action and recap', () => {
-  const presentation = completionPresentation({ partial: false, complete: true });
-  assert.match(presentation.title, /complete/i);
+test('fully adherent work uses the same explicit finish action', () => {
+  const presentation = completionPresentation({ partial: false, complete: true, anyLogged: true });
+  assert.equal(presentation.action, 'Finish Workout');
   assert.equal(presentation.emitsRecap, true);
+});
+
+test('warm-up-only or empty work cannot be finished as training', () => {
+  const result = evaluateSessionCompletion(state({ lifts: { wed: { Squat: [set(true, 'W')] } } }), PROGRAM, 1, 'wed');
+  assert.equal(result.anyLogged, false);
+  const presentation = completionPresentation(result);
+  assert.equal(presentation.action, null);
+  assert.match(presentation.body, /discard/i);
+});
+
+test('finish state is separate from adherence and is idempotent', () => {
+  const value = state({ lifts: { mon: { Squat: [set(true), set(true)], Bench: [set(false), set(false)] } } });
+  const before = evaluateSessionCompletion(value, PROGRAM, 1, 'mon');
+  assert.equal(before.complete, false, 'prescription adherence remains incomplete');
+  const first = finishSession(value.weeks['1'], 'mon', before, Date.parse('2026-07-19T10:00:00Z'));
+  const second = finishSession(value.weeks['1'], 'mon', before, Date.parse('2026-07-19T11:00:00Z'));
+  const after = evaluateSessionCompletion(value, PROGRAM, 1, 'mon');
+  assert.equal(first.alreadyFinished, false);
+  assert.equal(second.alreadyFinished, true);
+  assert.equal(after.finished, true);
+  assert.equal(after.complete, false);
+  assert.equal(value.weeks['1'].sessionSummary.mon.skippedSets, 2);
+  assert.equal(value.weeks['1'].sessionSummary.mon.finishedAt, '2026-07-19T10:00:00.000Z');
+});
+
+test('leaving fully logged new work without Finish keeps it resumable', () => {
+  const value = state({ lifts: { wed: { Squat: [set(true), set(true)] } } });
+  markSessionInProgress(value.weeks['1'], 'wed');
+  const result = evaluateSessionCompletion(value, PROGRAM, 1, 'wed');
+  assert.equal(result.complete, true, 'planned adherence can already be complete');
+  assert.equal(result.finished, false, 'session lifecycle waits for Finish Workout');
+});
+
+test('editing a finished workout retains its finished lifecycle', () => {
+  const week = { sessionStatus: { wed: 'finished' } };
+  assert.equal(markSessionInProgress(week, 'wed'), false);
+  assert.equal(week.sessionStatus.wed, 'finished');
 });
 
 test('one-off strength completion is isolated from the program prescription', () => {

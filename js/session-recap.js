@@ -8,14 +8,14 @@
 // buildSessionRecap() is pure (state, week, day) → structured summary — unit
 // tested. Rendering + show/hide touch the DOM.
 // ==========================================
-import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
+import { isCompletedSet, isWarmupSet, isValidWorkingSet, setVolume } from './set-utils.js';
 import { renderRunMap } from './workout-map.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { insightsForSession } from './analytics/insights/build-insights.js';
 import { paceZoneColour } from './analytics/utils.js';
 import { confettiBurst } from './ui/celebration.js';
 import { hapticSuccess } from './haptics.js';
-import { MUSCLE_MAP } from './metrics/metrics-strength.js';
+import { muscleCreditsForExercise } from './exercises/catalog.js';
 import { sharePRCard, topPR } from './brain/pr-share.js';
 import { showToast } from './state.js';
 import { sanitizeGpsQuality } from './gps/route-quality.js';
@@ -101,12 +101,12 @@ export function buildSessionRecap(state, week, day, sessionId = null, activityKi
   // ── Strength ──
   let tonnage = 0, workingSets = 0, totalReps = 0;
   const lifts = [];
-  const muscleCredits = {};   // muscle → weighted working-set credits (primary 1, secondary 0.5)
+  const muscleCredits = {};   // muscle → estimated working-set credits
   for (const name in dayLifts) {
     if (activityKind === 'run') break;
     const sets = dayLifts[name];
     if (!Array.isArray(sets)) continue;
-    const done = sets.filter((s) => isCompletedSet(s) && !isWarmupSet(s));
+    const done = sets.filter(isValidWorkingSet);
     if (!done.length) continue;
     let liftVol = 0, bestE1 = 0, topSet = null, liftReps = 0;
     done.forEach((s) => {
@@ -129,11 +129,11 @@ export function buildSessionRecap(state, week, day, sessionId = null, activityKi
         vol: Math.round(setVolume(s)),
       }));
 
-    // Weighted muscle credits (primary 1.0, secondary 0.5) × working set count.
-    const mm = MUSCLE_MAP[name];
-    if (mm) {
-      (mm.primary || []).forEach((m) => { muscleCredits[m] = (muscleCredits[m] || 0) + done.length; });
-      (mm.secondary || []).forEach((m) => { muscleCredits[m] = (muscleCredits[m] || 0) + done.length * 0.5; });
+    const credits = muscleCreditsForExercise(name);
+    if (credits) {
+      for (const [muscle, credit] of Object.entries(credits)) {
+        muscleCredits[muscle] = (muscleCredits[muscle] || 0) + done.length * credit;
+      }
     }
 
     // PR: this session's best e1RM beats the lift's best in every prior session

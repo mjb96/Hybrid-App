@@ -4,8 +4,8 @@
 // Pure functions. No DOM, no side effects.
 // ==========================================
 import { linearRegression, trendLine, rollingAverage, pctChange, clamp } from './math-utils.js';
-import { allLiftsStats, weeklyE1rmByLift, weeklyTonnageSeries, weeklyVolumeByMuscle } from '../../metrics/metrics-strength.js';
-import { MUSCLE_GROUPS, GROUP_LANDMARKS, classifyVolume, buildMuscleLandmarkReport } from './volume-landmarks.js';
+import { allLiftsStats, weeklyE1rmByLift, weeklyTonnageSeries, weeklyVolumeByMuscle, calendarVolumeByMuscle } from '../../metrics/metrics-strength.js';
+import { MUSCLE_GROUPS, GROUP_LANDMARKS, classifyVolume, buildMuscleLandmarkReportFromCredits } from './volume-landmarks.js';
 
 // Rate of improvement (kg per week) for a lift, from linear regression on e1RM series.
 // Returns kg/week. Negative = declining. Returns 0 if insufficient data.
@@ -111,14 +111,16 @@ export function muscleTrainingStatus(currentWeekSets) {
 }
 
 // Full strength analytics payload — computed once, passed to views.
-export function computeStrengthAnalytics(state, days, maxWeek) {
+export function computeStrengthAnalytics(state, days, maxWeek, options = {}) {
   const currentWeek   = parseInt(state.currentWeek || '1', 10);
   const volSeries     = weeklyTonnageSeries(state, days, maxWeek);
   const e1rmByLift    = weeklyE1rmByLift(state, days, maxWeek);
   const allTimeByLift = allLiftsStats(state, days);
   const muscleByWeek  = weeklyVolumeByMuscle(state, days, maxWeek);
   const muscleGroups  = aggregateMuscleGroups(muscleByWeek, maxWeek);
-  const currentSets   = currentWeekSetsByGroup(muscleGroups, currentWeek);
+  const calendarCredits = calendarVolumeByMuscle(state, { weekStart: options.weekStart, today: options.today, tz: options.tz });
+  const muscleLandmarks = buildMuscleLandmarkReportFromCredits(calendarCredits);
+  const currentSets = Object.fromEntries(Object.entries(muscleLandmarks.groups).map(([group, row]) => [group, row.sets]));
 
   // Per-lift progression metrics
   const liftProgression = {};
@@ -160,7 +162,6 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
   // Muscle analysis
   const muscleBalance = muscleBalanceRelative(currentSets);
   const muscleStatus  = muscleTrainingStatus(currentSets);
-  const muscleLandmarks = buildMuscleLandmarkReport(muscleByWeek, currentWeek);
 
   return {
     volSeries,
@@ -174,6 +175,7 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
     muscleBalance,
     muscleStatus,
     muscleLandmarks,
+    volumeWeekStart: options.weekStart || null,
     tonnageACWR,
     volProgPct,
     currentWeek,

@@ -27,6 +27,15 @@ export function isWarmupSet(s) {
 }
 
 /**
+ * A set eligible for strength frequency, history and volume analytics.
+ * Weight is deliberately optional (bodyweight/band work); positive reps or a
+ * positive duration/distance stored in the reps field are required.
+ */
+export function isValidWorkingSet(s) {
+  return isCompletedSet(s) && !isWarmupSet(s) && (parseInt(s?.r, 10) || 0) > 0;
+}
+
+/**
  * Tonnage for a single set (weight × reps), coercing string inputs.
  * @param {any} s
  * @returns {number}
@@ -48,7 +57,7 @@ export function dayVolume(dayLifts, { includeWarmups = false } = {}) {
     const sets = dayLifts[lift];
     if (!Array.isArray(sets)) continue;
     for (const s of sets) {
-      if (isCompletedSet(s) && (includeWarmups || !isWarmupSet(s))) vol += setVolume(s);
+      if ((includeWarmups ? isCompletedSet(s) : isValidWorkingSet(s))) vol += setVolume(s);
     }
   }
   return vol;

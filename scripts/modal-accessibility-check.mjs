@@ -96,7 +96,8 @@ try {
   await page.evaluate(() => history.back());
   await page.waitForFunction(() => document.getElementById('quickStartSheet')?.getAttribute('aria-hidden') === 'true');
 
-  // The real finish sheet must use partial-save language for one logged set.
+  // Deliberately finishing is lifecycle state, not perfect adherence: one valid
+  // set still gets an honest Finish/Keep/Discard choice and skipped-work copy.
   const partialFinish = await page.evaluate(async () => {
     const state = await import('./js/state.js');
     const workout = await import('./js/workout.js');
@@ -114,12 +115,40 @@ try {
     return {
       title: document.getElementById('summaryModalTitle')?.textContent,
       body: document.getElementById('summaryModalCopy')?.textContent,
+      action: document.getElementById('summarySaveAction')?.textContent,
+      keep: document.querySelector('[data-action="cancel-finish-modal"]')?.textContent,
+      discard: document.getElementById('summaryDiscardAction')?.textContent,
       modal: document.getElementById('summaryModal')?.getAttribute('aria-modal'),
     };
   });
-  check(/Save partial session/.test(partialFinish.title || ''), `partial finish title was misleading: ${partialFinish.title}`);
-  check(/will not be marked complete/.test(partialFinish.body || ''), 'partial finish body claimed completion');
+  check(partialFinish.title === 'Finish workout?', `finish title was misleading: ${partialFinish.title}`);
+  check(/treated as skipped/.test(partialFinish.body || ''), 'finish body did not explain skipped planned work');
+  check(partialFinish.action === 'Finish Workout', `finish action was unclear: ${partialFinish.action}`);
+  check(partialFinish.keep?.trim() === 'Keep Training', `resume action was unclear: ${partialFinish.keep}`);
+  check(partialFinish.discard?.trim() === 'Discard Workout', `discard action was unclear: ${partialFinish.discard}`);
   check(partialFinish.modal === 'true', 'finish dialog did not acquire modal semantics');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.getElementById('summaryModal')?.getAttribute('aria-hidden') === 'true');
+
+  const emptyFinish = await page.evaluate(async () => {
+    const state = await import('./js/state.js');
+    const workout = await import('./js/workout.js');
+    const week = state.appState.weeks[String(state.appState.currentWeek || '1')];
+    for (const sets of Object.values(week?.lifts?.mon || {})) {
+      if (!Array.isArray(sets)) continue;
+      for (const set of sets) set.c = false;
+    }
+    workout.openFinishSessionModal();
+    await new Promise(requestAnimationFrame);
+    const action = document.getElementById('summarySaveAction');
+    return {
+      title: document.getElementById('summaryModalTitle')?.textContent,
+      primaryHidden: action?.hidden,
+      primaryDisplay: action ? getComputedStyle(action).display : null,
+    };
+  });
+  check(emptyFinish.title === 'No working sets recorded', `empty finish title was unclear: ${emptyFinish.title}`);
+  check(emptyFinish.primaryHidden && emptyFinish.primaryDisplay === 'none', 'empty workout still exposed a Finish action');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.getElementById('summaryModal')?.getAttribute('aria-hidden') === 'true');
 
@@ -205,4 +234,4 @@ if (failures.length) {
   console.error('modal-accessibility-check: FAIL\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('modal-accessibility-check: PASS — modal semantics/navigation, truthful partial finish, and canonical fresh-install onboarding state.');
+console.log('modal-accessibility-check: PASS — modal semantics/navigation, explicit finish lifecycle, no-data guard, and canonical onboarding state.');

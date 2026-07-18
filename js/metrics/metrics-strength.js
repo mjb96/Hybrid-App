@@ -2,7 +2,7 @@
 // ==========================================
 // STRENGTH METRICS (metrics/metrics-strength.js)
 // ==========================================
-// Pure functions — no DOM, no imports, no side effects.
+// Pure functions — no DOM or side effects.
 // All take (state, days, …) so they can be tested in isolation.
 // ==========================================
 
@@ -14,6 +14,9 @@ export {
   calendarStrengthSummary, calendarWeekE1rmSeriesForLift,
 } from '../analytics/strength-calendar.js';
 import { estimatedE1rm } from '../analytics/strength-calendar.js';
+import { canonicalExerciseId, legacyMuscleMap, muscleCreditsForExercise, resolveExercise } from '../exercises/catalog.js';
+import { isValidWorkingSet } from '../set-utils.js';
+import { collectCalendarWeek, localDayKey, weekStartOf } from '../analytics/weekly-aggregate.js';
 
 // ---- internal helpers -----------------------------------------------------
 
@@ -38,64 +41,13 @@ export function isWeeklyPR(stat) {
   return cur > 0 && prior > 0 && cur >= all - 0.01;
 }
 
-function isCompleted(s) {
-  return s.c === true || s.c === 'true' || s.c === 'on' || s.c === 1;
-}
-
 function isWorkingSet(s) {
-  return isCompleted(s) && s.type !== 'W' && !s.isWarmup;
+  return isValidWorkingSet(s);
 }
 
-// ---- muscle map (primary weight 1.0, secondary weight 0.5) ----------------
-export const MUSCLE_MAP = {
-  'Back Squat':                { primary: ['quads', 'glutes'],                  secondary: ['erectors', 'adductors'] },
-  'Front Squat':               { primary: ['quads'],                            secondary: ['glutes', 'core'] },
-  'Romanian Deadlift':         { primary: ['hamstrings', 'glutes'],             secondary: ['erectors'] },
-  'Deadlift':                  { primary: ['hamstrings', 'glutes'],             secondary: ['erectors', 'traps', 'lats'] },
-  'Deficit Deadlift':          { primary: ['hamstrings', 'glutes'],             secondary: ['erectors', 'traps', 'lats'] },
-  'Bulgarian Split Squat':     { primary: ['quads', 'glutes'],                  secondary: ['hamstrings', 'adductors'] },
-  'Leg Press':                 { primary: ['quads'],                            secondary: ['glutes', 'hamstrings'] },
-  'Hamstring Curl':            { primary: ['hamstrings'],                       secondary: [] },
-  'Dumbbell Lying Hamstring Curl': { primary: ['hamstrings'],                   secondary: ['glutes'] },
-  'Calf Raises':               { primary: ['calves'],                           secondary: [] },
-  'Bench Press':               { primary: ['chest', 'front_delts'],             secondary: ['triceps'] },
-  'Incline DB Press':          { primary: ['upper_chest', 'front_delts'],       secondary: ['triceps'] },
-  'Incline Bench Press':       { primary: ['upper_chest', 'front_delts'],       secondary: ['triceps'] },
-  'Incline Barbell Press':     { primary: ['upper_chest', 'front_delts'],       secondary: ['triceps'] },
-  'Close-Grip Bench':          { primary: ['triceps'],                          secondary: ['chest'] },
-  'Push-Ups':                  { primary: ['chest'],                            secondary: ['triceps', 'front_delts'] },
-  'Close-Grip Push-Ups':       { primary: ['triceps'],                          secondary: ['chest'] },
-  'Dips':                      { primary: ['chest', 'triceps'],                 secondary: ['front_delts'] },
-  'Standing Barbell OHP':      { primary: ['front_delts'],                      secondary: ['triceps', 'upper_chest', 'core'] },
-  'Standing OHP':              { primary: ['front_delts'],                      secondary: ['triceps', 'upper_chest', 'core'] },
-  'Seated DB Shoulder Press':  { primary: ['front_delts'],                      secondary: ['triceps', 'upper_chest'] },
-  'Lateral Raise':             { primary: ['side_delts'],                       secondary: [] },
-  'Tricep Band Pushdown':      { primary: ['triceps'],                          secondary: [] },
-  'Tricep Pushdown':           { primary: ['triceps'],                          secondary: [] },
-  'Lying DB Tricep Extension': { primary: ['triceps'],                          secondary: [] },
-  'Pull-Ups':                  { primary: ['lats', 'upper_back'],               secondary: ['biceps', 'rear_delts'] },
-  'Chin-Ups':                  { primary: ['lats', 'biceps'],                   secondary: ['upper_back'] },
-  'Lat Pulldown':              { primary: ['lats'],                             secondary: ['upper_back', 'biceps'] },
-  'Barbell Bent-Over Row':     { primary: ['upper_back', 'lats'],               secondary: ['biceps', 'rear_delts', 'erectors'] },
-  'Barbell Row':               { primary: ['upper_back', 'lats'],               secondary: ['biceps', 'rear_delts'] },
-  'Chest Supported Dumbbell Row': { primary: ['upper_back'],                    secondary: ['rear_delts', 'biceps'] },
-  'Chest Supported Row':       { primary: ['upper_back'],                       secondary: ['rear_delts', 'biceps'] },
-  'Single-Arm DB Row':         { primary: ['lats', 'upper_back'],               secondary: ['biceps'] },
-  'Single Arm DB Row':         { primary: ['lats', 'upper_back'],               secondary: ['biceps'] },
-  'Face Pull':                 { primary: ['rear_delts'],                       secondary: ['upper_back'] },
-  'Rear Delt Fly':             { primary: ['rear_delts'],                       secondary: ['upper_back'] },
-  'Hammer Curl':               { primary: ['brachialis', 'biceps'],             secondary: [] },
-  'Barbell Curl (Heavy)':      { primary: ['biceps'],                           secondary: ['brachialis'] },
-  'Barbell Curl':              { primary: ['biceps'],                           secondary: ['brachialis'] },
-  'Barbell Biceps Curl (Light)':{ primary: ['biceps'],                          secondary: ['brachialis'] },
-  'Bicep Curl':                { primary: ['biceps'],                           secondary: ['brachialis'] },
-  'EZ Bar Curl':               { primary: ['biceps'],                           secondary: ['brachialis'] },
-  'Incline DB Curl':           { primary: ['biceps'],                           secondary: [] },
-  'Core/Plank':                { primary: ['core'],                             secondary: [] },
-  'Hanging Leg Raises':        { primary: ['core'],                             secondary: [] },
-  'Ab Wheel Rollouts':         { primary: ['core'],                             secondary: [] },
-  'Cable Crunches':            { primary: ['core'],                             secondary: [] },
-};
+// Compatibility export. New calculations resolve aliases through the canonical
+// exercise catalogue and use its explicit 1.0 / 0.5 / 0.25 credits.
+export const MUSCLE_MAP = legacyMuscleMap();
 
 // ---- public API -----------------------------------------------------------
 
@@ -130,11 +82,12 @@ export function weeklyE1rmByLift(state, days, maxWeek) {
       const dayLifts = wkData?.lifts?.[d] || {};
       for (const lift in dayLifts) {
         if (!Array.isArray(dayLifts[lift])) continue;
-        if (!result[lift]) result[lift] = new Array(maxWeek).fill(0);
+        const identity = resolveExercise(lift)?.name || lift;
+        if (!result[identity]) result[identity] = new Array(maxWeek).fill(0);
         dayLifts[lift].forEach(s => {
           if (!isWorkingSet(s)) return;
           const val = e1rm(parseFloat(s.w) || 0, parseInt(s.r, 10) || 0);
-          if (val > result[lift][w - 1]) result[lift][w - 1] = val;
+          if (val > result[identity][w - 1]) result[identity][w - 1] = val;
         });
       }
     });
@@ -233,13 +186,14 @@ export function allLiftsStats(state, days) {
       const dayLifts = wkData?.lifts?.[d] || {};
       for (const lift in dayLifts) {
         if (!Array.isArray(dayLifts[lift])) continue;
-        if (!result[lift]) result[lift] = { allTimeMax: 0, currentWeekMax: 0, prevWeekMax: 0 };
+        const identity = resolveExercise(lift)?.name || lift;
+        if (!result[identity]) result[identity] = { allTimeMax: 0, currentWeekMax: 0, prevWeekMax: 0 };
         dayLifts[lift].forEach(s => {
           if (!isWorkingSet(s)) return;
           const val = e1rm(parseFloat(s.w) || 0, parseInt(s.r, 10) || 0);
-          if (val > result[lift].allTimeMax) result[lift].allTimeMax = val;
-          if (wKey === curWk  && val > result[lift].currentWeekMax) result[lift].currentWeekMax = val;
-          if (wKey === prevWk && val > result[lift].prevWeekMax)    result[lift].prevWeekMax = val;
+          if (val > result[identity].allTimeMax) result[identity].allTimeMax = val;
+          if (wKey === curWk  && val > result[identity].currentWeekMax) result[identity].currentWeekMax = val;
+          if (wKey === prevWk && val > result[identity].prevWeekMax)    result[identity].prevWeekMax = val;
         });
       }
     });
@@ -254,14 +208,14 @@ export function big3Progression(state) {
     bench:    { allTime: 0, byWeek: {} },
     deadlift: { allTime: 0, byWeek: {} },
   };
-  const BIG3 = { squat: 'Back Squat', bench: 'Bench Press', deadlift: 'Deadlift' };
+  const BIG3 = { squat: 'back_squat', bench: 'barbell_bench_press', deadlift: 'conventional_deadlift' };
 
   for (const wKey in (state.weeks || {})) {
     const wkData = state.weeks[wKey];
-    for (const [key, liftName] of Object.entries(BIG3)) {
+    for (const [key, exerciseId] of Object.entries(BIG3)) {
       for (const d in (wkData?.lifts || {})) {
-        const sets = wkData.lifts[d]?.[liftName];
-        if (!Array.isArray(sets)) continue;
+        for (const [liftName, sets] of Object.entries(wkData.lifts[d] || {})) {
+          if (canonicalExerciseId(liftName) !== exerciseId || !Array.isArray(sets)) continue;
         sets.forEach(s => {
           if (!isWorkingSet(s)) return;
           const val = e1rm(parseFloat(s.w) || 0, parseInt(s.r, 10) || 0);
@@ -270,6 +224,7 @@ export function big3Progression(state) {
             result[key].byWeek[wKey] = val;
           }
         });
+        }
       }
     }
   }
@@ -282,8 +237,9 @@ export function big3Maxes(state) {
   return { squat: prog.squat.allTime, bench: prog.bench.allTime, deadlift: prog.deadlift.allTime };
 }
 
-// Returns {[muscle]: number[]} — weighted set credits (primary 1.0, secondary 0.5)
-// per muscle per week. Excludes warmups. Returns {} when no data.
+// Returns {[muscle]: number[]} — estimated set credits per active program week.
+// Only valid completed working sets with reps > 0 count. Missing weight is
+// allowed because bodyweight and band work are still valid set-based training.
 export function weeklyVolumeByMuscle(state, days, maxWeek) {
   /** @type {Record<string, number[]>} */
   const result = {};
@@ -294,23 +250,45 @@ export function weeklyVolumeByMuscle(state, days, maxWeek) {
       const dayLifts = wkData?.lifts?.[d] || {};
       for (const liftName in dayLifts) {
         if (!Array.isArray(dayLifts[liftName])) continue;
-        const muscles = MUSCLE_MAP[liftName];
-        if (!muscles) continue;
+        const credits = muscleCreditsForExercise(liftName);
+        if (!credits) continue;
 
         let workingSets = 0;
         dayLifts[liftName].forEach(s => { if (isWorkingSet(s)) workingSets++; });
         if (workingSets === 0) continue;
 
-        muscles.primary.forEach(m => {
+        for (const [m, credit] of Object.entries(credits)) {
           if (!result[m]) result[m] = new Array(maxWeek).fill(0);
-          result[m][w - 1] += workingSets * 1.0;
-        });
-        muscles.secondary.forEach(m => {
-          if (!result[m]) result[m] = new Array(maxWeek).fill(0);
-          result[m][w - 1] += workingSets * 0.5;
-        });
+          result[m][w - 1] += workingSets * credit;
+        }
       }
     });
+  }
+  return result;
+}
+
+/**
+ * Estimated muscle set credits for one real Monday–Sunday calendar week across
+ * active, archived and one-off sessions. Stored dates are mandatory.
+ */
+export function calendarVolumeByMuscle(state, opts = {}) {
+  const today = opts.today || localDayKey(new Date(), opts.tz);
+  const weekStart = opts.weekStart || weekStartOf(today);
+  if (!weekStart) return {};
+  const week = collectCalendarWeek(state, weekStart, { tz: opts.tz });
+  /** @type {Record<string, number>} */
+  const result = {};
+  for (const dayLifts of Object.values(week.lifts || {})) {
+    for (const [liftName, sets] of Object.entries(dayLifts || {})) {
+      if (!Array.isArray(sets)) continue;
+      const credits = muscleCreditsForExercise(liftName);
+      if (!credits) continue;
+      const workingSets = sets.filter(isWorkingSet).length;
+      if (!workingSets) continue;
+      for (const [muscle, credit] of Object.entries(credits)) {
+        result[muscle] = (result[muscle] || 0) + workingSets * credit;
+      }
+    }
   }
   return result;
 }

@@ -5,7 +5,7 @@
 // ==========================================
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { isCompletedSet, isWarmupSet, setVolume, dayVolume } from '../js/set-utils.js';
+import { isCompletedSet, isWarmupSet, isValidWorkingSet, setVolume, dayVolume } from '../js/set-utils.js';
 
 test('isCompletedSet accepts every legacy "completed" encoding', () => {
   for (const c of [true, 'true', 'on', 1]) {
@@ -25,6 +25,15 @@ test('isWarmupSet covers both the type marker and legacy flag', () => {
   assert.equal(isWarmupSet({ type: 'D' }), false);
   assert.equal(isWarmupSet({}), false);
   assert.equal(isWarmupSet(null), false);
+});
+
+test('isValidWorkingSet requires explicit completion, non-warmup and positive reps', () => {
+  assert.equal(isValidWorkingSet({ c: true, w: '', r: '12' }), true, 'bodyweight can omit load');
+  assert.equal(isValidWorkingSet({ c: 'true', w: '20', r: '8' }), true);
+  assert.equal(isValidWorkingSet({ c: true, w: '20', r: '0' }), false);
+  assert.equal(isValidWorkingSet({ c: true, w: '20', r: '' }), false);
+  assert.equal(isValidWorkingSet({ c: true, w: '20', r: '8', type: 'W' }), false);
+  assert.equal(isValidWorkingSet({ c: 'false', w: '20', r: '8' }), false);
 });
 
 test('setVolume multiplies coerced weight × reps', () => {

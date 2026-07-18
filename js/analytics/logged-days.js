@@ -2,13 +2,13 @@
 // =============================================================================
 // LOGGED DAYS (js/analytics/logged-days.js) — roadmap R18
 //
-// One definition of "walk every day that has logged training, with its real
-// calendar date". The week→date resolution (prefer the stored date, else
-// reconstruct from weekStartedAt) was duplicated across the streak, monthly
-// and dashboard code; this centralises it so they can't drift.
+// One date-strict definition of "walk every day that has logged training, with
+// its real calendar date". Legacy undated activity is preserved in storage but
+// excluded from calendar analytics rather than guessed into a modern week.
 // =============================================================================
-import { dayVolume, isCompletedSet } from '../set-utils.js';
+import { dayVolume, isValidWorkingSet } from '../set-utils.js';
 import { runDaySummary } from '../state/run-sessions.js';
+import { localDayKey } from '../dates.js';
 
 const num = (v) => parseFloat(v) || 0;
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -20,7 +20,7 @@ function completedSetCount(lifts) {
   let n = 0;
   for (const lift in (lifts || {})) {
     const sets = lifts[lift];
-    if (Array.isArray(sets)) n += sets.filter(isCompletedSet).length;
+    if (Array.isArray(sets)) n += sets.filter(isValidWorkingSet).length;
   }
   return n;
 }
@@ -69,10 +69,12 @@ export function forEachLoggedDay(state, days, cb) {
       const run = runDaySummary(wd, day);
       const distance = num(run?.dist);
       if (completedSetCount(lifts) <= 0 && distance <= 0) return;
+      const dateISO = localDayKey(stored[day]);
+      if (!dateISO) return;
       const volume = dayVolume(lifts);
       cb({
         weekNum, day, dayIdx,
-        dateISO: resolveSlotDate(state, weekNum, dayIdx, stored[day]),
+        dateISO,
         volume, distance, lifts, run,
       });
     });

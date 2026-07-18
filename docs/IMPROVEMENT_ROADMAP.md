@@ -1,7 +1,7 @@
 # Helyx Improvement Roadmap
 
 **Prepared:** 14 July 2026  
-**Last reconciled with `main`:** 16 July 2026
+**Last reconciled with `main`:** 19 July 2026
 **Goal:** reach a trustworthy Android public beta without expanding scope  
 **Constraint:** iOS, billing, paywalls, and new feature categories remain deferred
 
@@ -19,6 +19,12 @@ release gates, and session history. Enduring rules formerly spread across dated 
 7. One truth per day: plan, completion, readiness, and weekly totals must agree everywhere.
 8. Calendar-week analytics use stamped local dates; program weeks are plan position only;
    rolling readiness/load metrics keep their explicitly named windows.
+9. Session lifecycle and plan adherence are separate: deliberate Finish means finished,
+   while completed/skipped planned work remains measurable without calling the workout partial.
+10. Stored exercise display names remain untouched; explicit aliases resolve to canonical IDs
+    at read time, and unknown custom names retain exact identity.
+11. Muscle-volume indicators are estimated set credits and typical ranges, never a personal
+    diagnosis of minimum effective or maximum recoverable volume.
 
 The active beta scope is Android, strength + running logging, programs, honest analytics,
 and reliable local/cloud portability. iOS, billing/paywalls, social feeds, live coaching,
@@ -108,12 +114,15 @@ count, downloads, or monetization—are the decision metrics.
   explicit deload state across Home, briefing, detail/timeline, analytics, notifications,
   weekly review, and Hybrid Score. Neutral fallback is “Training”; feature code no longer
   reads the global phase-name table. Cross-consumer and catalog/deload regressions pass.
-- **R8 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
-  One completion policy now compares the logged working sets and run against the same
-  program prescription the cockpit renders. Empty, partial, skipped, modified, swapped,
-  run-only, hybrid, full, and rest outcomes are covered. Partial work stays in history but
-  cannot emit completion language, XP/recap, or completed-session coaching; Chromium
-  verifies the real finish dialog says “Save partial session” after one logged set.
+- **R8 lifecycle correction complete — 19 July 2026** on
+  `codex/exercise-volume-finish-audit`. The prescription comparison remains the adherence
+  source, but it no longer decides whether a deliberately finished workout is finished.
+  Additive `sessionStatus[day]` and `sessionSummary[day]` sidecars retain
+  `in_progress|finished`, planned/completed/skipped sets, run adherence and the first
+  `finishedAt`. Finish is idempotent, skipped work still opens recap/history, leaving without
+  Finish remains resumable, and discard uses the existing confirmed deletion path. Empty or
+  warm-up-only work cannot be finished as training. Legacy full/duration-confirmed logs remain
+  readable without rewriting the state blob.
 - **R9 implementation complete — 14 July 2026** on `codex/core-loop-truth-accessibility`.
   The run-type parser is pure and ordered: repetition structure wins over incidental
   recovery/pace words, so `6×800m (90s recovery)` is Intervals. All 73 unique non-rest
@@ -314,17 +323,20 @@ count, downloads, or monetization—are the decision metrics.
   delete identity. The roadmap now owns product rules, direction, status, and release gates;
   dated audit/progress/launch-checklist files were removed. Five physical Android matrices remain
   as executable evidence forms, not parallel status trackers.
-- **R21 exercise progression complete — 18 July 2026** on
+- **R21 exercise progression complete; canonical alias follow-up — 19 July 2026** on
   `codex/r21-r22-release-hardening`. One date-strict exercise-history query now scans
   numeric, archived, and independent-session records across weekdays, programs, and
   activations. Its default progression scope is all stored activations; activation- and
-  program-scoped reads are explicit options. Exact bare-string exercise names remain the
-  identity contract, warm-ups/incomplete sets are excluded, the current edited slot is
+  program-scoped reads are explicit options. Unknown custom names remain exact while explicit
+  catalogue aliases share a canonical identity; warm-ups/incomplete sets are excluded, the current edited slot is
   excluded, and same-day sessions prefer a real start timestamp before a deterministic
   record-key tie-break. Undated legacy slots remain stored but are never invented into the
   chronology. The cockpit's suggestion, stall check, and prior-session fatigue now consume
   this query, so a moved Monday workout logged Tuesday or an archived prior program supplies
-  the correct latest performance.
+  the correct latest performance. The follow-up catalogue now maps explicit historical
+  aliases to canonical exercise IDs at read time, so progression/PR series merge names such
+  as DB Bench Press and Dumbbell Bench Press without mutating stored keys; unknown custom
+  names remain exact.
 - **R22 analytics consolidation complete + bounded R25 seam — 18 July 2026** on
   `codex/r21-r22-release-hardening`. `js/metrics/training-load.js` now owns the one sRPE
   day formula and explicitly separated program-week and calendar-dated rolling scopes;
@@ -344,6 +356,108 @@ count, downloads, or monetization—are the decision metrics.
   The Play pack now flags the mandatory external account-deletion resource, hosted in-app
   privacy link, edge-function verification, provider-sharing classification, placeholder
   replacement, and legal review as unresolved owner gates rather than claiming readiness.
+- **R28 exercise, volume and finish audit implementation complete — 19 July 2026** on
+  `codex/exercise-volume-finish-audit`. One canonical catalogue now owns 120 exercise IDs,
+  125 explicit aliases, movement/equipment/category metadata and per-muscle 1.0/0.5/0.25
+  set-credit weights. All 233 distinct built-in program labels resolve (previously 186 were
+  absent from the 47-name library/muscle map); 11 conditioning stations resolve for identity
+  but are excluded from hypertrophy-set guidance. The logger's searchable library and swap
+  engine derive from the catalogue; history, PR aggregation, big-three and calendar strength
+  analytics resolve aliases while preserving raw stored names. Muscle guidance uses every
+  dated activation/one-off session in the selected Monday–Sunday calendar week, excludes
+  warm-ups/blanks/skips/invalid or zero-rep sets, and calls its output estimated set credits
+  against typical ranges. The former universal MEV/MAV/MRV claims and automatic add-sets
+  coaching were removed. Completion-flag truthiness was replaced with the canonical legacy-
+  safe predicate in remaining consumers, and streak/month calendar walkers no longer invent
+  dates for undated legacy records.
+
+### 19 July reliability audit findings
+
+This is the current audit record; do not create a parallel audit/progress document. Evidence
+is the named source/test, not a prior report.
+
+| ID | Severity | Confidence | Affected area / root cause | User impact | Resolution / status | Regression evidence |
+|---|---|---|---|---|---|---|
+| A1 | High | High | `completion-policy.js` made prescription adherence the session lifecycle; `workout.js` emitted finished recap only at 100%. | A deliberately ended workout stayed resumable and was called partial when sets or the run were skipped. | Fixed: additive lifecycle/adherence split, explicit Finish/Keep Training/Discard, no-data guard, idempotent finish. | `session_completion_policy.test.js`, `delete_day_workout.test.js`. |
+| A2 | High | High | Exercise picker, substitutions and `MUSCLE_MAP` were independent exact-name tables; 186/233 program labels had no volume mapping. | Most built-in program work silently received zero muscle credit and common variants split history. | Fixed: 120-entry canonical catalogue, 125 explicit aliases, all program references resolve, raw history unchanged. | `exercise_catalog.test.js` full-catalog validation. |
+| A3 | High | High | Muscle guidance read active program-week arrays and ignored archived/one-off sessions. | “This week” could omit real work or show a stale program position. | Fixed: selected Monday–Sunday calendar week from stamped dates across stored sessions. | Calendar-boundary/activation/one-off volume fixtures. |
+| A4 | Moderate | High | Fixed RP-labelled MEV/MAV/MRV boundaries were presented as exact and every secondary muscle received 0.5. | False precision and over-credit for compounds such as squat, bench, rows and deadlifts. | Fixed: explicit dominant/secondary/minor weights and typical-range language; thresholds remain general guidance, not a prescription. | Muscle-credit, compound and methodology tests. |
+| A5 | High | High | Multiple consumers used truthiness (`s.c`) rather than the canonical completion decoder. | Stored string `"false"` could be interpreted as completed in detail, calendar, notification or state paths. | Fixed in active consumers; only explicit `true|'true'|'on'|1` is complete. | Existing set-utils regressions plus source review. |
+| A6 | Moderate | High | Strength history/PR/overview compared display strings. | DB/Dumbbell and punctuation variants fragmented prior performance and PRs. | Fixed for explicit aliases; unknown custom exercises deliberately stay exact. | Historical alias, canonical PR and same-variation tests. |
+| A7 | Moderate | High | `forEachLoggedDay` reconstructed missing dates from the current program position. | Undated legacy work could enter a modern streak/month incorrectly. | Fixed: calendar reporting excludes undated records while retaining them in storage. | `logged_days.test.js` undated fixture. |
+| A8 | Moderate | High | Lifetime state still serializes/upserts as one JSON blob. | Write amplification and last-write-wins remain scale/conflict risks despite the existing conflict guard/backups. | Open as R24; no migration attempted without telemetry, ADR, dual-read/write and RLS proof. | Existing sync conflict/adversarial tests; R24 acceptance gate. |
+| A9 | Moderate | High | `workout.js`, `app.js`, `state.js` remain large cross-cutting modules. | Changes carry broader regression risk and hidden event coupling. | Open as incremental R25; this slice extracted catalogue and lifecycle seams only. | Full suite, smoke and browser core flow required per slice. |
+| A10 | Low | High | Two tests produced UTC/locale dates independently of the app's local-day API. | Suite failed depending on time of day/timezone despite correct runtime behavior. | Fixed: deterministic canonical date helpers/test seams. | Full suite under local timezone. |
+| A11 | Low | High | Three local browser-check servers omitted an explicit host and listened on every interface. | A developer test run could expose served repository assets beyond localhost. | Fixed: all real-browser servers bind `127.0.0.1` only. | Required browser suite runs all five journeys successfully. |
+
+### Volume methodology and exercise audit record
+
+The app counts one valid completed working-set row per exercise, not one per limb. A
+three-set Bulgarian split squat therefore contributes three credits, not six. Missing load
+is allowed for bodyweight/band work; positive reps (or duration/distance stored in that field)
+are required. Warm-ups, blank rows, unchecked/skipped sets, zero-rep/invalid rows and the 11
+conditioning-station entries contribute zero. Superset exercises count separately; completed
+drop-set rows count as one estimated set because the app cannot infer a more precise stimulus.
+Dominant muscle credit is 1.0, meaningful indirect credit 0.5, and minor credit 0.25; the
+minor tier is a transparent product heuristic. Research supports set count as a useful volume
+proxy when other variables are controlled and fractional treatment of indirect work, while
+also showing diminishing returns, effort dependence and individual variability:
+[Schoenfeld et al. 2017](https://pubmed.ncbi.nlm.nih.gov/27433992/),
+[Remmert et al. 2025](https://pubmed.ncbi.nlm.nih.gov/41343037/),
+[Baz-Valle et al. 2021](https://pubmed.ncbi.nlm.nih.gov/30063555/),
+[Refalo et al. 2023](https://pubmed.ncbi.nlm.nih.gov/36334240/), and
+[Scarpelli et al. 2022](https://pubmed.ncbi.nlm.nih.gov/32108724/).
+
+Internal boundaries are retained only to draw broad guidance bands; the UI no longer names
+them as a user's exact MEV/MAV/MRV. Confidence is moderate for set count/fractional direct-vs-
+indirect use and low for any individual's boundary without longitudinal response data.
+
+| Muscle | Internal band boundaries (low / typical start / upper / caution) | Final treatment | Confidence |
+|---|---:|---|---|
+| Chest | 8 / 10 / 20 / 22 | Calendar-week estimated credits; dominant press/fly 1.0, indirect 0.25–0.5. | Moderate method / low boundary |
+| Upper chest | 4 / 6 / 12 / 14 | Incline press dominant; overhead press minor only. | Moderate / low |
+| Lats | 6 / 10 / 20 / 22 | Vertical pull dominant; rows secondary; deadlift zero. | Moderate / low |
+| Upper back | 6 / 10 / 20 / 25 | Rows dominant; vertical pulls/face pulls secondary. | Moderate / low |
+| Traps | 0 / 4 / 16 / 20 | Shrugs dominant; carries/deadlifts minor-secondary. | Moderate / low |
+| Erectors | 4 / 6 / 12 / 16 | Back extension dominant; hinges/squats minor-secondary. | Moderate / low |
+| Quads | 6 / 8 / 18 / 20 | Squat/lunge/knee extension dominant; no hamstring credit from squats. | Moderate / low |
+| Hamstrings | 4 / 6 / 16 / 20 | RDL/curl dominant; deadlift secondary; squat zero. | Moderate / low |
+| Glutes | 0 / 4 / 12 / 16 | Hip thrust/deadlift dominant; squat/lunge secondary. | Moderate / low |
+| Adductors | 0 / 4 / 12 / 16 | Sumo secondary; squat/lunge minor. | Low / low |
+| Calves | 6 / 8 / 16 / 20 | Calf-raise variations dominant only. | Moderate / low |
+| Front delts | 0 / 6 / 12 / 16 | Overhead press dominant; bench minor; incline secondary. | Moderate / low |
+| Side delts | 6 / 8 / 22 / 26 | Lateral raise dominant; shoulder press minor. | Moderate / low |
+| Rear delts | 0 / 6 / 18 / 25 | Rear-delt fly/face pull dominant; rows minor-secondary. | Moderate / low |
+| Biceps | 4 / 8 / 20 / 26 | Supinated curls dominant; pulls/rows secondary-minor. | Moderate / low |
+| Triceps | 4 / 6 / 14 / 18 | Extensions/close-grip work dominant; presses secondary. | Moderate / low |
+| Brachialis | 0 / 4 / 12 / 16 | Hammer/reverse curl dominant; other curls minor. | Moderate / low |
+| Forearms | 0 / 4 / 12 / 18 | Carries/dead hangs dominant; hammer/reverse curl minor-secondary. | Low / low |
+| Core | 0 / 6 / 16 / 25 | Direct core work dominant; carries/selected compounds minor, most stabilisation zero. | Low / low |
+
+Major legacy classification corrections (aliases in each row share the new treatment):
+
+| Exercise family | Previous treatment | Implemented treatment | Reason |
+|---|---|---|---|
+| Back/front/paused/goblet squats | Several muscles full or uniform 0.5 secondary | Quads 1.0; glutes 0.5; adductors/erectors/core 0–0.25 by variation | Avoids treating every involved muscle as a full hypertrophy set. |
+| Conventional/deficit deadlift | Hamstrings + glutes full; erectors/traps/lats 0.5 | Glutes 1.0; hamstrings/erectors 0.5; traps 0.25; lats 0 | Lats stabilise the bar but are not credited as a hypertrophy set. |
+| RDL/stiff-leg/good morning | Hamstrings + glutes full | Hamstrings 1.0; glutes 0.5; erectors 0.25–0.5 | Keeps the dominant lengthened hamstring stimulus distinct. |
+| Bulgarian split squat/lunges/step-ups | Quads + glutes full; sometimes hamstrings 0.5 | Quads 1.0; glutes 0.5; adductors 0–0.25; hamstrings 0 | One logged bilateral set row stays one credit, not per leg. |
+| Flat bench/push-up | Chest + front delts full in places | Chest 1.0; triceps 0.5; front delts 0.25 | Pressing involvement is not equal stimulus for all three. |
+| Incline presses | Upper chest + front delts full | Upper chest 1.0; front delts/triceps 0.5 | Reduces duplicated full credit. |
+| Dips/close-grip/diamond work | Chest and triceps often both full | One dominant target by variation, other 0.5, front delts 0–0.25 | Separates chest-biased dips from triceps-biased variants. |
+| Overhead presses | Front delts full; triceps/upper chest/core uniformly 0.5 | Front delts 1.0; triceps 0.5; upper chest/side delts 0–0.25; core 0 | Stabilisation alone gets no set credit. |
+| Pull-ups/chin-ups/pulldowns | Multiple back/arm muscles full | Lats 1.0; upper back/biceps 0.25–0.5 | Distinguishes direct from indirect pulling work. |
+| Barbell/cable/DB/chest-supported rows | Upper back + lats full; biceps/rear delts/erectors 0.5 | One dominant back region 1.0; others 0.25–0.5 | Prevents four or five full-equivalent credits per row. |
+| Face pulls/rear-delt flies/pull-aparts | Separate incomplete tables | Rear delts 1.0; upper back 0.25–0.5 | One shared catalogue now drives search, swaps and analytics. |
+| Hammer/reverse curls | Biceps + brachialis full or unmapped | Brachialis 1.0; biceps 0.25–0.5; forearms 0.25–0.5 | Reflects grip/elbow-flexor emphasis without triple full credit. |
+
+Inventory result: 120 exercises reviewed (109 volume-eligible strength/core entries and 11
+identity-only conditioning stations); 82 canonical entries were not represented by the old
+library, while the searchable list grows by 73 net because nine duplicate legacy display names
+are merged. There are 125 compatibility aliases and zero unresolved built-in program labels.
+The catalogue itself (`js/exercises/catalog.js`) is the exhaustive per-exercise inventory;
+validation fails on duplicate IDs/aliases, unknown muscles/movements/equipment, invalid credits,
+missing dominant muscles, or unresolved program references.
 
 ## Prioritization model
 
@@ -352,7 +466,7 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 ## Current execution focus
 
 Completed recommendations remain in the implementation register and phase tables as
-acceptance evidence; they are not the active queue. R17, R18, R21, and R22 are
+acceptance evidence; they are not the active queue. R17, R18, R21, R22, and R28 are
 engineering-complete; R25 remains an incremental seam-by-seam practice.
 The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
 pass, then the owner completes `docs/android-gps-device-checklist.md`; failures return to R15
@@ -375,7 +489,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R5 | CI/release | Pages/release workflows do not depend on JS/Android verification; browser scripts skip without Playwright. | Reusable required verification workflow and gated publication. | `package.json`, browser scripts, `.github/workflows/*.yml`. | Intentional failure blocks artifacts; green workflow produces them. | Phase 0 / PR-5 `codex/beta-integrity-ci`. |
 | R6 | Onboarding | `_finish` omits durable goal and tier-derived equipment map; beginner recommendation hides Intermediate level. | Persist canonical choices and disclose recommendation stretch. | `js/onboarding.js`, starter recommendations, settings/equipment helpers. | Goal/tier/level matrix and browser finish-state tests. | Phase 1 / separate PR `codex/onboarding-truth`. |
 | R7 | Programs/Home/Brain | Global `WEEK_PHASE_NAMES` is used irrespective of the active program. | Central modifier-aware phase resolver with honest fallback. | Home, app/briefing, timeline/detail, Hybrid Score, program helper. | Cross-catalog phase/deload and consumer-consistency tests. | Phase 1 / separate PR `codex/program-phase-resolver`. |
-| R8 | Workout/adherence | Finish modal celebrates one set/no run while analytics use stricter completion predicates. | One completion policy; distinct partial-save and full-complete outcomes. | `js/workout.js`, completion helpers, streak/adherence/Brain. | Empty/partial/skipped/modified/full session behavior tests. | Phase 1 / separate PR `codex/workout-completion-policy`. |
+| R8 | Workout/adherence | Session lifecycle was overloaded with perfect plan adherence, leaving deliberately ended work resumable/“partial.” | Explicit `in_progress|finished` lifecycle plus separate planned/completed/skipped adherence and confirmed discard. | `js/workout.js`, completion/lifecycle/delete helpers, picker/detail/Brain. | Empty/warm-up-only, skipped sets/exercises, leave/resume, finish twice, edit finished and discard tests. | Corrected/completed with R28 on `codex/exercise-volume-finish-audit`. |
 | R9 | Running UX | `_detectRunType` checks “recovery” before interval structure. | Ordered/structured classifier with safe unknown fallback. | `js/workout.js` or a pure run-prescription helper. | Full catalog text fixture and regression case. | Phase 1 / small PR `codex/run-type-classifier`. |
 | R10 | Accessibility/navigation | Closed sheets retain focusable descendants/modal semantics. | Shared modal/sheet stack with inert, focus, escape, restore, and Android back. | Index markup, modal/sheet controllers, CSS, Android back integration. | Keyboard, focus-order, axe, TalkBack, Android back tests. | Phase 1 / staged PRs `codex/accessible-modal-core` then migrations. |
 | R11 | Mobile UI/design | Core controls are frequently below 44px and secondary type is very small. | Shared touch/type/contrast tokens, applied to core journeys. | Core CSS, onboarding, Home, Programs, workout, Settings. | Geometry/contrast/200%-text viewport matrix. | Phase 1 / per-journey PRs after R10. |
@@ -388,13 +502,14 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R18 | Program activation | Mid-session switching can archive partial work; prior activation cannot be resumed. | Resolve session first and expose prior activation history/resume semantics. | activation UI/state, program detail/library, workout completion. | Switch/resume/history scenarios across partial/full states. | Phase 2 / `codex/activation-continuity`. |
 | R19 | Program integrity | Unknown IDs silently fall back to Hybrid Engine. | Validate ID and show explicit recovery choices. | program registry/state load/import UI. | Missing/deleted/corrupt program fixtures. | Phase 2 / small PR with R17 or standalone. |
 | R20 | Program schema | Shared weekly targets/free-text cannot represent marketed prescriptions. | Legacy-compatible normalized prescription resolver and structured overrides. | schema, engine, builder, catalog adapters, preview/detail/workout. | Catalog golden corpus, consumer equality, custom round trip. | Phase 3 / design ADR then multiple PRs. |
-| R21 | Exercise progression | `computeDiagnosticForLift` only checks prior numeric weeks/same day. | Chronological all-session exercise query with explicit scope. | engine/history query, activation/session records, progression tests. | Cross-day/program/archive/exercise-identity cases. | Complete on `codex/r21-r22-release-hardening`. |
+| R21 | Exercise progression | `computeDiagnosticForLift` only checked prior numeric weeks/same day; display-name variants split later history. | Chronological all-session query with explicit scope plus explicit canonical alias resolution. | engine/history query, exercise catalogue, activation/session records, progression tests. | Cross-day/program/archive/canonical-alias/custom-exact identity cases. | Complete; alias follow-up in R28. |
 | R22 | Analytics maintenance | Duplicate model exports can drift; “lifetime” scope is active-run-only. | One supported model per metric and scope-correct labels/queries. | metrics-load/readiness re-exports, strength calculations/views. | Golden formula and all-activation history tests. | Complete on `codex/r21-r22-release-hardening`. |
 | R23 | Running analytics | Broad best-run VDOT selection lacks effort and robust quality confidence. | Qualify source efforts, reject outliers, expose projection confidence. | running performance/projection modules, import/GPS quality metadata. | Race/easy/interval/manual/outlier/sparse-history fixtures. | Phase 3 / after R15 data quality. |
 | R24 | Persistence/sync scale | Critical saves serialize/upsert lifetime history as one blob. | Incrementally store immutable sessions while retaining versioned snapshot portability. | state repositories, Supabase schema/RLS, offline queue, migrations/export. | Dual-read/write, rollback, RLS, conflicts, large-history perf. | Phase 3 / dedicated ADR and multi-PR migration, only with telemetry. |
 | R25 | Maintainability/design | Large cross-cutting modules plus inline styles/`!important` raise regression cost. | Split along tested seams and migrate touched UI to primitives. | workout/app/settings/state and CSS/components. | Pre-split behavior coverage and visual regression. | Phase 3 / small per-seam PRs, never a mechanical rewrite. |
 | R26 | Product hierarchy | Program taxonomy and optional advanced/wellness surfaces repeat/compete with the core loop. | Simplify discovery and progressively disclose unused advanced areas based on beta evidence. | program library/Home/Start/navigation renderers. | Funnel/usability study plus no-regression discovery tests. | Phase 3 / product-evidence-led PRs. |
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
+| R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; 186/233 program labels were absent from exact-name volume tables; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time exercise identity; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue invariants/all program refs; direct/indirect/minor/invalid/calendar/alias fixtures; browser flow. | Engineering complete on `codex/exercise-volume-finish-audit`. |
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -422,7 +537,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 |---|---|---|---|---:|---|---|---|---|
 | R6 | Persist onboarding goal and a tier-derived equipment map; disclose adjacent difficulty recommendations. | Significant | Ensures recommendations and substitutions reflect what the user selected. | 2–3 days | Low | Canonical settings enums and equipment mapper. | Parameterized onboarding tests for all goals/tiers/levels; browser inspection of resulting Settings and recommendations. | Finish-state settings exactly match selections and every adjacent-level recommendation is labelled/explained. |
 | R7 | Replace global phase names with a program-aware phase resolver consumed by Home, briefing, detail, and Hybrid Score. | Significant | Makes plan labels and deload advice truthful. | 3–4 days | Medium: multiple consumers. | Defined fallback for programs without semantic phase labels. | Cross-catalog tests for normal/deload weeks; snapshot/model equality across consumers; no direct `WEEK_PHASE_NAMES` use in feature views. | One resolver supplies phase metadata and score reweighting uses the actual modifier. |
-| R8 | Define a session completion policy and separate “save partial” from “complete”; align celebration, streak, adherence, and analytics. | Significant | Restores meaning to completion and avoids penalizing saved partial work. | 3–5 days | Medium: product policy. | Product decision for required run/set threshold and intentional skips. | Tests for empty, partial, skipped, modified, and full sessions; browser copy and analytics agree. | Every completion consumer uses the same policy object and partial work never receives full-completion language. |
+| R8 | Separate explicit workout lifecycle from plan adherence; align recap, resume, picker, detail and coaching. | Significant | A deliberately finished workout is finished even with skipped work, while adherence remains honest. | Complete | Medium: backward compatibility. | Additive sidecars and legacy inference. | Empty/warm-up-only, skipped, leave/resume, idempotent finish, edit and discard fixtures; browser copy. | Finish persists `finished`; incomplete plan items are recorded as skipped, never productive volume; only non-finished work resumes. |
 | R9 | Correct run-type parsing with ordered structured detection and catalog fixtures. | Significant | Prevents interval sessions being presented as recovery. | 1 day | Low | Prescription text corpus. | Every catalog run description classified in a reviewed fixture; `6×800m (90s recovery)` is Intervals. | Classifier order is tested and unknown text falls back without a false specific type. |
 | R10 | Implement one accessible modal/sheet stack with inert background, focus management, Escape, Android back, and reduced motion. | Significant | Makes core flows usable with keyboard/TalkBack and prevents invisible focus traps. | 5–8 days | Medium–High: many surfaces. | Shared controller; modal inventory. | Automated axe/focus tests; closed dialogs have zero focusables/modal claims; keyboard + TalkBack journeys; back-stack tests. | Every dialog/sheet uses the primitive and the core journeys pass the accessibility matrix. |
 | R11 | Raise primary touch targets/type/contrast on onboarding, Home, Programs, workout, and Settings. | Significant | Reduces missed taps and improves readability under mobile scaling. | 4–6 days | Medium: layout regressions. | Tokens/mixins; core-screen inventory. | Geometry checks at 320/360/390/412 widths and 200% text; WCAG contrast report; physical-device touch review. | Primary controls meet 44×44 targets or spacing equivalence, body copy is readable, and no new overflow appears. |
@@ -499,6 +614,17 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-19 · R28 fresh logger/exercise/volume audit on
+  `codex/exercise-volume-finish-audit`: explicit `in_progress|finished` lifecycle is now
+  separate from adherence; deliberately skipped work can be finished while empty/warm-up-only
+  sessions cannot. A 120-exercise canonical catalogue with 125 explicit aliases resolves all
+  233 built-in labels without rewriting stored history; PR/history/search/swap and muscle-volume
+  readers share it. Selected-calendar-week set credits now use explicit 1.0/0.5/0.25 attribution,
+  valid working sets only, and typical-range/caveated copy instead of personal MEV/MRV claims.
+  Undated legacy analytics and truthy completion false-positives were removed. `npm run verify`
+  is green with 1,018 tests; all five required Chromium journeys pass, including explicit
+  finish/keep/discard and the no-data guard. · Next: review and open one PR to `main`; R15
+  physical-device, Play/legal and signed-release owner gates remain the launch path.
 - 2026-07-18 · R21 + R22 with a bounded R25 extraction on
   `codex/r21-r22-release-hardening`: progression now follows exact exercises across real
   dated sessions/program runs; load/readiness duplication is removed; rolling load and

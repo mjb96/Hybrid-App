@@ -1,9 +1,9 @@
 // @ts-check
 import { clearRunSessions, hasRunData } from '../state/run-sessions.js';
+import { clearSessionStatus, explicitSessionStatus, SESSION_STATUS } from './session-status.js';
+import { isCompletedSet } from '../set-utils.js';
 
-const hasCompletedSet = (sets) => Array.isArray(sets) && sets.some((set) =>
-  set && (set.c === true || set.c === 'true' || set.c === 'on' || set.c === 1)
-);
+const hasCompletedSet = (sets) => Array.isArray(sets) && sets.some(isCompletedSet);
 
 const hasUnfinishedEditedSet = (sets) => Array.isArray(sets) && sets.some((set) =>
   set && !hasCompletedSet([set]) && (
@@ -15,6 +15,7 @@ const hasUnfinishedEditedSet = (sets) => Array.isArray(sets) && sets.some((set) 
 /** Any user-entered workout draft, including an unchecked weight/rep edit. */
 export function hasDayWorkoutDraft(week, day) {
   if (!week || typeof week !== 'object' || !day) return false;
+  if (explicitSessionStatus(week, day) === SESSION_STATUS.FINISHED) return false;
   const lifts = week.lifts?.[day] || {};
   const setGroups = Object.values(lifts);
   if (setGroups.some(hasUnfinishedEditedSet)) return true;
@@ -89,6 +90,7 @@ export function deleteDayWorkoutData(week, day, replacement = {}) {
   week.notes[day] = '';
   week.gymRpe[day] = '';
   week.gymStats[day] = { time: '', avgHR: '', maxHR: '', cals: '' };
+  clearSessionStatus(week, day);
 
   return hadData;
 }

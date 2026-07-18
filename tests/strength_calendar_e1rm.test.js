@@ -60,8 +60,8 @@ test('two program weeks in one calendar week both contribute to the same lift be
     '2': { dates: { mon: '2026-07-06' }, lifts: { mon: { Squat: [work(150, 3)] } } },
   } };
   const wk = bestE1rmByLiftForWeek(state, { weekStart: PREV });
-  assert.equal(Math.round(wk.Squat.bestEstimated1RM), Math.round(e1(150, 3)));
-  assert.deepEqual(wk.Squat.sourceProgramWeeks, [1, 2]);
+  assert.equal(Math.round(wk['Back Squat'].bestEstimated1RM), Math.round(e1(150, 3)));
+  assert.deepEqual(wk['Back Squat'].sourceProgramWeeks, [1, 2]);
 });
 
 test('old and new program lifts in one calendar week are both present, never merged', () => {
@@ -129,24 +129,25 @@ test('different exercises are NEVER subtracted from each other', () => {
   } };
   const cs = calendarStrengthSummary(state, { today: TODAY });
   assert.equal(cs.topChange, null, 'Squat has no Squat last week → no cross-exercise delta');
-  assert.equal(cs.bestThisWeek.exerciseName, 'Squat');
+  assert.equal(cs.bestThisWeek.exerciseName, 'Back Squat');
 });
 
 // ---- 11,12. identity: rename / variant stay separate ------------------------
-test('a renamed exercise is a distinct identity (no false cross-week comparison)', () => {
+test('an explicit historical alias shares identity for a valid cross-week comparison', () => {
   const state = { currentWeek: '2', weeks: {
     '1': { dates: { mon: PREV }, lifts: { mon: { 'Bench Press': [work(100, 5)] } } },
     '2': { dates: { mon: WK },   lifts: { mon: { 'Barbell Bench Press': [work(105, 5)] } } },
   } };
   const cs = calendarStrengthSummary(state, { today: TODAY });
-  assert.equal(cs.topChange, null, 'different name keys are different exercises');
+  assert.equal(cs.topChange.exerciseName, 'Barbell Bench Press');
+  assert.ok(cs.topChange.deltaKg > 0, 'explicit aliases are the same exercise identity');
 });
 
 test('exercise variations (Bench vs Incline Bench) are separate', () => {
   const state = { currentWeek: '1', weeks: { '1': { dates: { mon: WK },
     lifts: { mon: { 'Bench Press': [work(100, 5)], 'Incline Bench Press': [work(70, 5)] } } } } };
   const wk = bestE1rmByLiftForWeek(state, { weekStart: WK });
-  assert.ok(wk['Bench Press'] && wk['Incline Bench Press']);
+  assert.ok(wk['Barbell Bench Press'] && wk['Incline Barbell Bench Press']);
 });
 
 // ---- 13,20,21. set validity -------------------------------------------------

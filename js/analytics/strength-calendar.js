@@ -8,14 +8,14 @@
 // module is a program-week-FREE zone (enforced by tests/analytics_calendar_guard):
 // it never reads state.currentWeek and never indexes weeks[N] as "this week".
 //
-// Exercise identity is the lift's stored NAME key (lifts are bare-string keyed
-// across the app — there is no alias/ID layer). An exercise is therefore only
-// ever compared with the same name; a rename is a new identity, kept separate.
+// Stored lift keys remain untouched, but explicit catalogue aliases resolve to
+// one canonical display name for comparisons. Unknown custom names stay exact.
 // =============================================================================
-import { isCompletedSet, isWarmupSet } from '../set-utils.js';
+import { isValidWorkingSet } from '../set-utils.js';
 import { indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
+import { resolveExercise } from '../exercises/catalog.js';
 
-const isWorkingSet = (s) => isCompletedSet(s) && !isWarmupSet(s);
+const isWorkingSet = isValidWorkingSet;
 
 /**
  * The app's canonical estimated 1RM (Epley: weight × (1 + reps/30)). One formula
@@ -47,13 +47,14 @@ export function liftE1rmByCalendarWeek(state, opts = {}) {
   for (const [date, slot] of byDate) {
     const wk = weekStartOf(date);
     for (const lift in (slot.lifts || {})) {
+      const identity = resolveExercise(lift)?.name || lift;
       const sets = slot.lifts[lift];
       if (!Array.isArray(sets)) continue;
       for (const s of sets) {
         if (!isWorkingSet(s)) continue;
         const e = estimatedE1rm(s.w, s.r);
         if (e <= 0) continue; // unsupported set (zero reps/weight) — never a false 0
-        const m = out[lift] || (out[lift] = new Map());
+        const m = out[identity] || (out[identity] = new Map());
         let rec = m.get(wk);
         if (!rec) { rec = { best: 0, bestSet: null, validSetCount: 0, programWeeks: new Set() }; m.set(wk, rec); }
         rec.validSetCount++;
@@ -156,7 +157,8 @@ export function calendarStrengthSummary(state, opts = {}) {
 export function calendarWeekE1rmSeriesForLift(state, liftName, opts = {}) {
   const weeks = opts.weeks || 12;
   const curMon = weekStartOf(opts.today || localDayKey(new Date(), opts.tz));
-  const byWeek = (liftE1rmByCalendarWeek(state, { tz: opts.tz })[liftName]) || new Map();
+  const identity = resolveExercise(liftName)?.name || liftName;
+  const byWeek = (liftE1rmByCalendarWeek(state, { tz: opts.tz })[identity]) || new Map();
   const series = [];
   for (let i = weeks - 1; i >= 0; i--) {
     const wk = addDaysISO(curMon, -i * 7);

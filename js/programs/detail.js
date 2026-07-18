@@ -16,6 +16,7 @@ import { getWeekModifier } from '../schema.js';
 import { liftTarget } from '../engine.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
 import { escapeHtml, safeCssColor } from '../util.js';
+import { evaluateSessionCompletion } from '../workout/completion-policy.js';
 
 let _currentProgramId = null;
 let _appState = null;
@@ -499,19 +500,12 @@ function _todayDayKey() {
 // Which days of a given week have been trained (any completed set, or a logged
 // run) — used only to mark the ACTIVE program's current week. Never counts
 // prescriptions, previews, or rest days as sessions.
-function _dayCompletionMap(appState, week) {
+function _dayCompletionMap(appState, week, program) {
   const out = {};
   const wk = appState?.weeks?.[String(week)];
   if (!wk) return out;
-  const lifts = wk.lifts || {}, runs = wk.runs || {};
   for (const d of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
-    let done = false;
-    const dl = lifts[d];
-    if (dl && typeof dl === 'object') {
-      for (const k in dl) { if (Array.isArray(dl[k]) && dl[k].some(s => s && s.c)) { done = true; break; } }
-    }
-    if (!done && runs[d] && (runs[d].dist || runs[d].time)) done = true;
-    if (done) out[d] = 'done';
+    if (evaluateSessionCompletion(appState, program, String(week), d).finished) out[d] = 'done';
   }
   return out;
 }
@@ -522,7 +516,7 @@ function renderWeekAtAGlance(program, isActive, appState, totalWeeks, week) {
 
   const activeWeek = isActive ? Math.max(1, parseInt(appState?.currentWeek, 10) || 1) : null;
   const isCurrent = activeWeek === week;
-  const completion = isCurrent ? _dayCompletionMap(appState, week) : null;
+  const completion = isCurrent ? _dayCompletionMap(appState, week, program) : null;
   const todayKey = isCurrent ? _todayDayKey() : null;
 
   const changes = week !== 1 ? diffWeekPrescription(program, 1, week) : null;
