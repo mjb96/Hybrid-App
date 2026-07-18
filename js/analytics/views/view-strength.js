@@ -73,7 +73,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
     <h2 class="section-header mt-2">Training Load Dashboard</h2>
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus })}
-      ${statCard({ label: 'Monthly Volume', value: fmtKg(curMon), delta: monPct, sub: 'vs last month', color: '#8b5cf6' })}
+      ${statCard({ label: '4-Week Volume', value: fmtKg(curMon), delta: monPct, sub: 'vs prior 4 program weeks', color: '#8b5cf6' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: '7-Day Load (ATL)', value: la.currentATL > 0 ? Math.round(la.currentATL) : '--', sub: 'acute training load', color: '#f59e0b' })}
@@ -135,7 +135,7 @@ function renderStrengthProgression(sa, weekLabels) {
           <div class="font-bold text-inverse">${prog.blockPR > 0 ? Math.round(prog.blockPR) + ' kg' : '--'}</div>
         </div>
         <div style="font-size:0.78rem;">
-          <div class="text-muted mb-1">This Week</div>
+          <div class="text-muted mb-1">Current Program Week</div>
           <div class="font-bold text-inverse">${cur > 0 ? Math.round(cur) + ' kg' : '--'}
             ${delta !== null ? `<span style="color:${delta >= 0 ? '#10b981' : '#ef4444'};font-size:0.7rem;margin-left:4px;">${delta >= 0 ? '+' : ''}${Math.round(delta)}</span>` : ''}
           </div>

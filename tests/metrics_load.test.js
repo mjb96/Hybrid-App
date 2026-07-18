@@ -6,8 +6,6 @@ import { test } from 'node:test';
 import {
   weeklyLoadSeries,
   weeklyRpeSeries,
-  readinessMetrics,
-  recoveryMetrics,
   streakView,
   formatFormTSB,
 } from '../js/metrics/metrics-load.js';
@@ -78,51 +76,6 @@ test('weeklyRpeSeries handles run-only weeks', () => {
   };
   const result = weeklyRpeSeries(state, DAYS, 1);
   assert.equal(result[0], 6);
-});
-
-// ---- readinessMetrics --------------------------------------------------
-test('readinessMetrics computes ACWR from combined load', () => {
-  const result = readinessMetrics(fixture(), DAYS, '2', 2);
-  assert.equal(result.hasData, true);
-  assert.ok(result.acwr > 0);
-  // acute (wk2) = 440+350 = 790; chronic (wk1) = 420+240 = 660
-  assert.equal(result.acute, 790);
-  assert.equal(result.chronic, 660);
-  assert.ok(result.acwr > 1, 'wk2 load is higher than wk1 → ACWR > 1');
-});
-
-test('readinessMetrics returns hasData:false with insufficient history', () => {
-  const oneWeek = { currentWeek: '1', weeks: { '1': fixture().weeks['1'] } };
-  const result = readinessMetrics(oneWeek, DAYS, '1', 1);
-  assert.equal(result.hasData, false);
-});
-
-test('readinessMetrics handles empty state', () => {
-  const result = readinessMetrics({ weeks: {} }, DAYS, '1', 2);
-  assert.equal(result.hasData, false);
-});
-
-// ---- recoveryMetrics ---------------------------------------------------
-test('recoveryMetrics returns a score and recommendation for the current week', () => {
-  const state = {
-    currentWeek: '1',
-    weeks: {
-      '1': {
-        gymRpe: { mon: '6', wed: '6' },
-        runs: { sat: { dist: '5', time: '25:00', rpe: '5' } },
-      },
-    },
-  };
-  const result = recoveryMetrics(state, DAYS);
-  assert.equal(result.hasData, true);
-  assert.ok(result.score >= 0 && result.score <= 100);
-  assert.ok(typeof result.recommendation === 'string' && result.recommendation.length > 0);
-});
-
-test('recoveryMetrics returns hasData:false when no RPE logged', () => {
-  const state = { currentWeek: '1', weeks: { '1': {} } };
-  const result = recoveryMetrics(state, DAYS);
-  assert.equal(result.hasData, false);
 });
 
 // ---- streakView --------------------------------------------------------

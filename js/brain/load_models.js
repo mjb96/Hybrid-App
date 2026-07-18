@@ -10,9 +10,14 @@
 // Also exports recomputeLoadMetrics() for EWMA-based CTL/ATL persistence.
 // Called by state.js before every save so appState.loadMetrics stays current.
 // ==========================================
-import { estimateWeekStart, slotDateISO } from '../dates.js';
 import { dayVolume } from '../set-utils.js';
-import { runDaySummary, runLoadForDay } from '../state/run-sessions.js';
+import { runDaySummary } from '../state/run-sessions.js';
+import {
+  dailyTrainingLoadTimeline,
+  programWeekDailyLoads,
+  programWeekLoadBalance,
+  programWeekLoadBreakdown,
+} from '../metrics/training-load.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -54,44 +59,12 @@ export function enduranceLoadSeries(state, days, maxWeek) {
 
 // Cross-modal sRPE (RPE × minutes) per week — the recovery-cost currency.
 export function recoveryCostSeries(state, days, maxWeek) {
-  const result = [];
-  for (let w = 1; w <= maxWeek; w++) {
-    const wkData = (state.weeks || {})[String(w)];
-    let cost = 0;
-    if (wkData) {
-      days.forEach(d => {
-        const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
-        const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-        if (gymRpe > 0 && gymMins > 0) cost += gymRpe * gymMins;
-
-        cost += runLoadForDay(wkData, d);
-      });
-    }
-    result.push(cost);
-  }
-  return result;
+  return programWeekLoadBreakdown(state, days, maxWeek).total;
 }
 
 // Breakdown into gym (strength) and run (endurance) sRPE components.
 export function recoveryCostBreakdown(state, days, maxWeek) {
-  const strength = [], endurance = [], total = [];
-  for (let w = 1; w <= maxWeek; w++) {
-    const wkData = (state.weeks || {})[String(w)];
-    let str = 0, end = 0;
-    if (wkData) {
-      days.forEach(d => {
-        const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
-        const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-        if (gymRpe > 0 && gymMins > 0) str += gymRpe * gymMins;
-
-        end += runLoadForDay(wkData, d);
-      });
-    }
-    strength.push(str);
-    endurance.push(end);
-    total.push(str + end);
-  }
-  return { strength, endurance, total };
+  return programWeekLoadBreakdown(state, days, maxWeek);
 }
 
 // Acute/chronic ACWR on the recovery-cost series.
@@ -102,22 +75,7 @@ export function recoveryCostBreakdown(state, days, maxWeek) {
 //           band; a 4-week mean is the standard Gabbett/TrainingPeaks chronic.
 // ACWR rounded to 2 decimal places.
 export function recoveryCostBalance(state, days, currentWeek, maxWeek) {
-  const wkNum = parseInt(currentWeek, 10) || 1;
-  if (maxWeek < 2 || wkNum < 2) return { hasData: false, acwr: 0, acute: 0, chronic: 0 };
-
-  const costs = recoveryCostSeries(state, days, maxWeek);
-  const idx = wkNum - 1;
-  if (idx >= costs.length) return { hasData: false, acwr: 0, acute: 0, chronic: 0 };
-
-  const acute = costs[idx];
-  const priorWindow = costs.slice(Math.max(0, idx - 4), idx).filter(c => c > 0);
-  const chronic = priorWindow.length > 0
-    ? priorWindow.reduce((s, c) => s + c, 0) / priorWindow.length
-    : 0;
-  if (acute === 0 && chronic === 0) return { hasData: false, acwr: 0, acute, chronic };
-
-  const acwr = chronic > 0 ? Math.round((acute / chronic) * 100) / 100 : 0;
-  return { hasData: true, acwr, acute, chronic };
+  return programWeekLoadBalance(state, days, currentWeek, maxWeek);
 }
 
 // Bundles all three load concepts plus acute/chronic balance.
@@ -133,33 +91,6 @@ export function loadProfile(state, days, currentWeek, maxWeek) {
 
 // ---- EWMA CTL/ATL (stored in appState.loadMetrics) ------------------------
 
-// Builds a chronological (date, dayLoad) list from all week/day slots.
-// Uses estimateWeekStart to map week numbers to real calendar dates.
-function buildDailyTimeline(state) {
-  if (!state.weekStartedAt || !state.currentWeek) return [];
-  const currentWkNum = parseInt(state.currentWeek, 10);
-  const entries = [];
-  const sortedWeeks = Object.keys(state.weeks || {}).map(Number).sort((a, b) => a - b);
-
-  for (const wkNum of sortedWeeks) {
-    const wkData = state.weeks[String(wkNum)];
-    if (!wkData) continue;
-    const weekStartISO = estimateWeekStart(state.weekStartedAt, currentWkNum, wkNum);
-
-    DAY_KEYS.forEach(d => {
-      const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
-      const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-      const dayLoad =
-        (gymRpe > 0 && gymMins > 0 ? gymRpe * gymMins : 0) +
-        runLoadForDay(wkData, d);
-      const date = slotDateISO(weekStartISO, d);
-      if (date) entries.push({ date, load: dayLoad });
-    });
-  }
-
-  return entries.sort((a, b) => a.date.localeCompare(b.date));
-}
-
 // Returns { atl: number[], ctl: number[] } — EWMA ATL and CTL at end of each week.
 // Advances through all 7 days per week (rest days contribute 0 load) so EWMA
 // decay is calendar-correct. Series length equals maxWeek.
@@ -167,16 +98,7 @@ export function weeklyLoadMetricsSeries(state, days, maxWeek) {
   let atl = 0, ctl = 0;
   const atlSeries = [], ctlSeries = [];
   for (let w = 1; w <= maxWeek; w++) {
-    const wkData = (state.weeks || {})[String(w)];
-    DAY_KEYS.forEach(d => {
-      let dayLoad = 0;
-      if (wkData) {
-        const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
-        const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-        dayLoad =
-          (gymRpe > 0 && gymMins > 0 ? gymRpe * gymMins : 0) +
-          runLoadForDay(wkData, d);
-      }
+    programWeekDailyLoads(state, DAY_KEYS, w).forEach(dayLoad => {
       atl = dayLoad * λ_ATL + atl * (1 - λ_ATL);
       ctl = dayLoad * λ_CTL + ctl * (1 - λ_CTL);
     });
@@ -189,8 +111,8 @@ export function weeklyLoadMetricsSeries(state, days, maxWeek) {
 // Recomputes CTL (28-day EWMA) and ATL (7-day EWMA) from the full history.
 // Returns { atl, ctl } — stored as appState.loadMetrics and persisted on
 // every save. TSB = CTL - ATL (positive = fresh, negative = fatigued).
-export function recomputeLoadMetrics(state) {
-  const timeline = buildDailyTimeline(state);
+export function recomputeLoadMetrics(state, options = {}) {
+  const timeline = dailyTrainingLoadTimeline(state, options);
   let atl = 0, ctl = 0;
   for (const { load } of timeline) {
     atl = load * λ_ATL + atl * (1 - λ_ATL);

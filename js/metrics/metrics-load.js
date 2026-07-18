@@ -4,7 +4,8 @@
 // Pure functions — no DOM or side effects.
 // ==========================================
 import { daysBetween, todayKey } from '../dates.js';
-import { runLoadForDay, runSessionsForDay } from '../state/run-sessions.js';
+import { runSessionsForDay } from '../state/run-sessions.js';
+import { programWeekDailyLoads, programWeekLoadBreakdown } from './training-load.js';
 
 // ---- public API -----------------------------------------------------------
 
@@ -12,23 +13,8 @@ import { runLoadForDay, runSessionsForDay } from '../state/run-sessions.js';
 // lift load = gymRpe × gymTime(min); run load = runRpe × runTime(min).
 // Returns {lift: number[], run: number[]}, each of length maxWeek.
 export function weeklyLoadSeries(state, days, maxWeek) {
-  const lift = [], run = [];
-  for (let w = 1; w <= maxWeek; w++) {
-    const wkData = (state.weeks || {})[String(w)];
-    let liftLoad = 0, runLoad = 0;
-    if (wkData) {
-      days.forEach(d => {
-        const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
-        const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-        if (gymRpe > 0 && gymMins > 0) liftLoad += gymRpe * gymMins;
-
-        runLoad += runLoadForDay(wkData, d);
-      });
-    }
-    lift.push(liftLoad);
-    run.push(runLoad);
-  }
-  return { lift, run };
+  const { strength, endurance } = programWeekLoadBreakdown(state, days, maxWeek);
+  return { lift: strength, run: endurance };
 }
 
 // Per-day sRPE load for a SINGLE program week, in day order (`days`).
@@ -37,16 +23,7 @@ export function weeklyLoadSeries(state, days, maxWeek) {
 // trainingMonotony/strainScore, which are within-week daily-variability metrics
 // — NOT week-over-week series.
 export function weekDailyLoads(state, days, weekNum) {
-  const wkData = (state.weeks || {})[String(weekNum)] || {};
-  return days.map(d => {
-    const gymRpe  = parseFloat(wkData.gymRpe?.[d]) || 0;
-    const gymMins = parseFloat(wkData.gymStats?.[d]?.time) || 0;
-    const gymLoad = (gymRpe > 0 && gymMins > 0) ? gymRpe * gymMins : 0;
-
-    const runLoad  = runLoadForDay(wkData, d);
-
-    return gymLoad + runLoad;
-  });
+  return programWeekDailyLoads(state, days, weekNum);
 }
 
 // Average of all gym and run RPE readings per week. 0 when none logged.
@@ -68,57 +45,6 @@ export function weeklyRpeSeries(state, days, maxWeek) {
     result.push(count > 0 ? sum / count : 0);
   }
   return result;
-}
-
-// ACWR-based readiness: acute = currentWeek combined load, chronic = previous week.
-// Requires at least 2 weeks of data. Returns {hasData, acwr, acute, chronic}.
-export function readinessMetrics(state, days, currentWeek, maxWeek) {
-  const wkNum = parseInt(currentWeek, 10) || 1;
-  if (maxWeek < 2 || wkNum < 2) return { hasData: false, acwr: 0, acute: 0, chronic: 0 };
-
-  const loads = weeklyLoadSeries(state, days, maxWeek);
-  const idx = wkNum - 1;
-  if (idx >= loads.lift.length) return { hasData: false, acwr: 0, acute: 0, chronic: 0 };
-
-  const acute   = loads.lift[idx]     + loads.run[idx];
-  const chronic = loads.lift[idx - 1] + loads.run[idx - 1];
-
-  if (acute === 0 && chronic === 0) return { hasData: false, acwr: 0, acute, chronic };
-
-  const acwr = chronic > 0 ? acute / chronic : 0;
-  return { hasData: true, acwr, acute, chronic };
-}
-
-// Recovery score (0–100) based on current-week average RPE.
-// Returns {hasData, score, recommendation}.
-export function recoveryMetrics(state, days) {
-  const curWk = String(state.currentWeek || '1');
-  const wkData = (state.weeks || {})[curWk];
-  let sum = 0, count = 0;
-
-  if (wkData) {
-    days.forEach(d => {
-      const gRpe = parseFloat(wkData.gymRpe?.[d]) || 0;
-      if (gRpe > 0) { sum += gRpe; count++; }
-      for (const session of runSessionsForDay(wkData, d)) {
-        const rRpe = parseFloat(session.rpe) || 0;
-        if (rRpe > 0) { sum += rRpe; count++; }
-      }
-    });
-  }
-
-  if (count === 0) return { hasData: false, score: 0, recommendation: '' };
-
-  const avgRpe = sum / count;
-  const score  = Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100)));
-
-  let recommendation;
-  if      (score >= 80) recommendation = 'Well recovered. You can push intensity today.';
-  else if (score >= 60) recommendation = 'Moderately recovered. Stick to planned volume.';
-  else if (score >= 40) recommendation = 'Fatigue accumulating. Prioritise sleep tonight.';
-  else                  recommendation = 'High fatigue load. Consider a deload or rest day.';
-
-  return { hasData: true, score, recommendation };
 }
 
 // Form/TSB (training-stress balance = fitness − fatigue) for the Recovery leaf's

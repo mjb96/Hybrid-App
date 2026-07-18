@@ -136,10 +136,10 @@ test('EWMA load (rolling) counts work from any week, not just the program week',
   const state = {
     currentWeek: '4', weekStartedAt: '2026-07-06T00:00:00Z',
     weeks: {
-      '1': { dates: {}, lifts: {}, runs: {}, gymRpe: { mon: '8' }, gymStats: { mon: { time: '60' } } },
+      '1': { dates: { mon: '2026-07-06' }, lifts: {}, runs: {}, gymRpe: { mon: '8' }, gymStats: { mon: { time: '60' } } },
     },
   };
-  const { atl, ctl } = recomputeLoadMetrics(state);
+  const { atl, ctl } = recomputeLoadMetrics(state, { throughDate: '2026-07-13' });
   // Load logged in program week 1 (not the current week 4) still builds CTL/ATL —
   // proof this is a rolling EWMA over the whole timeline, not a currentWeek bucket.
   assert.ok(ctl > 0 && atl > 0, 'past-week training contributes to chronic/acute load');

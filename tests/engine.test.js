@@ -103,12 +103,13 @@ const makeDiagState = (week1Sets, week1GymRpe = null) => ({
   weeks: {
     '1': {
       lifts: { mon: { Squat: week1Sets } },
+      dates: { mon: '2026-07-07' },
       gymRpe: week1GymRpe != null ? { mon: String(week1GymRpe) } : {},
       runs: {},
       gymStats: {},
       notes: {},
     },
-    '2': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {}, gymStats: {}, notes: {} },
+    '2': { lifts: { mon: { Squat: [] } }, dates: {}, gymRpe: {}, runs: {}, gymStats: {}, notes: {} },
   },
   streakData: {},
 });
@@ -197,8 +198,8 @@ test('computeGAP: returns empty for single-point arrays', () => {
 test('findLastPerformance returns the most recent completed working sets', () => {
   const state = { currentWeek: '3' };
   state.weeks = {
-    '1': { lifts: { mon: { 'Squat': [{ w: '90', r: '5', c: true }] } } },
-    '2': { lifts: { mon: { 'Squat': [{ w: '100', r: '5', c: true }] } } },
+    '1': { dates: { mon: '2026-07-01' }, lifts: { mon: { 'Squat': [{ w: '90', r: '5', c: true }] } } },
+    '2': { dates: { mon: '2026-07-08' }, lifts: { mon: { 'Squat': [{ w: '100', r: '5', c: true }] } } },
     '3': { lifts: { mon: { 'Squat': [] } } },
   };
   const result = findLastPerformance(state, 'Squat', { excludeWeek: '3', days: DAYS });
@@ -210,7 +211,7 @@ test('findLastPerformance returns the most recent completed working sets', () =>
 test('findLastPerformance skips warmups and incomplete sets', () => {
   const state = { currentWeek: '2' };
   state.weeks = {
-    '1': { lifts: { mon: { 'Bench Press': [
+    '1': { dates: { mon: '2026-07-08' }, lifts: { mon: { 'Bench Press': [
       { w: '40', r: '10', c: true, type: 'W' },
       { w: '80', r: '5', c: false },
       { w: '75', r: '5', c: true },
@@ -358,9 +359,9 @@ test('computeDiagnosticForLift: three flat sessions stall → deload progression
   const state = {
     currentWeek: '4',
     weeks: {
-      '1': { lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
-      '2': { lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
-      '3': { lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
+      '1': { dates: { mon: '2026-06-23' }, lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
+      '2': { dates: { mon: '2026-06-30' }, lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
+      '3': { dates: { mon: '2026-07-07' }, lifts: { mon: { Squat: flat } }, gymRpe: {}, runs: {} },
       '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
     },
   };

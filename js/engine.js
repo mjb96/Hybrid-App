@@ -4,8 +4,9 @@
 // ==========================================
 import { CONFIG } from './constants.js';
 import { devWarn } from './debug.js';
-import { isCompletedSet } from './set-utils.js';
+import { isCompletedSet, isWarmupSet } from './set-utils.js';
 import { runSessionsForDay } from './state/run-sessions.js';
+import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -55,30 +56,21 @@ export function formatPace(secsPerKm) {
 
 // ==========================================
 // FIND LAST PERFORMANCE
-// Scans weeks in descending order for the last completed working sets of a
-// given lift. Lifts are stored keyed by display name.
-// Returns { weekKey, day, workingSets } or null.
+// Backwards-compatible adapter over the canonical dated exercise-history query.
+// Lifts are exact bare-string keys; no aliases are inferred.
 // ==========================================
 
 /**
  * @param {any} state
  * @param {string} name
- * @param {{ excludeWeek?: string|number, days?: string[] }} [opts]
+ * @param {{ excludeWeek?: string|number, excludeDay?:string, days?: string[], scope?:'all'|'activation'|'program' }} [opts]
  */
-export function findLastPerformance(state, name, { excludeWeek, days = [] } = {}) {
-  const key = name;
-  const weeks = Object.keys(state.weeks || {}).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
-  for (const wKey of weeks) {
-    if (wKey === excludeWeek) continue;
-    const wkData = state.weeks[wKey];
-    for (const d of days) {
-      const setsArr = wkData?.lifts?.[d]?.[key];
-      if (!Array.isArray(setsArr) || setsArr.length === 0) continue;
-      const workingSets = setsArr.filter(s => isCompletedSet(s) && s.type !== 'W' && !s.isWarmup);
-      if (workingSets.length > 0) return { weekKey: wKey, day: d, workingSets };
-    }
-  }
-  return null;
+export function findLastPerformance(state, name, { excludeWeek, excludeDay, days = [], scope = 'all' } = {}) {
+  return latestExercisePerformance(state, name, {
+    scope,
+    days,
+    exclude: excludeWeek == null ? undefined : { weekKey: excludeWeek, day: excludeDay },
+  });
 }
 
 // ==========================================
@@ -175,35 +167,12 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
   }
   
   const appState = _getState();
-  const DEFAULT_DAYS = _getDays();
-  const cWk = parseInt(currentWeekString, 10);
-  if (isNaN(cWk) || cWk <= 1 || !appState.weeks) return result;
+  if (!appState?.weeks) return result;
 
-  const liftKey = liftName;
-  const history = [];
-  // The most recent session's working sets (warm-ups excluded) — the raw input
-  // the auto-progression engine reasons over. Captured on the first week (newest,
-  // since we iterate descending) that carries completed working sets.
-  let lastSessionSets = null;
-  for (let w = cWk - 1; w >= 1; w--) {
-    const wData = appState.weeks[w.toString()];
-    if (wData && wData.lifts && wData.lifts[dayKey]?.[liftKey]) {
-      const finishedSets = wData.lifts[dayKey][liftKey].filter(s => s && s.c && s.w && s.r);
-      if (finishedSets.length > 0) {
-        if (!lastSessionSets) {
-          lastSessionSets = finishedSets.filter(s => s.type !== 'W' && !s.isWarmup);
-        }
-        let bestE1rm = 0, bestWeight = 0, bestReps = 0;
-        finishedSets.forEach(s => {
-          const w_ = parseFloat(s.w) || 0;
-          const r_ = parseInt(s.r, 10) || 0;
-          const e = w_ * (1 + r_ / 30);
-          if (e > bestE1rm) { bestE1rm = e; bestWeight = w_; bestReps = r_; }
-        });
-        history.push({ weekNum: w, weight: bestWeight, reps: bestReps, e1rm: bestE1rm });
-      }
-    }
-  }
+  const history = exercisePerformanceHistory(appState, liftName, {
+    scope: 'all',
+    exclude: { weekKey: currentWeekString, day: dayKey },
+  });
 
   if (history.length === 0) return result;
 
@@ -217,48 +186,45 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
     result.message = 'You stalled on ' + liftName + '. Reducing sets by 20% for this session to allow recovery.';
   }
 
+  const lastSessionSets = lastSession.workingSets;
   let totalRpeSum = 0, rpeCount = 0;
-  const pastWkData = appState.weeks[(cWk - 1).toString()];
+  const pastWkData = appState.weeks[lastSession.weekKey];
 
   if (pastWkData) {
-    // Primary: per-set RPE on completed sets
+    // Primary: completed working-set RPE from the exact prior session. The
+    // session can live on another day, program, activation or one-off record.
     let hasPerSetRpe = false;
-    DEFAULT_DAYS.forEach(d => {
-      const dayLifts = pastWkData.lifts?.[d] || {};
-      for (const lift in dayLifts) {
-        if (!Array.isArray(dayLifts[lift])) continue;
-        dayLifts[lift].forEach(s => {
-          // Warm-ups are submaximal by design — exclude them so their (low)
-          // effort never skews the weekly fatigue average.
-          if (isCompletedSet(s) && s.rpe && s.type !== 'W' && !s.isWarmup) {
-            const rpe = parseFloat(s.rpe) || 0;
-            if (rpe > 0) { totalRpeSum += rpe; rpeCount++; hasPerSetRpe = true; }
-          }
-        });
-      }
-    });
+    const sourceDay = lastSession.day;
+    const dayLifts = pastWkData.lifts?.[sourceDay] || {};
+    for (const lift in dayLifts) {
+      if (!Array.isArray(dayLifts[lift])) continue;
+      dayLifts[lift].forEach(s => {
+        if (isCompletedSet(s) && !isWarmupSet(s) && s.rpe) {
+          const rpe = parseFloat(s.rpe) || 0;
+          if (rpe > 0) { totalRpeSum += rpe; rpeCount++; hasPerSetRpe = true; }
+        }
+      });
+    }
 
     // Fallback: session-level RPE (gym + run)
     if (!hasPerSetRpe) {
-      DEFAULT_DAYS.forEach(d => {
-        runSessionsForDay(pastWkData, d).forEach(run => {
-          const runRpe = parseInt(run.rpe, 10) || 0;
-          if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
-        });
-
-        const gymRpe = parseInt(pastWkData.gymRpe?.[d], 10) || 0;
-        if (gymRpe > 0) { totalRpeSum += gymRpe; rpeCount++; }
+      runSessionsForDay(pastWkData, sourceDay).forEach(run => {
+        const runRpe = parseInt(run.rpe, 10) || 0;
+        if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
       });
+
+      const gymRpe = parseInt(pastWkData.gymRpe?.[sourceDay], 10) || 0;
+      if (gymRpe > 0) { totalRpeSum += gymRpe; rpeCount++; }
     }
   }
   
-  const pastWeekAvgRpe = rpeCount > 0 ? totalRpeSum / rpeCount : 0;
-  if (pastWeekAvgRpe >= (CONFIG.fatigueRpeThreshold || 8.5)) {
+  const priorSessionAvgRpe = rpeCount > 0 ? totalRpeSum / rpeCount : 0;
+  if (priorSessionAvgRpe >= (CONFIG.fatigueRpeThreshold || 8.5)) {
     result.isFatigueOverload = true;
     // A documented stall keeps message precedence, so callers that surface a
     // single line (home stall alerts) are unchanged in the single-flag cases.
     if (!result.message) {
-      result.message = 'High fatigue detected from last week (Avg RPE ' + pastWeekAvgRpe.toFixed(1) + '). We recommend dropping workout volume by 10% today.';
+      result.message = 'High fatigue detected in your latest session (Avg RPE ' + priorSessionAvgRpe.toFixed(1) + '). We recommend dropping workout volume by 10% today.';
     }
   }
 
@@ -550,7 +516,3 @@ export {
   weeklyDistanceSeries, weeklyElevationSeries, weeklyPaceSeries,
   weeklyHrSeries, weeklyHrZonesSeries, weeklyCadenceSeries, weeklyTrainingEffectSeries,
 } from './metrics/metrics-running.js';
-
-export {
-  weeklyLoadSeries, weeklyRpeSeries, readinessMetrics, recoveryMetrics, streakView,
-} from './metrics/metrics-load.js';
