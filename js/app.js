@@ -1627,7 +1627,7 @@ function initOfflineIndicator() {
 
 async function bootstrapApp() {
   try {
-    initSentry(SENTRY_DSN, SENTRY_RELEASE);   // no-op until a DSN is configured
+    initSentry(SENTRY_DSN, SENTRY_RELEASE);   // errors only; scrubbed before egress
     paintIcons(document);                     // fill [data-icon] chrome (nav + hub) with the SVG set
     initModalStack(document);
     initOfflineIndicator();

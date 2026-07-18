@@ -4,7 +4,7 @@
 // Pure functions. No DOM, no side effects.
 // ==========================================
 import { linearRegression, trendLine, rollingAverage, pctChange, clamp } from './math-utils.js';
-import { weeklyE1rmByLift, weeklyTonnageSeries, weeklyVolumeByMuscle } from '../../metrics/metrics-strength.js';
+import { allLiftsStats, weeklyE1rmByLift, weeklyTonnageSeries, weeklyVolumeByMuscle } from '../../metrics/metrics-strength.js';
 import { MUSCLE_GROUPS, GROUP_LANDMARKS, classifyVolume, buildMuscleLandmarkReport } from './volume-landmarks.js';
 
 // Rate of improvement (kg per week) for a lift, from linear regression on e1RM series.
@@ -115,6 +115,7 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
   const currentWeek   = parseInt(state.currentWeek || '1', 10);
   const volSeries     = weeklyTonnageSeries(state, days, maxWeek);
   const e1rmByLift    = weeklyE1rmByLift(state, days, maxWeek);
+  const allTimeByLift = allLiftsStats(state, days);
   const muscleByWeek  = weeklyVolumeByMuscle(state, days, maxWeek);
   const muscleGroups  = aggregateMuscleGroups(muscleByWeek, maxWeek);
   const currentSets   = currentWeekSetsByGroup(muscleGroups, currentWeek);
@@ -123,7 +124,9 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
   const liftProgression = {};
   for (const [lift, series] of Object.entries(e1rmByLift)) {
     const nonZero    = series.filter(v => v > 0);
-    const lifetimePR = Math.max(...series, 0);
+    // The chart series is scoped to this program run; the labelled Lifetime PR
+    // scans every stored activation/archive/one-off record.
+    const lifetimePR = allTimeByLift[lift]?.allTimeMax || Math.max(...series, 0);
     const blockPR    = currentBlockPR(series, currentWeek, 4);
     const roi        = rateOfImprovement(series);
     const projection = projectedPR(series, 4);
@@ -134,6 +137,8 @@ export function computeStrengthAnalytics(state, days, maxWeek) {
     liftProgression[lift] = {
       series, trend, rolling4,
       lifetimePR, blockPR,
+      seriesScope: 'active-program-run',
+      lifetimeScope: 'all-stored-activations',
       currentWeekPR: series[currentWeek - 1] || 0,
       previousWeekPR: series[currentWeek - 2] || 0,
       roi,           // kg/week

@@ -314,6 +314,36 @@ count, downloads, or monetization—are the decision metrics.
   delete identity. The roadmap now owns product rules, direction, status, and release gates;
   dated audit/progress/launch-checklist files were removed. Five physical Android matrices remain
   as executable evidence forms, not parallel status trackers.
+- **R21 exercise progression complete — 18 July 2026** on
+  `codex/r21-r22-release-hardening`. One date-strict exercise-history query now scans
+  numeric, archived, and independent-session records across weekdays, programs, and
+  activations. Its default progression scope is all stored activations; activation- and
+  program-scoped reads are explicit options. Exact bare-string exercise names remain the
+  identity contract, warm-ups/incomplete sets are excluded, the current edited slot is
+  excluded, and same-day sessions prefer a real start timestamp before a deterministic
+  record-key tie-break. Undated legacy slots remain stored but are never invented into the
+  chronology. The cockpit's suggestion, stall check, and prior-session fatigue now consume
+  this query, so a moved Monday workout logged Tuesday or an archived prior program supplies
+  the correct latest performance.
+- **R22 analytics consolidation complete + bounded R25 seam — 18 July 2026** on
+  `codex/r21-r22-release-hardening`. `js/metrics/training-load.js` now owns the one sRPE
+  day formula and explicitly separated program-week and calendar-dated rolling scopes;
+  former Brain/metrics duplicates are compatibility adapters. The obsolete RPE-only
+  readiness models and engine re-exports were removed so the R13 evidence-aware scorer is
+  the only readiness model. Rolling ATL/CTL now includes dated archived activations and
+  one-off sessions, fills real calendar rest days, and shares duplicate-session rules with
+  weekly analytics. Strength's labelled Lifetime PR now scans every stored activation while
+  its chart remains explicitly current-program-run scoped; Profile “This Week” and its
+  heatmap now use real calendar dates across all activations. Mislabelled program buckets now
+  read “4-Week Volume” and “Current Program Week.” Golden load, all-activation, scope,
+  archive, one-off, exact-identity, tie, and export/import-round-trip fixtures cover the seams.
+- **Release submission drafts reconciled — 18 July 2026** on
+  `codex/r21-r22-release-hardening`. The privacy, Play Data Safety, and store-listing drafts
+  now match the implemented four-field Health Connect contract, configured scrubbed Sentry
+  reporting, vendored runtime JS, remote font/map services, and evidence-honest GPS claims.
+  The Play pack now flags the mandatory external account-deletion resource, hosted in-app
+  privacy link, edge-function verification, provider-sharing classification, placeholder
+  replacement, and legal review as unresolved owner gates rather than claiming readiness.
 
 ## Prioritization model
 
@@ -322,13 +352,14 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 ## Current execution focus
 
 Completed recommendations remain in the implementation register and phase tables as
-acceptance evidence; they are not the active queue. R17 and R18 are engineering-complete.
+acceptance evidence; they are not the active queue. R17, R18, R21, and R22 are
+engineering-complete; R25 remains an incremental seam-by-seam practice.
 The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
 pass, then the owner completes `docs/android-gps-device-checklist.md`; failures return to R15
 before beta.
 
-In parallel, complete the human-owned device and release evidence below. Phase 3 work
-(R20–R26) remains deferred until the public-beta gate is satisfied; R24 additionally
+In parallel, complete the human-owned device and release evidence below. R20, R23, R24,
+and R26 remain deferred until the public-beta/evidence gates are satisfied; R24 additionally
 requires production telemetry.
 
 ## Consolidated recommendation register
@@ -357,8 +388,8 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R18 | Program activation | Mid-session switching can archive partial work; prior activation cannot be resumed. | Resolve session first and expose prior activation history/resume semantics. | activation UI/state, program detail/library, workout completion. | Switch/resume/history scenarios across partial/full states. | Phase 2 / `codex/activation-continuity`. |
 | R19 | Program integrity | Unknown IDs silently fall back to Hybrid Engine. | Validate ID and show explicit recovery choices. | program registry/state load/import UI. | Missing/deleted/corrupt program fixtures. | Phase 2 / small PR with R17 or standalone. |
 | R20 | Program schema | Shared weekly targets/free-text cannot represent marketed prescriptions. | Legacy-compatible normalized prescription resolver and structured overrides. | schema, engine, builder, catalog adapters, preview/detail/workout. | Catalog golden corpus, consumer equality, custom round trip. | Phase 3 / design ADR then multiple PRs. |
-| R21 | Exercise progression | `computeDiagnosticForLift` only checks prior numeric weeks/same day. | Chronological all-session exercise query with explicit scope. | engine/history query, activation/session records, progression tests. | Cross-day/program/archive/exercise-identity cases. | Phase 3 / after R2, preferably after resolver contract. |
-| R22 | Analytics maintenance | Duplicate model exports can drift; “lifetime” scope is active-run-only. | One supported model per metric and scope-correct labels/queries. | metrics-load/readiness re-exports, strength calculations/views. | Golden formula and all-activation history tests. | Phase 3 / `codex/analytics-consolidation`. |
+| R21 | Exercise progression | `computeDiagnosticForLift` only checks prior numeric weeks/same day. | Chronological all-session exercise query with explicit scope. | engine/history query, activation/session records, progression tests. | Cross-day/program/archive/exercise-identity cases. | Complete on `codex/r21-r22-release-hardening`. |
+| R22 | Analytics maintenance | Duplicate model exports can drift; “lifetime” scope is active-run-only. | One supported model per metric and scope-correct labels/queries. | metrics-load/readiness re-exports, strength calculations/views. | Golden formula and all-activation history tests. | Complete on `codex/r21-r22-release-hardening`. |
 | R23 | Running analytics | Broad best-run VDOT selection lacks effort and robust quality confidence. | Qualify source efforts, reject outliers, expose projection confidence. | running performance/projection modules, import/GPS quality metadata. | Race/easy/interval/manual/outlier/sparse-history fixtures. | Phase 3 / after R15 data quality. |
 | R24 | Persistence/sync scale | Critical saves serialize/upsert lifetime history as one blob. | Incrementally store immutable sessions while retaining versioned snapshot portability. | state repositories, Supabase schema/RLS, offline queue, migrations/export. | Dual-read/write, rollback, RLS, conflicts, large-history perf. | Phase 3 / dedicated ADR and multi-PR migration, only with telemetry. |
 | R25 | Maintainability/design | Large cross-cutting modules plus inline styles/`!important` raise regression cost. | Split along tested seams and migrate touched UI to primitives. | workout/app/settings/state and CSS/components. | Pre-split behavior coverage and visual regression. | Phase 3 / small per-seam PRs, never a mechanical rewrite. |
@@ -449,11 +480,14 @@ These require the product owner/device/accounts and must not be simulated as com
   JSON reimport checklists on minimum/current supported devices.
 - [ ] Deploy and verify the `delete-account` edge function so account deletion removes the
   authentication record as well as local/cloud user data.
-- [ ] Have the privacy policy and terms reviewed, replace every placeholder, host them at public
-  URLs, and complete the Play Data Safety form from `docs/legal/play-data-safety.md`.
+- [ ] Have the privacy policy and terms reviewed; replace every placeholder; confirm the
+  Sentry retention and provider-sharing classifications; host the policy as a public HTTPS
+  web page; add its link in Settings; publish/test the external account-deletion request
+  path; then complete the Play Data Safety and Health apps declarations from
+  `docs/legal/play-data-safety.md`.
 - [ ] Produce final launcher/splash assets, phone screenshots, feature graphic, and store listing
   media only after the device matrices pass.
-- [ ] Configure `main` branch protection so the required verification workflow cannot be bypassed.
+- [x] Configure `main` branch protection so the required verification workflow cannot be bypassed.
 - [ ] Produce the signed release through CI, upload it to Play internal testing, invite testers,
   triage Sentry findings, complete final QA/versioning, then promote to closed/public beta.
 - [ ] Review coaching/health copy for product and legal positioning before store submission.
@@ -465,6 +499,16 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-18 · R21 + R22 with a bounded R25 extraction on
+  `codex/r21-r22-release-hardening`: progression now follows exact exercises across real
+  dated sessions/program runs; load/readiness duplication is removed; rolling load and
+  Lifetime/Profile scopes include archived and one-off history honestly. Play privacy,
+  Data Safety, deletion, and store-copy drafts were reconciled to actual behavior without
+  claiming human/legal/device gates complete. `main` now requires up-to-date Web and Android
+  verification through a pull request, resolves review conversations, protects administrators,
+  and blocks force-pushes/deletion. `npm test`, typecheck, and smoke are green with 1,003
+  tests. · Next: merge the PR after required Web/Android verification, then
+  complete the physical-device and owner/legal release evidence before public beta.
 - 2026-07-16 · R17 follow-ups + R18 activation continuity on
   `codex/activation-import-continuity`: the live Settings import now validates nested state,
   migrates in memory and previews exact content/replacement risk before writing; imported

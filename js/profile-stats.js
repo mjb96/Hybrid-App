@@ -8,6 +8,9 @@ import { getCatalogEntry } from './programs/catalog.js';
 import { allLiftsStats } from './metrics/metrics-strength.js';
 import { isCompletedSet, isWarmupSet } from './set-utils.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
+import { addDaysISO, todayKey } from './dates.js';
+import { indexSlotsByDate, weekStartOf } from './analytics/weekly-aggregate.js';
+import { exercisePerformanceHistory } from './workout/exercise-history.js';
 
 // ── Section helpers ───────────────────────────────────────────────────────────
 
@@ -445,28 +448,13 @@ export function _fmtPace(secsPerKm) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// Compares best e1RM in last 4 weeks vs older history. Returns { diff, dir } or null.
+// Compares best e1RM in the four most recent dated sessions vs older dated
+// history. Exact exercise identity and all-activation scope match progression.
 export function _liftTrend(state, days, liftName) {
-  const curWk = parseInt(state.currentWeek || '1', 10);
-  if (curWk < 2) return null;
-
-  const recentFrom = Math.max(2, curWk - 3);
-  let recentBest = 0, olderBest = 0;
-
-  for (const [wKey, wkData] of Object.entries(state.weeks || {})) {
-    const w = parseInt(wKey, 10);
-    for (const d of days) {
-      const sets = wkData?.lifts?.[d]?.[liftName];
-      if (!Array.isArray(sets)) continue;
-      for (const s of sets) {
-        if (!_isSet(s)) continue;
-        const e = (parseFloat(s.w) || 0) * (1 + (parseInt(s.r, 10) || 0) / 30);
-        if (e === 0) continue;
-        if (w >= recentFrom) { if (e > recentBest) recentBest = e; }
-        else                  { if (e > olderBest)  olderBest  = e; }
-      }
-    }
-  }
+  const history = exercisePerformanceHistory(state, liftName, { days });
+  if (history.length < 5) return null;
+  const recentBest = Math.max(...history.slice(0, 4).map((row) => row.e1rm), 0);
+  const olderBest = Math.max(...history.slice(4).map((row) => row.e1rm), 0);
 
   if (recentBest === 0 || olderBest === 0) return null;
   const diff = Math.round(recentBest - olderBest);
@@ -478,39 +466,28 @@ export function _liftTrend(state, days, liftName) {
 // is { type: ''|'lift'|'run'|'both', level: 0-4 } where level grades training
 // load (volume for lifts, distance for runs) relative to the period max. Rows
 // carry a month label (GitHub-style: shown only when the month changes).
-export function _heatmapData(state, days, numWeeks) {
-  const curWk    = parseInt(state.currentWeek || '1', 10);
-  const startWk  = Math.max(1, curWk - numWeeks + 1);
+export function _heatmapData(state, days, numWeeks, options = {}) {
+  const today = options.today || todayKey();
+  const currentStart = weekStartOf(today);
+  if (!currentStart) return [];
+  const index = indexSlotsByDate(state);
+  const firstStart = addDaysISO(currentStart, -7 * Math.max(0, numWeeks - 1));
 
-  // Week → representative start date for month labels.
-  const DAY_JS = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-  let weekAnchor = null;
-  if (state.weekStartedAt) {
-    weekAnchor = new Date(state.weekStartedAt);
-    const diff = (weekAnchor.getDay() - (DAY_JS[days[0]] ?? 1) + 7) % 7;
-    weekAnchor.setDate(weekAnchor.getDate() - diff);
-  }
-
-  // First pass: raw per-day volume & distance to derive normalisation maxes.
+  // Real calendar-week/day activity across all activations.
   const raw = [];
   let maxVol = 0, maxDist = 0;
-  for (let w = startWk; w <= curWk; w++) {
-    const wkData = (state.weeks || {})[String(w)];
-    const cells = days.map(d => {
-      let vol = 0, dist = 0;
-      if (wkData) {
-        const dayLifts = wkData.lifts?.[d] || {};
-        for (const l in dayLifts) {
-          if (!Array.isArray(dayLifts[l])) continue;
-          dayLifts[l].forEach(s => { if (_isSet(s)) vol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); });
-        }
-        dist = parseFloat(runDaySummary(wkData, d).dist) || 0;
-      }
+  for (let weekOffset = 0; weekOffset < numWeeks; weekOffset++) {
+    const weekStart = addDaysISO(firstStart, weekOffset * 7);
+    const cells = days.map((_, dayOffset) => {
+      const date = addDaysISO(weekStart, dayOffset);
+      const slots = index.allByDate.get(date) || [];
+      const vol = slots.reduce((sum, slot) => sum + slot.stats.volumeKg, 0);
+      const dist = slots.reduce((sum, slot) => sum + (parseFloat(slot.run?.dist) || 0), 0);
       if (vol > maxVol)   maxVol = vol;
       if (dist > maxDist) maxDist = dist;
       return { vol, dist };
     });
-    raw.push({ week: w, cells });
+    raw.push({ week: weekStart, cells });
   }
 
   const grade = (cell) => {
@@ -524,39 +501,42 @@ export function _heatmapData(state, days, numWeeks) {
 
   let prevMonth = null;
   return raw.map(row => {
-    let label = '';
-    if (weekAnchor) {
-      const date = new Date(weekAnchor);
-      date.setDate(date.getDate() - (curWk - row.week) * 7);
-      const month = date.toLocaleDateString(undefined, { month: 'short' });
-      if (month !== prevMonth) { label = month; prevMonth = month; }
-    } else {
-      label = `W${row.week}`;
-    }
+    const date = new Date(`${row.week}T12:00:00`);
+    const month = date.toLocaleDateString(undefined, { month: 'short' });
+    const label = month !== prevMonth ? month : '';
+    prevMonth = month;
     return { week: row.week, label, cells: row.cells.map(grade) };
   });
 }
 
-// Per-week training summary: volume, distance, session count, training minutes.
-export function _weekSummary(state, days, weekNum) {
-  const wkData = (state.weeks || {})[String(weekNum)];
-  let volume = 0, distanceKm = 0, sessions = 0, minutes = 0;
-  if (!wkData) return { volume, distanceKm, sessions, minutes };
-  days.forEach(d => {
-    let dayVol = 0, dayHasLift = false;
-    const dayLifts = wkData.lifts?.[d] || {};
-    for (const l in dayLifts) {
-      if (!Array.isArray(dayLifts[l])) continue;
-      dayLifts[l].forEach(s => { if (_isSet(s)) { dayVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); dayHasLift = true; } });
+// Calendar-week summary across every dated activation/session. Strength and
+// each run are independent activities, matching the Activities screen.
+export function _calendarWeekSummary(state, options = {}) {
+  const startDate = options.weekStart || weekStartOf(options.today || todayKey());
+  const empty = { weekStart: startDate, volume: 0, distanceKm: 0, sessions: 0, minutes: 0 };
+  if (!startDate) return empty;
+  const index = indexSlotsByDate(state);
+  const result = { ...empty };
+  for (let offset = 0; offset < 7; offset++) {
+    const date = addDaysISO(startDate, offset);
+    const slots = index.allByDate.get(date) || [];
+    for (const slot of slots) {
+      const week = state?.weeks?.[slot.weekKey];
+      if (slot.stats.workingSets > 0) {
+        result.sessions++;
+        result.volume += slot.stats.volumeKg;
+        result.minutes += _parseDurationMin(week?.gymStats?.[slot.day]?.time);
+      }
+      for (const run of runSessionsForDay(week, slot.day)) {
+        const distance = parseFloat(run?.dist) || 0;
+        if (distance <= 0) continue;
+        result.sessions++;
+        result.distanceKm += distance;
+        result.minutes += _parseDurationMin(run.time);
+      }
     }
-    const run = runDaySummary(wkData, d);
-    const runDist = parseFloat(run.dist) || 0;
-    volume += dayVol;
-    distanceKm += runDist;
-    if (dayHasLift || runDist > 0) sessions++;
-    minutes += _parseDurationMin(run.time) + _parseDurationMin(wkData.gymStats?.[d]?.time);
-  });
-  return { volume, distanceKm, sessions, minutes };
+  }
+  return result;
 }
 
 // Lenient duration parser → minutes. Accepts "mm:ss", "h:mm:ss", or a plain

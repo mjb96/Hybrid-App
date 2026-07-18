@@ -9,6 +9,7 @@ import { computeStreak } from './home/dashboard-model.js';
 import { levelFromXp } from './brain/hybrid-score/levels.js';
 import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
 import { buildActivityHistory } from './activities/model.js';
+import { addDaysISO } from './dates.js';
 
 // V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
 // the full depth. Fixed, curated order — the doctrine is "simple front, powerful
@@ -77,10 +78,8 @@ export function renderAthleteProfile() {
   const progression   = _athleteProgression(lifetime, completions.length, longestStreak, prCount);
 
   // Weekly summaries (this vs last) — volume, distance, sessions, time + trends
-  const curWkStr      = state.currentWeek || '1';
-  const prevWkStr     = String(Math.max(1, parseInt(curWkStr, 10) - 1));
-  const thisWk        = _weekSummary(state, days, curWkStr);
-  const prevWk        = parseInt(curWkStr, 10) > 1 ? _weekSummary(state, days, prevWkStr) : { volume: 0, distanceKm: 0, sessions: 0, minutes: 0 };
+  const thisWk        = _calendarWeekSummary(state);
+  const prevWk        = _calendarWeekSummary(state, { weekStart: addDaysISO(thisWk.weekStart, -7) });
   const currentWeekVolume = thisWk.volume;
   const weeklyDistKm  = thisWk.distanceKm;
   const volumeTrendPct = (prevWk.volume > 0 && currentWeekVolume > 0)
@@ -465,7 +464,7 @@ import {
   _runningStats,
   _compactNum,
   _fmtPace,
-  _weekSummary,
+  _calendarWeekSummary,
   _renderBodyWeightSection,
   _athleteProgression,
   _renderProgressionSection,

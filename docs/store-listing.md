@@ -5,7 +5,7 @@ Play Console. Character limits are Play's current maxima.
 
 ## App name (max 30)
 `Helyx — Hybrid Training`
-*(30 chars. Alternatives: "Helyx: Strength & Running" · "Helyx Hybrid Trainer")*
+*(23 chars. Alternatives: "Helyx: Strength & Running" · "Helyx Hybrid Trainer")*
 
 ## Short description (max 80)
 `Train strength and running in one plan. Smart logging, real analytics, no fluff.`
@@ -25,9 +25,9 @@ BUILT FOR HYBRID TRAINING
 
 LOG IT FAST
 • Quick set logging with weight, reps, and per-set RIR.
-• GPS run tracking with live pace, distance, splits, and a route map — tracking
-  keeps running even when your screen locks.
-• Connect Health Connect to pull steps, sleep, heart rate, HRV, and more.
+• GPS run tracking with live pace, distance, splits, and a route map.
+• Connect Health Connect for the fields you choose: steps, sleep duration,
+  resting heart rate, and HRV.
 
 SEE THE FULL PICTURE
 • Training load, fitness/fatigue balance, and readiness in plain language.
@@ -37,7 +37,8 @@ SEE THE FULL PICTURE
 YOURS, AND PRIVATE
 • Works offline — your data lives on your device first.
 • Optional account to sync across devices, protected so only you can read it.
-• No ads. No trackers. No selling your data.
+• No ads, advertising IDs, or behavioural analytics. Limited scrubbed crash
+  reporting helps us fix beta issues. We do not sell your data.
 
 Helyx gives general fitness information, not medical advice. Talk to a qualified
 professional before starting a new program.
@@ -49,9 +50,9 @@ Free at launch.
 ```
 First public beta of Helyx 🎉
 • Hybrid strength + running planner and logger
-• GPS run tracking that survives a locked screen
+• GPS run tracking with live pace, splits, route quality, and recovery tools
 • Training-load, readiness, and strength/endurance analytics
-• Optional private cloud sync — offline-first, no ads or trackers
+• Optional private cloud sync — offline-first, no ads or behavioural analytics
 Thanks for testing! Send feedback in-app or to {{CONTACT_EMAIL}}.
 ```
 
@@ -70,6 +71,7 @@ See `docs/legal/play-data-safety.md` for the exact form answers.
 
 ## Contact / policy links (required)
 - **Privacy policy URL:** {{HOSTED_PRIVACY_POLICY_URL}}
+- **Account deletion URL:** {{HOSTED_PRIVACY_POLICY_URL}}#account-and-data-deletion-requests
 - **Support email:** {{CONTACT_EMAIL}}
 
 ## Assets checklist ([You] — design task)

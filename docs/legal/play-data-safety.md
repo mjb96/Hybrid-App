@@ -7,44 +7,61 @@ reflect the app as built; re-check if data practices change.
 > Play's definition of **"collected"** = data transmitted off the device. Helyx
 > stores training/health/location data **on-device by default**; it is only
 > *collected* (transmitted) when the user **signs in** (cloud sync) or, for
-> crash data, when Sentry is enabled. Because sign-in is a real feature, declare
-> these as **Collected — Optional**.
+> crash data, through the configured Sentry reporter. Because sign-in is optional,
+> synced user data is generally **Collected — Optional**. Crash/diagnostic
+> collection is automatic in the distributed build and is therefore **Required**
+> unless an opt-out is added or the DSN is removed before release.
+
+Official references (re-check at submission time):
+- [Google Play Data Safety form](https://support.google.com/googleplay/android-developer/answer/10787469)
+- [Account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111)
+- [Health Connect / sensitive-permission policy](https://support.google.com/googleplay/android-developer/answer/16558241)
 
 ## Global answers
-- **Is all data encrypted in transit?** → **Yes** (HTTPS/TLS to Supabase, Sentry, CDNs, tile server).
-- **Do you provide a way to request data deletion?** → **Yes** — see "Account deletion" below.
-- **Data collected is required or optional?** → Mostly **Optional** (only email is required, and only if the user chooses to create an account).
-- **Do you share data with third parties?** Sharing = transfer to a third party acting as an independent controller. Our providers are **processors** running the service (see privacy policy). Declare **No data "shared"** unless your legal review concludes Sentry/tiles count as sharing; if so, list Diagnostics/Location accordingly.
+- **Is all data encrypted in transit?** → **Yes** (HTTPS/TLS to Supabase, Sentry, Google Fonts, and the tile server).
+- **Do you provide a way to request data deletion?** → **Do not submit Yes yet.**
+  First deploy/verify the auth-deletion edge function and publish the required
+  external web deletion-request resource described below.
+- **Data collected is required or optional?** → Synced user data is **Optional**;
+  configured crash/diagnostic reporting is currently **Required** because the
+  distributed build has no user opt-out.
+- **Do you share data with third parties?** → **Legal/contract review required.**
+  Supabase and Sentry may qualify for Play's service-provider exception. The
+  public OpenStreetMap tile service and Google Fonts must be classified before
+  selecting **No sharing**. A conservative declaration treats map-tile location
+  context as shared for App functionality unless counsel confirms an exception.
 
 ## Data types to declare
 
 | Play category → type | Collected? | Optional? | Purpose(s) | Notes |
 |---|---|---|---|---|
+| **Personal info → Name** | Yes | Optional | App functionality | Optional profile/display name; transmitted only when signed in. |
 | **Personal info → Email address** | Yes | Optional* | Account management | *Required only if the user creates an account. Stored by Supabase Auth. |
+| **Personal info → User IDs** | Yes | Optional* | Account management | Supabase account identifier; only created for signed-in users. |
 | **Location → Approximate/Precise location** | Yes | Optional | App functionality (GPS run tracking) | Foreground only, while a run is active; visible notification. Synced only if signed in. |
-| **Health & fitness → Health info** | Yes | Optional | App functionality | From Health Connect (steps, calories, sleep, HR, RHR, HRV, weight, exercise) — only the types the user approves. |
+| **Health & fitness → Health info** | Yes | Optional | App functionality | From Health Connect: steps, sleep duration, resting heart rate, and HRV — only selected/granted fields. |
 | **Health & fitness → Fitness info** | Yes | Optional | App functionality | Workouts, runs, body weight, streaks, goals the user logs. |
 | **Photos and videos → Photos** | Yes | Optional | App functionality (profile avatar) | Only if the user sets an avatar; stored with their synced data. |
 | **App activity → Other user-generated content** | Yes | Optional | App functionality | Notes / wellness / fasting entries. |
-| **App info & performance → Crash logs** | Yes (if Sentry enabled) | Optional | Diagnostics (crash fixing) | PII-scrubbed; no health/location/training content. Off until a DSN is set. |
-| **App info & performance → Diagnostics** | Yes (if Sentry enabled) | Optional | Diagnostics | As above. |
+| **App info & performance → Crash logs** | Yes | **Required*** | Analytics (app health/crash fixing) | Automatic Sentry error reporting; PII-scrubbed; no performance tracing. *Required unless release configuration changes. |
+| **App info & performance → Diagnostics** | Yes | **Required*** | Analytics (app health/crash fixing) | As above. |
 | **Device or other IDs** | **No** | — | — | No advertising ID, no analytics IDs. |
 
 For each declared type, the Play form asks: *collected*, *shared*, *processed
 ephemerally*, *required/optional*, and *purpose*. Use the table above:
-purpose = **App functionality** for everything except crash data (**Diagnostics**).
-None is used for **Advertising or marketing**, **Analytics** (beyond crash), or
-**sold**.
+purpose = **App functionality** for most user data, **Account management** for
+account identifiers, and **Analytics** for crash/diagnostic data. None is used
+for **Advertising or marketing** or sold.
 
 ## Health Connect specifics
 Play + Health Connect have an **additional** policy: apps reading Health Connect
 data must show an in-app privacy policy link and only request data types they
-use. Helyx requests exactly the types listed above and links the policy from
-Settings — confirm both before submitting the Health Connect declaration.
+use. Helyx requests exactly the four fields listed above, but the current app
+still needs the hosted privacy-policy link added to Settings before submission.
 
 ## Account deletion (Play requirement)
-Play requires a way to request account + data deletion, reachable without
-reinstalling.
+Play requires both an in-app deletion path and an external web resource where a
+user can request deletion without reinstalling.
 - **In-app (built):** Settings → Account → **Delete Account & Data** erases the
   user's synced data row (RLS-permitted own-row delete) and all local data, then
   signs out. Shown only when signed in.
@@ -53,9 +70,14 @@ reinstalling.
   `supabase functions deploy delete-account`. The app calls it automatically and
   falls back to data-row deletion if it isn't deployed yet, so data is erased
   either way.
-- **Data Safety "deletion" field:** you can now point to the in-app deletion.
-  Users can also export first (Settings → Export). Keep {{CONTACT_EMAIL}} as a
-  backup contact.
+- **External request resource (still required):** publish the privacy policy's
+  prominent **Account and data deletion requests** section at a stable public
+  HTTPS URL and put its anchored URL in Play Console. It must let the user make
+  a request (the drafted support-email flow is acceptable only after the real
+  email and response process exist).
+- **In-app privacy link (still required):** add the hosted policy URL to Settings.
+- **Submission gate:** verify the edge function deletes the auth record and data,
+  verify the public request path end-to-end, then answer the Play deletion fields.
 
 ## Content rating & target audience (adjacent forms)
 - **Target age:** {{16+ recommended}} (health data; not directed at children).
