@@ -34,7 +34,7 @@ function weekDates(m) {
   return o;
 }
 
-let vs, vr;
+let vs, vr, vw, ve;
 before(async () => {
   globalThis.document = {
     getElementById: getEl, querySelector: () => null, querySelectorAll: () => [],
@@ -42,6 +42,8 @@ before(async () => {
   };
   vs = await import('../js/analytics/views/view-strength.js');
   vr = await import('../js/analytics/views/view-running.js');
+  vw = await import('../js/analytics/views/view-weekly-volume.js');
+  ve = await import('../js/analytics/views/view-strength-entity.js');
 });
 
 function sampleState() {
@@ -63,6 +65,7 @@ test('strength analytics renders on both tabs with the honest current-week label
     const html = getEl('strength-tab-body').innerHTML + getEl('strengthTrainingLoadDashboard').innerHTML;
     assert.match(html, /vs same point last week/, `strength ${tab} tab`);
     assert.doesNotMatch(html, /vs last week/); // the old mislabel is gone
+    assert.match(html, /data-context="weekly-volume"[^>]*data-parent-context="strength"[^>]*data-preserve-week="true"/);
   }
 });
 
@@ -94,4 +97,17 @@ test('completed (navigated) week uses the previous-week label, not the live one'
   const html = getEl('strengthTrainingLoadDashboard').innerHTML;
   assert.match(html, /vs same point last week|vs previous week/);
   assert.doesNotMatch(html, /NaN|Infinity/);
+});
+
+test('weekly volume and entity drilldowns render useful empty states without throwing', () => {
+  const state = { settings: { weightUnit: 'kg' }, weeks: {} };
+  assert.doesNotThrow(() => vw.renderWeeklyVolume(state));
+  const weekly = getEl('weeklyVolumeDetail').innerHTML;
+  assert.match(weekly, /Weekly Volume/);
+  assert.match(weekly, /Total tonnage/);
+  assert.match(weekly, /Day.*Workouts.*Exercises.*Muscles/s);
+  assert.doesNotMatch(weekly, /NaN|Infinity/);
+
+  assert.doesNotThrow(() => ve.renderExerciseDetail(state, { id: 'back_squat', name: 'Back Squat' }));
+  assert.match(getEl('strengthEntityDetail').innerHTML, /No completed history in this range/);
 });

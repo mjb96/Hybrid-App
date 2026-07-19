@@ -115,7 +115,7 @@ class WeeklyFitnessGraph {
     // Route to the matching analytics detail view via the app's action router.
     const cta = document.createElement('button');
     cta.setAttribute('data-action', 'open-analytics');
-    cta.setAttribute('data-context', this.type);
+    cta.setAttribute('data-context', this.type === 'strength' ? 'weekly-volume' : 'running');
     cta.style.display = 'none';
     document.body.appendChild(cta);
     cta.click();
@@ -177,6 +177,13 @@ class WeeklyFitnessGraph {
       const barH = val > 0 ? Math.max(Math.round((val / maxVal) * CHART_H), 4) : 0;
       const aria = this._barAria(d, settings);
       const cls  = 'wfg-b wfg-b--' + this.type + (d.isToday ? ' wfg-b--today' : '');
+      if (d.hasFutureData) {
+        return `<div class="wfg-dc wfg-dc--future">
+          <div class="wfg-bb wfg-bb--disabled" role="img" aria-label="${aria}">
+            <div class="${cls}" style="height:4px"></div>
+          </div>
+        </div>`;
+      }
       if (d.hasData && barH > 0) {
         if (d.isFuture) {
           return `<div class="wfg-dc wfg-dc--future">
@@ -246,8 +253,8 @@ class WeeklyFitnessGraph {
     ${compHTML}
   </div>
   <button class="wfg-detail-link" data-wfg-action="open-detail"
-          aria-label="Open ${this.type === 'strength' ? 'strength' : 'running'} analytics">
-    View ${this.type === 'strength' ? 'strength' : 'running'} details ›
+          aria-label="Open ${this.type === 'strength' ? 'weekly volume' : 'running'} analytics">
+    View ${this.type === 'strength' ? 'weekly volume' : 'running'} details ›
   </button>
 </div>`;
   }
@@ -281,6 +288,7 @@ class WeeklyFitnessGraph {
     const dayName = d.dayFull + (d.isToday ? ' (today)' : '');
     // A day still to come is "upcoming", not a missed session — never let an
     // empty future bar read as "no activity" (that's a day you trained nothing).
+    if (d.hasFutureData) return `${dayName}, future-dated activity excluded from this live week`;
     if (d.isFuture) return `${dayName}, upcoming`;
     if (!d.hasData) return `${dayName}, no activity`;
     return `Open activities for ${dayName}, ${this._fmtFull(d.value, settings)}`;
@@ -288,7 +296,8 @@ class WeeklyFitnessGraph {
 
   _chartSummaryAria(chart, orderedDays, settings, rangeStr) {
     const parts = orderedDays.map(d =>
-      d.hasData ? `${d.dayFull} ${this._fmtFull(d.value, settings)}`
+      d.hasFutureData ? `${d.dayFull} future-dated activity excluded`
+        : d.hasData ? `${d.dayFull} ${this._fmtFull(d.value, settings)}`
                 : `${d.dayFull} ${d.isFuture ? 'upcoming' : 'none'}`);
     const c = chart.comparison;
     const compStr = c.isComparable

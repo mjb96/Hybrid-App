@@ -116,7 +116,7 @@ test('streakView handles empty streak data', () => {
 });
 
 // ── Form (TSB) card — no confident verdict on zero data ───────────────────────
-// Regression: the Recovery leaf showed "0 · fresh / peaking" with no training
+// Regression: the Recovery leaf showed a confident recovery verdict with no training
 // history (currentCTL 0 → TSB 0), while the sibling ACWR card and Stats-tab TSB
 // both correctly showed "--". formatFormTSB gates on real load data.
 
@@ -126,20 +126,20 @@ test('formatFormTSB shows a neutral empty state when there is no load data', () 
   assert.deepEqual(formatFormTSB(undefined, 5), { value: '--', sub: 'Log training to build this' });
 });
 
-test('formatFormTSB reads positive form (fresh) once load history exists', () => {
+test('formatFormTSB describes positive form without claiming readiness', () => {
   const r = formatFormTSB(30, 22); // CTL 30, ATL 22 -> TSB +8
   assert.equal(r.value, '+8');
-  assert.equal(r.sub, 'fresh / peaking');
+  assert.equal(r.sub, 'Acute load at or below 28-day baseline');
 });
 
-test('formatFormTSB reads negative form (carrying fatigue)', () => {
+test('formatFormTSB describes negative form against its load baseline', () => {
   const r = formatFormTSB(20, 33); // TSB -13
   assert.equal(r.value, '-13');
-  assert.equal(r.sub, 'carrying fatigue');
+  assert.equal(r.sub, 'Acute load above 28-day baseline');
 });
 
 test('formatFormTSB shows a bare 0 (not +0) at exact balance with data present', () => {
   const r = formatFormTSB(25, 25); // has data, TSB 0
   assert.equal(r.value, '0');
-  assert.equal(r.sub, 'fresh / peaking');
+  assert.equal(r.sub, 'Acute load at or below 28-day baseline');
 });

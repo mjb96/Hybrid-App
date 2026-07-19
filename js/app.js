@@ -130,8 +130,11 @@ document.addEventListener('app:navigate', (e) => {
 
 let _activePlanDisplayWeek = null;
 
-export function openAnalyticsView(context, scrollToId) {
-  setAnalyticsContext(context, { origin: activeTab === 'home' ? 'home' : 'insights' });
+export function openAnalyticsView(context, scrollToId, contextOptions = {}) {
+  setAnalyticsContext(context, {
+    ...contextOptions,
+    origin: contextOptions.origin || (contextOptions.parentContext ? undefined : (activeTab === 'home' ? 'home' : 'insights')),
+  });
   switchGlobalAppTab('analytics');
   // Optional deep-link to a sub-section (e.g. the rest-day mission → the wellness
   // check-in form, which otherwise sits several screens below the recovery hero).
@@ -964,7 +967,13 @@ document.addEventListener('click', (e) => {
     if (tgt === 'analytics') setAnalyticsContext('hub');
     switchGlobalAppTab(tgt);
   }
-  else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'));
+  else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'), null, {
+    entity: target.getAttribute('data-entity'),
+    entityName: target.getAttribute('data-entity-name'),
+    parentContext: target.getAttribute('data-parent-context'),
+    origin: target.getAttribute('data-origin') || undefined,
+    preserveWeek: target.getAttribute('data-preserve-week') === 'true' || !!target.getAttribute('data-parent-context'),
+  });
   else if (action === 'open-wellness-checkin') openAnalyticsView('recovery-score', 'wellnessFormSection');
   else if (action === 'share-score-card') shareScoreCard();
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));

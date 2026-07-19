@@ -3,7 +3,7 @@
 // =============================================================================
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { comparisonLabel, statComparisonFrom, COMPARISON_LABELS } from '../js/analytics/comparison.js';
+import { comparisonLabel, statComparisonFrom, comparePeriodValues, COMPARISON_LABELS } from '../js/analytics/comparison.js';
 import { buildWeekChart } from '../js/analytics/week-chart-model.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -20,6 +20,16 @@ test('labels: current week is live, completed week is previous', () => {
   assert.equal(comparisonLabel(false), 'vs previous week');
   assert.equal(COMPARISON_LABELS.live, 'vs same point last week');
   assert.equal(COMPARISON_LABELS.completed, 'vs previous week');
+});
+
+test('shared comparison primitive handles zero and missing denominators', () => {
+  const missing = comparePeriodValues({ currentValue: 100, previousValue: null, isCurrentWeek: true });
+  assert.equal(missing.isComparable, false);
+  assert.equal(missing.percentageChange, null);
+  const zero = comparePeriodValues({ currentValue: 100, previousValue: 0, isCurrentWeek: false });
+  assert.equal(zero.isComparable, false);
+  assert.equal(zero.message, 'None last week');
+  assert.ok(Number.isFinite(zero.absoluteChange));
 });
 
 test('current partial week: stat card gets the live label and an elapsed-matched pct', () => {

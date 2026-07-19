@@ -252,7 +252,10 @@ export function buildCalendarWeekStrength(state, opts = {}) {
 
   const days = DAY_KEYS.map((dayKey, i) => {
     const date = addDaysISO(weekStart, i);
-    const slots = index.allByDate?.get(date) || (index.byDate.get(date) ? [index.byDate.get(date)] : []);
+    const isFuture = weekStart === weekStartOf(today) && date > today;
+    const slots = isFuture
+      ? []
+      : (index.allByDate?.get(date) || (index.byDate.get(date) ? [index.byDate.get(date)] : []));
     const s = slots.reduce((total, slot) => ({
       workingSets: total.workingSets + slot.stats.workingSets,
       reps: total.reps + slot.stats.reps,

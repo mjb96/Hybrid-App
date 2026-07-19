@@ -139,15 +139,19 @@ function pillarBar(key, p) {
   const contrib = p.contribution || 0;
   const chip = contrib === 0 ? '±0' : `${contrib > 0 ? '+' : ''}${contrib}`;
   const chipColor = contrib > 0 ? 'var(--color-green)' : contrib < 0 ? 'var(--color-red)' : 'var(--text-muted)';
+  const signals = Array.isArray(p.signals) ? p.signals.filter(Boolean) : [];
   return `
-  <div class="hs-pillar">
-    <div class="hs-pillar__top">
-      <span class="hs-pillar__label">${meta.icon} ${meta.label}</span>
-      <span class="hs-pillar__score">${p.score}<span class="hs-pillar__chip" style="color:${chipColor}">${chip}</span></span>
-    </div>
-    <div class="hs-pillar__track"><div class="hs-pillar__fill" style="width:${p.score}%;background:${meta.color}"></div></div>
-    ${p.signals?.[0] ? `<div class="hs-pillar__sig">${esc(p.signals[0])}</div>` : ''}
-  </div>`;
+  <details class="hs-pillar">
+    <summary class="hs-pillar__summary">
+      <span class="hs-pillar__top">
+        <span class="hs-pillar__label">${meta.icon} ${meta.label}</span>
+        <span class="hs-pillar__score">${p.score}<span class="hs-pillar__chip" style="color:${chipColor}">${chip}</span></span>
+      </span>
+      <span class="hs-pillar__track"><span class="hs-pillar__fill" style="width:${p.score}%;background:${meta.color}"></span></span>
+      ${signals[0] ? `<span class="hs-pillar__sig">${esc(signals[0])} · Tap to explain</span>` : ''}
+    </summary>
+    <ul class="hs-pillar__signals">${signals.map(signal => `<li>${esc(signal)}</li>`).join('') || '<li>No supporting signal was available.</li>'}</ul>
+  </details>`;
 }
 
 export function sparkline(values, color) {

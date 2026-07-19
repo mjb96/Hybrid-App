@@ -818,6 +818,7 @@
           <span class="week-nav-eyebrow">Viewing</span>
           <span id="weekNavLabel" class="week-nav-label">Week 1 · Current</span>
           <span id="weekNavDates" class="week-nav-dates"></span>
+          <button id="weekNavToday" class="week-nav-today" hidden>Return to this week</button>
         </div>
         <button id="weekNavNext" class="week-nav-arrow" aria-label="Next week" disabled>&#8594;</button>
       </div>
@@ -907,6 +908,14 @@
             <p style="color:var(--text-muted);font-size:0.75rem;">Complete sets to populate lift PRs.</p>
           </div>
         </article>
+      </div>
+
+      <div id="analytics-weekly-volume" class="analytics-section">
+        <div id="weeklyVolumeDetail"></div>
+      </div>
+
+      <div id="analytics-strength-entity" class="analytics-section">
+        <div id="strengthEntityDetail"></div>
       </div>
 
       <div id="analytics-running" class="analytics-section">

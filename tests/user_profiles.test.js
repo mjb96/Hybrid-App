@@ -75,8 +75,8 @@ test('Profile B: hybrid — strength and running charts are independent and corr
         runs: { tue: { dist: '6', time: '30:00' }, sat: { dist: '16', time: '85:00' } } },
     },
   };
-  const s = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: '2026-02-25' });
-  const r = buildWeekChart(state, { type: 'running', metric: 'distance', weekOffset: 0, today: '2026-02-25' });
+  const s = buildWeekChart(state, { type: 'strength', metric: 'sets', weekOffset: 0, today: '2026-03-01' });
+  const r = buildWeekChart(state, { type: 'running', metric: 'distance', weekOffset: 0, today: '2026-03-01' });
   assert.equal(s.total, 5);           // week 8 strength sets only (Mon 3 + Wed 2)
   assert.equal(r.total, 22);          // week 8 running km only (Tue 6 + Sat 16) — no cross-counting
   assert.equal(s.days.reduce((a, d) => a + d.activityCount, 0), 2); // Mon + Wed

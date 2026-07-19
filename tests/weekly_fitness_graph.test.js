@@ -160,7 +160,7 @@ test('future days of the current week read as "upcoming", not "no activity"', ()
   }
 });
 
-test('future-dated activity is visible but cannot open a workout', () => {
+test('future-dated activity is flagged, excluded and cannot open a workout', () => {
   const state = {
     settings: { weightUnit: 'kg' },
     weeks: { '1': {
@@ -172,6 +172,7 @@ test('future-dated activity is visible but cannot open a workout', () => {
   initWeeklyFitnessGraph(id, 'strength', () => state, { today: '2026-06-01' });
   const html = getEl(id).innerHTML;
   assert.match(html, /wfg-bb--disabled/);
+  assert.match(html, /future-dated activity excluded/);
   assert.doesNotMatch(html, /data-wfg-action="bar-click" data-wfg-day="sun"/);
 });
 

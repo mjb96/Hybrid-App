@@ -17,7 +17,6 @@ import { computeRecoveryAnalytics } from '../calculations/recovery-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import { computeDashboardModel } from '../../home/dashboard-model.js';
 import { formatFormTSB } from '../../metrics/metrics-load.js';
-import { runSessionsForDay } from '../../state/run-sessions.js';
 import { getProgramById } from '../../state.js';
 import {
   computeReadiness,
@@ -34,6 +33,7 @@ import {
 import { todayKey } from '../../dates.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { screenTabBar, mountScreenTabs } from './screen-kit.js';
+import { calendarWeekRpe } from '../recovery-calendar.js';
 
 function qs(id) { return document.getElementById(id); }
 
@@ -78,10 +78,10 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
   const status = readiness.status || readinessStatus(readiness.score);
 
   // Form/TSB is only meaningful once there's real training-load history (see
-  // formatFormTSB) — with no data it must not read a confident "0 · fresh / peaking".
+  // formatFormTSB) — with no data it must not read a confident recovery verdict.
   const form  = formatFormTSB(la.currentCTL, la.currentATL);
   const ratio = la.currentRatio > 0 ? la.currentRatio.toFixed(2) : '--';
-  const ratioStatus = la.currentRatio === 0 ? '' : la.currentRatio < 0.8 ? 'Detraining' : la.currentRatio < 1.3 ? 'Productive' : 'High';
+  const ratioStatus = la.currentRatio === 0 ? '' : la.loadStatus.status;
 
   const insights = rankInsights([
     ...generateRecoveryInsights({ recovDecline: recov.recovDecline, sleep7d: recov.sleep7d, hrvStat: recov.hrvStat, loadStatus: la.loadStatus, todayWellness: recov.todayWellness }),
@@ -113,21 +113,8 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
 // ---- RPE-based recovery (existing view) --------------------------------
 export function renderRecoveryAnalytics(data, getState, getDays) {
   const appState    = getState();
-  const defaultDays = getDays();
-  const wk          = appState.currentWeek || '1';
-  const weekData    = appState.weeks?.[wk];
-
-  let totalRpe = 0, rpeCount = 0;
-  if (weekData) {
-    defaultDays.forEach(d => {
-      const gRpe = parseInt(weekData.gymRpe?.[d], 10)   || 0;
-      runSessionsForDay(weekData, d).forEach(run => {
-        const rRpe = parseInt(run.rpe, 10) || 0;
-        if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
-      });
-      if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
-    });
-  }
+  const effort = calendarWeekRpe(appState);
+  const totalRpe = effort.total, rpeCount = effort.count;
 
   const avgRpe = rpeCount > 0 ? (totalRpe / rpeCount) : 0;
   let statusLabel = '--', statusColor = 'var(--text-muted)', interpretation = 'Log workouts to see recovery status.';
@@ -212,19 +199,8 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
   const statusColor   = primaryTone === 'progress' ? '#10b981' : primaryTone === 'caution' ? '#f59e0b' : primaryTone === 'warning' ? '#ef4444' : '#94a3b8';
 
   // Generate insights
-  const wk       = appState.currentWeek || '1';
-  const weekData = appState.weeks?.[wk];
-  let rpeCount = 0, totalRpe = 0;
-  if (weekData) {
-    defaultDays.forEach(d => {
-      const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
-      runSessionsForDay(weekData, d).forEach(run => {
-        const rRpe = parseInt(run.rpe, 10) || 0;
-        if (rRpe > 0) { totalRpe += rRpe; rpeCount++; }
-      });
-      if (gRpe > 0) { totalRpe += gRpe; rpeCount++; }
-    });
-  }
+  const effort = calendarWeekRpe(appState);
+  const rpeCount = effort.count, totalRpe = effort.total;
 
   const recovInsights = generateRecoveryInsights({
     recovDecline:  recov.recovDecline,
@@ -305,13 +281,14 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
   _ensureDiv(section, 'recoverySummaryCards');
   const avgRpe    = rpeCount > 0 ? totalRpe / rpeCount : 0;
   const rpeFactor = rpeCount > 0 ? Math.round(Math.max(0, Math.min(100, ((10 - avgRpe) / 9) * 100))) : null;
+  const form = formatFormTSB(la.currentCTL, la.currentATL);
 
   qs('recoverySummaryCards').innerHTML = `
     <h2 class="section-header mt-2">Session Load</h2>
     <div class="grid-2-col gap-2 mb-3">
-      ${statCard({ label: 'Avg RPE', value: rpeCount > 0 ? avgRpe.toFixed(1) : '--', sub: 'This week', color: rpeFactor > 70 ? '#10b981' : rpeFactor > 40 ? '#f59e0b' : '#ef4444' })}
+      ${statCard({ label: 'Avg RPE', value: rpeCount > 0 ? avgRpe.toFixed(1) : '--', sub: 'This calendar week', color: rpeFactor > 70 ? '#10b981' : rpeFactor > 40 ? '#f59e0b' : '#ef4444' })}
       ${statCard({ label: 'Recovery Capacity', value: rpeFactor !== null ? rpeFactor + '%' : '--', sub: 'From session RPE', color: '#3b82f6' })}
-      ${statCard({ label: 'Form (TSB)', value: la.currentCTL > 0 ? (la.currentTSB >= 0 ? '+' : '') + Math.round(la.currentTSB) : '--', sub: la.currentTSB >= 0 ? 'Positive — ready to train' : 'Negative — fatigue present', color: la.currentTSB >= 0 ? '#10b981' : '#ef4444' })}
+      ${statCard({ label: 'Form (TSB)', value: form.value, sub: form.sub, color: la.currentTSB >= 0 ? '#3b82f6' : '#f59e0b' })}
       ${statCard({ label: 'Load Ratio', value: la.currentCTL > 0 ? la.currentRatio.toFixed(2) : '--', sub: la.loadStatus.status, color: la.currentRatio < 1.3 ? '#f59e0b' : '#ef4444' })}
     </div>`;
 
@@ -386,7 +363,7 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
   // RPE trend chart
   _ensureDiv(section, 'rpeTrendDetailSection');
   qs('rpeTrendDetailSection').innerHTML = `
-    <h2 class="section-header mt-2">Weekly RPE Trend</h2>
+    <h2 class="section-header mt-2">Program-Week RPE Trend</h2>
     <article class="card-dark p-3 mb-3">
       <div id="rpeTrendContainer"></div>
     </article>`;

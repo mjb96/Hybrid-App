@@ -125,10 +125,9 @@ function renderRunningFitnessDashboard(ra, la, data, appState) {
   const el = qs('runningFitnessDashboard');
   if (!el) return;
 
-  // This dashboard always reflects the current week (last series index), so the
-  // comparison is elapsed-matched "vs same point last week" — not a partial week
-  // dressed up as a full-week drop. Same shared model + label as In Focus.
-  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: 0 });
+  // Follow the shared calendar-week navigator; current weeks use elapsed-matched
+  // comparison while historical weeks compare full week with full week.
+  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: getCalendarWeekOffset() });
   const distCur   = distChart.total;
   const distCmp   = statComparisonFrom(distChart);
 
@@ -155,7 +154,7 @@ function renderRunningFitnessDashboard(ra, la, data, appState) {
     </div>
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distCmp.deltaPct, sub: distCmp.sub, color: '#ec4899' })}
-      ${statCard({ label: 'Monthly Distance', value: fmtDist(curMon), delta: monPct, sub: 'vs last month', color: '#f472b6' })}
+      ${statCard({ label: '4-Week Distance', value: fmtDist(curMon), delta: monPct, sub: 'vs prior 4 program weeks', color: '#f472b6' })}
     </div>
     <div class="grid-2-col gap-2 mb-3">
       <article class="card-dark p-3 flex-col" style="border:1px solid ${roiColor}22;">

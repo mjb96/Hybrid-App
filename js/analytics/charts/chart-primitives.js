@@ -109,15 +109,20 @@ export function deltaBadge(pct, inverse = false) {
 }
 
 // Stat card HTML: primary value + optional delta + sub-label + status.
-export function statCard({ label, value, unit = '', delta = null, sub = '', color = '#3b82f6', status = '', inverseDelta = false }) {
+export function statCard({ label, value, unit = '', delta = null, sub = '', color = '#3b82f6', status = '', inverseDelta = false, action = '', context = '', entity = '', entityName = '', parentContext = '', preserveWeek = false }) {
   const deltaHtml = delta !== null
     ? `<div class="mt-1">${deltaBadge(delta, inverseDelta)}<span class="text-xs text-muted ml-1">${sub}</span></div>`
     : (sub ? `<div class="text-xs text-muted mt-1">${sub}</div>` : '');
   const statusHtml = status ? `<div class="an-stat__status" style="color:${color};">${status}</div>` : '';
-  return `<article class="card-dark flex-col an-stat" style="border:1px solid ${color}18;border-top:2px solid ${color};">
+  const tag = action ? 'button' : 'article';
+  const actionAttrs = action
+    ? ` type="button" data-action="${action}"${context ? ` data-context="${context}"` : ''}${entity ? ` data-entity="${entity}"` : ''}${entityName ? ` data-entity-name="${entityName}"` : ''}${parentContext ? ` data-parent-context="${parentContext}"` : ''}${preserveWeek ? ' data-preserve-week="true"' : ''}`
+    : '';
+  return `<${tag}${actionAttrs} class="card-dark flex-col an-stat ${action ? 'an-stat--action' : ''}" style="border:1px solid ${color}18;border-top:2px solid ${color};">
     <div class="an-stat__label">${label}</div>
     <div class="an-stat__value">${value}<span class="an-stat__unit">${unit}</span></div>
     ${deltaHtml}
     ${statusHtml}
-  </article>`;
+    ${action ? '<span class="an-stat__drill">View details ›</span>' : ''}
+  </${tag}>`;
 }

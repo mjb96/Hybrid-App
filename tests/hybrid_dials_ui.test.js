@@ -50,3 +50,14 @@ test('score detail is training-led and keeps XP ranks out of the primary surface
   assert.doesNotMatch(html, /XP to|top tier reached|◆ Competitor/);
   assert.doesNotMatch(html, />Endurance</);
 });
+
+test('score pillars are expandable and expose their supporting signals', () => {
+  const r = result();
+  r.goalWeights = { consistency: 1 };
+  r.pillars.consistency.signals = ['3 training days', 'up from last week'];
+  const html = detailHTML(r, { hybridScore: { history: [] } });
+  assert.match(html, /<details class="hs-pillar">/);
+  assert.match(html, /3 training days/);
+  assert.match(html, /up from last week/);
+  assert.match(html, /Tap to explain/);
+});

@@ -132,7 +132,7 @@ test('a single new-week session is the ONLY thing counted this week', () => {
   // Log a Tuesday session in the CURRENT calendar week (14 Jul), stored in a new
   // program-week slot (as the app would once the week finally advances).
   state.weeks['4'] = { dates: { tue: '2026-07-14' }, lifts: { tue: { Squat: nSets(6, 100, 5) } } };
-  const cur = buildCalendarWeekStrength(state, { today: TODAY });
+  const cur = buildCalendarWeekStrength(state, { today: '2026-07-14' });
   assert.equal(cur.totalWorkingSets, 6);
   assert.equal(cur.totalVolumeKg, 6 * 100 * 5);
   assert.deepEqual(cur.days.map(d => d.workingSets), [0, 6, 0, 0, 0, 0, 0]); // Tue only

@@ -27,7 +27,7 @@
 //     (no Infinity / NaN); an honest message is returned instead.
 // =============================================================================
 import { isValidWorkingSet, setVolume } from '../set-utils.js';
-import { comparisonLabel } from './comparison.js';
+import { comparePeriodValues } from './comparison.js';
 import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { todayKey } from '../dates.js';
 
@@ -180,8 +180,22 @@ export function buildWeekChart(state, opts = {}) {
       hasData:  cell.hasData,
       isToday:  !!date && date === today,
       isFuture: !!date && date > today,
+      hasFutureData: !!date && date > today && cell.hasData,
+      futureValue: !!date && date > today ? cell.value : 0,
     };
   });
+
+  // A future-stamped completed record is invalid evidence for a live period.
+  // Keep its day visible (and marked future) but never include it in a current
+  // week's bar, total, or comparison.
+  if (isCurrentWeek) {
+    days.forEach((day) => {
+      if (!day.isFuture) return;
+      day.value = 0;
+      day.activityCount = 0;
+      day.hasData = false;
+    });
+  }
 
   const total = days.reduce((s, d) => s + d.value, 0);
 
@@ -224,60 +238,11 @@ export function buildWeekChart(state, opts = {}) {
 // ---- comparison -------------------------------------------------------------
 
 function buildComparison({ type, metric, isCurrentWeek, currentValue, prevWeekData, elapsedKeys }) {
-  const kind = isCurrentWeek ? 'live' : 'completed';
-  const label = comparisonLabel(isCurrentWeek);
-
-  // No previous week at all → nothing honest to compare against.
-  if (!prevWeekData) {
-    return {
-      type: kind,
-      previousTotal: null,
-      absoluteChange: null,
-      percentageChange: null,
-      direction: 'none',
-      comparisonLabel: label,
-      isComparable: false,
-      message: 'Not enough previous data to compare',
-    };
-  }
-
   const keys = isCurrentWeek ? elapsedKeys : DAY_KEYS;
-  const previousTotal = keys.reduce(
+  const previousTotal = prevWeekData ? keys.reduce(
     (s, dayKey) => s + dayCell(prevWeekData, dayKey, type, metric).value, 0,
-  );
-
-  const absoluteChange = currentValue - previousTotal;
-  const direction = absoluteChange > 0 ? 'up' : absoluteChange < 0 ? 'down' : 'flat';
-
-  // Zero denominator: a percentage would be Infinity/undefined — report honestly.
-  if (previousTotal === 0) {
-    if (currentValue === 0) {
-      return {
-        type: kind, previousTotal: 0, absoluteChange: 0,
-        percentageChange: null, direction: 'flat',
-        comparisonLabel: label, isComparable: false,
-        message: 'No activity to compare',
-      };
-    }
-    return {
-      type: kind, previousTotal: 0, absoluteChange,
-      percentageChange: null, direction: 'up',
-      comparisonLabel: label, isComparable: false,
-      message: isCurrentWeek ? 'None at this point last week' : 'None last week',
-    };
-  }
-
-  const percentageChange = Math.round((absoluteChange / previousTotal) * 100);
-  return {
-    type: kind,
-    previousTotal,
-    absoluteChange,
-    percentageChange,
-    direction,
-    comparisonLabel: label,
-    isComparable: true,
-    message: null,
-  };
+  ) : null;
+  return comparePeriodValues({ currentValue, previousValue: previousTotal, isCurrentWeek });
 }
 
 // ---- today key (local) ------------------------------------------------------
