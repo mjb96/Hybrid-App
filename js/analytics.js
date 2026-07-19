@@ -10,7 +10,7 @@ import { renderRunningAnalytics, setRunningTab } from './analytics/views/view-ru
 import { renderRecoveryLoad, setRecoveryTab } from './analytics/views/view-recovery.js';
 import { renderBodyWeightAnalytics } from './analytics/views/view-bodyweight.js';
 import { renderActivityCalendar } from './home.js';
-import { initWeekNav, updateWeekNavDisplay, resetWeekNav } from './analytics/week-nav.js';
+import { initWeekNav, updateWeekNavDisplay, resetWeekNav, getSelectedWeekStart } from './analytics/week-nav.js';
 import { renderFastingAnalytics } from './analytics/views/view-fasting.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
@@ -23,11 +23,17 @@ import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { analyticsBackDestination } from './analytics/navigation.js';
 import { estimatedE1rmForSet } from './strength/e1rm.js';
 import { resolveExercise } from './exercises/catalog.js';
+import { renderWeeklyVolume } from './analytics/views/view-weekly-volume.js';
+import { renderExerciseDetail, renderMuscleDetail } from './analytics/views/view-strength-entity.js';
 
 let _getState;
 let _getDays;
 let _analyticsContext = 'weekly-summary';
 let _analyticsOrigin = 'insights';
+let _analyticsEntity = null;
+let _analyticsParentContext = null;
+let _analyticsParentOrigin = 'insights';
+let _analyticsGrandparentContext = null;
 let _lastScoreResult = null;   // most recent Score-detail result, for the Share card
 
 // V2-5 — share the Hybrid Score card. Uses the result last rendered into the
@@ -45,9 +51,20 @@ export function shareScoreCard() {
 }
 
 export function setAnalyticsContext(ctx, options = {}) {
+  const previousOrigin = _analyticsOrigin;
+  const previousParentContext = _analyticsParentContext;
   _analyticsContext = ctx || 'weekly-summary';
-  _analyticsOrigin = options.origin === 'home' ? 'home' : 'insights';
-  resetWeekNav();
+  if (options.origin) _analyticsOrigin = options.origin === 'home' ? 'home' : 'insights';
+  _analyticsEntity = options.entity ? { id: options.entity, name: options.entityName || '' } : null;
+  _analyticsParentContext = options.parentContext || null;
+  if (_analyticsParentContext) {
+    _analyticsParentOrigin = previousOrigin;
+    _analyticsGrandparentContext = previousParentContext;
+  } else {
+    _analyticsParentOrigin = _analyticsOrigin;
+    _analyticsGrandparentContext = null;
+  }
+  if (!options.preserveWeek) resetWeekNav();
 }
 
 export function initAnalytics(getStateFn, getDaysFn) {
@@ -317,10 +334,13 @@ export function renderAnalytics() {
   // A leaf remembers where it was opened: Home deep-links return Home, while
   // leaves opened from the Insights hub return to that hub.
   const weekNav = document.getElementById('analyticsWeekNav');
-  if (weekNav) weekNav.style.display = (context === 'hub' || context === 'hybrid-score' || context === 'weekly-review' || context === 'projections' || context === 'monthly-report') ? 'none' : '';
+  if (weekNav) weekNav.style.display = ['strength', 'strength_pr', 'weekly-volume', 'running', 'muscle'].includes(context) ? '' : 'none';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
-    const destination = analyticsBackDestination(context, _analyticsOrigin);
+    const destination = analyticsBackDestination(
+      context, _analyticsOrigin, _analyticsParentContext,
+      _analyticsGrandparentContext, _analyticsParentOrigin,
+    );
     if (!destination) {
       // The hub is now a top-level nav destination — the bottom nav is the way
       // out, so no back button is needed on the index itself.
@@ -331,6 +351,12 @@ export function renderAnalytics() {
       backBtn.textContent = destination.label;
       if (destination.context) backBtn.setAttribute('data-context', destination.context);
       else backBtn.removeAttribute('data-context');
+      if (destination.parentContext) backBtn.setAttribute('data-parent-context', destination.parentContext);
+      else backBtn.removeAttribute('data-parent-context');
+      if (destination.origin) backBtn.setAttribute('data-origin', destination.origin);
+      else backBtn.removeAttribute('data-origin');
+      if (destination.preserveWeek) backBtn.setAttribute('data-preserve-week', 'true');
+      else backBtn.removeAttribute('data-preserve-week');
       if (destination.target) backBtn.setAttribute('data-target', destination.target);
       else backBtn.removeAttribute('data-target');
     }
@@ -373,13 +399,22 @@ export function renderAnalytics() {
       document.getElementById('analytics-strength').classList.add('active');
       renderStrengthAnalytics(data, _getState, _getDays);
       break;
-    // V2 (S2): the old 1RM (strength_pr) and Weekly-Volume leaves are absorbed
-    // into the Strength screen's Stats tab — redirect so deep links still resolve.
     case 'strength_pr':
-    case 'weekly-volume':
       setStrengthTab('stats');
       document.getElementById('analytics-strength').classList.add('active');
       renderStrengthAnalytics(data, _getState, _getDays);
+      break;
+    case 'weekly-volume':
+      document.getElementById('analytics-weekly-volume').classList.add('active');
+      renderWeeklyVolume(_getState());
+      break;
+    case 'exercise':
+      document.getElementById('analytics-strength-entity').classList.add('active');
+      renderExerciseDetail(_getState(), _analyticsEntity || {});
+      break;
+    case 'muscle':
+      document.getElementById('analytics-strength-entity').classList.add('active');
+      renderMuscleDetail(_getState(), _analyticsEntity || {}, getSelectedWeekStart());
       break;
     case 'running':
       setRunningTab('overview');

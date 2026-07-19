@@ -25,6 +25,10 @@ release gates, and session history. Enduring rules formerly spread across dated 
     at read time, and unknown custom names retain exact identity.
 11. Muscle-volume indicators are estimated set credits and typical ranges, never a personal
     diagnosis of minimum effective or maximum recoverable volume.
+12. Analytics follow summary → metric detail → exact evidence: every displayed period, unit,
+    comparison and contributing session must describe the same underlying records.
+13. A live calendar week excludes future-dated records from performance totals and navigation;
+    retained future records are disclosed for correction rather than silently treated as work done.
 
 The active beta scope is Android, strength + running logging, programs, honest analytics,
 and reliable local/cloud portability. iOS, billing/paywalls, social feeds, live coaching,
@@ -386,6 +390,18 @@ count, downloads, or monetization—are the decision metrics.
   using 4–10 repetitions to failure (PMID 39495260), RIR review (PMID 38563729), and load-vs-
   repetition progression trial (PMID 36199287); the 12-rep ceiling is a conservative product
   boundary, not a claim that Epley is exact through 12 reps.
+- **R29 analytics hierarchy and drill-down implementation complete — 19 July 2026** on
+  `codex/analytics-drilldowns`. Weekly Volume is now a dedicated calendar-week view with
+  current/completed status, exact date range, elapsed-matched live comparison, tonnage/sets/
+  reps/session/exercise totals, selectable day evidence, and workout/exercise/muscle breakdowns.
+  Exact workout rows open Activity Detail; exercise and muscle rows open alias-aware historical
+  detail screens and retain the selected week/back destination. Shared comparison and calendar
+  aggregation exclude warm-ups, incomplete/malformed/skipped sets, undated legacy slots and
+  future-dated live-week records. Strength/Home cards are visibly tappable; Running's weekly
+  distance follows the selected calendar week; Recovery's weekly RPE is date-strict; load/form
+  wording states comparison to the athlete's 28-day baseline rather than claiming a safe zone or
+  readiness; Hybrid Score pillars expose their inputs progressively. The mobile layout has no
+  horizontal overflow at 390 px and its new controls/calculation disclosures meet 44 px targets.
 
 ### 19 July reliability audit findings
 
@@ -407,6 +423,28 @@ is the named source/test, not a prior report.
 | A11 | Moderate | High | `workout.js`, `app.js`, `state.js` remain large cross-cutting modules. | Changes carry broader regression risk and hidden event coupling. | Open as incremental R25; this slice extracted catalogue and lifecycle seams only. | Full suite, smoke and browser core flow required per slice. |
 | A12 | Low | High | Two tests produced UTC/locale dates independently of the app's local-day API. | Suite failed depending on time of day/timezone despite correct runtime behavior. | Fixed: deterministic canonical date helpers/test seams. | Full suite under local timezone. |
 | A13 | Low | High | Three local browser-check servers omitted an explicit host and listened on every interface. | A developer test run could expose served repository assets beyond localhost. | Fixed: all real-browser servers bind `127.0.0.1` only. | Required browser suite runs all five journeys successfully. |
+| A14 | High | High | Weekly Volume was a static summary without a period-consistent detail/evidence path. | A user could not verify which dates, sets, exercises or workouts produced the headline total. | Fixed in R29: dedicated date-strict detail with day/workout/exercise/muscle breakdowns and exact Activity Detail links. | `strength_volume_detail.test.js`, analytics render/navigation tests, 390 px browser flow. |
+| A15 | High | High | Weekly comparison code was duplicated and could compare a live partial week with a complete prior week; future-dated records could appear as completed current activity. | Percent changes and current-week charts could be mathematically valid but misleading. | Fixed in R29: one comparison primitive, elapsed-day matching for live weeks, full-vs-full for completed weeks, zero/missing-baseline handling, future-record exclusion/disclosure. | `comparison.test.js`, `week_chart_model.test.js`, `weekly_aggregate.test.js`, `weekly_fitness_graph.test.js`. |
+| A16 | Moderate | High | Strength exercise and muscle summaries had no consistent historical evidence view and display-name aliases could fragment new trends. | Users could not explain progression or set-credit totals across program switches. | Fixed in R29: canonical-ID exercise history (12 weeks/6 months/all time) and calendar-week muscle detail with contributors, trend, typical range and retrospective-classification caveat. | `strength_volume_detail.test.js`, analytics view/navigation tests, existing catalogue/history fixtures. |
+| A17 | Moderate | High | Running Stats hard-coded the current week while the shared analytics navigator could show a historical week; Recovery's “this week” RPE read program position. | The period label and metric could describe different weeks, especially after schedule/program changes. | Fixed in R29: both use stamped calendar dates; rolling load/readiness windows remain explicitly rolling and program adherence remains program-based. | `week_nav_calendar.test.js`, `recovery_calendar.test.js`, time-model separation tests. |
+| A18 | Moderate | High | ACWR/TSB copy used “safe zone,” “ready to train,” “fresh/peaking” and similar causal verdicts beyond the source data. | Users could mistake a load comparison for injury safety or recovery clearance. | Fixed in R29: neutral relative-to-baseline wording and visible model limitations; Hybrid Score inputs are expandable instead of hidden behind one precise number. | `metrics_load.test.js`, Hybrid Score UI tests, Recovery render checks. |
+
+### Analytics inventory and settled treatment
+
+This is the post-implementation inventory. Calculation modules and tests are the executable
+specification; this table records the user-facing scope and retained limitations.
+
+| Metric family reviewed | Canonical scope/calculation | Implemented presentation and interaction | Retained limitation / decision |
+|---|---|---|---|
+| Weekly lifted volume, working sets, reps, strength sessions, exercises and duration | `strength-volume-detail.js`; valid completed working sets stamped inside a local Monday–Sunday week, across numeric/archived/independent sessions. | Weekly Volume summary → Day/Workouts/Exercises/Muscles → exact Activity Detail; live weeks compare the same elapsed days. | Tonnage is mechanical work, not training quality; unreliable/missing duration stays unavailable. |
+| Exercise performance, best load/reps, e1RM, PRs, volume and frequency | Canonical all-program exercise history plus bounded eligible-set Epley calculation. | Exercise rows/lift names open 12-week, 6-month or all-time detail with latest/previous, trends and exact workouts. | Bodyweight/assisted/band/conditioning and >12-rep sets do not produce e1RM; unknown custom names remain exact. |
+| Estimated muscle-group sets, direct and secondary credit, contributors and typical ranges | Current catalogue's 1.0/0.5/0.25 credits over valid selected-calendar-week sets. | Muscle rows open selected-week direct/indirect totals, eight-week trend, contributing exercises/workouts and calculation disclosure. | Estimated, not measured; today's catalogue classification is applied retrospectively and ranges are general guidance. |
+| Running distance, duration, frequency, pace, longest run, intensity/HR signals and load | Exact run sessions; selected calendar week for weekly totals, rolling windows for load, guarded pace/HR inputs. | Running Stats now follows shared week navigation and names its program buckets “4-Week”; exact runs remain available through Activities. | Dedicated drill-downs for every individual running KPI remain lower priority than R23 projection/source-confidence work. |
+| Readiness, wellness, sleep, HRV, resting HR, steps and recovery trends | Evidence-aware readiness plus their explicitly named daily/7-day/28-day windows; calendar-week RPE uses stamped dates. | Recovery keeps Overview/Stats progressive disclosure, neutral no-data states and source/confidence copy; weekly nav is intentionally absent from rolling metrics. | Health signals depend on user-entered/Health Connect coverage and never default missing data to a penalty or diagnosis. |
+| ATL, CTL, ACWR/load ratio, TSB/form, systemic/local/aerobic fatigue, spikes and momentum | Canonical date-filled rolling load models; status is relative to the athlete's own 28-day baseline. | Neutral baseline wording replaces safe/productive/detraining and recovery-clearance claims; thresholds/limitations remain visible in detail. | Heuristics are load-management signals, not injury prediction or medical diagnosis. |
+| Hybrid Score and pillars | Existing score model with evidence coverage; Strength remains program-week progression by deliberate product rule while other inputs retain their named scopes. | Score remains tappable; pillar panels expose all contributing signals, missing inputs and reasoning through expandable detail. | It is a directional coaching summary, not a performance grade; no Health Connect data is not itself a deduction. |
+| Home In Focus and At a Glance | Shared calendar-week chart model/aggregate, same units/comparisons as detail. | Strength opens Weekly Volume, Running opens Running, populated day bars open the exact workout/run or date chooser; empty/future bars do not navigate. | Home stays a small summary surface rather than duplicating evidence-level analytics. |
+| Adherence, consistency, program progress, bodyweight and fasting | Program adherence remains plan-position based; bodyweight/fasting retain their natural daily/rolling scopes. | Retained in their existing focused views; not forced into calendar-week navigation. | These metrics answer different questions and were deliberately not merged into Weekly Volume. |
 
 ### Volume methodology and exercise audit record
 
@@ -484,7 +522,7 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 ## Current execution focus
 
 Completed recommendations remain in the implementation register and phase tables as
-acceptance evidence; they are not the active queue. R17, R18, R21, R22, and R28 are
+acceptance evidence; they are not the active queue. R17, R18, R21, R22, R28, and R29 are
 engineering-complete; R25 remains an incremental seam-by-seam practice.
 The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
 pass, then the owner completes `docs/android-gps-device-checklist.md`; failures return to R15
@@ -528,6 +566,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R26 | Product hierarchy | Program taxonomy and optional advanced/wellness surfaces repeat/compete with the core loop. | Simplify discovery and progressively disclose unused advanced areas based on beta evidence. | program library/Home/Start/navigation renderers. | Funnel/usability study plus no-regression discovery tests. | Phase 3 / product-evidence-led PRs. |
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
 | R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; exercise/history tables split identity; unbounded duplicated e1RM and optimistic progression overstated certainty; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time identity/history; bounded e1RM; conservative set/RPE progression; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/e1RM/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue/all-program history; e1RM eligibility; top-load/RPE progression; volume-credit/browser flows. | Engineering complete on `codex/exercise-volume-finish-audit`. |
+| R29 | Analytics hierarchy/evidence | Important cards were static or routed to generic screens; duplicate comparison/week logic mixed periods, and exercise/muscle evidence was difficult to inspect. | Establish summary → detail → evidence; add Weekly Volume and strength-entity drill-downs; centralize calendar periods/comparisons; align Home, Running, Recovery and Hybrid Score wording/interactions. | analytics aggregates/navigation/views/charts, Home In Focus, Hybrid Score UI, analytics CSS/HTML, service-worker precache. | Valid-set/date/future/partial/zero/alias/program-switch fixtures, navigation/render tests, mobile overflow/touch QA, full verify. | Engineering complete on `codex/analytics-drilldowns`. |
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -579,6 +618,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R18 | Add an explicit prior-activation history/resume model and block unresolved mid-session program switches. | Moderate | Preserves continuity when users switch plans. | 4–6 days | Medium: product semantics. | R8 completion policy; activation metadata. | Switch with empty/partial/full session; resume/view old activation; history attribution remains unchanged. | Users choose save/discard/cancel before switch and can distinguish/view previous runs without data leakage. |
 | R19 | Remove silent unknown-program fallback; validate IDs and surface recovery. | Moderate | Makes damaged state visible and recoverable. | 1–2 days | Low | Import/state validation. | Unknown/deleted custom ID fixtures; UI recovery choices; no mismatch between rendered program and stored ID. | Invalid IDs cannot silently render another plan. |
 | R27 | Correct FIT training-effect mapping and make import success depend on an awaited destination save; validate parser output. | Moderate | Makes Garmin import labels and completion trustworthy. | 2–3 days | Medium: fixture/device variation. | Versioned import field contract; representative FIT fixtures. | Run/gym/malformed/multi-session files, unit checks, callback failure; success appears only after state/route save. | Imported fields match FIT semantics and no failed write is presented as imported. |
+| R29 | Build a period-honest analytics hierarchy with tappable Weekly Volume, exercise/muscle evidence and shared calendar comparison/navigation. | Significant | Lets athletes understand and verify the sessions behind important trends instead of trusting disconnected totals. | Complete | Medium: broad read-only surface. | R2 identities, R21/R28 canonical history/catalogue, calendar-week aggregate. | Valid/skipped/warm-up/edited/deleted/duplicate/program-switch/future/partial/year/DST fixtures; render/navigation and 390 px mobile QA. | Major strength summaries open period-consistent detail/evidence, exact records remain traceable, and shared labels match their calculations. |
 
 **Phase 2 exit gate:** coaching exposes uncertainty; Health/GPS/device integrations have device evidence; privileged runtime is self-contained.
 
@@ -632,6 +672,16 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-19 · R29 analytics hierarchy on `codex/analytics-drilldowns`: Weekly Volume now
+  opens a date-strict calendar-week detail with honest live/completed comparison, selectable
+  day/workout/exercise/muscle breakdowns and exact Activity Detail evidence. Added alias-aware
+  exercise and estimated muscle detail, reusable comparison/calendar aggregation, selected-week
+  Running totals, date-strict Recovery RPE, neutral ACWR/TSB language, expandable Hybrid Score
+  pillars, parent-aware back navigation, 44 px controls and a v102 offline cache boundary.
+  Analytics inventory and limitations are consolidated above; no parallel tracker was created.
+  `npm run verify` is green with 1,040 tests, and a 390×844 in-app browser pass has no
+  horizontal overflow. · Next: review one stacked PR after the R28 base is merged;
+  physical-device/Play/legal owner gates remain.
 - 2026-07-19 · R28 e1RM/progression/history follow-up on
   `codex/exercise-volume-finish-audit`: one bounded, exercise-aware Epley source now powers
   every e1RM/PR surface; high-rep, bodyweight-effective, assisted/band and conditioning loads

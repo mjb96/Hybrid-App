@@ -17,3 +17,26 @@ test('an Insights leaf opened from the Insights hub returns to the hub', () => {
 test('the Insights hub has no redundant back button', () => {
   assert.equal(analyticsBackDestination('hub', 'home'), null);
 });
+
+test('an entity drilldown returns to its parent analytics surface', () => {
+  assert.deepEqual(analyticsBackDestination('exercise', 'insights', 'weekly-volume'), {
+    action: 'open-analytics', context: 'weekly-volume', label: '← Back to Weekly Volume', preserveWeek: true,
+  });
+});
+
+test('a third-level drilldown restores the parent surface own return path', () => {
+  assert.deepEqual(
+    analyticsBackDestination('exercise', 'home', 'weekly-volume', 'strength', 'insights'),
+    {
+      action: 'open-analytics', context: 'weekly-volume', label: '← Back to Weekly Volume',
+      preserveWeek: true, parentContext: 'strength', origin: 'insights',
+    },
+  );
+  assert.deepEqual(
+    analyticsBackDestination('exercise', 'home', 'weekly-volume', null, 'home'),
+    {
+      action: 'open-analytics', context: 'weekly-volume', label: '← Back to Weekly Volume',
+      preserveWeek: true, origin: 'home',
+    },
+  );
+});

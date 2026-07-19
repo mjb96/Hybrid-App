@@ -50,7 +50,7 @@ export function weeklyRpeSeries(state, days, maxWeek) {
 // Form/TSB (training-stress balance = fitness − fatigue) for the Recovery leaf's
 // stat card. TSB is only meaningful once real training-load history exists; with
 // no data currentCTL is 0 and TSB collapses to 0, which must NOT be shown as a
-// confident "0 · fresh / peaking" verdict. Returns a neutral empty state instead,
+// confident recovery verdict. Returns a neutral empty state instead,
 // mirroring the ACWR card and the Stats-tab TSB. Pure + unit-tested.
 export function formatFormTSB(currentCTL, currentATL) {
   const hasData = (Number(currentCTL) || 0) > 0;
@@ -58,7 +58,9 @@ export function formatFormTSB(currentCTL, currentATL) {
   const tsb = Math.round((Number(currentCTL) || 0) - (Number(currentATL) || 0));
   return {
     value: tsb > 0 ? `+${tsb}` : String(tsb),
-    sub: tsb >= 0 ? 'fresh / peaking' : 'carrying fatigue',
+    sub: tsb >= 0
+      ? 'Acute load at or below 28-day baseline'
+      : 'Acute load above 28-day baseline',
   };
 }
 

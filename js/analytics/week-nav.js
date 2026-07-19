@@ -22,6 +22,9 @@ export function getCalendarWeekOffset() { return _calOffset; }
 /** Reset to the current calendar week (called whenever the analytics view opens). */
 export function resetWeekNav() { _calOffset = 0; }
 
+/** Return from any historical selection to the live calendar week. */
+export function returnToCurrentWeek() { _calOffset = 0; }
+
 /** Monday (YYYY-MM-DD) of the currently selected calendar week. */
 export function getSelectedWeekStart(today) {
   const base = weekStartOf(today || localDayKey(new Date()));
@@ -54,6 +57,8 @@ export function initWeekNav(getState, onNavigate) {
       if (_canGoBack(getState())) { _calOffset--; updateWeekNavDisplay(getState); onNavigate(); }
     } else if (e.target.closest('#weekNavNext')) {
       if (_calOffset < 0) { _calOffset++; updateWeekNavDisplay(getState); onNavigate(); } // never past the current week
+    } else if (e.target.closest('#weekNavToday')) {
+      if (_calOffset !== 0) { returnToCurrentWeek(); updateWeekNavDisplay(getState); onNavigate(); }
     }
   });
 }
@@ -75,6 +80,7 @@ export function updateWeekNavDisplay(getState) {
   const datesEl = document.getElementById('weekNavDates');
   const prevBtn = document.getElementById('weekNavPrev');
   const nextBtn = document.getElementById('weekNavNext');
+  const todayBtn = document.getElementById('weekNavToday');
 
   if (labelEl) {
     labelEl.textContent = isCurrent
@@ -89,4 +95,5 @@ export function updateWeekNavDisplay(getState) {
 
   if (prevBtn) prevBtn.disabled = !_canGoBack(state, today);
   if (nextBtn) nextBtn.disabled = isCurrent;
+  if (todayBtn) todayBtn.hidden = isCurrent;
 }

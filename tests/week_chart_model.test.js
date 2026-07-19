@@ -248,9 +248,9 @@ test('Fixture 19: active unfinished workout (incomplete sets) counts as no activ
   assert.equal(m.days[0].hasData, false);
 });
 
-// Fixture 20 — future-dated records within the current week: shown in bars/total
-// but EXCLUDED from the "same point last week" elapsed comparison.
-test('Fixture 20: future-dated day in current week is excluded from live comparison denominator', () => {
+// Fixture 20 — future-dated completed records are invalid live-period evidence:
+// flag the date but exclude it from bars, totals and comparison.
+test('Fixture 20: future-dated day in current week is excluded from live analytics', () => {
   const state = {
     currentWeek: '1',
     weeks: {
@@ -272,12 +272,13 @@ test('Fixture 20: future-dated day in current week is excluded from live compari
   // currentWeek is '1' by state.currentWeek, so make week 2 current explicitly:
   const state2 = { ...state, currentWeek: '2' };
   const mm = buildWeekChart(state2, { type: 'running', metric: 'distance', weekOffset: 0, today: '2026-06-10' });
-  assert.equal(mm.total, 105, 'bars show all logged distance incl. the future Fri');
+  assert.equal(mm.total, 6, 'future Friday is excluded from the live total');
   // elapsed = Mon..Wed → only Mon (6). previous elapsed Mon..Wed → only Mon (5).
   assert.equal(mm.elapsedTotal, 6);
   assert.equal(mm.comparison.previousTotal, 5);
   assert.equal(mm.comparison.absoluteChange, 1);
   assert.equal(mm.days[4].isFuture, true, 'Friday is flagged future');
+  assert.equal(mm.days[4].hasData, false, 'future record is not treated as completed evidence');
 });
 
 // Fixture 11 — kg vs lb histories: the model stays unit-agnostic (raw numbers).
@@ -305,11 +306,11 @@ test('running: distance & duration buckets and totals', () => {
       },
     },
   };
-  const dist = buildWeekChart(state, { type: 'running', metric: 'distance', today: '2026-06-01' });
+  const dist = buildWeekChart(state, { type: 'running', metric: 'distance', today: '2026-06-07' });
   assert.deepEqual(dist.days.map(d => d.value), [0, 5, 0, 8, 0, 0, 12]);
   assert.equal(dist.total, 25);
 
-  const dur = buildWeekChart(state, { type: 'running', metric: 'duration', today: '2026-06-01' });
+  const dur = buildWeekChart(state, { type: 'running', metric: 'duration', today: '2026-06-07' });
   assert.deepEqual(dur.days.map(d => d.value), [0, 1500, 0, 2640, 0, 0, 3960]);
   assert.equal(dur.total, 1500 + 2640 + 3960);
 });
@@ -326,8 +327,8 @@ test('Fixture 4 & 5: weeks crossing month and year boundaries bucket by real dat
       },
     },
   };
-  // today sits inside the boundary-crossing week itself (Wed 31 Dec).
-  const m = buildWeekChart(state, { type: 'strength', metric: 'sets', today: '2025-12-31' });
+  // today sits inside the boundary-crossing week itself (Thu 1 Jan).
+  const m = buildWeekChart(state, { type: 'strength', metric: 'sets', today: '2026-01-01' });
   assert.equal(m.startDate, '2025-12-29');
   assert.equal(m.endDate, '2026-01-04');
   assert.equal(m.days[2].date, '2025-12-31'); // Wed

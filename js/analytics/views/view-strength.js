@@ -74,7 +74,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   el.innerHTML = `
     <h2 class="section-header mt-2">Training Load Dashboard</h2>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus })}
+      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus, action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
       ${statCard({ label: '4-Week Volume', value: fmtKg(curMon), delta: monPct, sub: 'vs prior 4 program weeks', color: '#8b5cf6' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
@@ -86,7 +86,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
         <div class="text-xs text-muted mb-1">Acute:Chronic Ratio</div>
         <div class="font-heavy text-inverse" style="font-size:1.3rem;line-height:1.1;color:${acwrColor};">${acwrVal}</div>
         <div class="text-xs mt-1" style="color:${acwrColor};">${la.loadStatus.status}</div>
-        <div class="text-xs text-muted mt-1">Safe zone: 0.8 – 1.3</div>
+        <div class="text-xs text-muted mt-1">Compared with your 28-day baseline</div>
       </article>
       <article class="card-dark p-3 flex-col" style="border:1px solid ${fatigueColor}22;">
         <div class="text-xs text-muted mb-1">Fatigue Trend</div>
@@ -128,7 +128,7 @@ function renderStrengthProgression(sa, weekLabels) {
 
     html += `<article class="card-dark p-3 mb-3" style="border:1px solid rgba(59,130,246,0.15);">
       <div class="flex-between mb-2">
-        <span class="text-sm font-bold text-inverse">${esc(liftName)}${prBadge}</span>
+        <button class="an-entity-link text-sm font-bold" data-action="open-analytics" data-context="exercise" data-entity="${esc(canonicalExerciseId(liftName) || `custom:${liftName}`)}" data-entity-name="${esc(liftName)}" data-parent-context="strength">${esc(liftName)}${prBadge}<span aria-hidden="true">›</span></button>
         <span class="text-base font-heavy" style="color:#3b82f6;">${Math.round(prog.lifetimePR)} kg <span class="text-xs text-muted">Lifetime PR</span></span>
       </div>
       <div class="grid-2-col gap-2 mb-2">
@@ -361,7 +361,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
       ${statCard(_weeklyE1rmCard(cs))}
-      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6' })}
+      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6', action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
     </div>
     ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}
   `;
@@ -515,7 +515,7 @@ export function render1RMList(container, dynamicStats, calStats = null) {
 
     return `<div class="mb-4">
       <div class="flex-between font-bold mb-1">
-        <span class="text-inverse text-sm">${esc(name)}${badge}</span>
+        <button class="an-entity-link text-sm" data-action="open-analytics" data-context="exercise" data-entity="${esc(canonicalExerciseId(name) || `custom:${name}`)}" data-entity-name="${esc(name)}" data-parent-context="strength">${esc(name)}${badge}<span aria-hidden="true">›</span></button>
         <span style="color:#3b82f6;" class="text-base">${Math.round(statData.allTimeMax)} kg</span>
       </div>
       ${deltaHtml ? `<div class="mb-2">${deltaHtml}</div>` : ''}

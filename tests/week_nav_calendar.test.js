@@ -22,7 +22,7 @@ let els, view, onNavigateCalls;
 function install() {
   els = {
     weekNavLabel: makeEl(), weekNavDates: makeEl(),
-    weekNavPrev: makeEl(), weekNavNext: makeEl(),
+    weekNavPrev: makeEl(), weekNavNext: makeEl(), weekNavToday: { ...makeEl(), hidden: true },
   };
   view = makeEl();
   globalThis.document = {
@@ -32,7 +32,7 @@ function install() {
 }
 // Simulate a click on the prev/next arrow through the delegated listener.
 function click(which) {
-  const btnId = which === 'prev' ? 'weekNavPrev' : 'weekNavNext';
+  const btnId = which === 'prev' ? 'weekNavPrev' : which === 'today' ? 'weekNavToday' : 'weekNavNext';
   view._listener({ target: { closest: (sel) => (sel === `#${btnId}` ? els[btnId] : null) } });
 }
 
@@ -80,6 +80,17 @@ test('cannot step forward past the current calendar week', () => {
   updateWeekNavDisplay(() => state);
   click('next'); // already at offset 0 → no-op
   assert.equal(getCalendarWeekOffset(), 0);
+});
+
+test('historical selection offers a one-tap return to this week', () => {
+  const state = stateLastWeek(localDayKey(new Date()));
+  initWeekNav(() => state, () => { onNavigateCalls++; });
+  click('prev');
+  assert.equal(els.weekNavToday.hidden, false);
+  click('today');
+  assert.equal(getCalendarWeekOffset(), 0);
+  assert.equal(els.weekNavToday.hidden, true);
+  assert.equal(els.weekNavLabel.textContent, 'This week');
 });
 
 test('back-navigation stops once there is no older logged activity', () => {

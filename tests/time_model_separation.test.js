@@ -55,7 +55,7 @@ test('a single program week spanning two calendar weeks splits by real date', ()
     lifts: { mon: { A: nSets(3, 100, 5) }, tue: { A: nSets(7, 100, 5) } },
   } } };
   const wkA = buildCalendarWeekStrength(state, { weekStart: '2026-07-06', today: TODAY });
-  const wkB = buildCalendarWeekStrength(state, { weekStart: '2026-07-13', today: TODAY });
+  const wkB = buildCalendarWeekStrength(state, { weekStart: '2026-07-13', today: '2026-07-14' });
   assert.equal(wkA.totalWorkingSets, 3, 'Mon session in calendar week A');
   assert.equal(wkB.totalWorkingSets, 7, 'Tue session in calendar week B — same program week');
 });
