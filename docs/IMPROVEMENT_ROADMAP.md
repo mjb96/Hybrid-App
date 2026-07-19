@@ -707,6 +707,25 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-19 · Timezone misdating of today's activity on
+  `claude/workout-missing-analytics-history-j9dudu`. Root cause: `resolveSlotDate`
+  (`js/analytics/logged-days.js`) reconstructed a slot's calendar date by serializing a
+  locally-built `Date` through `toISOString().slice(0,10)` — UTC — so in any zone ahead of
+  UTC (the app default is Australia/Sydney) an evening session resolved one day early. That
+  resolver feeds the GPS-run start date fallback and the quick-start/manual-run "date → slot"
+  mapping, so a run started *today* could be filed under *yesterday* and vanish from today's
+  Activities list and this-week analytics. Fixed to anchor on `localDayKey` + `addDaysISO`
+  (canonical local-date API); the source guard no longer allowlists that file. Also hardened
+  the deliberate Finish to stamp the local date (`_ensureWorkoutDateStamp`) so a completed
+  session — even one whose completed sets arrived via sync/import without a local stamp — can
+  never finish undated (undated = excluded from calendar analytics and sorted to the bottom of
+  history). The strength log/read path was verified correct end-to-end and left unchanged.
+  Regression tests: cross-timezone `resolveSlotDate`/`resolveDateToSlot` local-day
+  reconstruction (`tests/logged_days.test.js`, proven to fail under UTC+14 with the old code)
+  and finish-stamps-undated-workout (`tests/workout_logging.test.js`). `npm run typecheck`,
+  `precache:check`, `npm run smoke`, and 1,064/1,065 tests pass across UTC / UTC+14 / UTC−12
+  and Australia/Sydney; the one failure is the pre-existing missing `fake-indexeddb` dev
+  dependency in `tests/route_db_migration.test.js` (red on clean `main`, unrelated).
 - 2026-07-20 · Sync recovery + workout-session integrity on
   `codex/sync-recovery-workout-session`: protects newer cloud state before replacement and
   exposes recovery in Settings; adds a two-step destructive choice; quarantines foreign logged

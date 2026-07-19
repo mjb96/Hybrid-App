@@ -2026,6 +2026,13 @@ export function closeFinishSessionModal() {
   }
 
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
+  // Safety net: a deliberately finished workout must carry its local calendar
+  // date so it can never sink into the undated bucket (excluded from calendar
+  // analytics + sorted to the bottom of history). Logging normally stamps this on
+  // the first completed set; this also covers completed sets that arrived via a
+  // sync/import that never ran the local stamp. Idempotent — never overwrites an
+  // existing date, so a workout logged on an earlier day keeps that day.
+  _ensureWorkoutDateStamp(appState, wk, selectedDay);
   const finishResult = finishSession(appState.weeks[wk], selectedDay, completion);
   const oneOff = activeOneOffSession(appState);
   if (oneOff?.key === wk) {

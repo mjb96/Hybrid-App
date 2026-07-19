@@ -8,7 +8,7 @@
 // =============================================================================
 import { dayVolume, isValidWorkingSet } from '../set-utils.js';
 import { runDaySummary } from '../state/run-sessions.js';
-import { localDayKey } from '../dates.js';
+import { addDaysISO, localDayKey } from '../dates.js';
 
 const num = (v) => parseFloat(v) || 0;
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -27,13 +27,21 @@ function completedSetCount(lifts) {
 
 // Resolve the ISO date for a (week, dayIndex) slot: the stored date when the
 // day was actually logged, else reconstructed relative to the current week.
+//
+// The reconstruction anchors on the LOCAL calendar day of the week's start
+// instant and then does whole-day arithmetic on that date-only key. It must NOT
+// serialize a Date via `toISOString()`: that resolves in UTC, so for anyone
+// ahead of (or behind) UTC an evening/morning session — e.g. a Sydney workout
+// logged at 9pm — would reconstruct one day off, misfiling the activity onto the
+// wrong calendar day and hiding it from "today"/"this week". Returns null only
+// when the anchor instant itself is unreadable.
 export function resolveSlotDate(state, weekNum, dayIdx, storedDate) {
   if (storedDate) return storedDate;
-  const base = state?.weekStartedAt ? new Date(state.weekStartedAt) : new Date();
+  const baseKey = localDayKey(state?.weekStartedAt || new Date());
+  if (!baseKey) return null;
   const curWk = parseInt(state?.currentWeek, 10) || 1;
-  const approx = new Date(base);
-  approx.setDate(base.getDate() - ((curWk - (weekNum || 1)) * 7) + dayIdx);
-  return approx.toISOString().slice(0, 10);
+  const offset = -((curWk - (weekNum || 1)) * 7) + dayIdx;
+  return addDaysISO(baseKey, offset);
 }
 
 // Inverse of resolveSlotDate: map a real calendar date (YYYY-MM-DD) back to the

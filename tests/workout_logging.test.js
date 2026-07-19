@@ -77,10 +77,10 @@ function freshState() {
   };
 }
 
-function initWith(s) {
+function initWith(s, selectedDay = 'mon') {
   state = s;
   saveCount = 0;
-  workout.initWorkout(() => state, () => 'mon', () => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], () => { saveCount++; }, () => {});
+  workout.initWorkout(() => state, () => selectedDay, () => ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], () => { saveCount++; }, () => {});
 }
 
 const sets = (lift) => state.weeks['1'].lifts.mon[lift];
@@ -218,6 +218,35 @@ test('workout card carries prior sets across program archives and exercise alias
   assert.ok(benchCard, 'current program Bench Press card renders');
   assert.match(benchCard.innerHTML, /Last session: \[ 80kg × 5 \]/);
   assert.doesNotMatch(benchCard.innerHTML, /First time logging/);
+});
+
+test('finishing a completed-but-undated workout stamps its local date so it stays visible', async () => {
+  // A workout whose completed sets arrived without a local date stamp (e.g. a
+  // completion synced/imported from another device) must not finish undated:
+  // an undated session is excluded from calendar analytics AND sinks to the
+  // bottom of the activity history, effectively vanishing from "today". The
+  // deliberate Finish is the last chance to guarantee a calendar date.
+  const { dateKey } = await import('../js/dates.js');
+  const { buildActivityHistory } = await import('../js/activities/model.js');
+  const today = dateKey();
+  initWith({
+    currentWeek: '1', activeProgramId: 'hybrid_engine', activeActivationId: 'a1',
+    weeks: { '1': {
+      activationId: 'a1', programId: 'hybrid_engine',
+      lifts: { wed: { Squat: [{ w: '100', r: '5', c: true }, { w: '100', r: '5', c: true }] } },
+      liftOrder: { wed: ['Squat'] },
+      runs: {}, runSessions: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {}, dates: {},
+    } },
+    settings: { bandWeights: { L: 10, M: 20, H: 30 } }, bodyWeightLog: [{ weight: 80 }], exerciseStats: {},
+  }, 'wed');
+
+  assert.equal(state.weeks['1'].dates.wed, undefined, 'precondition: no date stamped yet');
+  workout.closeFinishSessionModal();
+
+  assert.equal(state.weeks['1'].dates.wed, today, 'finish stamps the local calendar date');
+  assert.equal(state.weeks['1'].sessionStatus.wed, 'finished');
+  const strengthToday = buildActivityHistory(state).filter((r) => r.kind === 'strength' && r.localDate === today);
+  assert.equal(strengthToday.length, 1, 'the finished workout appears in history under today');
 });
 
 test('pairAsSuperset / unpairSuperset tag and clear a shared groupId', () => {

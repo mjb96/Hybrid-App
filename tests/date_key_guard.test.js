@@ -33,7 +33,6 @@ function jsFiles(dir) {
 const ALLOWED_UTC_DAY_ARITHMETIC = new Map([
   ['js/dates.js', 2],                    // addDaysISO + slotDateISO
   ['js/analytics/weekly-aggregate.js', 1], // Monday key after noon-UTC math
-  ['js/analytics/logged-days.js', 1],      // legacy program-slot date estimate
   ['js/fasting/fasting-calcs.js', 1],      // ISO-week Monday after UTC math
 ]);
 
