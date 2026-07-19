@@ -18,6 +18,12 @@ import { migrateState, CURRENT_SCHEMA_VERSION } from './state/migrations.js';
 import { showMigrationRecovery } from './state/migration-recovery-ui.js';
 import { getStoredCloudVersion, setStoredCloudVersion, isServerNewer } from './state/sync-guard.js';
 import {
+  snapshotCloudBeforeOverwrite,
+  getCloudOverwriteBackup,
+  clearCloudOverwriteBackup,
+  trainingStateSummary,
+} from './state/recovery-vault.js';
+import {
   ensureActivation, beginActivation, archiveForeignWeeks,
 } from './state/activation-identity.js';
 import { migrateLegacyRunSessions, runSessionsForDay } from './state/run-sessions.js';
@@ -25,6 +31,7 @@ import { isCompletedSet } from './set-utils.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
+export { getCloudOverwriteBackup, clearCloudOverwriteBackup };
 
 export const STORAGE_KEY = 'hybrid_engine_v2_state';
 
@@ -601,6 +608,7 @@ export function flushLocalSave() {
 let _onSyncConflict = null;
 let _conflictPending = false;
 let _forceOverwrite = false;
+let _conflictCloudProtected = false;
 
 // Offline resilience: an edit always reaches localStorage, but if the cloud
 // write can't complete (offline, or a transient network error) the cloud copy
@@ -643,13 +651,26 @@ async function cloudSave(suppressToast) {
     if (!_forceOverwrite) {
       const { data: row, error: selErr } = await _sb
         .from('user_data')
-        .select('updated_at')
+        .select('updated_at, state_data')
         .eq('user_id', uid)
         .maybeSingle();
       if (!selErr && row && isServerNewer(getStoredCloudVersion(), row.updated_at)) {
+        // Protect the exact newer cloud blob before the destructive choice is
+        // even shown. An accidental "replace cloud" decision is therefore
+        // recoverable from Settings on this device.
+        const cloudHasHistory = !!(row.state_data?.weeks && Object.keys(row.state_data.weeks).length);
+        _conflictCloudProtected = !cloudHasHistory || snapshotCloudBeforeOverwrite(row.state_data, {
+          serverUpdatedAt: row.updated_at,
+        });
         _conflictPending = true;
         if (_onSyncConflict) {
-          _onSyncConflict({ serverUpdatedAt: row.updated_at, lastSeen: getStoredCloudVersion() });
+          _onSyncConflict({
+            serverUpdatedAt: row.updated_at,
+            lastSeen: getStoredCloudVersion(),
+            cloudProtected: _conflictCloudProtected,
+            cloudSummary: trainingStateSummary(row.state_data),
+            deviceSummary: trainingStateSummary(appState),
+          });
         }
         return; // do NOT overwrite newer cloud data
       }
@@ -688,15 +709,25 @@ async function cloudSave(suppressToast) {
 // with this device's state; 'cloud' discards local edits and reloads the
 // authoritative cloud copy (the pre-pull snapshot backup still lets it be undone).
 export async function resolveSyncConflict(choice) {
-  _conflictPending = false;
   if (choice === 'local') {
+    if (!_conflictCloudProtected) {
+      showToast('Cloud copy could not be protected. Export this device before replacing anything.', true);
+      return false;
+    }
+    _conflictPending = false;
     _forceOverwrite = true;
     await cloudSave(false);
+    _conflictCloudProtected = false;
+    return true;
   } else if (choice === 'cloud') {
+    _conflictPending = false;
+    _conflictCloudProtected = false;
     // Reload: the fresh boot pull replaces local with cloud and re-stamps the
     // last-seen version, so the next save won't re-trigger the conflict.
     if (typeof window !== 'undefined') window.location.reload();
+    return true;
   }
+  return false;
 }
 
 // Force any pending debounced cloud save to run now (e.g. before unload/login).
@@ -896,6 +927,8 @@ export async function pullEngineDataFromStorage() {
     storageKey:  STORAGE_KEY,
     getCloudBackup:   getCloudPullBackup,
     clearCloudBackup: clearCloudPullBackup,
+    getCloudOverwriteBackup,
+    clearCloudOverwriteBackup,
   });
 
   try {

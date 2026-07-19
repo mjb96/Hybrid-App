@@ -17,8 +17,13 @@ let _migrate        = (s) => s;
 let _storageKey     = 'hybrid_engine_v2_state';
 let _getCloudBackup   = () => null;
 let _clearCloudBackup = () => {};
+let _getCloudOverwriteBackup   = () => null;
+let _clearCloudOverwriteBackup = () => {};
 
-export function initImportExport({ getState, setState, saveState, defaultDays, migrate, storageKey, getCloudBackup, clearCloudBackup }) {
+export function initImportExport({
+  getState, setState, saveState, defaultDays, migrate, storageKey,
+  getCloudBackup, clearCloudBackup, getCloudOverwriteBackup, clearCloudOverwriteBackup,
+}) {
   _getState     = getState;
   _setState     = setState;
   _saveState    = saveState;
@@ -27,6 +32,8 @@ export function initImportExport({ getState, setState, saveState, defaultDays, m
   if (storageKey) _storageKey = storageKey;
   if (typeof getCloudBackup === 'function')   _getCloudBackup = getCloudBackup;
   if (typeof clearCloudBackup === 'function') _clearCloudBackup = clearCloudBackup;
+  if (typeof getCloudOverwriteBackup === 'function')   _getCloudOverwriteBackup = getCloudOverwriteBackup;
+  if (typeof clearCloudOverwriteBackup === 'function') _clearCloudOverwriteBackup = clearCloudOverwriteBackup;
 }
 
 // True when a pre-sync (pre-cloud-pull) local snapshot exists and holds real
@@ -41,11 +48,21 @@ export function cloudPullSnapshotSavedAt() {
   return _getCloudBackup()?.savedAt || null;
 }
 
-// Restore the pre-sync snapshot over the current (cloud-loaded) state. Same
-// migrate → setState → save → rerender path as a file import, so the recovered
-// data is upgraded and immediately pushed back up to the cloud.
-export function recoverCloudPullSnapshot() {
-  const backup = _getCloudBackup();
+export function hasCloudOverwriteSnapshot() {
+  const backup = _getCloudOverwriteBackup();
+  return !!(backup && backup.state && backup.state.weeks && Object.keys(backup.state.weeks).length > 0);
+}
+
+export function cloudOverwriteSnapshotInfo() {
+  const backup = _getCloudOverwriteBackup();
+  return backup ? {
+    savedAt: backup.savedAt || null,
+    serverUpdatedAt: backup.serverUpdatedAt || null,
+    summary: backup.summary || null,
+  } : null;
+}
+
+async function _recoverSnapshot(backup, clearSnapshot, successMessage) {
   const snap = backup?.state;
   if (!snap || !snap.weeks || Object.keys(snap.weeks).length === 0) {
     showToast('No recoverable snapshot found.', true);
@@ -61,15 +78,33 @@ export function recoverCloudPullSnapshot() {
       : 'Recovery stopped safely. Your current data was not replaced.', true);
     return false;
   }
-  _backupCurrentState(); // undo point only after the snapshot upgrades safely
+  _backupCurrentState();
   if (!merged.customExercises) merged.customExercises = [];
   if (!merged.customPrograms)  merged.customPrograms  = [];
   _setState(merged);
-  _saveState(false); // not suppressed: pushes the recovered data to the cloud
-  _clearCloudBackup();
+  await Promise.resolve(_saveState(false));
+  // Keep the recovery point if persistence throws. Once the normal save path
+  // accepts the recovered state, removing it prevents a stale restore offer;
+  // the save layer itself retains failed cloud writes for reconnect retry.
+  clearSnapshot();
   if (_onImportSuccess) _onImportSuccess();
-  showToast('Recovered this device’s data ✓');
+  showToast(successMessage);
   return true;
+}
+
+// Restore the pre-sync snapshot over the current (cloud-loaded) state. Same
+// migrate → setState → save → rerender path as a file import, so the recovered
+// data is upgraded and immediately pushed back up to the cloud.
+export async function recoverCloudPullSnapshot() {
+  return _recoverSnapshot(_getCloudBackup(), _clearCloudBackup, 'Recovered this device’s data ✓');
+}
+
+export async function recoverCloudOverwriteSnapshot() {
+  return _recoverSnapshot(
+    _getCloudOverwriteBackup(),
+    _clearCloudOverwriteBackup,
+    'Recovered the protected cloud copy ✓',
+  );
 }
 
 // Snapshot the current persisted state before a destructive import/restore so a

@@ -11,6 +11,8 @@ import {
   initImportExport,
   hasCloudPullSnapshot,
   recoverCloudPullSnapshot,
+  hasCloudOverwriteSnapshot,
+  recoverCloudOverwriteSnapshot,
 } from '../js/state/import-export.js';
 
 // showToast() reaches for document.getElementById; stub it so the module under
@@ -20,7 +22,7 @@ beforeEach(() => {
   globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 });
 
-function wire({ snapshot, migrate = (s) => s }) {
+function wire({ snapshot, cloudOverwriteSnapshot = null, migrate = (s) => s }) {
   let current = { weeks: { cloud: {} }, tag: 'cloud' };
   let cleared = false;
   initImportExport({
@@ -32,6 +34,8 @@ function wire({ snapshot, migrate = (s) => s }) {
     storageKey: 'test_key',
     getCloudBackup: () => snapshot,
     clearCloudBackup: () => { cleared = true; },
+    getCloudOverwriteBackup: () => cloudOverwriteSnapshot,
+    clearCloudOverwriteBackup: () => { cleared = true; },
   });
   return { get: () => current, wasCleared: () => cleared };
 }
@@ -47,24 +51,24 @@ test('hasCloudPullSnapshot is true only when the snapshot holds real history', (
   assert.equal(hasCloudPullSnapshot(), false);
 });
 
-test('recoverCloudPullSnapshot replaces current state with the snapshot and clears it', () => {
+test('recoverCloudPullSnapshot replaces current state with the snapshot and clears it', async () => {
   const h = wire({ snapshot: { savedAt: 'now', state: { weeks: { '1': { lifts: {} } }, tag: 'local' } } });
-  const ok = recoverCloudPullSnapshot();
+  const ok = await recoverCloudPullSnapshot();
   assert.equal(ok, true);
   assert.equal(h.get().tag, 'local');
   assert.deepEqual(Object.keys(h.get().weeks), ['1']);
   assert.equal(h.wasCleared(), true);
 });
 
-test('recoverCloudPullSnapshot refuses an empty snapshot and leaves state untouched', () => {
+test('recoverCloudPullSnapshot refuses an empty snapshot and leaves state untouched', async () => {
   const h = wire({ snapshot: { savedAt: 'now', state: { weeks: {} } } });
-  const ok = recoverCloudPullSnapshot();
+  const ok = await recoverCloudPullSnapshot();
   assert.equal(ok, false);
   assert.equal(h.get().tag, 'cloud');
   assert.equal(h.wasCleared(), false);
 });
 
-test('recoverCloudPullSnapshot keeps current data when snapshot migration fails', () => {
+test('recoverCloudPullSnapshot keeps current data when snapshot migration fails', async () => {
   const h = wire({
     snapshot: { savedAt: 'now', state: { weeks: { '1': { lifts: {} } }, tag: 'local' } },
     migrate: (candidate) => {
@@ -72,9 +76,23 @@ test('recoverCloudPullSnapshot keeps current data when snapshot migration fails'
       throw new Error('injected migration fault');
     },
   });
-  const ok = recoverCloudPullSnapshot();
+  const ok = await recoverCloudPullSnapshot();
   assert.equal(ok, false);
   assert.equal(h.get().tag, 'cloud');
   assert.equal(h.get().partiallyMutated, undefined);
   assert.equal(h.wasCleared(), false);
+});
+
+test('protected pre-overwrite cloud copy is exposed and recoverable', async () => {
+  const h = wire({
+    snapshot: null,
+    cloudOverwriteSnapshot: {
+      savedAt: 'now',
+      state: { weeks: { '7': { lifts: { mon: {} } } }, tag: 'newer-cloud' },
+    },
+  });
+  assert.equal(hasCloudOverwriteSnapshot(), true);
+  assert.equal(await recoverCloudOverwriteSnapshot(), true);
+  assert.equal(h.get().tag, 'newer-cloud');
+  assert.equal(h.wasCleared(), true);
 });

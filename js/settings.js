@@ -35,7 +35,13 @@ import { showToast } from './state.js';
 import { rearmReminder, notificationsGranted } from './notifications.js';
 import { getCloudUser, signOutSupabase, deleteAccount as authDeleteAccount } from './state/auth.js';
 import { confirmModal } from './ui/confirm-modal.js';
-import { hasCloudPullSnapshot, recoverCloudPullSnapshot } from './state/import-export.js';
+import {
+  hasCloudPullSnapshot,
+  recoverCloudPullSnapshot,
+  hasCloudOverwriteSnapshot,
+  cloudOverwriteSnapshotInfo,
+  recoverCloudOverwriteSnapshot,
+} from './state/import-export.js';
 import { isHealthBridgeAvailable, getHealthAvailability, connectAndSync, syncHealthConnect, describeFieldStatus } from './health/health-bridge.js';
 import { HEALTH_FIELDS, normalizeSyncFields, selectedFieldIds, isSupportedField } from './health/health-fields.js';
 import {
@@ -92,6 +98,20 @@ function _syncSettingsUI() {
   const canRecover  = hasCloudPullSnapshot();
   if (recoverBtn)  recoverBtn.style.display  = canRecover ? '' : 'none';
   if (recoverHint) recoverHint.style.display = canRecover ? '' : 'none';
+
+  const cloudRecoverBtn = document.getElementById('settingsRecoverCloudOverwriteBtn');
+  const cloudRecoverHint = document.getElementById('settingsRecoverCloudOverwriteHint');
+  const canRecoverCloud = hasCloudOverwriteSnapshot();
+  if (cloudRecoverBtn) cloudRecoverBtn.style.display = canRecoverCloud ? '' : 'none';
+  if (cloudRecoverHint) {
+    cloudRecoverHint.style.display = canRecoverCloud ? '' : 'none';
+    if (canRecoverCloud) {
+      const info = cloudOverwriteSnapshotInfo();
+      const s = info?.summary;
+      const latest = s?.latestDate ? ` Latest training: ${s.latestDate}.` : '';
+      cloudRecoverHint.textContent = `Protected before this device replaced newer cloud data.${latest}`;
+    }
+  }
 
   const nameInput = document.getElementById('settingsNameInput');
   if (nameInput) nameInput.value = s.name || '';
@@ -668,7 +688,25 @@ export async function recoverPreSyncSnapshot() {
     confirmLabel: 'Recover',
   });
   if (!ok) return;
-  if (recoverCloudPullSnapshot()) _syncSettingsUI();
+  if (await recoverCloudPullSnapshot()) _syncSettingsUI();
+}
+
+export async function recoverPreOverwriteCloudSnapshot() {
+  if (!hasCloudOverwriteSnapshot()) { showToast('No protected cloud snapshot found.', true); return; }
+  const info = cloudOverwriteSnapshotInfo();
+  const s = info?.summary;
+  const detail = [
+    s?.strengthDays ? `${s.strengthDays} strength day${s.strengthDays === 1 ? '' : 's'}` : null,
+    s?.runs ? `${s.runs} run${s.runs === 1 ? '' : 's'}` : null,
+    s?.latestDate ? `latest ${s.latestDate}` : null,
+  ].filter(Boolean).join(' · ');
+  const ok = await confirmModal({
+    title: 'Recover the protected cloud copy?',
+    message: `This restores the cloud data saved immediately before this device replaced it${detail ? ` (${detail})` : ''}. Your current state is backed up first.`,
+    confirmLabel: 'Recover cloud copy',
+  });
+  if (!ok) return;
+  if (await recoverCloudOverwriteSnapshot()) _syncSettingsUI();
 }
 
 export function handleImportFile(file) {
