@@ -8,6 +8,7 @@
 // =============================================================================
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { RUNNING_METRICS } from '../js/analytics/running-detail.js';
 
 const noop = () => {};
 const store = new Map();
@@ -69,14 +70,19 @@ test('strength analytics renders on both tabs with the honest current-week label
   }
 });
 
-test('running analytics renders on both tabs with the honest current-week label', () => {
+test('running analytics renders metric-specific accessible destinations on both tabs', () => {
   const state = sampleState();
   for (const tab of ['overview', 'stats']) {
     vr.setRunningTab(tab);
     assert.doesNotThrow(() => vr.renderRunningAnalytics(data, () => state, () => DAYS));
-    const html = getEl('running-tab-body').innerHTML + getEl('runningFitnessDashboard').innerHTML;
-    assert.match(html, /vs same point last week/, `running ${tab} tab`);
-    assert.doesNotMatch(html, /vs last week/);
+    const html = getEl('running-tab-body').innerHTML;
+    assert.match(html, /data-context="running-metric"/, `running ${tab} tab`);
+    assert.match(html, /data-metric-id="running\./, `running ${tab} tab`);
+    assert.match(html, /aria-label="View [^"]+ details"/, `running ${tab} tab`);
+    assert.doesNotMatch(html, /NaN|Infinity/);
+    if (tab === 'stats') {
+      for (const metric of RUNNING_METRICS) assert.match(html, new RegExp(`data-metric-id="${metric.id.replaceAll('.', '\\.')}"`));
+    }
   }
 });
 

@@ -10,6 +10,7 @@ import { levelFromXp } from './brain/hybrid-score/levels.js';
 import { screenTabBar, mountScreenTabs } from './analytics/views/screen-kit.js';
 import { buildActivityHistory } from './activities/model.js';
 import { addDaysISO } from './dates.js';
+import { buildRunningMetricDetail, collectRunningHistory } from './analytics/running-detail.js';
 
 // V2-6 — curated Overview | Stats split (no user customiser): the lean glance vs
 // the full depth. Fixed, curated order — the doctrine is "simple front, powerful
@@ -65,9 +66,13 @@ export function renderAthleteProfile() {
   const hasStrengthData = topLifts.length > 0;
 
   // Running: generic stats (always shown when any run exists) + exact-bracket PBs
+  const runningHistory = collectRunningHistory(state);
   const runStats      = _runningStats(state, days);
-  const runningPBs    = _computeRunningPBs(state, days);
-  const hasRunningData = runStats.runCount > 0;
+  const runningPBs    = _computeRunningPBs(state, days, runningHistory);
+  const hasRunningData = runningHistory.records.some((record) => record.distanceKm > 0);
+  const runningMetric = (id) => runningHistory
+    ? buildRunningMetricDetail(state, id, { history: runningHistory, includeSeries: false })
+    : null;
 
   // New athlete: nothing logged yet → show a focused onboarding card instead of
   // a stack of empty sections.
@@ -200,10 +205,10 @@ export function renderAthleteProfile() {
         ${hasRunningData ? `
           <div class="profile-subsection-title" style="margin-top: 16px;">Running</div>
           <div class="profile-stat-grid">
-            ${_statCard(`${runStats.longestKm.toFixed(1)}`, `Longest (${state.settings?.distanceUnit || 'km'})`, '🏁', null)}
-            ${runStats.bestPaceSecs ? _statCard(_fmtPace(runStats.bestPaceSecs), 'Best Pace /km', '⚡', 'var(--color-cyan)') : ''}
-            ${_statCard(`${runStats.totalKm.toFixed(0)}`, `Total ${state.settings?.distanceUnit || 'km'}`, '🏃', null)}
-            ${_statCard(runStats.runCount.toString(), 'Runs', '👟', null)}
+            ${_statCard(runningMetric('running.longest-run')?.formattedValue || '—', 'Longest Activity', '🏁', null, '', 'running.longest-run')}
+            ${_statCard(runningMetric('running.best-pace')?.formattedValue || '—', 'Best Pace', '⚡', 'var(--color-cyan)', '', 'running.best-pace')}
+            ${_statCard(runningMetric('running.total-distance')?.formattedValue || '—', 'Total Distance', '🏃', null, '', 'running.total-distance')}
+            ${_statCard(runningMetric('running.total-run-count')?.formattedValue || '—', 'Activities', '👟', null, '', 'running.total-run-count')}
           </div>
           ${runningPBs.length > 0 ? `
             <div class="profile-subsection-title" style="margin-top: 16px;">Distance PBs</div>

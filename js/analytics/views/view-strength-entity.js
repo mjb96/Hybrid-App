@@ -7,7 +7,7 @@ import { isE1rmExercise } from '../../strength/e1rm.js';
 import { resolveExercise } from '../../exercises/catalog.js';
 import { buildWeeklyStrengthVolumeDetail } from '../strength-volume-detail.js';
 import { addDaysISO, localDayKey } from '../weekly-aggregate.js';
-import { comparePeriodValues } from '../comparison.js';
+import { comparePeriodValues } from '../period-comparison.js';
 import { VOLUME_LANDMARKS, zoneLabel, classifyVolume } from '../calculations/volume-landmarks.js';
 import { esc } from './screen-kit.js';
 

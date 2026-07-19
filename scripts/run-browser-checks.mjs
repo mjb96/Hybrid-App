@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 
 const checks = [
   'scripts/home-attribution-check.mjs',
+  'scripts/running-analytics-check.mjs',
   'scripts/preview-viewport-check.mjs',
   'scripts/program-detail-viewport-check.mjs',
   'scripts/modal-accessibility-check.mjs',

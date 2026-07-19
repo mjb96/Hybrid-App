@@ -128,6 +128,12 @@ document.addEventListener('app:navigate', (e) => {
   else openAnalyticsView(target);
 });
 
+document.addEventListener('app:open-metric', (e) => {
+  const metricId = e.detail?.metricId;
+  if (!metricId) return;
+  openAnalyticsView('running-metric', null, { entity: metricId });
+});
+
 let _activePlanDisplayWeek = null;
 
 export function openAnalyticsView(context, scrollToId, contextOptions = {}) {
@@ -1677,11 +1683,6 @@ async function bootstrapApp() {
     console.error("Critical layout generation block runtime defense:", fatalLifecycleError);
   }
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => {
-      console.warn('Service worker registration failed:', err);
-    });
-  }
 }
 
 if (document.readyState === 'loading') {

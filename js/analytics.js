@@ -25,6 +25,7 @@ import { estimatedE1rmForSet } from './strength/e1rm.js';
 import { resolveExercise } from './exercises/catalog.js';
 import { renderWeeklyVolume } from './analytics/views/view-weekly-volume.js';
 import { renderExerciseDetail, renderMuscleDetail } from './analytics/views/view-strength-entity.js';
+import { renderRunningMetricDetail } from './analytics/views/view-running-metric.js';
 
 let _getState;
 let _getDays;
@@ -420,6 +421,10 @@ export function renderAnalytics() {
       setRunningTab('overview');
       document.getElementById('analytics-running').classList.add('active');
       renderRunningAnalytics(data, _getState, _getDays);
+      break;
+    case 'running-metric':
+      document.getElementById('analytics-running-metric').classList.add('active');
+      renderRunningMetricDetail(_getState(), _analyticsEntity || {});
       break;
     // V2 (S2): recovery, recovery-score, training-status, load-focus and
     // stress-balance collapse into ONE Recovery & Load screen — "three names for

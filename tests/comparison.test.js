@@ -3,7 +3,8 @@
 // =============================================================================
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { comparisonLabel, statComparisonFrom, comparePeriodValues, COMPARISON_LABELS } from '../js/analytics/comparison.js';
+import { comparisonLabel, statComparisonFrom, COMPARISON_LABELS } from '../js/analytics/comparison.js';
+import { comparePeriodValues } from '../js/analytics/period-comparison.js';
 import { buildWeekChart } from '../js/analytics/week-chart-model.js';
 
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { computeStrengthAnalytics } from '../js/analytics/calculations/strength-calcs.js';
-import { _calendarWeekSummary, _heatmapData } from '../js/profile-stats.js';
+import { _calendarWeekSummary, _computeRunningPBs, _heatmapData, _runPBRow } from '../js/profile-stats.js';
 import * as legacyLoadMetrics from '../js/metrics/metrics-load.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -75,6 +75,26 @@ test('profile activity heatmap uses real calendar dates across activations', () 
   assert.equal(rows[0].cells[0].type, 'lift');
   assert.equal(rows[1].week, '2026-07-13');
   assert.equal(rows[1].cells[1].type, 'lift');
+});
+
+test('profile running PBs use the canonical dated history and open the exact metric', () => {
+  const state = { weeks: {
+    'arch:old:2': {
+      dates: { mon: '2026-06-01', tue: '2099-01-01' },
+      runSessions: {
+        mon: [{ sessionId: 'valid-5k', dist: '5', time: '24:00', type: 'run' }],
+        tue: [{ sessionId: 'future-5k', dist: '5', time: '18:00', type: 'run' }],
+        wed: [{ sessionId: 'undated-5k', dist: '5', time: '17:00', type: 'run' }],
+      },
+    },
+  } };
+  const pbs = _computeRunningPBs(state, DAYS);
+  assert.equal(pbs.length, 1);
+  assert.equal(pbs[0].activityId, 'run:valid-5k');
+  assert.equal(pbs[0].totalSecs, 24 * 60);
+  const row = _runPBRow(pbs[0]);
+  assert.match(row, /data-context="running-metric"/);
+  assert.match(row, /data-entity="running\.personal-bests"/);
 });
 
 test('the obsolete RPE-only readiness exports are gone; evidence-aware scoring is canonical', () => {

@@ -5350,6 +5350,24 @@ html[data-theme="light"] .auth-offline-btn:hover {
   text-align: center;
 }
 
+.profile-stat-card--action {
+  appearance: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-height: 104px;
+  position: relative;
+  width: 100%;
+}
+
+.profile-stat-drill {
+  color: var(--color-blue);
+  display: block;
+  font-size: .56rem;
+  font-weight: 750;
+  margin-top: 7px;
+}
+
 .profile-stat-icon {
   font-size: 1.1rem;
   line-height: 1;
@@ -5541,6 +5559,24 @@ html[data-theme="light"] .auth-offline-btn:hover {
 }
 
 .profile-pr-row:last-child { border-bottom: none; }
+
+.profile-pr-row--clickable {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-pr-row--clickable:hover { background: var(--overlay-lg); }
+.profile-pr-row--clickable:active { background: var(--overlay-sm); }
+.profile-pr-row--clickable:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: -2px;
+}
 
 .profile-pr-lift {
   font-size: 0.8rem;

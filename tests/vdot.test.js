@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { vdotFromPerformance, thresholdSecsFromVdot, bestEffortVdot, effectiveVdot, vdotFromThresholdPace } from '../js/analytics/calculations/running-calcs.js';
+import { vdotFromPerformance, thresholdSecsFromVdot, bestEffortVdot, effectiveVdot, runningEconomy, vdotFromThresholdPace } from '../js/analytics/calculations/running-calcs.js';
 import { runningProjection } from '../js/brain/predictions.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -15,9 +15,16 @@ test('vdotFromPerformance: Daniels benchmark (20:00 5k ≈ VDOT 49–51)', () =>
 });
 
 test('thresholdSecsFromVdot ∘ vdotFromThresholdPace round-trips', () => {
+  assert.equal(vdotFromThresholdPace(300), 41, '5:00/km threshold must not saturate at VDOT 90');
+  assert.equal(vdotFromThresholdPace(240), 53);
   const thr = thresholdSecsFromVdot(50);
-  assert.ok(thr > 0);
+  assert.ok(thr >= 240 && thr <= 280);
   assert.ok(Math.abs(vdotFromThresholdPace(thr) - 50) <= 1);
+});
+
+test('runningEconomy preserves ml/kg/km units at a plausible threshold', () => {
+  const economy = runningEconomy(300, vdotFromThresholdPace(300));
+  assert.ok(economy >= 150 && economy <= 250, `5:00/km economy → ${economy} ml/kg/km`);
 });
 
 test('bestEffortVdot: takes the hardest qualifying run, ignores sprints/walks', () => {
