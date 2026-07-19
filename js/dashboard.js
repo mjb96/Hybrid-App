@@ -24,6 +24,7 @@ import { dateKey } from './dates.js';
 import { fmtFastDuration, fmtHoursLabel } from './fasting.js';
 import { isCompletedSet } from './set-utils.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
+import { buildRunningMetricDetail } from './analytics/running-detail.js';
 
 export const DashboardTileType = Object.freeze({
   METRIC:    'metric',
@@ -322,14 +323,14 @@ export const TILE_REGISTRY = [
   // ---- AVG PACE ----------------------------------------------
   {
     id: 'avg-pace', type: DashboardTileType.METRIC, icon: '⏱️', iconName: 'activity', label: 'Avg Pace',
-    accentVar: '--color-pink', navTarget: 'avg-pace', order: 8,
+    accentVar: '--color-pink', navTarget: 'avg-pace', metricId: 'running.average-pace', order: 8,
     renderData(appState, days, activeProgram, selectedDay, model) {
       try {
-        const p = model.pace;
-        if (!p.hasData) return { hero: '--:--', sub: `min/${p.unit} · recent runs`, state: 'empty' };
+        const detail = buildRunningMetricDetail(appState, 'running.average-pace');
+        if (!detail || detail.empty) return { hero: '--:--', sub: 'trailing 28 days · eligible runs', state: 'empty' };
         return {
-          hero: p.label, sub: `min/${p.unit} · recent runs`,
-          spark: p.spark, sparkColor: 'var(--color-pink)', state: 'loaded',
+          hero: detail.formattedValue.replace(/\s\/(?:km|mi)$/, ''), sub: 'trailing 28 days · distance-weighted',
+          spark: detail.series.map((point) => Number(point.value) || 0), sparkColor: 'var(--color-pink)', state: 'loaded',
         };
       } catch { return { hero: '--:--', sub: 'min/km · recent runs', state: 'error' }; }
     },
@@ -549,9 +550,12 @@ export const CONNECT_HEALTH_TILE = {
 };
 
 // ==========================================
-// NAVIGATION RESOLVER — emits 'app:navigate' carrying the raw navTarget.
+// NAVIGATION RESOLVER — exact metric identity wins over a broad legacy target.
 // ==========================================
-export function resolveTileNavigation(navTarget) {
+export function resolveTileNavigation(navTarget, metricId = '') {
+  if (metricId) {
+    return () => document.dispatchEvent(new CustomEvent('app:open-metric', { detail: { metricId } }));
+  }
   if (!navTarget) return null;
   return () => document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: navTarget } }));
 }

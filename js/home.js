@@ -225,9 +225,10 @@ function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sha
       article.setAttribute('tabindex', '0');
       article.setAttribute('aria-label', `${config.label} — tap for details`);
 
-      const nav = resolveTileNavigation(config.navTarget);
+      const nav = resolveTileNavigation(config.navTarget, config.metricId);
       if (nav) {
         article.style.cursor = 'pointer';
+        if (config.metricId) article.setAttribute('data-metric-id', config.metricId);
         article.addEventListener('click', nav);
         article.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') nav(); });
       }

@@ -10,6 +10,7 @@ import { isValidWorkingSet } from './set-utils.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { addDaysISO, todayKey } from './dates.js';
 import { indexSlotsByDate, weekStartOf } from './analytics/weekly-aggregate.js';
+import { collectRunningHistory } from './analytics/running-detail.js';
 import { exercisePerformanceHistory } from './workout/exercise-history.js';
 
 // ── Section helpers ───────────────────────────────────────────────────────────
@@ -18,10 +19,16 @@ export function _renderHealthSection(state) {
   const hc = state.healthConnect;
   if (!hc?.connected) return '';
 
-  const latestHRV   = hc.hrv?.slice(-1)[0]?.value;
-  const latestRHR   = hc.restingHR?.slice(-1)[0]?.value;
+  // Native ingestion stores the explicit contract keys (rmssd, bpm,
+  // totalHours). Read legacy `value` / `hours` only as compatibility fallbacks
+  // so Profile cannot silently disagree with Home and Recovery.
+  const latestHRVRecord = hc.hrv?.slice(-1)[0];
+  const latestRHRRecord = hc.restingHR?.slice(-1)[0];
+  const latestSleepRecord = hc.sleep?.slice(-1)[0];
+  const latestHRV   = latestHRVRecord?.rmssd ?? latestHRVRecord?.value;
+  const latestRHR   = latestRHRRecord?.bpm ?? latestRHRRecord?.value;
   const latestSteps = hc.steps?.slice(-1)[0]?.count;
-  const latestSleep = hc.sleep?.slice(-1)[0]?.hours;
+  const latestSleep = latestSleepRecord?.totalHours ?? latestSleepRecord?.hours;
 
   if (!latestHRV && !latestRHR && !latestSteps && !latestSleep) return '';
 
@@ -149,7 +156,7 @@ export function _countTotalWorkouts(state, days) {
   return count;
 }
 
-export function _computeRunningPBs(state, days) {
+export function _computeRunningPBs(state, days, history = null) {
   const brackets = [
     { label: '5K',       minKm: 4.5,  maxKm: 5.5  },
     { label: '10K',      minKm: 9,    maxKm: 11   },
@@ -158,29 +165,27 @@ export function _computeRunningPBs(state, days) {
   ];
   const bests = {};
 
-  for (const wkData of Object.values(state.weeks || {})) {
-    days.forEach(d => {
-      runSessionsForDay(wkData, d).forEach(run => {
-        if (!run?.dist || !run?.time) return;
-        const dist = parseFloat(run.dist);
-        if (!dist) return;
-
-        const parts = run.time.split(':').map(Number);
-        let totalSecs = 0;
-        if (parts.length === 2) totalSecs = parts[0] * 60 + parts[1];
-        else if (parts.length === 3) totalSecs = parts[0] * 3600 + parts[1] * 60 + parts[2];
-        if (!totalSecs) return;
-
-        const paceSecs = totalSecs / dist;
-        for (const bracket of brackets) {
-          if (dist >= bracket.minKm && dist <= bracket.maxKm) {
-            if (!bests[bracket.label] || totalSecs < bests[bracket.label].totalSecs) {
-              bests[bracket.label] = { label: bracket.label, dist, timeStr: run.time, totalSecs, paceSecs };
-            }
-          }
+  // Use the same date-strict, all-activation record set as Running analytics.
+  // This prevents future/undated or duplicate legacy records from becoming a
+  // Profile PB that disagrees with the metric detail screen.
+  const records = history?.records || collectRunningHistory(state).records;
+  for (const record of records) {
+    if (!record.paceEligible) continue;
+    for (const bracket of brackets) {
+      if (record.distanceKm >= bracket.minKm && record.distanceKm <= bracket.maxKm) {
+        if (!bests[bracket.label] || record.durationSec < bests[bracket.label].totalSecs) {
+          bests[bracket.label] = {
+            label: bracket.label,
+            dist: record.distanceKm,
+            timeStr: record.durationSec,
+            totalSecs: record.durationSec,
+            paceSecs: record.paceSecPerKm,
+            activityId: record.activityId,
+            date: record.date,
+          };
         }
-      });
-    });
+      }
+    }
   }
 
   return Object.values(bests).sort((a, b) => a.dist - b.dist);
@@ -554,15 +559,20 @@ export function _parseDurationMin(str) {
 
 // ── Render helpers ────────────────────────────────────────────────────────────
 
-export function _statCard(value, label, icon, accentColor, extra = '') {
+export function _statCard(value, label, icon, accentColor, extra = '', metricId = '') {
   const style = accentColor ? `style="color: ${accentColor}"` : '';
+  const tag = metricId ? 'button' : 'div';
+  const action = metricId
+    ? ` type="button" data-action="open-analytics" data-context="running-metric" data-entity="${_esc(metricId)}" data-entity-name="${_esc(label)}" data-metric-id="${_esc(metricId)}" aria-label="View ${_esc(label)} details"`
+    : '';
   return `
-    <div class="profile-stat-card">
+    <${tag}${action} class="profile-stat-card${metricId ? ' profile-stat-card--action' : ''}">
       <div class="profile-stat-icon">${icon}</div>
       <div class="profile-stat-value" ${style}>${value}</div>
       <div class="profile-stat-label">${label}</div>
       ${extra}
-    </div>
+      ${metricId ? '<span class="profile-stat-drill">View ›</span>' : ''}
+    </${tag}>
   `;
 }
 
@@ -621,10 +631,14 @@ export function _runPBRow(pb) {
   const paceFormatted = `${paceMin}:${paceSec.toString().padStart(2, '0')}/km`;
 
   return `
-    <div class="profile-pr-row">
+    <button class="profile-pr-row profile-pr-row--clickable"
+      data-action="open-analytics" data-context="running-metric"
+      data-entity="running.personal-bests" data-origin="profile"
+      aria-label="View Distance Personal Bests analytics; ${_esc(pb.label)} ${timeFormatted}">
       <span class="profile-pr-lift">${pb.label}</span>
       <span class="profile-pr-value">${timeFormatted} <span class="profile-pr-tag">${paceFormatted}</span></span>
-    </div>
+      <span class="profile-stat-chevron" aria-hidden="true">›</span>
+    </button>
   `;
 }
 

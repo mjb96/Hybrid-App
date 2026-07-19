@@ -1,435 +1,129 @@
-// ==========================================
-// RUNNING VIEW (analytics/views/view-running.js)
-// ==========================================
-import { formatPace, paceZoneColour, formatDist } from '../utils.js';
-import { renderHrZonesChart, renderCadenceChart, renderPaceLineChart } from '../charts.js';
-import {
-  renderEnhancedPaceChart,
-  renderAerobicEfficiencyChart,
-  renderHrZoneRingChart,
-  renderDistanceProgressionChart,
-} from '../charts/running-charts.js';
-import { renderTSBTrendChart, renderLoadRatioChart, renderTrainingStressChart } from '../charts/load-charts.js';
+// @ts-check
+// =============================================================================
+// RUNNING ANALYTICS
+// A concise Overview and a complete, metric-specific Stats index. Every number
+// comes from running-detail.js, so Home/Profile links, summaries, detail charts
+// and exact Activity evidence share one date-strict all-activation source.
+// =============================================================================
 import { statCard } from '../charts/chart-primitives.js';
-import { computeRunningAnalytics } from '../calculations/running-calcs.js';
-import { buildWeekChart } from '../week-chart-model.js';
-import { statComparisonFrom } from '../comparison.js';
-import { computeLoadAnalytics } from '../calculations/load-calcs.js';
-import {
-  generateRunningInsights,
-  generateLoadInsights,
-  rankInsights,
-  renderInsightsHTML,
-  deloadInsight,
-} from '../insights/insight-engine.js';
-import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
-import { getProgramById } from '../../state.js';
-import { screenTabBar, mountScreenTabs, spark } from './screen-kit.js';
-import { getCalendarWeekOffset } from '../week-nav.js';
+import { buildRunningMetricDetail, collectRunningHistory } from '../running-detail.js';
+import { mountScreenTabs, screenTabBar, esc } from './screen-kit.js';
 
-function qs(id) { return document.getElementById(id); }
-
-function fmtPace(secs) {
-  if (!secs || secs <= 0) return '--';
-  const s = Math.round(secs);
-  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')} /km`;
-}
-
-function fmtDist(km) { return km > 0 ? km.toFixed(1) + ' km' : '--'; }
-
-function _enduranceScoreLabel(score) {
-  if (score >= 85) return 'Elite aerobic engine';
-  if (score >= 70) return 'Advanced aerobic base';
-  if (score >= 55) return 'Developing aerobic capacity';
-  if (score >= 40) return 'Building foundation';
-  return 'Early stage — keep building';
-}
-
-// ---- Endurance Score Hero -----------------------------------------------
-function renderEnduranceHero(ra, data) {
-  const el = qs('runningEnduranceHero');
-  if (!el) return;
-
-  const score = ra.endScore;
-  const color = score === null ? '#94a3b8'
-    : score >= 80 ? '#10b981'
-    : score >= 60 ? '#3b82f6'
-    : score >= 40 ? '#f59e0b'
-    : '#ef4444';
-
-  const ring = score !== null ? (() => {
-    const r = 34, cx2 = 44, cy2 = 44, circ = 2 * Math.PI * r;
-    const offset = circ - (score / 100) * circ;
-    return `<svg width="88" height="88" viewBox="0 0 88 88" style="flex-shrink:0;">
-      <circle cx="${cx2}" cy="${cy2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="6"/>
-      <circle cx="${cx2}" cy="${cy2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
-        stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
-        stroke-linecap="round" transform="rotate(-90 ${cx2} ${cy2})" opacity="0.9"/>
-      <text x="${cx2}" y="${cy2 + 6}" text-anchor="middle" fill="${color}" font-size="20" font-weight="900">${score}</text>
-    </svg>`;
-  })() : '';
-
-  el.innerHTML = `
-    <article class="card-dark p-4 mb-3" style="border:1px solid ${color}44;display:flex;align-items:center;gap:16px;">
-      ${ring}
-      <div style="flex:1;min-width:0;">
-        <div class="text-xs text-muted mb-1">ENDURANCE SCORE</div>
-        <div class="font-heavy text-inverse" style="font-size:1.4rem;color:${color};">${score !== null ? _enduranceScoreLabel(score) : 'Set threshold pace'}</div>
-        ${ra.vdot ? `<div class="text-xs text-muted mt-1">VDOT&nbsp;${ra.vdot}&nbsp;·&nbsp;RE&nbsp;${ra.re || '--'}&nbsp;ml/kg/km</div>` : ''}
-        ${ra.decoupling !== null ? `<div class="text-xs mt-1" style="color:${Math.abs(ra.decoupling) < 5 ? '#10b981' : '#f59e0b'};">Decoupling&nbsp;${ra.decoupling > 0 ? '+' : ''}${ra.decoupling}%</div>` : ''}
-      </div>
-    </article>`;
-}
-
-// ---- Race Predictors ----------------------------------------------------
-function renderRacePredictors(ra, data) {
-  const el = qs('runningRacePredictors');
-  if (!el) return;
-
-  if (!ra.racePredict) {
-    el.innerHTML = `
-      <h2 class="section-header mt-2">Race Predictors</h2>
-      <article class="card-dark p-4" style="text-align:center;">
-        <div class="text-muted text-sm">Set your threshold pace in settings to unlock race predictions.</div>
-      </article>`;
-    return;
-  }
-
-  const { fiveK, tenK, halfMar, marathon } = ra.racePredict;
-  const races = [fiveK, tenK, halfMar, marathon];
-  const rows = races.map((r, idx) => {
-    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
-    return `
-      <div class="flex-between py-3" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:3px;height:28px;background:${colors[idx]};border-radius:2px;flex-shrink:0;"></div>
-          <span class="text-sm font-bold text-inverse">${r.dist}</span>
-        </div>
-        <div style="text-align:right;">
-          <div class="font-heavy text-inverse" style="font-size:1.1rem;">${r.time}</div>
-          <div class="text-xs text-muted">${r.pace}</div>
-        </div>
-      </div>`;
-  }).join('');
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Race Predictors</h2>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-3">Based on threshold pace ${fmtPace(data.thresholdSecs)}&nbsp;·&nbsp;VDOT ${ra.vdot || '--'}</div>
-      ${rows}
-    </article>`;
-}
-
-// ---- Running Fitness Dashboard ----------------------------------------
-function renderRunningFitnessDashboard(ra, la, data, appState) {
-  const el = qs('runningFitnessDashboard');
-  if (!el) return;
-
-  // Follow the shared calendar-week navigator; current weeks use elapsed-matched
-  // comparison while historical weeks compare full week with full week.
-  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: getCalendarWeekOffset() });
-  const distCur   = distChart.total;
-  const distCmp   = statComparisonFrom(distChart);
-
-  const monthly = ra.monthlyDist;
-  const curMon  = monthly[monthly.length - 1]?.distance || 0;
-  const prevMon = monthly[monthly.length - 2]?.distance || 0;
-  const monPct  = prevMon > 0 ? ((curMon - prevMon) / prevMon) * 100 : null;
-
-  const roiAbs    = Math.abs(ra.roi || 0);
-  const roiLabel  = ra.roi < -0.5 ? `↑ ${roiAbs.toFixed(1)} s/km/wk` : ra.roi > 0.5 ? `↓ ${roiAbs.toFixed(1)} s/km/wk` : 'Stable';
-  const roiColor  = ra.roi < -0.5 ? '#10b981' : ra.roi > 0.5 ? '#ef4444' : 'rgba(255,255,255,0.5)';
-
-  const loadRatioColor = la.currentRatio < 0.8 ? '#10b981' : la.currentRatio < 1.3 ? '#f59e0b' : '#ef4444';
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Running Fitness Dashboard</h2>
-    <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Threshold Pace', value: data.thresholdSecs ? fmtPace(data.thresholdSecs) : '--', sub: 'Set in settings', color: '#f59e0b' })}
-      ${statCard({ label: 'Threshold HR', value: ra.thresholdHR ? ra.thresholdHR + ' bpm' : '--', sub: '~87% max HR', color: '#ef4444' })}
-    </div>
-    <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'VDOT Estimate', value: ra.vdot ? ra.vdot.toString() : '--', sub: 'From threshold pace', color: '#3b82f6' })}
-      ${statCard({ label: 'Running Economy', value: ra.re ? ra.re + ' ml/kg/km' : '--', sub: 'At threshold pace', color: '#22d3ee' })}
-    </div>
-    <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distCmp.deltaPct, sub: distCmp.sub, color: '#ec4899' })}
-      ${statCard({ label: '4-Week Distance', value: fmtDist(curMon), delta: monPct, sub: 'vs prior 4 program weeks', color: '#f472b6' })}
-    </div>
-    <div class="grid-2-col gap-2 mb-3">
-      <article class="card-dark p-3 flex-col" style="border:1px solid ${roiColor}22;">
-        <div class="text-xs text-muted mb-1">Fitness Trend</div>
-        <div class="font-heavy text-inverse" style="font-size:1.1rem;color:${roiColor};">${roiLabel}</div>
-        <div class="text-xs text-muted mt-1">Pace improvement rate</div>
-        ${ra.bestPace ? `<div class="text-xs mt-1" style="color:#f59e0b;">Best: ${fmtPace(ra.bestPace)}</div>` : ''}
-      </article>
-      <article class="card-dark p-3 flex-col" style="border:1px solid ${loadRatioColor}22;">
-        <div class="text-xs text-muted mb-1">Running Load (ACWR)</div>
-        <div class="font-heavy text-inverse" style="font-size:1.3rem;color:${loadRatioColor};">${la.currentRatio || '--'}</div>
-        <div class="text-xs mt-1" style="color:${loadRatioColor};">${la.loadStatus.status}</div>
-        <div class="text-xs text-muted mt-1">ATL / CTL</div>
-      </article>
-    </div>`;
-}
-
-// ---- Pace Analysis ------------------------------------------------------
-function renderPaceAnalysis(ra, data) {
-  const el = qs('runningPaceAnalysisSection');
-  if (!el) return;
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Pace Analysis</h2>
-    <article class="card-dark p-3 mb-3">
-      <div id="enhancedPaceChart"></div>
-    </article>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-2">Weekly Pace Detail</div>
-      <div id="paceDetailList"></div>
-    </article>`;
-
-  const paceChartEl = qs('enhancedPaceChart');
-  if (paceChartEl) {
-    renderEnhancedPaceChart(
-      paceChartEl,
-      data.weekLabels,
-      ra.paceSeries,
-      ra.paceRolling4,
-      ra.paceTrendLine,
-      data.thresholdSecs || 0,
-    );
-  }
-
-  const paceListEl = qs('paceDetailList');
-  if (paceListEl) {
-    const rows = data.weekLabels.map((lbl, i) => {
-      if (ra.paceSeries[i] <= 0) return '';
-      const colour = paceZoneColour(ra.paceSeries[i], data.thresholdSecs);
-      const isBest = ra.paceSeries[i] === Math.min(...ra.paceSeries.filter(v => v > 0));
-      return `<div class="flex-between py-2" style="border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span class="text-sm text-inverse">${lbl}</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          ${isBest ? '<span style="font-size:0.7rem;color:#f59e0b;">Best</span>' : ''}
-          <span class="font-heavy" style="color:${colour};font-variant-numeric:tabular-nums;">${formatPace(ra.paceSeries[i])}</span>
-        </div>
-      </div>`;
-    }).filter(Boolean).join('');
-    paceListEl.innerHTML = rows || '<p class="text-muted text-sm">No pace data logged.</p>';
-  }
-}
-
-// ---- HR Analysis --------------------------------------------------------
-function renderHRAnalysis(ra, data) {
-  const el = qs('runningHrAnalysisSection');
-  if (!el) return;
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Heart Rate Analysis</h2>
-    <div class="grid-2-col gap-2 mb-3">
-      <article class="card-dark p-3 flex-col">
-        <div class="text-xs text-muted mb-1">HR Zone Distribution</div>
-        <div id="hrZoneRingChart"></div>
-      </article>
-      <article class="card-dark p-3 flex-col">
-        <div class="text-xs text-muted mb-2">Zone Details</div>
-        <div id="hrZoneDetails"></div>
-      </article>
-    </div>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-2">Aerobic Efficiency Trend <span style="opacity:0.5;">(s/km per BPM — lower = better)</span></div>
-      <div id="aerobicEfficiencyChart"></div>
-    </article>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-2">HR Zones by Week (minutes)</div>
-      <div id="hrZonesWeeklyChart"></div>
-    </article>`;
-
-  // Ring chart
-  const ringEl = qs('hrZoneRingChart');
-  if (ringEl) renderHrZoneRingChart(ringEl, ra.hrZonePct);
-
-  // Zone details text
-  const zoneDetailsEl = qs('hrZoneDetails');
-  if (zoneDetailsEl && ra.hrZonePct) {
-    const zoneNames  = ['Z1 Recovery', 'Z2 Aerobic', 'Z3 Tempo', 'Z4 Threshold', 'Z5 Max'];
-    const zoneColors = ['#22d3ee', '#10b981', '#f59e0b', '#f97316', '#ef4444'];
-    zoneDetailsEl.innerHTML = zoneNames.map((name, i) => `
-      <div class="flex-between mb-1" style="font-size:0.75rem;">
-        <span style="color:${zoneColors[i]};">${name}</span>
-        <span class="font-bold text-inverse">${ra.hrZonePct[i] || 0}%</span>
-      </div>`).join('');
-  }
-
-  // Efficiency chart
-  const effEl = qs('aerobicEfficiencyChart');
-  if (effEl) renderAerobicEfficiencyChart(effEl, data.weekLabels, ra.effSeries, ra.effRolling4);
-
-  // Weekly HR zones chart
-  const hrWeeklyEl = qs('hrZonesWeeklyChart');
-  if (hrWeeklyEl) renderHrZonesChart(hrWeeklyEl, data.weekLabels, ra.hrZonesSeries);
-
-  // Pace vs HR correlation
-  if (ra.paceHrCorr?.correlation !== null) {
-    const corrEl = document.createElement('article');
-    corrEl.className = 'card-dark p-3 mb-3';
-    corrEl.innerHTML = `
-      <div class="text-xs text-muted mb-1">Pace–HR Relationship</div>
-      <div class="font-bold text-inverse text-sm">${ra.paceHrCorr.interpretation}</div>
-      <div class="text-xs text-muted mt-1">Correlation r = ${ra.paceHrCorr.correlation}</div>`;
-    qs('runningHrAnalysisSection').appendChild(corrEl);
-  }
-}
-
-// ---- Running Load -------------------------------------------------------
-function renderRunningLoad(ra, la, data) {
-  const el = qs('runningLoadSection');
-  if (!el) return;
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Running Load</h2>
-    <article class="card-dark p-3 mb-3">
-      <div id="tsbTrendChartRunning"></div>
-    </article>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-2">Load Ratio (ACWR)</div>
-      <div id="loadRatioChartRunning"></div>
-    </article>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-2">Training Stress Trend (4-week rolling)</div>
-      <div id="trainingStressChartRunning"></div>
-    </article>`;
-
-  const tsbEl = qs('tsbTrendChartRunning');
-  if (tsbEl) renderTSBTrendChart(tsbEl, data.weekLabels, la.atlSeries, la.ctlSeries, la.tsb);
-
-  const ratioEl = qs('loadRatioChartRunning');
-  if (ratioEl) renderLoadRatioChart(ratioEl, data.weekLabels, la.ratioSeries);
-
-  const stressEl = qs('trainingStressChartRunning');
-  if (stressEl) renderTrainingStressChart(stressEl, data.weekLabels, la.stressTrend, la.weeklyTotal);
-}
-
-// ---- Distance Progression -----------------------------------------------
-function renderDistanceSection(ra, data) {
-  const el = qs('runningDistanceSection');
-  if (!el) return;
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Distance Progression</h2>
-    <article class="card-dark p-3 mb-3">
-      <div id="distanceProgressionChart"></div>
-    </article>
-    <article class="card-dark p-3 mb-3">
-      <div class="text-xs text-muted mb-2">Cadence</div>
-      <div id="cadenceChartContainer"></div>
-    </article>`;
-
-  const distEl = qs('distanceProgressionChart');
-  if (distEl) renderDistanceProgressionChart(distEl, data.weekLabels, ra.distSeries, ra.distRolling4);
-
-  const cadEl = qs('cadenceChartContainer');
-  if (cadEl) renderCadenceChart(cadEl, data.weekLabels, ra.cadenceSeries);
-}
-
-// ---- Main Export --------------------------------------------------------
 let _runningTab = 'overview';
 export function setRunningTab(tab) { _runningTab = tab === 'stats' ? 'stats' : 'overview'; }
 
-export function renderRunningAnalytics(data, getState, getDays) {
-  const appState = getState ? getState() : {};
-  const days     = getDays ? getDays() : [];
-  const maxWeek  = data.weekLabels.length;
+const STAT_GROUPS = Object.freeze([
+  {
+    title: 'Volume & frequency',
+    ids: [
+      'running.weekly-distance', 'running.four-week-distance', 'running.total-distance',
+      'running.weekly-duration', 'running.weekly-run-count', 'running.total-run-count',
+      'running.longest-run', 'running.weekly-elevation',
+    ],
+  },
+  {
+    title: 'Pace & performance',
+    ids: [
+      'running.endurance-score', 'running.average-pace', 'running.best-pace', 'running.vdot', 'running.fitness-trend',
+      'running.race-projections', 'running.personal-bests',
+    ],
+  },
+  {
+    title: 'Heart rate & mechanics',
+    ids: [
+      'running.average-heart-rate', 'running.max-heart-rate', 'running.threshold-pace',
+      'running.threshold-heart-rate', 'running.cadence', 'running.intensity-distribution',
+      'running.aerobic-training-effect', 'running.anaerobic-training-effect',
+      'running.running-economy', 'running.aerobic-efficiency', 'running.pace-heart-rate',
+    ],
+  },
+  {
+    title: 'Running load',
+    ids: ['running.training-load', 'running.load-ratio', 'running.form', 'running.training-stress'],
+  },
+]);
 
-  const ra = computeRunningAnalytics(appState, days, maxWeek, data.thresholdSecs);
-  const la = computeLoadAnalytics(appState, days, maxWeek);
+function metricModel(state, history, id) {
+  return buildRunningMetricDetail(state, id, { history, includeSeries: false });
+}
 
-  const allInsights = rankInsights([
-    ...generateRunningInsights({
-      paceSeries: ra.paceSeries, roi: ra.roi, distSeries: ra.distSeries,
-      distProgPct: ra.distProgPct, hrZonePct: ra.hrZonePct, bestPace: ra.bestPace,
-      decoupling: ra.decoupling, vdot: ra.vdot, thresholdSecs: data.thresholdSecs,
-      endScore: ra.endScore, weeklyDistAvg: ra.weeklyDistAvg,
-    }),
-    ...generateLoadInsights({
-      atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
-      loadProgPct: la.loadProgPct, fatigue: la.fatigue, loadStatus: la.loadStatus,
-    }),
-  ]);
+function compactScope(model) {
+  const scope = model?.definition?.scope;
+  if (scope === 'calendar-week') return 'live calendar week';
+  if (scope === 'rolling-7d') return 'trailing 7 days';
+  if (scope === 'rolling-28d') return 'trailing 28 days';
+  if (scope === 'rolling-12w') return 'trailing 12 weeks';
+  if (scope === 'recent-8w') return 'trailing 8 weeks';
+  if (scope === 'rolling-ewma') return '7d / 28d rolling';
+  if (scope === 'configured') return 'current setting';
+  if (scope === 'current-model') return 'current model';
+  return 'all dated history';
+}
 
-  const section = qs('analytics-running');
-  if (!section) return;
-  section.innerHTML = screenTabBar(_runningTab) + `<div id="running-tab-body"></div>`;
-  const body = qs('running-tab-body');
-
-  if (_runningTab === 'stats') _renderRunningStats(body, ra, la, data, appState);
-  else _renderRunningOverview(body, ra, data, allInsights, appState);
-
-  mountScreenTabs('analytics-running', (tab) => {
-    _runningTab = tab;
-    renderRunningAnalytics(data, getState, getDays);
+function metricCard(model) {
+  if (!model) return '';
+  return statCard({
+    label: model.definition.label,
+    value: model.formattedValue,
+    sub: compactScope(model),
+    color: model.definition.color,
+    action: 'open-analytics', context: 'running-metric', entity: model.metricId,
+    entityName: model.definition.label, parentContext: 'running', preserveWeek: true,
+    metricId: model.metricId,
   });
 }
 
-// Overview: VDOT (running fitness) as the headline number, its weekly distance
-// trend as the spark, the two numbers that matter, and ONE synthesized insight.
-function _renderRunningOverview(body, ra, data, insights, appState) {
-  const dist = ra.distSeries || [];
-  // Current CALENDAR week via the shared navigator (offset 0 = this week). Matches
-  // the Strength fix + Home. Delta is null-guarded so a week with no distance yet
-  // never shows a bogus "↓100% vs last week".
-  const distChart = buildWeekChart(appState, { type: 'running', metric: 'distance', weekOffset: getCalendarWeekOffset() });
-  const distCur   = distChart.total;
-  const distCmp   = statComparisonFrom(distChart);
-  const color = ra.endScore == null ? '#94a3b8'
-    : ra.endScore >= 80 ? '#10b981' : ra.endScore >= 60 ? '#3b82f6'
-    : ra.endScore >= 40 ? '#f59e0b' : '#ef4444';
-
-  let hero;
-  if (ra.vdot) {
-    const src = data.thresholdSecs ? 'from your threshold pace' : 'estimated from your runs';
-    hero = `<article class="card-dark an-hero">
-      <div class="an-hero__k">VDOT · running fitness</div>
-      <div class="an-hero__val" style="color:${color}">${ra.vdot}</div>
-      <div class="an-hero__empty">${src}</div>
-      ${spark(dist.slice(-12), '#ec4899')}
-    </article>`;
-  } else {
-    hero = `<article class="card-dark an-hero">
-      <div class="an-hero__k">VDOT · running fitness</div>
-      <div class="an-hero__val">—</div>
-      <div class="an-hero__empty">Log a hard run (or set a threshold pace) to unlock your VDOT.</div>
-    </article>`;
-  }
-
-  body.innerHTML = `
-    ${hero}
-    <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Distance', value: fmtDist(distCur), delta: distCmp.deltaPct, sub: distCmp.sub, color: '#3b82f6' })}
-      ${statCard({ label: 'Best Pace', value: fmtPace(ra.bestPace), sub: 'fastest recent run', color: '#10b981' })}
-    </div>
-    ${(() => {
-      const shown = isProgramDeloadWeek(appState, getProgramById(appState?.activeProgramId)) ? [deloadInsight()] : insights.slice(0, 1);
-      return shown[0] ? renderInsightsHTML(shown, 1) : '';
-    })()}
-  `;
+function overviewHero(model) {
+  if (!model) return '';
+  return `<button type="button" class="card-dark an-hero an-hero--action" data-action="open-analytics" data-context="running-metric" data-entity="${esc(model.metricId)}" data-entity-name="${esc(model.definition.label)}" data-parent-context="running" data-preserve-week="true" data-metric-id="${esc(model.metricId)}" aria-label="View ${esc(model.definition.label)} details">
+    <div class="an-hero__k">${esc(model.definition.label)} · running fitness</div>
+    <div class="an-hero__val" style="color:${model.definition.color}">${esc(model.formattedValue)}</div>
+    <div class="an-hero__empty">${esc(compactScope(model))}</div>
+    <span class="an-stat__drill">View history & evidence ›</span>
+  </button>`;
 }
 
-// Stats: the full running engine, one tap deeper. Absorbs the old avg-pace, vdot,
-// and run-crossref leaves so each fact lives in exactly one place.
-function _renderRunningStats(body, ra, la, data, appState) {
+function renderOverview(body, state, history) {
+  const vdot = metricModel(state, history, 'running.vdot');
+  const weeklyDistance = metricModel(state, history, 'running.weekly-distance');
+  const bestPace = metricModel(state, history, 'running.best-pace');
+  const primaryInsight = weeklyDistance?.empty
+    ? 'Your first dated run will unlock calendar-week distance, comparisons and exact activity evidence.'
+    : weeklyDistance?.interpretation;
   body.innerHTML = `
-    <div id="runningEnduranceHero"></div>
-    <div id="runningFitnessDashboard"></div>
-    <div id="runningPaceAnalysisSection"></div>
-    <div id="runningRacePredictors"></div>
-    <div id="runningHrAnalysisSection"></div>
-    <div id="runningLoadSection"></div>
-    <div id="runningDistanceSection"></div>
-  `;
-  renderEnduranceHero(ra, data);
-  renderRunningFitnessDashboard(ra, la, data, appState);
-  renderPaceAnalysis(ra, data);
-  renderRacePredictors(ra, data);
-  renderHRAnalysis(ra, data);
-  renderRunningLoad(ra, la, data);
-  renderDistanceSection(ra, data);
+    ${overviewHero(vdot)}
+    <div class="grid-2-col gap-2 mb-3">
+      ${metricCard(weeklyDistance)}
+      ${metricCard(bestPace)}
+    </div>
+    <article class="an-insight-card">
+      <span class="an-insight-card__eyebrow">What this says</span>
+      <p>${esc(primaryInsight || 'Open a metric to inspect its history and source activities.')}</p>
+    </article>`;
+}
+
+function renderStats(body, state, history) {
+  body.innerHTML = STAT_GROUPS.map((group) => `
+    <section class="running-metric-group" aria-labelledby="running-${group.title.toLowerCase().replace(/[^a-z]+/g, '-')}">
+      <h2 id="running-${group.title.toLowerCase().replace(/[^a-z]+/g, '-')}" class="section-header">${esc(group.title)}</h2>
+      <div class="grid-2-col gap-2 mb-4">
+        ${group.ids.map((id) => metricCard(metricModel(state, history, id))).join('')}
+      </div>
+    </section>`).join('');
+}
+
+export function renderRunningAnalytics(data, getState) {
+  const state = getState ? getState() : {};
+  const section = document.getElementById('analytics-running');
+  if (!section) return;
+  const history = collectRunningHistory(state);
+  section.innerHTML = screenTabBar(_runningTab) + '<div id="running-tab-body"></div>';
+  const body = document.getElementById('running-tab-body');
+  if (!body) return;
+  if (_runningTab === 'stats') renderStats(body, state, history);
+  else renderOverview(body, state, history);
+  mountScreenTabs('analytics-running', (tab) => {
+    _runningTab = tab;
+    renderRunningAnalytics(data, getState);
+  });
 }

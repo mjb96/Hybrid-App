@@ -13,15 +13,16 @@ import {
 } from '../../metrics/metrics-running.js';
 import { runSessionsForDay } from '../../state/run-sessions.js';
 
-// VDOT estimate from threshold pace (sec/km).
-// Uses Daniels' VDOT formula approximation based on T-pace = 88% VO2max pace.
-// T-pace in min/km relates to VO2max roughly as: VO2 ≈ 3537 / (pace_min_km - 0.4)
+// VDOT estimate from threshold pace (sec/km). Threshold pace is treated as an
+// approximate 60-minute performance, then passed through the same
+// Daniels–Gilbert performance equation used for recorded efforts. This keeps
+// a manual threshold and a real performance on one scale without the old unit
+// error that saturated ordinary paces at the VDOT 90 ceiling.
 export function vdotFromThresholdPace(thresholdSecs) {
-  if (!thresholdSecs || thresholdSecs <= 0) return null;
-  const paceMinKm = thresholdSecs / 60;
-  if (paceMinKm <= 0.4) return null;
-  const vo2 = clamp(3537 / (paceMinKm - 0.4), 20, 90);
-  return Math.round(vo2);
+  const pace = parseFloat(thresholdSecs);
+  if (!Number.isFinite(pace) || pace <= 0) return null;
+  const distanceInOneHour = 3600 / pace;
+  return vdotFromPerformance(distanceInOneHour, 3600);
 }
 
 // VDOT from an actual performance (distance km + time seconds) — the
@@ -42,8 +43,18 @@ export function vdotFromPerformance(distKm, timeSec) {
 // Inverse of vdotFromThresholdPace: an equivalent threshold pace (s/km) for a
 // VDOT, so an estimated VDOT can reuse racePredictors() / race maths.
 export function thresholdSecsFromVdot(vdot) {
-  if (!vdot || vdot <= 0) return null;
-  return Math.round((3537 / vdot + 0.4) * 60);
+  const raw = parseFloat(vdot);
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+  const target = clamp(raw, 20, 90);
+  let fastest = 120;
+  let slowest = 900;
+  for (let i = 0; i < 24; i++) {
+    const midpoint = (fastest + slowest) / 2;
+    const estimate = vdotFromThresholdPace(midpoint) || 0;
+    if (estimate > target) fastest = midpoint;
+    else slowest = midpoint;
+  }
+  return Math.round((fastest + slowest) / 2);
 }
 
 function _timeToSecs(timeStr) {
@@ -100,13 +111,14 @@ export function aerobicEfficiencySeries(paceSeries, avgHrSeries) {
 
 // Running Economy: estimated oxygen cost in ml/kg/km.
 // Requires VDOT. Approximation: VO2 at threshold ≈ 0.88 × VO2max.
-// At T-pace: VO2 = efficiency × velocity. We estimate RE indirectly.
+// Divide ml/kg/min by speed in km/min (not m/s) to preserve the displayed unit.
 export function runningEconomy(thresholdSecs, vdot) {
   if (!vdot || !thresholdSecs) return null;
   const vo2AtThreshold = vdot * 0.88;
   const speedMs        = 1000 / thresholdSecs;
   if (speedMs <= 0) return null;
-  return Math.round((vo2AtThreshold / speedMs) * 10) / 10;
+  const speedKmPerMin = speedMs * 60 / 1000;
+  return Math.round((vo2AtThreshold / speedKmPerMin) * 10) / 10;
 }
 
 // Improvement rate: sec/km per week (negative = faster = improving).

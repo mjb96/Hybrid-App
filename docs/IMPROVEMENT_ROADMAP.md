@@ -402,6 +402,21 @@ count, downloads, or monetization—are the decision metrics.
   wording states comparison to the athlete's 28-day baseline rather than claiming a safe zone or
   readiness; Hybrid Score pillars expose their inputs progressively. The mobile layout has no
   horizontal overflow at 390 px and its new controls/calculation disclosures meet 44 px targets.
+- **R30 inventory, upgrade safety and Running metric-detail slice complete — 19 July 2026**
+  on `codex/analytics-contract-running`. An executable inventory now records 135 distinct
+  metrics across 173 surface instances, including source, calculation owner, unit, period,
+  comparison, interaction, evidence, empty state, limitations and tests; five non-analytic
+  card patterns are explicitly excluded. The shared metric route/detail contract now gives all
+  30 displayed Running metrics stable identities, exact destinations, historical ranges,
+  inspectable values, comparisons, calculation/source/confidence disclosure and exact Activity
+  evidence where records exist. Running summaries on Home and Profile use the same date-strict,
+  all-activation history. A v103 cache boundary, early service-worker update bootstrap and a
+  legacy-module compatibility seam prevent a mixed-cache upgrade from stopping app boot. This
+  slice also fixes the canonical threshold-pace→VDOT conversion (ordinary paces no longer
+  saturate at 90) and preserves the advertised ml/kg/km Running Economy unit. This is a
+  complete, independently useful Stage 1–3 slice; 79 inventoried metrics on Strength,
+  Recovery/Health, Hybrid Score, Review, Profile, fasting and projections remain static and are
+  explicitly retained for the Stage 4–5 follow-up rather than being claimed complete.
 
 ### 19 July reliability audit findings
 
@@ -428,6 +443,10 @@ is the named source/test, not a prior report.
 | A16 | Moderate | High | Strength exercise and muscle summaries had no consistent historical evidence view and display-name aliases could fragment new trends. | Users could not explain progression or set-credit totals across program switches. | Fixed in R29: canonical-ID exercise history (12 weeks/6 months/all time) and calendar-week muscle detail with contributors, trend, typical range and retrospective-classification caveat. | `strength_volume_detail.test.js`, analytics view/navigation tests, existing catalogue/history fixtures. |
 | A17 | Moderate | High | Running Stats hard-coded the current week while the shared analytics navigator could show a historical week; Recovery's “this week” RPE read program position. | The period label and metric could describe different weeks, especially after schedule/program changes. | Fixed in R29: both use stamped calendar dates; rolling load/readiness windows remain explicitly rolling and program adherence remains program-based. | `week_nav_calendar.test.js`, `recovery_calendar.test.js`, time-model separation tests. |
 | A18 | Moderate | High | ACWR/TSB copy used “safe zone,” “ready to train,” “fresh/peaking” and similar causal verdicts beyond the source data. | Users could mistake a load comparison for injury safety or recovery clearance. | Fixed in R29: neutral relative-to-baseline wording and visible model limitations; Hybrid Score inputs are expandable instead of hidden behind one precise number. | `metrics_load.test.js`, Hybrid Score UI tests, Recovery render checks. |
+| A19 | High | High | A controlled client could load the new app graph against an older cached `comparison.js` export, so the static import failed before the service-worker update registration in `app.js` could run. | An otherwise valid upgrade could leave the whole app blank until the browser cache was manually cleared. | Fixed in R30: new callers use an additive canonical module, the update bootstrap runs before the app graph, and v103 precaches the complete production graph. | `cache_upgrade_compat.test.js`, precache check, cold/reload in-app browser boot. |
+| A20 | High | High | Running cards used generic domain navigation and duplicated summary calculations; individual metrics had no dedicated period/history/evidence contract. | A new user met dead ends and a daily user could not verify pace, distance, load or records against exact runs. | Fixed for all 30 displayed Running metrics in R30: stable IDs, exact detail routes, canonical dated history, range/point inspection, honest comparisons/empty states and Activity evidence. | `running_metric_detail.test.js`, `metric_inventory.test.js`, render tests and `running-analytics-check.mjs`. |
+| A21 | Moderate | High | Profile read legacy Health Connect `value`/`hours` fields while native ingestion persists `rmssd`, `bpm` and `totalHours`; Profile distance PBs independently scanned even future/undated slots. | Valid health data could disappear and Profile could disagree with Running analytics. | Fixed in R30: canonical field keys with compatibility fallbacks; Profile running summaries/PBs share the canonical date-strict history and open exact metric details. | Inventory/source contract tests and future/undated Profile PB regression. |
+| A22 | High | High | Threshold pace used `3537 / (paceMinKm - 0.4)` with incompatible units, clamping ordinary paces such as 5:00/km to VDOT 90; Running Economy divided by m/s while labelling the result ml/kg/km. | Endurance Score, projections and economy could look precise while being physically implausible. | Fixed in R30: threshold is an explicit approximate 60-minute performance through the existing Daniels–Gilbert function/inverse, and oxygen cost divides by km/min. R23 effort/quality confidence remains open. | Realistic threshold/round-trip/economy benchmarks in `vdot.test.js`; Running detail regression. |
 
 ### Analytics inventory and settled treatment
 
@@ -439,7 +458,7 @@ specification; this table records the user-facing scope and retained limitations
 | Weekly lifted volume, working sets, reps, strength sessions, exercises and duration | `strength-volume-detail.js`; valid completed working sets stamped inside a local Monday–Sunday week, across numeric/archived/independent sessions. | Weekly Volume summary → Day/Workouts/Exercises/Muscles → exact Activity Detail; live weeks compare the same elapsed days. | Tonnage is mechanical work, not training quality; unreliable/missing duration stays unavailable. |
 | Exercise performance, best load/reps, e1RM, PRs, volume and frequency | Canonical all-program exercise history plus bounded eligible-set Epley calculation. | Exercise rows/lift names open 12-week, 6-month or all-time detail with latest/previous, trends and exact workouts. | Bodyweight/assisted/band/conditioning and >12-rep sets do not produce e1RM; unknown custom names remain exact. |
 | Estimated muscle-group sets, direct and secondary credit, contributors and typical ranges | Current catalogue's 1.0/0.5/0.25 credits over valid selected-calendar-week sets. | Muscle rows open selected-week direct/indirect totals, eight-week trend, contributing exercises/workouts and calculation disclosure. | Estimated, not measured; today's catalogue classification is applied retrospectively and ranges are general guidance. |
-| Running distance, duration, frequency, pace, longest run, intensity/HR signals and load | Exact run sessions; selected calendar week for weekly totals, rolling windows for load, guarded pace/HR inputs. | Running Stats now follows shared week navigation and names its program buckets “4-Week”; exact runs remain available through Activities. | Dedicated drill-downs for every individual running KPI remain lower priority than R23 projection/source-confidence work. |
+| Running distance, duration, frequency, pace, longest run, intensity/HR signals, load, VDOT, projections and PBs | `running-detail.js` over exact dated run sessions across numeric/archived activations; calendar week, elapsed-matched comparison, rolling 7/28-day or 8/12-week windows and lifetime scopes are explicit. Pace is distance-weighted; walks, short sessions and implausible whole-session pace are excluded from pace records. | Every one of the 30 displayed Running metrics opens its own range-selectable detail with inspectable weekly history, comparison, calculation/source/confidence disclosure and exact contributing activities; Home/Profile running summaries reuse the same collected history. | R23 effort/outlier confidence remains deferred. Manual records retain lower source confidence; threshold/economy/projection history is not fabricated because setting snapshots are not stored; projection confidence intervals/course/weather adjustments remain absent. |
 | Readiness, wellness, sleep, HRV, resting HR, steps and recovery trends | Evidence-aware readiness plus their explicitly named daily/7-day/28-day windows; calendar-week RPE uses stamped dates. | Recovery keeps Overview/Stats progressive disclosure, neutral no-data states and source/confidence copy; weekly nav is intentionally absent from rolling metrics. | Health signals depend on user-entered/Health Connect coverage and never default missing data to a penalty or diagnosis. |
 | ATL, CTL, ACWR/load ratio, TSB/form, systemic/local/aerobic fatigue, spikes and momentum | Canonical date-filled rolling load models; status is relative to the athlete's own 28-day baseline. | Neutral baseline wording replaces safe/productive/detraining and recovery-clearance claims; thresholds/limitations remain visible in detail. | Heuristics are load-management signals, not injury prediction or medical diagnosis. |
 | Hybrid Score and pillars | Existing score model with evidence coverage; Strength remains program-week progression by deliberate product rule while other inputs retain their named scopes. | Score remains tappable; pillar panels expose all contributing signals, missing inputs and reasoning through expandable detail. | It is a directional coaching summary, not a performance grade; no Health Connect data is not itself a deduction. |
@@ -522,8 +541,10 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 ## Current execution focus
 
 Completed recommendations remain in the implementation register and phase tables as
-acceptance evidence; they are not the active queue. R17, R18, R21, R22, R28, and R29 are
-engineering-complete; R25 remains an incremental seam-by-seam practice.
+acceptance evidence; they are not the active queue. R17, R18, R21, R22, R28, R29, and the
+R30 inventory/shared-contract/Running slice are engineering-complete; R30 Strength and
+Recovery/Health/Hybrid/Home/Profile follow-ups remain reviewable Stage 4–5 slices, and R25
+remains an incremental seam-by-seam practice.
 The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
 pass, then the owner completes `docs/android-gps-device-checklist.md`; failures return to R15
 before beta.
@@ -567,6 +588,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
 | R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; exercise/history tables split identity; unbounded duplicated e1RM and optimistic progression overstated certainty; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time identity/history; bounded e1RM; conservative set/RPE progression; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/e1RM/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue/all-program history; e1RM eligibility; top-load/RPE progression; volume-credit/browser flows. | Engineering complete on `codex/exercise-volume-finish-audit`. |
 | R29 | Analytics hierarchy/evidence | Important cards were static or routed to generic screens; duplicate comparison/week logic mixed periods, and exercise/muscle evidence was difficult to inspect. | Establish summary → detail → evidence; add Weekly Volume and strength-entity drill-downs; centralize calendar periods/comparisons; align Home, Running, Recovery and Hybrid Score wording/interactions. | analytics aggregates/navigation/views/charts, Home In Focus, Hybrid Score UI, analytics CSS/HTML, service-worker precache. | Valid-set/date/future/partial/zero/alias/program-switch fixtures, navigation/render tests, mobile overflow/touch QA, full verify. | Engineering complete on `codex/analytics-drilldowns`. |
+| R30 | Complete analytics interaction contract | Inventory confirmed 135 metrics/173 surface instances: only four exact detail destinations before this slice, generic Running routes, 79 static metrics, and a mixed-cache boot failure. | Keep the executable inventory as the guard; land the shared exact metric contract and all 30 Running details first, then Strength and Recovery/Health/Hybrid/Home/Profile as independent green slices. | metric inventory/registry, analytics routes/views/charts, canonical domain calculations, Home/Profile adapters, cache bootstrap/precache. | Every metric contract field; summary/detail/unit/period/evidence identity; new/established/1,000-activity fixtures; edit/delete/future/undated/same-day/archive; 360/390/412, 200% text, theme/motion/offline browser journeys. | Inventory + shared contract + Running complete on `codex/analytics-contract-running`; Stage 4–5 domains remain open. |
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -619,6 +641,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R19 | Remove silent unknown-program fallback; validate IDs and surface recovery. | Moderate | Makes damaged state visible and recoverable. | 1–2 days | Low | Import/state validation. | Unknown/deleted custom ID fixtures; UI recovery choices; no mismatch between rendered program and stored ID. | Invalid IDs cannot silently render another plan. |
 | R27 | Correct FIT training-effect mapping and make import success depend on an awaited destination save; validate parser output. | Moderate | Makes Garmin import labels and completion trustworthy. | 2–3 days | Medium: fixture/device variation. | Versioned import field contract; representative FIT fixtures. | Run/gym/malformed/multi-session files, unit checks, callback failure; success appears only after state/route save. | Imported fields match FIT semantics and no failed write is presented as imported. |
 | R29 | Build a period-honest analytics hierarchy with tappable Weekly Volume, exercise/muscle evidence and shared calendar comparison/navigation. | Significant | Lets athletes understand and verify the sessions behind important trends instead of trusting disconnected totals. | Complete | Medium: broad read-only surface. | R2 identities, R21/R28 canonical history/catalogue, calendar-week aggregate. | Valid/skipped/warm-up/edited/deleted/duplicate/program-switch/future/partial/year/DST fixtures; render/navigation and 390 px mobile QA. | Major strength summaries open period-consistent detail/evidence, exact records remain traceable, and shared labels match their calculations. |
+| R30 | Give every inventoried analytic a stable identity and exact, evidence-backed detail; deliver one safe domain slice at a time. | Significant | Makes summaries understandable for a first session and verifiable across years of history. | Stage 1–3 complete; Stage 4–5 open | Medium–High: broad read-only surfaces and calculation drift risk. | R2/R21/R22/R28/R29 canonical session, identity, load and calendar seams. | Executable 135-metric inventory; exact destination/period/unit/evidence guards; sparse and 1,000-activity fixtures; required phone/theme/motion/text/offline browser matrix. | Every genuine tile is visibly interactive and summary, history, comparison and exact evidence share one tested calculation; Running satisfies this now, remaining domains do not yet. |
 
 **Phase 2 exit gate:** coaching exposes uncertainty; Health/GPS/device integrations have device evidence; privileged runtime is self-contained.
 
@@ -672,6 +695,20 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-19 · R30 analytics contract + Running slice on
+  `codex/analytics-contract-running`: executable inventory covers 135 distinct metrics across
+  173 surface instances (five explicit non-analytic exclusions), with 30 Running metrics newly
+  routed to dedicated range-selectable history, inspectable points, period comparison,
+  calculation/source/confidence disclosure and exact Activity evidence. Home/Profile Running
+  summaries now reuse the same date-strict all-activation history; Profile Health field drift
+  and future/undated PBs are corrected. The v103 early-update/compatibility seam prevents mixed
+  service-worker caches from blanking the app. `npm run verify` passes 1,062 tests; every
+  required Chromium check passes, including Running at 360/390/412 px, light/dark, reduced
+  motion, 200% text, empty state, Back/evidence journeys and an offline detail reload; the 1,000-activity pure detail
+  model remains roughly 5–11 ms locally, while the 23-month/1,000-activity browser fixture
+  opens from cold load in 2.6 s and changes to All time in 420 ms. · Next: merge this independently useful Stage 1–3 slice,
+  then deliver remaining R30 Strength and Recovery/Health/Hybrid/Home/Profile metrics in small
+  Stage 4–5 PRs; R23 projection confidence and physical-device/Play/legal gates remain open.
 - 2026-07-19 · R29 analytics hierarchy on `codex/analytics-drilldowns`: Weekly Volume now
   opens a date-strict calendar-week detail with honest live/completed comparison, selectable
   day/workout/exercise/muscle breakdowns and exact Activity Detail evidence. Added alias-aware

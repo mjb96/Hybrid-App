@@ -16,7 +16,7 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v102';
+const CACHE_NAME = 'helyx-v103';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
@@ -41,16 +41,16 @@ const REQUIRED_ASSETS = [
   "./js/analytics/charts.js",
   "./js/analytics/charts/chart-primitives.js",
   "./js/analytics/charts/fasting-charts.js",
-  "./js/analytics/charts/load-charts.js",
   "./js/analytics/charts/recovery-charts.js",
-  "./js/analytics/charts/running-charts.js",
   "./js/analytics/charts/strength-charts.js",
   "./js/analytics/comparison.js",
   "./js/analytics/insights/build-insights.js",
   "./js/analytics/insights/insight-engine.js",
   "./js/analytics/logged-days.js",
   "./js/analytics/navigation.js",
+  "./js/analytics/period-comparison.js",
   "./js/analytics/recovery-calendar.js",
+  "./js/analytics/running-detail.js",
   "./js/analytics/scoring/readiness-scoring.js",
   "./js/analytics/strength-calendar.js",
   "./js/analytics/strength-volume-detail.js",
@@ -62,6 +62,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/views/view-progress.js",
   "./js/analytics/views/view-projections.js",
   "./js/analytics/views/view-recovery.js",
+  "./js/analytics/views/view-running-metric.js",
   "./js/analytics/views/view-running.js",
   "./js/analytics/views/view-strength-entity.js",
   "./js/analytics/views/view-strength.js",

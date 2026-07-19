@@ -27,7 +27,7 @@
 //     (no Infinity / NaN); an honest message is returned instead.
 // =============================================================================
 import { isValidWorkingSet, setVolume } from '../set-utils.js';
-import { comparePeriodValues } from './comparison.js';
+import { comparePeriodValues } from './period-comparison.js';
 import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { todayKey } from '../dates.js';
 
