@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import {
   localDayKey, weekStartOf, weekKeyOf, addDaysISO,
   buildCalendarWeekStrength, indexSlotsByDate, collectCalendarWeek,
-  explainWeeklyMetric,
+  explainWeeklyMetric, strengthDayStats,
 } from '../js/analytics/weekly-aggregate.js';
 import { buildWeekChart } from '../js/analytics/week-chart-model.js';
 import { computeDashboardModel } from '../js/home/dashboard-model.js';
@@ -265,6 +265,34 @@ test('warm-ups and incomplete sets are excluded from the aggregate', () => {
   const cur = buildCalendarWeekStrength(state, { today: TODAY });
   assert.equal(cur.totalWorkingSets, 2);
   assert.equal(cur.totalVolumeKg, 1000);
+});
+
+// strengthDayStats is the shared day-total primitive the Today's-Summary modal
+// (js/app.js) now uses for BOTH the current-day headline and its "vs last week"
+// baseline. Locking the contract here guards against the historical defect where
+// the modal's baseline counted warm-ups but the headline did not — skewing every
+// "Volume/Sets vs last week" delta whenever a prior session logged warm-ups.
+test('strengthDayStats excludes warm-ups, incomplete and zero-rep rows from day totals', () => {
+  const dayLifts = {
+    'Bench Press': [
+      warm(40, 10),                 // warm-up — excluded
+      work(100, 5), work(100, 5),   // 2 valid working sets
+      { c: false, w: '100', r: '5' }, // incomplete — excluded
+      { c: true, w: '100', r: '0' },  // zero reps — excluded
+    ],
+  };
+  const stats = strengthDayStats(dayLifts);
+  assert.equal(stats.workingSets, 2);
+  assert.equal(stats.reps, 10);
+  assert.equal(stats.volumeKg, 1000);
+  // Both the current day and a warm-up-heavy previous day must resolve through
+  // the SAME predicate, so a like-for-like comparison never double-counts warm-ups.
+  const prevDay = { 'Bench Press': [warm(50, 8), work(90, 5), work(90, 5)] };
+  const prev = strengthDayStats(prevDay);
+  assert.equal(prev.workingSets, 2);      // warm-up excluded — not 3
+  assert.equal(prev.volumeKg, 900);       // 2×90×5 — the warm-up's 400 kg is not added
+  assert.equal(stats.workingSets - prev.workingSets, 0); // equal working sets
+  assert.equal(stats.volumeKg - prev.volumeKg, 100);     // honest +100 kg delta
 });
 
 // ---------------------------------------------------------------------------

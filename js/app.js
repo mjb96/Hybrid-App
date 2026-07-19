@@ -42,7 +42,7 @@ import { closeManagedModal, initModalStack, openManagedModal, requestCloseTopMod
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
-import { initEngine, shouldSuggestDeload } from './engine.js';
+import { initEngine, shouldSuggestDeload, paceSecondsPerKm } from './engine.js';
 import { initHome, renderHome, openFastingDetail, answerCoachOnHome } from './home.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext, shareScoreCard } from './analytics.js';
 import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen, sharePRFromRecap } from './session-recap.js';
@@ -84,7 +84,8 @@ import { initActivities, openActivities, closeActivities, isActivitiesOpen, hand
 import { initGpsTracker, startTracking, pauseTracking, resumeTracking, stopTracking, cancelTracking, onWorkoutTabActivated } from './gps-tracker.js';
 import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
-import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
+import { isCompletedSet } from './set-utils.js';
+import { strengthDayStats } from './analytics/weekly-aggregate.js';
 import { dateKey, todayKey } from './dates.js';
 import { resolveDateToSlot, resolveSlotDate } from './analytics/logged-days.js';
 import { newRunSessionId, runDaySummary, upsertRunSession } from './state/run-sessions.js';
@@ -809,17 +810,11 @@ export function openTodaySummaryModal() {
   const weekData = appState.weeks?.[wk];
   
   if (weekData) {
-    const dayLifts = weekData.lifts?.[todayKey] || {};
-    for (const lift in dayLifts) {
-      if (Array.isArray(dayLifts[lift])) {
-        dayLifts[lift].forEach(s => {
-          if (isCompletedSet(s) && !isWarmupSet(s)) {
-            sets++;
-            volume += setVolume(s);
-          }
-        });
-      }
-    }
+    // Canonical working-set totals (warm-ups + incomplete/zero-rep rows excluded),
+    // identical to every other strength surface so the modal can never diverge.
+    const curStats = strengthDayStats(weekData.lifts?.[todayKey] || {});
+    sets = curStats.workingSets;
+    volume = curStats.volumeKg;
 
     const runData = runDaySummary(weekData, todayKey);
     runDist = parseFloat(runData.dist) || null;
@@ -831,13 +826,16 @@ export function openTodaySummaryModal() {
   }
 
   if (runDist && runTime) {
-    const p = runTime.toString().split(':');
-    const tm = p.length === 2 ? parseInt(p[0]) + parseInt(p[1]) / 60 : parseFloat(p[0]);
-    if (tm > 0 && runDist > 0) {
-      const pt = tm / runDist;
-      const pm = Math.floor(pt);
-      const ps = Math.round((pt - pm) * 60).toString().padStart(2, '0');
-      runPace = pm + ':' + ps;
+    // Use the canonical duration parser so an HH:MM:SS run time (any run over an
+    // hour — long runs, most GPS-tracked sessions) yields a correct pace. The
+    // former inline split only handled MM:SS and read HH:MM:SS as just the hours,
+    // producing a wildly wrong "today" pace for long efforts.
+    const secsPerKm = paceSecondsPerKm(runDist, runTime);
+    if (secsPerKm > 0) {
+      let pm = Math.floor(secsPerKm / 60);
+      let ps = Math.round(secsPerKm % 60);
+      if (ps === 60) { pm += 1; ps = 0; }
+      runPace = pm + ':' + String(ps).padStart(2, '0');
     }
   }
 
@@ -893,16 +891,14 @@ export function openTodaySummaryModal() {
     const prevWk   = (parseInt(wk, 10) - 1).toString();
     const prevData = appState.weeks?.[prevWk];
     if (prevData) {
-      let prevVol = 0, prevSets = 0, prevDist = 0;
-      const prevLifts = prevData.lifts?.[todayKey] || {};
-      for (const lift in prevLifts) {
-        if (Array.isArray(prevLifts[lift])) {
-          prevLifts[lift].forEach(s => {
-            if (isCompletedSet(s)) { prevSets++; prevVol += (parseFloat(s.w) || 0) * (parseInt(s.r, 10) || 0); }
-          });
-        }
-      }
-      prevDist = parseFloat(runDaySummary(prevData, todayKey).dist) || 0;
+      // Baseline uses the SAME canonical predicate as the current-week headline.
+      // The previous inline code counted warm-ups in the baseline but not in the
+      // current total, so every "vs last week" delta was skewed whenever last week
+      // logged warm-ups.
+      const prevStats = strengthDayStats(prevData.lifts?.[todayKey] || {});
+      const prevSets = prevStats.workingSets;
+      const prevVol = prevStats.volumeKg;
+      const prevDist = parseFloat(runDaySummary(prevData, todayKey).dist) || 0;
 
       const volDelta  = volume - prevVol;
       const setsDelta = sets   - prevSets;

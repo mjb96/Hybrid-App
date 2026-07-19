@@ -707,6 +707,24 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-19 · Today's-Summary modal metric-consistency fix on
+  `claude/hybridq-product-audit-0bp0e9`. A full new-user → onboarding → home → workout →
+  finish browser pass (390 px) confirmed the core loop, warm-up exclusion, lifecycle Finish
+  and honest empty states are all correct. It surfaced two real defects in
+  `openTodaySummaryModal` (`js/app.js`), the "Today" dashboard tile: (1) the run-pace line
+  used an inline `MM:SS`-only split, so an `HH:MM:SS` time (any run ≥1 h — long runs, most
+  GPS sessions) read only the hours and rendered a wildly wrong pace (e.g. 12 km in 1:05:30
+  showed ~0:05/km instead of 5:28/km); (2) the "vs last week" baseline counted warm-ups while
+  the current-week headline excluded them, skewing every Volume/Sets delta whenever the prior
+  session logged warm-ups. Both now route through the canonical, tested primitives —
+  `paceSecondsPerKm` (engine, `HH:MM:SS`-aware) and `strengthDayStats` (weekly-aggregate,
+  warm-up/incomplete/zero-rep-excluding) — removing the divergent inline loops so this modal
+  can no longer disagree with the rest of the app. Regression: new `strengthDayStats` unit
+  test (`tests/weekly_aggregate.test.js`) locks warm-up/zero-rep exclusion + honest delta;
+  the pace path is covered by the existing `paceSecondsPerKm` `h:mm:ss` tests. Verified in a
+  390 px Chromium drive: pace 5:28/km, vs-last-week +100 kg / equal sets. `npm run verify` is
+  green with 1,075 tests, plus typecheck/precache/workflow/smoke. · Next: continue R30 Stage
+  4–5 analytics slices; device/Play/legal owner gates remain open.
 - 2026-07-19 · Timezone misdating of today's activity on
   `claude/workout-missing-analytics-history-j9dudu`. Root cause: `resolveSlotDate`
   (`js/analytics/logged-days.js`) reconstructed a slot's calendar date by serializing a
