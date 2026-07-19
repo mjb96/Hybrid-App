@@ -2,20 +2,12 @@
 // ==========================================
 // VOLUME LANDMARKS — analytics/calculations/volume-landmarks.js
 //
-// Per-muscle weekly-set landmarks and the classifier that places a muscle's
-// current volume against them. Pure, no DOM, no side effects — the single
-// source of truth shared by the strength analytics payload and its charts.
-//
-// Landmarks (Renaissance Periodization framework), in weekly hard sets:
-//   MV  — Maintenance Volume:        floor to retain the muscle
-//   MEV — Minimum Effective Volume:  where growth begins
-//   MAV — Maximum Adaptive Volume:   top of the productive range
-//   MRV — Maximum Recoverable Volume: ceiling; beyond this is junk / injury risk
-//
-// Volume is measured with the app's weighted-set-credit metric
-// (weeklyVolumeByMuscle: a directly-worked set counts 1.0, a secondary set 0.5).
-// That fractional counting matches how these landmarks are defined, so the two
-// line up without a second parallel metric.
+// Broad weekly volume guidance. These are not individual prescriptions or
+// scientifically exact MEV/MRV thresholds: adaptation depends on effort,
+// exercise selection, training age and recovery, which the logger cannot fully
+// observe. The UI therefore calls them typical ranges and explains the estimate.
+// Credits come from the canonical exercise catalogue (dominant 1.0,
+// meaningful secondary 0.5, minor 0.25; stabilisers 0).
 // ==========================================
 
 /**
@@ -46,6 +38,7 @@ export const VOLUME_LANDMARKS = {
   biceps:       { mv: 4, mev: 8,  mav: 20, mrv: 26 },
   triceps:      { mv: 4, mev: 6,  mav: 14, mrv: 18 },
   brachialis:   { mv: 0, mev: 4,  mav: 12, mrv: 16 },
+  forearms:     { mv: 0, mev: 4,  mav: 12, mrv: 18 },
   // Core
   core:         { mv: 0, mev: 6,  mav: 16, mrv: 25 },
 };
@@ -59,7 +52,7 @@ export const MUSCLE_GROUPS = {
   Back:      ['lats', 'upper_back', 'traps', 'erectors'],
   Legs:      ['quads', 'hamstrings', 'glutes', 'calves', 'adductors'],
   Shoulders: ['front_delts', 'side_delts', 'rear_delts'],
-  Arms:      ['biceps', 'triceps', 'brachialis'],
+  Arms:      ['biceps', 'triceps', 'brachialis', 'forearms'],
   Core:      ['core'],
 };
 
@@ -71,7 +64,7 @@ export const MUSCLE_LABELS = {
   quads: 'Quads', hamstrings: 'Hamstrings', glutes: 'Glutes',
   adductors: 'Adductors', calves: 'Calves',
   front_delts: 'Front Delts', side_delts: 'Side Delts', rear_delts: 'Rear Delts',
-  biceps: 'Biceps', triceps: 'Triceps', brachialis: 'Brachialis',
+  biceps: 'Biceps', triceps: 'Triceps', brachialis: 'Brachialis', forearms: 'Forearms',
   core: 'Core',
 };
 
@@ -113,12 +106,12 @@ export function classifyVolume(sets, lm) {
 /** @param {string} zone */
 export function zoneLabel(zone) {
   switch (zone) {
-    case 'detraining':   return 'Under MV';
-    case 'maintenance':  return 'Maintain';
-    case 'growth':       return 'Growth';
-    case 'optimal':      return 'Optimal';
-    case 'overreaching': return 'Over MRV';
-    default:             return 'No data';
+    case 'detraining':   return 'Below typical';
+    case 'maintenance':  return 'Maintenance';
+    case 'growth':       return 'Productive range';
+    case 'optimal':      return 'Upper range';
+    case 'overreaching': return 'Above typical';
+    default:             return 'No completed sets';
   }
 }
 
@@ -142,8 +135,16 @@ export function zoneColor(zone) {
  */
 export function buildMuscleLandmarkReport(muscleByWeek, currentWeek) {
   const idx = (currentWeek || 1) - 1;
+  const credits = Object.fromEntries(Object.keys(VOLUME_LANDMARKS).map((muscle) => [
+    muscle, muscleByWeek?.[muscle]?.[idx] || 0,
+  ]));
+  return buildMuscleLandmarkReportFromCredits(credits);
+}
+
+/** Build a report from one calendar week's muscle-credit totals. */
+export function buildMuscleLandmarkReportFromCredits(credits) {
   const round1 = v => Math.round(v * 10) / 10;
-  const setsFor = m => round1((muscleByWeek?.[m]?.[idx]) || 0);
+  const setsFor = m => round1(credits?.[m] || 0);
 
   const muscles = {};
   for (const [m, lm] of Object.entries(VOLUME_LANDMARKS)) {
@@ -160,5 +161,14 @@ export function buildMuscleLandmarkReport(muscleByWeek, currentWeek) {
     groups[group] = { group, sets, ...lm, zone, label: zoneLabel(zone), muscles: members };
   }
 
-  return { muscles, groups };
+  return {
+    muscles,
+    groups,
+    methodology: {
+      unit: 'estimated_set_credits',
+      period: 'calendar_week',
+      weights: { dominant: 1, secondary: 0.5, minor: 0.25 },
+      caveat: 'Typical ranges based on completed working sets; effort and individual response are not fully measured.',
+    },
+  };
 }

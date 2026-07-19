@@ -9,6 +9,7 @@ import {
   streakView,
   formatFormTSB,
 } from '../js/metrics/metrics-load.js';
+import { addDaysISO, todayKey } from '../js/dates.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -80,16 +81,14 @@ test('weeklyRpeSeries handles run-only weeks', () => {
 
 // ---- streakView --------------------------------------------------------
 test('streakView returns current and longest streak', () => {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const today = todayKey();
 
   const streakData = {
     current: 5,
     longest: 12,
-    lastActivityDate: yesterday.toISOString().slice(0, 10),
+    lastActivityDate: addDaysISO(today, -1),
   };
-  const result = streakView(streakData);
+  const result = streakView(streakData, today);
   assert.equal(result.current, 5);
   assert.equal(result.longest, 12);
   assert.equal(result.broken, false);

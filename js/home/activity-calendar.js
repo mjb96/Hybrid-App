@@ -1,4 +1,5 @@
 // =============================================================================
+import { isValidWorkingSet } from '../set-utils.js';
 // ACTIVITY CALENDAR — self-contained, no state closure dependency
 // =============================================================================
 
@@ -29,7 +30,7 @@ function _buildActivityMap(appState) {
       const exercises = [];
       for (const ln in dayLifts) {
         if (Array.isArray(dayLifts[ln])) {
-          const done = dayLifts[ln].filter(s => s?.c);
+          const done = dayLifts[ln].filter(isValidWorkingSet);
           if (done.length > 0) {
             completedSets += done.length;
             exercises.push(ln);

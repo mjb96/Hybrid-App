@@ -8,6 +8,8 @@
 // =============================================================================
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { addDaysISO, todayKey } from '../js/dates.js';
+import { weekStartOf } from '../js/analytics/weekly-aggregate.js';
 
 // ---- minimal fake DOM -------------------------------------------------------
 function makeEl(id) {
@@ -138,17 +140,16 @@ test('today is highlighted when a day matches the local date', () => {
 
 test('future days of the current week read as "upcoming", not "no activity"', () => {
   // Anchor the current week to today so later days are genuinely in the future.
-  const today = new Intl.DateTimeFormat('en-CA').format(new Date());
-  const base = new Date(today + 'T00:00:00Z');
-  const monday = new Date(base); monday.setUTCDate(base.getUTCDate() - base.getUTCDay() + 1);
+  const today = todayKey();
+  const monday = weekStartOf(today);
   const dates = {};
-  DAY_KEYS.forEach((dk, i) => { const d = new Date(monday); d.setUTCDate(monday.getUTCDate() + i); dates[dk] = d.toISOString().slice(0, 10); });
+  DAY_KEYS.forEach((dk, i) => { dates[dk] = addDaysISO(monday, i); });
   const state = {
     currentWeek: '1', settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon' },
     weeks: { '1': { dates, lifts: { mon: { A: [work(50, 5)] } } } },
   };
   const id = 'strengthBarChart_future';
-  initWeeklyFitnessGraph(id, 'strength', () => state);
+  initWeeklyFitnessGraph(id, 'strength', () => state, { today });
   const html = getEl(id).innerHTML;
   // At least one day this week is after today → it must be announced as upcoming,
   // and a missed/empty day must never share the future's visual/aria treatment.

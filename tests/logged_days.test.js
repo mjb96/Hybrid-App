@@ -69,3 +69,14 @@ test('loggedDateSet: distinct training dates', () => {
   assert.equal(set.size, 1);
   assert.ok(set.has('2026-07-06'));
 });
+
+test('calendar activity excludes undated legacy work instead of inventing a date', () => {
+  const state = {
+    currentWeek: '4', weekStartedAt: '2026-07-06',
+    weeks: { legacy: { lifts: { mon: { S: [{ w: 100, r: 5, c: true }] } } } },
+  };
+  const seen = [];
+  forEachLoggedDay(state, DAYS, (row) => seen.push(row));
+  assert.deepEqual(seen, []);
+  assert.equal(loggedDateSet(state, DAYS).size, 0);
+});

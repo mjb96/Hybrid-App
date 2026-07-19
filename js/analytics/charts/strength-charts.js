@@ -122,16 +122,16 @@ export function renderVolumeProgressionChart(container, weekLabels, volSeries, r
 
 // Muscle Group Balance bar chart — horizontal bars showing relative volume per group.
 // Volume-landmark chart: one row per muscle group showing weekly sets against
-// the MEV → MAV → MRV target window. The shaded bands are the target zones; the
+// broad typical-volume window. The shaded bands are guidance zones; the
 // filled bar is the current volume (coloured by which zone it lands in); the
-// dashed line marks MAV, the volume to aim for.
+// dashed line marks the transition into the upper typical range.
 // `rows` = ordered array of { group|name, sets, mev, mav, mrv, zone }.
 export function renderVolumeLandmarkChart(container, rows) {
   if (!container) return;
   const data = (rows || []).filter(r => r && r.mrv > 0);
   const hasData = data.some(r => (r.sets || 0) > 0);
   if (!hasData) {
-    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 0;">Log mapped strength exercises to see volume vs landmarks.</p>';
+    container.innerHTML = '<p style="color:rgba(255,255,255,0.5);font-size:0.85rem;padding:8px 0;">Log strength exercises to see estimated set credits.</p>';
     return;
   }
 
@@ -149,7 +149,7 @@ export function renderVolumeLandmarkChart(container, rows) {
     const barY = rowY + 6;
     const col  = zoneColor(r.zone);
 
-    // Track base, then target-zone bands (growth, optimal, over-MRV).
+    // Track base, then broad guidance bands.
     svg += `<rect x="${PL}" y="${barY}" width="${barArea}" height="${BAR_H}" fill="rgba(255,255,255,0.05)" rx="3"/>`;
     svg += `<rect x="${X(r.mev).toFixed(1)}" y="${barY}" width="${(X(r.mav) - X(r.mev)).toFixed(1)}" height="${BAR_H}" fill="${zoneColor('growth')}" opacity="0.14"/>`;
     svg += `<rect x="${X(r.mav).toFixed(1)}" y="${barY}" width="${(X(r.mrv) - X(r.mav)).toFixed(1)}" height="${BAR_H}" fill="${zoneColor('optimal')}" opacity="0.18"/>`;
@@ -159,7 +159,7 @@ export function renderVolumeLandmarkChart(container, rows) {
     const bw = Math.max(2, X(sets) - PL);
     svg += `<rect x="${PL}" y="${barY}" width="${bw.toFixed(1)}" height="${BAR_H}" fill="${col}" opacity="0.9" rx="3"/>`;
 
-    // MAV target marker (dashed).
+    // Upper-range transition marker (dashed).
     svg += `<line x1="${X(r.mav).toFixed(1)}" y1="${barY - 2}" x2="${X(r.mav).toFixed(1)}" y2="${barY + BAR_H + 2}" stroke="rgba(255,255,255,0.55)" stroke-width="1" stroke-dasharray="2 2"/>`;
 
     // Labels: group on the left, current sets on the right.

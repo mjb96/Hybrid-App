@@ -4,7 +4,7 @@
 // One row per real activity. Strength and every run session remain independent,
 // even when they share a calendar day.
 // =============================================================================
-import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
+import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { runSessionsForDay } from '../state/run-sessions.js';
 
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -27,7 +27,7 @@ function strengthSummary(week, day) {
   const exercises = [];
   for (const [name, sets] of Object.entries(lifts)) {
     if (!Array.isArray(sets)) continue;
-    const done = sets.filter((set) => isCompletedSet(set) && !isWarmupSet(set));
+    const done = sets.filter(isValidWorkingSet);
     if (!done.length) continue;
     exercises.push(name);
     workingSets += done.length;
@@ -90,6 +90,8 @@ export function buildActivityHistory(state) {
           localDate, dateLabel: activityDateLabel(localDate),
           timestamp: dateStamp(localDate, null, ++fallbackIndex),
           title: week.sessionTitle || 'Strength Workout',
+          status: week.sessionStatus?.[day] || null,
+          adherence: week.sessionSummary?.[day] || null,
           subtitle: summary.exercises.slice(0, 2).join(', ') + (summary.exercises.length > 2 ? ` +${summary.exercises.length - 2}` : ''),
           metrics: [
             summary.workingSets ? `${summary.workingSets} sets` : '',

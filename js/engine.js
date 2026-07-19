@@ -5,8 +5,9 @@
 import { CONFIG } from './constants.js';
 import { devWarn } from './debug.js';
 import { isCompletedSet, isWarmupSet } from './set-utils.js';
-import { runSessionsForDay } from './state/run-sessions.js';
+import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js';
 import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
+import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -24,10 +25,7 @@ export function initEngine(getStateFn, getDaysFn) {
 // ==========================================
 
 export function epley1RM(weight, reps) {
-  const w = parseFloat(weight) || 0;
-  const r = parseInt(reps, 10) || 0;
-  if (w <= 0 || r === 0) return 0;
-  return w * (1 + r / 30);
+  return estimatedE1rm(weight, reps);
 }
 
 export function parseDurationToMinutes(timeStr) {
@@ -57,7 +55,8 @@ export function formatPace(secsPerKm) {
 // ==========================================
 // FIND LAST PERFORMANCE
 // Backwards-compatible adapter over the canonical dated exercise-history query.
-// Lifts are exact bare-string keys; no aliases are inferred.
+// Explicit catalogue aliases resolve to one canonical exercise identity;
+// unknown custom exercises remain exact-name matches.
 // ==========================================
 
 /**
@@ -180,10 +179,12 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
   result.suggestedWeight = lastSession.weight || '';
   result.suggestedReps = lastSession.reps || '';
 
-  if (history.length >= 3 &&
-      history[0].e1rm <= history[1].e1rm && history[1].e1rm <= history[2].e1rm) {
+  if (history.length >= 3
+      && history.slice(0, 3).every((row) => row.e1rm > 0)
+      && history[0].e1rm <= history[1].e1rm
+      && history[1].e1rm <= history[2].e1rm) {
     result.isStalled = true;
-    result.message = 'You stalled on ' + liftName + '. Reducing sets by 20% for this session to allow recovery.';
+    result.message = `${liftName}'s estimated-strength trend is flat across 3 sessions. Hold the load and review recovery before adding weight.`;
   }
 
   const lastSessionSets = lastSession.workingSets;
@@ -191,28 +192,18 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
   const pastWkData = appState.weeks[lastSession.weekKey];
 
   if (pastWkData) {
-    // Primary: completed working-set RPE from the exact prior session. The
-    // session can live on another day, program, activation or one-off record.
-    let hasPerSetRpe = false;
+    // Primary: completed working-set RPE for THIS exercise in the exact prior
+    // performance. Unrelated lifts and a same-day run must never change this
+    // exercise's next-load recommendation.
     const sourceDay = lastSession.day;
-    const dayLifts = pastWkData.lifts?.[sourceDay] || {};
-    for (const lift in dayLifts) {
-      if (!Array.isArray(dayLifts[lift])) continue;
-      dayLifts[lift].forEach(s => {
-        if (isCompletedSet(s) && !isWarmupSet(s) && s.rpe) {
-          const rpe = parseFloat(s.rpe) || 0;
-          if (rpe > 0) { totalRpeSum += rpe; rpeCount++; hasPerSetRpe = true; }
-        }
-      });
-    }
+    lastSessionSets.forEach((set) => {
+      const rpe = parseFloat(set?.rpe) || 0;
+      if (rpe > 0) { totalRpeSum += rpe; rpeCount++; }
+    });
 
-    // Fallback: session-level RPE (gym + run)
-    if (!hasPerSetRpe) {
-      runSessionsForDay(pastWkData, sourceDay).forEach(run => {
-        const runRpe = parseInt(run.rpe, 10) || 0;
-        if (runRpe > 0) { totalRpeSum += runRpe; rpeCount++; }
-      });
-
+    // Fallback: strength-session RPE only. A run's effort is a separate signal
+    // used by readiness/load analytics, not proof that this lift was too heavy.
+    if (rpeCount === 0) {
       const gymRpe = parseInt(pastWkData.gymRpe?.[sourceDay], 10) || 0;
       if (gymRpe > 0) { totalRpeSum += gymRpe; rpeCount++; }
     }
@@ -224,17 +215,19 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
     // A documented stall keeps message precedence, so callers that surface a
     // single line (home stall alerts) are unchanged in the single-flag cases.
     if (!result.message) {
-      result.message = 'High fatigue detected in your latest session (Avg RPE ' + priorSessionAvgRpe.toFixed(1) + '). We recommend dropping workout volume by 10% today.';
+      result.message = `${liftName}'s previous work averaged RPE ${priorSessionAvgRpe.toFixed(1)}. Hold the load today and adjust if warm-ups feel off.`;
     }
   }
 
   // Auto-progression: turn the last session into a concrete next target
   // (the ghost the cockpit shows, and what one-tap quick-log commits).
   const increment = appState.settings?.progressionIncrement || CONFIG.weightIncrement || 2.5;
-  const prog = suggestProgression(lastSessionSets || [], repTarget, {
+  const canRecommendLoad = repTarget > 0 && isE1rmExercise(liftName, lastSessionSets?.[0]);
+  const prog = suggestProgression(canRecommendLoad ? (lastSessionSets || []) : [], repTarget, {
     increment,
     weightGoal: appState.settings?.weightGoal,
     stalled: result.isStalled,
+    fatigued: result.isFatigueOverload,
     hardRpe: CONFIG.fatigueRpeThreshold || 8.5,
   });
   if (prog.action !== 'baseline') {
@@ -250,10 +243,10 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
 // AUTO-PROGRESSION (double progression + RPE autoregulation)
 // Rule-based, evidence-grounded — not generative. Turns the last session for a
 // lift into the next concrete target:
-//   • missed the rep target      → chase one more rep at the same load
-//   • hit target, effort in hand  → add one load increment, reps back to target
-//   • hit target, effort maximal  → hold load and consolidate (avoid grinding)
-//   • documented multi-week stall → cut ~10% and rebuild
+//   • any top-load set misses target → chase one more rep at the same load
+//   • every top-load set hits target → add one load increment when effort allows
+//   • effort maximal / session RPE high → hold load and consolidate
+//   • flat three-session trend        → hold and review instead of auto-deloading
 //   • cutting (energy deficit)    → preserve strength: hold load, progress reps
 // Pure (no state access) so it drives the cockpit ghost, the coach label and the
 // quick-log target from one source, and is trivially unit-testable.
@@ -264,8 +257,8 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
  *   the most recent session for this lift; each has at least `w` and `r`.
  * @param {number} repTarget       prescribed top-of-range rep goal for the lift.
  * @param {{ increment?: number, weightGoal?: 'cut'|'maintain'|'bulk',
- *           stalled?: boolean, hardRpe?: number }} [opts]
- * @returns {{ action: 'baseline'|'load-up'|'hold'|'rep-up'|'deload',
+ *           stalled?: boolean, fatigued?: boolean, hardRpe?: number }} [opts]
+ * @returns {{ action: 'baseline'|'load-up'|'hold'|'rep-up',
  *             weight: number|'', reps: number|'', rationale: string }}
  */
 export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
@@ -280,15 +273,12 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
   });
   if (sets.length === 0) return baseline;
 
-  // Reference = the heaviest working set (tie-break on reps): the set the next
-  // session has to beat.
-  let top = sets[0];
-  for (const s of sets) {
-    const w = parseFloat(s.w), tw = parseFloat(top.w);
-    if (w > tw || (w === tw && parseInt(s.r, 10) > parseInt(top.r, 10))) top = s;
-  }
-  const W = parseFloat(top.w);
-  const R = parseInt(top.r, 10);
+  // Reference = every completed set at the session's heaviest working weight.
+  // Judging one cherry-picked best set used to recommend more load even when
+  // another set at the same weight missed the prescription.
+  const W = Math.max(...sets.map((set) => parseFloat(set.w)));
+  const referenceSets = sets.filter((set) => parseFloat(set.w) === W);
+  const R = Math.min(...referenceSets.map((set) => parseInt(set.r, 10)));
   const target = repTarget > 0 ? repTarget : R;
 
   // Average RPE across the working sets that carry a reading (optional signal).
@@ -297,14 +287,14 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
 
   const round = v => Math.round(v / increment) * increment;
 
-  // Documented multi-session stall → cut load and rebuild.
+  // A flat trend is a review signal, not enough evidence for a precise 10%
+  // deload. Hold the last successful load; the user/program still owns deloads.
   if (opts.stalled) {
-    const deloaded = Math.max(increment, round(W * 0.9));
-    return { action: 'deload', weight: deloaded, reps: target,
-      rationale: `Plateaued 3 sessions — drop to ${deloaded} and rebuild.` };
+    return { action: 'hold', weight: W, reps: target,
+      rationale: `Flat estimated-strength trend — hold ${W} and review recovery.` };
   }
 
-  const hitTarget  = R >= target;
+  const hitTarget  = referenceSets.every((set) => parseInt(set.r, 10) >= target);
   const hardEffort = avgRpe != null && avgRpe >= hardRpe;
   const rpeNote    = avgRpe != null ? ` @ RPE ${+avgRpe.toFixed(1)}` : '';
 
@@ -317,17 +307,17 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
 
   // Rep target met but effort was maximal, or we're in a deficit → hold load and
   // consolidate rather than grind a load increase into a stall/injury.
-  if (hardEffort || goal === 'cut') {
+  if (hardEffort || opts.fatigued || goal === 'cut') {
     const why = goal === 'cut'
       ? `Cutting — hold ${W} and keep the reps.`
-      : `Hit ${R}${rpeNote} — hold ${W} to consolidate.`;
+      : `Completed ${R}${rpeNote} — hold ${W} to consolidate.`;
     return { action: 'hold', weight: W, reps: target, rationale: why };
   }
 
   // Rep target met with effort in reserve → add a load increment.
   const next = round(W + increment);
   return { action: 'load-up', weight: next, reps: target,
-    rationale: `Hit ${R}${rpeNote} — add load to ${next}.` };
+    rationale: `All top-load sets hit ${target}${rpeNote} — add load to ${next}.` };
 }
 
 // ==========================================
@@ -347,7 +337,7 @@ export function liftTarget(desc, liftName, weekModifier = {}) {
 
 export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier) {
   // Materialise exactly the program's prescribed number of sets. Weight and reps
-  // are left blank so the cockpit shows last week's numbers as an editable
+  // are left blank so the cockpit can show the latest dated performance as an editable
   // light-grey ghost; the set/rep target lives on the card label. The diagnostic
   // engine advises (stall/fatigue notes) but never silently removes sets.
   const { sets: setsCount } = liftTarget(desc, liftName, weekModifier);
@@ -369,7 +359,7 @@ export function reconcilePrescribedSets(existing, desiredCount) {
   if (!Array.isArray(existing)) return Array.from({ length: count }, blank);
 
   const hasUserData = existing.some((set) => set && (
-    set.c || String(set.w ?? '').trim() || String(set.r ?? '').trim() ||
+    isCompletedSet(set) || String(set.w ?? '').trim() || String(set.r ?? '').trim() ||
     set.type || set.rpe != null || set.rir != null || set.bw || set.band || set.loadMode
   ));
   if (!hasUserData) return Array.from({ length: count }, blank);
@@ -406,23 +396,20 @@ export function computeEstimated1RMs() {
         const setsArr = dayLifts[lKey];
         if (!Array.isArray(setsArr)) continue;
 
-        // Lifts are stored keyed by display name.
-        const lName = lKey;
+        const exerciseId = canonicalExerciseId(lKey);
 
         setsArr.forEach(s => {
-          if (s && s.c && s.type !== 'W' && !s.isWarmup) {
-            const weight = parseFloat(s.w) || 0;
-            const reps = parseInt(s.r, 10) || 0;
-            const e1rm = weight * (1 + reps / 30);
+          if (isCompletedSet(s) && !isWarmupSet(s)) {
+            const e1rm = estimatedE1rmForSet(lKey, s);
 
             if (wKey === wk) {
-              if (lName === 'Back Squat' && e1rm > result.currentSq) result.currentSq = e1rm;
-              if (lName === 'Bench Press' && e1rm > result.currentBp) result.currentBp = e1rm;
-              if (lName === 'Deadlift' && e1rm > result.currentDl) result.currentDl = e1rm;
+              if (exerciseId === 'back_squat' && e1rm > result.currentSq) result.currentSq = e1rm;
+              if (exerciseId === 'barbell_bench_press' && e1rm > result.currentBp) result.currentBp = e1rm;
+              if (exerciseId === 'conventional_deadlift' && e1rm > result.currentDl) result.currentDl = e1rm;
             }
-            if (lName === 'Back Squat' && e1rm > result.globalMaxSq) result.globalMaxSq = e1rm;
-            if (lName === 'Bench Press' && e1rm > result.globalMaxBp) result.globalMaxBp = e1rm;
-            if (lName === 'Deadlift' && e1rm > result.globalMaxDl) result.globalMaxDl = e1rm;
+            if (exerciseId === 'back_squat' && e1rm > result.globalMaxSq) result.globalMaxSq = e1rm;
+            if (exerciseId === 'barbell_bench_press' && e1rm > result.globalMaxBp) result.globalMaxBp = e1rm;
+            if (exerciseId === 'conventional_deadlift' && e1rm > result.globalMaxDl) result.globalMaxDl = e1rm;
           }
         });
       }
@@ -448,29 +435,28 @@ export function computeExercisePRs(state, stats = {}) {
       if (!dayLifts) continue;
 
       for (let lift in dayLifts) {
+        const statKey = canonicalExerciseId(lift) || lift;
         let maxEstimated1RM = 0;
         const setsArr = dayLifts[lift];
         if (!Array.isArray(setsArr)) continue;
 
         setsArr.forEach(set => {
-          if (set && set.c && set.w && set.r && set.type !== 'W' && !set.isWarmup) {
-            const weight = parseFloat(set.w);
-            const reps = parseInt(set.r);
-            const e1RM = weight * (1 + (reps / 30));
+          if (isCompletedSet(set) && set.w && set.r && !isWarmupSet(set)) {
+            const e1RM = estimatedE1rmForSet(lift, set);
             if (e1RM > maxEstimated1RM) maxEstimated1RM = e1RM;
           }
         });
 
         if (maxEstimated1RM > 0) {
-          if (!stats[lift]) {
-            stats[lift] = { allTimeMax: 0, currentEstimatedMax: 0 };
+          if (!stats[statKey]) {
+            stats[statKey] = exerciseStatForName(stats, lift) || { allTimeMax: 0, currentEstimatedMax: 0 };
           }
-          if (maxEstimated1RM > stats[lift].allTimeMax) {
-            stats[lift].allTimeMax = maxEstimated1RM;
+          if (maxEstimated1RM > stats[statKey].allTimeMax) {
+            stats[statKey].allTimeMax = maxEstimated1RM;
           }
           if (wKey === state.currentWeek) {
-            if (maxEstimated1RM > (stats[lift].currentEstimatedMax || 0)) {
-              stats[lift].currentEstimatedMax = maxEstimated1RM;
+            if (maxEstimated1RM > (stats[statKey].currentEstimatedMax || 0)) {
+              stats[statKey].currentEstimatedMax = maxEstimated1RM;
             }
           }
         }

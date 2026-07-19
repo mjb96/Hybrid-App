@@ -127,7 +127,7 @@ export function generateRecommendation(state, days, activeProgram, selectedDay) 
   // prescribing effort the athlete has already put in.
   if (session.hasGym || session.hasRun) {
     const done = evaluateSessionCompletion(state, activeProgram, state.currentWeek, selectedDay);
-    if (done.complete) {
+    if (done.finished) {
       const what = session.hasRun && session.hasGym ? 'hybrid session'
                  : session.hasRun ? 'run' : 'session';
       const advice = tsb <= -15

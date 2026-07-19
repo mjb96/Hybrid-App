@@ -14,6 +14,8 @@ function loggedWeek() {
     gymStats: { mon: { time: '45:00', avgHR: 130, gymSets: [{ reps: 5 }] } },
     bodyWeight: { mon: '80.2' },
     dates: { mon: '2026-07-13' },
+    sessionStatus: { mon: 'finished' },
+    sessionSummary: { mon: { plannedSets: 4, completedSets: 1, skippedSets: 3 } },
   };
 }
 
@@ -31,6 +33,8 @@ test('deletes one day workout and restores a supplied blank prescription', () =>
   assert.equal(week.notes.mon, '');
   assert.equal(week.gymRpe.mon, '');
   assert.deepEqual(week.gymStats.mon, { time: '', avgHR: '', maxHR: '', cals: '' });
+  assert.equal(week.sessionStatus.mon, undefined);
+  assert.equal(week.sessionSummary.mon, undefined);
 });
 
 test('workout deletion preserves the day date and body-weight measurement', () => {
@@ -61,6 +65,10 @@ test('finished history is resolved while an unfinished session remains a draft',
     lifts: { mon: { Squat: [{ w: '100', r: '5', c: true }, { w: '', r: '', c: false }] } },
     gymStats: { mon: { time: '30:00' } },
   }, 'mon'), false);
+  assert.equal(hasDayWorkoutDraft({
+    lifts: { mon: { Squat: [{ w: '100', r: '5', c: true }, { w: '', r: '', c: false }] } },
+    sessionStatus: { mon: 'finished' },
+  }, 'mon'), false, 'explicit finish resolves skipped sets without a duration proxy');
   assert.equal(hasDayWorkoutDraft({
     runs: { mon: { dist: '5', time: '25:00' } },
     runSessions: { mon: [{ sessionId: 'run_1', dist: '5', time: '25:00' }] },

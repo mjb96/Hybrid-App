@@ -6,7 +6,7 @@
 // =============================================================================
 import { getCatalogEntry } from './programs/catalog.js';
 import { allLiftsStats } from './metrics/metrics-strength.js';
-import { isCompletedSet, isWarmupSet } from './set-utils.js';
+import { isValidWorkingSet } from './set-utils.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { addDaysISO, todayKey } from './dates.js';
 import { indexSlotsByDate, weekStartOf } from './analytics/weekly-aggregate.js';
@@ -131,7 +131,7 @@ export function _esc(str) {
 }
 
 export function _isSet(s) {
-  return isCompletedSet(s) && !isWarmupSet(s);
+  return isValidWorkingSet(s);
 }
 
 export function _countTotalWorkouts(state, days) {

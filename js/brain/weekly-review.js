@@ -14,6 +14,7 @@ import { weeklyE1rmByLift } from '../metrics/metrics-strength.js';
 import { isProgramDeloadWeek } from './day-verdict.js';
 import { addDaysISO, todayKey } from '../dates.js';
 import { runDaySummary } from '../state/run-sessions.js';
+import { isCompletedSet } from '../set-utils.js';
 
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -96,7 +97,7 @@ export function buildWeeklyReview(state, days, program) {
   let sessionDays = 0;
   days.forEach(d => {
     const lifts = weekData.lifts?.[d] || {};
-    const lifted = Object.values(lifts).some(sets => Array.isArray(sets) && sets.some(s => s && s.c));
+    const lifted = Object.values(lifts).some(sets => Array.isArray(sets) && sets.some(isCompletedSet));
     const ran = (parseFloat(runDaySummary(weekData, d).dist) || 0) > 0;
     if (lifted || ran) sessionDays++;
   });

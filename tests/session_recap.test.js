@@ -97,6 +97,35 @@ test('flags a PR when a lift beats its best from every prior session', () => {
   assert.ok(!renderSessionRecapHTML(r1).includes('🏆'));
 });
 
+test('PR comparison carries canonical exercise aliases across programs', () => {
+  const state = { weeks: {
+    'arch:old:1': {
+      dates: { tue: '2026-06-23' },
+      lifts: { tue: { 'DB Bench Press': [{ w: 30, r: 8, c: true }] } },
+      runs: {},
+    },
+    '1': {
+      dates: { fri: '2026-07-03' },
+      lifts: { fri: { 'Dumbbell Bench Press': [{ w: 32.5, r: 8, c: true }] } },
+      runs: {},
+    },
+  } };
+  const recap = buildSessionRecap(state, '1', 'fri');
+  assert.equal(recap.lifts[0].pr, true);
+});
+
+test('high-rep work remains in the recap but is not presented as a 1RM estimate', () => {
+  const state = stateWith({
+    dates: { mon: '2026-07-02' },
+    lifts: { mon: { Curl: [{ w: 20, r: 20, c: true }] } },
+    runs: {},
+  });
+  const recap = buildSessionRecap(state, '1', 'mon');
+  assert.equal(recap.lifts[0].topSet.w, 20);
+  assert.equal(recap.lifts[0].e1rm, 0);
+  assert.doesNotMatch(renderSessionRecapHTML(recap), /est\. 1RM/);
+});
+
 test('run splits render as a pace bar chart with per-km values', () => {
   const wd = {
     dates: { tue: '2026-07-03' }, lifts: {},

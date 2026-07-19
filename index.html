@@ -801,7 +801,7 @@
         </label>
       </details>
 
-      <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Session</button>
+      <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Workout</button>
       <button class="wk-clear-link mt-2" data-action="open-reset-modal">Clear today's log</button>
     </section>
 
@@ -1776,8 +1776,8 @@
 
   <div class="modal-overlay" id="summaryModal" role="dialog" aria-labelledby="summaryModalTitle" data-modal-root data-modal-close-action="cancel-finish-modal" inert aria-hidden="true">
     <div class="modal-content">
-      <h2 id="summaryModalTitle" class="text-2xl font-heavy text-inverse mb-1">Session Complete</h2>
-      <p id="summaryModalCopy" class="text-lg text-muted mb-2">Review your session before saving.</p>
+      <h2 id="summaryModalTitle" class="text-2xl font-heavy text-inverse mb-1">Finish workout?</h2>
+      <p id="summaryModalCopy" class="text-lg text-muted mb-2">Review your completed work before finishing.</p>
       <p id="summaryCompletionProgress" class="text-sm text-muted mb-5"></p>
       <div class="flex-between mb-2">
         <span class="text-lg text-muted">Total Volume:</span>
@@ -1799,8 +1799,9 @@
           <input type="number" id="summaryRunRPE" min="1" max="10" placeholder="e.g. 6" class="mb-4">
         </div>
       </div>
-      <button id="summarySaveAction" class="btn-action-block btn-blue" data-action="close-finish-modal">Save & Return Home</button>
-      <button class="btn-action-block btn-ghost mt-2" data-action="cancel-finish-modal">Cancel</button>
+      <button id="summarySaveAction" class="btn-action-block btn-blue" data-action="close-finish-modal">Finish Workout</button>
+      <button class="btn-action-block btn-ghost mt-2" data-action="cancel-finish-modal">Keep Training</button>
+      <button id="summaryDiscardAction" class="btn-action-block btn-ghost mt-2" data-action="discard-finish-workout">Discard Workout</button>
     </div>
   </div>
 

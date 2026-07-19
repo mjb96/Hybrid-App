@@ -456,6 +456,7 @@ select.native-select {
   cursor: pointer;
 }
 
+[hidden]        { display: none !important; }
 .hidden-input   { display: none; }
 .cursor-pointer { cursor: pointer; }
 .select-dark    { background: var(--bg-app); }
@@ -4535,7 +4536,7 @@ html[data-theme="light"] .cockpit-history-line {
   border-color: rgba(59, 130, 246, 0.15);
 }
 
-/* "Finish Session" and "Clear Today's Log" — danger ghost in light */
+/* "Finish Workout" and "Clear Today's Log" — danger ghost in light */
 html[data-theme="light"] .btn-danger-ghost {
   color: #dc2626 !important;
   border-color: rgba(220, 38, 38, 0.30) !important;

@@ -23,7 +23,7 @@ import {
   renderInsightsHTML,
   deloadInsight,
 } from '../insights/insight-engine.js';
-import { isCompletedSet } from '../../set-utils.js';
+import { isValidWorkingSet } from '../../set-utils.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { resolveProgramForState } from '../../state.js';
@@ -31,6 +31,8 @@ import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-ki
 import { getCalendarWeekOffset, getSelectedWeekStart } from '../week-nav.js';
 import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
 import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift, bestE1rmByLiftForWeek } from '../../metrics/metrics-strength.js';
+import { canonicalExerciseId } from '../../exercises/catalog.js';
+import { estimatedE1rmForSet } from '../../strength/e1rm.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -185,8 +187,7 @@ function renderMuscleGroupAnalysis(sa) {
     .map(g => report.groups[g])
     .filter(Boolean);
 
-  // Per-muscle breakdown, organised under each group. Only muscles that carry a
-  // landmark appear; volume is the current week's weighted set credits.
+  // Per-muscle breakdown for the selected real calendar week.
   const muscleBreakdown = groups.map(g => {
     const members = (MUSCLE_GROUPS[g] || [])
       .map(m => report.muscles[m])
@@ -212,14 +213,17 @@ function renderMuscleGroupAnalysis(sa) {
   el.innerHTML = `
     <h2 class="section-header mt-2">Muscle Group Analysis</h2>
     <article class="card-dark p-3 mb-2">
-      <div class="text-xs text-muted mb-1">Weekly sets vs volume landmarks</div>
+      <div class="text-xs text-muted mb-1">Estimated set credits · selected calendar week</div>
       <div id="volumeLandmarkChart"></div>
       <div class="text-xs text-muted" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
-        <span><span style="color:${zoneColor('growth')};">■</span> Growth (MEV–MAV)</span>
-        <span><span style="color:${zoneColor('optimal')};">■</span> Optimal (MAV–MRV)</span>
-        <span><span style="color:${zoneColor('overreaching')};">■</span> Over MRV</span>
-        <span style="opacity:0.7;">┊ dashed = MAV target</span>
+        <span><span style="color:${zoneColor('growth')};">■</span> Typical productive range</span>
+        <span><span style="color:${zoneColor('optimal')};">■</span> Upper typical range</span>
+        <span><span style="color:${zoneColor('overreaching')};">■</span> Above typical range</span>
       </div>
+      <details class="text-xs text-muted" style="margin-top:10px;">
+        <summary>How is this calculated?</summary>
+        <p style="margin-top:6px;">Only completed working sets with recorded reps count. Dominant muscles receive 1 set credit, meaningful secondary muscles 0.5, minor contributors 0.25; warm-ups, blank rows and skipped sets receive 0. The ranges are general guidance, not a personal MEV or recovery limit.</p>
+      </details>
     </article>
     <h3 class="section-header text-sm mb-2" style="font-size:0.8rem;">Per-Muscle Volume</h3>
     <article class="card-dark p-3 mb-3">
@@ -288,7 +292,7 @@ export function renderStrengthAnalytics(data, getState, getDays) {
   const days      = getDays ? getDays() : [];
   const maxWeek   = data.weekLabels.length;
 
-  const sa = computeStrengthAnalytics(appState, days, maxWeek);
+  const sa = computeStrengthAnalytics(appState, days, maxWeek, { weekStart: getSelectedWeekStart() });
   const la = computeLoadAnalytics(appState, days, maxWeek);
   const allInsights = rankInsights([
     ...generateStrengthInsights({
@@ -550,10 +554,6 @@ export function render1RMProgressSection(sectionEl, weekLabels, getState, getDay
 
   const appState    = getState();
   const defaultDays = getDays();
-  const sqNames     = ['back squat', 'squat', 'front squat'];
-  const bpNames     = ['bench press', 'incline bench press', 'incline barbell press'];
-  const dlNames     = ['deadlift', 'romanian deadlift', 'deficit deadlift'];
-
   const sqData = [], bpData = [], dlData = [];
 
   for (let w = 1; w <= weekLabels.length; w++) {
@@ -566,16 +566,15 @@ export function render1RMProgressSection(sectionEl, weekLabels, getState, getDay
         const dayLifts = wkData.lifts?.[d] || {};
         for (const lift in dayLifts) {
           if (!Array.isArray(dayLifts[lift])) continue;
-          const liftLower = lift.toLowerCase();
+          const exerciseId = canonicalExerciseId(lift);
           dayLifts[lift].forEach(s => {
-            const completed = isCompletedSet(s);
             const weight = parseFloat(s.w) || 0;
             const reps   = parseInt(s.r, 10) || 0;
-            if (!completed || weight <= 0 || reps <= 0) return;
-            const e1rm = weight * (1 + reps / 30);
-            if (sqNames.some(n => liftLower.includes(n))) sqMax = Math.max(sqMax, e1rm);
-            if (bpNames.some(n => liftLower.includes(n))) bpMax = Math.max(bpMax, e1rm);
-            if (dlNames.some(n => liftLower.includes(n))) dlMax = Math.max(dlMax, e1rm);
+            if (!isValidWorkingSet(s) || weight <= 0 || reps <= 0) return;
+            const e1rm = estimatedE1rmForSet(lift, s);
+            if (exerciseId === 'back_squat') sqMax = Math.max(sqMax, e1rm);
+            if (exerciseId === 'barbell_bench_press') bpMax = Math.max(bpMax, e1rm);
+            if (exerciseId === 'conventional_deadlift') dlMax = Math.max(dlMax, e1rm);
           });
         }
       });

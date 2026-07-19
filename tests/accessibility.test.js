@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 const HTML = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
+const CSS = readFileSync(resolve(ROOT, 'css/styles.css'), 'utf8');
 
 test('no icon-only button lacks an accessible name', () => {
   const offenders = [];
@@ -61,4 +62,9 @@ test('viewport allows zoom (no user-scalable=no / maximum-scale=1)', () => {
   const vp = HTML.match(/<meta[^>]*name="viewport"[^>]*>/)?.[0] || '';
   assert.doesNotMatch(vp, /user-scalable\s*=\s*no/i, 'viewport must not disable zoom');
   assert.doesNotMatch(vp, /maximum-scale\s*=\s*1(\.0)?\b/i, 'viewport must not clamp zoom');
+});
+
+test('the native hidden contract wins over component display rules', () => {
+  assert.match(CSS, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/,
+    'dynamic hidden controls must not be resurfaced by .btn display rules');
 });

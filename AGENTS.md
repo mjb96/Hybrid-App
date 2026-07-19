@@ -48,8 +48,9 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   planned session stay PROGRAM-week based; CTL/ATL/readiness stay rolling-window. The
   Strength overview's per-lift **estimated-1RM "this week" change + PR indicators** use
   `js/analytics/strength-calendar.js` (`calendarStrengthSummary`, `bestE1rmByLiftForWeek`,
-  canonical `estimatedE1rm`) — calendar-week, same-exercise only (identity = the lift's
-  bare-string name key; no alias layer), honest empty states. The Hybrid Score strength
+  canonical `estimatedE1rm`) — calendar-week, same-exercise only. Stored keys remain bare
+  strings, while `js/exercises/catalog.js` resolves explicit historical aliases to a
+  canonical ID/display name at read time; unknown custom names stay exact. The Hybrid Score strength
   pillar stays program-week progression on purpose.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
@@ -79,6 +80,10 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
   between days (`neighborDay`). Coach: deterministic **ask-the-coach** Q&A
   (`js/brain/coach-qa.js`, chips on the briefing) + PR share card (`js/brain/pr-share.js`).
+- Session lifecycle: additive `weeks[key].sessionStatus[day]` (`in_progress|finished`)
+  and `sessionSummary[day]` sidecars are owned by `js/workout/session-status.js`.
+  Deliberate Finish marks the workout finished even below 100% plan adherence; deletion/
+  discard clears both fields and blank or warm-up-only work cannot be finished as training.
 
 ## Roadmap Working Agreements
 Active goal: Android public beta on Google Play (free at launch). See

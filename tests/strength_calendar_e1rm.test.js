@@ -21,13 +21,15 @@ const WK = '2026-07-13';
 const PREV = '2026-07-06';
 
 // ---- canonical formula ------------------------------------------------------
-test('estimatedE1rm is the canonical Epley formula and never returns NaN', () => {
+test('estimatedE1rm is one bounded Epley formula and never returns NaN', () => {
   assert.equal(estimatedE1rm(100, 5), 100 * (1 + 5 / 30));
   assert.equal(estimatedE1rm('102.5', '5'), 102.5 * (1 + 5 / 30)); // decimals + strings
   assert.equal(estimatedE1rm(0, 5), 0);        // bodyweight / no load → 0, not NaN
   assert.equal(estimatedE1rm(100, 0), 0);      // no reps → 0
   assert.equal(estimatedE1rm('x', 'y'), 0);    // junk → 0
-  assert.equal(estimatedE1rm(100, 30), 200);   // high reps: no cap (preserve existing behaviour)
+  assert.equal(estimatedE1rm(100, 12), 140);   // upper supported trend boundary
+  assert.equal(estimatedE1rm(100, 13), 0);     // high-rep work stays in volume, not e1RM/PRs
+  assert.equal(estimatedE1rm(100, 30), 0);
 });
 
 // ---- 1. program week spanning two calendar weeks ----------------------------
@@ -60,8 +62,8 @@ test('two program weeks in one calendar week both contribute to the same lift be
     '2': { dates: { mon: '2026-07-06' }, lifts: { mon: { Squat: [work(150, 3)] } } },
   } };
   const wk = bestE1rmByLiftForWeek(state, { weekStart: PREV });
-  assert.equal(Math.round(wk.Squat.bestEstimated1RM), Math.round(e1(150, 3)));
-  assert.deepEqual(wk.Squat.sourceProgramWeeks, [1, 2]);
+  assert.equal(Math.round(wk['Back Squat'].bestEstimated1RM), Math.round(e1(150, 3)));
+  assert.deepEqual(wk['Back Squat'].sourceProgramWeeks, [1, 2]);
 });
 
 test('old and new program lifts in one calendar week are both present, never merged', () => {
@@ -129,24 +131,25 @@ test('different exercises are NEVER subtracted from each other', () => {
   } };
   const cs = calendarStrengthSummary(state, { today: TODAY });
   assert.equal(cs.topChange, null, 'Squat has no Squat last week → no cross-exercise delta');
-  assert.equal(cs.bestThisWeek.exerciseName, 'Squat');
+  assert.equal(cs.bestThisWeek.exerciseName, 'Back Squat');
 });
 
 // ---- 11,12. identity: rename / variant stay separate ------------------------
-test('a renamed exercise is a distinct identity (no false cross-week comparison)', () => {
+test('an explicit historical alias shares identity for a valid cross-week comparison', () => {
   const state = { currentWeek: '2', weeks: {
     '1': { dates: { mon: PREV }, lifts: { mon: { 'Bench Press': [work(100, 5)] } } },
     '2': { dates: { mon: WK },   lifts: { mon: { 'Barbell Bench Press': [work(105, 5)] } } },
   } };
   const cs = calendarStrengthSummary(state, { today: TODAY });
-  assert.equal(cs.topChange, null, 'different name keys are different exercises');
+  assert.equal(cs.topChange.exerciseName, 'Barbell Bench Press');
+  assert.ok(cs.topChange.deltaKg > 0, 'explicit aliases are the same exercise identity');
 });
 
 test('exercise variations (Bench vs Incline Bench) are separate', () => {
   const state = { currentWeek: '1', weeks: { '1': { dates: { mon: WK },
     lifts: { mon: { 'Bench Press': [work(100, 5)], 'Incline Bench Press': [work(70, 5)] } } } } };
   const wk = bestE1rmByLiftForWeek(state, { weekStart: WK });
-  assert.ok(wk['Bench Press'] && wk['Incline Bench Press']);
+  assert.ok(wk['Barbell Bench Press'] && wk['Incline Barbell Bench Press']);
 });
 
 // ---- 13,20,21. set validity -------------------------------------------------
@@ -163,6 +166,21 @@ test('a bodyweight (zero-load) set never becomes a false e1RM', () => {
   const state = { currentWeek: '1', weeks: { '1': { dates: { mon: WK }, lifts: { mon: { 'Pull-Ups': [work(0, 10)] } } } } };
   const wk = bestE1rmByLiftForWeek(state, { weekStart: WK });
   assert.equal(wk['Pull-Ups'], undefined, 'no valid e1RM set → lift absent, not a 0 entry');
+});
+
+test('effective bodyweight and nominal band loads never become false e1RMs', () => {
+  const state = { weeks: { '1': {
+    dates: { mon: TODAY },
+    lifts: { mon: {
+      'Push-Ups': [{ ...work(82, 10), loadMode: 'bodyweight', bw: true }],
+      'Band Chest Press': [work(30, 10)],
+      'Custom Barbell Lift': [work(50, 5)],
+    } },
+  } } };
+  const wk = bestE1rmByLiftForWeek(state, { weekStart: WK });
+  assert.equal(wk['Push-Up'], undefined);
+  assert.equal(wk['Band Chest Press'], undefined);
+  assert.ok(wk['Custom Barbell Lift'].bestEstimated1RM > 50, 'unknown weighted custom lifts remain eligible');
 });
 
 // ---- 15,16. edits move to the correct calendar week -------------------------

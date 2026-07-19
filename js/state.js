@@ -21,6 +21,7 @@ import {
   ensureActivation, beginActivation, archiveForeignWeeks,
 } from './state/activation-identity.js';
 import { migrateLegacyRunSessions, runSessionsForDay } from './state/run-sessions.js';
+import { isCompletedSet } from './set-utils.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -319,11 +320,11 @@ export function applyDeloadToCurrentWeek() {
       for (const lift in dayLifts) {
         const sets = dayLifts[lift];
         if (!Array.isArray(sets)) continue;
-        const incompleteCount = sets.filter(s => !(s?.c || s?.type === 'W')).length;
+        const incompleteCount = sets.filter(s => !(isCompletedSet(s) || s?.type === 'W')).length;
         const keepN = Math.max(1, Math.ceil(incompleteCount / 2));
         let seen = 0;
         dayLifts[lift] = sets.filter(s => {
-          if (s?.c || s?.type === 'W') return true; // keep all logged sets + warm-ups
+          if (isCompletedSet(s) || s?.type === 'W') return true; // keep all logged sets + warm-ups
           seen++;
           return seen <= keepN;                      // keep the first N incomplete, drop the rest
         });
@@ -414,7 +415,7 @@ export function verifyWeekStorageSchema(wk) {
 // once it's completed or carries an entered weight. Prescribed-but-untouched
 // sets seed w:'' with only a rep target, so they don't qualify.
 function liftHasLoggedData(sets) {
-  return Array.isArray(sets) && sets.some(s => s && (s.c || (s.w !== '' && s.w != null)));
+  return Array.isArray(sets) && sets.some(s => s && (isCompletedSet(s) || (s.w !== '' && s.w != null)));
 }
 
 // Begin a fresh run of a program: mint a new activation identity and vacate every

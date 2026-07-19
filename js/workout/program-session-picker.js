@@ -29,7 +29,7 @@ export function buildProgramSessionChoices(state, program, todayDay) {
       title: blueprint?.title || planned.label,
       sessionLabel: planned.label,
       isToday: day === todayDay,
-      status: completion.complete ? 'complete' : completion.partial ? 'partial' : 'open',
+      status: completion.finished ? 'complete' : completion.anyLogged ? 'partial' : 'open',
       loggedDate,
       performedDay,
       moved: !!performedDay && performedDay !== day,

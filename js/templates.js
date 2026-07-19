@@ -101,7 +101,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
 }
 
 export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, setsMarkup, groupId = null, ssColor = null, plates = '' }) {
-  const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">STALLED</span>` : '';
+  const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">PLATEAU</span>` : '';
   const targetStyle  = diagnostic.isStalled ? 'color: var(--accent-red); font-weight: 800;' : '';
   const ssBtnClass   = groupId ? 'btn-ss-link ss-active' : 'btn-ss-link';
   const ssBtnStyle   = groupId ? `style="--ss-color:${ssColor};"` : '';

@@ -21,7 +21,7 @@
 // Pure, DOM-free, side-effect-free. Shares the set predicates from set-utils so
 // it can never diverge from the detail views.
 // =============================================================================
-import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
+import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { addDaysISO, localDayKey } from '../dates.js';
 import { runDaySummary } from '../state/run-sessions.js';
 
@@ -66,7 +66,7 @@ export function strengthDayStats(dayLifts) {
     const sets = dayLifts[lift];
     if (!Array.isArray(sets)) continue;
     for (const s of sets) {
-      if (!isCompletedSet(s) || isWarmupSet(s)) continue;
+      if (!isValidWorkingSet(s)) continue;
       workingSets++;
       reps += parseInt(s?.r, 10) || 0;
       volumeKg += setVolume(s);

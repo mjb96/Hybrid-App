@@ -38,7 +38,7 @@ const server = createServer(async (req, res) => {
     res.end(buf);
   } catch { res.writeHead(404); res.end('not found'); }
 });
-await new Promise(r => server.listen(0, r));
+await new Promise(r => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
 const BASE = `http://127.0.0.1:${port}`;
 

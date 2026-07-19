@@ -38,6 +38,7 @@ test('epley1RM coerces string inputs and guards garbage', () => {
   assert.equal(epley1RM('100', '5'), 100 * (1 + 5 / 30));
   assert.equal(epley1RM('abc', '5'), 0);
   assert.equal(epley1RM(-50, 5), 0);            // negative load → 0
+  assert.equal(epley1RM(50, 13), 0);            // high-rep work is not a defensible e1RM point
 });
 
 // ---- isCompletedSet (D2) --------------------------------------------------
@@ -120,7 +121,7 @@ test('computeDiagnosticForLift: per-set rpe >= threshold flags fatigue overload'
     { w: '80', r: '5', c: true, rpe: '9.5' },
   ];
   initEngine(() => makeDiagState(sets), () => DAYS);
-  const r = computeDiagnosticForLift('2', 'mon', 'Squat');
+  const r = computeDiagnosticForLift('2', 'mon', 'Squat', 5);
   assert.equal(r.isFatigueOverload, true);
 });
 
@@ -137,8 +138,9 @@ test('computeDiagnosticForLift: per-set rpe < threshold does not flag fatigue ov
 test('computeDiagnosticForLift: falls back to session-level rpe when no per-set rpe', () => {
   const sets = [{ w: '80', r: '5', c: true }, { w: '80', r: '5', c: true }];
   initEngine(() => makeDiagState(sets, 9), () => DAYS);
-  const r = computeDiagnosticForLift('2', 'mon', 'Squat');
+  const r = computeDiagnosticForLift('2', 'mon', 'Squat', 5);
   assert.equal(r.isFatigueOverload, true);
+  assert.equal(r.progression?.action, 'hold', 'high strength-session RPE must not still recommend loading up');
 });
 
 test('computeDiagnosticForLift: no rpe data at all does not flag fatigue overload', () => {
@@ -146,6 +148,16 @@ test('computeDiagnosticForLift: no rpe data at all does not flag fatigue overloa
   initEngine(() => makeDiagState(sets, null), () => DAYS);
   const r = computeDiagnosticForLift('2', 'mon', 'Squat');
   assert.equal(r.isFatigueOverload, false);
+});
+
+test('computeDiagnosticForLift: unrelated lift and run RPE do not contaminate this exercise', () => {
+  const state = makeDiagState([{ w: '80', r: '5', c: true, rpe: '7' }]);
+  state.weeks['1'].lifts.mon.Curl = [{ w: '20', r: '10', c: true, rpe: '10' }];
+  state.weeks['1'].runs.mon = { dist: '5', time: '25:00', rpe: '10' };
+  initEngine(() => state, () => DAYS);
+  const result = computeDiagnosticForLift('2', 'mon', 'Squat', 5);
+  assert.equal(result.isFatigueOverload, false);
+  assert.equal(result.progression?.action, 'load-up');
 });
 
 // ---- computeGAP (D10) --------------------------------------------------------
@@ -306,11 +318,11 @@ test('suggestProgression: cutting holds load even when target is hit easily', ()
   assert.equal(p.weight, 100);
 });
 
-test('suggestProgression: documented stall → deload ~10%, rounded to the increment', () => {
+test('suggestProgression: a flat trend holds load instead of inventing a precise deload', () => {
   const sets = [{ w: '100', r: '5', rpe: '9' }];
   const p = suggestProgression(sets, 5, { increment: 2.5, stalled: true });
-  assert.equal(p.action, 'deload');
-  assert.equal(p.weight, 90);       // round(90 / 2.5) * 2.5
+  assert.equal(p.action, 'hold');
+  assert.equal(p.weight, 100);
 });
 
 test('suggestProgression: uses the heaviest working set as the reference', () => {
@@ -321,7 +333,19 @@ test('suggestProgression: uses the heaviest working set as the reference', () =>
   assert.equal(p.weight, 110);
 });
 
-test('suggestProgression: works with no RPE data (treats effort as sub-maximal)', () => {
+test('suggestProgression: one missed set at the top load blocks a load increase', () => {
+  const sets = [
+    { w: '100', r: '5', rpe: '7' },
+    { w: '100', r: '4', rpe: '8' },
+    { w: '90', r: '8', rpe: '7' },
+  ];
+  const p = suggestProgression(sets, 5, { increment: 2.5, hardRpe: 8.5 });
+  assert.equal(p.action, 'rep-up');
+  assert.equal(p.weight, 100);
+  assert.equal(p.reps, 5);
+});
+
+test('suggestProgression: completed target can progress when optional RPE is absent', () => {
   const sets = [{ w: '60', r: '10' }];
   const p = suggestProgression(sets, 10, { increment: 2.5 });
   assert.equal(p.action, 'load-up');
@@ -353,8 +377,8 @@ test('computeDiagnosticForLift: warm-up effort is excluded from the fatigue aver
   assert.equal(r.isFatigueOverload, false);
 });
 
-test('computeDiagnosticForLift: three flat sessions stall → deload progression', () => {
-  // e1rm non-increasing across weeks 1→3 (100 ≥ 100 ≥ 100) → stall, then deload.
+test('computeDiagnosticForLift: three flat eligible e1RMs hold for review', () => {
+  // e1rm non-increasing across weeks 1→3 (100 ≥ 100 ≥ 100) → plateau signal.
   const flat = [{ w: '100', r: '5', c: true }];
   const state = {
     currentWeek: '4',
@@ -369,6 +393,37 @@ test('computeDiagnosticForLift: three flat sessions stall → deload progression
   const r = computeDiagnosticForLift('4', 'mon', 'Squat', 5);
   assert.equal(r.isStalled, true);
   assert.ok(r.progression, 'stall still produces a progression');
-  assert.equal(r.progression.action, 'deload');
-  assert.equal(r.suggestedWeight, 90);
+  assert.equal(r.progression.action, 'hold');
+  assert.equal(r.suggestedWeight, 100);
+  assert.match(r.message, /review recovery/i);
+});
+
+test('computeDiagnosticForLift: high-rep work cannot fabricate an e1RM plateau', () => {
+  const highRep = [{ w: '40', r: '20', c: true }];
+  const state = {
+    currentWeek: '4',
+    weeks: {
+      '1': { dates: { mon: '2026-06-23' }, lifts: { mon: { Curl: highRep } }, gymRpe: {}, runs: {} },
+      '2': { dates: { mon: '2026-06-30' }, lifts: { mon: { Curl: highRep } }, gymRpe: {}, runs: {} },
+      '3': { dates: { mon: '2026-07-07' }, lifts: { mon: { Curl: highRep } }, gymRpe: {}, runs: {} },
+      '4': { lifts: { mon: { Curl: [] } }, gymRpe: {}, runs: {} },
+    },
+  };
+  initEngine(() => state, () => DAYS);
+  const result = computeDiagnosticForLift('4', 'mon', 'Curl', 20);
+  assert.equal(result.isStalled, false);
+});
+
+test('computeDiagnosticForLift: bodyweight and max-rep work reuse history without fake kg progression', () => {
+  const bodyweight = [{ w: '82', r: '15', c: true, loadMode: 'bodyweight', bw: true }];
+  const state = makeDiagState(bodyweight);
+  state.weeks['1'].lifts.mon['Push-Ups'] = bodyweight;
+  delete state.weeks['1'].lifts.mon.Squat;
+  state.weeks['2'].lifts.mon['Push-Ups'] = [];
+  delete state.weeks['2'].lifts.mon.Squat;
+  initEngine(() => state, () => DAYS);
+  const result = computeDiagnosticForLift('2', 'mon', 'Push-Ups', 0);
+  assert.equal(result.progression, null);
+  assert.equal(result.suggestedWeight, 82, 'last performance remains available as context');
+  assert.equal(result.isStalled, false);
 });

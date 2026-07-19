@@ -28,6 +28,10 @@ import { detectRunType } from './workout/run-type.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft } from './workout/delete-day.js';
+import { finishSession, markSessionInProgress } from './workout/session-status.js';
+import { exerciseStatForName } from './exercises/catalog.js';
+import { exerciseLoggerHistory } from './workout/exercise-history.js';
+import { estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import {
   activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
   clearActiveOneOffSession, oneOffBlueprint,
@@ -220,7 +224,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   const setsArr = loggedLiftsData[liftName];
   if (!Array.isArray(setsArr)) return null;
 
-  const isCompleted = setsArr.length > 0 && setsArr.every(s => s?.c);
+  const isCompleted = setsArr.length > 0 && setsArr.every(isCompletedSet);
   const exCard = document.createElement('div');
   exCard.className = `cockpit-exercise${isCollapsed ? ' collapsed' : ''}${isCompleted ? ' completed' : ''}`;
   exCard.setAttribute('data-liftname', liftName);
@@ -284,36 +288,41 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   // Weights are stored in the user's configured unit — label them with it, not a
   // hardcoded "kg" (which mislabelled every number for lbs users).
   const wUnit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+  const loggerHistory = exerciseLoggerHistory(appState, displayLiftName, {
+    weekKey: wk,
+    day: selectedDay,
+    beforeDate: weekData?.dates?.[selectedDay] || dateKey(),
+  });
+  const priorPerformance = loggerHistory.latest;
   let historicalLineText = 'First time logging this — today sets your baseline';
-  if (appState.exerciseStats?.[displayLiftName]) {
-    historicalLineText = 'Global PR: ' + Math.round(appState.exerciseStats[displayLiftName].allTimeMax || 0) + wUnit + ' (Est. 1RM)';
-  }
-
-  const pastWkNum = parseInt(wk, 10) - 1;
-  if (pastWkNum >= 1 && appState.weeks) {
-    const pastWkData = appState.weeks[pastWkNum.toString()];
-    if (pastWkData?.lifts?.[selectedDay]?.[liftName]) {
-      const doneSets = pastWkData.lifts[selectedDay][liftName].filter(s => s?.c && s.w && s.r);
-      if (doneSets.length > 0) {
-        historicalLineText = 'Last Session: [ ' + doneSets.map(s => escapeHtml(String(s.w)) + wUnit + ' × ' + escapeHtml(String(s.r))).join(', ') + ' ]';
-      }
-    }
+  if (priorPerformance) {
+    const doneSets = priorPerformance.workingSets;
+    historicalLineText = 'Last session: [ ' + doneSets.map((set) => {
+      const weight = parseFloat(set?.w) || 0;
+      const reps = parseInt(set?.r, 10) || 0;
+      return weight > 0
+        ? `${escapeHtml(String(weight))}${wUnit} × ${escapeHtml(String(reps))}`
+        : `${escapeHtml(String(reps))} reps`;
+    }).join(', ') + ' ]';
+  } else if (loggerHistory.globalBestEstimated1RM > 0) {
+    historicalLineText = `Previous best: ${Math.round(loggerHistory.globalBestEstimated1RM)}${wUnit} (estimated 1RM)`;
   }
 
   const safeLiftName = escapeHtml(liftName);
   const displaySafeName = escapeHtml(displayLiftName);
 
   // The auto-progression suggestion becomes the ghost target on every set row.
-  // When there is no suggestion yet (first-ever exposure to this lift) we fall
-  // back to the matching set from last week, preserving the per-set ghost.
+  // When a numeric progression is not possible (for example bodyweight or
+  // max-rep work), preserve the matching set from the latest dated performance
+  // across days, programs and archived activations.
   const suggestedGhost = (diagnostic.progression && diagnostic.progression.weight)
     ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
     : null;
   const setsMarkup = setsArr.map((sData, sIdx) => {
     let ghostSet = suggestedGhost;
-    if (!ghostSet && pastWkNum >= 1 && appState.weeks) {
-      const hist = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName];
-      if (hist?.[sIdx]?.w && hist[sIdx].r) ghostSet = hist[sIdx];
+    if (!ghostSet) {
+      const hist = priorPerformance?.workingSets?.[sIdx];
+      if (hist && (hist.w || hist.r)) ghostSet = hist;
     }
     return buildSetRow(
       sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
@@ -692,7 +701,7 @@ export function renderWorkout() {
       groupMembers.forEach((memberLift, mIdx) => {
         if (!Array.isArray(loggedLiftsData[memberLift])) return;
         const memberSets = loggedLiftsData[memberLift];
-        const mCompleted = memberSets.length > 0 && memberSets.every(s => s?.c);
+        const mCompleted = memberSets.length > 0 && memberSets.every(isCompletedSet);
 
         let mCollapsed = true;
         if (previouslyExpandedLift === memberLift) mCollapsed = false;
@@ -712,7 +721,7 @@ export function renderWorkout() {
 
       exercisesContainer.appendChild(wrapper);
     } else {
-      const isCompleted = setsArr.length > 0 && setsArr.every(s => s?.c);
+      const isCompleted = setsArr.length > 0 && setsArr.every(isCompletedSet);
       let isCollapsed = true;
       if (previouslyExpandedLift === liftName) isCollapsed = false;
       else if (isFirstAccordionField && !isCompleted) { isCollapsed = false; isFirstAccordionField = false; }
@@ -801,7 +810,7 @@ export function updateCockpitCoaching(appState, selectedDay, activeProgram) {
 function _ensureWorkoutDateStamp(appState, wk, day) {
   const dayLifts = appState.weeks?.[wk]?.lifts?.[day];
   if (!dayLifts) return;
-  const hasCompleted = Object.values(dayLifts).some(sets => Array.isArray(sets) && sets.some(s => s?.c));
+  const hasCompleted = Object.values(dayLifts).some(sets => Array.isArray(sets) && sets.some(isCompletedSet));
   if (!hasCompleted) return;
   if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
   if (!appState.weeks[wk].dates[day]) appState.weeks[wk].dates[day] = dateKey();
@@ -836,13 +845,14 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
   }
 
   if (!targetW || !targetR) {
-    const pastWkNum = parseInt(wk, 10) - 1;
-    if (pastWkNum >= 1 && appState.weeks) {
-      const historicalSet = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName]?.[sIdx];
-      if (historicalSet && historicalSet.w && historicalSet.r) {
-        if (!targetW) targetW = historicalSet.w;
-        if (!targetR) targetR = historicalSet.r;
-      }
+    const historicalSet = exerciseLoggerHistory(appState, liftName, {
+      weekKey: wk,
+      day: selectedDay,
+      beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
+    }).latest?.workingSets?.[sIdx];
+    if (historicalSet && historicalSet.w && historicalSet.r) {
+      if (!targetW) targetW = historicalSet.w;
+      if (!targetR) targetR = historicalSet.r;
     }
   }
 
@@ -953,6 +963,7 @@ export function updateInputState(inputNode) {
   // E5 — capture the prescribed target (ghost placeholder) alongside the actual,
   // additively, so a manually-typed set still records what it was measured against.
   const setObj = appState.weeks[wk].lifts[selectedDay][liftName][sIdx];
+  markSessionInProgress(appState.weeks[wk], selectedDay);
   const ph = inputNode.classList.contains('input-reps-node')
     ? _prescribedRepGoal(inputNode)
     : _numericPlaceholder(inputNode);
@@ -1060,6 +1071,7 @@ export function commitWorkoutUIState() {
     });
   }
   _ensureWorkoutDateStamp(appState, wk, selectedDay);
+  if (hasDayWorkoutDraft(weekData, selectedDay)) markSessionInProgress(weekData, selectedDay);
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
   _saveState(true);
 }
@@ -1074,6 +1086,10 @@ export function toggleGymCheckLoggingState(checkboxNode) {
   if (!checkboxNode) return;
   const parentRow = checkboxNode.closest('.cockpit-set-row');
   const exCard = checkboxNode.closest('.cockpit-exercise');
+  const lifecycleState = _getState();
+  const lifecycleDay = activeWorkoutDay(lifecycleState, _getSelectedDay());
+  const lifecycleWeek = activeWorkoutWeekKey(lifecycleState);
+  markSessionInProgress(lifecycleState.weeks?.[lifecycleWeek], lifecycleDay);
   
   if (checkboxNode.checked) {
     if (parentRow) parentRow.classList.add('is-complete');
@@ -1093,14 +1109,18 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const sIdx = Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow);
       
-      // 1) Prefer this set's *real* value from last week.
-      const pastWkNum = parseInt(wk, 10) - 1;
-      if (pastWkNum >= 1 && appState.weeks && liftName) {
-        const historicalSet = appState.weeks[pastWkNum.toString()]?.lifts?.[selectedDay]?.[liftName]?.[sIdx];
-        if (historicalSet && historicalSet.w && historicalSet.r) {
-          if (!wInput.value) wInput.value = historicalSet.w;
-          if (!rInput.value) rInput.value = historicalSet.r;
-        }
+      // 1) Prefer this set's real value from the latest dated performance,
+      // even when it belongs to another day, program or archived activation.
+      const historicalSet = liftName
+        ? exerciseLoggerHistory(appState, liftName, {
+            weekKey: wk,
+            day: selectedDay,
+            beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
+          }).latest?.workingSets?.[sIdx]
+        : null;
+      if (historicalSet && historicalSet.w && historicalSet.r) {
+        if (!wInput.value) wInput.value = historicalSet.w;
+        if (!rInput.value) rInput.value = historicalSet.r;
       }
       // 2) Otherwise carry forward the athlete's own earlier set this session —
       //    straight-set logging (3×8 at one weight) without re-typing, and the
@@ -1146,21 +1166,28 @@ export function toggleGymCheckLoggingState(checkboxNode) {
         _appState.weeks[_wk].dates[_selDay] = dateKey();
       }
 
-      // PR detection — compare this set's e1RM against stored all-time max
+      // PR detection — compare this set's bounded e1RM against prior dated
+      // performances (with aggregate stats only as a legacy-history fallback).
       if (liftName && setType !== 'W' && _sIdx >= 0) {
         const wIn = parentRow?.querySelector('.input-weight-node');
         const rIn = parentRow?.querySelector('.input-reps-node');
         const w = parseFloat(wIn?.value) || 0;
         const r = parseInt(rIn?.value, 10) || 0;
         if (w > 0 && r > 0) {
-          const e1rm = w * (1 + r / 30);
-          const prevMax = _appState.exerciseStats?.[liftName]?.allTimeMax || 0;
+          const storedSet = _appState.weeks?.[_wk]?.lifts?.[_selDay]?.[liftName]?.[_sIdx] || {};
+          const e1rm = estimatedE1rmForSet(liftName, { ...storedSet, w, r });
+          const prior = exerciseLoggerHistory(_appState, liftName, {
+            weekKey: _wk,
+            day: _selDay,
+            beforeDate: _appState.weeks?.[_wk]?.dates?.[_selDay] || dateKey(),
+          });
+          const prevMax = Math.max(prior.datedBestEstimated1RM, prior.globalBestEstimated1RM);
           // Only celebrate a PR against *real* prior history. The first-ever log
           // of a lift always beats a 0 baseline, so firing "New PR" then made the
           // trophy noise on every exercise of a new user's first session. No
           // history ⇒ this is a baseline, not a record.
-          const hasHistory = prevMax > 0;
-          if (hasHistory && e1rm > prevMax + 0.01) {
+          const hasHistory = prior.hasHistory;
+          if (e1rm > 0 && hasHistory && e1rm > prevMax + 0.01) {
             parentRow.classList.add('is-pr');
             hapticSuccess();
             if (!parentRow.querySelector('.pr-badge')) {
@@ -1170,7 +1197,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
               parentRow.appendChild(badge);
             }
             showToast(`🏆 New PR — ${liftName}!`);
-          } else if (!hasHistory) {
+          } else if (e1rm > 0 && !hasHistory) {
             showToast(`Baseline set — ${liftName} ✓`);
           }
         }
@@ -1193,7 +1220,7 @@ function _achievedLabel(n, weights, reps, unit) {
     : `✓ ${n} sets · top ${Math.max(...weights)}${unit}`;
 }
 function _achievedSummaryFromSets(setsArr, unit) {
-  const working = (setsArr || []).filter(s => s?.c && s.type !== 'W');
+  const working = (setsArr || []).filter(s => isCompletedSet(s) && !isWarmupSet(s));
   if (!working.length) return '✓ Complete';
   return _achievedLabel(working.length, working.map(s => parseFloat(s.w) || 0), working.map(s => parseInt(s.r, 10) || 0), unit);
 }
@@ -1604,7 +1631,9 @@ export function toggleAccordionManual(elementNode) {
 }
 
 function _exChip(name, appState) {
-  const pr = appState.exerciseStats?.[name]?.allTimeMax;
+  const pr = isE1rmExercise(name)
+    ? exerciseStatForName(appState.exerciseStats, name)?.allTimeMax
+    : 0;
   const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
   return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}">${escapeHtml(name)}${prStr}</button>`;
 }
@@ -1861,6 +1890,7 @@ export function openFinishSessionModal() {
   const titleEl = document.getElementById('summaryModalTitle');
   const copyEl = document.getElementById('summaryModalCopy');
   const actionEl = document.getElementById('summarySaveAction');
+  const discardEl = document.getElementById('summaryDiscardAction');
   const progressEl = document.getElementById('summaryCompletionProgress');
   const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
   const presentation = completionPresentation(completion);
@@ -1868,7 +1898,11 @@ export function openFinishSessionModal() {
   if (progressEl) progressEl.textContent = completion.progressLabel;
   if (titleEl) titleEl.textContent = presentation.title;
   if (copyEl) copyEl.textContent = presentation.body;
-  if (actionEl) actionEl.textContent = presentation.action;
+  if (actionEl) {
+    actionEl.textContent = presentation.action || 'Finish Workout';
+    actionEl.hidden = !presentation.action;
+  }
+  if (discardEl) discardEl.hidden = false;
 
   if (sumVolEl) sumVolEl.textContent = vol + ' kg';
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
@@ -1915,11 +1949,20 @@ export function cancelFinishSessionModal() {
   document.getElementById('summaryModal')?.classList.remove('active');
 }
 
+export function discardFinishWorkout() {
+  cancelFinishSessionModal();
+  openConfirmResetModal();
+}
+
 export function closeFinishSessionModal() {
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const wk = activeWorkoutWeekKey(appState);
   const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
+  if (!completion.anyLogged) {
+    showToast('No working sets or run recorded');
+    return;
+  }
   if (!appState.weeks[wk].gymRpe) appState.weeks[wk].gymRpe = {};
 
   const sumGymRpeEl = document.getElementById('summaryGymRPE');
@@ -1957,10 +2000,10 @@ export function closeFinishSessionModal() {
   }
 
   try { updateExercisePRs(); } catch(e) { console.warn(e); }
+  const finishResult = finishSession(appState.weeks[wk], selectedDay, completion);
   const oneOff = activeOneOffSession(appState);
   if (oneOff?.key === wk) {
     clearActiveOneOffSession(appState);
-    if (!completion.anyLogged) delete appState.weeks[wk];
   }
   _saveState(true);
   
@@ -1974,20 +2017,16 @@ export function closeFinishSessionModal() {
   
   if (_switchTab) _switchTab('home');
 
-  // Only a policy-complete session earns the completed recap path. Partial work
-  // is still persisted and counted as activity, with explicitly partial copy.
-  if (completion.complete) {
+  // Finishing is a lifecycle choice, independent of perfect prescription
+  // adherence. Repeated taps remain idempotent and do not duplicate recaps.
+  if (finishResult.ok && !finishResult.alreadyFinished) {
     try {
-      document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: wk, day: selectedDay, outcome: 'complete' } }));
+      document.dispatchEvent(new CustomEvent('session:finished', {
+        detail: { week: wk, day: selectedDay, outcome: 'finished', adherence: completion.outcome },
+      }));
     } catch (_) {}
-  } else if (completion.partial) {
-    const savedMessage = completion.componentOutcome === 'strength-complete'
-      ? 'Strength workout saved · run still open'
-      : completion.componentOutcome === 'run-complete'
-        ? 'Run saved · strength workout still open'
-        : 'Partial session saved — planned work remains';
-    showToast(savedMessage);
-    try { document.dispatchEvent(new CustomEvent('session:saved-partial', { detail: { week: wk, day: selectedDay } })); } catch (_) {}
+  } else if (finishResult.alreadyFinished) {
+    showToast('Workout already finished');
   }
 }
 
@@ -2034,6 +2073,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-finish-modal') openFinishSessionModal();
   else if (action === 'close-finish-modal') closeFinishSessionModal();
   else if (action === 'cancel-finish-modal') cancelFinishSessionModal();
+  else if (action === 'discard-finish-workout') discardFinishWorkout();
   else if (action === 'expand-run') document.getElementById('cockpitRunPanel')?.classList.remove('run-collapsed');
 });
 
@@ -2055,6 +2095,11 @@ document.addEventListener('focusout', (e) => {
 
 document.addEventListener('input', (e) => {
   const target = e.target;
+  if (target.matches('#runInputDist, #runInputTime, #runInputRpeCockpit, #runInputPace, #runInputNotes')) {
+    const state = _getState();
+    const day = activeWorkoutDay(state, _getSelectedDay());
+    markSessionInProgress(state.weeks?.[activeWorkoutWeekKey(state)], day);
+  }
   const distEl  = document.getElementById('runInputDist');
   const timeEl  = document.getElementById('runInputTime');
   const paceEl  = document.getElementById('runInputPace');

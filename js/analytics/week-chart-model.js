@@ -26,7 +26,7 @@
 //   • No previous week, or a zero denominator → NOT reported as a percentage
 //     (no Infinity / NaN); an honest message is returned instead.
 // =============================================================================
-import { isCompletedSet, isWarmupSet, setVolume } from '../set-utils.js';
+import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { comparisonLabel } from './comparison.js';
 import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { todayKey } from '../dates.js';
@@ -73,7 +73,7 @@ function countWorkingSets(dayLifts) {
   for (const lift in (dayLifts || {})) {
     const sets = dayLifts[lift];
     if (!Array.isArray(sets)) continue;
-    for (const s of sets) if (isCompletedSet(s) && !isWarmupSet(s)) n++;
+    for (const s of sets) if (isValidWorkingSet(s)) n++;
   }
   return n;
 }
@@ -86,7 +86,7 @@ function dayTonnage(dayLifts) {
   for (const lift in (dayLifts || {})) {
     const sets = dayLifts[lift];
     if (!Array.isArray(sets)) continue;
-    for (const s of sets) if (isCompletedSet(s) && !isWarmupSet(s)) vol += setVolume(s);
+    for (const s of sets) if (isValidWorkingSet(s)) vol += setVolume(s);
   }
   return vol;
 }
