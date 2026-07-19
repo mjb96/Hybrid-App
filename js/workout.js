@@ -6,12 +6,12 @@ import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
-import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer } from './timers.js';
+import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer, bindWorkoutTimerSession } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
-import { orderedLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
+import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
 import { deleteMapFromDB } from './db.js';
@@ -36,6 +36,7 @@ import {
   activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
   clearActiveOneOffSession, oneOffBlueprint,
 } from './workout/one-off-session.js';
+import { workoutSessionKey } from './workout/session-identity.js';
 
 let _getState;
 let _getSelectedDay;
@@ -139,6 +140,14 @@ export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn
   _scheduleSave = scheduleSaveFn || (() => saveStateFn(true));
 }
 
+export function activeWorkoutTimerKey() {
+  const state = _getState?.();
+  if (!state) return null;
+  const week = activeWorkoutWeekKey(state);
+  const day = activeWorkoutDay(state, _getSelectedDay?.());
+  return workoutSessionKey(state, week, day);
+}
+
 /**
  * Durable status used by program activation. A running timer or any user edit
  * makes the workout unresolved; a program switch must explicitly save or
@@ -149,7 +158,7 @@ export function activeWorkoutSwitchStatus() {
   if (!state) return { unresolved: false, hasDraft: false, timerActive: false, week: null, day: null };
   const week = activeWorkoutWeekKey(state);
   const day = activeWorkoutDay(state, _getSelectedDay?.());
-  const timerActive = getWorkoutElapsedSeconds() > 0;
+  const timerActive = getWorkoutElapsedSeconds(workoutSessionKey(state, week, day)) > 0;
   const hasDraft = !!day && hasDayWorkoutDraft(state.weeks?.[week], day);
   return { unresolved: timerActive || hasDraft, hasDraft, timerActive, week, day };
 }
@@ -187,7 +196,8 @@ export async function resolveWorkoutBeforeProgramSwitch(action) {
   const oneOff = activeOneOffSession(state);
   if (action === 'save') {
     commitWorkoutUIState();
-    const elapsed = getWorkoutElapsedSeconds();
+    const timerKey = workoutSessionKey(state, week, day);
+    const elapsed = getWorkoutElapsedSeconds(timerKey);
     const weekData = state.weeks?.[week];
     if (elapsed > 0 && weekData) {
       if (!weekData.gymStats) weekData.gymStats = {};
@@ -211,7 +221,7 @@ export async function resolveWorkoutBeforeProgramSwitch(action) {
     } catch (_) { /* state deletion remains authoritative; route cleanup is best-effort */ }
   }
 
-  stopAndResetWorkoutTimer();
+  stopAndResetWorkoutTimer(workoutSessionKey(state, week, day));
   dismissRestTimer();
   _saveState(true);
   return true;
@@ -634,7 +644,8 @@ export function renderWorkout() {
   const startBtn = document.getElementById('startWorkoutBtn');
   if (startBtn) {
     const hasGymToday = Array.isArray(homeBlueprint.lifts) && homeBlueprint.lifts.length > 0;
-    const timerRunning = getWorkoutElapsedSeconds() > 0;
+    const timerKey = workoutSessionKey(appState, wk, selectedDay);
+    const timerRunning = bindWorkoutTimerSession(timerKey) && getWorkoutElapsedSeconds(timerKey) > 0;
     startBtn.style.display = (hasGymToday && !timerRunning) ? '' : 'none';
   }
 
@@ -662,10 +673,16 @@ export function renderWorkout() {
   if (!weekData.liftMeta[selectedDay]) weekData.liftMeta[selectedDay] = {};
   const liftMeta = weekData.liftMeta[selectedDay];
 
-  // Build superset group map
+  const orderedNames = activeSessionLiftNames(weekData, selectedDay, homeBlueprint, { oneOff: !!oneOff });
+  const activeNames = new Set(orderedNames);
+
+  // Build superset group map only from exercises owned by this live session.
+  // Quarantined historical rows remain stored for Activities/analytics but can
+  // no longer appear in or count toward today's workout.
   const SS_COLORS = { A: '#3b82f6', B: '#a855f7', C: '#10b981', D: '#f59e0b', E: '#ec4899', F: '#06b6d4' };
   const groupMap = {};
   for (const ln in loggedLiftsData) {
+    if (!activeNames.has(ln)) continue;
     const gId = liftMeta[ln]?.groupId;
     if (gId) {
       if (!groupMap[gId]) groupMap[gId] = [];
@@ -675,8 +692,6 @@ export function renderWorkout() {
 
   const renderedLifts = new Set();
   let isFirstAccordionField = true;
-
-  const orderedNames = orderedLiftNames(weekData, selectedDay, homeBlueprint);
 
   for (const liftName of orderedNames) {
     if (renderedLifts.has(liftName)) continue;
@@ -1097,7 +1112,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
     // Auto-start the session clock on the first completed set, so the finish
     // modal has a real duration to confirm even if the user never tapped
     // "Start Workout" (idempotent — no-op once running).
-    try { startWorkoutTimer(); } catch (_) {}
+    try { startWorkoutTimer(workoutSessionKey(lifecycleState, lifecycleWeek, lifecycleDay)); } catch (_) {}
 
     const wInput = parentRow ? parentRow.querySelector('.input-weight-node') : null;
     const rInput = parentRow ? parentRow.querySelector('.input-reps-node') : null;
@@ -1684,6 +1699,12 @@ export function addExerciseToDayFromLibrary(name) {
   if (!appState.weeks[wk].lifts[selectedDay][name]) {
     appState.weeks[wk].lifts[selectedDay][name] = [{ w: '', r: '10', c: false }];
   }
+  if (!appState.weeks[wk].liftMeta) appState.weeks[wk].liftMeta = {};
+  if (!appState.weeks[wk].liftMeta[selectedDay]) appState.weeks[wk].liftMeta[selectedDay] = {};
+  appState.weeks[wk].liftMeta[selectedDay][name] = {
+    ...(appState.weeks[wk].liftMeta[selectedDay][name] || {}),
+    origin: 'added',
+  };
   // Append to the explicit display order so the new exercise lands at the bottom.
   if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
   if (!Array.isArray(appState.weeks[wk].liftOrder[selectedDay])) appState.weeks[wk].liftOrder[selectedDay] = [];
@@ -1838,7 +1859,7 @@ export function executeResetActiveDayMetrics() {
   // field through the same path used by historical-session deletion.
   deleteDayWorkoutData(appState.weeks[wk], selectedDay, { lifts, liftOrder });
   try {
-    stopAndResetWorkoutTimer();
+    stopAndResetWorkoutTimer(workoutSessionKey(appState, wk, selectedDay));
     dismissRestTimer();
   } catch(e) { console.warn(e); }
   
@@ -1870,7 +1891,12 @@ export function openFinishSessionModal() {
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const wk = activeWorkoutWeekKey(appState);
   let vol = 0, setsDone = 0;
-  const liftsData = appState.weeks[wk]?.lifts?.[selectedDay] || {};
+  const activeProgram = getProgramById(appState.activeProgramId);
+  const oneOff = activeOneOffSession(appState);
+  const blueprint = oneOffBlueprint(appState, activeProgram?.days?.[selectedDay] || {});
+  const allLiftsData = appState.weeks[wk]?.lifts?.[selectedDay] || {};
+  const activeNames = activeSessionLiftNames(appState.weeks[wk], selectedDay, blueprint, { oneOff: !!oneOff });
+  const liftsData = Object.fromEntries(activeNames.map((name) => [name, allLiftsData[name]]));
   
   for (let lift in liftsData) {
     if (Array.isArray(liftsData[lift])) {
@@ -1892,7 +1918,7 @@ export function openFinishSessionModal() {
   const actionEl = document.getElementById('summarySaveAction');
   const discardEl = document.getElementById('summaryDiscardAction');
   const progressEl = document.getElementById('summaryCompletionProgress');
-  const completion = evaluateSessionCompletion(appState, getProgramById(appState.activeProgramId), wk, selectedDay);
+  const completion = evaluateSessionCompletion(appState, activeProgram, wk, selectedDay);
   const presentation = completionPresentation(completion);
   if (sumModalEl) sumModalEl.dataset.outcome = completion.outcome;
   if (progressEl) progressEl.textContent = completion.progressLabel;
@@ -1914,7 +1940,7 @@ export function openFinishSessionModal() {
     if (existing) {
       sumDurEl.value = existing;
     } else {
-      const elapsed = getWorkoutElapsedSeconds();
+      const elapsed = getWorkoutElapsedSeconds(workoutSessionKey(appState, wk, selectedDay));
       sumDurEl.value = elapsed > 0 ? _normalizeDuration(`${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`) : '';
     }
   }
@@ -2011,7 +2037,7 @@ export function closeFinishSessionModal() {
   if (sumModalEl) sumModalEl.classList.remove('active');
   
   try {
-    stopAndResetWorkoutTimer();
+    stopAndResetWorkoutTimer(workoutSessionKey(appState, wk, selectedDay));
     dismissRestTimer();
   } catch(e) { console.warn(e); }
   

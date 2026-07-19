@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { getSubstitutions, classifyMovement } from '../js/workout/substitutions.js';
-import { applyExerciseSwap } from '../js/workout-order.js';
+import { activeSessionLiftNames, applyExerciseSwap } from '../js/workout-order.js';
 
 // ── Substitution engine ───────────────────────────────────────────────────────
 
@@ -90,6 +90,40 @@ test('no-ops on a missing source or identical name', () => {
   const wd = dayWithLoggedSquat();
   assert.equal(applyExerciseSwap(wd, 'mon', 'Ghost Lift', 'X').reason, 'missing');
   assert.equal(applyExerciseSwap(wd, 'mon', 'Back Squat', 'Back Squat').reason, 'noop');
+});
+
+test('active logger quarantines trailing completed exercises leaked from an older workout', () => {
+  const week = {
+    lifts: { mon: {
+      Squat: [{ c: false, w: '', r: '5' }],
+      Bench: [{ c: false, w: '', r: '5' }],
+      'Romanian Deadlift': [{ c: true, w: '120', r: '5' }],
+      'Calf Raise': [{ c: true, w: '60', r: '12' }],
+    } },
+    liftOrder: { mon: ['Squat', 'Bench', 'Romanian Deadlift', 'Calf Raise'] },
+    liftMeta: { mon: {} },
+  };
+  assert.deepEqual(
+    activeSessionLiftNames(week, 'mon', { lifts: ['Squat', 'Bench'] }),
+    ['Squat', 'Bench'],
+  );
+  assert.equal(week.lifts.mon['Romanian Deadlift'][0].w, '120');
+});
+
+test('active logger keeps explicit additions and swaps', () => {
+  const week = {
+    lifts: { mon: {
+      'Front Squat': [{ c: false, w: '', r: '5' }],
+      Bench: [{ c: false, w: '', r: '5' }],
+      Curl: [{ c: false, w: '', r: '10' }],
+    } },
+    liftOrder: { mon: ['Front Squat', 'Bench', 'Curl'] },
+    liftMeta: { mon: { 'Front Squat': { origin: 'swap' }, Curl: { origin: 'added' } } },
+  };
+  assert.deepEqual(
+    activeSessionLiftNames(week, 'mon', { lifts: ['Squat', 'Bench'] }),
+    ['Front Squat', 'Bench', 'Curl'],
+  );
 });
 
 // ── C4c neighbourDay (swipe between days) ─────────────────────────────────────

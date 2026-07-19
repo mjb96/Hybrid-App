@@ -75,6 +75,20 @@ test('an intentionally skipped exercise remains a truthful partial session', () 
   assert.equal(result.complete, false);
 });
 
+test('completed rows leaked beneath the current prescription do not count toward today', () => {
+  const result = evaluateSessionCompletion(state({
+    lifts: { wed: {
+      Squat: [set(false), set(false)],
+      'Romanian Deadlift': [set(true), set(true), set(true)],
+    } },
+    liftOrder: { wed: ['Squat', 'Romanian Deadlift'] },
+    liftMeta: { wed: {} },
+  }), PROGRAM, 1, 'wed');
+  assert.equal(result.anyLogged, false);
+  assert.equal(result.actual.sets, 0);
+  assert.equal(result.outcome, 'empty');
+});
+
 test('extra incomplete sets do not revoke completion but flag a modification', () => {
   const result = evaluateSessionCompletion(state({ lifts: { wed: { Squat: [set(true), set(true), set(false)] } } }), PROGRAM, 1, 'wed');
   assert.equal(result.complete, true);

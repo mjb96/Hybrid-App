@@ -55,6 +55,54 @@ export function orderedLiftNames(weekData, day, blueprint) {
 }
 
 /**
+ * Resolve the exercises that belong to the ACTIVE workout projection.
+ *
+ * Old builds could append logged exercises from another program/week beneath a
+ * new prescription. Those records must remain stored for history, but they must
+ * not render in, complete, or inflate today's workout. Program exercises,
+ * explicit additions/swaps and positional legacy substitutions are included;
+ * unowned trailing records are quarantined from the live logger.
+ */
+export function activeSessionLiftNames(weekData, day, blueprint, { oneOff = false } = {}) {
+  const ordered = orderedLiftNames(weekData, day, blueprint);
+  if (oneOff) return ordered;
+  const lifts = weekData?.lifts?.[day] || {};
+  const blueprintNames = Array.isArray(blueprint?.lifts)
+    ? blueprint.lifts.filter((name) => typeof name === 'string' && name.trim())
+    : [];
+  const blueprintSet = new Set(blueprintNames);
+  const allowed = new Set(blueprintNames.filter((name) => Array.isArray(lifts[name])));
+  const saved = Array.isArray(weekData?.liftOrder?.[day]) ? weekData.liftOrder[day] : [];
+  const meta = weekData?.liftMeta?.[day] || {};
+
+  // A pre-origin substitution occupies the blueprint exercise's exact order
+  // position while that original key is absent. Trailing foreign history does
+  // not, which is the important distinction for the reported corruption.
+  for (let i = 0; i < blueprintNames.length && i < saved.length; i++) {
+    const candidate = saved[i];
+    if (!blueprintSet.has(candidate) && Array.isArray(lifts[candidate]) &&
+        !Array.isArray(lifts[blueprintNames[i]])) {
+      allowed.add(candidate);
+    }
+  }
+
+  // Older substitutions may predate liftOrder/meta. A one-for-one replacement
+  // is still safe to infer only while an authored blueprint slot is missing;
+  // foreign trailing rows are excluded when every blueprint key is present.
+  const missingBlueprint = blueprintNames.filter((name) => !Array.isArray(lifts[name]));
+  const unownedCandidates = ordered.filter((name) => !blueprintSet.has(name) && !allowed.has(name));
+  if (missingBlueprint.length && unownedCandidates.length <= missingBlueprint.length) {
+    unownedCandidates.forEach((name) => allowed.add(name));
+  }
+
+  for (const name of ordered) {
+    const origin = meta[name]?.origin;
+    if (origin === 'added' || origin === 'swap' || meta[name]?.groupId) allowed.add(name);
+  }
+  return ordered.filter((name) => allowed.has(name));
+}
+
+/**
  * The neighbouring day key in a fixed day list — for swipe-between-days.
  * @param {string[]} days ordered day keys (e.g. the cockpit day pills)
  * @param {string} current
@@ -135,7 +183,11 @@ export function applyExerciseSwap(weekData, day, oldName, newName, blueprint) {
 
   // Carry any per-exercise meta (e.g. superset grouping).
   const meta = weekData.liftMeta && weekData.liftMeta[day];
-  if (meta && meta[oldName]) { meta[newName] = meta[oldName]; delete meta[oldName]; }
+  if (!weekData.liftMeta) weekData.liftMeta = {};
+  if (!weekData.liftMeta[day]) weekData.liftMeta[day] = {};
+  const oldMeta = meta?.[oldName] || {};
+  weekData.liftMeta[day][newName] = { ...oldMeta, origin: 'swap' };
+  if (meta?.[oldName]) delete meta[oldName];
 
   return { ok: true };
 }

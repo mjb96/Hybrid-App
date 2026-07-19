@@ -52,6 +52,9 @@ const now = new Date();
 const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12));
 const monday = addDays(today, -((today.getUTCDay() + 6) % 7));
 const priorMonday = addDays(monday, -7);
+// The fixture's Tuesday run is intentionally future-dated when this check runs
+// on Monday, and production analytics correctly exclude future evidence.
+const expectedWeeklyEvidence = today.getUTCDay() === 1 ? 2 : 3;
 
 function seededState(theme = 'dark', withRuns = true) {
   const base = {
@@ -178,7 +181,7 @@ try {
       overflowing: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     }));
     console.log(`Weekly Distance ${width}px:`, JSON.stringify(detail));
-    if (detail.title !== 'Weekly Distance' || detail.ranges !== 5 || detail.days !== 7 || detail.evidence < 3 || !/calculated/i.test(detail.disclosure || '')) {
+    if (detail.title !== 'Weekly Distance' || detail.ranges !== 5 || detail.days !== 7 || detail.evidence < expectedWeeklyEvidence || !/calculated/i.test(detail.disclosure || '')) {
       failures.push(`${width}px: Weekly Distance detail is incomplete`);
     }
     if (detail.overflowing) failures.push(`${width}px: Running detail causes page-level horizontal overflow`);

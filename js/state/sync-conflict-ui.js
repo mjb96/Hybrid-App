@@ -17,7 +17,22 @@ function _fmt(iso) {
 
 let _open = false;
 
-function _showConflict({ serverUpdatedAt } = {}) {
+function _escape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char]);
+}
+
+function _summary(label, summary) {
+  if (!summary || (!summary.strengthDays && !summary.runs)) return `${label}: no dated training found`;
+  const parts = [];
+  if (summary.strengthDays) parts.push(`${summary.strengthDays} strength day${summary.strengthDays === 1 ? '' : 's'}`);
+  if (summary.runs) parts.push(`${summary.runs} run${summary.runs === 1 ? '' : 's'}`);
+  if (summary.latestDate) parts.push(`latest ${summary.latestDate}`);
+  return `${label}: ${parts.join(' · ')}`;
+}
+
+function _showConflict({ serverUpdatedAt, cloudProtected = false, cloudSummary, deviceSummary } = {}) {
   if (_open) return;               // one prompt at a time
   if (typeof document === 'undefined') return;
   _open = true;
@@ -40,26 +55,52 @@ function _showConflict({ serverUpdatedAt } = {}) {
         'newer than what this device last loaded. Saving now would overwrite them. ' +
         'Which copy do you want to keep?' +
       '</p>' +
+      '<div style="margin:0 0 16px;padding:10px;border-radius:10px;background:rgba(255,255,255,.05);' +
+        'font-size:.78rem;line-height:1.55;color:var(--text-secondary,#ccc);">' +
+        '<div>' + _escape(_summary('Cloud', cloudSummary)) + '</div>' +
+        '<div>' + _escape(_summary('This device', deviceSummary)) + '</div>' +
+      '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px;">' +
         '<button data-sync-choice="cloud" style="padding:11px;border-radius:10px;border:none;' +
           'font-weight:600;cursor:pointer;background:var(--accent-green,#2e7d32);color:#fff;">' +
-          'Use cloud version (discard this device’s unsynced changes)</button>' +
-        '<button data-sync-choice="local" style="padding:11px;border-radius:10px;cursor:pointer;' +
+          'Use newer cloud version</button>' +
+        '<button data-sync-choice="local"' + (cloudProtected ? '' : ' disabled') + ' style="padding:11px;border-radius:10px;cursor:pointer;' +
           'font-weight:600;background:transparent;color:var(--text-primary,#fff);' +
           'border:1px solid var(--border,#444);">' +
-          'Keep this device (overwrite the cloud)</button>' +
+          (cloudProtected ? 'Replace cloud with this device…' : 'Cloud copy could not be protected') + '</button>' +
+        '<p data-sync-warning style="display:none;margin:0;color:#fbbf24;font-size:.78rem;line-height:1.45;">' +
+          'This removes the newer cloud data. A recovery copy will remain in Settings. Tap again to confirm.</p>' +
       '</div>' +
     '</div>';
 
   const close = () => { closeManagedModal(overlay); overlay.remove(); _open = false; };
 
-  overlay.addEventListener('click', (e) => {
+  let confirmLocal = false;
+  let resolving = false;
+  overlay.addEventListener('click', async (e) => {
     const btn = e.target.closest?.('[data-sync-choice]');
-    if (!btn) return;              // clicking the backdrop does nothing (must choose)
+    if (!btn || resolving || btn.disabled) return; // backdrop does nothing (must choose)
     const choice = btn.getAttribute('data-sync-choice');
-    close();
-    Promise.resolve(resolveSyncConflict(choice)).catch((err) =>
-      console.error('Sync conflict resolution failed:', err));
+    if (choice === 'local' && !confirmLocal) {
+      confirmLocal = true;
+      btn.textContent = 'Confirm: replace cloud (recovery copy kept)';
+      overlay.querySelector('[data-sync-warning]').style.display = '';
+      return;
+    }
+    resolving = true;
+    overlay.querySelectorAll('[data-sync-choice]').forEach((button) => { button.disabled = true; });
+    try {
+      const ok = await resolveSyncConflict(choice);
+      if (ok) close();
+      else {
+        resolving = false;
+        overlay.querySelectorAll('[data-sync-choice]').forEach((button) => { button.disabled = false; });
+      }
+    } catch (err) {
+      resolving = false;
+      overlay.querySelectorAll('[data-sync-choice]').forEach((button) => { button.disabled = false; });
+      console.error('Sync conflict resolution failed:', err);
+    }
   });
 
   document.body.appendChild(overlay);

@@ -57,9 +57,10 @@ import {
   openFinishSessionModal, closeFinishSessionModal,
   handleExerciseSearch, addExerciseToDayFromLibrary,
   activeWorkoutSwitchStatus, resolveWorkoutBeforeProgramSwitch,
+  activeWorkoutTimerKey,
 } from './workout.js';
 
-import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad, getWorkoutElapsedSeconds } from './timers.js';
+import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
 import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun } from './run-logger.js';
@@ -69,7 +70,8 @@ import {
   saveName, saveBodyWeight, setWeightUnit,
   setProgressionIncrement, setDistanceUnit, setTheme, stepCurrentWeek, setAutoAdvanceWeek,
   saveThresholdPace as saveSettingsThresholdPace,
-  exportData, triggerImport, handleImportFile, confirmResetAllData, recoverPreSyncSnapshot,
+  exportData, triggerImport, handleImportFile, confirmResetAllData,
+  recoverPreSyncSnapshot, recoverPreOverwriteCloudSnapshot,
   applySettingsOnBoot,
   hcToggleConnect, hcSyncNow, saveStepGoal, hcToggleSyncField,
   setFitnessGoal, setWeightGoal, setFitnessLevel, setWeekStartDay, setFastingDefault,
@@ -996,7 +998,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'switch-browser-tab') switchBrowserSectionTab(target.getAttribute('data-tab'));
   
   // Timers
-  else if (action === 'start-timer') startWorkoutTimer();
+  else if (action === 'start-timer') startWorkoutTimer(activeWorkoutTimerKey());
   else if (action === 'dismiss-rest') dismissRestTimer();
 
   // Programs & Library
@@ -1077,6 +1079,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'import-data') triggerImport();
   else if (action === 'reset-all-data') confirmResetAllData();
   else if (action === 'recover-presync-snapshot') recoverPreSyncSnapshot();
+  else if (action === 'recover-preoverwrite-cloud') recoverPreOverwriteCloudSnapshot();
   else if (action === 'hc-toggle-connect') hcToggleConnect();
   else if (action === 'hc-sync-now') hcSyncNow();
   else if (action === 'set-fitness-goal')     setFitnessGoal(target.getAttribute('data-goal'));
@@ -1671,7 +1674,7 @@ async function bootstrapApp() {
     verifyWeekStorageSchema(appState.currentWeek);
     setCockpitActiveDay(currentDay);
     switchGlobalAppTab(currentTab);
-    checkActiveTimerOnLoad();
+    checkActiveTimerOnLoad(activeWorkoutTimerKey());
     window._hybridGetProgram = () => getProgramById(appState.activeProgramId);
     applySettingsOnBoot(appState);
     checkForAutomaticWeekAdvance();

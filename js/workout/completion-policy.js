@@ -5,6 +5,7 @@ import { getWeekModifier } from '../schema.js';
 import { isCompletedSet, isWarmupSet, isValidWorkingSet } from '../set-utils.js';
 import { runSessionsForDay } from '../state/run-sessions.js';
 import { explicitSessionStatus, SESSION_STATUS } from './session-status.js';
+import { activeSessionLiftNames } from '../workout-order.js';
 
 function scheduledRun(blueprint) {
   const text = String(blueprint?.runs || '').trim().toLowerCase();
@@ -98,7 +99,10 @@ export function evaluateSessionCompletion(state, program, week, day) {
   const blueprint = program?.days?.[day] || null;
   const plan = classifyPlannedSession(blueprint);
   const expectedSets = plan.hasGym ? plannedWorkingSets(program, weekKey, blueprint) : 0;
-  const working = currentWorkingSets(weekData.lifts?.[day]);
+  const allDayLifts = weekData.lifts?.[day] || {};
+  const activeNames = activeSessionLiftNames(weekData, day, blueprint);
+  const activeDayLifts = Object.fromEntries(activeNames.map((name) => [name, allDayLifts[name]]));
+  const working = currentWorkingSets(activeDayLifts);
   const run = runWasLogged(weekData, day);
 
   const gymComplete = !plan.hasGym || (expectedSets > 0 && working.complete >= expectedSets);
@@ -116,7 +120,7 @@ export function evaluateSessionCompletion(state, program, week, day) {
   const plannedComponents = Number(plan.hasGym) + Number(plan.hasRun);
   const actualComponents = Number(plan.hasGym && gymComplete) + Number(plan.hasRun && runComplete);
   const blueprintNames = new Set(blueprint?.lifts || []);
-  const loggedNames = Object.entries(weekData.lifts?.[day] || {})
+  const loggedNames = Object.entries(activeDayLifts)
     .filter(([, sets]) => Array.isArray(sets) && sets.some(isValidWorkingSet))
     .map(([name]) => name);
   const modified = plan.hasGym && (

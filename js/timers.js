@@ -6,6 +6,9 @@ import { hapticRestDone } from './haptics.js';
 // Session duration timer
 let workoutStartTime = null;
 let workoutTimerInt = null;
+let workoutSessionKey = null;
+const WORKOUT_START_KEY = 'hybrid_workoutStartTime';
+const WORKOUT_SESSION_KEY = 'hybrid_workoutSessionKey';
 
 // Rest timer
 let restTimerInt = null;
@@ -267,10 +270,13 @@ export function dismissRestTimer() {
 // ==========================================
 // SESSION DURATION TIMER
 // ==========================================
-export function startWorkoutTimer() {
-  if (!workoutStartTime) {
+export function startWorkoutTimer(sessionKey = 'legacy') {
+  const requested = String(sessionKey || 'legacy');
+  if (!workoutStartTime || workoutSessionKey !== requested) {
     workoutStartTime = Date.now();
-    localStorage.setItem('hybrid_workoutStartTime', workoutStartTime.toString());
+    workoutSessionKey = requested;
+    localStorage.setItem(WORKOUT_START_KEY, workoutStartTime.toString());
+    localStorage.setItem(WORKOUT_SESSION_KEY, workoutSessionKey);
     resumeTimerDisplay();
   }
 }
@@ -295,11 +301,14 @@ export function resumeTimerDisplay() {
   }, 1000);
 }
 
-export function stopAndResetWorkoutTimer() {
+export function stopAndResetWorkoutTimer(sessionKey = null) {
+  if (sessionKey != null && workoutSessionKey !== String(sessionKey)) return false;
   clearInterval(workoutTimerInt);
   workoutTimerInt = null;
   workoutStartTime = null;
-  localStorage.removeItem('hybrid_workoutStartTime');
+  workoutSessionKey = null;
+  localStorage.removeItem(WORKOUT_START_KEY);
+  localStorage.removeItem(WORKOUT_SESSION_KEY);
 
   const startBtn = document.getElementById('startWorkoutBtn');
   const durationBar = document.getElementById('workoutDurationBar');
@@ -308,11 +317,33 @@ export function stopAndResetWorkoutTimer() {
   if (startBtn) startBtn.style.display = 'block';
   if (durationBar) durationBar.classList.remove('active');
   if (durationClock) durationClock.textContent = '00:00';
+  return true;
 }
 
 // Seconds the session timer has been running (0 if not started).
-export function getWorkoutElapsedSeconds() {
+export function getWorkoutElapsedSeconds(sessionKey = null) {
+  if (sessionKey != null && workoutSessionKey !== String(sessionKey)) return 0;
   return workoutStartTime ? Math.max(0, Math.floor((Date.now() - workoutStartTime) / 1000)) : 0;
+}
+
+export function getWorkoutTimerSessionKey() { return workoutSessionKey; }
+
+// Keep the duration chrome honest when the athlete navigates to another
+// workout. The prior clock remains owned by its session until a new one starts,
+// but it is never displayed as the new session's elapsed time.
+export function bindWorkoutTimerSession(sessionKey) {
+  const matches = !!workoutStartTime && workoutSessionKey === String(sessionKey || 'legacy');
+  const startBtn = document.getElementById('startWorkoutBtn');
+  const durationBar = document.getElementById('workoutDurationBar');
+  const durationClock = document.getElementById('workoutDurationClock');
+  if (matches) {
+    resumeTimerDisplay();
+    return true;
+  }
+  if (startBtn) startBtn.style.display = 'block';
+  if (durationBar) durationBar.classList.remove('active');
+  if (durationClock) durationClock.textContent = '00:00';
+  return false;
 }
 
 // Longest a single gym session can plausibly run. A stored start older than
@@ -320,17 +351,22 @@ export function getWorkoutElapsedSeconds() {
 // so resuming it would inflate the live duration (40-min workout shows an hour+).
 const MAX_SESSION_MS = 5 * 60 * 60 * 1000; // 5 hours
 
-export function checkActiveTimerOnLoad() {
-  const storedTime = localStorage.getItem('hybrid_workoutStartTime');
+export function checkActiveTimerOnLoad(sessionKey = null) {
+  const storedTime = localStorage.getItem(WORKOUT_START_KEY);
   if (!storedTime) return;
+  const storedSession = localStorage.getItem(WORKOUT_SESSION_KEY);
   const start = parseInt(storedTime, 10);
   const age = Date.now() - start;
   // Discard a stale / never-finished start instead of resuming a runaway timer.
-  if (!Number.isFinite(start) || age < 0 || age > MAX_SESSION_MS) {
-    localStorage.removeItem('hybrid_workoutStartTime');
+  if (!Number.isFinite(start) || age < 0 || age > MAX_SESSION_MS ||
+      (sessionKey != null && storedSession !== String(sessionKey))) {
+    localStorage.removeItem(WORKOUT_START_KEY);
+    localStorage.removeItem(WORKOUT_SESSION_KEY);
     workoutStartTime = null;
+    workoutSessionKey = null;
     return;
   }
   workoutStartTime = start;
+  workoutSessionKey = storedSession || 'legacy';
   resumeTimerDisplay();
 }

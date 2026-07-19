@@ -417,6 +417,15 @@ count, downloads, or monetization—are the decision metrics.
   complete, independently useful Stage 1–3 slice; 79 inventoried metrics on Strength,
   Recovery/Health, Hybrid Score, Review, Profile, fasting and projections remain static and are
   explicitly retained for the Stage 4–5 follow-up rather than being claimed complete.
+- **Sync recovery and workout-session integrity correction complete — 20 July 2026** on
+  `codex/sync-recovery-workout-session`. Before this device can replace a newer cloud blob,
+  the exact cloud state is now protected locally and exposed as a one-tap Settings recovery;
+  replacement is a labelled two-step confirmation with cloud/device history summaries and is
+  blocked if protection fails. The live logger now projects only the active prescription plus
+  explicit additions/swaps, so retained foreign rows stay available to history without rendering,
+  completing, or inflating today's session. Workout clocks are owned by activation/week/day or
+  one-off session identity, preventing elapsed time from carrying between workouts. This cannot
+  recreate data overwritten before the recovery vault existed; no historical values are fabricated.
 
 ### 19 July reliability audit findings
 
@@ -447,6 +456,9 @@ is the named source/test, not a prior report.
 | A20 | High | High | Running cards used generic domain navigation and duplicated summary calculations; individual metrics had no dedicated period/history/evidence contract. | A new user met dead ends and a daily user could not verify pace, distance, load or records against exact runs. | Fixed for all 30 displayed Running metrics in R30: stable IDs, exact detail routes, canonical dated history, range/point inspection, honest comparisons/empty states and Activity evidence. | `running_metric_detail.test.js`, `metric_inventory.test.js`, render tests and `running-analytics-check.mjs`. |
 | A21 | Moderate | High | Profile read legacy Health Connect `value`/`hours` fields while native ingestion persists `rmssd`, `bpm` and `totalHours`; Profile distance PBs independently scanned even future/undated slots. | Valid health data could disappear and Profile could disagree with Running analytics. | Fixed in R30: canonical field keys with compatibility fallbacks; Profile running summaries/PBs share the canonical date-strict history and open exact metric details. | Inventory/source contract tests and future/undated Profile PB regression. |
 | A22 | High | High | Threshold pace used `3537 / (paceMinKm - 0.4)` with incompatible units, clamping ordinary paces such as 5:00/km to VDOT 90; Running Economy divided by m/s while labelling the result ml/kg/km. | Endurance Score, projections and economy could look precise while being physically implausible. | Fixed in R30: threshold is an explicit approximate 60-minute performance through the existing Daniels–Gilbert function/inverse, and oxygen cost divides by km/min. R23 effort/quality confidence remains open. | Realistic threshold/round-trip/economy benchmarks in `vdot.test.js`; Running detail regression. |
+| A23 | High | High | The sync-conflict “keep device” path overwrote a newer cloud blob without preserving that exact blob first. | One mistaken conflict choice could make newer training unrecoverable on both copies. | Fixed: pre-overwrite recovery vault, history summaries, protected two-step confirmation, and Settings restore; replacement is blocked if the snapshot cannot be written. | `sync_recovery_vault.test.js`, `state_recover_snapshot.test.js`. |
+| A24 | High | High | Retained logged lifts outside the active blueprint could remain appended in a numeric day and every live consumer iterated all lift keys. | Prior-workout rows appeared under today's plan and inflated completion, sets, volume and recap. | Fixed: active-session lift ownership filters rendering/completion/recap while preserving stored history; new additions/swaps carry explicit origin metadata. | `exercise_swap.test.js`, `session_completion_policy.test.js`. |
+| A25 | Moderate | High | The workout duration used one global persisted start time with no activation/week/day/session owner. | Moving between workouts could inherit another session's elapsed time. | Fixed: stable session-scoped timer identity and mismatch rejection/reset on boot/navigation/finish. | `workout_timer_identity.test.js`, full browser core flow. |
 
 ### Analytics inventory and settled treatment
 
@@ -694,6 +706,14 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
+
+- 2026-07-20 · Sync recovery + workout-session integrity on
+  `codex/sync-recovery-workout-session`: protects newer cloud state before replacement and
+  exposes recovery in Settings; adds a two-step destructive choice; quarantines foreign logged
+  rows from the live workout/completion/recap projection; and scopes duration to the exact workout.
+  `npm run verify` passes 1,071 tests and all required browser checks pass after making the Running
+  fixture correctly exclude its future Tuesday evidence on Monday. · Next: merge this bug-fix PR,
+  then continue R30 Stage 4–5 as small independent slices; device/Play/legal gates remain open.
 
 - 2026-07-19 · R30 analytics contract + Running slice on
   `codex/analytics-contract-running`: executable inventory covers 135 distinct metrics across
