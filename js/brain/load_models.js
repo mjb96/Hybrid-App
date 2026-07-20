@@ -41,6 +41,36 @@ export function strengthLoadSeries(state, days, maxWeek) {
   return result;
 }
 
+// Pace-matched week-to-date volume comparison for any per-day value function.
+//
+// The problem this solves: an IN-PROGRESS week has only its elapsed days logged,
+// so its cumulative volume (tonnage / distance) is naturally a fraction of a
+// completed week. Comparing that partial total against completed prior weeks
+// makes every early week read as a "decline" even when today's session is bigger
+// than the equivalent day last week — the reported Monday bug.
+//
+// Fix: judge the current week ONLY over the weekdays it has actually trained,
+// and compare against the SAME weekdays across the trailing `lookback` weeks that
+// have data. On Monday this is literally "this Monday vs the last few Mondays";
+// once every trained day is logged it converges to a full-week vs full-week
+// comparison. Returns { cur, priorAvg, trainedDays, priorWeeks } so callers can
+// score AND caption honestly (and detect "no like-for-like basis yet").
+export function paceMatchedWeekVolume(state, days, weekNum, valueFn, lookback = 3) {
+  const weeks = state?.weeks || {};
+  const curWk = weeks[String(weekNum)];
+  const trainedDays = curWk ? days.filter(d => valueFn(curWk, d) > 0) : [];
+  const cur = trainedDays.reduce((s, d) => s + valueFn(curWk, d), 0);
+  const priors = [];
+  for (let w = weekNum - 1; w >= 1 && priors.length < lookback; w--) {
+    const wd = weeks[String(w)];
+    if (!wd) continue;
+    const v = trainedDays.reduce((s, d) => s + valueFn(wd, d), 0);
+    if (v > 0) priors.push(v);
+  }
+  const priorAvg = priors.length ? priors.reduce((a, b) => a + b, 0) / priors.length : 0;
+  return { cur, priorAvg, trainedDays: trainedDays.length, priorWeeks: priors.length };
+}
+
 // Weekly running distance (km).
 export function enduranceLoadSeries(state, days, maxWeek) {
   const result = [];
