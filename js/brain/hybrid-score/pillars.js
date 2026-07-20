@@ -65,16 +65,24 @@ export function consistencyPillar(model) {
   // work they were never given time to do; the engine's provisional prior then
   // carries this pillar until real adherence exists.
   const noBaseline = avg <= 0 && streak <= 0;
-  const nothingDone = (w?.consistencyDone || 0) === 0;
+  const nothingDone = (w?.consistencyDoneToDate ?? w?.consistencyDone ?? 0) === 0;
   if (noBaseline && nothingDone) return { score: null, signals: [] };
 
-  // E1 — de-sawtooth: `consistencyPct` is done ÷ the WHOLE week's planned work,
-  // so it reads near-zero every Monday and climbs through the week. That made
-  // the score drop every Monday for no behavioural reason. Fix: anchor on the
-  // established baseline (program-long adherence) and only ever *credit*
-  // within-week progress — the current partial week can lift the score but can
-  // no longer drag it below your baseline just because the week reset.
-  const thisWeekPct = w.consistencyTotal > 0 ? w.consistencyPct : null;
+  // E1 — de-sawtooth: the WHOLE-week `consistencyPct` reads near-zero every Monday
+  // and climbs through the week, which dropped the score every Monday for no
+  // behavioural reason. Two guards: (a) judge this week on SCHEDULED-TO-DATE
+  // adherence (`consistencyPctToDate` — only the sessions that were actually due
+  // by now), so a completed Monday reads ~100%, not "27% of the week"; and
+  // (b) anchor on the established baseline (adherence over COMPLETED weeks) and
+  // only ever *credit* within-week progress, so a partial week can lift the score
+  // but never drag it below your baseline just because the week reset.
+  // Prefer the scheduled-to-date figure when the model provides it (the field is
+  // always present in production — a number when work was due, null when nothing
+  // was due yet, e.g. Monday morning). Legacy callers/tests without the field
+  // fall back to the whole-week percentage.
+  const hasToDate = Object.prototype.hasOwnProperty.call(w, 'consistencyPctToDate');
+  const thisWeekPct = hasToDate ? w.consistencyPctToDate
+    : (w.consistencyTotal > 0 ? w.consistencyPct : null);
   const baseline = avg > 0 ? avg : (thisWeekPct ?? 0);
   const effective = thisWeekPct == null ? baseline : Math.max(baseline, thisWeekPct);
   let score = 0.5 * baseline + 0.5 * effective;
@@ -90,11 +98,12 @@ export function consistencyPillar(model) {
 
   const signals = [];
   if (w.consistencyTotal > 0) {
-    // `consistencyTotal` is set-granular (each working set + each scheduled run),
-    // so quote the plan-completion percentage, never a raw count phrased as
-    // "sessions" (which read as a scary "89 sessions still open" on day 0).
+    // Caption the SCHEDULED-TO-DATE adherence, not the whole-week fraction — on a
+    // Monday "27% of this week's plan done" reads as failure when in fact today's
+    // session is complete. Whole-week 100% still earns the celebratory phrasing.
     if (w.consistencyPct >= 100) signals.push('all planned work done');
-    else signals.push(`${w.consistencyPct}% of this week's plan done`);
+    else if (thisWeekPct != null && thisWeekPct >= 100) signals.push('on track — up to date this week');
+    else if (thisWeekPct != null) signals.push(`${thisWeekPct}% of sessions due so far done`);
   }
   if (qPct != null && (w.qualityN || 0) >= 3) {
     if (qPct >= 95) signals.push('hitting your targets');
@@ -199,7 +208,11 @@ export function strengthPillar(model, state, days, level) {
   // weekdays) the upkeep term stays neutral rather than penalising.
   const pm = paceMatchedWeekVolume(state, days, model.wkNum, (wd, d) => dayVolume(wd?.lifts?.[d]), 3);
   const haveUpkeep = pm.cur > 0 && pm.priorAvg > 0;
-  const upkeep = haveUpkeep ? clamp(50 + ((pm.cur - pm.priorAvg) / pm.priorAvg) * 60, 20, 100) : 60;
+  // No basis yet (nothing trained this week, or no comparable prior weekday) →
+  // a TRULY neutral 50 (the formula's centre), not an optimistic 60. A 60 default
+  // meant logging a merely on-pace session (upkeep ≈ 53) *lowered* the pillar —
+  // i.e. you were penalised for training. 50 keeps on-pace training neutral-to-up.
+  const upkeep = haveUpkeep ? clamp(50 + ((pm.cur - pm.priorAvg) / pm.priorAvg) * 60, 20, 100) : 50;
 
   const score = 0.6 * progScore + 0.4 * upkeep;
   const signals = [];
@@ -244,7 +257,8 @@ export function endurancePillar(model, state, days, level) {
   // so the science-based endurance score works for anyone who logs runs.
   const vdot = effectiveVdot(state, days, maxWeek)?.vdot || null;
   const weeklyAvgDist = dist.filter(v => v > 0).slice(-4).reduce((a, b, _, arr) => a + b / arr.length, 0);
-  const eScore = vdot ? enduranceScore(vdot, model.week?.consistencyPct || 0, weeklyAvgDist) : null;
+  const adherencePct = model.week?.consistencyPctToDate ?? model.week?.consistencyPct ?? 0;
+  const eScore = vdot ? enduranceScore(vdot, adherencePct, weeklyAvgDist) : null;
 
   const parts = [distScore];
   if (paceScore != null) parts.push(paceScore);

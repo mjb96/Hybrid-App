@@ -71,7 +71,7 @@ personalised (level-scaled thresholds), and gracefully handles missing data.
 
 | Pillar | Weight | What it measures | Reuses |
 |---|---|---|---|
-| **Consistency** | 0.22 | Adherence to plan + streak | `week.consistencyPct`, `goal.avgConsistency`, `streak` |
+| **Consistency** | 0.22 | Adherence to plan + streak | `week.consistencyPctToDate`, `goal.avgConsistency`, `streak` |
 | **Recovery** | 0.18 | Readiness / freshness | `ready.score`, `load.tsb` |
 | **Strength** | 0.14 | e1RM progression + volume upkeep | `weeklyE1rmByLift`, `strengthLoadSeries` |
 | **Endurance** | 0.14 | VDOT / pace / distance progression | `enduranceScore`, `weeklyPaceSeries`, `weeklyDistanceSeries` |
@@ -85,6 +85,17 @@ personalised (level-scaled thresholds), and gracefully handles missing data.
 > week is complete. Progression terms (e1RM, best-effort pace, VDOT) are max-based and inherently
 > partial-week-safe, so they keep their program-week series. This is why a Monday session that
 > beats last Monday is never captioned "lifting volume down".
+
+> **Consistency: scheduled-to-date, completed-week baseline.** Adherence is judged two ways.
+> The **baseline** (`goal.avgConsistency`) averages **completed weeks only** — the in-progress
+> week is excluded so a just-started week can't drag it. The **current-week** term uses
+> `week.consistencyPctToDate`: only sessions whose day has *already passed* this week (keyed off
+> today's LOCAL weekday, plus anything already trained) count — so a completed Monday reads
+> ~100%, not "27% of the week", and Monday morning (nothing due yet) is `null` (no judgement,
+> not a miss). A truly missed *past* session still shows. The whole-week `consistencyPct` is
+> kept only for progress tiles. The pillar then anchors on the baseline and only ever *credits*
+> within-week progress (`0.5·baseline + 0.5·max(baseline, toDate)`), so completing today's
+> session can never lower the score.
 | **Training Load** | 0.12 | ACWR zone + strength/run balance | `load.acwr`, `recoveryCostBreakdown` |
 | **Momentum** | 0.10 | 4-week trajectory of the above | series slopes |
 | **Body Composition** | 0.05 | Weight trend vs goal | `bodyweight.delta7`, `weightGoal` |

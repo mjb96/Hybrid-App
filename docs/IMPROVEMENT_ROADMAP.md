@@ -707,6 +707,29 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-20 · Hybrid Score consistency early-week fix on `claude/hybrid-score-audit-gimuci`
+  (follow-up to the same session's volume fix below). User reported the score still read "27%
+  of this week done" on a Monday and felt *marked down for completing today's session*. Two
+  root causes confirmed by deterministic repro: (1) the Consistency baseline `avgConsistency`
+  **included the in-progress current week**, so a week that is only 27% done because it just
+  started dragged the program-long baseline from 100→85 every Monday; (2) the pillar judged
+  adherence as done ÷ the **whole week's** plan, so a completed Monday read ~27% and the driver
+  said "27% of this week's plan done". Fix: `avgConsistency` now averages **completed weeks
+  only** (`js/home/dashboard-model.js`); the model additionally computes **scheduled-to-date**
+  adherence (`consistencyPctToDate` — only days strictly past this week, keyed off today's LOCAL
+  weekday so no `weekStartedAt` UTC skew, plus any day already trained), and the Consistency
+  pillar + its signals now judge on that (`js/brain/hybrid-score/pillars.js`), with the
+  whole-week `consistencyPct` preserved for progress tiles. Also: the Strength upkeep no-basis
+  default was lowered 60→50 (the formula's true centre) so logging a merely on-pace session can
+  no longer *lower* the pillar, and `project.js` advances the to-date view so the "train today
+  → +N" projection stays consistent. Result on the repro: baseline 85→100, Consistency pillar
+  86→100, signal "27% of this week's plan done" → "on track — up to date this week"; Monday
+  morning holds at baseline (nothing due yet, not a miss); a genuinely missed *past* session is
+  still surfaced. New `tests/hybrid_score_consistency_todate.test.js` (7 fixed-date cases:
+  baseline exclusion, Monday-after-workout, Monday-morning, log-never-lowers-score,
+  future-not-missed, real-miss-still-shown, whole-week preserved). `npm test` 1082/1083 (the one
+  fail is the pre-existing `fake-indexeddb` dev-dep), typecheck + smoke green. · Next: consider
+  reframing the Home progress-tile copy and unifying `avgConsistency`/`weekCompare` collectors.
 - 2026-07-20 · Hybrid Score partial-week comparison fix on `claude/hybrid-score-audit-gimuci`.
   Full audit of the eight-pillar Hybrid Score (engine + pillars + dashboard model). Confirmed
   the reported Monday bug: the **Strength** pillar's volume-upkeep term (and the **Endurance**
