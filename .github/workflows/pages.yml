@@ -7,8 +7,11 @@ name: Deploy Pages
 # Why this is reliable:
 #   - a single, serialized deploy path (concurrency group) so a new push never
 #     collides with an in-flight deployment — the usual cause of that error;
-#   - one automatic retry of the deploy step, so a transient failure self-heals
-#     without anyone re-running the job;
+#   - one automatic retry of EVERY Pages-API step (configure, upload, deploy), so
+#     a transient API 5xx ("No server is currently available to service your
+#     request") self-heals without anyone re-running the job. configure-pages was
+#     previously un-retried, so a hiccup there skipped the deploy step's own retry
+#     and failed the whole run;
 #   - .nojekyll + a staged clean web root (no Jekyll build, no android/tests/etc.).
 #
 # ONE-TIME SETUP (required): repo Settings → Pages → Source → "GitHub Actions".
@@ -53,24 +56,62 @@ jobs:
           node scripts/stage-web-root.mjs _site
           touch _site/.nojekyll
 
-      - uses: actions/configure-pages@v5
+      # Every Pages-API step below gets one automatic retry (continue-on-error on
+      # the first attempt + a conditional second attempt). GitHub Actions has no
+      # native per-step retry, so this mirrors the existing deploy pattern rather
+      # than adding a third-party retry action (kept out by the repo's supply-chain
+      # posture). A short pause gives a transient API 5xx time to clear.
+      - name: Configure Pages
+        id: configure
+        continue-on-error: true
+        uses: actions/configure-pages@v5
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Pause before Configure retry
+        if: steps.configure.outcome == 'failure'
+        run: sleep 10
+      - name: Configure Pages (auto-retry)
+        id: configure_retry
+        if: steps.configure.outcome == 'failure'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        id: upload
+        if: steps.configure.outcome == 'success' || steps.configure_retry.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Pause before Upload retry
+        if: steps.upload.outcome == 'failure'
+        run: sleep 10
+      - name: Upload Pages artifact (auto-retry)
+        id: upload_retry
+        if: steps.upload.outcome == 'failure'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
       - name: Deploy to GitHub Pages
         id: deploy
+        if: steps.upload.outcome == 'success' || steps.upload_retry.outcome == 'success'
         continue-on-error: true
         uses: actions/deploy-pages@v4
 
+      - name: Pause before Deploy retry
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 10
       - name: Deploy to GitHub Pages (auto-retry)
         id: deploy_retry
         if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
-      - name: Fail only if both attempts failed
-        if: steps.deploy.outcome == 'failure' && steps.deploy_retry.outcome == 'failure'
+      # Fail the job unless the deploy ultimately succeeded. Because each stage
+      # only runs when the previous one succeeded, a both-attempts failure in
+      # configure or upload leaves deploy skipped (outcome != 'success'), so this
+      # single gate covers a transient failure anywhere in the publish path.
+      - name: Fail unless the deploy succeeded
+        if: steps.deploy.outcome != 'success' && steps.deploy_retry.outcome != 'success'
         run: |
-          echo "::error::GitHub Pages deploy failed on both attempts."
+          echo "::error::GitHub Pages publish failed after retrying configure, upload and deploy."
           exit 1
