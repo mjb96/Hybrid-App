@@ -75,6 +75,16 @@ personalised (level-scaled thresholds), and gracefully handles missing data.
 | **Recovery** | 0.18 | Readiness / freshness | `ready.score`, `load.tsb` |
 | **Strength** | 0.14 | e1RM progression + volume upkeep | `weeklyE1rmByLift`, `strengthLoadSeries` |
 | **Endurance** | 0.14 | VDOT / pace / distance progression | `enduranceScore`, `weeklyPaceSeries`, `weeklyDistanceSeries` |
+
+> **Partial-week fairness (Strength volume upkeep + Endurance distance).** These *volume* terms
+> compare the current week against recent weeks, so an in-progress week must be judged
+> **pace-matched week-to-date**, never partial-vs-complete. The shared `paceMatchedWeekVolume`
+> selector (`js/brain/load_models.js`) sums the current week only over the weekdays it has
+> actually trained and compares against the SAME weekdays across the trailing weeks — on Monday
+> that is "this Monday vs the last few Mondays", converging to full-week vs full-week once the
+> week is complete. Progression terms (e1RM, best-effort pace, VDOT) are max-based and inherently
+> partial-week-safe, so they keep their program-week series. This is why a Monday session that
+> beats last Monday is never captioned "lifting volume down".
 | **Training Load** | 0.12 | ACWR zone + strength/run balance | `load.acwr`, `recoveryCostBreakdown` |
 | **Momentum** | 0.10 | 4-week trajectory of the above | series slopes |
 | **Body Composition** | 0.05 | Weight trend vs goal | `bodyweight.delta7`, `weightGoal` |

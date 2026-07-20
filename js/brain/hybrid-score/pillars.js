@@ -15,8 +15,10 @@
 import { clamp } from '../../analytics/calculations/math-utils.js';
 import { weeklyE1rmByLift, robustE1rmSeries, liftWeight } from '../../metrics/metrics-strength.js';
 import { weeklyDistanceSeries, weeklyPaceSeries, weeklyBestPaceSeries } from '../../metrics/metrics-running.js';
-import { strengthLoadSeries, recoveryCostBreakdown } from '../load_models.js';
+import { strengthLoadSeries, recoveryCostBreakdown, paceMatchedWeekVolume } from '../load_models.js';
 import { enduranceScore, effectiveVdot } from '../../analytics/calculations/running-calcs.js';
+import { dayVolume } from '../../set-utils.js';
+import { runDaySummary } from '../../state/run-sessions.js';
 import { levelProfile } from './config.js';
 
 const round = (n) => Math.round(n);
@@ -188,11 +190,16 @@ export function strengthPillar(model, state, days, level) {
     ? gainToScore(num / Math.max(den, 1.0), level)
     : levelProfile(level).floor; // lifting but no window yet → neutral floor
 
-  // Volume upkeep: current week tonnage vs trailing 3-week average.
-  const cur = lastNonZero(tonnage, idx);
-  const window = tonnage.slice(Math.max(0, idx - 3), idx).filter(v => v > 0);
-  const avg = window.length ? window.reduce((a, b) => a + b, 0) / window.length : cur;
-  const upkeep = avg > 0 ? clamp(50 + ((cur - avg) / avg) * 60, 20, 100) : 60;
+  // Volume upkeep: PACE-MATCHED week-to-date tonnage vs the trailing weeks'
+  // SAME-weekday tonnage. Comparing the current (in-progress) week's cumulative
+  // tonnage against completed prior weeks made every early week read as a volume
+  // decline even when today's session beat the equivalent day last week — the
+  // reported Monday bug. Pace-matching judges like-for-like; when no comparable
+  // basis exists yet (nothing trained this week, or no prior week trained these
+  // weekdays) the upkeep term stays neutral rather than penalising.
+  const pm = paceMatchedWeekVolume(state, days, model.wkNum, (wd, d) => dayVolume(wd?.lifts?.[d]), 3);
+  const haveUpkeep = pm.cur > 0 && pm.priorAvg > 0;
+  const upkeep = haveUpkeep ? clamp(50 + ((pm.cur - pm.priorAvg) / pm.priorAvg) * 60, 20, 100) : 60;
 
   const score = 0.6 * progScore + 0.4 * upkeep;
   const signals = [];
@@ -200,8 +207,8 @@ export function strengthPillar(model, state, days, level) {
     if (bestGain >= 1) signals.push(`${bestLift} e1RM up ${bestGain.toFixed(0)}%`);
     else if (bestGain <= -1) signals.push(`${bestLift} e1RM down ${Math.abs(bestGain).toFixed(0)}%`);
   }
-  if (cur > avg * 1.1) signals.push('lifting volume rising');
-  else if (cur < avg * 0.9) signals.push('lifting volume down');
+  if (haveUpkeep && pm.cur > pm.priorAvg * 1.1) signals.push('lifting volume rising');
+  else if (haveUpkeep && pm.cur < pm.priorAvg * 0.9) signals.push('lifting volume down');
   if (!signals.length) signals.push('strength holding');
   return { score: round(score), signals };
 }
@@ -214,8 +221,14 @@ export function endurancePillar(model, state, days, level) {
   const everRan = dist.some(v => v > 0);
   if (!everRan) return { score: null, signals: [] };
 
-  // Distance progression (volume trend).
-  const distPct = progressionPct(dist, idx, 4);
+  // Distance progression (volume trend) — PACE-MATCHED so a partial current week
+  // is compared against the trailing weeks' SAME weekdays, not their full totals.
+  // Without this a Monday-only week reads as a distance drop even when this
+  // Monday's run beat last Monday's (the strength-pillar Monday bug, for running).
+  const distPm = paceMatchedWeekVolume(state, days, model.wkNum, (wd, d) => parseFloat(runDaySummary(wd, d).dist) || 0, 4);
+  const distPct = distPm.cur > 0 && distPm.priorAvg > 0
+    ? ((distPm.cur - distPm.priorAvg) / distPm.priorAvg) * 100
+    : null;
   const distScore = distPct != null ? gainToScore(distPct, level) : levelProfile(level).floor;
   // E2 — pace progression from BEST-EFFORT pace (fastest run/wk), not the weekly
   // AVERAGE. Average pace slows whenever you add easy Zone-2 volume — the

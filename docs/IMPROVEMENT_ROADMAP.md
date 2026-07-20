@@ -707,6 +707,30 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-20 · Hybrid Score partial-week comparison fix on `claude/hybrid-score-audit-gimuci`.
+  Full audit of the eight-pillar Hybrid Score (engine + pillars + dashboard model). Confirmed
+  the reported Monday bug: the **Strength** pillar's volume-upkeep term (and the **Endurance**
+  pillar's distance-volume term) compared the current *in-progress* week's cumulative total
+  (e.g. one Monday session) against completed prior weeks' full totals, so an early week read as
+  a "volume down" decline even when today's session out-lifted the equivalent day last week.
+  Reproduced deterministically: this Monday 1620 kg > last Monday 1590 kg, yet the pillar
+  emitted "lifting volume down" and scored 68 instead of 81 (the misleading decline also dragged
+  the day-over-day score delta). The dashboard's `model.week.volume`/`calendarWeek` tiles were
+  already pace-matched and correctly showed "+30 kg / up 2%" — only the Hybrid Score pillars
+  still read the raw program-week series. Fix: added a shared `paceMatchedWeekVolume` selector
+  (`js/brain/load_models.js`) that judges the current week only over its trained weekdays vs the
+  SAME weekdays across the trailing weeks, and routed both pillars' volume terms + their
+  "volume rising/down" captions through it (`js/brain/hybrid-score/pillars.js`). Progression
+  terms (e1RM, best-effort pace, VDOT) are max-based and already partial-week-safe, so were left
+  unchanged; the Consistency E1 baseline-anchor already prevents the Monday consistency cliff
+  (verified, not assumed). Audit also confirmed no timezone/date-boundary or double-counting
+  regressions in the changed paths (Recovery already excludes ACWR; Momentum reads past scores).
+  New `tests/hybrid_score_partial_week.test.js` (10 deterministic, fixed-date cases: Monday
+  one-workout on/below pace, partial vs full week parity, Wed week-to-date, completed-week
+  compare, different-weekday weeks, endurance). `npm test` 1075/1076 (the one fail is the
+  pre-existing `fake-indexeddb` missing-dev-dep in `route_db_migration.test.js`, unrelated),
+  typecheck + smoke green. · Next: consider unifying the dashboard's inline `paceMatchedPrev`
+  onto the shared selector, and pace-matching the eScore `weeklyAvgDist` input.
 - 2026-07-20 · Pages-deploy resilience on `claude/hybridq-product-audit-0bp0e9`. The Deploy
   Pages run for the merged metrics fix failed in the `deploy` job at `actions/configure-pages@v5`
   with a transient GitHub Pages API 5xx ("No server is currently available to service your
