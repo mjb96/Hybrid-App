@@ -43,9 +43,20 @@ export function projectScore(model, state, days, opts = {}) {
   }
 
   const nextDone = done + 1;
+  // Advance the scheduled-to-date view too (the pillar scores on it): completing
+  // today's open session lifts to-date adherence, which is what the projection
+  // is meant to reward.
+  const totalToDate = w.consistencyTotalToDate || 0;
+  const nextDoneToDate = (w.consistencyDoneToDate || 0) + 1;
   const projModel = {
     ...model,
-    week: { ...w, consistencyDone: nextDone, consistencyPct: Math.round((nextDone / total) * 100) },
+    week: {
+      ...w,
+      consistencyDone: nextDone,
+      consistencyPct: total > 0 ? Math.round((nextDone / total) * 100) : w.consistencyPct,
+      consistencyDoneToDate: nextDoneToDate,
+      consistencyPctToDate: totalToDate > 0 ? Math.round((nextDoneToDate / totalToDate) * 100) : w.consistencyPctToDate,
+    },
     streak: { ...(model.streak || {}), current: (model.streak?.current || 0) + 1 },
     load: model.load ? { ...model.load } : model.load,
   };

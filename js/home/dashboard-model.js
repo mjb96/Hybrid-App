@@ -177,16 +177,50 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
   catch { rec = { severity: 'neutral', badge: 'Building', headline: '', advice: '', sessionLabel: '', acwr: 0, status: 'Building' }; }
 
   // ---- This-week roll-up --------------------------------------------------
+  // Two consistency views are tracked:
+  //   • whole-week (consistencyTotal/Done/Pct)   — every planned slot this week.
+  //   • scheduled-to-date (…ToDate)              — only the days that have already
+  //     arrived (weekday ≤ today) OR already carry completed work.
+  // The Hybrid Score judges adherence on the TO-DATE view, so an early week is
+  // never scored as if Tue–Sun were already due and missed (the reported "27% of
+  // the week done on Monday, marked down for today's workout" bug). Whole-week
+  // stays for progress tiles that legitimately show how much of the week remains.
   const weekData = weeks[wk] || {};
+  const asOfKey = opts.today || today;
+  const DOW = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const startDay = state?.settings?.weekStartDay || 'mon';
+  const startIdx = Math.max(0, ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].indexOf(startDay));
+  const weekOrder = [...['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].slice(startIdx),
+                     ...['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].slice(0, startIdx)];
+  const asOfDow = DOW[new Date(asOfKey + 'T00:00:00Z').getUTCDay()];
+  const asOfIdx = weekOrder.indexOf(asOfDow);
+  // A day is "overdue" only once it is STRICTLY in the past this week. TODAY's
+  // own session is pending, not missed, until it is done (dayHasWork picks it up
+  // the moment it is logged), so Monday morning never reads as a miss.
+  const dayElapsed = (d) => { const i = weekOrder.indexOf(d); return asOfIdx === -1 || i === -1 ? false : i < asOfIdx; };
+  const dayHasWork = (d) => {
+    if (num(runDaySummary(weekData, d).dist) > 0) return true;
+    const dl = weekData.lifts?.[d] || {};
+    for (const lift in dl) if (Array.isArray(dl[lift]) && dl[lift].some(isDone)) return true;
+    return false;
+  };
   let sets = 0, reps = 0, consistencyDone = 0, consistencyTotal = 0;
+  let consistencyDoneToDate = 0, consistencyTotalToDate = 0;
   days.forEach(d => {
+    const due = dayElapsed(d) || dayHasWork(d);
     const bp = program?.days?.[d];
     const runScheduled = bp?.runs && !bp.runs.toLowerCase().includes('no structured') && bp.runs.toLowerCase() !== 'rest';
-    if (runScheduled) { consistencyTotal++; if (num(runDaySummary(weekData, d).dist) > 0) consistencyDone++; }
+    if (runScheduled) {
+      consistencyTotal++; if (due) consistencyTotalToDate++;
+      if (num(runDaySummary(weekData, d).dist) > 0) { consistencyDone++; if (due) consistencyDoneToDate++; }
+    }
     const dayLifts = weekData.lifts?.[d] || {};
     for (const lift in dayLifts) {
       if (!Array.isArray(dayLifts[lift])) continue;
-      dayLifts[lift].forEach(s => { consistencyTotal++; if (isDone(s)) { consistencyDone++; sets++; reps += parseInt(s.r, 10) || 0; } });
+      dayLifts[lift].forEach(s => {
+        consistencyTotal++; if (due) consistencyTotalToDate++;
+        if (isDone(s)) { consistencyDone++; if (due) consistencyDoneToDate++; sets++; reps += parseInt(s.r, 10) || 0; }
+      });
     }
   });
 
@@ -284,6 +318,11 @@ export function computeDashboardModel(state, days, program, selectedDay, opts = 
       distance: { current: distCurrent, prev: distPrev, delta: makeDelta(distCurrent, distPrev), spark: tail(distanceSeries, 8) },
       sets, reps, consistencyDone, consistencyTotal,
       consistencyPct: consistencyTotal > 0 ? Math.round((consistencyDone / consistencyTotal) * 100) : 0,
+      // Scheduled-to-date adherence (only days that have arrived / been trained).
+      // Null when nothing is due yet, so the score's Consistency pillar can tell
+      // "nothing scheduled yet" apart from "0% of what was due got done".
+      consistencyDoneToDate, consistencyTotalToDate,
+      consistencyPctToDate: consistencyTotalToDate > 0 ? Math.round((consistencyDoneToDate / consistencyTotalToDate) * 100) : null,
       // E5 — true-adherence quality of completed sets vs their prescribed target
       // (null until sets carry targets; the Consistency pillar folds it in gently).
       ...(() => { const q = workoutQuality(state, days, maxWeek); return { qualityPct: q.pct, qualityN: q.n }; })(),
@@ -474,9 +513,14 @@ function computeWeekCompare(weeks, days, wkNum) {
   };
 }
 
+// Program-long adherence baseline over COMPLETED weeks only (w < wkNum). The
+// in-progress current week is deliberately excluded: including it dragged the
+// baseline down every Monday (a week that is 27% done because it just started
+// is not evidence of poor adherence). The current week still lifts the score
+// via the pillar's scheduled-to-date term; this stays the stable anchor.
 function avgConsistency(weeks, days, program, wkNum) {
   let total = 0, n = 0;
-  for (let w = 1; w <= wkNum; w++) {
+  for (let w = 1; w < wkNum; w++) {
     const wd = weeks[String(w)];
     if (!wd) continue;
     let done = 0, tot = 0;
