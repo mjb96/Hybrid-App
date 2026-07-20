@@ -707,6 +707,18 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-20 · Pages-deploy resilience on `claude/hybridq-product-audit-0bp0e9`. The Deploy
+  Pages run for the merged metrics fix failed in the `deploy` job at `actions/configure-pages@v5`
+  with a transient GitHub Pages API 5xx ("No server is currently available to service your
+  request"); `verify` (web + Android + required real-browser checks) had passed, so this was a
+  platform hiccup, not a code defect, and a manual re-run of the failed job published cleanly.
+  Root gap: the workflow's auto-retry wrapped only the Deploy step, so a transient failure in
+  the earlier `configure-pages`/`upload-pages-artifact` steps skipped the retry and failed the
+  whole run. Hardened `.github/workflows/pages.yml` to give configure, upload and deploy each one
+  automatic retry (continue-on-error + a conditional second attempt + a short pause), with a
+  single terminal gate that fails only if the deploy never succeeded — mirroring the existing
+  native pattern rather than adding a third-party retry action (supply-chain posture).
+  `npm run workflow:check` still passes. · Next: continue R30 Stage 4–5 analytics slices.
 - 2026-07-19 · Today's-Summary modal metric-consistency fix on
   `claude/hybridq-product-audit-0bp0e9`. A full new-user → onboarding → home → workout →
   finish browser pass (390 px) confirmed the core loop, warm-up exclusion, lifecycle Finish
