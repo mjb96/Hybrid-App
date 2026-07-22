@@ -138,7 +138,26 @@ const HOME_INVENTORY = group('home', 'js/home/weekly-fitness-graph.js', {
   historicalSeries: 'Seven inspectable daily bars.', exactEvidence: 'Populated bars open Activities for the exact local date.',
   tests: ['tests/weekly_fitness_graph.test.js', 'tests/weekly_analytics_integration.test.js'],
 }, [
-  { id: 'home.in-focus-strength', label: 'Gym Performance', unit: 'working-sets/volume', surfaces: ['Home In Focus'], beforeInteraction: 'domain-only', currentInteractive: 'domain-plus-exact-bars', currentDestination: 'Strength / exact date Activities', intendedDestination: 'strength-metric:strength.weekly-volume', implementation: 'existing-partial' },
+  {
+    id: 'home.in-focus-strength',
+    label: 'Gym Performance',
+    unit: 'duration/sessions/working-sets/volume',
+    surfaces: ['Home In Focus'],
+    sourceRecords: 'Exact dated gym and strength activities across active, archived and independent sessions',
+    calculationOwner: 'js/analytics/gym-performance.js + js/home/weekly-fitness-graph.js',
+    timeScope: 'calendar 7d / 4w / 1y selected periods',
+    comparisonRule: 'Live periods compare equal elapsed time with the previous period; completed periods compare full equal periods.',
+    emptyState: 'No workouts in the selected period is stated; missing duration is disclosed without inventing time.',
+    beforeInteraction: 'domain-only',
+    currentInteractive: 'exact-detail-plus-exact-bars',
+    currentDestination: 'Gym Performance / exact date Activities',
+    intendedDestination: 'gym-performance',
+    historicalSeries: 'Daily 7D, weekly 4W and monthly 1Y bars with backward period navigation.',
+    exactEvidence: 'Home day bars open exact-date activities; Gym Performance bins list exact contributing activity IDs.',
+    limitationsAndConfidence: 'Time totals disclose how many workouts have recorded duration; future and undated records are excluded.',
+    tests: ['tests/gym_performance.test.js', 'tests/analytics_views_render.test.js', 'scripts/gym-performance-browser-check.mjs'],
+    implementation: 'supported-existing',
+  },
   { id: 'home.in-focus-running', label: 'Run Performance', unit: 'distance/duration', surfaces: ['Home In Focus'], beforeInteraction: 'domain-only', currentInteractive: 'domain-plus-exact-bars', currentDestination: 'Running / exact date Activities', intendedDestination: 'running-metric:running.weekly-distance', implementation: 'existing-partial' },
 ]);
 

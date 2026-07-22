@@ -8,20 +8,11 @@ import { addDaysISO, DAY_KEYS, indexSlotsByDate, localDayKey, weekStartOf } from
 import { comparePeriodValues } from './comparison.js';
 import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { muscleCreditsForExercise, resolveExercise } from '../exercises/catalog.js';
+import { parseStrengthDurationSeconds } from '../strength/duration.js';
 
 const DAY_LABELS = Object.freeze({
   mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun',
 });
-
-/** @param {string} value */
-function parseDurationSeconds(value) {
-  if (!value) return 0;
-  const parts = String(value).split(':').map(Number);
-  if (parts.some((part) => !Number.isFinite(part))) return 0;
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return Math.max(0, parts[0] || 0);
-}
 
 /** @param {string} weekKey @param {string} day @param {string|null} sessionId */
 function strengthActivityId(weekKey, day, sessionId) {
@@ -73,7 +64,7 @@ function summariseWeek(state, weekStart, { today, elapsedDays, index }) {
       if (!slot?.lifts || slot.stats.workingSets <= 0) continue;
       const storedWeek = state?.weeks?.[slot.weekKey] || {};
       const workoutTotals = emptyTotals();
-      workoutTotals.durationSeconds = parseDurationSeconds(slot.gymStats?.time);
+      workoutTotals.durationSeconds = parseStrengthDurationSeconds(slot.gymStats?.time);
       const workoutExercises = [];
 
       for (const [storedName, sets] of Object.entries(slot.lifts)) {

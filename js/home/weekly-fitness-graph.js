@@ -115,7 +115,7 @@ class WeeklyFitnessGraph {
     // Route to the matching analytics detail view via the app's action router.
     const cta = document.createElement('button');
     cta.setAttribute('data-action', 'open-analytics');
-    cta.setAttribute('data-context', this.type === 'strength' ? 'weekly-volume' : 'running');
+    cta.setAttribute('data-context', this.type === 'strength' ? 'gym-performance' : 'running');
     cta.style.display = 'none';
     document.body.appendChild(cta);
     cta.click();
@@ -254,7 +254,7 @@ class WeeklyFitnessGraph {
   </div>
   <button class="wfg-detail-link" data-wfg-action="open-detail"
           aria-label="Open ${this.type === 'strength' ? 'weekly volume' : 'running'} analytics">
-    View ${this.type === 'strength' ? 'weekly volume' : 'running'} details ›
+    View ${this.type === 'strength' ? 'gym performance' : 'running'} details ›
   </button>
 </div>`;
   }

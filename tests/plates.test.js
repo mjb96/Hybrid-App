@@ -52,3 +52,13 @@ test('per-side plate breakdown is not rendered in the workout logger', () => {
   assert.doesNotMatch(html, /per side|\/ side|cct-plates|🍩/i);
   assert.match(html, /Target <b>72\.5 × 5<\/b>/);
 });
+
+test('logger uses a neutral progress check instead of branding a plateau', () => {
+  const html = buildExerciseCard({
+    displaySafeName: 'Bench Press', safeLiftName: 'Bench Press', isCompleted: false,
+    diagnostic: { progression: { weight: 80, reps: 5 }, isStalled: true },
+    blueprintLabel: 'Hold 80kg', historicalLineText: 'Previous session', setsMarkup: '',
+  });
+  assert.match(html, /PROGRESS CHECK/);
+  assert.doesNotMatch(html, /PLATEAU|plateauing/i);
+});

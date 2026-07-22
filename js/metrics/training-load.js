@@ -9,12 +9,13 @@
 import { addDaysISO, localDayKey, todayKey } from '../dates.js';
 import { indexSlotsByDate } from '../analytics/weekly-aggregate.js';
 import { runLoadForDay } from '../state/run-sessions.js';
+import { parseStrengthDurationMinutes } from '../strength/duration.js';
 
 export const TRAINING_DAYS = Object.freeze(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
 
 export function dayTrainingLoad(week, day) {
   const gymRpe = parseFloat(week?.gymRpe?.[day]) || 0;
-  const gymMins = parseFloat(week?.gymStats?.[day]?.time) || 0;
+  const gymMins = parseStrengthDurationMinutes(week?.gymStats?.[day]?.time);
   const strength = gymRpe > 0 && gymMins > 0 ? gymRpe * gymMins : 0;
   const endurance = runLoadForDay(week, day);
   return { strength, endurance, total: strength + endurance };

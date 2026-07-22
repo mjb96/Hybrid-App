@@ -364,9 +364,9 @@ h2.section-header::after {
 
 .badge-stall-indicator {
   font-size: var(--text-xxs);
-  background: var(--red-alpha);
-  border: 1px solid rgba(239, 68, 68, 0.20);
-  color: var(--color-red);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  color: var(--color-amber);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   margin-left: var(--space-2);
@@ -1124,6 +1124,38 @@ select.native-select {
   margin-bottom: var(--space-4);
   font-weight: 600;
   display: block;
+}
+
+.previous-session {
+  margin-bottom: var(--space-4);
+  border: 1px solid rgba(59, 130, 246, 0.20);
+  border-radius: var(--radius-lg);
+  background: var(--blue-alpha);
+  overflow: hidden;
+}
+.previous-session summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 58px; padding: 10px 12px; cursor: pointer; list-style: none;
+}
+.previous-session summary::-webkit-details-marker { display: none; }
+.previous-session summary span { display: grid; gap: 3px; min-width: 0; }
+.previous-session summary small { color: var(--text-muted); font-size: .68rem; font-weight: 650; }
+.previous-session summary strong { color: var(--text-primary); font-size: .78rem; }
+.previous-session summary b { color: var(--color-blue); font-size: .68rem; white-space: nowrap; }
+.previous-session__context { padding: 0 12px 8px; color: var(--text-muted); font-size: .68rem; }
+.previous-session__sets { display: grid; border-block: 1px solid rgba(59,130,246,.14); }
+.previous-session__set {
+  display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px;
+  min-height: 38px; padding: 6px 12px; border-bottom: 1px solid rgba(59,130,246,.10);
+}
+.previous-session__set:last-child { border-bottom: 0; }
+.previous-session__set span, .previous-session__set small { color: var(--text-muted); font-size: .68rem; }
+.previous-session__set strong { color: var(--text-primary); font-size: .76rem; }
+.previous-session__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+.previous-session__actions button {
+  min-height: var(--touch-target); border-radius: var(--radius-md);
+  border: 1px solid rgba(59,130,246,.28); background: rgba(59,130,246,.10);
+  color: var(--color-blue); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer;
 }
 
 
@@ -8340,6 +8372,11 @@ input[type="checkbox"].gym-check,
 }
 .cockpit-set-row input { min-width: 0; }
 .cockpit-set-row input { min-height: var(--touch-target); }
+.set-entry { min-width: 0; display: grid; gap: 3px; }
+.set-entry small {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-muted); font-size: .56rem; font-weight: 650; text-align: center;
+}
 
 .set-load-choice {
   grid-column: 1 / -1;

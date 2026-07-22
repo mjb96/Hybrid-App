@@ -1,7 +1,7 @@
 # Helyx Improvement Roadmap
 
 **Prepared:** 14 July 2026  
-**Last reconciled with `main`:** 22 July 2026
+**Last reconciled with `main`:** 23 July 2026
 **Goal:** reach a trustworthy Android public beta without expanding scope  
 **Constraint:** iOS, billing, paywalls, and new feature categories remain deferred
 
@@ -426,6 +426,16 @@ count, downloads, or monetization—are the decision metrics.
   selected chart points share the same records. The service-worker cache advances to v105.
   This moves the executable inventory to 37 exact details and 76 static metrics; remaining
   Strength e1RM/profile/calendar/balance work and the other Stage 4–5 domains remain open.
+- **R30 Gym Performance and logger-history slice complete — 23 July 2026** on
+  `codex/gym-performance-logger`. Home's Gym Performance card now opens an exact 7D/4W/1Y
+  strength-activity view with selectable time, session, working-set and volume metrics; honest
+  elapsed-period comparisons; inspectable bins; exact Activity evidence; and duration-coverage
+  disclosure. One canonical legacy-compatible strength-duration parser now prevents analytics
+  from treating a plain `60` as both seconds and minutes. The workout logger exposes the exact
+  previous session and its working sets, aligns prior values with current inputs, and can copy
+  only into blank fields. Progress concern no longer labels three successful week-two sessions
+  a plateau: it requires three comparable sessions spanning 14–56 days plus a current target
+  miss, and is presented as a neutral progress check. Cache advances to v110.
 - **R20 program-editor foundation complete — 22 July 2026** on
   `codex/program-editor-foundation`. The custom editor now presents one focused day instead of
   seven full cards, with a compact weekly selector, searchable canonical exercise library,
@@ -660,7 +670,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
 | R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; exercise/history tables split identity; unbounded duplicated e1RM and optimistic progression overstated certainty; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time identity/history; bounded e1RM; conservative set/RPE progression; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/e1RM/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue/all-program history; e1RM eligibility; top-load/RPE progression; volume-credit/browser flows. | Engineering complete on `codex/exercise-volume-finish-audit`. |
 | R29 | Analytics hierarchy/evidence | Important cards were static or routed to generic screens; duplicate comparison/week logic mixed periods, and exercise/muscle evidence was difficult to inspect. | Establish summary → detail → evidence; add Weekly Volume and strength-entity drill-downs; centralize calendar periods/comparisons; align Home, Running, Recovery and Hybrid Score wording/interactions. | analytics aggregates/navigation/views/charts, Home In Focus, Hybrid Score UI, analytics CSS/HTML, service-worker precache. | Valid-set/date/future/partial/zero/alias/program-switch fixtures, navigation/render tests, mobile overflow/touch QA, full verify. | Engineering complete on `codex/analytics-drilldowns`. |
-| R30 | Complete analytics interaction contract | Inventory confirmed 135 metrics/173 surface instances: only four exact detail destinations before this work, generic Running routes, 79 static metrics, and a mixed-cache boot failure. | Keep the executable inventory as the guard; land one evidence-backed domain family at a time. Running and Strength volume are complete; continue Strength e1RM/profile/calendar/balance, then Recovery/Health/Hybrid/Home/Profile. | metric inventory/registry, analytics routes/views/charts, canonical domain calculations, Home/Profile adapters, cache bootstrap/precache. | Every metric contract field; summary/detail/unit/period/evidence identity; new/established/1,000-activity fixtures; edit/delete/future/undated/same-day/archive; 360/390/412, 200% text, theme/motion/offline browser journeys. | Inventory/shared contract + Running complete on `codex/analytics-contract-running`; Strength volume family complete on `codex/r30-strength-metrics`; remaining Stage 4–5 domains open. |
+| R30 | Complete analytics interaction contract | Inventory confirmed 135 metrics/173 surface instances: only four exact detail destinations before this work, generic Running routes, 79 static metrics, and a mixed-cache boot failure. | Keep the executable inventory as the guard; land one evidence-backed domain family at a time. Running, Strength volume and Home Gym Performance are complete; continue Strength e1RM/profile/calendar/balance, then Recovery/Health/Hybrid/Home/Profile. | metric inventory/registry, analytics routes/views/charts, canonical domain calculations, Home/Profile adapters, cache bootstrap/precache. | Every metric contract field; summary/detail/unit/period/evidence identity; new/established/1,000-activity fixtures; edit/delete/future/undated/same-day/archive; 360/390/412, 200% text, theme/motion/offline browser journeys. | Inventory/shared contract + Running complete on `codex/analytics-contract-running`; Strength volume family complete on `codex/r30-strength-metrics`; Gym Performance complete on `codex/gym-performance-logger`; remaining Stage 4–5 domains open. |
 | R31 | Login/onboarding recovery | Clearing browser/app data removes both local state and the saved auth session, so returning users were forced into new-user onboarding while JSON restore was hidden in Settings; boot also scheduled a blank-state autosave. | Put cloud and offline-file restore on the first welcome screen and block blank local/cloud persistence until recovery or deliberate setup resolves. | onboarding markup/controller, app import routing, state persistence gate, core CSS/precache. | Fresh-write lock, recovery-choice contract, auth/modal focus, 320–412px/200%-text and full required browser journeys. | Complete on `codex/recovery-first-welcome`; physical Android clear-data/cloud/JSON restore remains part of the owner portability/device evidence. |
 
 ## Phase 0 — Public-beta integrity gate
@@ -714,7 +724,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R19 | Remove silent unknown-program fallback; validate IDs and surface recovery. | Moderate | Makes damaged state visible and recoverable. | 1–2 days | Low | Import/state validation. | Unknown/deleted custom ID fixtures; UI recovery choices; no mismatch between rendered program and stored ID. | Invalid IDs cannot silently render another plan. |
 | R27 | Correct FIT training-effect mapping and make import success depend on an awaited destination save; validate parser output. | Moderate | Makes Garmin import labels and completion trustworthy. | 2–3 days | Medium: fixture/device variation. | Versioned import field contract; representative FIT fixtures. | Run/gym/malformed/multi-session files, unit checks, callback failure; success appears only after state/route save. | Imported fields match FIT semantics and no failed write is presented as imported. |
 | R29 | Build a period-honest analytics hierarchy with tappable Weekly Volume, exercise/muscle evidence and shared calendar comparison/navigation. | Significant | Lets athletes understand and verify the sessions behind important trends instead of trusting disconnected totals. | Complete | Medium: broad read-only surface. | R2 identities, R21/R28 canonical history/catalogue, calendar-week aggregate. | Valid/skipped/warm-up/edited/deleted/duplicate/program-switch/future/partial/year/DST fixtures; render/navigation and 390 px mobile QA. | Major strength summaries open period-consistent detail/evidence, exact records remain traceable, and shared labels match their calculations. |
-| R30 | Give every inventoried analytic a stable identity and exact, evidence-backed detail; deliver one safe domain slice at a time. | Significant | Makes summaries understandable for a first session and verifiable across years of history. | Stage 1–3 + Strength volume family complete; Stage 4–5 open | Medium–High: broad read-only surfaces and calculation drift risk. | R2/R21/R22/R28/R29 canonical session, identity, load and calendar seams. | Executable 135-metric inventory; exact destination/period/unit/evidence guards; sparse and 1,000-activity fixtures; required phone/theme/motion/text/offline browser matrix. | Every genuine tile is visibly interactive and summary, history, comparison and exact evidence share one tested calculation; Running and Strength volume satisfy this now, remaining domains do not yet. |
+| R30 | Give every inventoried analytic a stable identity and exact, evidence-backed detail; deliver one safe domain slice at a time. | Significant | Makes summaries understandable for a first session and verifiable across years of history. | Stage 1–3 + Strength volume + Gym Performance complete; Stage 4–5 open | Medium–High: broad read-only surfaces and calculation drift risk. | R2/R21/R22/R28/R29 canonical session, identity, load and calendar seams. | Executable 135-metric inventory; exact destination/period/unit/evidence guards; sparse and 1,000-activity fixtures; required phone/theme/motion/text/offline browser matrix. | Every genuine tile is visibly interactive and summary, history, comparison and exact evidence share one tested calculation; Running, Strength volume and Home Gym Performance satisfy this now, remaining domains do not yet. |
 
 **Phase 2 exit gate:** coaching exposes uncertainty; Health/GPS/device integrations have device evidence; privileged runtime is self-contained.
 
@@ -769,6 +779,16 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-23 · R30 Gym Performance and logger history on `codex/gym-performance-logger`:
+  added an exact Garmin-style 7D/4W/1Y Gym Performance detail from Home, canonicalized strength
+  duration, made previous workout sets and exact activity context useful in the logger, and
+  replaced the premature plateau label with an evidence-gated progress check. Unit/render/model
+  coverage includes same-day and archived sessions, future/undated exclusions, legacy duration,
+  blank-only value reuse and early-program progression. Every required Chromium journey passes,
+  including 320/390/412px Gym Performance checks with no overflow or sub-44px controls; full
+  verify is green with 1,136 tests. · Next: review/merge this independent slice, then continue
+  R30 Strength e1RM/profile/calendar/balance; R15 physical-device/Play evidence remains the
+  launch blocker.
 - 2026-07-22 · Android import-picker fix on `codex/android-import-picker-fix`: corrected the
   WebView extension-to-MIME mismatch that prevented APK users from selecting `.json` backups
   (and could affect `.fit` files), with native fixtures for JSON, mixed/deduplicated filters,
