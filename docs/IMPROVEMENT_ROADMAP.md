@@ -466,6 +466,14 @@ count, downloads, or monetization—are the decision metrics.
   folder may be synced by its provider; Android system app backup remains disabled. Physical
   folder, permission-loss, clear-data and reimport evidence remains `[You]` work in
   `docs/android-export-device-checklist.md`.
+- **Android JSON/FIT import picker correction complete — 22 July 2026** on
+  `codex/android-import-picker-fix`. WebView can report HTML file filters as extensions such
+  as `.json` and `.fit`, while Android's document contract accepts MIME types only; the shell
+  previously forwarded those incompatible extensions and could hide otherwise valid backup/FIT
+  files. One pure native normalizer now maps JSON and FIT to provider-compatible MIME filters,
+  preserves valid wildcards such as `image/*`, deduplicates mixed filters, and safely opens the
+  general picker for unknown extensions. Existing JSON/FIT content validation remains the data
+  safety boundary after selection.
 - **Volume Guide Phase 1 complete — 22 July 2026** on `codex/volume-guide`. Strength analytics
   now separates calendar-week logged set credits from the active program's week-specific planned
   credits, exposes direct and indirect contribution, and lets the athlete choose Grow, Maintain,
@@ -761,6 +769,13 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Android import-picker fix on `codex/android-import-picker-fix`: corrected the
+  WebView extension-to-MIME mismatch that prevented APK users from selecting `.json` backups
+  (and could affect `.fit` files), with native fixtures for JSON, mixed/deduplicated filters,
+  FIT providers, image wildcards and safe fallback. `npm run verify` is green with 1,123 tests;
+  Android JVM/compile/lint/APK confirmation remains in required PR CI because local Gradle is
+  unavailable. · Next: open the small fix PR, then confirm Settings and recovery-welcome imports
+  with an automatic backup on a physical APK.
 - 2026-07-22 · PR #158 conflict resolution on `codex/offline-auto-backups`: merged the
   Volume Guide mainline commit without rewriting history, retained both roadmap records and
   both offline module graphs, and kept the newer v109 cache boundary. `npm run verify` is green
