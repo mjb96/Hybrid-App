@@ -445,6 +445,14 @@ count, downloads, or monetization—are the decision metrics.
   completing, or inflating today's session. Workout clocks are owned by activation/week/day or
   one-off session identity, preventing elapsed time from carrying between workouts. This cannot
   recreate data overwritten before the recovery vault existed; no historical values are fabricated.
+- **R31 recovery-first welcome and fresh-state write guard complete — 22 July 2026** on
+  `codex/recovery-first-welcome`. A cleared device now opens with explicit new-profile,
+  cloud-sign-in and offline JSON-restore choices instead of forcing a returning athlete through
+  onboarding. Cloud and local persistence remain locked while only boot's empty defaults exist;
+  real local state, a successful cloud pull, a validated JSON restore, or deliberate onboarding
+  completion releases the gate. This closes the delayed-autosave race that could otherwise upload
+  a blank scaffold while sign-in recovery was in flight. Invalid/cancelled imports retain the
+  recovery welcome and do not replace state.
 
 ### 19 July reliability audit findings
 
@@ -573,7 +581,8 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 
 Completed recommendations remain in the implementation register and phase tables as
 acceptance evidence; they are not the active queue. R17, R18, R21, R22, R28, R29, and the
-R30 inventory/shared-contract/Running and the Strength volume-family slice, plus the
+R30 inventory/shared-contract/Running and the Strength volume-family slice, R31 recovery-first
+entry, plus the
 legacy-compatible R20 program-editor foundation, are engineering-complete; remaining Strength e1RM/profile/calendar/balance and
 Recovery/Health/Hybrid/Home/Profile follow-ups remain reviewable Stage 4–5 slices, and R25
 remains an incremental seam-by-seam practice.
@@ -621,6 +630,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; exercise/history tables split identity; unbounded duplicated e1RM and optimistic progression overstated certainty; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time identity/history; bounded e1RM; conservative set/RPE progression; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/e1RM/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue/all-program history; e1RM eligibility; top-load/RPE progression; volume-credit/browser flows. | Engineering complete on `codex/exercise-volume-finish-audit`. |
 | R29 | Analytics hierarchy/evidence | Important cards were static or routed to generic screens; duplicate comparison/week logic mixed periods, and exercise/muscle evidence was difficult to inspect. | Establish summary → detail → evidence; add Weekly Volume and strength-entity drill-downs; centralize calendar periods/comparisons; align Home, Running, Recovery and Hybrid Score wording/interactions. | analytics aggregates/navigation/views/charts, Home In Focus, Hybrid Score UI, analytics CSS/HTML, service-worker precache. | Valid-set/date/future/partial/zero/alias/program-switch fixtures, navigation/render tests, mobile overflow/touch QA, full verify. | Engineering complete on `codex/analytics-drilldowns`. |
 | R30 | Complete analytics interaction contract | Inventory confirmed 135 metrics/173 surface instances: only four exact detail destinations before this work, generic Running routes, 79 static metrics, and a mixed-cache boot failure. | Keep the executable inventory as the guard; land one evidence-backed domain family at a time. Running and Strength volume are complete; continue Strength e1RM/profile/calendar/balance, then Recovery/Health/Hybrid/Home/Profile. | metric inventory/registry, analytics routes/views/charts, canonical domain calculations, Home/Profile adapters, cache bootstrap/precache. | Every metric contract field; summary/detail/unit/period/evidence identity; new/established/1,000-activity fixtures; edit/delete/future/undated/same-day/archive; 360/390/412, 200% text, theme/motion/offline browser journeys. | Inventory/shared contract + Running complete on `codex/analytics-contract-running`; Strength volume family complete on `codex/r30-strength-metrics`; remaining Stage 4–5 domains open. |
+| R31 | Login/onboarding recovery | Clearing browser/app data removes both local state and the saved auth session, so returning users were forced into new-user onboarding while JSON restore was hidden in Settings; boot also scheduled a blank-state autosave. | Put cloud and offline-file restore on the first welcome screen and block blank local/cloud persistence until recovery or deliberate setup resolves. | onboarding markup/controller, app import routing, state persistence gate, core CSS/precache. | Fresh-write lock, recovery-choice contract, auth/modal focus, 320–412px/200%-text and full required browser journeys. | Complete on `codex/recovery-first-welcome`; physical Android clear-data/cloud/JSON restore remains part of the owner portability/device evidence. |
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -727,6 +737,14 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · R31 recovery-first welcome on `codex/recovery-first-welcome`: fresh/cleared
+  devices now offer Set up, cloud sign-in restore and offline JSON restore before requesting a
+  name. Boot's empty scaffold cannot be saved locally or uploaded while recovery is unresolved,
+  closing the sign-in autosave race; real local/cloud data, validated import or deliberate setup
+  releases the lock. `npm run verify` is green with 1,109 tests and every required Chromium
+  journey passes at phone widths, 200% text and keyboard/modal navigation; cache advances to
+  v107. · Next: review/merge this standalone data-safety PR, then prove clear-data → cloud and
+  JSON restore on the physical Android owner checklist; R15/release evidence remains open.
 - 2026-07-22 · R20 program-editor foundation on `codex/program-editor-foundation`: replaced
   the storage-shaped seven-card form with a compact day-focused schedule, canonical exercise
   search/custom fallback, safe day actions, editable metadata/progression, validation and an

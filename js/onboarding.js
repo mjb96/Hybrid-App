@@ -8,6 +8,7 @@ import { recommendStarterPrograms } from './onboarding/starter-programs.js';
 import { difficultyDisclosure, onboardingSettings } from './onboarding/preferences.js';
 import { heroHTML } from './brain/hybrid-score/ui.js';
 import { todayKey } from './dates.js';
+import { completeRecoveryGate } from './state/recovery-gate.js';
 
 let _getState;
 
@@ -41,8 +42,24 @@ export function shouldShowOnboarding() {
 export function startOnboarding() {
   const overlay = document.getElementById('onboardingOverlay');
   if (!overlay) return;
+  _showRecoveryGateway();
   _showStep(1);
   overlay.classList.add('active');
+}
+
+function _showRecoveryGateway() {
+  const gateway = document.getElementById('obRecoveryGateway');
+  const setup = document.getElementById('obNewProfileSetup');
+  if (gateway) gateway.hidden = false;
+  if (setup) setup.hidden = true;
+}
+
+function _showNewProfileSetup() {
+  const gateway = document.getElementById('obRecoveryGateway');
+  const setup = document.getElementById('obNewProfileSetup');
+  if (gateway) gateway.hidden = true;
+  if (setup) setup.hidden = false;
+  document.getElementById('obName')?.focus();
 }
 
 const GOAL_PROGRAMS = {
@@ -126,7 +143,14 @@ function _renderProgramList() {
 }
 
 export function handleOnboardingAction(action, target) {
-  if (action === 'ob-next') {
+  if (action === 'ob-start-new') {
+    _showNewProfileSetup();
+  } else if (action === 'ob-back-recovery') {
+    _showRecoveryGateway();
+    document.querySelector('[data-action="ob-start-new"]')?.focus();
+  } else if (action === 'ob-import-backup') {
+    document.getElementById('onboardingImportFile')?.click();
+  } else if (action === 'ob-next') {
     const toStep = parseInt(target.dataset.to, 10);
     if (toStep === 2) {
       const name = document.getElementById('obName')?.value?.trim();
@@ -258,6 +282,10 @@ function _finish() {
     else appState.bodyWeightLog.push({ date: today, weight: bw });
   }
 
+  // Deliberately completing new-profile setup releases the fresh-device cloud
+  // write lock. Until this point, blank defaults cannot overwrite a returning
+  // user's cloud history during sign-in.
+  completeRecoveryGate();
   saveStateToLocalStorage(true);
 
   const initials = name
