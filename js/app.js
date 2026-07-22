@@ -1087,7 +1087,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-account')       deleteAccount();
 
   // Onboarding
-  else if (['ob-next','ob-back','ob-goal','ob-level','ob-frequency','ob-recovery','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish','ob-notif-enable','ob-notif-skip'].includes(action)) {
+  else if (['ob-start-new','ob-back-recovery','ob-import-backup','ob-next','ob-back','ob-goal','ob-level','ob-frequency','ob-recovery','ob-equipment','ob-program','ob-unit','ob-dist-unit','ob-finish','ob-notif-enable','ob-notif-skip'].includes(action)) {
     handleOnboardingAction(action, target);
   }
 
@@ -1232,7 +1232,7 @@ document.addEventListener('change', (e) => {
     }
     return;
   }
-  if (target.id === 'settingsImportFile') {
+  if (target.id === 'settingsImportFile' || target.id === 'onboardingImportFile') {
     handleImportFile(target.files?.[0]);
     target.value = '';
     return;

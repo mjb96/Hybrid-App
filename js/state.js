@@ -28,6 +28,11 @@ import {
 } from './state/activation-identity.js';
 import { migrateLegacyRunSessions, runSessionsForDay } from './state/run-sessions.js';
 import { isCompletedSet } from './set-utils.js';
+import {
+  beginRecoveryGate,
+  reconcileRecoveryGate,
+  isRecoveryGatePending,
+} from './state/recovery-gate.js';
 
 export { loginToSupabase, signUpToSupabase, checkActiveSession };
 export { triggerEngineExport, triggerCSVExport, triggerEngineImport, setImportSuccessCallback };
@@ -609,6 +614,10 @@ function _now() { return (typeof performance !== 'undefined' && performance.now)
 function writeLocalNow() {
   if (_localTimer) { clearTimeout(_localTimer); _localTimer = null; }
   _localPending = false;
+  // Do not turn boot's empty defaults into a "returning" local profile while
+  // the recovery welcome is waiting. A cloud/JSON restore writes its real data
+  // directly or releases this gate; deliberate onboarding completion does too.
+  if (isRecoveryGatePending()) return false;
   appState.loadMetrics = memoizedLoadMetrics(appState);
   const t0 = _persistDebug ? _now() : 0;
   let saved = false;
@@ -682,6 +691,14 @@ export function shouldResyncOnReconnect(dirty, hasClient, conflictPending) {
 }
 
 async function cloudSave(suppressToast) {
+  // A cleared/fresh device starts with a valid-looking but empty default state.
+  // Never let a delayed boot autosave upload that blank scaffold while the user
+  // is signing in or choosing a backup. The gate is released only after local
+  // or cloud data loads, or the user deliberately completes onboarding.
+  if (isRecoveryGatePending()) {
+    if (!suppressToast) showToast('Saved on this device. Restore or finish setup before cloud sync.');
+    return;
+  }
   const _sb = getSupabaseClient();
   if (!_sb) {
     if (!suppressToast) showToast('Session Saved Locally ✓');
@@ -821,8 +838,10 @@ export async function saveStateToLocalStorage(suppressToast = false) {
 }
 
 export async function pullEngineDataFromStorage() {
+  beginRecoveryGate();
   let localData = null;
   let rawLocal = null;
+  let loadedCloudState = false;
   try {
     rawLocal = localStorage.getItem(STORAGE_KEY);
     if (rawLocal) {
@@ -906,6 +925,7 @@ export async function pullEngineDataFromStorage() {
           ...cloudRow.state_data,
           settings: { ...baseDefaults.settings, ...(cloudRow.state_data && cloudRow.state_data.settings) },
         };
+        loadedCloudState = true;
         // Record the server version we just loaded, so a later save can tell
         // whether another device has written since (divergence detection).
         if (cloudRow.updated_at) setStoredCloudVersion(cloudRow.updated_at);
@@ -965,6 +985,12 @@ export async function pullEngineDataFromStorage() {
     showMigrationRecovery(migrationError);
     throw migrationError;
   }
+
+  reconcileRecoveryGate({
+    hadLocalState: localData != null,
+    loadedCloudState,
+    onboardingComplete: appState.settings?.onboardingComplete === true,
+  });
 
   verifyWeekStorageSchema(appState.currentWeek);
   appState.loadMetrics = recomputeLoadMetrics(appState);

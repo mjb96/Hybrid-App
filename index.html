@@ -1246,18 +1246,46 @@
   <!-- Onboarding -->
   <div class="ob-overlay" id="onboardingOverlay" role="dialog" aria-label="Setup" data-modal-root data-modal-dismissible="false" inert aria-hidden="true">
 
-    <!-- Step 1: Name -->
+    <!-- Step 1: Recovery-first welcome, then new-profile name -->
     <div class="ob-step ob-step-active" id="ob-step-1">
       <div class="ob-card">
-        <div class="ob-emoji">⚡</div>
-        <h1 class="ob-heading">Welcome to<br>Helyx</h1>
-        <p class="ob-sub">Build strength. Run faster. Let's set you up.</p>
-        <div class="ob-field">
-          <label class="ob-label" for="obName">What's your name?</label>
-          <input type="text" id="obName" class="ob-input" placeholder="Your name" autocomplete="given-name">
+        <div class="ob-entry-panel" id="obRecoveryGateway">
+          <div class="ob-emoji">⚡</div>
+          <h1 class="ob-heading">Welcome to<br>Helyx</h1>
+          <p class="ob-sub">Build strength. Run faster. Keep your training history yours.</p>
+
+          <button class="ob-cta ob-entry-primary" data-action="ob-start-new">
+            <span>Set up Helyx</span>
+            <small>Start a new profile on this device</small>
+          </button>
+
+          <div class="ob-returning-card" aria-labelledby="obReturningTitle">
+            <h2 id="obReturningTitle">Already trained with Helyx?</h2>
+            <p>Recover your existing profile instead of setting up again.</p>
+            <button class="ob-recovery-action" data-action="open-auth">
+              <span class="ob-recovery-action__icon" aria-hidden="true">☁</span>
+              <span><strong>Sign in and restore</strong><small>Load your cloud backup · internet required</small></span>
+            </button>
+            <button class="ob-recovery-action ob-recovery-action--backup" data-action="ob-import-backup">
+              <span class="ob-recovery-action__icon" aria-hidden="true">↥</span>
+              <span><strong>Restore backup file</strong><small>Import your Helyx JSON · works offline</small></span>
+            </button>
+            <input type="file" id="onboardingImportFile" aria-label="Choose Helyx backup file to restore" accept=".json,application/json" class="hidden-input">
+          </div>
+          <p class="ob-entry-warning">Setting up Helyx starts a new empty profile. Restore first if you have existing training data.</p>
         </div>
-        <button class="ob-cta" data-action="ob-next" data-to="2">Continue →</button>
-        <button class="ob-skip" data-action="open-auth">Already have an account? Sign in</button>
+
+        <div class="ob-entry-panel" id="obNewProfileSetup" hidden>
+          <button class="ob-back-link ob-entry-back" data-action="ob-back-recovery">← Back to restore options</button>
+          <div class="ob-emoji">⚡</div>
+          <h1 class="ob-heading">Create your<br>Helyx profile</h1>
+          <p class="ob-sub">Build strength. Run faster. Let's set you up.</p>
+          <div class="ob-field">
+            <label class="ob-label" for="obName">What's your name?</label>
+            <input type="text" id="obName" class="ob-input" placeholder="Your name" autocomplete="given-name">
+          </div>
+          <button class="ob-cta" data-action="ob-next" data-to="2">Continue →</button>
+        </div>
       </div>
     </div>
 

@@ -200,6 +200,11 @@ try {
   check(await authTrigger.evaluate((el) => document.activeElement === el), 'closing auth did not restore focus to its trigger');
   check(await onboarding.locator('#onboardingOverlay').evaluate((el) => el.classList.contains('active')), 'closing auth dismissed onboarding');
 
+  check(await onboarding.locator('[data-action="ob-import-backup"]').isVisible(), 'offline backup restore is not available from welcome');
+  check(await onboarding.locator('#onboardingImportFile').getAttribute('accept') === '.json,application/json', 'welcome restore does not constrain the backup file type');
+  await onboarding.click('[data-action="ob-start-new"]');
+  check(await onboarding.locator('#obNewProfileSetup').isVisible(), 'new-profile setup did not open from the recovery welcome');
+  check(await onboarding.locator('#obName').evaluate((el) => document.activeElement === el), 'new-profile setup did not focus the name field');
   await onboarding.fill('#obName', 'Home Athlete');
   await onboarding.click('#ob-step-1 [data-action="ob-next"]');
   await onboarding.click('[data-action="ob-goal"][data-goal="strength"]');
@@ -223,6 +228,39 @@ try {
   check(saved.equipmentTier === 'home', `onboarding equipment tier did not persist: ${saved.equipmentTier}`);
   check(saved.equipment?.barbell === false && saved.equipment?.dumbbells === true, 'home equipment map did not persist canonically');
   await fresh.close();
+
+  // A returning offline user can restore a validated JSON backup directly
+  // from the welcome screen and lands in the app without replaying onboarding.
+  const restoreContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const restorePage = await restoreContext.newPage();
+  await restorePage.goto(base, { waitUntil: 'networkidle' });
+  await restorePage.waitForSelector('#onboardingOverlay.active');
+  const backup = {
+    schemaVersion: 5,
+    currentWeek: '1',
+    activeProgramId: 'hybrid_engine',
+    settings: { name: 'Recovered Athlete', onboardingComplete: true, weightUnit: 'kg', distanceUnit: 'km' },
+    customPrograms: [], customExercises: [], bodyWeightLog: [],
+    weeks: {
+      '1': {
+        lifts: { mon: { 'Bench Press': [{ w: '80', r: '5', c: true }] } },
+        dates: { mon: '2026-07-20' }, runs: {}, runSessions: {}, notes: {}, gymRpe: {}, gymStats: {},
+      },
+    },
+  };
+  await restorePage.locator('#onboardingImportFile').setInputFiles({
+    name: 'helyx-training.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await restorePage.getByRole('button', { name: 'Import backup', exact: true }).click();
+  await restorePage.waitForFunction(() => {
+    const savedState = JSON.parse(localStorage.getItem('hybrid_engine_v2_state') || '{}');
+    return savedState.settings?.name === 'Recovered Athlete'
+      && !document.getElementById('onboardingOverlay')?.classList.contains('active');
+  }, null, { timeout: 10000 });
+  const restored = await restorePage.evaluate(() => JSON.parse(localStorage.getItem('hybrid_engine_v2_state') || '{}'));
+  check(restored.settings?.name === 'Recovered Athlete', 'welcome JSON restore did not preserve the profile');
+  check(restored.weeks?.['1']?.lifts?.mon?.['Bench Press']?.[0]?.w === '80', 'welcome JSON restore did not preserve training history');
+  await restoreContext.close();
 } catch (error) {
   failures.push(error?.stack || error?.message || String(error));
 } finally {
