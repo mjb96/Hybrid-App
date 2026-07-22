@@ -1946,6 +1946,22 @@ body.sheet-scroll-locked {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
+.home-volume-guide {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 72px;
+  gap: 3px;
+  padding: 13px 42px 13px 14px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 24%, var(--border-default));
+  cursor: pointer;
+}
+.home-volume-guide__eyebrow { color: var(--color-cyan); font-size: .61rem; font-weight: 800; letter-spacing: .09em; }
+.home-volume-guide strong { color: var(--text-primary); font-size: .84rem; }
+.home-volume-guide > span:not(.home-volume-guide__eyebrow):not(.home-volume-guide__arrow) { color: var(--text-muted); font-size: .68rem; }
+.home-volume-guide__arrow { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 1.35rem; }
+
 /* ==========================================================================
    PROGRAM BUILDER UI FIXES
    ========================================================================== */

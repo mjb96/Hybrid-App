@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   computeReadiness, readinessStatus, readinessColor,
-  readinessRecommendation, strengthBalanceScore,
+  readinessRecommendation,
 } from '../js/analytics/scoring/readiness-scoring.js';
 
 test('computeReadiness: no signals -> null score, No Data', () => {
@@ -130,21 +130,4 @@ test('readinessRecommendation: sleep-limited moderate band', () => {
 
 test('readinessRecommendation: peak band suggests PR attempt', () => {
   assert.match(readinessRecommendation(90, {}), /PR attempt/);
-});
-
-test('strengthBalanceScore: balanced vs imbalanced', () => {
-  assert.equal(strengthBalanceScore(null), null);
-  assert.equal(strengthBalanceScore({}), null);
-  // all in-range -> 100
-  assert.equal(strengthBalanceScore({ a: 'optimal', b: 'growth' }), 100);
-  // half below MEV (no_data excluded from tracked) -> penalty 50
-  assert.equal(
-    strengthBalanceScore({ a: 'optimal', b: 'detraining', c: 'no_data' }),
-    50,
-  );
-  // 'maintenance' also counts as below effective volume
-  assert.equal(
-    strengthBalanceScore({ a: 'growth', b: 'maintenance' }),
-    50,
-  );
 });

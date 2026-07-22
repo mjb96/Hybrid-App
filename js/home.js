@@ -25,6 +25,7 @@ import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly
 import { setHTML, reconcileKeyed } from './ui/render.js';
 import { reportHandledError, renderSafely } from './monitoring/report-error.js';
 import { todayKey } from './dates.js';
+import { buildVolumeGuideModel, hasExplicitMusclePriorities } from './analytics/volume-guide.js';
 
 let _getState;
 let _getSelectedDay;
@@ -275,6 +276,31 @@ function updateQuickActions(model) {
   }
 }
 
+function renderHomeVolumeGuide(appState, activeProgram) {
+  const card = document.getElementById('homeVolumeGuideCard');
+  if (!card) return;
+  if (!hasExplicitMusclePriorities(appState)) {
+    card.style.display = 'none';
+    return;
+  }
+  const guide = buildVolumeGuideModel(appState, { program: activeProgram });
+  if (!guide.summary.focusCount) {
+    card.style.display = 'none';
+    return;
+  }
+  const value = document.getElementById('homeVolumeGuideValue');
+  const sub = document.getElementById('homeVolumeGuideSub');
+  if (value) value.textContent = `${guide.summary.coveredCount} of ${guide.summary.focusCount} focus muscles covered`;
+  if (sub) {
+    sub.textContent = guide.deload
+      ? 'Planned deload · lower volume is expected'
+      : guide.summary.scheduledCount
+        ? `${guide.summary.scheduledCount} still scheduled this week`
+        : 'View logged, planned and supporting work';
+  }
+  card.style.display = '';
+}
+
 
 export function renderHome() {
   const appState = _getState();
@@ -368,6 +394,7 @@ export function renderHome() {
 
   renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive);
   renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
+  renderHomeVolumeGuide(appState, activeProgram);
 
   // V2 (S4): the week-compare card moves off Home — it was one of several
   // redundant "did you train this week" renderings the Hybrid Score already owns.

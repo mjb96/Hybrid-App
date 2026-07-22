@@ -464,8 +464,18 @@ count, downloads, or monetization—are the decision metrics.
   can resume writing. Browser/PWA automatic downloads remain unavailable by platform design and
   manual JSON export remains visible. Files are disclosed as unencrypted and a cloud-backed
   folder may be synced by its provider; Android system app backup remains disabled. Physical
-  folder, permission-loss, clear-data and reimport evidence
-  remains `[You]` work in `docs/android-export-device-checklist.md`.
+  folder, permission-loss, clear-data and reimport evidence remains `[You]` work in
+  `docs/android-export-device-checklist.md`.
+- **Volume Guide Phase 1 complete — 22 July 2026** on `codex/volume-guide`. Strength analytics
+  now separates calendar-week logged set credits from the active program's week-specific planned
+  credits, exposes direct and indirect contribution, and lets the athlete choose Grow, Maintain,
+  or Track only per muscle. The same `liftTarget` resolver powers the logger, guide, and custom
+  program editor projection; past weeks never fabricate a historical plan and deloads are labelled
+  as expected lower-volume weeks. Muscle detail adds an eight-week logged corridor with a planned
+  marker and exact workout evidence. Home shows a compact guide card only after an athlete makes an
+  explicit priority choice. Generic fixed-volume warnings and the unused fixed-band readiness score
+  were removed: reference bands remain transparent population guidance, not personal MEV/MRV,
+  recovery, or automatic training instruction.
 
 ### 19 July reliability audit findings
 
@@ -751,6 +761,11 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · PR #158 conflict resolution on `codex/offline-auto-backups`: merged the
+  Volume Guide mainline commit without rewriting history, retained both roadmap records and
+  both offline module graphs, and kept the newer v109 cache boundary. `npm run verify` is green
+  with 1,123 tests plus typecheck, precache, workflow policy and smoke. · Next: let required
+  Web/Android PR checks complete, then run the physical automatic-backup acceptance rows.
 - 2026-07-22 · Automatic offline JSON backup on `codex/offline-auto-backups`: Android now
   uses one explicitly chosen shared-storage folder for complete route-inclusive JSON backups,
   with latest + seven daily + four weekly retention, finished-session checkpoints, daily launch
@@ -761,6 +776,15 @@ implementation register.
   validation tests and compile gates remain for required PR CI; physical clear-data/reimport
   evidence is still owner-run. · Next: open a PR after owner approval, then run the expanded
   Android export checklist before beta.
+- 2026-07-22 · Volume Guide Phase 1 on `codex/volume-guide`: added athlete-owned Grow / Maintain /
+  Track priorities, calendar-week logged versus program-week planned set credits, direct/indirect
+  transparency, an eight-week muscle corridor, conditional Home card, and custom-program projected
+  coverage using the logger's target resolver. Removed generic volume-band coaching/readiness
+  penalties and retained neutral reference language. Unit/render/precache checks plus live browser
+  journeys for priority persistence, Home origin, Plan, muscle detail, and editor preview are green;
+  cache advances to v108. · Next: consider observed personal corridors only after 6–8 valid weeks
+  and beta evidence; merge/rebase after the recovery-first welcome branch, while physical Android
+  release evidence remains open.
 - 2026-07-22 · R31 recovery-first welcome on `codex/recovery-first-welcome`: fresh/cleared
   devices now offer Set up, cloud sign-in restore and offline JSON restore before requesting a
   name. Boot's empty scaffold cannot be saved locally or uploaded while recovery is unresolved,

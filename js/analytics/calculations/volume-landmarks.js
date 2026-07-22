@@ -106,11 +106,11 @@ export function classifyVolume(sets, lm) {
 /** @param {string} zone */
 export function zoneLabel(zone) {
   switch (zone) {
-    case 'detraining':   return 'Below typical';
-    case 'maintenance':  return 'Maintenance';
-    case 'growth':       return 'Productive range';
-    case 'optimal':      return 'Upper range';
-    case 'overreaching': return 'Above typical';
+    case 'detraining':   return 'Below general reference';
+    case 'maintenance':  return 'General maintenance range';
+    case 'growth':       return 'General productive range';
+    case 'optimal':      return 'Upper general range';
+    case 'overreaching': return 'Above general reference';
     default:             return 'No completed sets';
   }
 }
@@ -118,8 +118,8 @@ export function zoneLabel(zone) {
 /** @param {string} zone */
 export function zoneColor(zone) {
   switch (zone) {
-    case 'detraining':   return '#ef4444';
-    case 'maintenance':  return '#eab308';
+    case 'detraining':   return '#64748b';
+    case 'maintenance':  return '#3b82f6';
     case 'growth':       return '#22d3ee';
     case 'optimal':      return '#10b981';
     case 'overreaching': return '#f97316';

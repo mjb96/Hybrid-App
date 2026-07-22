@@ -70,6 +70,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/views/view-strength.js",
   "./js/analytics/views/view-weekly-review.js",
   "./js/analytics/views/view-weekly-volume.js",
+  "./js/analytics/volume-guide.js",
   "./js/analytics/week-chart-model.js",
   "./js/analytics/week-nav.js",
   "./js/analytics/weekly-aggregate.js",
