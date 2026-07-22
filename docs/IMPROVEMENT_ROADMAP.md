@@ -484,6 +484,15 @@ count, downloads, or monetization—are the decision metrics.
   preserves valid wildcards such as `image/*`, deduplicates mixed filters, and safely opens the
   general picker for unknown extensions. Existing JSON/FIT content validation remains the data
   safety boundary after selection.
+- **Android backup/export WebView invocation correction complete — 23 July 2026** on
+  `codex/android-auto-backup-fix`. Automatic-folder selection, automatic JSON writes and manual
+  JSON/CSV export previously stored Android WebView's host timer functions on a plain runtime
+  wrapper, then invoked them with that wrapper as `this`. WebKit rejected the call with
+  `TypeError: Illegal invocation` before any native picker or writer could run. Both portability
+  adapters now invoke timers with the actual Window receiver; the browser save picker receives
+  its owner for the same reason. WebView-strict regressions fail on the old call shape and pass
+  on the corrected one. Cache advances to v111; physical APK confirmation remains in the Android
+  export device checklist.
 - **Volume Guide Phase 1 complete — 22 July 2026** on `codex/volume-guide`. Strength analytics
   now separates calendar-week logged set credits from the active program's week-specific planned
   credits, exposes direct and indirect contribution, and lets the athlete choose Grow, Maintain,
@@ -779,6 +788,13 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-23 · Android backup/export invocation fix on `codex/android-auto-backup-fix`:
+  reproduced the Sentry `TypeError: Illegal invocation` with WebView-strict timer doubles and
+  corrected the receiver for automatic folder selection/writes, manual JSON/CSV export and the
+  browser save picker. Full verify is green with 1,138 tests and cache advances to v111. Local
+  Android Gradle/ADB are unavailable, so required PR CI must compile the release shell and the
+  physical APK checklist must confirm folder selection plus first/manual/session backup. · Next:
+  review/merge the hotfix, install the new APK and run the portability rows.
 - 2026-07-23 · R30 Gym Performance and logger history on `codex/gym-performance-logger`:
   added an exact Garmin-style 7D/4W/1Y Gym Performance detail from Home, canonicalized strength
   duration, made previous workout sets and exact activity context useful in the logger, and

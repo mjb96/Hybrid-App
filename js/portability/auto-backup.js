@@ -32,6 +32,29 @@ function unavailableStatus() {
   return { status: 'unavailable', available: false, configured: false };
 }
 
+/**
+ * WebKit's host timers are Web IDL methods: calling a stored `window.setTimeout`
+ * with the runtime wrapper as `this` throws `TypeError: Illegal invocation`.
+ * Keep the injectable test seam, but always invoke browser timers with their
+ * real Window receiver.
+ * @param {any} runtime
+ * @param {Function} callback
+ * @param {number} delay
+ */
+function scheduleTimeout(runtime, callback, delay) {
+  const timer = runtime.setTimeout;
+  if (typeof timer !== 'function') return undefined;
+  return Reflect.apply(timer, runtime.window || globalThis, [callback, delay]);
+}
+
+/** @param {any} runtime @param {any} timerId */
+function cancelTimeout(runtime, timerId) {
+  const clear = runtime.clearTimeout;
+  if (typeof clear === 'function' && timerId !== undefined) {
+    Reflect.apply(clear, runtime.window || globalThis, [timerId]);
+  }
+}
+
 /** @param {string} method @param {any[]} args @param {any} runtime @param {number} [timeoutMs] */
 function nativeCall(method, args, runtime, timeoutMs = 120000) {
   const win = runtime.window;
@@ -44,11 +67,11 @@ function nativeCall(method, args, runtime, timeoutMs = 120000) {
     const finish = (result) => {
       if (finished) return;
       finished = true;
-      runtime.clearTimeout?.(timer);
+      cancelTimeout(runtime, timer);
       delete win.__autoBackupCB[callbackId];
       resolve(result && typeof result === 'object' ? result : { status: 'error', message: 'Android returned an invalid backup result.' });
     };
-    const timer = runtime.setTimeout?.(() => finish({ status: 'error', message: 'Automatic backup timed out.' }), timeoutMs);
+    const timer = scheduleTimeout(runtime, () => finish({ status: 'error', message: 'Automatic backup timed out.' }), timeoutMs);
     win.__autoBackupCB[callbackId] = (json) => {
       try { finish(JSON.parse(json || '{}')); }
       catch { finish({ status: 'error', message: 'Android returned an invalid backup result.' }); }
