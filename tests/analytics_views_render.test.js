@@ -36,7 +36,7 @@ function weekDates(m) {
   return o;
 }
 
-let vs, vr, vw, ve, vsm;
+let vs, vr, vw, ve, vsm, vgp;
 before(async () => {
   globalThis.document = {
     getElementById: getEl, querySelector: () => null, querySelectorAll: () => [],
@@ -47,6 +47,7 @@ before(async () => {
   vw = await import('../js/analytics/views/view-weekly-volume.js');
   ve = await import('../js/analytics/views/view-strength-entity.js');
   vsm = await import('../js/analytics/views/view-strength-metric.js');
+  vgp = await import('../js/analytics/views/view-gym-performance.js');
 });
 
 function sampleState() {
@@ -134,4 +135,17 @@ test('weekly volume and entity drilldowns render useful empty states without thr
 
   assert.doesNotThrow(() => ve.renderExerciseDetail(state, { id: 'back_squat', name: 'Back Squat' }));
   assert.match(getEl('strengthEntityDetail').innerHTML, /No completed history in this range/);
+});
+
+test('Gym Performance renders range, metric and exact-evidence controls without invalid values', () => {
+  const state = sampleState();
+  assert.doesNotThrow(() => vgp.renderGymPerformance(state));
+  const html = getEl('gymPerformanceDetail').innerHTML;
+  assert.match(html, /Gym Performance/);
+  assert.match(html, /data-gym-range="7d"/);
+  assert.match(html, /data-gym-range="4w"/);
+  assert.match(html, /data-gym-range="1y"/);
+  assert.match(html, /data-gym-metric="time"/);
+  assert.match(html, /Contributing workouts/);
+  assert.doesNotMatch(html, /NaN|Infinity/);
 });

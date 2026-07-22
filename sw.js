@@ -16,7 +16,7 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v109';
+const CACHE_NAME = 'helyx-v110';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
@@ -44,6 +44,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/charts/recovery-charts.js",
   "./js/analytics/charts/strength-charts.js",
   "./js/analytics/comparison.js",
+  "./js/analytics/gym-performance.js",
   "./js/analytics/insights/build-insights.js",
   "./js/analytics/insights/insight-engine.js",
   "./js/analytics/logged-days.js",
@@ -59,6 +60,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/views/screen-kit.js",
   "./js/analytics/views/view-bodyweight.js",
   "./js/analytics/views/view-fasting.js",
+  "./js/analytics/views/view-gym-performance.js",
   "./js/analytics/views/view-monthly-report.js",
   "./js/analytics/views/view-progress.js",
   "./js/analytics/views/view-projections.js",
@@ -188,6 +190,7 @@ const REQUIRED_ASSETS = [
   "./js/state/supabase.js",
   "./js/state/sync-conflict-ui.js",
   "./js/state/sync-guard.js",
+  "./js/strength/duration.js",
   "./js/strength/e1rm.js",
   "./js/sw-reload.js",
   "./js/templates.js",

@@ -30,6 +30,7 @@ import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { comparePeriodValues } from './period-comparison.js';
 import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { todayKey } from '../dates.js';
+import { parseStrengthDurationSeconds } from '../strength/duration.js';
 
 export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_SHORT = { mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S' };
@@ -99,7 +100,7 @@ function dayCell(weekData, dayKey, type, metric) {
     const lifts = weekData?.lifts?.[dayKey] || {};
     const gs    = weekData?.gymStats?.[dayKey];
     const sets  = countWorkingSets(lifts);
-    const gymDurationSecs = gs ? parseDurationSecs(gs.time) : 0;
+    const gymDurationSecs = gs ? parseStrengthDurationSeconds(gs.time) : 0;
     // A day "has a session" if any working set was logged OR imported FIT stats
     // carry a real duration — so the bar honestly reflects a trained day even
     // when the chosen metric happens to be 0 for it.

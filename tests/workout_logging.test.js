@@ -216,8 +216,51 @@ test('workout card carries prior sets across program archives and exercise alias
 
   const benchCard = created.find((el) => /cockpit-ex-name">Bench Press</.test(el.innerHTML || ''));
   assert.ok(benchCard, 'current program Bench Press card renders');
-  assert.match(benchCard.innerHTML, /Last session: \[ 80kg × 5 \]/);
+  assert.match(benchCard.innerHTML, /Previous session/);
+  assert.match(benchCard.innerHTML, /1 set · top 80kg × 5/);
+  assert.match(benchCard.innerHTML, /Last 80kg/);
+  assert.match(benchCard.innerHTML, /Last 5 reps/);
+  assert.match(benchCard.innerHTML, /data-action="use-previous-values"/);
+  assert.match(benchCard.innerHTML, /data-action="open-activity-detail"/);
   assert.doesNotMatch(benchCard.innerHTML, /First time logging/);
+});
+
+test('Use previous values fills blank fields without overwriting or completing sets', () => {
+  initWith(freshState());
+  state.weeks['1'].lifts.mon['Bench Press'] = [
+    { w: '85', r: '', c: false }, { w: '', r: '', c: false },
+  ];
+  state.weeks['arch:old:1'] = {
+    dates: { tue: '2026-07-18' },
+    lifts: { tue: { 'Barbell Bench Press': [
+      { w: '80', r: '5', c: true }, { w: '75', r: '8', c: true },
+    ] } },
+    runs: {}, gymRpe: {}, gymStats: {},
+  };
+  const inputs = [
+    { weight: makeEl(), reps: makeEl() }, { weight: makeEl(), reps: makeEl() },
+  ];
+  const card = {
+    querySelector(selector) {
+      const match = selector.match(/data-set-index="(\d+)"/);
+      const entry = inputs[Number(match?.[1])];
+      return entry ? { querySelector: (inner) => inner.includes('weight') ? entry.weight : entry.reps } : null;
+    },
+  };
+  const original = globalThis.document.querySelector;
+  globalThis.document.querySelector = () => card;
+  try { workout.usePreviousValues('Bench Press'); }
+  finally { globalThis.document.querySelector = original; }
+
+  assert.deepEqual(state.weeks['1'].lifts.mon['Bench Press'], [
+    { w: '85', r: '5', c: false }, { w: '75', r: '8', c: false },
+  ]);
+  assert.equal(inputs[0].weight.value, '', 'existing weight remains untouched');
+  assert.equal(inputs[0].reps.value, '5');
+  assert.equal(inputs[1].weight.value, '75');
+  assert.equal(inputs[1].reps.value, '8');
+  assert.equal(state.weeks['1'].sessionStatus.mon, 'in_progress');
+  assert.ok(saveCount >= 1);
 });
 
 test('finishing a completed-but-undated workout stamps its local date so it stays visible', async () => {

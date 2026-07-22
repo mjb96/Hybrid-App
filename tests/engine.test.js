@@ -377,8 +377,8 @@ test('computeDiagnosticForLift: warm-up effort is excluded from the fatigue aver
   assert.equal(r.isFatigueOverload, false);
 });
 
-test('computeDiagnosticForLift: three flat eligible e1RMs hold for review', () => {
-  // e1rm non-increasing across weeks 1→3 (100 ≥ 100 ≥ 100) → plateau signal.
+test('computeDiagnosticForLift: completed targets are progression evidence, not a plateau', () => {
+  // Three identical sessions all met the target, so double progression wins.
   const flat = [{ w: '100', r: '5', c: true }];
   const state = {
     currentWeek: '4',
@@ -391,11 +391,44 @@ test('computeDiagnosticForLift: three flat eligible e1RMs hold for review', () =
   };
   initEngine(() => state, () => DAYS);
   const r = computeDiagnosticForLift('4', 'mon', 'Squat', 5);
-  assert.equal(r.isStalled, true);
-  assert.ok(r.progression, 'stall still produces a progression');
-  assert.equal(r.progression.action, 'hold');
-  assert.equal(r.suggestedWeight, 100);
-  assert.match(r.message, /review recovery/i);
+  assert.equal(r.isStalled, false);
+  assert.ok(r.progression);
+  assert.equal(r.progression.action, 'load-up');
+  assert.equal(r.suggestedWeight, 102.5);
+  assert.equal(r.message, '');
+});
+
+test('computeDiagnosticForLift: repeated target misses over a meaningful span prompt a progress check', () => {
+  const missed = [{ w: '100', r: '4', c: true }];
+  const state = {
+    currentWeek: '4',
+    weeks: {
+      '1': { dates: { mon: '2026-06-23' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
+      '2': { dates: { mon: '2026-06-30' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
+      '3': { dates: { mon: '2026-07-07' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
+      '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
+    },
+  };
+  initEngine(() => state, () => DAYS);
+  const result = computeDiagnosticForLift('4', 'mon', 'Squat', 5);
+  assert.equal(result.isStalled, true);
+  assert.equal(result.progression.action, 'hold');
+  assert.match(result.message, /3 comparable sessions over 14 days/i);
+  assert.doesNotMatch(result.message, /plateau/i);
+});
+
+test('computeDiagnosticForLift: three sessions inside two weeks are too soon for a progress warning', () => {
+  const missed = [{ w: '100', r: '4', c: true }];
+  const state = {
+    currentWeek: '4', weeks: {
+      '1': { dates: { mon: '2026-07-01' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
+      '2': { dates: { mon: '2026-07-05' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
+      '3': { dates: { mon: '2026-07-08' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
+      '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
+    },
+  };
+  initEngine(() => state, () => DAYS);
+  assert.equal(computeDiagnosticForLift('4', 'mon', 'Squat', 5).isStalled, false);
 });
 
 test('computeDiagnosticForLift: high-rep work cannot fabricate an e1RM plateau', () => {

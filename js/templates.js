@@ -10,7 +10,7 @@ export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null) {
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData) {
   const ghostWeight = historicalSetData?.w || weightUnit;
   const ghostReps   = historicalSetData?.r || prescribedReps || 'reps';
   const type = sData.type || '';
@@ -50,11 +50,13 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
          style="cursor:pointer; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); text-align: center;">
          Log ${numLabels[type]}
     </button>
-    <div>
+    <div class="set-entry">
       <input type="number" inputmode="decimal" class="input-weight-node" aria-label="Effective load for set ${sIdx + 1}" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(effectiveValue)}">
+      ${previousSetData?.w ? `<small>Last ${escapeHtml(String(previousSetData.w))}${escapeHtml(weightUnit)}</small>` : ''}
     </div>
-    <div>
+    <div class="set-entry">
       <input type="number" inputmode="numeric" class="input-reps-node" data-target-reps="${escapeHtml(String(prescribedRepGoal || ''))}" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
+      ${previousSetData?.r ? `<small>Last ${escapeHtml(String(previousSetData.r))} reps</small>` : ''}
     </div>
     <div class="gym-check-container">
       <label class="gym-check-wrap">
@@ -100,9 +102,9 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   </div>`;
 }
 
-export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, setsMarkup, groupId = null, ssColor = null }) {
-  const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">PLATEAU</span>` : '';
-  const targetStyle  = diagnostic.isStalled ? 'color: var(--accent-red); font-weight: 800;' : '';
+export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, historyPanelHTML = '', setsMarkup, groupId = null, ssColor = null }) {
+  const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">PROGRESS CHECK</span>` : '';
+  const targetStyle  = diagnostic.isStalled ? 'color: var(--color-amber); font-weight: 800;' : '';
   const ssBtnClass   = groupId ? 'btn-ss-link ss-active' : 'btn-ss-link';
   const ssBtnStyle   = groupId ? `style="--ss-color:${ssColor};"` : '';
   const ssBtnLabel   = groupId ? `SS ${groupId}` : 'SS+';
@@ -123,7 +125,7 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
   </div>
   <div class="cockpit-body">
     <div class="local-timer-placeholder"></div>
-    <span class="cockpit-history-line">⚡ ${historicalLineText}</span>
+    ${historyPanelHTML || `<span class="cockpit-history-line">${historicalLineText}</span>`}
     ${diagnostic.progression && diagnostic.progression.weight ? `
       <div class="cockpit-coach-target">
         <span class="cct-text">🎯 Target <b>${escapeHtml(String(diagnostic.progression.weight))} × ${escapeHtml(String(diagnostic.progression.reps))}</b></span>

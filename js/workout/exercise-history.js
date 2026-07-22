@@ -129,6 +129,9 @@ export function exercisePerformanceHistory(state, exerciseName, options = {}) {
         activationId: week.activationId || null,
         programId: week.programId || null,
         sessionId: week.sessionId || null,
+        activityId: week.sessionId
+          ? `strength:${week.sessionId}`
+          : `strength:${encodeURIComponent(weekKey)}:${day}`,
         sessionTimestamp: explicitSessionTimestamp(week, day),
         workingSets,
         ...best,

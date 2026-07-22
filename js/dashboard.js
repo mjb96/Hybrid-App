@@ -25,6 +25,7 @@ import { fmtFastDuration, fmtHoursLabel } from './fasting.js';
 import { isCompletedSet } from './set-utils.js';
 import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { buildRunningMetricDetail } from './analytics/running-detail.js';
+import { parseStrengthDurationMinutes } from './strength/duration.js';
 
 export const DashboardTileType = Object.freeze({
   METRIC:    'metric',
@@ -347,7 +348,7 @@ export const TILE_REGISTRY = [
         if (weekData) {
           days.forEach(d => {
             const gRpe = parseInt(weekData.gymRpe?.[d], 10) || 0;
-            const gymMins = parseFloat(weekData.gymStats?.[d]?.time) || 0;
+            const gymMins = parseStrengthDurationMinutes(weekData.gymStats?.[d]?.time);
             const dayLifts = weekData.lifts?.[d] || {};
             let completedSets = 0;
             for (const lift in dayLifts) {

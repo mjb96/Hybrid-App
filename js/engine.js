@@ -8,6 +8,7 @@ import { isCompletedSet, isWarmupSet } from './set-utils.js';
 import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js';
 import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
 import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
+import { daysBetween } from './dates.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -179,13 +180,19 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
   result.suggestedWeight = lastSession.weight || '';
   result.suggestedReps = lastSession.reps || '';
 
-  if (history.length >= 3
-      && history.slice(0, 3).every((row) => row.e1rm > 0)
-      && history[0].e1rm <= history[1].e1rm
-      && history[1].e1rm <= history[2].e1rm) {
-    result.isStalled = true;
-    result.message = `${liftName}'s estimated-strength trend is flat across 3 sessions. Hold the load and review recovery before adding weight.`;
-  }
+  // A repeated load is not automatically a plateau: completing the prescribed
+  // target is evidence to progress, even if the last three e1RM estimates are
+  // numerically identical. Keep a conservative candidate here and qualify it
+  // after checking whether the latest performance actually missed the target.
+  const recentTrend = history.slice(0, 3);
+  const trendSpanDays = recentTrend.length === 3
+    ? daysBetween(recentTrend[2].date, recentTrend[0].date)
+    : null;
+  const hasProgressConcern = repTarget > 0
+    && recentTrend.length === 3
+    && recentTrend.every((row) => row.e1rm > 0)
+    && trendSpanDays !== null && trendSpanDays >= 14 && trendSpanDays <= 56
+    && recentTrend[0].e1rm <= Math.max(recentTrend[1].e1rm, recentTrend[2].e1rm) * 1.01;
 
   const lastSessionSets = lastSession.workingSets;
   let totalRpeSum = 0, rpeCount = 0;
@@ -210,6 +217,15 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
   }
   
   const priorSessionAvgRpe = rpeCount > 0 ? totalRpeSum / rpeCount : 0;
+  const loadedSets = lastSessionSets.filter((set) => (parseFloat(set?.w) || 0) > 0 && (parseInt(set?.r, 10) || 0) > 0);
+  const topLoad = loadedSets.length ? Math.max(...loadedSets.map((set) => parseFloat(set.w))) : 0;
+  const topLoadSets = topLoad > 0 ? loadedSets.filter((set) => parseFloat(set.w) === topLoad) : [];
+  const latestMetTarget = repTarget > 0 && topLoadSets.length > 0
+    && topLoadSets.every((set) => (parseInt(set?.r, 10) || 0) >= repTarget);
+  if (hasProgressConcern && !latestMetTarget) {
+    result.isStalled = true;
+    result.message = `${liftName} has not meaningfully improved across 3 comparable sessions over ${trendSpanDays} days, and the latest top-load sets missed the current rep target. Hold the load and review recovery.`;
+  }
   if (priorSessionAvgRpe >= (CONFIG.fatigueRpeThreshold || 8.5)) {
     result.isFatigueOverload = true;
     // A documented stall keeps message precedence, so callers that surface a

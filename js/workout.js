@@ -230,6 +230,39 @@ export async function resolveWorkoutBeforeProgramSwitch(action) {
 // ==========================================
 // PRIVATE HELPERS
 // ==========================================
+function _priorDateLabel(date) {
+  const value = new Date(`${date}T12:00:00`);
+  return Number.isNaN(value.getTime()) ? String(date || 'Date unavailable') : value.toLocaleDateString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function _previousSessionPanel(appState, performance, exerciseName, weightUnit) {
+  if (!performance) return '';
+  const sourceWeek = appState.weeks?.[performance.weekKey] || {};
+  const sourceProgram = getProgramById(performance.programId);
+  const title = sourceWeek.sessionTitle || sourceProgram?.days?.[performance.day]?.title || 'Previous workout';
+  const sets = performance.workingSets || [];
+  const volume = Math.round(sets.reduce((sum, set) => sum + setVolume(set), 0));
+  const comparableLoad = isE1rmExercise(exerciseName, sets[0]) && performance.weight > 0;
+  const top = comparableLoad
+    ? `top ${performance.weight}${weightUnit} × ${performance.reps}`
+    : `${sets.reduce((sum, set) => sum + (parseInt(set?.r, 10) || 0), 0)} total reps`;
+  const rows = sets.map((set, index) => {
+    const weight = parseFloat(set?.w) || 0;
+    const reps = parseInt(set?.r, 10) || 0;
+    const effort = set?.rir != null ? `${escapeHtml(String(set.rir))} reps left`
+      : set?.rpe != null ? `RPE ${escapeHtml(String(set.rpe))}` : '';
+    return `<div class="previous-session__set"><span>S${index + 1}</span><strong>${weight > 0 ? `${escapeHtml(String(weight))}${escapeHtml(weightUnit)} × ` : ''}${escapeHtml(String(reps))}</strong><small>${effort}</small></div>`;
+  }).join('');
+  return `<details class="previous-session">
+    <summary><span><small>Previous session · ${escapeHtml(_priorDateLabel(performance.date))}</small><strong>${sets.length} ${sets.length === 1 ? 'set' : 'sets'} · ${escapeHtml(top)}${volume > 0 ? ` · ${volume.toLocaleString()} ${escapeHtml(weightUnit)}` : ''}</strong></span><b>View sets</b></summary>
+    <div class="previous-session__context">${escapeHtml(title)}</div>
+    <div class="previous-session__sets">${rows}</div>
+    <div class="previous-session__actions"><button type="button" data-action="use-previous-values">Use previous values</button><button type="button" data-action="open-activity-detail" data-activity-id="${escapeHtml(performance.activityId)}">View workout</button></div>
+  </details>`;
+}
+
 function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedDay, appState, homeBlueprint, isCollapsed, groupId, ssColor) {
   const setsArr = loggedLiftsData[liftName];
   if (!Array.isArray(setsArr)) return null;
@@ -281,7 +314,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       const icon = { 'load-up': '▲', 'hold': '▬', 'rep-up': '＋', 'deload': '▼' }[prog.action] || '›';
       blueprintLabel += ` · ${icon} ${prog.rationale}`;
     } else if (diagnostic.isStalled) {
-      blueprintLabel += ' · ⚠️ plateauing — hold load or add rest';
+      blueprintLabel += ' · ⚠️ progress check — hold load and review recovery';
     }
   } catch(e) { console.warn(e); }
 
@@ -305,6 +338,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   });
   const priorPerformance = loggerHistory.latest;
   let historicalLineText = 'First time logging this — today sets your baseline';
+  let historyPanelHTML = '';
   if (priorPerformance) {
     const doneSets = priorPerformance.workingSets;
     historicalLineText = 'Last session: [ ' + doneSets.map((set) => {
@@ -314,6 +348,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
         ? `${escapeHtml(String(weight))}${wUnit} × ${escapeHtml(String(reps))}`
         : `${escapeHtml(String(reps))} reps`;
     }).join(', ') + ' ]';
+    historyPanelHTML = _previousSessionPanel(appState, priorPerformance, displayLiftName, wUnit);
   } else if (loggerHistory.globalBestEstimated1RM > 0) {
     historicalLineText = `Previous best: ${Math.round(loggerHistory.globalBestEstimated1RM)}${wUnit} (estimated 1RM)`;
   }
@@ -328,15 +363,14 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   const suggestedGhost = (diagnostic.progression && diagnostic.progression.weight)
     ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
     : null;
+  let priorWorkingIndex = 0;
   const setsMarkup = setsArr.map((sData, sIdx) => {
+    const previousSet = isWarmupSet(sData) ? null : priorPerformance?.workingSets?.[priorWorkingIndex++];
     let ghostSet = suggestedGhost;
-    if (!ghostSet) {
-      const hist = priorPerformance?.workingSets?.[sIdx];
-      if (hist && (hist.w || hist.r)) ghostSet = hist;
-    }
+    if (!ghostSet && previousSet && (previousSet.w || previousSet.r)) ghostSet = previousSet;
     return buildSetRow(
       sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
-      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps),
+      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps), previousSet,
     );
   }).join('');
 
@@ -351,7 +385,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   } catch (_) {}
 
   try {
-    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, setsMarkup, groupId, ssColor, plates });
+    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, historyPanelHTML, setsMarkup, groupId, ssColor, plates });
   } catch(e) {
     exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
   }
@@ -953,6 +987,44 @@ export function logAllAtTarget(liftName) {
     if (label && !isNaN(sIdx)) { executeOneTapQuickLog(label, liftName, sIdx); logged++; }
   });
   if (logged > 0) { hapticSuccess(); showToast(`Logged ${logged} set${logged > 1 ? 's' : ''} at target ✓`); }
+}
+
+// Bring the latest exact exercise performance into the current draft without
+// claiming the work is complete. Existing typed values, load modes, set types
+// and completion flags are never overwritten.
+export function usePreviousValues(liftName) {
+  const appState = _getState();
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const wk = activeWorkoutWeekKey(appState);
+  const sets = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
+  const card = document.querySelector(`.cockpit-exercise[data-liftname="${(window.CSS && CSS.escape) ? CSS.escape(liftName) : liftName}"]`);
+  if (!Array.isArray(sets) || !card) return;
+  const previous = exerciseLoggerHistory(appState, liftName, {
+    weekKey: wk, day: selectedDay,
+    beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
+  }).latest?.workingSets || [];
+  let previousIndex = 0;
+  let filled = 0;
+  sets.forEach((set, setIndex) => {
+    if (isWarmupSet(set)) return;
+    const prior = previous[previousIndex++];
+    if (!prior) return;
+    const row = card.querySelector(`.cockpit-set-row[data-set-index="${setIndex}"]`);
+    const weightInput = row?.querySelector('.input-weight-node');
+    const repsInput = row?.querySelector('.input-reps-node');
+    let changed = false;
+    if (!String(set?.w || '').trim() && String(prior?.w || '').trim()) {
+      set.w = prior.w; if (weightInput) weightInput.value = String(prior.w); changed = true;
+    }
+    if (!String(set?.r || '').trim() && String(prior?.r || '').trim()) {
+      set.r = prior.r; if (repsInput) repsInput.value = String(prior.r); changed = true;
+    }
+    if (changed) filled++;
+  });
+  if (!filled) { showToast('Current values already filled'); return; }
+  markSessionInProgress(appState.weeks[wk], selectedDay);
+  _saveState(true);
+  showToast(`Previous values added to ${filled} ${filled === 1 ? 'set' : 'sets'}`);
 }
 
 export function updateInputState(inputNode) {
@@ -2079,6 +2151,7 @@ document.addEventListener('click', (e) => {
 
   if (action === 'quick-log') executeOneTapQuickLog(target, liftName, sIdx);
   else if (action === 'log-all-target') logAllAtTarget(liftName);
+  else if (action === 'use-previous-values') usePreviousValues(liftName);
   else if (action === 'append-set') appendCustomSetRow(target, liftName);
   else if (action === 'append-warmup-set') appendWarmupSetRow(target, liftName);
   else if (action === 'remove-set') removeCustomSetRow(liftName, sIdx);

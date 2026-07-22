@@ -6,6 +6,7 @@
 // =============================================================================
 import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { runSessionsForDay } from '../state/run-sessions.js';
+import { parseStrengthDurationSeconds } from '../strength/duration.js';
 
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -98,6 +99,7 @@ export function buildActivityHistory(state) {
             summary.volume ? `${summary.volume.toLocaleString()} ${state?.settings?.weightUnit || 'kg'}` : '',
             duration,
           ].filter(Boolean),
+          durationSeconds: parseStrengthDurationSeconds(duration),
           ...summary,
         });
       }

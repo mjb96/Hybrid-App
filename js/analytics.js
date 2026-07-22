@@ -27,6 +27,7 @@ import { renderWeeklyVolume } from './analytics/views/view-weekly-volume.js';
 import { renderExerciseDetail, renderMuscleDetail } from './analytics/views/view-strength-entity.js';
 import { renderRunningMetricDetail } from './analytics/views/view-running-metric.js';
 import { renderStrengthMetricDetail } from './analytics/views/view-strength-metric.js';
+import { renderGymPerformance } from './analytics/views/view-gym-performance.js';
 
 let _getState;
 let _getDays;
@@ -409,6 +410,10 @@ export function renderAnalytics() {
     case 'weekly-volume':
       document.getElementById('analytics-weekly-volume').classList.add('active');
       renderWeeklyVolume(_getState());
+      break;
+    case 'gym-performance':
+      document.getElementById('analytics-gym-performance').classList.add('active');
+      renderGymPerformance(_getState());
       break;
     case 'exercise':
       document.getElementById('analytics-strength-entity').classList.add('active');

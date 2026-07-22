@@ -7,6 +7,7 @@ import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { muscleCreditsForExercise } from '../exercises/catalog.js';
 import { indexSlotsByDate, weekStartOf } from './weekly-aggregate.js';
 import { comparePeriodValues } from './period-comparison.js';
+import { parseStrengthDurationSeconds } from '../strength/duration.js';
 
 const RANGE_WEEKS = Object.freeze({ '4w': 4, '12w': 12, '6m': 26, '1y': 52 });
 export const STRENGTH_RANGE_OPTIONS = Object.freeze([
@@ -46,14 +47,6 @@ export const STRENGTH_METRICS = Object.freeze([
 const METRIC_BY_ID = new Map(STRENGTH_METRICS.map((entry) => [entry.id, entry]));
 export function strengthMetricById(id) { return METRIC_BY_ID.get(String(id || '')) || null; }
 
-function durationSeconds(value) {
-  const parts = String(value || '').split(':').map(Number);
-  if (!parts.length || parts.some((part) => !Number.isFinite(part) || part < 0)) return 0;
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return parts[0] * 60;
-}
-
 function activityId(slot) {
   return slot.sessionId
     ? `strength:${slot.sessionId}`
@@ -87,7 +80,7 @@ export function collectStrengthHistory(state, options = {}) {
         activityId: activityId(slot), date, weekKey: slot.weekKey, day: slot.day,
         title: slot.sessionTitle || state?.weeks?.[slot.weekKey]?.sessionTitle || 'Strength Workout',
         volumeKg, workingSets, reps, muscleSetCredits,
-        durationSeconds: durationSeconds(slot.gymStats?.time),
+        durationSeconds: parseStrengthDurationSeconds(slot.gymStats?.time),
       });
     }
   }
