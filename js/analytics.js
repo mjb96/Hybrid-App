@@ -26,6 +26,7 @@ import { resolveExercise } from './exercises/catalog.js';
 import { renderWeeklyVolume } from './analytics/views/view-weekly-volume.js';
 import { renderExerciseDetail, renderMuscleDetail } from './analytics/views/view-strength-entity.js';
 import { renderRunningMetricDetail } from './analytics/views/view-running-metric.js';
+import { renderStrengthMetricDetail } from './analytics/views/view-strength-metric.js';
 
 let _getState;
 let _getDays;
@@ -416,6 +417,10 @@ export function renderAnalytics() {
     case 'muscle':
       document.getElementById('analytics-strength-entity').classList.add('active');
       renderMuscleDetail(_getState(), _analyticsEntity || {}, getSelectedWeekStart());
+      break;
+    case 'strength-metric':
+      document.getElementById('analytics-strength-metric').classList.add('active');
+      renderStrengthMetricDetail(_getState(), _analyticsEntity || {});
       break;
     case 'running':
       setRunningTab('overview');

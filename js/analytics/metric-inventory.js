@@ -7,6 +7,7 @@
 // period, interaction and evidence contract.
 // =============================================================================
 import { RUNNING_METRICS } from './running-detail.js';
+import { STRENGTH_METRICS } from './strength-detail.js';
 
 function item(config) {
   return Object.freeze({
@@ -91,6 +92,30 @@ const RUNNING_INVENTORY = RUNNING_METRICS.map((metric) => item({
   implementation: 'implemented-this-slice',
 }));
 
+function strengthDetailContract(id) {
+  const metric = STRENGTH_METRICS.find((entry) => entry.id === id);
+  if (!metric) throw new Error(`Unknown Strength detail metric: ${id}`);
+  return {
+    calculationOwner: 'js/analytics/strength-detail.js',
+    sourceRecords: metric.source,
+    timeScope: metric.scope,
+    comparisonRule: metric.scope === 'calendar-week'
+      ? 'Live week compares elapsed weekdays with the same point in the previous week.'
+      : metric.id === 'strength.four-week-volume'
+        ? 'Trailing 28 calendar days compare with the immediately preceding 28 days.'
+        : 'The value itself compares trailing 28-day tonnage with the immediately preceding 28 days.',
+    emptyState: metric.empty,
+    currentInteractive: 'exact-detail',
+    currentDestination: `strength-metric:${metric.id}`,
+    intendedDestination: `strength-metric:${metric.id}`,
+    historicalSeries: 'Calendar-week points with selectable 4w/12w/6m/1y/all ranges.',
+    exactEvidence: 'Exact strength session IDs open Activity Detail; selected chart points scope the contributing workouts.',
+    limitationsAndConfidence: metric.limitations.join(' '),
+    tests: ['tests/strength_metric_detail.test.js', 'tests/analytics_views_render.test.js', 'tests/metric_inventory.test.js'],
+    implementation: 'implemented-this-slice',
+  };
+}
+
 function group(domain, owner, common, rows) {
   return rows.map((row) => item({
     domain,
@@ -127,15 +152,15 @@ const STRENGTH_INVENTORY = group('strength', 'js/analytics/views/view-strength.j
   { id: 'strength.estimated-1rm', label: 'Estimated 1RM', unit: 'weight', surfaces: ['Strength Overview', 'Strength Stats', 'Profile PRs'], currentInteractive: 'mixed', currentDestination: 'Exercise detail for dynamic lift rows; static hero/profile instances', intendedDestination: 'strength-metric:strength.estimated-1rm', implementation: 'existing-partial' },
   { id: 'strength.weekly-e1rm-change', label: 'e1RM Change This Week', unit: 'weight/percent', surfaces: ['Strength Overview'], currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.weekly-volume', label: 'Weekly Volume', unit: 'weight-volume', surfaces: ['Home At a Glance', 'Strength Overview', 'Strength Stats', 'Profile This Week'], currentInteractive: 'exact-detail', currentDestination: 'weekly-volume', intendedDestination: 'weekly-volume', implementation: 'supported-existing' },
-  { id: 'strength.four-week-volume', label: '4-Week Volume', unit: 'weight-volume', surfaces: ['Strength Stats'], currentInteractive: 'static', currentDestination: 'none' },
+  { id: 'strength.four-week-volume', label: '4-Week Volume', unit: 'weight-volume', surfaces: ['Strength Stats'], ...strengthDetailContract('strength.four-week-volume') },
   { id: 'strength.acute-load', label: '7-Day Load (ATL)', unit: 'load', surfaces: ['Strength Stats'], timeScope: 'rolling-7d', currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.chronic-load', label: '28-Day Load (CTL)', unit: 'load', surfaces: ['Strength Stats'], timeScope: 'rolling-28d', currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.load-ratio', label: 'Acute:Chronic Ratio', unit: 'ratio', surfaces: ['Strength Stats'], timeScope: 'rolling-ewma', currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.fatigue-trend', label: 'Fatigue Trend', unit: 'status', surfaces: ['Strength Stats'], currentInteractive: 'static', currentDestination: 'none' },
-  { id: 'strength.volume-progression', label: 'Volume Progression', unit: 'percent', surfaces: ['Strength Stats'], currentInteractive: 'static', currentDestination: 'none' },
+  { id: 'strength.volume-progression', label: 'Volume Progression', unit: 'percent', surfaces: ['Strength Stats'], ...strengthDetailContract('strength.volume-progression') },
   { id: 'strength.recovery-impact', label: 'Recovery Impact', unit: 'percent', surfaces: ['Strength Stats'], currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.exercise-progression', label: 'Exercise Progression', unit: 'weight/e1rm', surfaces: ['Strength Stats'], currentInteractive: 'exact-detail', currentDestination: 'exercise detail', intendedDestination: 'exercise', implementation: 'supported-existing' },
-  { id: 'strength.muscle-set-credits', label: 'Muscle Group Set Credits', unit: 'sets', surfaces: ['Strength Stats'], currentInteractive: 'static', currentDestination: 'none' },
+  { id: 'strength.muscle-set-credits', label: 'Muscle Group Set Credits', unit: 'sets', surfaces: ['Strength Stats'], ...strengthDetailContract('strength.muscle-set-credits') },
   { id: 'strength.per-muscle-volume', label: 'Per-Muscle Volume', unit: 'weight-volume', surfaces: ['Strength Stats', 'Weekly Volume'], currentInteractive: 'mixed', currentDestination: 'Muscle detail only from Weekly Volume', implementation: 'existing-partial' },
   { id: 'strength.relative-volume-balance', label: 'Relative Volume Balance', unit: 'percent', surfaces: ['Strength Stats'], currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.training-calendar', label: 'Training Calendar', unit: 'activity-count', surfaces: ['Strength Stats', 'Profile'], currentInteractive: 'mixed', currentDestination: 'Profile is static; strength calendar date behaviour varies' },

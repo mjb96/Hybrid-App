@@ -9,6 +9,7 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { RUNNING_METRICS } from '../js/analytics/running-detail.js';
+import { STRENGTH_METRICS } from '../js/analytics/strength-detail.js';
 
 const noop = () => {};
 const store = new Map();
@@ -35,7 +36,7 @@ function weekDates(m) {
   return o;
 }
 
-let vs, vr, vw, ve;
+let vs, vr, vw, ve, vsm;
 before(async () => {
   globalThis.document = {
     getElementById: getEl, querySelector: () => null, querySelectorAll: () => [],
@@ -45,6 +46,7 @@ before(async () => {
   vr = await import('../js/analytics/views/view-running.js');
   vw = await import('../js/analytics/views/view-weekly-volume.js');
   ve = await import('../js/analytics/views/view-strength-entity.js');
+  vsm = await import('../js/analytics/views/view-strength-metric.js');
 });
 
 function sampleState() {
@@ -84,6 +86,22 @@ test('running analytics renders metric-specific accessible destinations on both 
       for (const metric of RUNNING_METRICS) assert.match(html, new RegExp(`data-metric-id="${metric.id.replaceAll('.', '\\.')}"`));
     }
   }
+});
+
+test('Strength volume cards and details have stable exact destinations', () => {
+  const state = sampleState();
+  vs.setStrengthTab('stats');
+  assert.doesNotThrow(() => vs.renderStrengthAnalytics(data, () => state, () => DAYS));
+  const stats = getEl('strengthTrainingLoadDashboard').innerHTML + getEl('muscleGroupAnalysisSection').innerHTML;
+  for (const metric of STRENGTH_METRICS) {
+    assert.match(stats, new RegExp(`data-metric-id="${metric.id.replaceAll('.', '\\.')}"`));
+    assert.doesNotThrow(() => vsm.renderStrengthMetricDetail(state, { id: metric.id }));
+    const detail = getEl('strengthMetricDetail').innerHTML;
+    assert.match(detail, new RegExp(metric.label));
+    assert.match(detail, /How this is calculated/);
+    assert.doesNotMatch(detail, /NaN|Infinity/);
+  }
+  assert.match(stats, /data-context="strength-metric"[^>]*data-parent-context="strength_pr"/);
 });
 
 test('completed (navigated) week uses the previous-week label, not the live one', () => {

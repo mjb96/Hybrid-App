@@ -33,6 +33,7 @@ import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggrega
 import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift, bestE1rmByLiftForWeek } from '../../metrics/metrics-strength.js';
 import { canonicalExerciseId } from '../../exercises/catalog.js';
 import { estimatedE1rmForSet } from '../../strength/e1rm.js';
+import { buildStrengthMetricDetail } from '../strength-detail.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -58,10 +59,8 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   const volCur   = volChart.total;
   const volCmp   = statComparisonFrom(volChart);
 
-  const monthly = sa.monthlyVol;
-  const curMon  = monthly[monthly.length - 1]?.volume || 0;
-  const prevMon = monthly[monthly.length - 2]?.volume || 0;
-  const monPct  = prevMon > 0 ? ((curMon - prevMon) / prevMon) * 100 : null;
+  const fourWeek = buildStrengthMetricDetail(appState, 'strength.four-week-volume');
+  const volumeProgression = buildStrengthMetricDetail(appState, 'strength.volume-progression');
 
   const acwrVal   = la.currentRatio > 0 ? la.currentRatio.toFixed(2) : '--';
   const acwrColor = la.currentRatio === 0 ? 'rgba(255,255,255,0.4)'
@@ -75,7 +74,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
     <h2 class="section-header mt-2">Training Load Dashboard</h2>
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus, action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
-      ${statCard({ label: '4-Week Volume', value: fmtKg(curMon), delta: monPct, sub: 'vs prior 4 program weeks', color: '#8b5cf6' })}
+      ${statCard({ label: '4-Week Volume', value: fourWeek?.formattedValue || '—', sub: 'trailing 28 calendar days', color: '#8b5cf6', action: 'open-analytics', context: 'strength-metric', entity: 'strength.four-week-volume', parentContext: 'strength_pr', metricId: 'strength.four-week-volume' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
       ${statCard({ label: '7-Day Load (ATL)', value: la.currentATL > 0 ? Math.round(la.currentATL) : '--', sub: 'acute training load', color: '#f59e0b' })}
@@ -96,7 +95,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
       </article>
     </div>
     <div class="grid-2-col gap-2 mb-3">
-      ${statCard({ label: 'Volume Progression', value: sa.volProgPct !== null ? fmtPct(sa.volProgPct) : '--', sub: 'vs 4 weeks ago', color: sa.volProgPct > 0 ? '#10b981' : '#ef4444' })}
+      ${statCard({ label: 'Volume Progression', value: volumeProgression?.formattedValue || '—', sub: 'trailing 28d vs previous 28d', color: '#3b82f6', action: 'open-analytics', context: 'strength-metric', entity: 'strength.volume-progression', parentContext: 'strength_pr', metricId: 'strength.volume-progression' })}
       ${statCard({ label: 'Recovery Impact', value: la.recovImpact[la.recovImpact.length - 1] !== null ? ((la.recovImpact[la.recovImpact.length - 1] || 0) * 100).toFixed(0) + '%' : '--', sub: 'TSB / CTL', color: '#94a3b8' })}
     </div>`;
 }
@@ -168,15 +167,17 @@ function renderStrengthProgression(sa, weekLabels) {
 }
 
 // ---- Muscle Group Analysis ----------------------------------------------
-function renderMuscleGroupAnalysis(sa) {
+function renderMuscleGroupAnalysis(sa, appState) {
   const el = qs('muscleGroupAnalysisSection');
   if (!el) return;
 
   const groups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
   const hasData = groups.some(g => (sa.currentSets[g] || 0) > 0);
+  const setCredits = buildStrengthMetricDetail(appState, 'strength.muscle-set-credits');
+  const setCreditsCard = statCard({ label: 'Muscle Set Credits', value: setCredits?.formattedValue || '—', sub: 'current calendar week', color: '#10b981', action: 'open-analytics', context: 'strength-metric', entity: 'strength.muscle-set-credits', parentContext: 'strength_pr', metricId: 'strength.muscle-set-credits' });
 
   if (!hasData) {
-    el.innerHTML = '<h2 class="section-header mt-2">Muscle Group Analysis</h2><p class="text-muted text-sm p-3">Complete mapped exercises to see muscle balance.</p>';
+    el.innerHTML = `<h2 class="section-header mt-2">Muscle Group Analysis</h2><div class="mb-2">${setCreditsCard}</div><p class="text-muted text-sm p-3">Complete mapped exercises to see muscle balance.</p>`;
     return;
   }
 
@@ -212,6 +213,7 @@ function renderMuscleGroupAnalysis(sa) {
 
   el.innerHTML = `
     <h2 class="section-header mt-2">Muscle Group Analysis</h2>
+    <div class="mb-2">${setCreditsCard}</div>
     <article class="card-dark p-3 mb-2">
       <div class="text-xs text-muted mb-1">Estimated set credits · selected calendar week</div>
       <div id="volumeLandmarkChart"></div>
@@ -462,7 +464,7 @@ function _renderStrengthStats(body, data, sa, la, appState) {
   renderTrainingLoadDashboard(sa, la, data.weekLabels, appState);
   renderVolumeSection(sa, data);
   renderStrengthProgression(sa, data.weekLabels);
-  renderMuscleGroupAnalysis(sa);
+  renderMuscleGroupAnalysis(sa, appState);
   renderStrengthHeatmap(data);
   // Calendar-week per-lift maxes for the selected week + its predecessor, plus the
   // set of lifts at a new calendar-week PR — so "this week / vs last week / PR" in

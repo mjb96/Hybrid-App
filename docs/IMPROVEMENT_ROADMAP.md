@@ -1,7 +1,7 @@
 # Helyx Improvement Roadmap
 
 **Prepared:** 14 July 2026  
-**Last reconciled with `main`:** 19 July 2026
+**Last reconciled with `main`:** 22 July 2026
 **Goal:** reach a trustworthy Android public beta without expanding scope  
 **Constraint:** iOS, billing, paywalls, and new feature categories remain deferred
 
@@ -417,6 +417,15 @@ count, downloads, or monetization—are the decision metrics.
   complete, independently useful Stage 1–3 slice; 79 inventoried metrics on Strength,
   Recovery/Health, Hybrid Score, Review, Profile, fasting and projections remain static and are
   explicitly retained for the Stage 4–5 follow-up rather than being claimed complete.
+- **R30 Strength volume-family detail slice complete — 22 July 2026** on
+  `codex/r30-strength-metrics`. The previously static 4-Week Volume, Volume Progression and
+  Muscle Set Credits cards now use one date-strict, all-activation Strength history and open
+  dedicated range-selectable details with honest rolling/calendar periods, neutral comparison
+  language, calculation/limitation disclosure and exact Activity evidence. Warm-ups,
+  incomplete rows, future records and undated legacy work are excluded; summary values and
+  selected chart points share the same records. The service-worker cache advances to v105.
+  This moves the executable inventory to 37 exact details and 76 static metrics; remaining
+  Strength e1RM/profile/calendar/balance work and the other Stage 4–5 domains remain open.
 - **Sync recovery and workout-session integrity correction complete — 20 July 2026** on
   `codex/sync-recovery-workout-session`. Before this device can replace a newer cloud blob,
   the exact cloud state is now protected locally and exposed as a one-tap Settings recovery;
@@ -554,7 +563,8 @@ Priority is based on severity, likelihood, user trust, launch dependency, and bl
 
 Completed recommendations remain in the implementation register and phase tables as
 acceptance evidence; they are not the active queue. R17, R18, R21, R22, R28, R29, and the
-R30 inventory/shared-contract/Running slice are engineering-complete; R30 Strength and
+R30 inventory/shared-contract/Running and the Strength volume-family slice are
+engineering-complete; remaining Strength e1RM/profile/calendar/balance and
 Recovery/Health/Hybrid/Home/Profile follow-ups remain reviewable Stage 4–5 slices, and R25
 remains an incremental seam-by-seam practice.
 The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
@@ -600,7 +610,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R27 | FIT import | `js/garmin.js:extractData` fills `aerobicTE` from anaerobic fields and shows success before the write callback completes. | Correct the field contract, validate parsed units/types, and make callbacks return an awaited save result before success. | `js/garmin.js`, import callbacks in `js/app.js`, FIT fixtures. | Real/anonymized run+gym FIT fixtures, malformed/multi-session files, save failure, unit/field assertions. | Phase 2 / small PR `codex/fit-import-contract`. |
 | R28 | Workout/exercises/volume | Finish lifecycle was overloaded with 100% adherence; exercise/history tables split identity; unbounded duplicated e1RM and optimistic progression overstated certainty; MEV wording implied personal precision. | Separate lifecycle/adherence; canonical read-time identity/history; bounded e1RM; conservative set/RPE progression; calendar-week estimated set credits and typical-range copy. | workout lifecycle/policy/delete, exercise catalogue/history/substitutions, strength/e1RM/calendar/volume analytics, roadmap. | Finish/skip/empty/idempotence; catalogue/all-program history; e1RM eligibility; top-load/RPE progression; volume-credit/browser flows. | Engineering complete on `codex/exercise-volume-finish-audit`. |
 | R29 | Analytics hierarchy/evidence | Important cards were static or routed to generic screens; duplicate comparison/week logic mixed periods, and exercise/muscle evidence was difficult to inspect. | Establish summary → detail → evidence; add Weekly Volume and strength-entity drill-downs; centralize calendar periods/comparisons; align Home, Running, Recovery and Hybrid Score wording/interactions. | analytics aggregates/navigation/views/charts, Home In Focus, Hybrid Score UI, analytics CSS/HTML, service-worker precache. | Valid-set/date/future/partial/zero/alias/program-switch fixtures, navigation/render tests, mobile overflow/touch QA, full verify. | Engineering complete on `codex/analytics-drilldowns`. |
-| R30 | Complete analytics interaction contract | Inventory confirmed 135 metrics/173 surface instances: only four exact detail destinations before this slice, generic Running routes, 79 static metrics, and a mixed-cache boot failure. | Keep the executable inventory as the guard; land the shared exact metric contract and all 30 Running details first, then Strength and Recovery/Health/Hybrid/Home/Profile as independent green slices. | metric inventory/registry, analytics routes/views/charts, canonical domain calculations, Home/Profile adapters, cache bootstrap/precache. | Every metric contract field; summary/detail/unit/period/evidence identity; new/established/1,000-activity fixtures; edit/delete/future/undated/same-day/archive; 360/390/412, 200% text, theme/motion/offline browser journeys. | Inventory + shared contract + Running complete on `codex/analytics-contract-running`; Stage 4–5 domains remain open. |
+| R30 | Complete analytics interaction contract | Inventory confirmed 135 metrics/173 surface instances: only four exact detail destinations before this work, generic Running routes, 79 static metrics, and a mixed-cache boot failure. | Keep the executable inventory as the guard; land one evidence-backed domain family at a time. Running and Strength volume are complete; continue Strength e1RM/profile/calendar/balance, then Recovery/Health/Hybrid/Home/Profile. | metric inventory/registry, analytics routes/views/charts, canonical domain calculations, Home/Profile adapters, cache bootstrap/precache. | Every metric contract field; summary/detail/unit/period/evidence identity; new/established/1,000-activity fixtures; edit/delete/future/undated/same-day/archive; 360/390/412, 200% text, theme/motion/offline browser journeys. | Inventory/shared contract + Running complete on `codex/analytics-contract-running`; Strength volume family complete on `codex/r30-strength-metrics`; remaining Stage 4–5 domains open. |
 
 ## Phase 0 — Public-beta integrity gate
 
@@ -653,7 +663,7 @@ The phase tables below provide severity, expected user benefit, effort, implemen
 | R19 | Remove silent unknown-program fallback; validate IDs and surface recovery. | Moderate | Makes damaged state visible and recoverable. | 1–2 days | Low | Import/state validation. | Unknown/deleted custom ID fixtures; UI recovery choices; no mismatch between rendered program and stored ID. | Invalid IDs cannot silently render another plan. |
 | R27 | Correct FIT training-effect mapping and make import success depend on an awaited destination save; validate parser output. | Moderate | Makes Garmin import labels and completion trustworthy. | 2–3 days | Medium: fixture/device variation. | Versioned import field contract; representative FIT fixtures. | Run/gym/malformed/multi-session files, unit checks, callback failure; success appears only after state/route save. | Imported fields match FIT semantics and no failed write is presented as imported. |
 | R29 | Build a period-honest analytics hierarchy with tappable Weekly Volume, exercise/muscle evidence and shared calendar comparison/navigation. | Significant | Lets athletes understand and verify the sessions behind important trends instead of trusting disconnected totals. | Complete | Medium: broad read-only surface. | R2 identities, R21/R28 canonical history/catalogue, calendar-week aggregate. | Valid/skipped/warm-up/edited/deleted/duplicate/program-switch/future/partial/year/DST fixtures; render/navigation and 390 px mobile QA. | Major strength summaries open period-consistent detail/evidence, exact records remain traceable, and shared labels match their calculations. |
-| R30 | Give every inventoried analytic a stable identity and exact, evidence-backed detail; deliver one safe domain slice at a time. | Significant | Makes summaries understandable for a first session and verifiable across years of history. | Stage 1–3 complete; Stage 4–5 open | Medium–High: broad read-only surfaces and calculation drift risk. | R2/R21/R22/R28/R29 canonical session, identity, load and calendar seams. | Executable 135-metric inventory; exact destination/period/unit/evidence guards; sparse and 1,000-activity fixtures; required phone/theme/motion/text/offline browser matrix. | Every genuine tile is visibly interactive and summary, history, comparison and exact evidence share one tested calculation; Running satisfies this now, remaining domains do not yet. |
+| R30 | Give every inventoried analytic a stable identity and exact, evidence-backed detail; deliver one safe domain slice at a time. | Significant | Makes summaries understandable for a first session and verifiable across years of history. | Stage 1–3 + Strength volume family complete; Stage 4–5 open | Medium–High: broad read-only surfaces and calculation drift risk. | R2/R21/R22/R28/R29 canonical session, identity, load and calendar seams. | Executable 135-metric inventory; exact destination/period/unit/evidence guards; sparse and 1,000-activity fixtures; required phone/theme/motion/text/offline browser matrix. | Every genuine tile is visibly interactive and summary, history, comparison and exact evidence share one tested calculation; Running and Strength volume satisfy this now, remaining domains do not yet. |
 
 **Phase 2 exit gate:** coaching exposes uncertainty; Health/GPS/device integrations have device evidence; privileged runtime is self-contained.
 
@@ -707,6 +717,17 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · R30 Strength volume-family detail on `codex/r30-strength-metrics`:
+  4-Week Volume, Volume Progression and Muscle Set Credits now derive from one date-strict
+  history, open dedicated 4w/12w/6m/1y/all details, disclose their calculation/limitations and
+  retain exact workout IDs for Activity evidence. The cards no longer describe program-week
+  buckets as calendar volume; volume direction is neutral rather than automatically good/bad.
+  Archived activations, future/undated exclusions, warm-up/incomplete filtering, zero states,
+  comparison periods, routes and render contracts are covered by the 1,099-test suite.
+  Full verify (1,099 tests) and every required browser gate are green; a 390×844 in-app browser
+  journey also has no console errors or horizontal overflow. · Next: review
+  and merge this independent slice, then address Strength e1RM/profile/calendar/balance as the
+  next R30 PR; R15 physical-device/Play evidence remains the launch blocker.
 - 2026-07-20 · Hybrid Score consistency early-week fix on `claude/hybrid-score-audit-gimuci`
   (follow-up to the same session's volume fix below). User reported the score still read "27%
   of this week done" on a Monday and felt *marked down for completing today's session*. Two
