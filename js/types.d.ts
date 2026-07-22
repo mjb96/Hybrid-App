@@ -71,6 +71,7 @@ export interface AppSettings {
   fitnessGoal?: string;
   weightGoal?: 'cut' | 'maintain' | 'bulk';
   fitnessLevel?: string;
+  musclePriorities?: Record<string, 'grow' | 'maintain' | 'track'>;
   weekStartDay?: 'mon' | 'sun';
   fastingDefault?: number;
   defaultBodyWeight?: number;

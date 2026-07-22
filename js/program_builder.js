@@ -17,6 +17,11 @@ import {
 } from './programs/editor-model.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { closeManagedModal, openManagedModal } from './ui/modal-stack.js';
+import {
+  effectiveMusclePriorities, musclePriorityLabel, projectProgramMuscleCredits,
+  volumeReferenceForPriority,
+} from './analytics/volume-guide.js';
+import { MUSCLE_LABELS } from './analytics/calculations/volume-landmarks.js';
 
 let activeBuilderId = null;
 let activeSection = 'schedule';
@@ -212,6 +217,7 @@ function renderWeekRow(program, week) {
 function renderPreview(program) {
   const issues = validateProgramDraft(program);
   const days = previewProgramWeek(program, previewWeek).filter((day) => day.lifts.length || day.run);
+  const volumeProjection = renderProgramVolumeProjection(program);
   return `
     <section aria-labelledby="builderPreviewTitle">
       <div class="program-editor__section-heading program-editor__preview-heading">
@@ -219,12 +225,49 @@ function renderPreview(program) {
         <label><span>Week</span><select data-action="b-preview-week">${weekKeys(program).map((week) => `<option value="${week}" ${week === previewWeek ? 'selected' : ''}>${week}</option>`).join('')}</select></label>
       </div>
       ${issues.length ? `<div class="program-editor__issues" role="status">${issues.map((issue) => `<button data-action="b-open-issue" data-day="${issue.day || ''}" data-field="${issue.field || ''}" class="is-${issue.level}">${issue.level === 'error' ? 'Fix' : 'Check'} · ${escapeHtml(issue.message)}</button>`).join('')}</div>` : `<div class="program-editor__valid">Ready to train · no schedule issues found</div>`}
+      ${volumeProjection}
       <div class="program-editor__preview-list">
         ${days.length ? days.map((day) => `<article class="program-editor__preview-day"><div><span>${day.label}</span><strong>${escapeHtml(day.title)}</strong></div>${day.run ? `<p class="program-editor__preview-run">Run · ${escapeHtml(day.run)}</p>` : ''}<ul>${day.lifts.map((lift) => `<li><span>${escapeHtml(lift.name)}</span><strong>${escapeHtml(String(lift.sets))} × ${escapeHtml(String(lift.reps))}</strong></li>`).join('')}</ul></article>`).join('') : `<div class="program-editor__empty-static"><strong>No training sessions yet</strong><span>Add a workout in Schedule.</span></div>`}
       </div>
       ${reconciliation.preservedDays ? `<p class="program-editor__preserved">${reconciliation.preservedDays} started or logged workout slot${reconciliation.preservedDays === 1 ? ' was' : 's were'} preserved while this plan changed.</p>` : ''}
     </section>
   `;
+}
+
+function renderProgramVolumeProjection(program) {
+  const projection = projectProgramMuscleCredits(program, previewWeek);
+  const priorities = effectiveMusclePriorities(appState, projection);
+  const rows = Object.entries(projection.muscles)
+    .map(([id, values]) => {
+      const priority = priorities[id] || 'track';
+      const reference = volumeReferenceForPriority(id, priority);
+      return { id, name: MUSCLE_LABELS[id] || id, priority, reference, ...values };
+    })
+    .filter((row) => row.total > 0)
+    .sort((a, b) => Number(a.priority === 'track') - Number(b.priority === 'track') || b.total - a.total || a.name.localeCompare(b.name));
+
+  if (!rows.length) {
+    return `<section class="program-editor__volume"><div class="program-editor__section-heading"><div><div class="program-editor__eyebrow">MUSCLE VOLUME</div><h3>Projected coverage</h3><p>Add mapped strength exercises to preview estimated set credits.</p></div></div></section>`;
+  }
+
+  return `<section class="program-editor__volume" aria-labelledby="builderVolumeTitle">
+    <div class="program-editor__section-heading"><div><div class="program-editor__eyebrow">MUSCLE VOLUME</div><h3 id="builderVolumeTitle">Projected coverage</h3><p>Week ${escapeHtml(previewWeek)} · direct and supporting set credits</p></div></div>
+    ${projection.deload ? '<div class="program-editor__volume-note">Planned deload · lower volume is expected and will not trigger a warning.</div>' : ''}
+    <div class="program-editor__volume-list">${rows.map((row) => {
+      const ceiling = Math.max(row.total, row.reference?.max || 0, 1);
+      const directWidth = Math.min(100, row.direct / ceiling * 100);
+      const indirectWidth = Math.min(100 - directWidth, row.indirect / ceiling * 100);
+      const referenceText = row.reference
+        ? `${row.reference.min}–${row.reference.max} general reference`
+        : 'Tracked without a target';
+      return `<div class="program-editor__volume-row">
+        <div class="program-editor__volume-head"><span><strong>${escapeHtml(row.name)}</strong><small>${musclePriorityLabel(row.priority)}</small></span><b>${row.total.toFixed(row.total % 1 ? 1 : 0)}</b></div>
+        <div class="program-editor__volume-track" aria-label="${escapeHtml(row.name)}: ${row.direct.toFixed(1)} direct and ${row.indirect.toFixed(1)} indirect credits"><span class="is-direct" style="width:${directWidth}%"></span><span class="is-indirect" style="width:${indirectWidth}%"></span></div>
+        <div class="program-editor__volume-meta"><span>${row.direct.toFixed(row.direct % 1 ? 1 : 0)} direct · ${row.indirect.toFixed(row.indirect % 1 ? 1 : 0)} indirect</span><span>${referenceText}</span></div>
+      </div>`;
+    }).join('')}</div>
+    <p class="program-editor__volume-caveat">Projection uses the same sets prescribed by the logger. References are general guidance, not personal minimum or recovery limits.</p>
+  </section>`;
 }
 
 function ensurePicker() {

@@ -273,17 +273,3 @@ export function readinessRecommendation(score, components, { confidence = 'high'
   }
   return 'Rest advised. Multiple recovery signals are suppressed. Prioritise sleep and nutrition.';
 }
-
-// Strength imbalance score: returns 0–100 (100 = perfectly balanced).
-// Penalises groups below their minimum effective volume — i.e. not receiving
-// enough weekly sets to grow (zones 'detraining' and 'maintenance').
-export function strengthBalanceScore(muscleStatus) {
-  if (!muscleStatus || Object.keys(muscleStatus).length === 0) return null;
-  const all       = Object.values(muscleStatus);
-  const under     = all.filter(s => s === 'detraining' || s === 'maintenance').length;
-  const noData    = all.filter(s => s === 'no_data').length;
-  const tracked   = all.length - noData;
-  if (tracked === 0) return null;
-  const penalty   = (under / tracked) * 100;
-  return Math.round(clamp(100 - penalty, 0, 100));
-}
