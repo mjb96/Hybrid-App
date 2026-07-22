@@ -53,6 +53,22 @@ test('1Y Gym Performance uses calendar months and can navigate prior years', () 
   assert.equal(prior.canGoNext, true);
 });
 
+test('note- or RPE-only days with no sets and no duration are not counted as workouts', () => {
+  const state = { settings: { weightUnit: 'kg' }, weeks: {
+    real: week('2026-07-20', '45:00', 'real'),
+    noteOnly: {
+      dates: { tue: '2026-07-21' }, lifts: {}, runs: {},
+      gymRpe: { tue: '8' }, notes: { tue: 'felt tired' }, gymStats: {},
+    },
+  } };
+  const sessions = buildGymPerformance(state, { today: '2026-07-23', range: '7d', metric: 'sessions' });
+  assert.equal(sessions.total, 1, 'only the session with real training work counts');
+  assert.equal(sessions.recordCount, 1);
+  // The phantom day must not appear as contributing evidence in any bin.
+  const evidence = sessions.bins.flatMap((bin) => bin.records.map((r) => r.localDate));
+  assert.deepEqual(evidence, ['2026-07-20']);
+});
+
 test('duration-only FIT gym activities remain visible in time totals', () => {
   const state = { weeks: {
     fit: {

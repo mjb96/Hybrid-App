@@ -131,7 +131,14 @@ export function buildGymPerformance(state, options = {}) {
   const offset = Math.min(0, Number.isInteger(options.offset) ? options.offset : 0);
   const period = periodFor(range, offset, today);
   const through = period.isCurrent && today < period.end ? today : period.end;
-  const all = buildActivityHistory(state).filter((record) => record.kind === 'strength');
+  // A gym "workout" here means real trained work: at least one valid working
+  // set, or a recorded session duration (FIT/manual imports carry time without
+  // per-set data). The activity model also keeps note- or RPE-only days for the
+  // history list, but counting those as workouts inflated the Sessions total and
+  // the "N workouts" evidence while contributing nothing to Sets/Volume/Time.
+  const all = buildActivityHistory(state)
+    .filter((record) => record.kind === 'strength')
+    .filter((record) => (Number(record.workingSets) || 0) > 0 || (Number(record.durationSeconds) || 0) > 0);
   const dated = all.filter((record) => localDayKey(record.localDate));
   const future = dated.filter((record) => record.localDate > today).length;
   const eligible = dated.filter((record) => record.localDate <= today);
