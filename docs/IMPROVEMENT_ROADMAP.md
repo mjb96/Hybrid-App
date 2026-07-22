@@ -741,10 +741,13 @@ implementation register.
   devices now offer Set up, cloud sign-in restore and offline JSON restore before requesting a
   name. Boot's empty scaffold cannot be saved locally or uploaded while recovery is unresolved,
   closing the sign-in autosave race; real local/cloud data, validated import or deliberate setup
-  releases the lock. `npm run verify` is green with 1,109 tests and every required Chromium
+  releases the lock. `npm run verify` is green with 1,110 tests and every required Chromium
   journey passes at phone widths, 200% text and keyboard/modal navigation; cache advances to
   v107. · Next: review/merge this standalone data-safety PR, then prove clear-data → cloud and
   JSON restore on the physical Android owner checklist; R15/release evidence remains open.
+- 2026-07-22 · Workout logger visual cleanup on `codex/program-editor-foundation`: removed
+  the inline “plates per side” breakdown from progression targets while retaining the useful
+  target weight/reps and the underlying tested plate-math utility. Merged via PR #155.
 - 2026-07-22 · R20 program-editor foundation on `codex/program-editor-foundation`: replaced
   the storage-shaped seven-card form with a compact day-focused schedule, canonical exercise
   search/custom fallback, safe day actions, editable metadata/progression, validation and an
