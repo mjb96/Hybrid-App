@@ -6,11 +6,8 @@ import { renderVolumeChart, render1RMProgressChart } from '../charts.js';
 import {
   render1RMProgressionChart,
   renderVolumeProgressionChart,
-  renderMuscleGroupBalanceChart,
-  renderVolumeLandmarkChart,
   renderVolumeCalendarHeatmap,
 } from '../charts/strength-charts.js';
-import { MUSCLE_GROUPS, MUSCLE_LABELS, zoneColor, zoneLabel } from '../calculations/volume-landmarks.js';
 import { statCard } from '../charts/chart-primitives.js';
 import { computeStrengthAnalytics } from '../calculations/strength-calcs.js';
 import { buildWeekChart } from '../week-chart-model.js';
@@ -26,7 +23,7 @@ import {
 import { isValidWorkingSet } from '../../set-utils.js';
 import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
-import { resolveProgramForState } from '../../state.js';
+import { resolveProgramForState, saveStateToLocalStorage } from '../../state.js';
 import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
 import { getCalendarWeekOffset, getSelectedWeekStart } from '../week-nav.js';
 import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
@@ -34,6 +31,7 @@ import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift, bestE1rmByLiftF
 import { canonicalExerciseId } from '../../exercises/catalog.js';
 import { estimatedE1rmForSet } from '../../strength/e1rm.js';
 import { buildStrengthMetricDetail } from '../strength-detail.js';
+import { buildVolumeGuideModel, musclePriorityLabel } from '../volume-guide.js';
 
 function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
@@ -166,81 +164,96 @@ function renderStrengthProgression(sa, weekLabels) {
   });
 }
 
-// ---- Muscle Group Analysis ----------------------------------------------
+// ---- Volume Guide --------------------------------------------------------
+let _volumeGuideTab = 'overview';
+
+function fmtCredit(value) {
+  const number = Number(value || 0);
+  return number.toFixed(number % 1 ? 1 : 0);
+}
+
+function priorityOptions(selected) {
+  return [
+    ['grow', 'Grow'], ['maintain', 'Maintain'], ['track', 'Track only'],
+  ].map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function volumeGuideRow(row, { showPriority = true } = {}) {
+  const ceiling = Math.max(row.logged.total, row.planned.total, row.reference?.max || 0, 1);
+  const referenceLeft = row.reference ? Math.max(0, row.reference.min / ceiling * 100) : 0;
+  const referenceWidth = row.reference ? Math.max(0, (row.reference.max - row.reference.min) / ceiling * 100) : 0;
+  const directWidth = Math.min(100, row.logged.direct / ceiling * 100);
+  const indirectWidth = Math.min(100 - directWidth, row.logged.indirect / ceiling * 100);
+  const planLeft = Math.min(100, row.planned.total / ceiling * 100);
+  return `<article class="vg-muscle-row">
+    <div class="vg-muscle-row__head">
+      <button type="button" class="an-entity-link" data-action="open-analytics" data-context="muscle" data-entity="${esc(row.id)}" data-entity-name="${esc(row.name)}" data-parent-context="strength_pr" data-preserve-week="true">${esc(row.name)}<span aria-hidden="true">›</span></button>
+      ${showPriority ? `<label class="vg-priority"><span class="sr-only">${esc(row.name)} priority</span><select data-volume-priority="${esc(row.id)}">${priorityOptions(row.priority)}</select></label>` : `<span class="vg-priority-label">${musclePriorityLabel(row.priority)}</span>`}
+    </div>
+    <div class="vg-muscle-row__numbers"><span>${fmtCredit(row.logged.total)} logged</span><span>${fmtCredit(row.planned.total)} planned</span></div>
+    <div class="vg-credit-track" aria-label="${esc(row.name)}: ${fmtCredit(row.logged.direct)} direct and ${fmtCredit(row.logged.indirect)} indirect credits; ${fmtCredit(row.planned.total)} planned">
+      ${row.reference ? `<span class="vg-credit-track__reference" style="left:${referenceLeft}%;width:${referenceWidth}%"></span>` : ''}
+      <span class="vg-credit-track__direct" style="width:${directWidth}%"></span>
+      <span class="vg-credit-track__indirect" style="left:${directWidth}%;width:${indirectWidth}%"></span>
+      ${row.planned.total > 0 ? `<span class="vg-credit-track__plan" style="left:${planLeft}%"></span>` : ''}
+    </div>
+    <div class="vg-muscle-row__meta"><span>${fmtCredit(row.logged.direct)} direct · ${fmtCredit(row.logged.indirect)} indirect</span><strong>${esc(row.status)}</strong></div>
+  </article>`;
+}
+
+function volumeGuideTabs() {
+  return `<div class="vg-tabs" role="tablist" aria-label="Volume Guide sections">
+    ${[['overview', 'Overview'], ['muscles', 'Muscles'], ['plan', 'Plan']].map(([id, label]) => `<button type="button" role="tab" aria-selected="${_volumeGuideTab === id}" class="vg-tab${_volumeGuideTab === id ? ' is-active' : ''}" data-volume-tab="${id}">${label}</button>`).join('')}
+  </div>`;
+}
+
 function renderMuscleGroupAnalysis(sa, appState) {
   const el = qs('muscleGroupAnalysisSection');
   if (!el) return;
+  const activeProgram = resolveProgramForState(appState, appState.activeProgramId);
+  const model = buildVolumeGuideModel(appState, { program: activeProgram, weekStart: getSelectedWeekStart() });
+  const focus = model.muscles.filter((row) => row.priority !== 'track');
+  const planned = model.muscles.filter((row) => row.planned.total > 0);
+  const displayed = _volumeGuideTab === 'overview' ? focus : _volumeGuideTab === 'plan' ? planned : model.muscles;
 
-  const groups = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
-  const hasData = groups.some(g => (sa.currentSets[g] || 0) > 0);
-  const setCredits = buildStrengthMetricDetail(appState, 'strength.muscle-set-credits');
-  const setCreditsCard = statCard({ label: 'Muscle Set Credits', value: setCredits?.formattedValue || '—', sub: 'current calendar week', color: '#10b981', action: 'open-analytics', context: 'strength-metric', entity: 'strength.muscle-set-credits', parentContext: 'strength_pr', metricId: 'strength.muscle-set-credits' });
+  const summaryText = model.summary.focusCount
+    ? `${model.summary.coveredCount} of ${model.summary.focusCount} focus muscles covered`
+    : 'Choose muscle priorities to create your guide';
+  const planText = !model.isCurrentWeek
+    ? 'Historical weeks show logged work only.'
+    : model.deload
+      ? 'Planned deload · lower volume is expected.'
+      : model.summary.scheduledCount
+        ? `${model.summary.scheduledCount} focus muscle${model.summary.scheduledCount === 1 ? '' : 's'} still scheduled.`
+        : 'No remaining focus volume is scheduled.';
 
-  if (!hasData) {
-    el.innerHTML = `<h2 class="section-header mt-2">Muscle Group Analysis</h2><div class="mb-2">${setCreditsCard}</div><p class="text-muted text-sm p-3">Complete mapped exercises to see muscle balance.</p>`;
-    return;
-  }
-
-  const report = sa.muscleLandmarks || { groups: {}, muscles: {} };
-
-  // Ordered group rows for the landmark chart.
-  const groupRows = groups
-    .map(g => report.groups[g])
-    .filter(Boolean);
-
-  // Per-muscle breakdown for the selected real calendar week.
-  const muscleBreakdown = groups.map(g => {
-    const members = (MUSCLE_GROUPS[g] || [])
-      .map(m => report.muscles[m])
-      .filter(Boolean);
-    if (members.length === 0) return '';
-    const rows = members.map(m => {
-      const col = zoneColor(m.zone);
-      const setsTxt = m.sets > 0 ? m.sets.toFixed(m.sets % 1 ? 1 : 0) : '–';
-      return `<div class="flex-between" style="padding:3px 0;">
-        <span class="text-xs text-muted">${MUSCLE_LABELS[m.muscle] || m.muscle}</span>
-        <span class="text-xs" style="display:flex;gap:8px;align-items:center;">
-          <span class="text-inverse" style="min-width:34px;text-align:right;">${setsTxt}</span>
-          <span style="color:${col};min-width:64px;text-align:right;font-weight:700;">${zoneLabel(m.zone)}</span>
-        </span>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:8px;">
-      <div class="text-xs font-bold text-inverse" style="opacity:0.75;margin-bottom:2px;">${g}</div>
-      ${rows}
-    </div>`;
-  }).join('');
-
-  el.innerHTML = `
-    <h2 class="section-header mt-2">Muscle Group Analysis</h2>
-    <div class="mb-2">${setCreditsCard}</div>
-    <article class="card-dark p-3 mb-2">
-      <div class="text-xs text-muted mb-1">Estimated set credits · selected calendar week</div>
-      <div id="volumeLandmarkChart"></div>
-      <div class="text-xs text-muted" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
-        <span><span style="color:${zoneColor('growth')};">■</span> Typical productive range</span>
-        <span><span style="color:${zoneColor('optimal')};">■</span> Upper typical range</span>
-        <span><span style="color:${zoneColor('overreaching')};">■</span> Above typical range</span>
+  el.innerHTML = `<h2 class="section-header mt-2">Volume Guide</h2>
+    <article class="card-dark vg-guide">
+      <div class="vg-guide__intro"><div><strong>${summaryText}</strong><span>Estimated set credits · ${esc(model.weekStart)} to ${esc(model.weekEnd)}</span></div><span class="vg-guide__status">${model.status}</span></div>
+      <div class="vg-summary">
+        <button type="button" data-action="open-analytics" data-context="strength-metric" data-entity="strength.muscle-set-credits" data-parent-context="strength_pr" data-metric-id="strength.muscle-set-credits" aria-label="View Muscle Set Credits details"><span>Logged</span><strong>${fmtCredit(model.summary.loggedCredits)}</strong></button>
+        <div><span>Planned</span><strong>${model.isCurrentWeek ? fmtCredit(model.summary.plannedCredits) : '—'}</strong></div>
+        <div><span>Week context</span><strong>${model.deload ? 'Deload' : 'Training'}</strong></div>
       </div>
-      <details class="text-xs text-muted" style="margin-top:10px;">
-        <summary>How is this calculated?</summary>
-        <p style="margin-top:6px;">Only completed working sets with recorded reps count. Dominant muscles receive 1 set credit, meaningful secondary muscles 0.5, minor contributors 0.25; warm-ups, blank rows and skipped sets receive 0. The ranges are general guidance, not a personal MEV or recovery limit.</p>
-      </details>
-    </article>
-    <h3 class="section-header text-sm mb-2" style="font-size:0.8rem;">Per-Muscle Volume</h3>
-    <article class="card-dark p-3 mb-3">
-      ${muscleBreakdown || '<p class="text-muted text-sm">No mapped muscle volume yet.</p>'}
-    </article>
-    <h3 class="section-header text-sm mb-2" style="font-size:0.8rem;">Relative Volume Balance</h3>
-    <article class="card-dark p-3 mb-3">
-      <div id="muscleGroupBalanceChart"></div>
+      ${volumeGuideTabs()}
+      ${_volumeGuideTab === 'plan' ? `<p class="vg-guide__note">${planText}</p>` : ''}
+      <div class="vg-muscle-list">${displayed.length ? displayed.map((row) => volumeGuideRow(row, { showPriority: _volumeGuideTab !== 'plan' })).join('') : '<p class="an-empty-inline">No mapped muscle volume is available for this view.</p>'}</div>
+      <div class="vg-legend"><span><i class="is-direct"></i>Direct</span><span><i class="is-indirect"></i>Indirect</span><span><i class="is-reference"></i>General reference</span><span><i class="is-plan"></i>Planned</span></div>
+      <details class="an-method"><summary>How is this calculated?</summary><p>Only completed working sets with recorded reps count. Main muscles receive 1 set credit, meaningful supporting muscles 0.5, and minor contributors 0.25. Planned credits use the exact set targets shown by the workout logger.</p><p>Grow, Maintain and Track only are your planning priorities. General reference bands are descriptive guidance, not a personal minimum, recovery limit, readiness score or instruction to add sets.</p></details>
     </article>`;
 
-  const landmarkEl = qs('volumeLandmarkChart');
-  if (landmarkEl) renderVolumeLandmarkChart(landmarkEl, groupRows);
-
-  const balanceEl = qs('muscleGroupBalanceChart');
-  if (balanceEl) renderMuscleGroupBalanceChart(balanceEl, groups, sa.currentSets, sa.muscleStatus);
+  el.querySelectorAll('[data-volume-tab]').forEach((button) => button.addEventListener('click', () => {
+    _volumeGuideTab = button.getAttribute('data-volume-tab') || 'overview';
+    renderMuscleGroupAnalysis(sa, appState);
+  }));
+  el.querySelectorAll('[data-volume-priority]').forEach((select) => select.addEventListener('change', () => {
+    if (!appState.settings) appState.settings = {};
+    if (!appState.settings.musclePriorities || typeof appState.settings.musclePriorities !== 'object') appState.settings.musclePriorities = {};
+    const muscleId = select.getAttribute('data-volume-priority');
+    if (muscleId) appState.settings.musclePriorities[muscleId] = /** @type {HTMLSelectElement} */ (select).value;
+    saveStateToLocalStorage(true);
+    renderMuscleGroupAnalysis(sa, appState);
+  }));
 }
 
 // ---- Volume Progression Chart -------------------------------------------

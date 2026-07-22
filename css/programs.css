@@ -2269,6 +2269,29 @@ html[data-theme="light"] .create-cta-inner {
 .program-editor__issues .is-warning { border-left: 3px solid var(--color-amber); }
 .program-editor__valid { margin-bottom: 12px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--color-green) 30%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--color-green) 7%, transparent); color: var(--color-green); font-size: .72rem; font-weight: 750; }
 .program-editor__preview-list { display: grid; gap: 10px; }
+.program-editor__volume {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 24%, var(--border-default));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent-blue) 5%, var(--bg-card));
+}
+.program-editor__volume .program-editor__section-heading { margin-bottom: 12px; }
+.program-editor__volume .program-editor__section-heading h3 { color: var(--text-primary); font-size: .95rem; margin: 2px 0 3px; }
+.program-editor__volume-list { display: grid; gap: 12px; }
+.program-editor__volume-row { display: grid; gap: 5px; }
+.program-editor__volume-head,
+.program-editor__volume-meta { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.program-editor__volume-head > span { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.program-editor__volume-head strong { color: var(--text-primary); font-size: .78rem; }
+.program-editor__volume-head small,
+.program-editor__volume-meta { color: var(--text-muted); font-size: .62rem; }
+.program-editor__volume-head b { color: var(--accent-cyan); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.program-editor__volume-track { display: flex; height: 8px; overflow: hidden; border-radius: 999px; background: var(--overlay-sm); }
+.program-editor__volume-track .is-direct { background: var(--accent-blue); }
+.program-editor__volume-track .is-indirect { background: var(--accent-cyan); }
+.program-editor__volume-note { margin-bottom: 12px; padding: 9px 10px; border-left: 3px solid var(--color-amber); background: color-mix(in srgb, var(--color-amber) 7%, transparent); color: var(--text-secondary); font-size: .68rem; line-height: 1.45; }
+.program-editor__volume-caveat { margin: 12px 0 0; color: var(--text-muted); font-size: .62rem; line-height: 1.45; }
 .program-editor__preview-day { padding: 14px; }
 .program-editor__preview-day > div { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .program-editor__preview-day > div span { color: var(--accent-cyan); font-size: .68rem; font-weight: 800; text-transform: uppercase; }

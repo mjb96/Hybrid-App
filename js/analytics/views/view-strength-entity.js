@@ -10,6 +10,8 @@ import { addDaysISO, localDayKey } from '../weekly-aggregate.js';
 import { comparePeriodValues } from '../period-comparison.js';
 import { VOLUME_LANDMARKS, zoneLabel, classifyVolume } from '../calculations/volume-landmarks.js';
 import { esc } from './screen-kit.js';
+import { buildVolumeGuideModel, musclePriorityLabel, muscleVolumeCorridor } from '../volume-guide.js';
+import { resolveProgramForState } from '../../state.js';
 
 let _exerciseRange = '12w';
 
@@ -97,12 +99,14 @@ export function renderMuscleDetail(state, entity = {}, weekStart) {
   const comparison = comparePeriodValues({ currentValue: current.totalSetCredits, previousValue: previousMuscle?.totalSetCredits ?? null, isCurrentWeek: model.isCurrentWeek });
   const landmarks = VOLUME_LANDMARKS[id];
   const zone = landmarks ? classifyVolume(current.totalSetCredits, landmarks) : 'no_data';
-  const series = Array.from({ length: 8 }, (_, index) => {
-    const start = addDaysISO(weekStart, (index - 7) * 7);
-    const week = buildWeeklyStrengthVolumeDetail(state, { weekStart: start });
-    return { start, value: week.muscles.find(item => item.id === id)?.totalSetCredits || 0 };
-  });
-  const max = Math.max(1, ...series.map(item => item.value));
+  const activeProgram = resolveProgramForState(state, state?.activeProgramId);
+  const guide = buildVolumeGuideModel(state, { weekStart, program: activeProgram });
+  const guideRow = guide.muscles.find(item => item.id === id);
+  const corridor = muscleVolumeCorridor(state, id, { weekStart, program: activeProgram });
+  const series = corridor.points;
+  const max = Math.max(1, corridor.planned, corridor.reference?.max || 0, ...series.map(item => item.value));
+  const referenceBottom = corridor.reference ? corridor.reference.min / max * 100 : 0;
+  const referenceHeight = corridor.reference ? Math.max(0, corridor.reference.max - corridor.reference.min) / max * 100 : 0;
   const workouts = model.workouts.filter(workout => current.workoutIds.includes(workout.id));
   const contributingExercises = current.exerciseCredits || [];
 
@@ -112,11 +116,11 @@ export function renderMuscleDetail(state, entity = {}, weekStart) {
       <article><span>Total set credits</span><strong>${current.totalSetCredits.toFixed(1)}</strong></article>
       <article><span>Direct sets</span><strong>${current.directSets.toFixed(1)}</strong></article>
       <article><span>Indirect sets</span><strong>${current.indirectSets.toFixed(1)}</strong></article>
-      <article><span>Current range</span><strong>${landmarks ? esc(zoneLabel(zone)) : 'No benchmark'}</strong></article>
+      <article><span>Priority</span><strong>${musclePriorityLabel(guideRow?.priority || 'track')}</strong></article>
     </section>
     <article class="an-volume-compare"><div><span class="an-volume-compare__label">Period comparison</span><strong class="an-volume-compare__value">${comparison.isComparable ? `${comparison.percentageChange > 0 ? '+' : ''}${comparison.percentageChange}%` : esc(comparison.message || 'No comparison')}</strong><span class="an-volume-compare__meta">${esc(comparison.comparisonLabel)}</span></div><div class="an-volume-compare__periods"><span>${current.totalSetCredits.toFixed(1)} selected</span><span>${comparison.previousTotal == null ? '—' : comparison.previousTotal.toFixed(1)} prior</span></div></article>
-    <section class="an-volume-panel"><div class="an-volume-panel__head"><h3>8-week trend</h3><span>Estimated set credits</span></div><div class="an-muscle-trend">${series.map(item => `<div><span style="height:${Math.max(4, Math.round(item.value / max * 100))}%"></span><small>${item.value ? item.value.toFixed(1) : '0'}</small></div>`).join('')}</div></section>
+    <section class="an-volume-panel"><div class="an-volume-panel__head"><h3>8-week volume corridor</h3><span>${guideRow?.status || zoneLabel(zone)}</span></div><div class="an-volume-corridor" style="--corridor-bottom:${referenceBottom}%;--corridor-height:${referenceHeight}%"><div class="an-volume-corridor__band"></div><div class="an-volume-corridor__bars">${series.map((item, index) => `<div class="an-volume-corridor__week"><span class="an-volume-corridor__logged" style="height:${Math.max(2, item.value / max * 100)}%"></span>${index === series.length - 1 && corridor.planned > 0 ? `<span class="an-volume-corridor__planned" style="height:${corridor.planned / max * 100}%"></span>` : ''}<small>${item.value ? item.value.toFixed(item.value % 1 ? 1 : 0) : '0'}</small></div>`).join('')}</div></div><div class="an-volume-corridor-legend"><span>Solid · logged</span>${corridor.reference ? `<span>Shaded · ${esc(corridor.reference.label.toLowerCase())}</span>` : ''}${corridor.planned ? `<span>Outline · ${fmtVolume(corridor.planned, 'planned credits')}</span>` : ''}</div></section>
     <section class="an-volume-panel"><div class="an-volume-panel__head"><h3>Contributors</h3><span>${contributingExercises.length} exercises</span></div>${contributingExercises.length ? contributingExercises.map(item => `<div class="an-metric-row"><span class="an-metric-label">${esc(item.name)}<small>${item.directSets.toFixed(1)} direct · ${item.indirectSets.toFixed(1)} indirect</small></span><span class="an-metric-value">${item.totalSetCredits.toFixed(1)} credits</span></div>`).join('') : '<div class="an-empty-inline">No mapped exercises contributed in this period.</div>'}</section>
     <section class="an-volume-panel"><div class="an-volume-panel__head"><h3>Contributing workouts</h3><span>Exact evidence</span></div><div class="an-evidence-list">${workouts.length ? workouts.map(workout => `<button class="an-evidence-row" data-action="open-activity-detail" data-activity-id="${esc(workout.id)}"><span class="an-evidence-row__date">${esc(fmtDate(workout.date))}</span><span class="an-evidence-row__body"><span class="an-evidence-row__title">${esc(workout.title)}</span><span class="an-evidence-row__meta">${workout.workingSets} total workout sets</span></span><span class="an-evidence-row__arrow">›</span></button>`).join('') : '<div class="an-empty-inline">No contributing workouts in this period.</div>'}</div></section>
-    <details class="an-method"><summary>How are muscle sets estimated?</summary><p>Each completed working set gives 1.0 credit to the exercise’s main muscle and 0.5 or 0.25 to meaningful secondary muscles. Historical results use the current exercise catalogue, so a later classification update can change the retrospective breakdown.</p>${landmarks ? `<p>Typical reference bands for ${esc(name)}: maintenance ${landmarks.mv}–${landmarks.mev - 0.1}, growth ${landmarks.mev}–${landmarks.mav - 0.1}, higher volume from ${landmarks.mav}. These are general training references, not personalised medical advice.</p>` : ''}</details>`;
+    <details class="an-method"><summary>How are muscle sets estimated?</summary><p>Each completed working set gives 1.0 credit to the exercise’s main muscle and 0.5 or 0.25 to meaningful supporting muscles. Historical results use the current exercise catalogue, so a later classification update can change the retrospective breakdown.</p>${corridor.reference ? `<p>${esc(corridor.reference.label)} for ${esc(name)}: ${corridor.reference.min}–${corridor.reference.max} credits. This is descriptive planning guidance, not your biological minimum, recovery limit, readiness score or medical advice.</p>` : '<p>Track only records exposure without judging it against a target.</p>'}</details>`;
 }
