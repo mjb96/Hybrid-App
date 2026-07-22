@@ -2464,6 +2464,34 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
 }
 .settings-action-btn-danger { color: rgba(239,68,68,0.85); }
 .settings-action-btn-danger:hover { color: #f87171; }
+.settings-action-btn-muted { color: var(--text-muted); }
+.auto-backup-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--overlay-sm);
+}
+.auto-backup-status__indicator {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--overlay-2xl);
+}
+.auto-backup-status__indicator.is-on {
+  background: var(--color-green);
+  box-shadow: 0 0 8px rgba(16,185,129,0.55);
+}
+.auto-backup-status > span:last-child { min-width: 0; }
+.auto-backup-status strong,
+.auto-backup-status small { display: block; }
+.auto-backup-status strong { color: var(--text-strong); font-size: 0.82rem; }
+.auto-backup-status small { margin-top: 3px; color: var(--text-faint); font-size: 0.7rem; line-height: 1.4; }
 
 /* ==========================================
    HEALTH CONNECT SETTINGS

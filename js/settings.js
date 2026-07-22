@@ -2,13 +2,21 @@
 // SETTINGS
 // ==========================================
 import { saveStateToLocalStorage, STORAGE_KEY } from './state.js';
-import { getAllRouteRecords, putRouteRecords, putRoutes, clearRouteDatabase } from './db.js';
-import { wrapExport, parseImport } from './state/route-portability.js';
+import { putRouteRecords, putRoutes, clearRouteDatabase } from './db.js';
+import { parseImport } from './state/route-portability.js';
 import { CURRENT_SCHEMA_VERSION, isStateMigrationError, migrateState } from './state/migrations.js';
 import { APP_VERSION } from './constants.js';
 import { setRestTiers, setRestTimerEnabled, setRestOverrides, initRestPersistence } from './timers.js';
 import { todayKey } from './dates.js';
 import { exportResultMessage, saveTextExport } from './portability/export-service.js';
+import {
+  automaticBackupSupported,
+  getAutomaticBackupStatus,
+  chooseAutomaticBackupFolder,
+  disableAutomaticBackup,
+  buildCompleteBackup,
+  runAutomaticBackup,
+} from './portability/auto-backup.js';
 
 // Rest tier <-> "m:ss" helpers. Inputs accept "2:30", "150", or "2".
 const _fmtRest = (sec) => {
@@ -53,6 +61,7 @@ import {
 } from './state/import-validate.js';
 
 let _getState;
+let _autoBackupUiRequest = 0;
 
 export function initSettings(getStateFn) {
   _getState = getStateFn;
@@ -90,6 +99,7 @@ function _syncSettingsUI() {
   if (!_getState) return;
   const appState = _getState();
   const s = appState.settings || {};
+  void _syncAutomaticBackupUI();
 
   // Show the pre-sync recovery affordance only when a recoverable snapshot of
   // this device's data exists (i.e. a cloud copy overwrote it on sign-in).
@@ -217,6 +227,50 @@ function _syncSettingsUI() {
 
   _refreshAvatar();
   _syncHealthConnectUI();
+}
+
+function _friendlyBackupTime(value) {
+  if (!value) return 'No backup written yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Last backup time unavailable' : `Last backup ${date.toLocaleString()}`;
+}
+
+async function _syncAutomaticBackupUI() {
+  const request = ++_autoBackupUiRequest;
+  const label = document.getElementById('settingsAutoBackupLabel');
+  const detail = document.getElementById('settingsAutoBackupDetail');
+  const indicator = document.getElementById('settingsAutoBackupIndicator');
+  const folderBtn = document.getElementById('settingsAutoBackupFolderBtn');
+  const nowBtn = document.getElementById('settingsAutoBackupNowBtn');
+  const disableBtn = document.getElementById('settingsAutoBackupDisableBtn');
+  if (!label || !detail) return;
+
+  if (!automaticBackupSupported()) {
+    label.textContent = 'Available in the Android app';
+    detail.textContent = 'Manual JSON export remains available in this browser.';
+    indicator?.classList.remove('is-on');
+    if (folderBtn) folderBtn.style.display = 'none';
+    if (nowBtn) nowBtn.style.display = 'none';
+    if (disableBtn) disableBtn.style.display = 'none';
+    return;
+  }
+
+  label.textContent = 'Checking automatic backup…';
+  detail.textContent = '';
+  const status = await getAutomaticBackupStatus();
+  if (request !== _autoBackupUiRequest) return;
+  const configured = status?.configured === true;
+  indicator?.classList.toggle('is-on', configured);
+  label.textContent = configured ? 'Automatic JSON backup on' : 'Automatic backup not configured';
+  detail.textContent = configured
+    ? `${status.folderName || 'Selected folder'} · ${status.lastError || _friendlyBackupTime(status.lastBackupAt)}`
+    : 'Choose a folder once; Helyx will keep latest, seven daily and four weekly files.';
+  if (folderBtn) {
+    folderBtn.style.display = '';
+    folderBtn.textContent = configured ? 'Change Automatic Backup Folder' : 'Choose Automatic Backup Folder';
+  }
+  if (nowBtn) nowBtn.style.display = configured ? '' : 'none';
+  if (disableBtn) disableBtn.style.display = configured ? '' : 'none';
 }
 
 function _setToggleActive(groupSelector, activeSelector) {
@@ -570,7 +624,7 @@ export async function deleteAccount() {
 
   const ok = await confirmModal({
     title: 'Delete your account?',
-    message: 'This permanently deletes your account and ALL synced data. It cannot be undone.\n\nConsider exporting your data first (Settings → Export).',
+    message: 'This permanently deletes your account and all synced app data. JSON files already exported or written to your automatic backup folder remain yours; delete those files separately if you do not want to keep them.\n\nConsider exporting your data first (Settings → Export).',
     confirmLabel: 'Delete account', danger: true,
   });
   if (!ok) return;
@@ -651,27 +705,57 @@ export function saveThresholdPace() {
 // ==========================================
 export async function exportData() {
   const appState = _getState();
-  // Include GPS routes (they live in IndexedDB, not appState) in a versioned
-  // envelope so export is a complete, restorable backup.
-  let routeRecords;
-  try { routeRecords = await getAllRouteRecords(); }
+  let backup;
+  try { backup = await buildCompleteBackup(appState); }
   catch {
     showToast('Export stopped: GPS routes could not be read safely.', true);
     return;
   }
-  const payload = wrapExport(appState, routeRecords, { appVersion: APP_VERSION });
-  if (payload.routeRecords.length !== routeRecords.length) {
-    showToast('Export stopped: route validation did not preserve every route.', true);
-    return;
-  }
   const result = await saveTextExport({
     filename: `helyx-training-${todayKey()}.json`,
-    content: JSON.stringify(payload, null, 2),
+    content: backup.content,
     mime: 'application/json',
   });
-  const n = payload.routeRecords.length;
+  const n = backup.routeCount;
   const copy = exportResultMessage(result, n ? `Data (${n} route${n === 1 ? '' : 's'})` : 'Data');
   showToast(copy.message, copy.error);
+}
+
+export async function selectAutomaticBackupFolder() {
+  const selected = await chooseAutomaticBackupFolder();
+  if (selected?.status === 'cancelled') return;
+  if (!selected?.configured) {
+    showToast(selected?.message || 'Automatic backup folder was not selected.', true);
+    void _syncAutomaticBackupUI();
+    return;
+  }
+  showToast('Backup folder selected. Writing the first backup…');
+  const written = await runAutomaticBackup('setup', { force: true });
+  showToast(written?.status === 'saved'
+    ? 'Automatic JSON backup saved ✓'
+    : written?.message || 'The folder was saved, but the first backup could not be written.', written?.status !== 'saved');
+  void _syncAutomaticBackupUI();
+}
+
+export async function backupNow() {
+  showToast('Writing complete JSON backup…');
+  const result = await runAutomaticBackup('manual', { force: true });
+  showToast(result?.status === 'saved'
+    ? 'Automatic JSON backup saved ✓'
+    : result?.message || 'Automatic backup failed.', result?.status !== 'saved');
+  void _syncAutomaticBackupUI();
+}
+
+export async function turnOffAutomaticBackup() {
+  const ok = await confirmModal({
+    title: 'Turn off automatic backups?',
+    message: 'Existing JSON files remain in your chosen folder. Helyx will stop writing new ones.',
+    confirmLabel: 'Turn off',
+  });
+  if (!ok) return;
+  const result = await disableAutomaticBackup();
+  showToast(result?.status === 'disabled' ? 'Automatic backups turned off' : result?.message || 'Could not turn off automatic backups.', result?.status !== 'disabled');
+  void _syncAutomaticBackupUI();
 }
 
 export function triggerImport() {
@@ -775,7 +859,7 @@ export function handleImportFile(file) {
 export async function confirmResetAllData() {
   const ok = await confirmModal({
     title: 'Reset all training data?',
-    message: 'Every logged workout, run and setting on this device will be cleared. This cannot be undone.',
+    message: 'Every logged workout, run and setting in Helyx on this device will be cleared. JSON files already saved in your chosen folder are not deleted and can be imported again.',
     confirmLabel: 'Reset everything', danger: true,
   });
   if (!ok) return;

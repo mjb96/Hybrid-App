@@ -78,6 +78,7 @@ import {
   saveReminderTime, setNotifToggle, saveStreakAlertTime, toggleEquipment, saveBandWeights,
   saveRestPeriods, applyRestPreset, setRestTimerEnabledSetting, resetRestOverrides, signOut, deleteAccount,
   openAvatarPicker, handleAvatarFile,
+  selectAutomaticBackupFolder, backupNow, turnOffAutomaticBackup,
 } from './settings.js';
 import { initAthleteProfile, renderAthleteProfile, handleProfileAction } from './athlete-profile.js';
 import { initActivities, openActivities, closeActivities, isActivitiesOpen, handleActivityAction } from './activities.js';
@@ -96,6 +97,7 @@ import { buildActivityHistory } from './activities/model.js';
 import {
   clearActiveOneOffSession, createOneOffStrengthSession,
 } from './workout/one-off-session.js';
+import { initAutomaticBackups, checkDailyAutomaticBackup } from './portability/auto-backup.js';
 
 document.addEventListener('app:storage-loaded', () => {
   try {
@@ -1073,6 +1075,9 @@ document.addEventListener('click', (e) => {
   else if (action === 'week-step') stepCurrentWeek(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'export-data') exportData();
   else if (action === 'import-data') triggerImport();
+  else if (action === 'auto-backup-folder') selectAutomaticBackupFolder();
+  else if (action === 'auto-backup-now') backupNow();
+  else if (action === 'auto-backup-disable') turnOffAutomaticBackup();
   else if (action === 'reset-all-data') confirmResetAllData();
   else if (action === 'recover-presync-snapshot') recoverPreSyncSnapshot();
   else if (action === 'recover-preoverwrite-cloud') recoverPreOverwriteCloudSnapshot();
@@ -1647,6 +1652,7 @@ async function bootstrapApp() {
     initOfflineIndicator();
     initSyncConflictUI();
     initSessionRecap(() => appState);
+    initAutomaticBackups(() => appState);
     // Recap entry points: after finishing a session, and tapping a logged day.
     document.addEventListener('session:finished', (e) => {
       closeActivityScreen();
@@ -1663,6 +1669,9 @@ async function bootstrapApp() {
     // Recovery may immediately attach a device-local active session to app
     // state, so the stored training history must be loaded first.
     initGpsTracker();
+    // Android-only catch-up. This is deliberately fire-and-forget so a slow or
+    // unavailable document provider can never block app startup.
+    void checkDailyAutomaticBackup();
 
     const currentTab = getActiveProgramIssue(appState) ? 'program' : (activeTab || 'home');
     const currentDay = selectedDay || 'mon';

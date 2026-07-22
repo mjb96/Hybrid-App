@@ -126,9 +126,17 @@ declare global {
     HybridFileExportBridge?: {
       saveTextFile(filename: string, content: string, mime: string, callbackId: string): void;
     };
+    /** Native Android automatic backup-folder bridge. */
+    HybridAutoBackupBridge?: {
+      getStatus(callbackId: string): void;
+      chooseFolder(callbackId: string): void;
+      writeAutomaticBackup(content: string, dayKey: string, weekKey: string, reason: string, callbackId: string): void;
+      disable(callbackId: string): void;
+    };
     /** Pending native→JS callbacks keyed by callbackId. */
     __hcCB?: Record<string, (json: string) => void>;
     __fileExportCB?: Record<string, (json: string) => void>;
+    __autoBackupCB?: Record<string, (json: string) => void>;
     /** Hardware/gesture back handler; returns 'handled' or 'exit'. */
     __onAndroidBack?: () => string;
     _hybridGetState?: () => any;

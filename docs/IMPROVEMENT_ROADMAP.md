@@ -453,6 +453,19 @@ count, downloads, or monetization—are the decision metrics.
   completion releases the gate. This closes the delayed-autosave race that could otherwise upload
   a blank scaffold while sign-in recovery was in flight. Invalid/cancelled imports retain the
   recovery welcome and do not replace state.
+- **Automatic offline JSON backup implementation complete — 22 July 2026** on
+  `codex/offline-auto-backups`. The Android app now lets the athlete explicitly choose a
+  Storage Access Framework folder, then writes the same complete v4 portable JSON envelope
+  as manual export (app state plus every validated GPS route). A session checkpoint refreshes
+  `helyx-auto-latest.json`, the current dated snapshot and the current weekly snapshot; app
+  launch performs a once-per-day catch-up. Native retention keeps seven daily and four weekly
+  snapshots without touching unrelated files. The shared-storage files are designed to remain
+  after WebView/app data is cleared, although Helyx must be granted the folder again before it
+  can resume writing. Browser/PWA automatic downloads remain unavailable by platform design and
+  manual JSON export remains visible. Files are disclosed as unencrypted and a cloud-backed
+  folder may be synced by its provider; Android system app backup remains disabled. Physical
+  folder, permission-loss, clear-data and reimport evidence remains `[You]` work in
+  `docs/android-export-device-checklist.md`.
 - **Volume Guide Phase 1 complete — 22 July 2026** on `codex/volume-guide`. Strength analytics
   now separates calendar-week logged set credits from the active program's week-specific planned
   credits, exposes direct and indirect contribution, and lets the athlete choose Grow, Maintain,
@@ -724,8 +737,9 @@ These require the product owner/device/accounts and must not be simulated as com
   prepare the Play foreground-service declaration and demonstration video.
 - [ ] Grant, deny, and revoke each Health Connect permission on minimum/current supported
   Android versions; test notifications, resume, offline behavior, and capture Settings/result evidence.
-- [ ] Complete the TalkBack, touch-target, Android system save/share, cancel, overwrite, and
-  JSON reimport checklists on minimum/current supported devices.
+- [ ] Complete the TalkBack, touch-target, Android system save/share, cancel, overwrite,
+  automatic offline backup, clear-data survival, and JSON reimport checklists on
+  minimum/current supported devices.
 - [ ] Deploy and verify the `delete-account` edge function so account deletion removes the
   authentication record as well as local/cloud user data.
 - [ ] Have the privacy policy and terms reviewed; replace every placeholder; confirm the
@@ -747,6 +761,21 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · PR #158 conflict resolution on `codex/offline-auto-backups`: merged the
+  Volume Guide mainline commit without rewriting history, retained both roadmap records and
+  both offline module graphs, and kept the newer v109 cache boundary. `npm run verify` is green
+  with 1,123 tests plus typecheck, precache, workflow policy and smoke. · Next: let required
+  Web/Android PR checks complete, then run the physical automatic-backup acceptance rows.
+- 2026-07-22 · Automatic offline JSON backup on `codex/offline-auto-backups`: Android now
+  uses one explicitly chosen shared-storage folder for complete route-inclusive JSON backups,
+  with latest + seven daily + four weekly retention, finished-session checkpoints, daily launch
+  catch-up, status/manual-run/change-folder/disable controls and an unencrypted-file warning.
+  Browser fallback keeps manual import/export and explains the platform boundary. `npm run
+  verify` is green with 1,119 tests; the 390×844 Settings journey has no overflow or console
+  errors. Local Android Gradle is unavailable in this checkout, so the new native JVM retention/
+  validation tests and compile gates remain for required PR CI; physical clear-data/reimport
+  evidence is still owner-run. · Next: open a PR after owner approval, then run the expanded
+  Android export checklist before beta.
 - 2026-07-22 · Volume Guide Phase 1 on `codex/volume-guide`: added athlete-owned Grow / Maintain /
   Track priorities, calendar-week logged versus program-week planned set credits, direct/indirect
   transparency, an eight-week muscle corridor, conditional Home card, and custom-program projected
