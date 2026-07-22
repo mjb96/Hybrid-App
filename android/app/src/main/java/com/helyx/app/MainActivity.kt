@@ -394,10 +394,7 @@ class MainActivity : AppCompatActivity() {
             fileChooserCallback?.onReceiveValue(null)
             fileChooserCallback = filePathCallback
 
-            val types = fileChooserParams.acceptTypes
-                .filter { it.isNotBlank() }
-                .toTypedArray()
-                .ifEmpty { arrayOf("*/*") }
+            val types = FileChooserTypes.normalize(fileChooserParams.acceptTypes)
             openDocumentLauncher.launch(types)
             return true
         }
