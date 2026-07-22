@@ -24,6 +24,12 @@ test('an entity drilldown returns to its parent analytics surface', () => {
   });
 });
 
+test('a Strength Stats metric returns to Strength Stats with a clear label', () => {
+  assert.deepEqual(analyticsBackDestination('strength-metric', 'insights', 'strength_pr'), {
+    action: 'open-analytics', context: 'strength_pr', label: '← Back to Strength', preserveWeek: true,
+  });
+});
+
 test('a third-level drilldown restores the parent surface own return path', () => {
   assert.deepEqual(
     analyticsBackDestination('exercise', 'home', 'weekly-volume', 'strength', 'insights'),

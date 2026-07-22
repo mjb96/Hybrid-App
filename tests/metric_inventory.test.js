@@ -7,6 +7,7 @@ import {
   analyticsInventorySummary,
 } from '../js/analytics/metric-inventory.js';
 import { RUNNING_METRICS } from '../js/analytics/running-detail.js';
+import { STRENGTH_METRICS } from '../js/analytics/strength-detail.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -47,10 +48,22 @@ test('running metric actions carry stable identity, accessible naming and the ex
   assert.match(runningView, /data-metric-id=/);
 });
 
+test('registered Strength volume metrics are exact supported destinations in the Stats view', () => {
+  const inventory = new Map(ANALYTICS_INVENTORY.map((entry) => [entry.id, entry]));
+  const strengthView = read('js/analytics/views/view-strength.js');
+  for (const metric of STRENGTH_METRICS) {
+    const entry = inventory.get(metric.id);
+    assert.ok(entry, `${metric.id} missing inventory`);
+    assert.equal(entry.currentInteractive, 'exact-detail');
+    assert.equal(entry.currentDestination, `strength-metric:${metric.id}`);
+    assert.match(strengthView, new RegExp(metric.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
 test('inventory summary and explicit non-analytic exclusions remain reviewable', () => {
   const summary = analyticsInventorySummary();
   assert.equal(summary.metrics, ANALYTICS_INVENTORY.length);
-  assert.equal(summary.newlyExact, RUNNING_METRICS.length);
+  assert.equal(summary.newlyExact, RUNNING_METRICS.length + STRENGTH_METRICS.length);
   assert.ok(summary.tileInstances >= summary.metrics);
   assert.ok(ANALYTICS_EXCLUSIONS.length >= 5);
 });
