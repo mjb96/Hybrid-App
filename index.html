@@ -1665,6 +1665,14 @@
         <!-- Data -->
         <div class="settings-section">
           <div class="settings-section-label">Data &amp; Backups</div>
+          <div class="auto-backup-status" id="settingsAutoBackupStatus">
+            <span class="auto-backup-status__indicator" id="settingsAutoBackupIndicator" aria-hidden="true"></span>
+            <span><strong id="settingsAutoBackupLabel">Checking automatic backup…</strong><small id="settingsAutoBackupDetail"></small></span>
+          </div>
+          <button class="settings-action-btn" id="settingsAutoBackupFolderBtn" data-action="auto-backup-folder">Choose Automatic Backup Folder</button>
+          <button class="settings-action-btn" id="settingsAutoBackupNowBtn" data-action="auto-backup-now" style="display:none;">Back Up Now</button>
+          <button class="settings-action-btn settings-action-btn-muted" id="settingsAutoBackupDisableBtn" data-action="auto-backup-disable" style="display:none;">Turn Off Automatic Backups</button>
+          <p class="settings-hint">Android automatic backups are complete portable JSON files, including GPS routes. They are stored unencrypted in the folder you choose. Pick a private device folder for offline-only storage; a cloud-backed folder may be synced by its provider.</p>
           <button class="settings-action-btn settings-action-btn-recover" id="settingsRecoverSnapshotBtn" data-action="recover-presync-snapshot" style="display:none;">↩︎ Recover this device’s data</button>
           <div class="settings-hint" id="settingsRecoverSnapshotHint" style="display:none;">A newer cloud backup replaced this device’s data on sign-in. Restore what was on this device before that.</div>
           <button class="settings-action-btn settings-action-btn-recover" id="settingsRecoverCloudOverwriteBtn" data-action="recover-preoverwrite-cloud" style="display:none;">↩︎ Recover protected cloud data</button>

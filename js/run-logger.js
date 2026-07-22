@@ -113,6 +113,7 @@ export function saveManualRun() {
 
   saveStateToLocalStorage(true);
   document.dispatchEvent(new Event('app:storage-loaded'));
+  document.dispatchEvent(new Event('backup:checkpoint'));
   _resetSaveButton();
   closeRunLogger();
   showToast('Run logged ✓');

@@ -3,7 +3,7 @@ package com.helyx.app
 /**
  * The ONE place that turns native values into JavaScript for
  * `WebView.evaluateJavascript(...)`. Every bridge that resolves a JS callback
- * (GPS, notifications, Health Connect, file export) MUST build its script here
+ * (GPS, notifications, Health Connect, file export, automatic backup) MUST build its script here
  * so escaping can never drift between bridges.
  *
  * Two boundaries are guarded:

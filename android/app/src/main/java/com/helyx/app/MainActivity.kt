@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gpsBridge: GpsBridge
     private lateinit var notifBridge: NotifyBridge
     private lateinit var fileExportBridge: FileExportBridge
+    private lateinit var autoBackupBridge: AutoBackupBridge
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
@@ -83,6 +84,15 @@ class MainActivity : AppCompatActivity() {
     ) { result ->
         fileExportBridge.onDocumentResult(
             if (result.resultCode == Activity.RESULT_OK) result.data?.data else null
+        )
+    }
+
+    private val openBackupDirectoryLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        autoBackupBridge.onFolderResult(
+            if (result.resultCode == Activity.RESULT_OK) result.data?.data else null,
+            result.data?.flags ?: 0,
         )
     }
 
@@ -147,6 +157,19 @@ class MainActivity : AppCompatActivity() {
                 createExportDocumentLauncher.launch(intent)
             },
         )
+        autoBackupBridge = AutoBackupBridge(
+            context = this,
+            webView = webView,
+            launchOpenTree = {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                    addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+                }
+                openBackupDirectoryLauncher.launch(intent)
+            },
+        )
 
         configureWebView()
         // Registers OnBackPressedCallback for API 26+. AndroidX activity:1.8+ automatically
@@ -206,6 +229,7 @@ class MainActivity : AppCompatActivity() {
             addJavascriptInterface(gpsBridge, "HybridGpsBridge")
             addJavascriptInterface(notifBridge, "HybridNotifyBridge")
             addJavascriptInterface(fileExportBridge, "HybridFileExportBridge")
+            addJavascriptInterface(autoBackupBridge, "HybridAutoBackupBridge")
             loadUrl(BuildConfig.APP_URL)
         }
     }
