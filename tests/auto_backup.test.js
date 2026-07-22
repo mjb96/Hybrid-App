@@ -64,6 +64,36 @@ test('folder setup and disable resolve through the native completion callback', 
   assert.deepEqual(runtime.window.__autoBackupCB, {});
 });
 
+test('Android WebView timers keep their Window receiver instead of throwing Illegal invocation', async () => {
+  const win = {};
+  let scheduled = false;
+  let cleared = false;
+  const runtime = {
+    window: win,
+    setTimeout(callback, delay) {
+      if (this !== win) throw new TypeError('Illegal invocation');
+      scheduled = delay === 120000;
+      return 42;
+    },
+    clearTimeout(id) {
+      if (this !== win) throw new TypeError('Illegal invocation');
+      cleared = id === 42;
+    },
+  };
+  win.HybridAutoBackupBridge = {
+    chooseFolder(callbackId) {
+      win.__autoBackupCB[callbackId](JSON.stringify({
+        status: 'configured', available: true, configured: true, folderName: 'Helyx',
+      }));
+    },
+  };
+
+  const result = await chooseAutomaticBackupFolder(runtime);
+  assert.equal(result.status, 'configured');
+  assert.equal(scheduled, true);
+  assert.equal(cleared, true);
+});
+
 test('complete backup is the portable v4 envelope and includes every GPS route', async () => {
   const complete = await buildCompleteBackup(state(), {
     getRoutes: async () => [route()],

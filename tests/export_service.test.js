@@ -44,10 +44,40 @@ test('Android cancellation is honest and never reported as saved', async () => {
   assert.equal(exportResultMessage(result).message, 'Export cancelled.');
 });
 
+test('Android export invokes WebView timers with the Window receiver', async () => {
+  const win = {};
+  let scheduled = false;
+  let cleared = false;
+  win.HybridFileExportBridge = {
+    saveTextFile(filename, _content, _mime, callbackId) {
+      win.__fileExportCB[callbackId](JSON.stringify({ status: 'saved', filename }));
+    },
+  };
+  const result = await saveTextExport(
+    { filename: 'backup.json', content: '{}', mime: 'application/json' },
+    {
+      window: win,
+      setTimeout(callback, delay) {
+        if (this !== win) throw new TypeError('Illegal invocation');
+        scheduled = delay === 120000;
+        return 73;
+      },
+      clearTimeout(id) {
+        if (this !== win) throw new TypeError('Illegal invocation');
+        cleared = id === 73;
+      },
+    },
+  );
+  assert.equal(result.status, 'saved');
+  assert.equal(scheduled, true);
+  assert.equal(cleared, true);
+});
+
 test('browser file picker confirms write and close before reporting saved', async () => {
   const events = [];
   const win = {
     async showSaveFilePicker(options) {
+      assert.equal(this, win, 'browser picker must retain its Window receiver');
       events.push(['picker', options.suggestedName]);
       return { createWritable: async () => ({
         write: async (content) => events.push(['write', content]),

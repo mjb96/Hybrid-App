@@ -19,6 +19,22 @@ function runtimeDefaults() {
   };
 }
 
+// WebKit rejects detached host-timer calls with `TypeError: Illegal invocation`.
+// Runtime injection remains supported, but browser functions must receive their
+// actual Window object rather than this plain runtime wrapper.
+function scheduleTimeout(runtime, callback, delay) {
+  const timer = runtime.setTimeout;
+  if (typeof timer !== 'function') return undefined;
+  return Reflect.apply(timer, runtime.window || globalThis, [callback, delay]);
+}
+
+function cancelTimeout(runtime, timerId) {
+  const clear = runtime.clearTimeout;
+  if (typeof clear === 'function' && timerId !== undefined) {
+    Reflect.apply(clear, runtime.window || globalThis, [timerId]);
+  }
+}
+
 function normalizedFile(file) {
   if (!file || typeof file !== 'object') return null;
   const filename = typeof file.filename === 'string' ? file.filename.trim() : '';
@@ -37,11 +53,11 @@ function nativeSave(file, runtime) {
   const callbackId = `file_${++callbackSeq}_${Date.now()}`;
   return new Promise((resolve) => {
     const finish = (result) => {
-      runtime.clearTimeout?.(timer);
+      cancelTimeout(runtime, timer);
       delete win.__fileExportCB[callbackId];
       resolve({ ...result, adapter: 'android' });
     };
-    const timer = runtime.setTimeout?.(() => {
+    const timer = scheduleTimeout(runtime, () => {
       finish({ status: 'error', message: 'Android save timed out.' });
     }, 120000);
     win.__fileExportCB[callbackId] = (json) => {
@@ -67,10 +83,10 @@ async function pickerSave(file, runtime) {
   const picker = runtime.window?.showSaveFilePicker;
   if (typeof picker !== 'function') return null;
   try {
-    const handle = await picker({
+    const handle = await Reflect.apply(picker, runtime.window, [{
       suggestedName: file.filename,
       types: [{ description: file.mime, accept: { [file.mime]: [`.${file.filename.split('.').pop()}`] } }],
-    });
+    }]);
     const writable = await handle.createWritable();
     await writable.write(file.content);
     await writable.close();
@@ -98,7 +114,7 @@ function downloadSave(file, runtime) {
   doc.body?.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  runtime.setTimeout?.(() => Url.revokeObjectURL(url), 0);
+  scheduleTimeout(runtime, () => Url.revokeObjectURL(url), 0);
   return { status: 'started', adapter: 'browser-download', filename: file.filename };
 }
 
