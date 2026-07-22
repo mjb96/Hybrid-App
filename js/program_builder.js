@@ -1,270 +1,441 @@
-// ==========================================
-// PROGRAM BUILDER LOGIC (program_builder.js)
-//
-// Edits a custom program's *trainable* shape: days{} object map (mon..sun),
-// each day carrying { title, runs, lifts[] }. This is exactly what the cockpit
-// and verifyWeekStorageSchema/reseedActiveProgramIntoWeek seed from (state.js),
-// so a program built here loads as real, loggable exercises when made active.
-// Sets/reps come from the program's weekly modifiers (createCustomProgram seeds
-// them), not from per-exercise overrides — keep it honest about what the engine
-// actually reads.
-// ==========================================
-import { saveStateToLocalStorage, getProgramById } from './state.js';
-import { escapeHtml } from './util.js';
-import { ensureWeeklyMods, setWeekField, markWeekDeload, isDeloadWeek, weekKeys } from './programs/progression.js';
+// @ts-check
+// Mobile-first custom program editor. Stored programs intentionally retain the
+// v1 bare-string exercise shape; the deeper per-exercise prescription contract
+// remains R20. This surface only exposes behaviour the workout engine supports.
 
-const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const DAY_LABELS = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+import {
+  saveStateToLocalStorage, getProgramById, appState, reconcileActiveProgramEdits,
+} from './state.js';
+import { escapeHtml } from './util.js';
+import { EXERCISES, canonicalExerciseId, normaliseExerciseName } from './exercises/catalog.js';
+import {
+  ensureWeeklyMods, setWeekField, markWeekDeload, isDeloadWeek, weekKeys,
+} from './programs/progression.js';
+import {
+  EDITOR_DAYS, EDITOR_DAY_LABELS, copyProgramDay, dayTrainingSummary,
+  previewProgramWeek, programEditorSummary, validateProgramDraft,
+} from './programs/editor-model.js';
+import { confirmModal } from './ui/confirm-modal.js';
+import { closeManagedModal, openManagedModal } from './ui/modal-stack.js';
 
 let activeBuilderId = null;
+let activeSection = 'schedule';
+let selectedDay = 'mon';
+let previewWeek = '1';
+let pickerTarget = null;
+let saveTimer = null;
+let reconciliation = { updatedDays: 0, preservedDays: 0 };
 
-export function openBuilder(programId) {
-  activeBuilderId = programId;
-  const program = getProgramById(programId);
-  if (!program) return;
+function getProgram() { return getProgramById(activeBuilderId); }
 
-  const container = document.getElementById('builderViewContainer');
-  if (container) container.style.display = 'block';
-
-  // Hide the sibling program sub-screens so the builder owns the view.
-  const libraryScreen = document.getElementById('programLibraryScreen');
-  if (libraryScreen) libraryScreen.style.display = 'none';
-  const detailScreen = document.getElementById('programDetailScreen');
-  if (detailScreen) detailScreen.style.display = 'none';
-  const activePlan = document.getElementById('progActivePlanView');
-  if (activePlan) activePlan.style.display = 'none';
-
-  renderBuilderUI(program);
-}
-
-// Guarantee the day map exists with the trainable shape before we render/edit.
 function ensureDays(program) {
   if (!program.days || Array.isArray(program.days)) program.days = {};
-  DAYS.forEach(d => {
-    if (!program.days[d] || typeof program.days[d] !== 'object') {
-      program.days[d] = { title: 'Rest', badge: 'Rest', color: 'var(--text-muted)', desc: '', runs: 'Rest', lifts: [] };
+  EDITOR_DAYS.forEach((day) => {
+    if (!program.days[day] || typeof program.days[day] !== 'object') {
+      program.days[day] = { title: 'Rest', badge: 'Rest', color: 'var(--text-muted)', desc: '', runs: 'Rest', lifts: [] };
     }
-    if (!Array.isArray(program.days[d].lifts)) program.days[d].lifts = [];
+    if (!Array.isArray(program.days[day].lifts)) program.days[day].lifts = [];
+    if (typeof program.days[day].runs !== 'string') program.days[day].runs = 'Rest';
   });
 }
 
-// ==========================================
-// UI GENERATORS (Pure DOM String Builders)
-// ==========================================
+function setSaveStatus(label) {
+  const status = document.getElementById('builderSaveStatus');
+  if (status) status.textContent = label;
+}
 
-function renderBuilderUI(program) {
-  const container = document.getElementById('builderViewContainer');
-  if (!container) return;
+function persistProgram({ reconcile = true } = {}) {
+  const program = getProgram();
+  if (!program) return;
+  if (reconcile) reconciliation = reconcileActiveProgramEdits(program.id);
+  saveStateToLocalStorage(true);
+  setSaveStatus('Saving on this device…');
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => setSaveStatus('Saved on this device'), 550);
+}
+
+export function openBuilder(programId) {
+  activeBuilderId = programId;
+  const program = getProgram();
+  if (!program) return;
   ensureDays(program);
   ensureWeeklyMods(program);
+  selectedDay = EDITOR_DAYS.find((day) => dayTrainingSummary(program.days[day]).training) || 'mon';
+  activeSection = 'schedule';
+  previewWeek = '1';
+  reconciliation = { updatedDays: 0, preservedDays: 0 };
+
+  const container = document.getElementById('builderViewContainer');
+  if (container) container.style.display = 'block';
+  for (const id of ['programLibraryScreen', 'programDetailScreen', 'progActivePlanView']) {
+    const sibling = document.getElementById(id);
+    if (sibling) sibling.style.display = 'none';
+  }
+  renderBuilderUI();
+}
+
+function renderBuilderUI() {
+  const program = getProgram();
+  const container = document.getElementById('builderViewContainer');
+  if (!program || !container) return;
+  ensureDays(program);
+  ensureWeeklyMods(program);
+  const summary = programEditorSummary(program);
+  const active = appState.activeProgramId === program.id;
 
   container.innerHTML = `
-    <button class="subview-back-btn" data-action="close-builder">← Back to Library</button>
-    <div class="card-dark p-4 mb-4">
-      <h2 class="text-xl font-heavy text-inverse">${escapeHtml(program.name || 'Custom Program')}</h2>
-      <p class="text-sm text-muted">${escapeHtml(program.dossier?.focus || 'Custom Program')} · ${program.totalWeeks || 12} weeks</p>
-      <p class="text-xs text-muted" style="margin-top:8px;">Add the lifts you want to train on each day, then set how sets &amp; reps progress week to week below. Leave a day on "Rest" with no lifts for a rest day.</p>
-      <p class="text-xs text-muted" style="margin-top:6px;opacity:0.85;">✓ Changes save automatically as you type.</p>
+    <div class="program-editor">
+      <div class="program-editor__topbar">
+        <button class="subview-back-btn program-editor__back" data-action="close-builder">← Programs</button>
+        <span id="builderSaveStatus" class="program-editor__save" role="status">Saved on this device</span>
+      </div>
+
+      <section class="program-editor__hero" aria-labelledby="programEditorTitle">
+        <div class="program-editor__eyebrow">CUSTOM PROGRAM</div>
+        <input id="programEditorTitle" class="program-editor__title-input" type="text" maxlength="70"
+          value="${escapeHtml(program.name || '')}" data-action="b-program-name" aria-label="Program name">
+        <div class="program-editor__details-grid">
+          <label><span>Focus</span><input type="text" maxlength="80" value="${escapeHtml(program.dossier?.focus || '')}" data-action="b-program-focus" placeholder="e.g. Strength + 10K"></label>
+          <label><span>Length</span><div class="program-editor__weeks-input"><input type="number" min="1" max="52" value="${escapeHtml(String(program.totalWeeks || 12))}" data-action="b-program-weeks" aria-label="Program length in weeks"><span>weeks</span></div></label>
+        </div>
+        <div class="program-editor__summary" aria-label="Program summary">
+          <span><strong>${summary.strengthDays}</strong> strength day${summary.strengthDays === 1 ? '' : 's'}</span>
+          <span><strong>${summary.runDays}</strong> run day${summary.runDays === 1 ? '' : 's'}</span>
+          <span><strong>${summary.totalExercises}</strong> exercises</span>
+        </div>
+        ${active ? `<div class="program-editor__active-note"><strong>Active plan</strong><span>Untouched workouts update automatically. Logged or started sessions are preserved.</span></div>` : ''}
+      </section>
+
+      <nav class="program-editor__tabs" aria-label="Program editor sections">
+        ${renderTab('schedule', 'Schedule')}
+        ${renderTab('progression', 'Progression')}
+        ${renderTab('preview', 'Preview')}
+      </nav>
+
+      <div class="program-editor__body">
+        ${activeSection === 'schedule' ? renderSchedule(program) : ''}
+        ${activeSection === 'progression' ? renderProgression(program) : ''}
+        ${activeSection === 'preview' ? renderPreview(program) : ''}
+      </div>
     </div>
-    <div id="builderDaysContainer">
-      ${DAYS.map(d => renderDayCard(program, d)).join('')}
-    </div>
-    ${renderProgressionSection(program)}
   `;
 }
 
-// ── Weekly progression editor (edits weeklyVolModifiers → read by the cockpit) ──
-function renderProgressionSection(program) {
+function renderTab(id, label) {
+  const selected = activeSection === id;
+  return `<button class="program-editor__tab${selected ? ' is-active' : ''}" data-action="b-section" data-section="${id}" role="tab" aria-selected="${selected}">${label}</button>`;
+}
+
+function renderSchedule(program) {
+  const day = program.days[selectedDay];
+  const summary = dayTrainingSummary(day);
   return `
-    <div class="card-dark p-4 mb-4" style="border: 1px solid var(--overlay-sm);">
-      <div class="flex-between mb-2">
-        <h3 class="font-heavy text-lg">Weekly progression</h3>
+    <section aria-labelledby="builderScheduleTitle">
+      <div class="program-editor__section-heading">
+        <div><div class="program-editor__eyebrow">WEEKLY SCHEDULE</div><h2 id="builderScheduleTitle">Choose a day to edit</h2></div>
       </div>
-      <p class="text-xs text-muted" style="margin-bottom:12px;">Sets &amp; reps apply to every lift trained that week. Set the arc across your ${weekKeys(program).length} weeks and mark deloads — this is exactly what the workout screen prescribes.</p>
-      <div class="flex-col gap-2" id="builderWeeksContainer">
-        ${weekKeys(program).map(wk => renderWeekRow(program, wk)).join('')}
+      <div class="program-editor__day-strip" role="tablist" aria-label="Training days">
+        ${EDITOR_DAYS.map((key) => {
+          const item = dayTrainingSummary(program.days[key]);
+          const selected = key === selectedDay;
+          return `<button class="program-editor__day${selected ? ' is-active' : ''}${item.training ? ' has-training' : ''}" data-action="b-select-day" data-day="${key}" role="tab" aria-selected="${selected}">
+            <span>${EDITOR_DAY_LABELS[key].slice(0, 3)}</span><small>${item.training ? item.lifts || 'Run' : 'Rest'}</small>
+          </button>`;
+        }).join('')}
       </div>
-    </div>
+
+      <article class="program-editor__day-card">
+        <div class="program-editor__day-heading">
+          <div><span>${EDITOR_DAY_LABELS[selectedDay]}</span><strong>${escapeHtml(summary.label)}</strong></div>
+          <button class="program-editor__rest-toggle${summary.training ? '' : ' is-rest'}" data-action="${summary.training ? 'b-mark-rest' : 'b-mark-training'}">${summary.training ? 'Make rest day' : 'Add training'}</button>
+        </div>
+
+        <label class="program-editor__field"><span>Session name</span><input type="text" maxlength="70" value="${escapeHtml(day.title || '')}" data-action="b-day-title" data-day="${selectedDay}" placeholder="e.g. Upper strength"></label>
+        <label class="program-editor__field"><span>Run / cardio <small>Optional</small></span><input type="text" maxlength="120" value="${escapeHtml(day.runs || 'Rest')}" data-action="b-day-runs" data-day="${selectedDay}" placeholder="e.g. 5 km easy or 6 × 800 m"></label>
+
+        <div class="program-editor__list-heading"><div><span>Exercises</span><small>${day.lifts.length} in workout order</small></div><button class="program-editor__add" data-action="b-open-picker" data-day="${selectedDay}">+ Add exercise</button></div>
+        <div class="program-editor__exercise-list">
+          ${day.lifts.length ? day.lifts.map((name, index) => renderExerciseRow(selectedDay, name, index, day.lifts.length)).join('') : `
+            <button class="program-editor__empty" data-action="b-open-picker" data-day="${selectedDay}"><strong>No exercises yet</strong><span>Add the first exercise to this session</span></button>
+          `}
+        </div>
+
+        <div class="program-editor__copy-row">
+          <label><span>Copy another day</span><select id="builderCopySource" aria-label="Day to copy">${EDITOR_DAYS.filter((key) => key !== selectedDay).map((key) => `<option value="${key}">${EDITOR_DAY_LABELS[key]} · ${escapeHtml(dayTrainingSummary(program.days[key]).label)}</option>`).join('')}</select></label>
+          <button class="btn-pad" data-action="b-copy-day" data-day="${selectedDay}">Copy</button>
+        </div>
+      </article>
+    </section>
   `;
 }
 
-function renderWeekRow(program, wk) {
-  const m = program.weeklyVolModifiers[wk] || { sets: 3, reps: 10, intensityLabel: '' };
-  const deload = isDeloadWeek(m);
-  const inputBase = 'background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--text-inverse); padding: 6px; border-radius: 4px; font-size: 0.8rem;';
+function renderExerciseRow(day, name, index, count) {
   return `
-    <div class="flex gap-2 align-center" style="flex-wrap:wrap;${deload ? 'border-left:3px solid var(--accent-cyan);padding-left:8px;' : ''}">
-      <span class="text-xs text-muted" style="min-width:34px;font-variant-numeric:tabular-nums;">Wk ${wk}</span>
-      <input type="number" min="1" max="12" value="${escapeHtml(String(m.sets))}" data-action="b-week-sets" data-wk="${wk}" aria-label="Week ${wk} sets" title="Sets" style="${inputBase} width:52px; text-align:center;">
-      <span class="text-xs text-muted">×</span>
-      <input type="text" value="${escapeHtml(String(m.reps))}" data-action="b-week-reps" data-wk="${wk}" aria-label="Week ${wk} reps" title="Reps (e.g. 5 or 8-10)" style="${inputBase} width:60px; text-align:center;">
-      <input type="text" value="${escapeHtml(String(m.intensityLabel || ''))}" data-action="b-week-label" data-wk="${wk}" aria-label="Week ${wk} phase label" placeholder="Phase label (e.g. Build, Peak)" style="${inputBase} flex:1; min-width:120px;">
-      <button class="btn-pad tactile-scale" style="font-size:0.7rem;${deload ? 'color:var(--accent-cyan);border-color:rgba(34,211,238,0.4);' : ''}" data-action="b-week-deload" data-wk="${wk}">${deload ? 'Deload ✓' : 'Deload'}</button>
+    <div class="program-editor__exercise-row">
+      <div class="program-editor__order-controls" aria-label="Reorder ${escapeHtml(name)}">
+        <button data-action="b-move-up" data-day="${day}" data-i="${index}" aria-label="Move ${escapeHtml(name)} up" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button data-action="b-move-down" data-day="${day}" data-i="${index}" aria-label="Move ${escapeHtml(name)} down" ${index === count - 1 ? 'disabled' : ''}>↓</button>
+      </div>
+      <button class="program-editor__exercise-name" data-action="b-open-picker" data-day="${day}" data-i="${index}"><strong>${escapeHtml(name)}</strong><span>Tap to replace</span></button>
+      <button class="program-editor__remove" data-action="b-remove-lift" data-day="${day}" data-i="${index}" aria-label="Remove ${escapeHtml(name)}">×</button>
     </div>
   `;
 }
 
-function renderDayCard(program, dayKey) {
-  const day = program.days[dayKey];
-  const lifts = day.lifts || [];
-
+function renderProgression(program) {
   return `
-    <div class="card-dark p-4 mb-4" style="border: 1px solid var(--overlay-sm);">
-      <div class="flex-between mb-3">
-        <h3 class="font-heavy text-lg">${DAY_LABELS[dayKey]}</h3>
+    <section aria-labelledby="builderProgressionTitle">
+      <div class="program-editor__section-heading"><div><div class="program-editor__eyebrow">WEEK BY WEEK</div><h2 id="builderProgressionTitle">Progression</h2><p>These targets apply to every lift in that week. Per-exercise targets are coming in the structured-programming upgrade.</p></div></div>
+      <div class="program-editor__week-list">
+        ${weekKeys(program).map((week) => renderWeekRow(program, week)).join('')}
       </div>
-
-      <div class="mb-2">
-        <label class="block text-muted" style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Day name</label>
-        <input type="text" value="${escapeHtml(day.title || '')}" data-action="b-day-title" data-day="${dayKey}" placeholder="e.g. Push Day — or 'Rest' for a rest day" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--accent-blue); padding: 6px; border-radius: 4px; font-size: 0.85rem;">
-      </div>
-
-      <div class="mb-3">
-        <label class="block text-muted" style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Run / cardio <span style="font-weight:400;text-transform:none;letter-spacing:0;">— leave "Rest" for none</span></label>
-        <input type="text" value="${escapeHtml(day.runs || 'Rest')}" data-action="b-day-runs" data-day="${dayKey}" placeholder="e.g. 5km Easy — or 'Rest'" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--overlay-sm); color: var(--accent-cyan); padding: 6px; border-radius: 4px; font-size: 0.8rem;">
-      </div>
-
-      <div class="flex-col gap-2 mb-3">
-        ${lifts.map((name, i) => renderLiftRow(dayKey, name, i, lifts.length)).join('')}
-      </div>
-
-      <button class="btn-pad" style="font-size: 0.75rem;" data-action="b-add-lift" data-day="${dayKey}">+ Add Lift</button>
-      ${lifts.length ? `<p class="text-xs text-muted" style="margin-top:8px;opacity:0.85;">Sets &amp; reps for these lifts are set per week in <strong>Weekly progression</strong> below — not per lift.</p>` : ''}
-    </div>
+    </section>
   `;
 }
 
-function renderLiftRow(dayKey, name, i, count) {
-  const upDisabled = i === 0;
-  const downDisabled = i === count - 1;
-  const arrowStyle = 'width:34px;min-width:34px;height:28px;padding:0;font-size:0.75rem;display:flex;align-items:center;justify-content:center;';
+function renderWeekRow(program, week) {
+  const modifier = program.weeklyVolModifiers[week] || { sets: 3, reps: 10, intensityLabel: '' };
+  const deload = isDeloadWeek(modifier);
   return `
-    <div class="flex gap-2 align-center">
-      <div class="flex-col" style="justify-content: center; gap: 4px;">
-        <button class="btn-pad tactile-scale" aria-label="Move up" style="${arrowStyle}${upDisabled ? 'opacity:0.3;' : ''}" data-action="b-move-up" data-day="${dayKey}" data-i="${i}" ${upDisabled ? 'disabled' : ''}>▲</button>
-        <button class="btn-pad tactile-scale" aria-label="Move down" style="${arrowStyle}${downDisabled ? 'opacity:0.3;' : ''}" data-action="b-move-down" data-day="${dayKey}" data-i="${i}" ${downDisabled ? 'disabled' : ''}>▼</button>
+    <article class="program-editor__week${deload ? ' is-deload' : ''}">
+      <div class="program-editor__week-title"><strong>Week ${week}</strong>${deload ? '<span>DELOAD</span>' : ''}${Number(week) > 1 ? `<button data-action="b-copy-week" data-wk="${week}">Copy W${Number(week) - 1}</button>` : ''}</div>
+      <div class="program-editor__week-fields">
+        <label><span>Sets</span><input type="number" min="1" max="12" value="${escapeHtml(String(modifier.sets))}" data-action="b-week-sets" data-wk="${week}"></label>
+        <label><span>Reps</span><input type="text" maxlength="24" value="${escapeHtml(String(modifier.reps))}" data-action="b-week-reps" data-wk="${week}" placeholder="8–10"></label>
+        <label class="program-editor__phase-field"><span>Phase</span><input type="text" maxlength="50" value="${escapeHtml(String(modifier.intensityLabel || ''))}" data-action="b-week-label" data-wk="${week}" placeholder="Build, Peak…"></label>
       </div>
-      <input type="text" value="${escapeHtml(name || '')}" data-action="b-lift-name" data-day="${dayKey}" data-i="${i}" placeholder="Exercise name" style="flex: 2;">
-      <button class="btn-pad" aria-label="Remove lift" style="width:38px;min-width:38px;height:38px;padding:0;color: var(--accent-red);" data-action="b-remove-lift" data-day="${dayKey}" data-i="${i}">✕</button>
-    </div>
+      <button class="program-editor__deload${deload ? ' is-active' : ''}" data-action="b-week-deload" data-wk="${week}" ${deload ? 'disabled' : ''}>${deload ? 'Deload applied ✓' : 'Make this a deload'}</button>
+    </article>
   `;
 }
 
-// ==========================================
-// PRIVATE ACTION CONTROLLERS
-// ==========================================
-
-const getProg = () => getProgramById(activeBuilderId);
-
-function setDayField(dayKey, field, val) {
-  const prog = getProg();
-  if (!prog) return;
-  ensureDays(prog);
-  prog.days[dayKey][field] = val;
-  saveStateToLocalStorage(true);
-  // No re-render: keep the input focused while typing/blurring.
+function renderPreview(program) {
+  const issues = validateProgramDraft(program);
+  const days = previewProgramWeek(program, previewWeek).filter((day) => day.lifts.length || day.run);
+  return `
+    <section aria-labelledby="builderPreviewTitle">
+      <div class="program-editor__section-heading program-editor__preview-heading">
+        <div><div class="program-editor__eyebrow">LOGGER PREVIEW</div><h2 id="builderPreviewTitle">What you will train</h2><p>Targets below use the same resolver as the workout logger.</p></div>
+        <label><span>Week</span><select data-action="b-preview-week">${weekKeys(program).map((week) => `<option value="${week}" ${week === previewWeek ? 'selected' : ''}>${week}</option>`).join('')}</select></label>
+      </div>
+      ${issues.length ? `<div class="program-editor__issues" role="status">${issues.map((issue) => `<button data-action="b-open-issue" data-day="${issue.day || ''}" data-field="${issue.field || ''}" class="is-${issue.level}">${issue.level === 'error' ? 'Fix' : 'Check'} · ${escapeHtml(issue.message)}</button>`).join('')}</div>` : `<div class="program-editor__valid">Ready to train · no schedule issues found</div>`}
+      <div class="program-editor__preview-list">
+        ${days.length ? days.map((day) => `<article class="program-editor__preview-day"><div><span>${day.label}</span><strong>${escapeHtml(day.title)}</strong></div>${day.run ? `<p class="program-editor__preview-run">Run · ${escapeHtml(day.run)}</p>` : ''}<ul>${day.lifts.map((lift) => `<li><span>${escapeHtml(lift.name)}</span><strong>${escapeHtml(String(lift.sets))} × ${escapeHtml(String(lift.reps))}</strong></li>`).join('')}</ul></article>`).join('') : `<div class="program-editor__empty-static"><strong>No training sessions yet</strong><span>Add a workout in Schedule.</span></div>`}
+      </div>
+      ${reconciliation.preservedDays ? `<p class="program-editor__preserved">${reconciliation.preservedDays} started or logged workout slot${reconciliation.preservedDays === 1 ? ' was' : 's were'} preserved while this plan changed.</p>` : ''}
+    </section>
+  `;
 }
 
-function addLift(dayKey) {
-  const prog = getProg();
-  if (!prog) return;
-  ensureDays(prog);
-  prog.days[dayKey].lifts.push('');
-  saveStateToLocalStorage(true);
-  renderBuilderUI(prog);
+function ensurePicker() {
+  let root = document.getElementById('builderExercisePicker');
+  if (root) return root;
+  root = document.createElement('div');
+  root.id = 'builderExercisePicker';
+  root.className = 'modal-overlay program-editor__picker-overlay';
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-labelledby', 'builderExercisePickerTitle');
+  root.setAttribute('data-modal-root', '');
+  root.setAttribute('data-modal-close-action', 'b-close-picker');
+  root.setAttribute('inert', '');
+  root.setAttribute('aria-hidden', 'true');
+  root.innerHTML = `<div class="modal-content program-editor__picker"><div class="program-editor__picker-head"><div><div class="program-editor__eyebrow">EXERCISE LIBRARY</div><h2 id="builderExercisePickerTitle">Add exercise</h2></div><button data-action="b-close-picker" aria-label="Close exercise picker">×</button></div><label class="program-editor__picker-search"><span class="sr-only">Search exercises</span><input id="builderExerciseSearch" type="search" autocomplete="off" placeholder="Search bench, squat, row…"></label><div id="builderExerciseResults" class="program-editor__picker-results"></div></div>`;
+  document.body.appendChild(root);
+  return root;
 }
 
-function removeLift(dayKey, i) {
-  const prog = getProg();
-  const lifts = prog?.days?.[dayKey]?.lifts;
-  if (!Array.isArray(lifts) || i < 0 || i >= lifts.length) return;
-  lifts.splice(i, 1);
-  saveStateToLocalStorage(true);
-  renderBuilderUI(prog);
+function openExercisePicker(day, index = null) {
+  pickerTarget = { day, index: Number.isInteger(index) ? index : null };
+  const root = ensurePicker();
+  const title = root.querySelector('#builderExercisePickerTitle');
+  if (title) title.textContent = pickerTarget.index == null ? 'Add exercise' : 'Replace exercise';
+  const search = /** @type {HTMLInputElement|null} */ (root.querySelector('#builderExerciseSearch'));
+  if (search) search.value = '';
+  renderPickerResults('');
+  root.classList.add('active');
+  openManagedModal(root, { initialFocus: '#builderExerciseSearch' });
 }
 
-function updateLift(dayKey, i, val) {
-  const prog = getProg();
-  const lifts = prog?.days?.[dayKey]?.lifts;
-  if (!Array.isArray(lifts) || i < 0 || i >= lifts.length) return;
-  lifts[i] = val;
-  saveStateToLocalStorage(true);
-  // No re-render: preserve input focus.
+function closeExercisePicker() {
+  const root = document.getElementById('builderExercisePicker');
+  if (!root) return;
+  root.classList.remove('active');
+  closeManagedModal(root);
+  pickerTarget = null;
 }
 
-function moveLift(dayKey, i, dir) {
-  const prog = getProg();
-  const lifts = prog?.days?.[dayKey]?.lifts;
-  if (!Array.isArray(lifts)) return;
-  const j = i + dir;
-  if (j < 0 || j >= lifts.length) return;
-  [lifts[i], lifts[j]] = [lifts[j], lifts[i]];
-  saveStateToLocalStorage(true);
-  renderBuilderUI(prog);
+function renderPickerResults(query) {
+  const target = document.getElementById('builderExerciseResults');
+  if (!target) return;
+  const needle = normaliseExerciseName(query);
+  const matches = EXERCISES.filter((item) => !needle || normaliseExerciseName(`${item.name} ${item.aliases.join(' ')}`).includes(needle)).slice(0, 40);
+  target.innerHTML = `${matches.map((item) => `<button data-action="b-pick-exercise" data-name="${escapeHtml(item.name)}"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.movement.replaceAll('_', ' '))} · ${escapeHtml(item.equipment.join(', '))}</small></span><b>+</b></button>`).join('')}${String(query || '').trim() ? `<button class="program-editor__custom-exercise" data-action="b-pick-custom" data-name="${escapeHtml(String(query).trim().slice(0, 80))}"><span><strong>Use “${escapeHtml(String(query).trim().slice(0, 80))}”</strong><small>Create a custom exercise name</small></span><b>+</b></button>` : ''}${!matches.length && !String(query || '').trim() ? '<p>No exercises found.</p>' : ''}`;
 }
 
-// ── Weekly progression edits (delegate to the pure progression module) ────────
-function updateWeekField(wk, field, val) {
-  const prog = getProg();
-  if (!prog) return;
-  setWeekField(prog, wk, field, val);
-  saveStateToLocalStorage(true);
-  // No re-render: preserve input focus while typing/blurring.
+function sameExercise(a, b) {
+  const aId = canonicalExerciseId(a);
+  const bId = canonicalExerciseId(b);
+  return aId && bId ? aId === bId : normaliseExerciseName(a) === normaliseExerciseName(b);
 }
 
-function toggleWeekDeload(wk) {
-  const prog = getProg();
-  if (!prog) return;
-  markWeekDeload(prog, wk);
-  saveStateToLocalStorage(true);
-  renderBuilderUI(prog); // structural: updates the sets input + button state
+function chooseExercise(name) {
+  const program = getProgram();
+  if (!program || !pickerTarget || !String(name || '').trim()) return;
+  const lifts = program.days[pickerTarget.day].lifts;
+  const duplicate = lifts.some((existing, index) => index !== pickerTarget.index && sameExercise(existing, name));
+  if (duplicate) {
+    const results = document.getElementById('builderExerciseResults');
+    if (results) results.insertAdjacentHTML('afterbegin', `<p class="program-editor__picker-error">${escapeHtml(name)} is already in this workout.</p>`);
+    return;
+  }
+  if (pickerTarget.index == null) lifts.push(name);
+  else lifts[pickerTarget.index] = name;
+  persistProgram();
+  closeExercisePicker();
+  renderBuilderUI();
 }
 
-const closeBuilder = () => {
+function setDayField(day, field, value) {
+  const program = getProgram();
+  if (!program) return;
+  program.days[day][field] = value;
+  persistProgram();
+}
+
+function moveLift(day, index, direction) {
+  const program = getProgram();
+  const lifts = program?.days?.[day]?.lifts;
+  const next = index + direction;
+  if (!Array.isArray(lifts) || next < 0 || next >= lifts.length) return;
+  [lifts[index], lifts[next]] = [lifts[next], lifts[index]];
+  persistProgram();
+  renderBuilderUI();
+}
+
+async function removeLift(day, index) {
+  const program = getProgram();
+  const lifts = program?.days?.[day]?.lifts;
+  if (!Array.isArray(lifts) || !lifts[index]) return;
+  const ok = await confirmModal({ title: `Remove ${lifts[index]}?`, message: 'Logged workout history will remain safe.', confirmLabel: 'Remove', danger: true });
+  if (!ok) return;
+  lifts.splice(index, 1);
+  persistProgram();
+  renderBuilderUI();
+}
+
+async function makeRestDay(day) {
+  const program = getProgram();
+  if (!program) return;
+  const ok = await confirmModal({ title: `Make ${EDITOR_DAY_LABELS[day]} a rest day?`, message: 'This removes the exercises and run from the plan. Logged workouts remain safe.', confirmLabel: 'Make rest day', danger: true });
+  if (!ok) return;
+  Object.assign(program.days[day], { title: 'Rest', runs: 'Rest', lifts: [] });
+  persistProgram();
+  renderBuilderUI();
+}
+
+async function copyDay(targetDay) {
+  const program = getProgram();
+  const select = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderCopySource'));
+  const sourceDay = select?.value;
+  if (!program || !sourceDay) return;
+  const targetSummary = dayTrainingSummary(program.days[targetDay]);
+  if (targetSummary.training) {
+    const ok = await confirmModal({ title: `Replace ${EDITOR_DAY_LABELS[targetDay]}?`, message: `Copying ${EDITOR_DAY_LABELS[sourceDay]} replaces this planned day. Logged workout history remains safe.`, confirmLabel: 'Replace day', danger: true });
+    if (!ok) return;
+  }
+  if (copyProgramDay(program, sourceDay, targetDay)) {
+    persistProgram();
+    renderBuilderUI();
+  }
+}
+
+function copyPreviousWeek(week) {
+  const program = getProgram();
+  const prior = program?.weeklyVolModifiers?.[String(Number(week) - 1)];
+  if (!program || !prior) return;
+  program.weeklyVolModifiers[week] = { ...prior };
+  persistProgram();
+  renderBuilderUI();
+}
+
+function closeBuilder() {
+  closeExercisePicker();
   const container = document.getElementById('builderViewContainer');
   if (container) container.style.display = 'none';
-  const libraryScreen = document.getElementById('programLibraryScreen');
-  if (libraryScreen) libraryScreen.style.display = 'block';
+  const library = document.getElementById('programLibraryScreen');
+  if (library) library.style.display = 'block';
   document.dispatchEvent(new CustomEvent('app:library-updated'));
-};
+}
 
-// ==========================================
-// EVENT DELEGATION ROUTER (scoped to #builderViewContainer)
-// ==========================================
-
-document.addEventListener('click', (e) => {
-  const target = e.target.closest('#builderViewContainer [data-action]');
+document.addEventListener('click', async (event) => {
+  const target = /** @type {HTMLElement|null} */ (event.target instanceof Element ? event.target.closest('[data-action]') : null);
   if (!target) return;
+  const action = target.dataset.action;
+  const day = target.dataset.day;
+  const index = Number.parseInt(target.dataset.i || '', 10);
 
-  const action = target.getAttribute('data-action');
-  const dayKey = target.getAttribute('data-day');
-  const i = parseInt(target.getAttribute('data-i'), 10);
-
-  if (action === 'close-builder') closeBuilder();
-  else if (action === 'b-add-lift') addLift(dayKey);
-  else if (action === 'b-remove-lift') removeLift(dayKey, i);
-  else if (action === 'b-move-up') moveLift(dayKey, i, -1);
-  else if (action === 'b-move-down') moveLift(dayKey, i, 1);
-  else if (action === 'b-week-deload') toggleWeekDeload(target.getAttribute('data-wk'));
+  if (action === 'b-close-picker') closeExercisePicker();
+  else if (action === 'b-pick-exercise' || action === 'b-pick-custom') chooseExercise(target.dataset.name || '');
+  else if (!target.closest('#builderViewContainer')) return;
+  else if (action === 'close-builder') closeBuilder();
+  else if (action === 'b-section') { activeSection = target.dataset.section || 'schedule'; renderBuilderUI(); }
+  else if (action === 'b-select-day' && day) { selectedDay = day; renderBuilderUI(); }
+  else if (action === 'b-open-picker' && day) openExercisePicker(day, Number.isNaN(index) ? null : index);
+  else if (action === 'b-move-up' && day) moveLift(day, index, -1);
+  else if (action === 'b-move-down' && day) moveLift(day, index, 1);
+  else if (action === 'b-remove-lift' && day) await removeLift(day, index);
+  else if (action === 'b-mark-rest' && day) await makeRestDay(day);
+  else if (action === 'b-mark-training' && day) {
+    const program = getProgram();
+    if (program) { program.days[day].title = 'Training'; persistProgram(); renderBuilderUI(); openExercisePicker(day); }
+  }
+  else if (action === 'b-copy-day' && day) await copyDay(day);
+  else if (action === 'b-copy-week') copyPreviousWeek(target.dataset.wk || '');
+  else if (action === 'b-week-deload') {
+    const program = getProgram();
+    if (program) { markWeekDeload(program, target.dataset.wk); persistProgram(); renderBuilderUI(); }
+  }
+  else if (action === 'b-open-issue') {
+    if (day) { selectedDay = day; activeSection = 'schedule'; renderBuilderUI(); }
+    else if (target.dataset.field === 'name') document.getElementById('programEditorTitle')?.focus();
+    else { activeSection = 'schedule'; renderBuilderUI(); }
+  }
 });
 
-// Listen on `input` (not `change`) so edits persist per keystroke — this is what
-// makes the "changes save automatically as you type" promise literally true, and
-// stops the last field being lost if the app is backgrounded before a blur fires.
-// None of these handlers re-render, so the focused input is never disturbed.
-document.addEventListener('input', (e) => {
-  const target = e.target.closest('#builderViewContainer [data-action]');
+document.addEventListener('input', (event) => {
+  const target = /** @type {HTMLInputElement|null} */ (event.target instanceof HTMLInputElement ? event.target : null);
   if (!target) return;
+  if (target.id === 'builderExerciseSearch') { renderPickerResults(target.value); return; }
+  if (!target.closest('#builderViewContainer')) return;
+  const action = target.dataset.action;
+  const program = getProgram();
+  if (!program) return;
+  if (action === 'b-program-name') { program.name = target.value; persistProgram({ reconcile: false }); }
+  else if (action === 'b-program-focus') {
+    if (!program.dossier) program.dossier = {};
+    program.dossier.focus = target.value;
+    persistProgram({ reconcile: false });
+  }
+  else if (action === 'b-day-title') setDayField(target.dataset.day, 'title', target.value);
+  else if (action === 'b-day-runs') setDayField(target.dataset.day, 'runs', target.value);
+  else if (action === 'b-week-sets') { setWeekField(program, target.dataset.wk, 'sets', target.value); persistProgram(); }
+  else if (action === 'b-week-reps') { setWeekField(program, target.dataset.wk, 'reps', target.value); persistProgram(); }
+  else if (action === 'b-week-label') { setWeekField(program, target.dataset.wk, 'intensityLabel', target.value); persistProgram(); }
+});
 
-  const action = target.getAttribute('data-action');
-  const dayKey = target.getAttribute('data-day');
-  const i = parseInt(target.getAttribute('data-i'), 10);
-  const val = target.value;
-
-  if (action === 'b-day-title') setDayField(dayKey, 'title', val);
-  else if (action === 'b-day-runs') setDayField(dayKey, 'runs', val);
-  else if (action === 'b-lift-name') updateLift(dayKey, i, val);
-  else if (action === 'b-week-sets') updateWeekField(target.getAttribute('data-wk'), 'sets', val);
-  else if (action === 'b-week-reps') updateWeekField(target.getAttribute('data-wk'), 'reps', val);
-  else if (action === 'b-week-label') updateWeekField(target.getAttribute('data-wk'), 'intensityLabel', val);
+document.addEventListener('change', (event) => {
+  const target = /** @type {HTMLInputElement|HTMLSelectElement|null} */ (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement ? event.target : null);
+  if (!target?.closest('#builderViewContainer')) return;
+  const program = getProgram();
+  if (!program) return;
+  if (target.dataset.action === 'b-program-weeks') {
+    const minimum = appState.activeProgramId === program.id ? Math.max(1, Number(appState.currentWeek) || 1) : 1;
+    program.totalWeeks = Math.max(minimum, Math.min(52, Math.round(Number(target.value) || 12)));
+    ensureWeeklyMods(program);
+    persistProgram();
+    renderBuilderUI();
+  } else if (target.dataset.action === 'b-preview-week') {
+    previewWeek = target.value;
+    renderBuilderUI();
+  }
 });

@@ -5,6 +5,7 @@ const checks = [
   'scripts/running-analytics-check.mjs',
   'scripts/preview-viewport-check.mjs',
   'scripts/program-detail-viewport-check.mjs',
+  'scripts/program-editor-browser-check.mjs',
   'scripts/modal-accessibility-check.mjs',
   'scripts/core-ergonomics-check.mjs',
 ];

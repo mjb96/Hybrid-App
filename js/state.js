@@ -425,6 +425,59 @@ function liftHasLoggedData(sets) {
   return Array.isArray(sets) && sets.some(s => s && (isCompletedSet(s) || (s.w !== '' && s.w != null)));
 }
 
+function dayHasRecordedActivity(week, day) {
+  if (!week || !day) return false;
+  if (week.sessionStatus?.[day] === 'in_progress' || week.sessionStatus?.[day] === 'finished') return true;
+  if (Object.values(week.lifts?.[day] || {}).some(liftHasLoggedData)) return true;
+  if (runSessionsForDay(week, day).some(run => run && (run.dist || run.time || run.rpe || run.completed))) return true;
+  const legacyRun = week.runs?.[day];
+  if (legacyRun && (legacyRun.dist || legacyRun.time || legacyRun.rpe)) return true;
+  const stats = week.gymStats?.[day];
+  return !!(week.notes?.[day] || week.gymRpe?.[day] || week.dates?.[day]
+    || stats?.time || stats?.avgHR || stats?.maxHR || stats?.cals);
+}
+
+/**
+ * Reconcile edits to the active custom program into materialised, untouched
+ * workout days. Any day with real activity or an explicit session lifecycle is
+ * preserved byte-for-byte; future/unstarted scaffolding is rebuilt from the
+ * edited blueprint so removed exercises cannot linger in the logger.
+ */
+export function reconcileActiveProgramEdits(programId) {
+  if (!programId || appState.activeProgramId !== programId) {
+    return { updatedDays: 0, preservedDays: 0 };
+  }
+  const program = getProgramById(programId);
+  if (!program?.days) return { updatedDays: 0, preservedDays: 0 };
+  const activationId = ensureActivation(appState);
+  if (!appState.weeks?.[appState.currentWeek]) verifyWeekStorageSchema(appState.currentWeek);
+
+  let updatedDays = 0;
+  let preservedDays = 0;
+  for (const [wk, week] of Object.entries(appState.weeks || {})) {
+    if (!/^\d+$/.test(wk) || !week || (week.activationId && week.activationId !== activationId)) continue;
+    if (!week.lifts || typeof week.lifts !== 'object') week.lifts = {};
+    if (!week.liftOrder || typeof week.liftOrder !== 'object') week.liftOrder = {};
+    const modifier = getWeekModifier(program, wk);
+    for (const day of DEFAULT_DAYS) {
+      if (dayHasRecordedActivity(week, day)) {
+        preservedDays++;
+        continue;
+      }
+      const blueprint = program.days?.[day] || {};
+      const liftNames = (blueprint.lifts || []).filter(name => typeof name === 'string' && name.trim());
+      const next = {};
+      for (const liftName of liftNames) {
+        next[liftName] = prescribeSetsForLift(wk, day, liftName, blueprint.desc, modifier);
+      }
+      week.lifts[day] = next;
+      week.liftOrder[day] = [...liftNames];
+      updatedDays++;
+    }
+  }
+  return { updatedDays, preservedDays };
+}
+
 // Begin a fresh run of a program: mint a new activation identity and vacate every
 // numeric week owned by the PREVIOUS run into the archive (logged history kept for
 // analytics, empty scaffolding dropped). After this, the numeric program-week slots
