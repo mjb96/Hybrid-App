@@ -727,6 +727,9 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Workout logger visual cleanup on `codex/program-editor-foundation`: removed
+  the inline “plates per side” breakdown from progression targets while retaining the useful
+  target weight/reps and the underlying tested plate-math utility. · Next: review PR #154.
 - 2026-07-22 · R20 program-editor foundation on `codex/program-editor-foundation`: replaced
   the storage-shaped seven-card form with a compact day-focused schedule, canonical exercise
   search/custom fallback, safe day actions, editable metadata/progression, validation and an

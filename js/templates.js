@@ -100,7 +100,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   </div>`;
 }
 
-export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, setsMarkup, groupId = null, ssColor = null, plates = '' }) {
+export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel = '', historicalLineText, setsMarkup, groupId = null, ssColor = null }) {
   const stalledBadge = diagnostic.isStalled ? `<span class="badge-stall-indicator">PLATEAU</span>` : '';
   const targetStyle  = diagnostic.isStalled ? 'color: var(--accent-red); font-weight: 800;' : '';
   const ssBtnClass   = groupId ? 'btn-ss-link ss-active' : 'btn-ss-link';
@@ -126,7 +126,7 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
     <span class="cockpit-history-line">⚡ ${historicalLineText}</span>
     ${diagnostic.progression && diagnostic.progression.weight ? `
       <div class="cockpit-coach-target">
-        <span class="cct-text">🎯 Target <b>${escapeHtml(String(diagnostic.progression.weight))} × ${escapeHtml(String(diagnostic.progression.reps))}</b>${plates ? `<span class="cct-plates" style="color:var(--text-muted);font-size:0.72rem;margin-left:6px;">🍩 ${escapeHtml(plates)}</span>` : ''}</span>
+        <span class="cct-text">🎯 Target <b>${escapeHtml(String(diagnostic.progression.weight))} × ${escapeHtml(String(diagnostic.progression.reps))}</b></span>
         ${isCompleted ? '' : `<button class="cct-logall tactile-scale" data-action="log-all-target">Log all →</button>`}
       </div>
     ` : ''}

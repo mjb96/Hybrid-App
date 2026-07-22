@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { computePlateBreakdown, formatPlates, plateHint } from '../js/workout/plates.js';
+import { buildExerciseCard } from '../js/templates.js';
 
 test('breaks a standard kg load into plates per side', () => {
   // 100kg on a 20kg bar → 40 per side → 25 + 15
@@ -35,4 +36,19 @@ test('flags a load the standard plates cannot hit exactly', () => {
 test('lb bar and plates', () => {
   // 135lb on a 45lb bar → 45 per side → one 45
   assert.equal(plateHint(135, 'lb'), '45 / side');
+});
+
+test('per-side plate breakdown is not rendered in the workout logger', () => {
+  const html = buildExerciseCard({
+    displaySafeName: 'Bench Press',
+    safeLiftName: 'Bench Press',
+    isCompleted: false,
+    diagnostic: { progression: { weight: 72.5, reps: 5 }, isStalled: false },
+    blueprintLabel: '3 × 5',
+    historicalLineText: 'Last: 70 × 5',
+    setsMarkup: '',
+    plates: '25 + 1.25 / side',
+  });
+  assert.doesNotMatch(html, /per side|\/ side|cct-plates|🍩/i);
+  assert.match(html, /Target <b>72\.5 × 5<\/b>/);
 });
