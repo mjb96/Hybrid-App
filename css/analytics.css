@@ -1666,6 +1666,8 @@ html[data-theme="light"] .hub-link__icon {
 }
 .gym-performance__comparison strong { color: var(--color-blue); font-size: .92rem; }
 .gym-performance__comparison.is-muted { color: var(--text-muted); }
+.gym-performance__comparison.is-favorable strong { color: var(--color-green); }
+.gym-performance__comparison.is-unfavorable strong { color: var(--color-amber); }
 .gym-performance__chart {
   display: grid; grid-template-columns: repeat(var(--gym-bin-count), minmax(0, 1fr));
   align-items: end; gap: 5px; min-height: 210px; padding-top: 14px;

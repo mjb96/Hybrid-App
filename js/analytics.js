@@ -28,6 +28,7 @@ import { renderExerciseDetail, renderMuscleDetail } from './analytics/views/view
 import { renderRunningMetricDetail } from './analytics/views/view-running-metric.js';
 import { renderStrengthMetricDetail } from './analytics/views/view-strength-metric.js';
 import { renderGymPerformance } from './analytics/views/view-gym-performance.js';
+import { renderRunPerformance } from './analytics/views/view-run-performance.js';
 
 let _getState;
 let _getDays;
@@ -414,6 +415,10 @@ export function renderAnalytics() {
     case 'gym-performance':
       document.getElementById('analytics-gym-performance').classList.add('active');
       renderGymPerformance(_getState());
+      break;
+    case 'run-performance':
+      document.getElementById('analytics-run-performance').classList.add('active');
+      renderRunPerformance(_getState());
       break;
     case 'exercise':
       document.getElementById('analytics-strength-entity').classList.add('active');

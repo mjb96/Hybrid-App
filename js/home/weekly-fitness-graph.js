@@ -115,7 +115,7 @@ class WeeklyFitnessGraph {
     // Route to the matching analytics detail view via the app's action router.
     const cta = document.createElement('button');
     cta.setAttribute('data-action', 'open-analytics');
-    cta.setAttribute('data-context', this.type === 'strength' ? 'gym-performance' : 'running');
+    cta.setAttribute('data-context', this.type === 'strength' ? 'gym-performance' : 'run-performance');
     cta.style.display = 'none';
     document.body.appendChild(cta);
     cta.click();

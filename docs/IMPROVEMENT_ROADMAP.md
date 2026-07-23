@@ -788,6 +788,30 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Run Performance on `claude/hybridq-audit-review-h86qze`: reused the Gym
+  Performance daily/weekly/yearly pattern for running. Extracted the subtle 7D/4W/1Y period +
+  bin + honest partial-period comparison math into a shared engine (`js/analytics/period-totals.js`),
+  refactored `gym-performance.js` onto it (output unchanged, tests green), and built
+  `run-performance.js` + `views/view-run-performance.js` on the same core using the existing
+  date-strict `collectRunningHistory`. Metrics are the honest summables — Distance / Time /
+  Sessions (pace stays in the Running metric detail as a distance-weighted average, not forced
+  into a totals chart). The Home "Run Performance" card and the running fitness-graph CTA now open
+  it (fixing a label/behaviour mismatch — the card already said "Run Performance"). Reuses the
+  `gym-performance` CSS; adds favourable/unfavourable comparison tint (amber, not red, so a
+  partial-week dip is attention not alarm). Verify green: 1,144 tests (+5 run-performance),
+  typecheck, precache (cache → v112), smoke; new Chromium contract mirrors the gym one. · Next:
+  optional rTSS running-load refinement; consider a Recovery period-totals view on the same core.
+- 2026-07-22 · Audit review on `claude/hybridq-audit-review-h86qze`: traced the recent gym-
+  performance, logger-history, completion-policy, sync-recovery and program-editor work through
+  their call sites and persisted state. Recent changes hold up — warm-up exclusion, calendar/
+  program-week separation, session identity, "use previous values" (fills blanks, never sets
+  `c`), and partial-period comparisons are all correct and well tested. One genuine defect fixed:
+  the Gym Performance detail counted note-/RPE-only days (zero working sets, no recorded duration)
+  as workouts, inflating the Sessions total and the "N workouts" evidence while they contributed
+  nothing to Sets/Volume/Time. `buildGymPerformance` now counts only sessions with real trained
+  work (a valid working set OR a recorded duration, so duration-only FIT imports still count).
+  Verify green: 1,139 tests (+1 regression), typecheck, smoke and Chromium checks pass. · Next:
+  none blocking; consider aligning the same "real session" definition across other gym counters.
 - 2026-07-23 · Android backup/export invocation fix on `codex/android-auto-backup-fix`:
   reproduced the Sentry `TypeError: Illegal invocation` with WebView-strict timer doubles and
   corrected the receiver for automatic folder selection/writes, manual JSON/CSV export and the
