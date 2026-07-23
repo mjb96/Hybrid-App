@@ -100,6 +100,10 @@ function _renderRecoveryOverview(body, data, getState, getDays) {
       ${statCard({ label: 'Form (TSB)', value: form.value, sub: form.sub, color: '#3b82f6' })}
       ${statCard({ label: 'Load Ratio (ACWR)', value: ratio, sub: ratioStatus, color: '#f59e0b' })}
     </div>
+    <button type="button" class="card-dark an-hero an-hero--action mb-2" data-action="open-analytics" data-context="recovery-performance" data-parent-context="recovery" style="width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px;" aria-label="Open Recovery Trends">
+      <span><span class="an-hero__k">Recovery Trends</span><span class="text-xs text-muted">Sleep, mood & soreness over 7D · 4W · 1Y</span></span>
+      <span class="an-hero__arrow" aria-hidden="true">›</span>
+    </button>
     ${(() => {
       const shown = isProgramDeloadWeek(appState, getProgramById(appState.activeProgramId)) ? [deloadInsight()] : insights.slice(0, 1);
       return shown[0] ? renderInsightsHTML(shown, 1) : '';
