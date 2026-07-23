@@ -9,6 +9,7 @@ const checks = [
   'scripts/preview-viewport-check.mjs',
   'scripts/program-detail-viewport-check.mjs',
   'scripts/program-editor-browser-check.mjs',
+  'scripts/active-program-edit-browser-check.mjs',
   'scripts/modal-accessibility-check.mjs',
   'scripts/core-ergonomics-check.mjs',
 ];
