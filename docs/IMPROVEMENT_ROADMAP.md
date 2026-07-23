@@ -788,6 +788,19 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Stable program-edit identity on `claude/hybridq-audit-review-h86qze`. Root cause
+  of "editing a program spawns a duplicate that shows the OLD exercises": the program-detail
+  "Customize" button was shown for EVERY program and `customizeProgram` unconditionally cloned
+  (`duplicateCustomProgram`) — so editing a program you already own forked a new "(Copy)" while
+  the detail you were looking at still showed the original. There is NO revision system; all
+  read paths already resolve one canonical record (`getProgramById` → `customPrograms`), proven
+  by reproduction, so the fix is identity/entry, not storage. Now: a personal program is edited
+  IN PLACE (detail shows "✏️ Edit" → `open-builder`, no clone); a built-in forks ONCE into a
+  personal copy tagged with `sourceProgramId`, and re-customizing reuses that copy
+  (`findPersonalCopyOfSource`). `sourceProgramId` is additive/optional so no migration is needed
+  and existing user copies are left intact (never deleted). Verified end-to-end in Chromium
+  (Edit in place, +1 exercise, card count stays 1). Verify green: 1,154 tests (+4 customize),
+  typecheck, smoke, editor browser check. · Next: none blocking.
 - 2026-07-22 · Recovery Trends + editor save fix on `claude/hybridq-audit-review-h86qze`.
   (1) Extended the shared period-totals engine to a third surface: `recovery-performance.js`
   + `views/view-recovery-performance.js` give a 7D/4W/1Y view of the manual wellness check-in
