@@ -17,7 +17,7 @@ import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
   setActiveTab, setSelectedDay, setAppState,
   getProgramById, getActiveProgramIssue, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
-  isCustomProgram, findPersonalCopyOfSource,
+  isCustomProgram, findPrimaryCustomization, adoptLegacyPrimaryCustomization,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
@@ -796,11 +796,13 @@ export function customizeProgram(id) {
     openBuilder(id);
     return;
   }
-  const existing = findPersonalCopyOfSource(id);
-  const targetId = existing?.id || duplicateCustomProgram(id);
+  // A built-in opens its ONE primary customization: reopen the explicit primary,
+  // else adopt a lone legacy copy, else fork a new primary. Never first-match.
+  const existingId = findPrimaryCustomization(id)?.id || adoptLegacyPrimaryCustomization(id);
+  const targetId = existingId || duplicateCustomProgram(id, { primary: true });
   if (!targetId) { showToast('Could not customize this program.', true); return; }
   updateLibraryState(appState);
-  showToast(existing ? 'Opening your saved copy' : 'Saved to My Programs — customize it below');
+  showToast(existingId ? 'Opening your saved copy' : 'Saved to My Programs — customize it below');
   switchProgramMode('builder');
   openBuilder(targetId);
 }

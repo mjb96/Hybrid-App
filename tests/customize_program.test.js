@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   setAppState, appState, duplicateCustomProgram, getProgramById,
-  isCustomProgram, findPersonalCopyOfSource,
+  isCustomProgram, findPrimaryCustomization, adoptLegacyPrimaryCustomization,
 } from '../js/state.js';
 
 // A node-safe localStorage shim so saveStateToLocalStorage() doesn't throw.
@@ -72,48 +72,84 @@ test('the fork is independently editable (deep clone, not a reference)', () => {
 // exercises" report). A personal program edits in place; a built-in forks ONCE.
 // ==========================================
 
-test('a fork of a built-in records its source, and re-customizing reuses that copy', () => {
-  setAppState(baseState());
-  const copyId = duplicateCustomProgram(CATALOG_ID);
+// The first Customize of a built-in is modelled by a primary fork; the explicit
+// Duplicate action is modelled by a default (variant) copy.
+const forkPrimary = (id) => duplicateCustomProgram(id, { primary: true });
 
-  assert.equal(getProgramById(copyId).sourceProgramId, CATALOG_ID, 'fork remembers its origin');
-  assert.equal(isCustomProgram(copyId), true, 'the fork is an editable personal program');
+test('first customization of a built-in creates the one primary copy', () => {
+  setAppState(baseState());
+  const primaryId = forkPrimary(CATALOG_ID);
+
+  assert.equal(getProgramById(primaryId).sourceProgramId, CATALOG_ID, 'fork remembers its origin');
+  assert.equal(getProgramById(primaryId).isPrimaryCustomization, true, 'it is the primary customization');
+  assert.equal(isCustomProgram(primaryId), true, 'the fork is an editable personal program');
   assert.equal(isCustomProgram(CATALOG_ID), false, 'the built-in template is not editable in place');
-
-  const reuse = findPersonalCopyOfSource(CATALOG_ID);
-  assert.ok(reuse && reuse.id === copyId, 'a second Customize resolves the existing copy, not a new clone');
 });
 
-test('editing a personal program in place does not add another My Programs entry', () => {
+test('re-customizing reopens the same primary, resolved by flag not array order', () => {
   setAppState(baseState());
-  const copyId = duplicateCustomProgram(CATALOG_ID);
-  const countAfterFork = appState.customPrograms.length;
+  const primaryId = forkPrimary(CATALOG_ID);
+  const found = findPrimaryCustomization(CATALOG_ID);
+  assert.ok(found && found.id === primaryId, 'Customize resolves the explicit primary');
+});
 
-  // Editing in place = mutate the same record the editor loaded (getProgramById).
-  const editing = getProgramById(copyId);
-  editing.days.mon.lifts = ['Dumbbell Bench Press', 'Barbell Row', 'Face Pulls'];
+test('duplicating the primary produces an independent variant that Customize never selects', () => {
+  setAppState(baseState());
+  const primaryId = forkPrimary(CATALOG_ID);
+  const variantId = duplicateCustomProgram(primaryId); // default = variant
 
-  assert.equal(appState.customPrograms.length, countAfterFork, 'no new card is created by an in-place edit');
-  // Every reader resolves the same edited definition.
-  assert.deepEqual(getProgramById(copyId).days.mon.lifts, ['Dumbbell Bench Press', 'Barbell Row', 'Face Pulls']);
-  assert.deepEqual(
-    appState.customPrograms.find(p => p.id === copyId).days.mon.lifts,
-    ['Dumbbell Bench Press', 'Barbell Row', 'Face Pulls'],
-    'the My Programs record and the editor resolve the same object',
+  assert.notEqual(variantId, primaryId, 'the variant is a separate program');
+  assert.equal(getProgramById(variantId).sourceProgramId, CATALOG_ID, 'variant keeps source attribution');
+  assert.equal(getProgramById(variantId).isPrimaryCustomization, false, 'variant is explicitly not primary');
+  assert.equal(findPrimaryCustomization(CATALOG_ID).id, primaryId, 'Customize still opens the primary, never the variant');
+});
+
+test('editing the variant updates it in place and never touches the primary', () => {
+  setAppState(baseState());
+  const primaryId = forkPrimary(CATALOG_ID);
+  const variantId = duplicateCustomProgram(primaryId);
+  const count = appState.customPrograms.length;
+
+  getProgramById(variantId).days.mon.lifts = ['Face Pull'];
+  assert.equal(appState.customPrograms.length, count, 'in-place edit adds no card');
+  assert.deepEqual(getProgramById(variantId).days.mon.lifts, ['Face Pull']);
+  assert.notDeepEqual(getProgramById(primaryId).days.mon.lifts, ['Face Pull'], 'the primary is unaffected');
+});
+
+test('deleting the primary is deterministic: Customize forks a fresh primary, ignoring variants', () => {
+  setAppState(baseState());
+  const primaryId = forkPrimary(CATALOG_ID);
+  duplicateCustomProgram(primaryId); // a variant remains behind
+  appState.customPrograms = appState.customPrograms.filter(p => p.id !== primaryId); // delete primary
+
+  assert.equal(findPrimaryCustomization(CATALOG_ID), null, 'no primary after deletion');
+  assert.equal(adoptLegacyPrimaryCustomization(CATALOG_ID), null, 'a deliberate variant is never promoted to primary');
+});
+
+test('legacy single copy (no flag) is adopted as the primary, idempotently', () => {
+  setAppState(baseState());
+  // Simulate a pre-isPrimaryCustomization copy: source set, flag undefined.
+  appState.customPrograms.push({ id: 'prog_legacy', name: 'Old Copy', totalWeeks: 8, sourceProgramId: CATALOG_ID, days: { mon: { lifts: ['Bench Press'] } }, weeklyVolModifiers: { '1': { sets: 3, reps: 5, intensityLabel: '' } } });
+
+  assert.equal(findPrimaryCustomization(CATALOG_ID), null, 'no explicit primary yet');
+  assert.equal(adoptLegacyPrimaryCustomization(CATALOG_ID), 'prog_legacy', 'the lone legacy copy is adopted');
+  assert.equal(findPrimaryCustomization(CATALOG_ID).id, 'prog_legacy', 'and now resolves as the primary');
+  assert.equal(adoptLegacyPrimaryCustomization(CATALOG_ID), null, 'adoption is idempotent');
+});
+
+test('ambiguous legacy copies (two, no flag) are never guessed and do not crash', () => {
+  setAppState(baseState());
+  appState.customPrograms.push(
+    { id: 'prog_l1', name: 'Old A', totalWeeks: 8, sourceProgramId: CATALOG_ID, days: { mon: { lifts: [] } }, weeklyVolModifiers: { '1': {} } },
+    { id: 'prog_l2', name: 'Old B', totalWeeks: 8, sourceProgramId: CATALOG_ID, days: { mon: { lifts: [] } }, weeklyVolModifiers: { '1': {} } },
   );
+  assert.equal(adoptLegacyPrimaryCustomization(CATALOG_ID), null, 'no arbitrary first-match adoption');
+  assert.equal(findPrimaryCustomization(CATALOG_ID), null, 'still no primary; Customize would fork a fresh one');
 });
 
-test('a copy of a personal program inherits the original source, so it still de-dupes', () => {
-  setAppState(baseState());
-  const copyId = duplicateCustomProgram(CATALOG_ID);
-  const copyOfCopy = duplicateCustomProgram(copyId);
-  assert.equal(getProgramById(copyOfCopy).sourceProgramId, CATALOG_ID,
-    'a copy-of-a-copy still points at the built-in origin, not the intermediate custom id');
-});
-
-test('a user-created program (no source) is edited in place and never treated as a template', () => {
+test('a user-created program (no source) is not a customization template', () => {
   setAppState(baseState());
   appState.customPrograms.push({ id: 'prog_user', name: 'My Plan', totalWeeks: 8, days: { mon: { lifts: ['Bench Press'] } }, weeklyVolModifiers: { '1': { sets: 3, reps: 5, intensityLabel: '' } } });
   assert.equal(isCustomProgram('prog_user'), true);
-  assert.equal(findPersonalCopyOfSource('prog_user'), null, 'a personal program is not a source others fork from');
+  assert.equal(findPrimaryCustomization('prog_user'), null, 'a personal program is not a source others fork from');
 });

@@ -254,8 +254,17 @@ export function getPersonalRating(programId) {
 // ==========================================
 // PROGRAM LIBRARY CRUD LOGIC
 // ==========================================
+
+// A collision-resistant program id. Date.now() alone repeats when two programs
+// are created in the same millisecond (e.g. fork-then-duplicate), which would
+// mint two records with the SAME id — a genuine identity hazard.
+function newProgramId() {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `prog_${Date.now()}_${rand}`;
+}
+
 export function createCustomProgram(name, totalWeeks, focus, philosophy) {
-  const id = 'prog_' + Date.now();
+  const id = newProgramId();
   const newProg = {
     id,
     name: name || "New Custom Program",
@@ -282,22 +291,30 @@ export function createCustomProgram(name, totalWeeks, focus, philosophy) {
   return id;
 }
 
-export function duplicateCustomProgram(id) {
+// Copy a program into the user's editable customPrograms.
+// Identity model (three explicit states of `isPrimaryCustomization`):
+//   true      → the ONE primary customization a built-in's Customize reopens
+//   false     → a deliberate, independent variant (e.g. the Duplicate action)
+//   undefined → a legacy copy from before this field existed
+// `primary` is only ever true for the first fork of a built-in (see
+// customizeProgram); an explicit Duplicate leaves it false so it can never
+// compete with the primary. Cloning never inherits primary status.
+export function duplicateCustomProgram(id, { primary = false } = {}) {
   const source = getProgramById(id);
   if (!source) return null;
   const newProg = JSON.parse(JSON.stringify(source));
-  newProg.id = 'prog_' + Date.now();
+  newProg.id = newProgramId();
   newProg.name = newProg.name + " (Copy)";
   // A fork is authored by the user, not the original coach — keep it honest
   // ("by You") and out of the verified-author UI.
   if (newProg.dossier) newProg.dossier.creator = "You";
   if (newProg.author) newProg.author = { name: "You", type: "custom", verified: false };
   // Source attribution: a copy of a library/built-in program remembers its
-  // origin so re-customizing that program REUSES this copy instead of cloning a
-  // fresh duplicate every time (findPersonalCopyOfSource). A copy of another
-  // custom program inherits that program's origin, if any.
+  // origin. A copy of another custom program inherits that program's origin, so
+  // a variant of a customization still points at the built-in template.
   const sourceIsCustom = (appState.customPrograms || []).some(p => p?.id === id);
   newProg.sourceProgramId = sourceIsCustom ? (source.sourceProgramId || null) : id;
+  newProg.isPrimaryCustomization = primary === true;
 
   if (!appState.customPrograms) appState.customPrograms = [];
   appState.customPrograms.push(newProg);
@@ -311,11 +328,30 @@ export function isCustomProgram(id) {
   return (appState.customPrograms || []).some(p => p?.id === id);
 }
 
-// The user's existing editable copy of a built-in/library program, if one was
-// already forked — so "Customize" opens that copy instead of cloning again.
-export function findPersonalCopyOfSource(sourceId) {
+// The single primary customization of a built-in/library template, if one
+// exists. Resolved by an explicit flag — never by array order or first match —
+// so intentionally-duplicated variants can never be opened by mistake.
+export function findPrimaryCustomization(sourceId) {
   if (!sourceId) return null;
-  return (appState.customPrograms || []).find(p => p?.sourceProgramId === sourceId) || null;
+  return (appState.customPrograms || []).find(
+    p => p?.sourceProgramId === sourceId && p?.isPrimaryCustomization === true,
+  ) || null;
+}
+
+// Backward-compatibility for copies made before isPrimaryCustomization existed
+// (flag undefined). If a template has no explicit primary and exactly ONE such
+// legacy copy, adopt it as the primary and return its id. Ambiguous cases
+// (multiple legacy copies) are left untouched — we never guess which was
+// intended. Idempotent, and never touches deliberate variants (flag === false).
+export function adoptLegacyPrimaryCustomization(sourceId) {
+  if (!sourceId) return null;
+  const list = appState.customPrograms || [];
+  if (list.some(p => p?.sourceProgramId === sourceId && p?.isPrimaryCustomization === true)) return null;
+  const legacy = list.filter(p => p?.sourceProgramId === sourceId && p?.isPrimaryCustomization == null);
+  if (legacy.length !== 1) return null;
+  legacy[0].isPrimaryCustomization = true;
+  saveStateToLocalStorage(true);
+  return legacy[0].id;
 }
 
 export function deleteCustomProgram(id) {

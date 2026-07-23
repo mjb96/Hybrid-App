@@ -536,6 +536,10 @@ function renderCustomProgramCard(p) {
     (d?.runs && d.runs !== 'Rest')
   ).length;
   const safeId = escapeHtml(p.id || '');
+  // Source attribution lets a user tell apart several personal programs made from
+  // the SAME built-in template (so old "(Copy)" duplicates are identifiable and
+  // can be removed via Delete). No revision jargon is exposed.
+  const sourceName = p.sourceProgramId ? resolveProgramMeta(p.sourceProgramId)?.name : null;
 
   return `
     <div class="card-dark p-3" style="border:1px solid var(--overlay-sm);${isActive ? 'border-color:var(--accent-blue);' : ''}">
@@ -543,6 +547,7 @@ function renderCustomProgramCard(p) {
         <div>
           <div class="font-heavy text-inverse">${escapeHtml(p.name)}${isActive ? ' <span class="prog-badge prog-badge--active">ACTIVE</span>' : ''}</div>
           <div class="text-xs text-muted">${escapeHtml(focus)} · ${weeks}w · ${trainingDays} training day${trainingDays !== 1 ? 's' : ''}</div>
+          ${sourceName ? `<div class="text-xs text-muted" style="opacity:.75;margin-top:2px;">From ${escapeHtml(sourceName)}</div>` : ''}
         </div>
         <span class="text-muted" aria-hidden="true">›</span>
       </div>
