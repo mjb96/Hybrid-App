@@ -788,6 +788,20 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Program identity edge cases on `claude/hybridq-audit-review-h86qze`. Hardened the
+  customization model: `findPersonalCopyOfSource` (first-match by array order) is replaced by an
+  explicit three-state `isPrimaryCustomization` (`true` = the one primary a built-in's Customize
+  reopens · `false` = a deliberate variant, e.g. the Duplicate action · `undefined` = legacy).
+  `customizeProgram` opens the explicit primary, else adopts a LONE legacy copy
+  (`adoptLegacyPrimaryCustomization`, idempotent, never guesses when ambiguous), else forks a new
+  primary; variants can never be opened by mistake and deleting the primary deterministically
+  forks a fresh one. Fixed a real id-collision bug: `duplicateCustomProgram`/`createCustomProgram`
+  used `prog_${Date.now()}` which minted DUPLICATE ids in the same millisecond (fork-then-
+  duplicate) — now `newProgramId()` adds a random suffix. Added active-program propagation proof
+  (edit reseeds future untouched weeks via the stable id; completed + in-progress sessions stay
+  immutable; survives reload) and a "From <template>" attribution line on My Programs cards so
+  same-template copies are identifiable/removable (Delete already safe; no auto-delete, no merge).
+  Verify green: 1,163 tests (+9), typecheck, smoke, precache, editor browser check. · Next: none.
 - 2026-07-22 · Stable program-edit identity on `claude/hybridq-audit-review-h86qze`. Root cause
   of "editing a program spawns a duplicate that shows the OLD exercises": the program-detail
   "Customize" button was shown for EVERY program and `customizeProgram` unconditionally cloned
