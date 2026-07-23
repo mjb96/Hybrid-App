@@ -2186,6 +2186,11 @@ html[data-theme="light"] .create-cta-inner {
 }
 .program-editor__active-note strong { color: var(--color-green); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
 .program-editor__active-note span { color: #b9c4d4; font-size: .75rem; line-height: 1.45; }
+.program-editor__section-error {
+  margin-top: 14px; padding: 14px 16px; border-left: 3px solid var(--color-amber);
+  border-radius: 0 10px 10px 0; background: color-mix(in srgb, var(--color-amber) 10%, transparent);
+}
+.program-editor__section-error p { color: #b9c4d4; font-size: .8rem; line-height: 1.5; margin: 0; }
 .program-editor__tabs {
   position: sticky; top: max(0px, env(safe-area-inset-top)); z-index: 5;
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 5px; margin: 14px 0 20px;

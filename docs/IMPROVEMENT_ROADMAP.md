@@ -788,6 +788,33 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Stable program-edit identity on `claude/hybridq-audit-review-h86qze`. Root cause
+  of "editing a program spawns a duplicate that shows the OLD exercises": the program-detail
+  "Customize" button was shown for EVERY program and `customizeProgram` unconditionally cloned
+  (`duplicateCustomProgram`) — so editing a program you already own forked a new "(Copy)" while
+  the detail you were looking at still showed the original. There is NO revision system; all
+  read paths already resolve one canonical record (`getProgramById` → `customPrograms`), proven
+  by reproduction, so the fix is identity/entry, not storage. Now: a personal program is edited
+  IN PLACE (detail shows "✏️ Edit" → `open-builder`, no clone); a built-in forks ONCE into a
+  personal copy tagged with `sourceProgramId`, and re-customizing reuses that copy
+  (`findPersonalCopyOfSource`). `sourceProgramId` is additive/optional so no migration is needed
+  and existing user copies are left intact (never deleted). Verified end-to-end in Chromium
+  (Edit in place, +1 exercise, card count stays 1). Verify green: 1,154 tests (+4 customize),
+  typecheck, smoke, editor browser check. · Next: none blocking.
+- 2026-07-22 · Recovery Trends + editor save fix on `claude/hybridq-audit-review-h86qze`.
+  (1) Extended the shared period-totals engine to a third surface: `recovery-performance.js`
+  + `views/view-recovery-performance.js` give a 7D/4W/1Y view of the manual wellness check-in
+  (`state.wellnessLog`: sleep / mood / soreness), proving the core generalises from sums to
+  AVERAGES — soreness is inverse (lower is better), each metric is pre-filtered to days it was
+  actually logged so an empty bucket is an honest "—", never a zero. Opened from a "Recovery
+  Trends" CTA on the Recovery overview. Works fully offline (no Health Connect needed).
+  (2) Program editor could fail silently ("edit doesn't apply at all"): handlers persist before
+  re-rendering, so an uncaught throw in `persistProgram` (reconcile) or a section renderer left
+  the change unrendered. Hardened both — reconcile/save wrapped, save result reported honestly
+  (a suppressed local write no longer shows a false "Saved"), and each editor section renders
+  defensively. Verify green: 1,150 tests (+6 recovery), typecheck, precache (cache → v114),
+  smoke; new Chromium contract for Recovery Trends. · Next: confirm the editor fix resolves the
+  reported symptom, or capture the surfaced error.
 - 2026-07-22 · Run Performance on `claude/hybridq-audit-review-h86qze`: reused the Gym
   Performance daily/weekly/yearly pattern for running. Extracted the subtle 7D/4W/1Y period +
   bin + honest partial-period comparison math into a shared engine (`js/analytics/period-totals.js`),

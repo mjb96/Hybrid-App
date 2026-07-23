@@ -28,7 +28,6 @@ let activeSection = 'schedule';
 let selectedDay = 'mon';
 let previewWeek = '1';
 let pickerTarget = null;
-let saveTimer = null;
 let reconciliation = { updatedDays: 0, preservedDays: 0 };
 
 function getProgram() { return getProgramById(activeBuilderId); }
@@ -51,12 +50,25 @@ function setSaveStatus(label) {
 
 function persistProgram({ reconcile = true } = {}) {
   const program = getProgram();
-  if (!program) return;
-  if (reconcile) reconciliation = reconcileActiveProgramEdits(program.id);
-  saveStateToLocalStorage(true);
+  if (!program) { setSaveStatus('Couldn’t save — reopen this program'); return false; }
+  // Reconcile can touch a lot of stored weeks; a failure here must NEVER abort
+  // the caller mid-edit, because handlers persist BEFORE they re-render — an
+  // uncaught throw would leave the change unrendered and the editor frozen.
+  if (reconcile) {
+    try { reconciliation = reconcileActiveProgramEdits(program.id); }
+    catch (err) { console.error('Program reconcile failed (edit still applied):', err); }
+  }
   setSaveStatus('Saving on this device…');
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => setSaveStatus('Saved on this device'), 550);
+  // saveStateToLocalStorage is async and resolves to the real local-write result
+  // (false when the write is suppressed — e.g. a pending recovery gate — or fails
+  // on quota). Report that honestly instead of always claiming "Saved".
+  Promise.resolve()
+    .then(() => saveStateToLocalStorage(true))
+    .then((ok) => setSaveStatus(ok === false
+      ? 'Couldn’t save on this device — finish setup or free up storage'
+      : 'Saved on this device'))
+    .catch((err) => { console.error('Program save failed:', err); setSaveStatus('Couldn’t save — try again'); });
+  return true;
 }
 
 export function openBuilder(programId) {
@@ -88,6 +100,19 @@ function renderBuilderUI() {
   const summary = programEditorSummary(program);
   const active = appState.activeProgramId === program.id;
 
+  // A render failure for one section must not freeze the whole editor (which is
+  // indistinguishable to the user from "my edit didn't apply"). Build each
+  // section defensively and fall back to an honest, recoverable message.
+  let body;
+  try {
+    body = activeSection === 'progression' ? renderProgression(program)
+      : activeSection === 'preview' ? renderPreview(program)
+      : renderSchedule(program);
+  } catch (err) {
+    console.error('Program editor section render failed:', err);
+    body = `<section class="program-editor__section-error"><p>This section couldn’t be displayed. Your program is safe — switch tabs or reopen it, and let us know if it keeps happening.</p></section>`;
+  }
+
   container.innerHTML = `
     <div class="program-editor">
       <div class="program-editor__topbar">
@@ -118,9 +143,7 @@ function renderBuilderUI() {
       </nav>
 
       <div class="program-editor__body">
-        ${activeSection === 'schedule' ? renderSchedule(program) : ''}
-        ${activeSection === 'progression' ? renderProgression(program) : ''}
-        ${activeSection === 'preview' ? renderPreview(program) : ''}
+        ${body}
       </div>
     </div>
   `;

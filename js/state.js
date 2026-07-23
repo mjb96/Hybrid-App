@@ -292,11 +292,30 @@ export function duplicateCustomProgram(id) {
   // ("by You") and out of the verified-author UI.
   if (newProg.dossier) newProg.dossier.creator = "You";
   if (newProg.author) newProg.author = { name: "You", type: "custom", verified: false };
+  // Source attribution: a copy of a library/built-in program remembers its
+  // origin so re-customizing that program REUSES this copy instead of cloning a
+  // fresh duplicate every time (findPersonalCopyOfSource). A copy of another
+  // custom program inherits that program's origin, if any.
+  const sourceIsCustom = (appState.customPrograms || []).some(p => p?.id === id);
+  newProg.sourceProgramId = sourceIsCustom ? (source.sourceProgramId || null) : id;
 
   if (!appState.customPrograms) appState.customPrograms = [];
   appState.customPrograms.push(newProg);
   saveStateToLocalStorage(true);
   return newProg.id;
+}
+
+// A program the user owns and can edit in place (lives in customPrograms), as
+// opposed to a shared built-in/library template that must be forked before edit.
+export function isCustomProgram(id) {
+  return (appState.customPrograms || []).some(p => p?.id === id);
+}
+
+// The user's existing editable copy of a built-in/library program, if one was
+// already forked — so "Customize" opens that copy instead of cloning again.
+export function findPersonalCopyOfSource(sourceId) {
+  if (!sourceId) return null;
+  return (appState.customPrograms || []).find(p => p?.sourceProgramId === sourceId) || null;
 }
 
 export function deleteCustomProgram(id) {

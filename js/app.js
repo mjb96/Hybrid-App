@@ -17,6 +17,7 @@ import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
   setActiveTab, setSelectedDay, setAppState,
   getProgramById, getActiveProgramIssue, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
+  isCustomProgram, findPersonalCopyOfSource,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
@@ -782,17 +783,26 @@ export function executeDuplicateProgram(id) {
   renderLibrary();
 }
 
-// Fork ANY program (catalog or custom) into an editable copy, then drop straight
-// into the builder. The clone is a copy — the original catalog program is never
-// mutated — so there's no shared-data hazard.
+// Open a program for editing with a stable, predictable identity:
+//  - a program the user already owns is edited IN PLACE (never re-cloned), so
+//    saving updates that same card instead of spawning "(Copy) (Copy)" duplicates;
+//  - a shared built-in/library template is forked ONCE into a personal copy, and
+//    re-customizing the same template reopens that existing copy.
+// The original catalog template is never mutated either way.
 export function customizeProgram(id) {
   if (!id) return;
-  const newId = duplicateCustomProgram(id);
-  if (!newId) { showToast('Could not customize this program.', true); return; }
+  if (isCustomProgram(id)) {
+    switchProgramMode('builder');
+    openBuilder(id);
+    return;
+  }
+  const existing = findPersonalCopyOfSource(id);
+  const targetId = existing?.id || duplicateCustomProgram(id);
+  if (!targetId) { showToast('Could not customize this program.', true); return; }
   updateLibraryState(appState);
-  showToast('Editable copy created — customize it below');
+  showToast(existing ? 'Opening your saved copy' : 'Saved to My Programs — customize it below');
   switchProgramMode('builder');
-  openBuilder(newId);
+  openBuilder(targetId);
 }
 
 // ==========================================

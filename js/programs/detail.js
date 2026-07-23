@@ -58,6 +58,7 @@ export function renderProgramDetail(programId, appState) {
   };
 
   const isActive = appState?.activeProgramId === programId;
+  const isCustom = !!appState?.customPrograms?.some(p => p?.id === programId);
   const saved = isBookmarked(programId);
   const completed = isProgramCompleted(programId);
   const personalRating = getPersonalRating(programId);
@@ -243,7 +244,7 @@ export function renderProgramDetail(programId, appState) {
         </button>
       ` : ''}
       <div class="detail-cta-secondary" style="display:flex;gap:8px;margin-top:8px;">
-        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="customize-program" data-program-id="${safeProgramId}">✏️ Customize</button>
+        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="${isCustom ? 'open-builder' : 'customize-program'}" data-program-id="${safeProgramId}">✏️ ${isCustom ? 'Edit' : 'Customize'}</button>
         <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="open-compare" data-program-id="${safeProgramId}">⚖️ Compare</button>
       </div>
       ${personalRating
