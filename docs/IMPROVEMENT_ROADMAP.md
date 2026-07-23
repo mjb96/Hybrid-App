@@ -788,6 +788,19 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Run Performance on `claude/hybridq-audit-review-h86qze`: reused the Gym
+  Performance daily/weekly/yearly pattern for running. Extracted the subtle 7D/4W/1Y period +
+  bin + honest partial-period comparison math into a shared engine (`js/analytics/period-totals.js`),
+  refactored `gym-performance.js` onto it (output unchanged, tests green), and built
+  `run-performance.js` + `views/view-run-performance.js` on the same core using the existing
+  date-strict `collectRunningHistory`. Metrics are the honest summables — Distance / Time /
+  Sessions (pace stays in the Running metric detail as a distance-weighted average, not forced
+  into a totals chart). The Home "Run Performance" card and the running fitness-graph CTA now open
+  it (fixing a label/behaviour mismatch — the card already said "Run Performance"). Reuses the
+  `gym-performance` CSS; adds favourable/unfavourable comparison tint (amber, not red, so a
+  partial-week dip is attention not alarm). Verify green: 1,144 tests (+5 run-performance),
+  typecheck, precache (cache → v112), smoke; new Chromium contract mirrors the gym one. · Next:
+  optional rTSS running-load refinement; consider a Recovery period-totals view on the same core.
 - 2026-07-22 · Audit review on `claude/hybridq-audit-review-h86qze`: traced the recent gym-
   performance, logger-history, completion-policy, sync-recovery and program-editor work through
   their call sites and persisted state. Recent changes hold up — warm-up exclusion, calendar/

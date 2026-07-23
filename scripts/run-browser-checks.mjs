@@ -4,6 +4,7 @@ const checks = [
   'scripts/home-attribution-check.mjs',
   'scripts/running-analytics-check.mjs',
   'scripts/gym-performance-browser-check.mjs',
+  'scripts/run-performance-browser-check.mjs',
   'scripts/preview-viewport-check.mjs',
   'scripts/program-detail-viewport-check.mjs',
   'scripts/program-editor-browser-check.mjs',
