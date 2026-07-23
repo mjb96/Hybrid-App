@@ -17,7 +17,7 @@ import {
   appState, activeTab, selectedDay, DEFAULT_DAYS,
   setActiveTab, setSelectedDay, setAppState,
   getProgramById, getActiveProgramIssue, createCustomProgram, duplicateCustomProgram, deleteCustomProgram,
-  isCustomProgram, findPrimaryCustomization, adoptLegacyPrimaryCustomization,
+  isCustomProgram, findPrimaryCustomization, adoptLegacyPrimaryCustomization, ensureActiveProgramEditable,
   determineDefaultCalendarDay,
   verifyWeekStorageSchema,
   reseedActiveProgramIntoWeek,
@@ -602,6 +602,7 @@ function _renderActivePlanHero() {
       </div>
       <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${escapeHtml(appState.activeProgramId || '')}" title="Rate this program">★</button>
     </div>
+    <button class="aplan-edit-btn" data-action="edit-active-program">✏️ Edit program</button>
   `;
 }
 
@@ -783,12 +784,32 @@ export function executeDuplicateProgram(id) {
   renderLibrary();
 }
 
-// Open a program for editing with a stable, predictable identity:
+// Edit the program the user is CURRENTLY following. If it is a built-in, this
+// transparently converts it to (or reuses) an editable personal backing program
+// and makes THAT active before opening the builder — the active-program views
+// immediately resolve the personal id, with no Week 1 reset, no lost history,
+// and no separate "you switched program" prompt. An active personal program is
+// simply edited in place.
+export function editActiveProgram() {
+  const activeId = appState.activeProgramId;
+  if (!activeId) return;
+  const wasBuiltIn = !isCustomProgram(activeId);
+  const personalId = ensureActiveProgramEditable();
+  // Re-resolve every active-program surface against the (possibly new) id.
+  updateLibraryState(appState);
+  hydrateCurrentView();
+  if (wasBuiltIn && personalId !== activeId) showToast('Active program is now editable');
+  switchProgramMode('builder');
+  openBuilder(personalId);
+}
+
+// Open a program for editing from the LIBRARY with a stable, predictable identity:
 //  - a program the user already owns is edited IN PLACE (never re-cloned), so
 //    saving updates that same card instead of spawning "(Copy) (Copy)" duplicates;
 //  - a shared built-in/library template is forked ONCE into a personal copy, and
 //    re-customizing the same template reopens that existing copy.
-// The original catalog template is never mutated either way.
+// The original catalog template is never mutated either way. This does NOT
+// activate the copy — that transition belongs to editActiveProgram().
 export function customizeProgram(id) {
   if (!id) return;
   if (isCustomProgram(id)) {
@@ -1032,6 +1053,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'delete-program') executeDeleteProgram(progId);
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   else if (action === 'customize-program') customizeProgram(progId);
+  else if (action === 'edit-active-program') editActiveProgram();
   else if (action === 'open-compare') openCompareModal(progId);
   else if (action === 'compare-pick') pickCompareB(progId);
   else if (action === 'compare-reset') { document.getElementById('compareSearchWrap').style.display = ''; renderComparePicker(''); }

@@ -788,6 +788,22 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-22 · Edit-active-built-in identity transfer on `claude/hybridq-audit-review-h86qze`.
+  Fixed the remaining gap: editing the ACTIVE program only worked when it already lived in
+  customPrograms — for an active BUILT-IN, `customizeProgram` created a personal copy but left
+  `activeProgramId` on the catalog id, so every active view kept showing the old exercises. New
+  `ensureActiveProgramEditable()` (state.js) transfers the active identity to the primary personal
+  copy (reuse/adopt/fork-keeping-name) and retargets the active activation record's `programId` —
+  SAME activation, SAME currentWeek, history untouched; it is NOT a program switch (no Week 1
+  reset, no archive, no pause). `editActiveProgram()` (app.js) drives it + refreshes views; wired
+  to a new active-plan "✏️ Edit program" button and the detail screen's action for an active
+  built-in (Edit, not Customize). Also fixed a `Date.now()` id-collision hazard earlier in the
+  session. New browser Scenario C uses a real active built-in (`stronglifts_5x5`, empty
+  customPrograms): proves the id transfers built-in→personal, week/activation preserved, no
+  duplicate, immediate detail+cockpit refresh with no reload, reload keeps the personal id (built-in
+  not restored), and re-Edit reuses the same copy. Scenario A relabelled "active personal program
+  edit". Verify green: 1,168 tests (+5), typecheck, smoke, precache, editor + active-edit browser
+  checks. · Next: none.
 - 2026-07-22 · Active-program edit e2e browser check on `claude/hybridq-audit-review-h86qze`.
   Added `scripts/active-program-edit-browser-check.mjs` (registered in run-browser-checks): drives
   the real UI — cockpit (the next-workout surface, one tap from Home), program detail, day-preview

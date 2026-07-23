@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import {
   setAppState, appState, duplicateCustomProgram, getProgramById,
   isCustomProgram, findPrimaryCustomization, adoptLegacyPrimaryCustomization,
+  ensureActiveProgramEditable,
 } from '../js/state.js';
 
 // A node-safe localStorage shim so saveStateToLocalStorage() doesn't throw.
@@ -152,4 +153,73 @@ test('a user-created program (no source) is not a customization template', () =>
   appState.customPrograms.push({ id: 'prog_user', name: 'My Plan', totalWeeks: 8, days: { mon: { lifts: ['Bench Press'] } }, weeklyVolModifiers: { '1': { sets: 3, reps: 5, intensityLabel: '' } } });
   assert.equal(isCustomProgram('prog_user'), true);
   assert.equal(findPrimaryCustomization('prog_user'), null, 'a personal program is not a source others fork from');
+});
+
+// ==========================================
+// EDIT ACTIVE PROGRAM — transfer active identity when the active program is a
+// built-in, WITHOUT a program switch (same activation, week, history).
+// ==========================================
+
+function activeBuiltInState(week = '3') {
+  return {
+    activeProgramId: 'stronglifts_5x5', activeActivationId: 'act1', currentWeek: week,
+    activations: [{ id: 'act1', programId: 'stronglifts_5x5', startWeek: 1, status: 'active' }],
+    customPrograms: [], settings: {},
+    weeks: { [week]: { activationId: 'act1', lifts: {}, liftOrder: {} } },
+  };
+}
+
+test('editing an active built-in transfers the active identity to a personal copy', () => {
+  setAppState(activeBuiltInState('3'));
+  const personalId = ensureActiveProgramEditable();
+
+  assert.ok(personalId.startsWith('prog_'), 'returns a personal program id');
+  assert.equal(appState.activeProgramId, personalId, 'the personal program is now active');
+  assert.notEqual(appState.activeProgramId, 'stronglifts_5x5', 'the built-in is no longer active');
+  assert.equal(isCustomProgram(personalId), true, 'the active program is now editable in place');
+  assert.equal(appState.customPrograms.length, 1, 'exactly one personal program was created');
+  assert.equal(getProgramById(personalId).sourceProgramId, 'stronglifts_5x5', 'source attribution retained');
+  assert.ok(!/\(Copy\)/.test(getProgramById(personalId).name), 'the active plan keeps its name (no "(Copy)")');
+});
+
+test('the transfer preserves activation continuity, week and history (not a switch)', () => {
+  setAppState(activeBuiltInState('3'));
+  const personalId = ensureActiveProgramEditable();
+
+  assert.equal(appState.activeActivationId, 'act1', 'same activation — not a new run');
+  assert.equal(appState.currentWeek, '3', 'current week is unchanged (no Week 1 reset)');
+  assert.equal(appState.activations.length, 1, 'no extra activation record was created');
+  assert.equal(appState.activations[0].programId, personalId,
+    'the active activation now points at the personal id so resume/hydration cannot restore the built-in');
+  assert.equal(appState.activations[0].status, 'active', 'the run was not paused or completed');
+});
+
+test('editing the active built-in again reuses the same personal copy (no second copy)', () => {
+  setAppState(activeBuiltInState('2'));
+  const first = ensureActiveProgramEditable();
+  const second = ensureActiveProgramEditable();
+  assert.equal(second, first, 'the same personal program opens');
+  assert.equal(appState.customPrograms.length, 1, 'no duplicate is created on repeat edits');
+});
+
+test('an active built-in reuses an EXISTING primary customization rather than forking again', () => {
+  setAppState(activeBuiltInState('1'));
+  // A personal copy already exists from a prior library "Customize".
+  const existing = duplicateCustomProgram('stronglifts_5x5', { primary: true });
+  const personalId = ensureActiveProgramEditable();
+  assert.equal(personalId, existing, 'the existing primary copy becomes active');
+  assert.equal(appState.customPrograms.length, 1, 'no new copy created');
+  assert.equal(appState.activeProgramId, existing);
+});
+
+test('editing an active PERSONAL program is a no-op transfer (already editable)', () => {
+  setAppState({
+    activeProgramId: 'prog_user', activeActivationId: 'act1', currentWeek: '1',
+    activations: [{ id: 'act1', programId: 'prog_user', status: 'active' }],
+    customPrograms: [{ id: 'prog_user', name: 'My Plan', totalWeeks: 8, days: { mon: { lifts: ['Bench Press'] } }, weeklyVolModifiers: { '1': {} } }],
+    settings: {}, weeks: {},
+  });
+  const id = ensureActiveProgramEditable();
+  assert.equal(id, 'prog_user', 'returns the same id');
+  assert.equal(appState.customPrograms.length, 1, 'no copy created for an already-personal active program');
 });
