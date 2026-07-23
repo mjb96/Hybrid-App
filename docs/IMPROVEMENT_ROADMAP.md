@@ -788,6 +788,37 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-23 · Program-editor preview consistency, canonical exercise names, mobile picker +
+  home-gym exercises on `claude/program-editor-mobile-picker-wr1kn6`. Fixed the reported phone
+  bug: the Lower Strength day-preview kept showing stale/narrative exercises after an edit. Root
+  cause was two-fold — (A) the day-preview sheet's fallback renderer parsed `day.desc` with a
+  broad regex, so the narrative "Squat + hinge foundation." merged into "Back Squat" and a removed
+  "Weighted Sit-Up" kept rendering; (B) the preview merged the source catalog day OVER the personal
+  day. Now `day.lifts` is the single canonical source of exercise names/order on every surface;
+  each lift resolves its prescription through `liftTarget` (exact desc label → week modifier), the
+  broad `_parseDescExercises` parser is deleted, and a personal/editable program day is authoritative
+  (`isCustomProgram`) so the source catalog can never override an edited day (also flipped
+  `library.js` next-workout + `detail.js` merge to prefer the resolved personal program). New central
+  mutation helpers in `editor-model.js` (`replaceProgramExercise`/`add`/`remove`/`move`/
+  `makeProgramDayRest`) keep the duplicated `day.desc` label and `workoutPreview.exercises` in sync —
+  a replacement inherits the old slot's exact "(3×15)" label without touching surrounding prose, and
+  stale preview entries can't reappear; the builder now routes every structural edit through them.
+  Mobile picker: rebuilt as a top-anchored, near-full-screen modal sized to the REAL visible
+  viewport via new `js/ui/visible-viewport.js` (publishes `--visible-viewport-height` from
+  `window.visualViewport`, tracks resize/scroll/orientation, cleans up on close) so search results
+  stay above the on-screen keyboard; results scroll independently, header+search stay pinned, desktop
+  stays a centered card. Exercise library: added `Barbell Standing Calf Raise` (distinct barbell+rack
+  variation) plus 17 home-gym exercises (barbell shrug/floor press/glute bridge/reverse lunge/
+  Bulgarian split squat/step-up, band row/pull-through/overhead-triceps/good-morning/RDL, dumbbell
+  front squat, Zercher/pin/tempo squat, landmine row, rack pull, single-leg dumbbell calf raise) and
+  dumbbell/seated aliases; generic `Calf Raise(s)` still resolves deterministically to the dumbbell
+  standing entry, no alias collisions. Evidence: 1,186 JS tests (+27; new `program_editor_sync`,
+  `visible_viewport`, extended `exercise_catalog`), typecheck, smoke, precache green; new real-UI
+  browser checks `program-preview-consistency-browser-check.mjs` (real `home_gym_rebuild_5day`:
+  activate→edit→replace Weighted Sit-Up with Seated Calf Raise→preview+cockpit agree, 3×15 inherited,
+  reload persists, source catalog untouched, no dupe) and `exercise-picker-browser-check.mjs`
+  (390×844 with a simulated keyboard viewport) both registered in `run-browser-checks`. Manual
+  Android verification steps in `docs/android-program-editor-checklist.md`. · Next: none.
 - 2026-07-22 · Edit-active-built-in identity transfer on `claude/hybridq-audit-review-h86qze`.
   Fixed the remaining gap: editing the ACTIVE program only worked when it already lived in
   customPrograms — for an active BUILT-IN, `customizeProgram` created a personal copy but left

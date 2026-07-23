@@ -14,7 +14,7 @@ import { PROGRAMS } from '../constants.js';
 import { resolveProgramPhase } from './phase.js';
 import { getWeekModifier } from '../schema.js';
 import { liftTarget } from '../engine.js';
-import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating } from '../state.js';
+import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating, isCustomProgram } from '../state.js';
 import { escapeHtml, safeCssColor } from '../util.js';
 import { evaluateSessionCompletion } from '../workout/completion-policy.js';
 
@@ -732,10 +732,15 @@ export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   const resolvedId = programId || _currentProgramId;
   const catalog = getCatalogEntry(resolvedId);
   const program = getProgramById(resolvedId);
-  // Prefer the catalog day (richest: carries workoutPreview), then fall back to
-  // the resolved program — which covers system PROGRAMS *and* custom programs
-  // (getProgramById walks customPrograms → PROGRAMS → catalog).
-  const day = catalog?.days?.[dayKey] || program?.days?.[dayKey];
+  // Source of truth for the previewed day. A personal/editable program's own
+  // definition is AUTHORITATIVE for every mutable training field (exercise
+  // names/order, title, description, run, structured preview) — the source
+  // catalog must never override an edited personal day. Only a shared built-in
+  // that has not been forked falls back to its catalog day (identical anyway,
+  // but the catalog carries the richest presentation metadata).
+  const day = isCustomProgram(resolvedId)
+    ? program?.days?.[dayKey]
+    : (catalog?.days?.[dayKey] || program?.days?.[dayKey]);
   if (!day) return;
 
   const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
@@ -827,25 +832,11 @@ export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   }
 }
 
-function _parseDescExercises(desc) {
-  if (!desc || desc === 'Rest') return [];
-  // Match "Exercise Name (4×8–10)" — handles × or x, en-dash or hyphen in reps
-  const rx = /([A-Za-z][^(,\n]+?)\s*\((\d+)\s*[×xX]\s*([^)]+)\)/g;
-  const results = [];
-  let m;
-  while ((m = rx.exec(desc)) !== null) {
-    results.push({ name: m[1].trim(), sets: m[2], reps: m[3].trim().replace(/\.$/, '') });
-  }
-  return results;
-}
-
 function renderFallbackPreview(day, mod) {
   let html = '';
   const hasRun = day.runs && day.runs !== 'Rest';
-  const hasLifts = day.lifts?.length;
-  // A3 — when the day carries no per-lift spec, show THIS week's prescription
-  // (sets × reps) from the week modifier so the name list isn't week-blind.
-  const wkSpec = (mod && mod.sets) ? `${mod.sets} × ${mod.reps ?? ''}` : '';
+  const names = (Array.isArray(day.lifts) ? day.lifts : [])
+    .filter(n => typeof n === 'string' && n.trim());
 
   if (hasRun) {
     html += `
@@ -854,38 +845,25 @@ function renderFallbackPreview(day, mod) {
     `;
   }
 
-  if (hasLifts) {
-    const parsed = _parseDescExercises(day.desc);
+  if (names.length) {
+    // Exercise NAMES and ORDER come only from day.lifts — never from a broad
+    // parse of day.desc (which mixes narrative like "Squat + hinge foundation."
+    // with per-lift specs and could keep rendering a removed exercise). Each
+    // current lift resolves its own prescription through liftTarget: the exact
+    // "<name> (<sets×reps>)" label in the description when present, else this
+    // week's modifier — identical to what the cockpit materialises.
     html += `
       <div class="wpm-type-label wpm-type-label--strength" style="${hasRun ? 'margin-top:16px;' : ''}">🏋️ Strength Session</div>
+      <div class="wpm-exercise-list">
+        ${names.map(name => {
+          const t = liftTarget(day.desc, name, mod || {});
+          const spec = `${t.sets} × ${t.reps}`;
+          return `<div class="wpm-exercise-item" style="display:flex;justify-content:space-between;gap:10px;">
+            <span>${escapeHtml(name)}</span><span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${escapeHtml(spec)}</span>
+          </div>`;
+        }).join('')}
+      </div>
     `;
-    if (parsed.length > 0) {
-      html += `
-        <div class="wpm-strength-grid wpm-strength-grid--compact">
-          <div class="wpm-grid-header">
-            <span>Exercise</span><span>Sets</span><span>Reps</span>
-          </div>
-          ${parsed.map(ex => `
-            <div class="wpm-grid-row">
-              <span class="wpm-ex-name">${escapeHtml(ex.name)}</span>
-              <span class="wpm-ex-val">${escapeHtml(ex.sets)}</span>
-              <span class="wpm-ex-val">${escapeHtml(ex.reps)}</span>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else {
-      html += `
-        <div class="wpm-exercise-list">
-          ${day.lifts.map(lift => `<div class="wpm-exercise-item" style="display:flex;justify-content:space-between;gap:10px;">
-            <span>${escapeHtml(lift)}</span>${wkSpec ? `<span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${escapeHtml(wkSpec)}</span>` : ''}
-          </div>`).join('')}
-        </div>
-      `;
-      if (day.desc && day.desc !== 'Rest') {
-        html += `<div class="wpm-fallback-desc">${escapeHtml(day.desc)}</div>`;
-      }
-    }
   }
 
   return html || '<p class="wpm-empty">No preview available for this day.</p>';
