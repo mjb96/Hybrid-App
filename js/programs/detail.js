@@ -244,7 +244,7 @@ export function renderProgramDetail(programId, appState) {
         </button>
       ` : ''}
       <div class="detail-cta-secondary" style="display:flex;gap:8px;margin-top:8px;">
-        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="${isCustom ? 'open-builder' : 'customize-program'}" data-program-id="${safeProgramId}">✏️ ${isCustom ? 'Edit' : 'Customize'}</button>
+        <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="${isCustom ? 'open-builder' : (isActive ? 'edit-active-program' : 'customize-program')}" data-program-id="${safeProgramId}">✏️ ${isCustom || isActive ? 'Edit' : 'Customize'}</button>
         <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="open-compare" data-program-id="${safeProgramId}">⚖️ Compare</button>
       </div>
       ${personalRating

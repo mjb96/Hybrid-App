@@ -81,6 +81,8 @@ export interface AppSettings {
 export interface AppState {
   currentWeek: string;
   activeProgramId: string;
+  activeActivationId?: string | null;
+  activations?: any[];
   weekStartedAt: number | null;
   weeks: Record<string, any>;
   exerciseStats: Record<string, any>;

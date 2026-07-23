@@ -2511,6 +2511,20 @@ html[data-theme="light"] .detail-social-proof {
   z-index: 2;
 }
 .aplan-rate-btn:active { background: var(--overlay-2xl); }
+.aplan-edit-btn {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 44px;
+  background: var(--overlay-lg);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  color: var(--text-inverse);
+  font-size: .85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.aplan-edit-btn:active { background: var(--overlay-2xl); }
 
 /* Week Navigator */
 .aplan-week-nav {

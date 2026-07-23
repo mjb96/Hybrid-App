@@ -78,11 +78,24 @@ const eq = (actual, expected, label) => {
   if (a !== e) fail(`${label}: expected ${e}, got ${a}`); else console.log(`  ok · ${label} = ${a}`);
 };
 
-async function newPage(browser) {
+// A REAL built-in/catalog program active, with NO personal programs yet — the
+// exact case the earlier fixture (prog_mine already in customPrograms) missed.
+function builtInFixture() {
+  return {
+    schemaVersion: 5, currentWeek: '2', activeProgramId: 'stronglifts_5x5', activeActivationId: 'act_bi',
+    settings: { name: 'T', theme: 'dark', weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', onboardingComplete: true },
+    activations: [{ id: 'act_bi', programId: 'stronglifts_5x5', startWeek: 1, status: 'active', startedAt: new Date().toISOString() }],
+    customPrograms: [],
+    weeks: { '2': { activationId: 'act_bi', dates: {}, sessionStatus: {}, lifts: {}, liftOrder: {}, runs: {}, runSessions: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} } },
+    programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
+  };
+}
+
+async function newPage(browser, fixture = baseFixture()) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
   // Seed ONLY on first load — the init script re-runs on reload, and clobbering
   // localStorage there would hide whether the edit actually persisted.
-  await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(baseFixture())]);
+  await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture)]);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -99,6 +112,20 @@ async function openCockpitFromHome(page) {
   await page.waitForTimeout(200);
   await page.click('#homePrimaryCta');
   await page.waitForSelector('#view-workout .cockpit-ex-name', { timeout: 8000 });
+  await page.waitForTimeout(150);
+}
+
+async function openDetailById(page, id) {
+  await page.click('.nav-item[data-target="program"]');
+  await page.waitForTimeout(300);
+  await page.evaluate((pid) => {
+    const b = document.createElement('button');
+    b.setAttribute('data-action', 'open-program-detail');
+    b.setAttribute('data-program-id', pid);
+    b.style.display = 'none';
+    document.body.appendChild(b); b.click(); b.remove();
+  }, id);
+  await page.waitForSelector(`#programDetailScreen .detail-cta-secondary [data-program-id="${id}"]`, { timeout: 8000 });
   await page.waitForTimeout(150);
 }
 
@@ -129,7 +156,9 @@ async function pickExact(page, name) {
 
 const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
 try {
-  // ---- Scenario A: edit propagates immediately, persists, no duplicate --------
+  // ---- Scenario A: ACTIVE PERSONAL program edit — propagates immediately,
+  //      persists, no duplicate. (Proves in-place editing; NOT proof that an
+  //      active built-in transfers correctly — that is Scenario C.) ------------
   {
     const { ctx, page, errors } = await newPage(browser);
 
@@ -231,6 +260,100 @@ try {
     eq(futureOK, ['Dumbbell Bench Press', 'Barbell Row', 'Face Pull'], 'B template definition updated for future workouts');
 
     if (errors.length) fail(`B browser errors: ${errors.join(' | ')}`);
+    await ctx.close();
+  }
+
+  // ---- Scenario C: editing the ACTIVE BUILT-IN transfers the active identity --
+  {
+    const { ctx, page, errors } = await newPage(browser, builtInFixture());
+
+    eq(await page.evaluate(() => JSON.parse(localStorage.getItem('hybrid_engine_v2_state')).activeProgramId),
+      'stronglifts_5x5', 'C1 a real built-in program is active on load');
+
+    // The active program's detail offers "Edit" (transfer), not "Customize".
+    await openDetailById(page, 'stronglifts_5x5');
+    const btn = await page.$eval('#programDetailScreen .detail-cta-secondary [data-program-id="stronglifts_5x5"]',
+      el => ({ action: el.getAttribute('data-action'), text: el.textContent.trim() }));
+    if (btn.action !== 'edit-active-program') fail(`C2 active built-in edit action should be edit-active-program, got ${btn.action}`);
+    else console.log(`  ok · C2 detail action = ${btn.action} ("${btn.text}")`);
+
+    // Press Edit → the active identity transfers to a personal program.
+    await page.click('#programDetailScreen [data-action="edit-active-program"]');
+    await page.waitForSelector('#builderViewContainer .program-editor__exercise-name', { timeout: 8000 });
+    const t = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('hybrid_engine_v2_state'));
+      return {
+        active: s.activeProgramId, count: s.customPrograms.length, act: s.activeActivationId, week: s.currentWeek,
+        actProg: (s.activations || []).find(a => a.id === s.activeActivationId)?.programId, name: s.customPrograms[0]?.name,
+        source: s.customPrograms[0]?.sourceProgramId,
+      };
+    });
+    if (!t.active.startsWith('prog_')) fail(`C3 activeProgramId did not transfer to a personal id (still ${t.active})`);
+    else console.log(`  ok · C3 active id transferred built-in → personal (${t.active})`);
+    const personalId = t.active;
+    eq(t.count, 1, 'C3 exactly one personal customization created');
+    eq(t.active !== 'stronglifts_5x5', true, 'C3 the built-in is no longer active');
+    eq(t.act, 'act_bi', 'C3 activation continuity preserved (same run)');
+    eq(t.week, '2', 'C3 current week preserved (no Week 1 reset)');
+    eq(t.actProg, personalId, 'C3 activation record retargeted to the personal id');
+    eq(t.source, 'stronglifts_5x5', 'C3 source attribution retained');
+    if (/\(Copy\)/.test(t.name || '')) fail(`C3 active plan should keep its name, got "${t.name}"`);
+
+    // Edit the builder's first training day: replace slot 0, add Face Pull.
+    const builderDay = await page.evaluate(() => {
+      const prog = JSON.parse(localStorage.getItem('hybrid_engine_v2_state')).customPrograms[0];
+      return ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].find(d => (prog.days[d]?.lifts || []).some(n => typeof n === 'string' && n.trim())) || 'mon';
+    });
+    await page.click(`#builderViewContainer [data-action="b-select-day"][data-day="${builderDay}"]`);
+    await page.waitForTimeout(200);
+    await page.click('#builderViewContainer .program-editor__exercise-name[data-i="0"]');
+    await pickExact(page, 'Dumbbell Bench Press');
+    await page.click('#builderViewContainer .program-editor__add');
+    await pickExact(page, 'Face Pull');
+    await page.waitForTimeout(400);
+    const expected = await page.evaluate((d) => JSON.parse(localStorage.getItem('hybrid_engine_v2_state')).customPrograms[0].days[d].lifts, builderDay);
+    if (!expected.includes('Dumbbell Bench Press') || !expected.includes('Face Pull')) fail(`C4 edit not applied, got ${JSON.stringify(expected)}`);
+
+    // Close builder → the active program's detail shows the edits immediately.
+    await page.click('#builderViewContainer [data-action="close-builder"]');
+    await page.waitForTimeout(300);
+    await openDetailById(page, personalId);
+    await page.click(`#programDetailScreen [data-action="open-day-preview"][data-day="${builderDay}"]`);
+    await page.waitForSelector('#wpmSheet .wpm-exercise-item', { timeout: 6000 });
+    eq(await previewNames(page), expected, 'C5 active detail shows edits immediately (no reload)');
+    await page.click('#wpmSheet [data-action="close-day-preview"], #wpmBackdrop').catch(() => {});
+    await page.waitForTimeout(150);
+
+    // Cockpit (next workout) for that day shows the edits — no reload.
+    await page.click('.nav-item[data-target="workout"]');
+    await page.waitForSelector('#view-workout', { timeout: 6000 });
+    await page.click(`#cockpitDaySelectorBar .day-pill[data-day="${builderDay}"]`);
+    await page.waitForTimeout(300);
+    eq(await cockpitNames(page), expected, 'C6 cockpit resolves the personal definition (no reload)');
+
+    // Reload → the PERSONAL program stays active; the built-in is not restored.
+    await page.reload({ waitUntil: 'networkidle' });
+    const afterReload = await page.evaluate((d) => {
+      const s = JSON.parse(localStorage.getItem('hybrid_engine_v2_state'));
+      return { active: s.activeProgramId, count: s.customPrograms.length, actProg: (s.activations || []).find(a => a.id === s.activeActivationId)?.programId, lifts: s.customPrograms[0].days[d].lifts };
+    }, builderDay);
+    eq(afterReload.active, personalId, 'C7 personal program remains active after reload (built-in NOT restored)');
+    eq(afterReload.count, 1, 'C7 still exactly one copy after reload');
+    eq(afterReload.actProg, personalId, 'C7 activation record still personal after reload');
+    if (!afterReload.lifts.includes('Face Pull')) fail('C7 edited definition lost after reload');
+
+    // Press Edit again → the SAME personal program, no second copy.
+    await openDetailById(page, personalId);
+    await page.click(`#programDetailScreen [data-action="open-builder"][data-program-id="${personalId}"]`);
+    await page.waitForTimeout(400);
+    const reedit = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('hybrid_engine_v2_state'));
+      return { active: s.activeProgramId, count: s.customPrograms.length };
+    });
+    eq(reedit.active, personalId, 'C8 re-edit keeps the same active personal id');
+    eq(reedit.count, 1, 'C8 no second copy created on re-edit');
+
+    if (errors.length) fail(`C browser errors: ${errors.join(' | ')}`);
     await ctx.close();
   }
 } finally {

@@ -299,12 +299,15 @@ export function createCustomProgram(name, totalWeeks, focus, philosophy) {
 // `primary` is only ever true for the first fork of a built-in (see
 // customizeProgram); an explicit Duplicate leaves it false so it can never
 // compete with the primary. Cloning never inherits primary status.
-export function duplicateCustomProgram(id, { primary = false } = {}) {
+export function duplicateCustomProgram(id, { primary = false, keepName = false } = {}) {
   const source = getProgramById(id);
   if (!source) return null;
   const newProg = JSON.parse(JSON.stringify(source));
   newProg.id = newProgramId();
-  newProg.name = newProg.name + " (Copy)";
+  // keepName is for the "make the ACTIVE program editable" path, where the copy
+  // is the same plan the user is already following — a "(Copy)" suffix there
+  // would read as an unrelated program.
+  newProg.name = keepName ? newProg.name : newProg.name + " (Copy)";
   // A fork is authored by the user, not the original coach — keep it honest
   // ("by You") and out of the verified-author UI.
   if (newProg.dossier) newProg.dossier.creator = "You";
@@ -352,6 +355,35 @@ export function adoptLegacyPrimaryCustomization(sourceId) {
   legacy[0].isPrimaryCustomization = true;
   saveStateToLocalStorage(true);
   return legacy[0].id;
+}
+
+// Make the ACTIVE program editable in place, transparently.
+//
+// If the active program is a shared built-in/catalog template, back it with an
+// editable personal program (reuse an existing primary copy, else fork one that
+// KEEPS the original name) and TRANSFER the active identity to it. This is NOT a
+// program switch: the same activation, the same currentWeek and all logged
+// history are preserved — only `activeProgramId` (and the active activation
+// record's programId, so a later resume/hydration can't restore the built-in)
+// move to the personal id. Untouched future weeks re-derive from the personal
+// definition on the next edit via reconcileActiveProgramEdits.
+//
+// A no-op for an already-personal active program (edited in place elsewhere).
+// Returns the program id that is active afterwards.
+export function ensureActiveProgramEditable() {
+  const activeId = appState.activeProgramId;
+  if (!activeId || isCustomProgram(activeId)) return activeId;
+
+  let personalId = findPrimaryCustomization(activeId)?.id || adoptLegacyPrimaryCustomization(activeId);
+  if (!personalId) personalId = duplicateCustomProgram(activeId, { primary: true, keepName: true });
+  if (!personalId) return activeId;
+
+  ensureActivation(appState); // guarantee a record exists before we retarget it
+  appState.activeProgramId = personalId;
+  const activation = (appState.activations || []).find(a => a?.id === appState.activeActivationId);
+  if (activation) activation.programId = personalId;
+  saveStateToLocalStorage(true);
+  return personalId;
 }
 
 export function deleteCustomProgram(id) {
