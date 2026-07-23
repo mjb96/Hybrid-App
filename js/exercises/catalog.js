@@ -67,6 +67,7 @@ export const EXERCISES = Object.freeze([
   P('dumbbell_bench_press', 'Dumbbell Bench Press', ['DB Bench Press', 'Dumbbell Bench', 'DB Bench'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'], compound: true }),
   P('incline_dumbbell_press', 'Incline Dumbbell Press', ['Incline DB Press', 'Incline Dumbbell Bench Press'], { upper_chest: 1, front_delts: .5, triceps: .5 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'], compound: true }),
   P('dumbbell_floor_press', 'Dumbbell Floor Press', ['DB Floor Press'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['dumbbells'], compound: true }),
+  P('barbell_floor_press', 'Barbell Floor Press', ['Barbell Floor Presses'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell'], compound: true }),
   P('dumbbell_fly', 'Dumbbell Fly', ['DB Fly', 'Dumbbell Flye'], { chest: 1 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'] }),
   P('cable_fly', 'Cable Fly', ['Cable Flye'], { chest: 1 }, { movement: 'horizontal_push', equipment: ['cables'] }),
   P('machine_chest_fly', 'Machine Chest Fly', ['Machine Flye', 'Pec Dec Fly', 'Pec Deck Fly'], { chest: 1 }, { movement: 'horizontal_push', equipment: ['machine'] }),
@@ -90,6 +91,7 @@ export const EXERCISES = Object.freeze([
   P('front_raise', 'Front Raise', [], { front_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['dumbbells'] }),
   P('upright_row', 'Upright Row', [], { side_delts: 1, traps: .5 }, { movement: 'shoulder_isolation', equipment: ['barbell'], compound: true }),
   P('band_triceps_pushdown', 'Band Triceps Pushdown', ['Band Tricep Pushdown', 'Tricep Band Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'] }),
+  P('band_overhead_triceps_extension', 'Band Overhead Triceps Extension', ['Band Overhead Tricep Extension', 'Banded Overhead Triceps Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'] }),
   P('cable_triceps_pushdown', 'Cable Triceps Pushdown', ['Tricep Pushdown', 'Triceps Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['cables'] }),
   P('skull_crusher', 'Skull Crusher', ['Skull Crushers', 'Dumbbell Skull Crusher', 'Lying DB Tricep Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells', 'bench'] }),
   P('overhead_triceps_extension', 'Overhead Triceps Extension', ['Overhead Tricep Extension', 'Dumbbell Overhead Triceps Extension', 'Tricep Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells'] }),
@@ -114,6 +116,11 @@ export const EXERCISES = Object.freeze([
   L('band_face_pull', 'Band Face Pull', [], { rear_delts: 1, upper_back: .5 }, { movement: 'horizontal_pull', equipment: ['bands'], compound: true }),
   L('band_pull_apart', 'Band Pull-Apart', ['Band Pull-Aparts'], { rear_delts: 1, upper_back: .5 }, { movement: 'horizontal_pull', equipment: ['bands'] }),
   L('dumbbell_shrug', 'Dumbbell Shrug', ['Shrug', 'Shrugs'], { traps: 1 }, { movement: 'shoulder_isolation', equipment: ['dumbbells'] }),
+  L('barbell_shrug', 'Barbell Shrug', ['Barbell Shrugs'], { traps: 1 }, { movement: 'shoulder_isolation', equipment: ['barbell'] }),
+  L('band_row', 'Band Row', ['Band Rows', 'Resistance Band Row', 'Seated Band Row'], { upper_back: 1, lats: .5, biceps: .25, rear_delts: .25 }, { movement: 'horizontal_pull', equipment: ['bands'], compound: true }),
+  // A landmine is a barbell anchored at one end — represented honestly as a
+  // barbell movement (no separate landmine equipment token is claimed).
+  L('landmine_row', 'Landmine Row', ['Landmine Rows'], { upper_back: 1, lats: .5, biceps: .25, rear_delts: .25 }, { movement: 'horizontal_pull', equipment: ['barbell'], compound: true, unilateral: true }),
   L('dead_hang', 'Dead Hang', [], { forearms: 1 }, { movement: 'vertical_pull', equipment: ['pullupBar'], bodyweight: true }),
 
   // Biceps and forearms
@@ -130,14 +137,21 @@ export const EXERCISES = Object.freeze([
   // Squat, lunge and knee-dominant work
   G('back_squat', 'Back Squat', ['Squat'], { quads: 1, glutes: .5, adductors: .25, erectors: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
   G('front_squat', 'Front Squat', [], { quads: 1, glutes: .5, core: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
+  G('dumbbell_front_squat', 'Dumbbell Front Squat', ['DB Front Squat', 'Dumbbell Front Squats'], { quads: 1, glutes: .5, core: .25 }, { movement: 'squat', equipment: ['dumbbells'], compound: true }),
+  G('zercher_squat', 'Zercher Squat', ['Zercher Squats'], { quads: 1, glutes: .5, core: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
+  G('pin_squat', 'Pin Squat', ['Pin Squats'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
+  G('tempo_squat', 'Tempo Squat', ['Tempo Squats', '3-Second Squat'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
   G('paused_squat', 'Paused Squat', [], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
   G('goblet_squat', 'Goblet Squat', ['DB Goblet Squat'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'squat', equipment: ['dumbbells'], compound: true }),
   G('dumbbell_sumo_squat', 'Dumbbell Sumo Squat', ['DB Sumo Squat'], { quads: 1, glutes: .5, adductors: .5 }, { movement: 'squat', equipment: ['dumbbells'], compound: true }),
   G('bodyweight_squat', 'Bodyweight Squat', [], { quads: 1, glutes: .5 }, { movement: 'squat', equipment: ['bodyweight'], compound: true, bodyweight: true }),
   G('bulgarian_split_squat', 'Bulgarian Split Squat', ['Dumbbell Bulgarian Split Squat'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['dumbbells', 'bench'], compound: true, unilateral: true }),
+  G('barbell_bulgarian_split_squat', 'Barbell Bulgarian Split Squat', ['Barbell Bulgarian Split Squats'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['barbell', 'bench'], compound: true, unilateral: true }),
   G('reverse_lunge', 'Reverse Lunge', ['DB Lunge', 'Dumbbell Lunge'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['dumbbells'], compound: true, unilateral: true }),
+  G('barbell_reverse_lunge', 'Barbell Reverse Lunge', ['Barbell Reverse Lunges'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['barbell'], compound: true, unilateral: true }),
   G('walking_lunge', 'Walking Lunge', ['Walking Lunges'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['bodyweight'], compound: true, unilateral: true, bodyweight: true }),
   G('step_up', 'Step-Up', ['DB Step-Up', 'Dumbbell Step-Up'], { quads: 1, glutes: .5 }, { movement: 'lunge', equipment: ['dumbbells', 'bench'], compound: true, unilateral: true }),
+  G('barbell_step_up', 'Barbell Step-Up', ['Barbell Step-Ups'], { quads: 1, glutes: .5 }, { movement: 'lunge', equipment: ['barbell', 'bench'], compound: true, unilateral: true }),
   G('leg_press', 'Leg Press', [], { quads: 1, glutes: .5 }, { movement: 'squat', equipment: ['machine'], compound: true }),
   G('leg_extension', 'Leg Extension', [], { quads: 1 }, { movement: 'knee_extension', equipment: ['machine'] }),
   G('band_hip_abduction', 'Band Hip Abduction', [], { glutes: 1 }, { movement: 'lunge', equipment: ['bands'] }),
@@ -146,23 +160,34 @@ export const EXERCISES = Object.freeze([
   G('conventional_deadlift', 'Conventional Deadlift', ['Deadlift'], { glutes: 1, hamstrings: .5, erectors: .5, traps: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('sumo_deadlift', 'Sumo Deadlift', [], { glutes: 1, quads: .5, adductors: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('deficit_deadlift', 'Deficit Deadlift', [], { glutes: 1, hamstrings: .5, quads: .5, erectors: .5 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
+  G('rack_pull', 'Rack Pull', ['Rack Pulls', 'Block Pull'], { erectors: 1, traps: .5, glutes: .5, hamstrings: .25 }, { movement: 'hinge', equipment: ['barbell', 'rack'], compound: true }),
   G('romanian_deadlift', 'Romanian Deadlift', ['RDL'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('dumbbell_romanian_deadlift', 'Dumbbell Romanian Deadlift', ['DB Romanian Deadlift'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['dumbbells'], compound: true }),
+  G('band_romanian_deadlift', 'Band Romanian Deadlift', ['Band RDL', 'Banded Romanian Deadlift'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['bands'], compound: true }),
   G('stiff_leg_deadlift', 'Stiff-Leg Deadlift', ['Stiff-Legged Deadlift'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('single_leg_romanian_deadlift', 'Single-Leg Romanian Deadlift', ['DB Single-Leg Deadlift', 'Single-Leg RDL'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['dumbbells'], compound: true, unilateral: true }),
   G('good_morning', 'Good Morning', ['Good Mornings'], { hamstrings: 1, glutes: .5, erectors: .5 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
+  G('band_good_morning', 'Band Good Morning', ['Band Good Mornings', 'Banded Good Morning'], { hamstrings: 1, glutes: .5, erectors: .5 }, { movement: 'hinge', equipment: ['bands'], compound: true }),
+  G('band_pull_through', 'Band Pull-Through', ['Band Pull-Throughs', 'Banded Pull-Through', 'Resistance Band Pull-Through'], { glutes: 1, hamstrings: .5 }, { movement: 'hinge', equipment: ['bands'], compound: true }),
   G('hip_hinge', 'Hip Hinge', [], { hamstrings: 1, glutes: .5 }, { movement: 'hinge', equipment: ['bodyweight'], compound: true, bodyweight: true }),
   G('barbell_hip_thrust', 'Barbell Hip Thrust', [], { glutes: 1, hamstrings: .25 }, { movement: 'hinge', equipment: ['barbell', 'bench'], compound: true }),
   G('dumbbell_hip_thrust', 'Dumbbell Hip Thrust', ['DB Hip Thrust'], { glutes: 1, hamstrings: .25 }, { movement: 'hinge', equipment: ['dumbbells', 'bench'], compound: true }),
   G('glute_bridge', 'Glute Bridge', [], { glutes: 1, hamstrings: .25 }, { movement: 'hinge', equipment: ['bodyweight'], compound: true, bodyweight: true }),
+  G('barbell_glute_bridge', 'Barbell Glute Bridge', ['Barbell Glute Bridges'], { glutes: 1, hamstrings: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('back_extension', 'Back Extension', ['Back Raises'], { erectors: 1, glutes: .5, hamstrings: .25 }, { movement: 'hinge', equipment: ['bodyweight'], compound: true, bodyweight: true }),
   G('leg_curl', 'Leg Curl', ['Hamstring Curl'], { hamstrings: 1 }, { movement: 'knee_flexion', equipment: ['machine'] }),
   G('dumbbell_lying_leg_curl', 'Dumbbell Lying Leg Curl', ['Dumbbell Lying Hamstring Curl'], { hamstrings: 1 }, { movement: 'knee_flexion', equipment: ['dumbbells', 'bench'] }),
   G('band_leg_curl', 'Band Leg Curl', [], { hamstrings: 1 }, { movement: 'knee_flexion', equipment: ['bands'] }),
   G('nordic_curl', 'Nordic Curl', ['Nordic Curl Progression'], { hamstrings: 1 }, { movement: 'knee_flexion', equipment: ['bodyweight'], compound: true, bodyweight: true }),
-  G('standing_calf_raise', 'Standing Calf Raise', ['Calf Raise', 'Calf Raises', 'Standing Calf Raises', 'Dumbbell Calf Raise'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells'] }),
+  // The generic "Calf Raise"/"Calf Raises" legacy keys resolve here (the
+  // dumbbell/loaded-standing variation) so historical workout data keeps a
+  // single deterministic identity. The barbell variation below is a distinct
+  // exercise (different equipment + loading), NOT an alias of this one.
+  G('standing_calf_raise', 'Standing Calf Raise', ['Calf Raise', 'Calf Raises', 'Standing Calf Raises', 'Dumbbell Calf Raise', 'Dumbbell Calf Raises', 'Standing Dumbbell Calf Raise', 'Standing Dumbbell Calf Raises'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells'] }),
+  G('barbell_standing_calf_raise', 'Barbell Standing Calf Raise', ['Barbell Calf Raise', 'Barbell Calf Raises', 'Standing Barbell Calf Raise', 'Standing Barbell Calf Raises', 'Rack Barbell Calf Raise'], { calves: 1 }, { movement: 'calf_raise', equipment: ['barbell', 'rack'] }),
   G('single_leg_calf_raise', 'Single-Leg Calf Raise', [], { calves: 1 }, { movement: 'calf_raise', equipment: ['bodyweight'], unilateral: true, bodyweight: true }),
-  G('seated_calf_raise', 'Seated Calf Raise', [], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells', 'bench'] }),
+  G('single_leg_dumbbell_calf_raise', 'Single-Leg Dumbbell Calf Raise', ['Single Leg Dumbbell Calf Raise', 'Single-Leg Standing Calf Raise', 'Dumbbell Single-Leg Calf Raise'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells'], unilateral: true }),
+  G('seated_calf_raise', 'Seated Calf Raise', ['Seated Dumbbell Calf Raise', 'Seated Dumbbell Calf Raises', 'Dumbbell Seated Calf Raise', 'Dumbbell Seated Calf Raises'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells', 'bench'] }),
 
   // Core and carries. A unilateral set is one set credit; the logger stores a
   // set row for the exercise, not one row per side.

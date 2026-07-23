@@ -208,6 +208,7 @@ const REQUIRED_ASSETS = [
   "./js/ui/modal-stack.js",
   "./js/ui/render.js",
   "./js/ui/sortable.js",
+  "./js/ui/visible-viewport.js",
   "./js/util.js",
   "./js/util/bridge-callback-id.js",
   "./js/vendor/fit-parser.js",

@@ -88,6 +88,75 @@ test('derived PR stats merge aliases under a canonical id while old keys still r
   assert.equal(exerciseStatForName(stats, 'Dumbbell Bench').allTimeMax, stats.dumbbell_bench_press.allTimeMax);
 });
 
+test('calf-raise variations resolve deterministically without alias collisions', () => {
+  // The barbell variation is a distinct exercise, not an alias of the dumbbell one.
+  assert.equal(canonicalExerciseId('Barbell Standing Calf Raise'), 'barbell_standing_calf_raise');
+  assert.equal(canonicalExerciseId('Barbell Calf Raise'), 'barbell_standing_calf_raise');
+  assert.equal(canonicalExerciseId('Barbell Calf Raises'), 'barbell_standing_calf_raise');
+  assert.equal(canonicalExerciseId('Standing Barbell Calf Raise'), 'barbell_standing_calf_raise');
+  assert.equal(canonicalExerciseId('Rack Barbell Calf Raise'), 'barbell_standing_calf_raise');
+
+  // The dumbbell/loaded standing variation keeps every dumbbell + generic legacy key.
+  assert.equal(canonicalExerciseId('Dumbbell Calf Raise'), 'standing_calf_raise');
+  assert.equal(canonicalExerciseId('Dumbbell Calf Raises'), 'standing_calf_raise');
+  assert.equal(canonicalExerciseId('Standing Dumbbell Calf Raise'), 'standing_calf_raise');
+  assert.equal(canonicalExerciseId('Calf Raise'), 'standing_calf_raise');
+  assert.equal(canonicalExerciseId('Calf Raises'), 'standing_calf_raise');
+
+  // The seated variation gains its dumbbell aliases and keeps dumbbells + bench.
+  assert.equal(canonicalExerciseId('Seated Dumbbell Calf Raise'), 'seated_calf_raise');
+  assert.equal(canonicalExerciseId('Dumbbell Seated Calf Raise'), 'seated_calf_raise');
+  const seated = resolveExercise('Seated Calf Raise');
+  assert.deepEqual([...seated.equipment].sort(), ['bench', 'dumbbells']);
+});
+
+test('barbell standing calf raise is classified and searchable', () => {
+  const item = resolveExercise('Barbell Standing Calf Raise');
+  assert.equal(item.id, 'barbell_standing_calf_raise');
+  assert.equal(item.category, 'legs');
+  assert.equal(item.movement, 'calf_raise');
+  assert.deepEqual([...item.equipment].sort(), ['barbell', 'rack']);
+  assert.deepEqual({ ...item.muscles }, { calves: 1 });
+  assert.equal(item.compound, false);
+  assert.equal(item.unilateral, false);
+  assert.equal(item.bodyweight, false);
+  assert.equal(item.volumeEligible, true);
+  // Present in the logger's searchable library (Legs group).
+  assert.ok(exerciseLibraryByCategory().Legs.includes('Barbell Standing Calf Raise'));
+});
+
+test('new home-gym exercises are all present and distinct', () => {
+  const required = [
+    'Barbell Shrug', 'Barbell Floor Press', 'Barbell Glute Bridge',
+    'Barbell Reverse Lunge', 'Barbell Bulgarian Split Squat', 'Band Row',
+    'Band Pull-Through', 'Band Overhead Triceps Extension', 'Band Good Morning',
+    'Band Romanian Deadlift', 'Barbell Step-Up', 'Dumbbell Front Squat',
+    'Zercher Squat', 'Landmine Row', 'Rack Pull', 'Pin Squat', 'Tempo Squat',
+    'Single-Leg Dumbbell Calf Raise', 'Barbell Standing Calf Raise',
+  ];
+  const searchable = Object.values(exerciseLibraryByCategory()).flat();
+  for (const name of required) {
+    const item = resolveExercise(name);
+    assert.ok(item, `${name} resolves to a canonical exercise`);
+    assert.ok(searchable.includes(item.name), `${name} appears in the searchable library`);
+  }
+  // Existing dumbbell variations are not duplicated by the barbell/band ones.
+  assert.equal(canonicalExerciseId('Dumbbell Step-Up'), 'step_up');
+  assert.equal(canonicalExerciseId('Dumbbell Bulgarian Split Squat'), 'bulgarian_split_squat');
+});
+
+test('an equipment filter over the catalogue surfaces the barbell calf raise for barbell users', () => {
+  // The home-gym kit: barbell, rack, adjustable bench, dumbbells, bands.
+  const owned = new Set(['barbell', 'rack', 'bench', 'dumbbells', 'bands']);
+  const trainable = EXERCISES.filter((item) => item.equipment.every((eq) => owned.has(eq) || eq === 'bodyweight'));
+  const names = new Set(trainable.map((i) => i.name));
+  assert.ok(names.has('Barbell Standing Calf Raise'), 'barbell+rack calf raise is trainable');
+  assert.ok(names.has('Band Row'));
+  assert.ok(names.has('Seated Calf Raise'));
+  // A machine-only exercise is filtered out for this kit.
+  assert.ok(!names.has('Leg Press'), 'machine-only work is excluded from a home-gym kit');
+});
+
 test('derived PR stats exclude high-rep, bodyweight and nominal-band loads', () => {
   const state = { currentWeek: '1', weeks: {
     '1': { lifts: { mon: {

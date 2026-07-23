@@ -85,9 +85,11 @@ export function renderLibrary() {
 // ── Active program banner ─────────────────────────────────────────────────────
 
 function getNextWorkoutInfo(programId) {
-  const catalog = getCatalogEntry(programId);
+  // The resolved program (custom → PROGRAMS → normalized catalog) is
+  // authoritative for training content; the raw catalog is only a last resort.
+  // This keeps an edited personal program from showing its pre-edit catalog day.
   const programData = getProgramById(programId);
-  const days = catalog?.days || programData?.days;
+  const days = programData?.days || getCatalogEntry(programId)?.days;
   if (!days) return null;
 
   const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];

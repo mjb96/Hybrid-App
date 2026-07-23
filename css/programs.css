@@ -2309,14 +2309,30 @@ html[data-theme="light"] .create-cta-inner {
 .program-editor__empty-static span,
 .program-editor__preserved { color: var(--text-muted); font-size: .72rem; }
 .program-editor__preserved { margin-top: 12px; line-height: 1.5; }
-.program-editor__picker-overlay { align-items: flex-end; }
-.program-editor__picker { width: min(100%, 560px); max-height: min(84dvh, 760px); display: flex; flex-direction: column; padding: 18px; border-radius: 20px 20px 0 0; text-align: left; }
-.program-editor__picker-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+/* Mobile-first: the picker is a top-anchored, near-full-screen panel so the
+   search field and its results stay ABOVE the on-screen keyboard. Its height
+   tracks the REAL visible viewport (--visible-viewport-height, set from
+   window.visualViewport in js/ui/visible-viewport.js) because 100dvh keeps
+   reporting the full screen once the keyboard opens. Only the results list
+   scrolls; the header + search stay pinned at the top of the visible area. */
+.program-editor__picker-overlay { align-items: flex-start; justify-content: center; padding: 0; }
+.program-editor__picker {
+  width: 100%;
+  height: var(--visible-viewport-height, 100dvh);
+  max-height: var(--visible-viewport-height, 100dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: env(safe-area-inset-top) 0 0;
+  border-radius: 0;
+  text-align: left;
+}
+.program-editor__picker-head { flex: 0 0 auto; display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 16px 16px 0; }
 .program-editor__picker-head h2 { margin: 3px 0 0; color: var(--text-primary); font-size: 1.25rem; }
-.program-editor__picker-head > button { width: 44px; height: 44px; border: 1px solid var(--border-light); border-radius: 50%; background: var(--bg-input); color: var(--text-primary); font-size: 1.3rem; }
-.program-editor__picker-search { display: block; margin: 14px 0 10px; }
+.program-editor__picker-head > button { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid var(--border-light); border-radius: 50%; background: var(--bg-input); color: var(--text-primary); font-size: 1.3rem; }
+.program-editor__picker-search { flex: 0 0 auto; display: block; margin: 0; padding: 12px 16px 10px; }
 .program-editor__picker-search input { width: 100%; min-height: 48px; padding: 10px 13px; border: 1px solid var(--border-light); border-radius: 12px; background: var(--bg-input); color: var(--text-primary); font-size: 1rem; }
-.program-editor__picker-results { min-height: 0; overflow-y: auto; display: grid; gap: 6px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+.program-editor__picker-results { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; gap: 6px; align-content: start; padding: 0 16px max(16px, env(safe-area-inset-bottom)); }
 .program-editor__picker-results > button { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid var(--border-light); border-radius: 11px; background: var(--bg-card); color: var(--text-primary); text-align: left; }
 .program-editor__picker-results > button span { min-width: 0; display: grid; gap: 3px; }
 .program-editor__picker-results > button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; }
@@ -2341,8 +2357,12 @@ html[data-theme="light"] .program-editor__tabs { background: rgba(244,247,251,.9
 
 @media (min-width: 640px) {
   .program-editor__preview-list { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .program-editor__picker { margin: auto; border-radius: 20px; }
-  .program-editor__picker-overlay { align-items: center; }
+  /* Desktop: a centered, bounded card rather than a full-screen panel. */
+  .program-editor__picker { margin: auto; width: min(100%, 560px); height: auto; max-height: min(84dvh, 760px); border-radius: 20px; padding: 18px; }
+  .program-editor__picker-head { padding: 0; }
+  .program-editor__picker-search { padding: 14px 0 10px; }
+  .program-editor__picker-results { padding: 0; }
+  .program-editor__picker-overlay { align-items: center; padding: 16px; }
 }
 
 /* Program detail back button */

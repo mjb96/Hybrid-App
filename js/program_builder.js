@@ -14,9 +14,12 @@ import {
 import {
   EDITOR_DAYS, EDITOR_DAY_LABELS, copyProgramDay, dayTrainingSummary,
   previewProgramWeek, programEditorSummary, validateProgramDraft,
+  replaceProgramExercise, addProgramExercise, removeProgramExercise,
+  moveProgramExercise, makeProgramDayRest,
 } from './programs/editor-model.js';
 import { confirmModal } from './ui/confirm-modal.js';
 import { closeManagedModal, openManagedModal } from './ui/modal-stack.js';
+import { trackVisibleViewport } from './ui/visible-viewport.js';
 import {
   effectiveMusclePriorities, musclePriorityLabel, projectProgramMuscleCredits,
   volumeReferenceForPriority,
@@ -28,6 +31,7 @@ let activeSection = 'schedule';
 let selectedDay = 'mon';
 let previewWeek = '1';
 let pickerTarget = null;
+let pickerViewportTeardown = null;
 let reconciliation = { updatedDays: 0, preservedDays: 0 };
 
 function getProgram() { return getProgramById(activeBuilderId); }
@@ -317,14 +321,25 @@ function openExercisePicker(day, index = null) {
   if (title) title.textContent = pickerTarget.index == null ? 'Add exercise' : 'Replace exercise';
   const search = /** @type {HTMLInputElement|null} */ (root.querySelector('#builderExerciseSearch'));
   if (search) search.value = '';
+  // Initial/recent choices are shown immediately; the results list starts at the
+  // top so the first match sits directly below the search field.
   renderPickerResults('');
+  const results = root.querySelector('#builderExerciseResults');
+  if (results) results.scrollTop = 0;
   root.classList.add('active');
+  // Size the picker to the REAL visible viewport so its scrollable results end
+  // above the on-screen keyboard, and keep it correct as the keyboard toggles.
+  if (pickerViewportTeardown) { pickerViewportTeardown(); pickerViewportTeardown = null; }
+  pickerViewportTeardown = trackVisibleViewport(typeof window !== 'undefined' ? window : undefined);
+  // The managed modal owns dialog semantics, background scroll-lock, focus entry
+  // (into the search field), focus trapping, Escape and Android Back.
   openManagedModal(root, { initialFocus: '#builderExerciseSearch' });
 }
 
 function closeExercisePicker() {
   const root = document.getElementById('builderExercisePicker');
-  if (!root) return;
+  if (pickerViewportTeardown) { pickerViewportTeardown(); pickerViewportTeardown = null; }
+  if (!root) { pickerTarget = null; return; }
   root.classList.remove('active');
   closeManagedModal(root);
   pickerTarget = null;
@@ -354,8 +369,13 @@ function chooseExercise(name) {
     if (results) results.insertAdjacentHTML('afterbegin', `<p class="program-editor__picker-error">${escapeHtml(name)} is already in this workout.</p>`);
     return;
   }
-  if (pickerTarget.index == null) lifts.push(name);
-  else lifts[pickerTarget.index] = name;
+  // Central mutation helpers keep day.lifts (the canonical name/order source) in
+  // sync with the day's duplicated desc/workoutPreview representations so a
+  // replaced exercise can't linger in a preview and a replacement inherits the
+  // old slot's prescription where the description carried one.
+  const day = program.days[pickerTarget.day];
+  if (pickerTarget.index == null) addProgramExercise(day, name);
+  else replaceProgramExercise(day, pickerTarget.index, name);
   persistProgram();
   closeExercisePicker();
   renderBuilderUI();
@@ -370,10 +390,8 @@ function setDayField(day, field, value) {
 
 function moveLift(day, index, direction) {
   const program = getProgram();
-  const lifts = program?.days?.[day]?.lifts;
-  const next = index + direction;
-  if (!Array.isArray(lifts) || next < 0 || next >= lifts.length) return;
-  [lifts[index], lifts[next]] = [lifts[next], lifts[index]];
+  const target = program?.days?.[day];
+  if (!moveProgramExercise(target, index, index + direction)) return;
   persistProgram();
   renderBuilderUI();
 }
@@ -384,7 +402,7 @@ async function removeLift(day, index) {
   if (!Array.isArray(lifts) || !lifts[index]) return;
   const ok = await confirmModal({ title: `Remove ${lifts[index]}?`, message: 'Logged workout history will remain safe.', confirmLabel: 'Remove', danger: true });
   if (!ok) return;
-  lifts.splice(index, 1);
+  removeProgramExercise(program.days[day], index);
   persistProgram();
   renderBuilderUI();
 }
@@ -394,7 +412,7 @@ async function makeRestDay(day) {
   if (!program) return;
   const ok = await confirmModal({ title: `Make ${EDITOR_DAY_LABELS[day]} a rest day?`, message: 'This removes the exercises and run from the plan. Logged workouts remain safe.', confirmLabel: 'Make rest day', danger: true });
   if (!ok) return;
-  Object.assign(program.days[day], { title: 'Rest', runs: 'Rest', lifts: [] });
+  makeProgramDayRest(program.days[day]);
   persistProgram();
   renderBuilderUI();
 }
