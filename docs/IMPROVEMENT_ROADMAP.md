@@ -821,19 +821,35 @@ implementation register.
   so the native change compiles, lints and assembles (it could not be built locally — this
   container has no Android SDK). Next `[You]`: device-test portrait + landscape against the
   reported screenshot; the inset value itself is only observable on hardware.
-- 2026-07-24 · CI note (no code change) — `Required verification` is RED on
-  `claude/settings-close-button-android-mope1q` (runs 111–114) and this is **inherited from
-  `main`, not from the Settings work**. The Web job fails at `npm run browser:verify` with 5
-  assertions in `scripts/jt-shed-browser-check.mjs`: B4d/B4e (T1 shows
-  `4 × 8–12 (double progression)` and T2a shows `15RM + 2 MRS` — the two labels are
-  swapped/unresolved) and B4h/B4i/B4j (set roles come back `[null,null,null,null]`, so no
-  `repmax`/`backoff`/`plus` tags render in the live logger). Verified pre-existing by running
-  the same check on a clean worktree at `9e7d2c4` (stock `main`, none of this branch's
-  commits): **identical 5 failures**. So the J&T set-role work merged in #171 regressed its
-  own browser contract. Not fixed here — out of scope for the Settings fix and it needs the
-  J&T tier/role owner. Also worth noting: `verify.yml` only triggers on `pull_request` and
-  pushes to `claude/**`/`codex/**`, so pushes to `main` are never verified — the regression
-  landed unseen. Consider adding `main` to the push triggers.
+- 2026-07-24 · CI green-up: the J&T browser check was weekday-fragile, NOT a J&T regression.
+  `Required verification` was RED on this branch (runs 111–114) with 5 failures in
+  `scripts/jt-shed-browser-check.mjs` — B4d/B4e (tier target labels) and B4h/B4i/B4j (set
+  roles `[null,null,null,null]`). Confirmed pre-existing on stock `main` (`9e7d2c4`,
+  identical 5 failures), so it was never caused by the Settings work.
+  **Root cause: the test, not the app.** Scenario B gated on
+  `isJtTrainingDay = mon/tue/thu/fri/sat`, then asserted T1/T2a expectations unconditionally.
+  But Saturday is the *Bodybuilding* day ("Back, Arms, Delts & Core" — the catalog desc
+  literally says "without turning this into another main-lift day"): its lead exercise is
+  tier **`Specialization`** and its second is **`T2b`**; there is no T1 and no T2a. The check
+  even contradicted itself — A7b/A7c assert Saturday's row is
+  `4 × 8–12 (double progression)` and `15RM + 2 MRS` and PASS, which are exactly the labels
+  B4d/B4e rejected. Roles were `null` because top-set/back-off/plus are Block-2 T1 concepts
+  that don't exist on Saturday. Scenario D already had the correct guard
+  (`isMainLiftDay = mon/tue/thu/fri`, "only main-lift days carry a T1").
+  Fix: hoist `isMainLiftDay` next to `isJtTrainingDay` and gate B4d/B4e + B4h–B4j on it, with
+  explicit skip lines so the skip is visible rather than silent. Everything day-agnostic
+  (B4, B4a–B4c, B4f, B4g, B4k, B4l, B5, B6) still runs every day.
+  **Proven not neutered**: re-ran the check against a date-shifted copy (browser `Date` and
+  the node-side day key both moved to Monday) — B4d `Target: 10RM + 3×6 @ 70% (+)`,
+  B4e `Target: 4 × 10 @ 50%`, B4h `["repmax","backoff","backoff","plus"]`, B4i `Back-off +`,
+  B4j `Top set · 10RM` all RUN and PASS. So the J&T feature merged in #171 was correct all
+  along; only its check was date-dependent. `npm run verify` is 1280/1280 and the J&T check
+  is green on a Saturday.
+  Follow-ups worth doing (not done here): (1) `verify.yml` only triggers on `pull_request`
+  and pushes to `claude/**`/`codex/**`, so `main` is never verified directly — a weekday-only
+  green can land and go red on the weekend; consider adding `main`. (2) The check derives the
+  session from the real current date, so coverage varies by the day CI happens to run;
+  driving it from a fixed injected date would make it deterministic.
 - 2026-07-24 · Jacked & Tan: Shed Edition — Block-2 dynamic back-off + stable stored roles on
   `claude/jacked-tan-shed-logger-p9nco1` (builds on the approved af4b225 set-role rendering).
   (1) **Dynamic T1 Block-2 back-off (weeks 7–11):** the back-off load is now 85%/90% of THAT

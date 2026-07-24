@@ -52,6 +52,13 @@ const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new D
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const todayKey = DAY_KEYS[new Date(`${todayISO}T12:00:00`).getUTCDay()];
 const isJtTrainingDay = ['mon', 'tue', 'thu', 'fri', 'sat'].includes(todayKey);
+// Saturday IS a training day, but it is the bodybuilding session ("Back, Arms,
+// Delts & Core" — explicitly "without turning this into another main-lift day").
+// Its lead exercise is tier 'Specialization' and its second is 'T2b'; there is no
+// T1 and no T2a. So tier-specific expectations (rep-max target, 4 × 10, and the
+// Block-2 top-set/back-off/plus roles) only hold on the four main-lift days.
+// Asserting them on Saturday made this check pass Mon/Tue/Thu/Fri and fail Sat.
+const isMainLiftDay = ['mon', 'tue', 'thu', 'fri'].includes(todayKey);
 
 const failures = [];
 const fail = (m) => { failures.push(m); console.error(`FAIL: ${m}`); };
@@ -243,9 +250,13 @@ try {
       })));
       const t1Card = cards.find(c => c.name === order[0]);
       const t2aCard = cards.find(c => c.name === order[1]);
-      ok(t1Card && /RM/.test(t1Card.target) && !/4 × 10/.test(t1Card.target),
-        `B4d T1 label shows a rep-max target, not 4 × 10 (got "${t1Card && t1Card.target}")`);
-      ok(t2aCard && /4 × 10/.test(t2aCard.target), `B4e T2a label shows 4 × 10 (got "${t2aCard && t2aCard.target}")`);
+      if (isMainLiftDay) {
+        ok(t1Card && /RM/.test(t1Card.target) && !/4 × 10/.test(t1Card.target),
+          `B4d T1 label shows a rep-max target, not 4 × 10 (got "${t1Card && t1Card.target}")`);
+        ok(t2aCard && /4 × 10/.test(t2aCard.target), `B4e T2a label shows 4 × 10 (got "${t2aCard && t2aCard.target}")`);
+      } else {
+        console.log(`  ok · B4d–B4e skipped — today (${todayKey}) is the bodybuilding day (lead tier is Specialization, no T1/T2a)`);
+      }
       ok(cards.some(c => /MRS/.test(c.target)), 'B4f at least one exercise labels its max-rep sets (MRS)');
       // The default-expanded T1 card renders its real 4 set rows in the DOM.
       if (t1Card && t1Card.rows > 0) eq(t1Card.rows, 4, 'B4g expanded T1 card renders 4 real set rows');
@@ -253,7 +264,7 @@ try {
       // B4h — the T1 set rows carry tier ROLES (top set + back-off + a plus set on
       // the FINAL back-off), derived from the structured prescription rather than
       // guessed from raw position. This is the logger fix under test.
-      if (t1Card && t1Card.rows > 0) {
+      if (isMainLiftDay && t1Card && t1Card.rows > 0) {
         const t1RowSel = `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] .cockpit-set-row`;
         const t1Roles = await page.$$eval(t1RowSel, els => els.map(e => e.getAttribute('data-set-role')));
         eq(t1Roles, ['repmax', 'backoff', 'backoff', 'plus'], 'B4h T1 rows = top set · back-off · back-off · plus');
@@ -265,6 +276,8 @@ try {
           `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] [data-set-role="repmax"].set-role-tag`,
           el => el.textContent.trim()).catch(() => '');
         ok(/Top set/i.test(topLabel) && /RM/.test(topLabel), `B4j top set labels its rep-max (got "${topLabel}")`);
+      } else if (!isMainLiftDay) {
+        console.log(`  ok · B4h–B4j skipped — today (${todayKey}) has no T1, so no top-set/back-off/plus roles apply`);
       }
 
       // B4k — a target/MRS accessory (expand its collapsed card) shows the
@@ -365,7 +378,7 @@ try {
 
   // ---- Scenario D: Block-2 dynamic back-off + role stability + history -------
   // Only main-lift days (mon/tue/thu/fri) carry a T1 exercise; other days skip.
-  const isMainLiftDay = ['mon', 'tue', 'thu', 'fri'].includes(todayKey);
+  // (isMainLiftDay is defined next to isJtTrainingDay — Scenario B needs it too.)
   if (isMainLiftDay) {
     const { ctx, page, errors } = await newPage(browser, jtWeek7Fixture());
     await page.click('.nav-item[data-target="home"]').catch(() => {});
