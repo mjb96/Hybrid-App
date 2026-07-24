@@ -27,7 +27,7 @@ export function classifyMovement(name) {
 }
 
 const SETTING_EQUIPMENT = new Set([
-  'barbell', 'rack', 'dumbbells', 'cables', 'pullupBar', 'bands', 'kettlebells',
+  'barbell', 'rack', 'dumbbells', 'cables', 'pullupBar', 'bands', 'kettlebells', 'ezBar',
 ]);
 
 function hasEquipment(required, available) {

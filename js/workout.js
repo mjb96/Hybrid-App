@@ -1830,7 +1830,7 @@ function _renderSwapList(liftName) {
 }
 
 function labelEquip(k) {
-  return ({ barbell: 'Barbell', rack: 'Rack', dumbbells: 'Dumbbells', cables: 'Cables', pullupBar: 'Pull-up bar', bands: 'Bands', kettlebells: 'Kettlebell' })[k] || k;
+  return ({ barbell: 'Barbell', ezBar: 'EZ bar', rack: 'Rack', dumbbells: 'Dumbbells', cables: 'Cables', pullupBar: 'Pull-up bar', bands: 'Bands', kettlebells: 'Kettlebell' })[k] || k;
 }
 
 // Perform the swap: old → new, preserving the sets array (target + logged data)

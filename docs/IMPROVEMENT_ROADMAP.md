@@ -788,6 +788,36 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · EZ-bar equipment + Copy-program-as-text on
+  `claude/program-editor-mobile-picker-wr1kn6`. (1) EZ bar is now a proper canonical
+  equipment type (`ezBar`) with a readable label, added to the exercise-equipment vocabulary,
+  the settings/onboarding/default equipment model (opt-in, never assumed for existing users),
+  the substitution equipment gate, `compare.js` equipmentFit, the workout label map, and the
+  Settings UI. `ez_bar_curl` keeps its stable id but is reclassified from `barbell` to `ezBar`
+  with expanded aliases (EZ Bar/E-Z Bar/EZ curl bar/Ezy bar…); `Barbell Curl` stays a separate
+  straight-bar exercise. Added EZ-Bar Skull Crusher (distinct from the dumbbell `skull_crusher` —
+  its "Lying EZ-Bar Triceps Extension" aliases stay off the dumbbell one), EZ-Bar Reverse Curl,
+  EZ-Bar Overhead Triceps Extension, EZ-Bar Close-Grip Bench Press, EZ-Bar Spider Curl and
+  EZ-Bar Upright Row. New pure `searchExercises` gives the picker token-based ranked search so
+  "ez bar skull crusher" ranks the EZ-bar variation first while "lying skull crusher" surfaces
+  both. (2) New "📋 Copy for AI review" action on Program Detail and Active Program copies the
+  CURRENT resolved program (personal/edited wins over catalog) as deterministic GPT-friendly
+  Markdown via a pure, DOM-free serializer (`js/programs/program-export.js`): all seven days
+  incl. rest days, `day.lifts`-owned exercise names/order with `liftTarget` prescriptions,
+  narrative-only session notes (stale desc names and prose can't leak), cardio lines, every
+  progression week in order, and program metadata — no personal history/health/account/internal
+  ids. A shared `copyTextToClipboard` (`js/ui/clipboard.js`) uses the async Clipboard API then a
+  hidden-textarea fallback, and a select-and-copy preview modal opens when both fail (honest
+  success/failure toasts). Copying mutates nothing. Evidence: 1,208 JS tests (+22; new
+  `program_export` incl. real home_gym_rebuild_5day edited-personal regression, extended
+  `exercise_catalog` for EZ-bar identity/equipment/search), typecheck, smoke, precache green;
+  new `copy-program-browser-check.mjs` proves the edited personal text reaches the clipboard
+  (mocked + fallback) through the real UI with no state mutation, registered in
+  `run-browser-checks`. The export's Equipment line is the union of the program's declared
+  equipment AND the equipment inferred from the current `day.lifts` (canonical-catalogue
+  resolved, deduped, canonical-order), so an edited program that adds EZ-Bar work honestly
+  discloses "EZ bar" — never the user's whole Settings kit, never stale desc/source equipment.
+  Cache advances to v117. · Next: none.
 - 2026-07-23 · Program-editor preview consistency, canonical exercise names, mobile picker +
   home-gym exercises on `claude/program-editor-mobile-picker-wr1kn6`. Fixed the reported phone
   bug: the Lower Strength day-preview kept showing stale/narrative exercises after an edit. Root

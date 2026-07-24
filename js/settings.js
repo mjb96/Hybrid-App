@@ -160,8 +160,10 @@ function _syncSettingsUI() {
 
   // Equipment checkboxes
   const eq = s.equipment || {};
-  ['barbell','rack','dumbbells','cables','pullupBar','bands','kettlebells','treadmill'].forEach(key => {
+  ['barbell','rack','dumbbells','cables','pullupBar','bands','kettlebells','ezBar','treadmill'].forEach(key => {
     const el = document.querySelector(`[data-equipment="${key}"]`);
+    // ezBar (like bands/kettlebells/treadmill) is opt-in: only checked when the
+    // stored setting is explicitly true, so existing users never own it by default.
     if (el) el.checked = eq[key] !== false && (eq[key] === true || ['barbell','rack','dumbbells','cables','pullupBar'].includes(key));
   });
 

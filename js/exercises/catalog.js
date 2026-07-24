@@ -20,9 +20,24 @@ export const MOVEMENT_PATTERNS = Object.freeze([
 ]);
 
 export const EQUIPMENT = Object.freeze([
-  'barbell', 'rack', 'bench', 'dumbbells', 'bands', 'cables', 'machine',
+  'barbell', 'ezBar', 'rack', 'bench', 'dumbbells', 'bands', 'cables', 'machine',
   'pullupBar', 'kettlebells', 'sled', 'sandbag', 'erg', 'bodyweight', 'other',
 ]);
+
+// Human-readable labels for the canonical exercise-equipment keys. Used by the
+// exercise picker and anywhere an equipment token is shown to the athlete, so a
+// camelCase key like `ezBar` never leaks to the UI as "ezBar".
+export const EQUIPMENT_LABELS = Object.freeze({
+  barbell: 'Barbell', ezBar: 'EZ bar', rack: 'Rack', bench: 'Bench',
+  dumbbells: 'Dumbbells', bands: 'Bands', cables: 'Cables', machine: 'Machine',
+  pullupBar: 'Pull-up bar', kettlebells: 'Kettlebells', sled: 'Sled',
+  sandbag: 'Sandbag', erg: 'Erg', bodyweight: 'Bodyweight', other: 'Other',
+});
+
+/** Readable label for an exercise-equipment key (falls back to the raw key). */
+export function equipmentLabel(key) {
+  return EQUIPMENT_LABELS[key] || String(key || '');
+}
 
 /** @param {string} id @param {string} name @param {any} options */
 function exercise(id, name, options) {
@@ -78,6 +93,7 @@ export const EXERCISES = Object.freeze([
   P('dip', 'Dip', ['Dips', 'Chest Dip', 'Chest Dips'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['bodyweight'], compound: true, bodyweight: true }),
   P('bench_dip', 'Bench Dip', ['Tricep Dip', 'Tricep Dips'], { triceps: 1, chest: .25 }, { movement: 'elbow_extension', equipment: ['bodyweight', 'bench'], compound: true, bodyweight: true }),
   P('close_grip_bench_press', 'Close-Grip Bench Press', ['Close-Grip Bench'], { triceps: 1, chest: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true }),
+  P('ez_bar_close_grip_bench_press', 'EZ-Bar Close-Grip Bench Press', ['Close-Grip EZ-Bar Bench Press', 'Close Grip EZ Bar Press', 'EZ-Bar Close-Grip Press', 'EZ Curl Bar Close-Grip Bench Press'], { triceps: 1, chest: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['ezBar', 'bench'], compound: true }),
 
   // Shoulders and triceps
   P('barbell_overhead_press', 'Barbell Overhead Press', ['Standing Barbell OHP', 'Standing OHP', 'Standing Barbell Overhead Press', 'Standing Overhead Press', 'Press'], { front_delts: 1, triceps: .5, upper_chest: .25 }, { movement: 'vertical_push', equipment: ['barbell'], compound: true }),
@@ -90,11 +106,16 @@ export const EXERCISES = Object.freeze([
   P('band_lateral_raise', 'Band Lateral Raise', [], { side_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['bands'] }),
   P('front_raise', 'Front Raise', [], { front_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['dumbbells'] }),
   P('upright_row', 'Upright Row', [], { side_delts: 1, traps: .5 }, { movement: 'shoulder_isolation', equipment: ['barbell'], compound: true }),
+  P('ez_bar_upright_row', 'EZ-Bar Upright Row', ['EZ Bar Upright Row', 'EZ-Bar Upright Rows', 'EZ Curl Bar Upright Row', 'Ezy Bar Upright Row'], { side_delts: 1, traps: .5 }, { movement: 'shoulder_isolation', equipment: ['ezBar'], compound: true }),
   P('band_triceps_pushdown', 'Band Triceps Pushdown', ['Band Tricep Pushdown', 'Tricep Band Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'] }),
   P('band_overhead_triceps_extension', 'Band Overhead Triceps Extension', ['Band Overhead Tricep Extension', 'Banded Overhead Triceps Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'] }),
   P('cable_triceps_pushdown', 'Cable Triceps Pushdown', ['Tricep Pushdown', 'Triceps Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['cables'] }),
   P('skull_crusher', 'Skull Crusher', ['Skull Crushers', 'Dumbbell Skull Crusher', 'Lying DB Tricep Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells', 'bench'] }),
+  // EZ-bar skull crusher is a distinct equipment identity from the dumbbell one —
+  // its "Lying EZ-Bar Triceps Extension" aliases stay OFF the dumbbell skull_crusher.
+  P('ez_bar_skull_crusher', 'EZ-Bar Skull Crusher', ['EZ Bar Skull Crusher', 'EZ Bar Skull Crushers', 'EZ-Bar Skull Crushers', 'E-Z Bar Skull Crusher', 'E-Z Bar Skull Crushers', 'Ezy Bar Skull Crusher', 'Ezy Bar Skull Crushers', 'EZ Curl Bar Skull Crusher', 'Lying EZ-Bar Triceps Extension', 'Lying EZ Bar Triceps Extension', 'EZ-Bar Lying Triceps Extension', 'EZ Bar Lying Tricep Extension', 'Lying EZ Curl Bar Triceps Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['ezBar', 'bench'] }),
   P('overhead_triceps_extension', 'Overhead Triceps Extension', ['Overhead Tricep Extension', 'Dumbbell Overhead Triceps Extension', 'Tricep Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells'] }),
+  P('ez_bar_overhead_triceps_extension', 'EZ-Bar Overhead Triceps Extension', ['EZ Bar Overhead Triceps Extension', 'EZ-Bar Overhead Tricep Extension', 'Overhead EZ-Bar Triceps Extension', 'EZ Curl Bar Overhead Extension', 'Ezy Bar Overhead Triceps Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['ezBar'] }),
   P('dumbbell_triceps_kickback', 'Dumbbell Triceps Kickback', ['Tricep Kickback'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells'] }),
 
   // Back and pulling
@@ -128,7 +149,12 @@ export const EXERCISES = Object.freeze([
   L('dumbbell_curl', 'Dumbbell Curl', ['DB Curl', 'Alternating Dumbbell Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['dumbbells'] }),
   L('hammer_curl', 'Hammer Curl', ['Dumbbell Hammer Curl'], { brachialis: 1, biceps: .5, forearms: .25 }, { movement: 'elbow_flexion', equipment: ['dumbbells'] }),
   L('incline_dumbbell_curl', 'Incline Dumbbell Curl', ['Incline DB Curl'], { biceps: 1 }, { movement: 'elbow_flexion', equipment: ['dumbbells', 'bench'] }),
-  L('ez_bar_curl', 'EZ-Bar Curl', ['EZ Bar Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['barbell'] }),
+  // EZ-bar work is a distinct equipment identity from the straight barbell — the
+  // stable id is kept so historical data still resolves, but equipment is now
+  // ezBar (not barbell). "Barbell Curl" stays a separate straight-bar exercise.
+  L('ez_bar_curl', 'EZ-Bar Curl', ['EZ Bar Curl', 'EZ Bar Curls', 'EZ-Bar Curls', 'E-Z Bar Curl', 'E-Z Bar Curls', 'EZ Curl Bar Curl', 'EZ Curl Bar Curls', 'Ezy Bar Curl', 'Ezy Bar Curls', 'EZ-Bar Biceps Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['ezBar'] }),
+  L('ez_bar_reverse_curl', 'EZ-Bar Reverse Curl', ['EZ Bar Reverse Curl', 'EZ Bar Reverse Curls', 'EZ-Bar Reverse Curls', 'E-Z Bar Reverse Curl', 'Ezy Bar Reverse Curl', 'Reverse EZ-Bar Curl', 'EZ Curl Bar Reverse Curl'], { brachialis: 1, forearms: .5, biceps: .25 }, { movement: 'elbow_flexion', equipment: ['ezBar'] }),
+  L('ez_bar_spider_curl', 'EZ-Bar Spider Curl', ['EZ Bar Spider Curl', 'EZ-Bar Spider Curls', 'Incline Bench EZ-Bar Spider Curl', 'EZ Curl Bar Spider Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['ezBar', 'bench'] }),
   L('cable_curl', 'Cable Curl', [], { biceps: 1 }, { movement: 'elbow_flexion', equipment: ['cables'] }),
   L('band_curl', 'Band Curl', [], { biceps: 1 }, { movement: 'elbow_flexion', equipment: ['bands'] }),
   L('concentration_curl', 'Concentration Curl', [], { biceps: 1 }, { movement: 'elbow_flexion', equipment: ['dumbbells'], unilateral: true }),
@@ -253,6 +279,43 @@ export function resolveExercise(value) {
 
 export function canonicalExerciseId(value) {
   return resolveExercise(value)?.id || null;
+}
+
+// Precomputed normalised name + alias haystacks for ranked search.
+const SEARCH_INDEX = EXERCISES.map((item) => ({
+  item,
+  nameKey: normaliseExerciseName(item.name),
+  aliasKeys: item.aliases.map((a) => normaliseExerciseName(a)),
+}));
+
+/**
+ * Ranked exercise search over names + aliases. Every query token must appear
+ * somewhere in an exercise's name or aliases; results rank exact matches, then
+ * name-prefix, then all-tokens-in-name, then all-tokens-in-one-alias, then
+ * scattered-alias matches, with an alphabetical tiebreak. Token matching means a
+ * query like "ez bar skull crusher" ranks the EZ-bar variation first while
+ * "lying skull crusher" can surface both variations. Pure — no DOM.
+ * @returns {typeof EXERCISES[number][]}
+ */
+export function searchExercises(query, limit = 40) {
+  const needle = normaliseExerciseName(query);
+  if (!needle) return EXERCISES.slice(0, limit);
+  const tokens = needle.split(' ').filter(Boolean);
+  const scored = [];
+  for (const entry of SEARCH_INDEX) {
+    const haystacks = [entry.nameKey, ...entry.aliasKeys];
+    const blob = haystacks.join(' ');
+    if (!tokens.every((t) => blob.includes(t))) continue;
+    let score;
+    if (entry.nameKey === needle || entry.aliasKeys.includes(needle)) score = 100;
+    else if (entry.nameKey.startsWith(needle) || entry.aliasKeys.some((a) => a.startsWith(needle))) score = 80;
+    else if (tokens.every((t) => entry.nameKey.includes(t))) score = 60;
+    else if (haystacks.some((h) => tokens.every((t) => h.includes(t)))) score = 40;
+    else score = 20;
+    scored.push({ item: entry.item, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name));
+  return scored.slice(0, limit).map((s) => s.item);
 }
 
 /** Read derived PR stats across canonical and pre-catalog display-name keys. */
