@@ -16,6 +16,7 @@ import { paceZoneColour } from './analytics/utils.js';
 import { confettiBurst } from './ui/celebration.js';
 import { hapticSuccess } from './haptics.js';
 import { muscleCreditsForExercise } from './exercises/catalog.js';
+import { jtStoredRoleTag } from './programs/jt-shed-model.js';
 import { sharePRCard, topPR } from './brain/pr-share.js';
 import { showToast } from './state.js';
 import { sanitizeGpsQuality } from './gps/route-quality.js';
@@ -118,6 +119,10 @@ export function buildSessionRecap(state, week, day, sessionId = null, activityKi
         warmup: isWarmupSet(s), type: s.type || '',
         rir: s.rir != null ? s.rir : (s.rpe != null ? 10 - s.rpe : null),
         vol: Math.round(setVolume(s)),
+        // Snapshot role metadata (J&T tiers) so history shows the ORIGINAL set
+        // roles from the completed session, never re-derived from the current
+        // program. Absent on pre-role / non-J&T workouts → no chip (unchanged).
+        role: s.role || null, roleReps: s.roleReps ?? null,
       }));
 
     const credits = muscleCreditsForExercise(name);
@@ -266,23 +271,29 @@ function _setTag(s) {
   return '';
 }
 function _liftSetGrid(r) {
-  return r.lifts.map((l) => `
+  return r.lifts.map((l) => {
+    let mrsN = 0; // number MRS rows in completed order (MRS 1, MRS 2)
+    const rows = l.setList.map((s, i) => {
+      const tag = (!s.warmup && s.role) ? jtStoredRoleTag(s, s.role === 'mrs' ? ++mrsN : 1) : null;
+      return `
+          <div class="rc-set${s.warmup ? ' rc-set--warm' : ''}">
+            <span class="rc-set__n">${i + 1}</span>
+            ${tag ? `<span class="rc-set__role rc-set__role--${esc(tag.role)}" data-set-role="${esc(tag.role)}">${esc(tag.label)}</span>` : ''}
+            <span class="rc-set__wr">${s.w} ${UNIT} × ${s.r}</span>
+            ${_setTag(s)}
+            ${s.rir != null ? `<span class="rc-set__rir">RIR ${s.rir}</span>` : ''}
+            <span class="rc-set__vol">${s.vol.toLocaleString()} ${UNIT}</span>
+          </div>`;
+    }).join('');
+    return `
     <div class="rc-exercise">
       <div class="rc-exercise__head">
         <span class="rc-exercise__name">${esc(l.name)}${l.pr ? ' 🏆' : ''}</span>
         <span class="rc-exercise__meta">${l.sets} sets · ${l.reps} reps · ${l.volume.toLocaleString()} ${UNIT}</span>
       </div>
-      <div class="rc-sets">
-        ${l.setList.map((s, i) => `
-          <div class="rc-set${s.warmup ? ' rc-set--warm' : ''}">
-            <span class="rc-set__n">${i + 1}</span>
-            <span class="rc-set__wr">${s.w} ${UNIT} × ${s.r}</span>
-            ${_setTag(s)}
-            ${s.rir != null ? `<span class="rc-set__rir">RIR ${s.rir}</span>` : ''}
-            <span class="rc-set__vol">${s.vol.toLocaleString()} ${UNIT}</span>
-          </div>`).join('')}
-      </div>
-    </div>`).join('');
+      <div class="rc-sets">${rows}</div>
+    </div>`;
+  }).join('');
 }
 function _sessionTotals(r) {
   const tiles = [

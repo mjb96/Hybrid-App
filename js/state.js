@@ -6,7 +6,7 @@
 // ==========================================
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
-import { liftTarget, prescribeSetsForLift, reconcilePrescribedSets } from './engine.js';
+import { liftTarget, prescribeSetsForLift, reconcilePrescribedSets, jtRoleStampsForCtx } from './engine.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
@@ -500,9 +500,10 @@ export function verifyWeekStorageSchema(wk) {
   DEFAULT_DAYS.forEach((day) => {
     const blueprint = activeProgram.days?.[day];
     for (const liftName of (blueprint?.lifts || [])) {
-      const target = liftTarget(blueprint.desc, liftName, modifier, { program: activeProgram, week: wk, dayKey: day });
+      const ctx = { program: activeProgram, week: wk, dayKey: day };
+      const target = liftTarget(blueprint.desc, liftName, modifier, ctx);
       const existing = week.lifts?.[day]?.[liftName];
-      const reconciled = reconcilePrescribedSets(existing, target.sets);
+      const reconciled = reconcilePrescribedSets(existing, target.sets, jtRoleStampsForCtx(ctx, liftName));
       if (!week.lifts[day]) week.lifts[day] = {};
       week.lifts[day][liftName] = reconciled;
     }

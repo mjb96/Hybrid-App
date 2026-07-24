@@ -788,6 +788,39 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · Jacked & Tan: Shed Edition — Block-2 dynamic back-off + stable stored roles on
+  `claude/jacked-tan-shed-logger-p9nco1` (builds on the approved af4b225 set-role rendering).
+  (1) **Dynamic T1 Block-2 back-off (weeks 7–11):** the back-off load is now 85%/90% of THAT
+  DAY's entered top-set weight. `jtBackoffFromTopSet` (pure, rounded to the 2.5 increment, null
+  never NaN/0 on missing input) + a live `recalcJtBackoff` hooked into the cockpit `input`
+  event recompute the suggestion the instant the rep-max weight changes — updating the WEIGHT
+  placeholder + a source line ("85% of 120kg top set · 102.5kg") on untouched back-off rows
+  only. A row the athlete has filled is a deliberate override and is never overwritten;
+  clearing the top set clears the suggestion (restores `data-ghost-default`, no stale load). The
+  suggestion is recomputed at render from the persisted top-set weight, so reload restores it
+  with no recalculation over entered actuals. (2) **Stable stored roles:** roles + prescription
+  metadata (`role`, `roleReps`, `boPct`, `boSrc`) are now STAMPED onto the materialised J&T set
+  objects (`jtStoredRolesFor`, threaded through `prescribeSetsForLift` + `reconcilePrescribedSets`
+  via `jtRoleStampsForCtx`), so a role travels with its row and can't be shifted by a warm-up
+  insertion or a middle-set removal. The render prefers the stored role (`jtStoredRoleTag`) and
+  falls back to the af4b225 positional mapping for pre-role sessions. The stamps are metadata
+  only — the draft/warmup/reconcile predicates key off w/r/type/rpe/rir/bw/band/loadMode and
+  ignore them, so a fresh stamped day is still not a started draft (asserted). Non-J&T programs
+  stay byte-identical plain `{w,r,c}`. (3) **History roles:** the completed-session breakdown
+  (`session-recap.js` `_liftSetGrid`) renders role chips from the SNAPSHOT's stored role (MRS
+  numbered in order), never re-derived from the current program; old workouts without role
+  metadata render unchanged. Files: `js/programs/jt-shed-model.js`, `js/engine.js`, `js/state.js`,
+  `js/workout.js`, `js/templates.js`, `js/session-recap.js`, `css/styles.css`,
+  `scripts/jt-shed-browser-check.mjs`, `tests/jt_shed_block2_backoff.test.js` (+17 cases:
+  W7–W11 percentages, rounding, recalc/clear semantics, override protection, materialised
+  stamps, snapshot immutability, warm-up/extra-set role stability, omitted-set representation,
+  history role rendering, old-workout compat, non-J&T untouched). Browser check Scenario D
+  (main-lift days) drives live recalc → override → warm-up/extra-set role stability → reload
+  persistence → finish-with-omitted-set → history breakdown role chips. Evidence: `node --test`
+  1275/1275, typecheck + smoke + precache:check + workflow:check green, full Playwright J&T
+  browser check passed (A–D). Cache advances to v121. Next: TM management from the workout
+  (weeks 1–5 back-off suggestion needs an entered training max) and per-set notes.
+
 - 2026-07-24 · Jacked & Tan: Shed Edition — logger set-role rendering on
   `claude/jacked-tan-shed-logger-p9nco1`. The tier-aware resolver already produced the correct
   set COUNTS + rich card label, but the live cockpit still drew generic identical "Log S1/S2…"

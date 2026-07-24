@@ -9,7 +9,7 @@ import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js
 import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
 import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import { daysBetween } from './dates.js';
-import { jtLiftTarget } from './programs/jt-shed-model.js';
+import { jtLiftTarget, jtStoredRolesFor } from './programs/jt-shed-model.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -373,11 +373,36 @@ export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier, c
   // light-grey ghost; the set/rep target lives on the card label. The diagnostic
   // engine advises (stall/fatigue notes) but never silently removes sets.
   const { sets: setsCount } = liftTarget(desc, liftName, weekModifier, ctx);
+  const roleStamps = jtRoleStampsForCtx(ctx, liftName);
   const sets = [];
   for (let i = 0; i < setsCount; i++) {
-    sets.push({ w: '', r: '', c: false });
+    sets.push(_blankPrescribedSet(roleStamps && roleStamps[i]));
   }
   return sets;
+}
+
+/**
+ * The per-set role/prescription stamps for a J&T context (null for every other
+ * program, so their scaffolding is byte-identical plain `{w,r,c}`).
+ * @returns {Array<any>|null}
+ */
+export function jtRoleStampsForCtx(ctx, liftName) {
+  if (ctx?.program?.progressionModel !== 'jt-shed') return null;
+  const stamps = jtStoredRolesFor(ctx.program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
+  return Array.isArray(stamps) && stamps.length ? stamps : null;
+}
+
+/** A blank prescribed set row, optionally carrying a J&T role stamp (metadata,
+ *  not user input — the draft/warmup predicates ignore these fields). */
+function _blankPrescribedSet(stamp) {
+  const set = { w: '', r: '', c: false };
+  if (stamp && stamp.role) {
+    set.role = stamp.role;
+    if (stamp.roleReps != null) set.roleReps = stamp.roleReps;
+    if (stamp.boPct != null) set.boPct = stamp.boPct;
+    if (stamp.boSrc != null) set.boSrc = stamp.boSrc;
+  }
+  return set;
 }
 
 /**
@@ -385,18 +410,28 @@ export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier, c
  * more accurate. Untouched scaffolding may be resized exactly; any user-edited
  * or completed row is never removed, and missing prescribed rows are appended.
  */
-export function reconcilePrescribedSets(existing, desiredCount) {
+export function reconcilePrescribedSets(existing, desiredCount, roleStamps = null) {
   const count = Math.max(0, Math.floor(Number(desiredCount) || 0));
-  const blank = () => ({ w: '', r: '', c: false });
-  if (!Array.isArray(existing)) return Array.from({ length: count }, blank);
+  // A blank scaffold row for the i-th prescribed set, carrying its J&T role stamp
+  // when one is available so a re-materialised or padded row keeps its role.
+  const blankAt = (i) => _blankPrescribedSet(Array.isArray(roleStamps) ? roleStamps[i] : null);
+  if (!Array.isArray(existing)) return Array.from({ length: count }, (_, i) => blankAt(i));
 
   const hasUserData = existing.some((set) => set && (
     isCompletedSet(set) || String(set.w ?? '').trim() || String(set.r ?? '').trim() ||
     set.type || set.rpe != null || set.rir != null || set.bw || set.band || set.loadMode
   ));
-  if (!hasUserData) return Array.from({ length: count }, blank);
+  // A fresh (untouched) scaffold may be rebuilt exactly — re-stamp roles by index.
+  // No warm-ups can exist here (a warm-up sets `type`, which trips hasUserData),
+  // so index == prescription order and the stamp lands on the right row.
+  if (!hasUserData) return Array.from({ length: count }, (_, i) => blankAt(i));
   if (existing.length >= count) return existing;
-  return [...existing, ...Array.from({ length: count - existing.length }, blank)];
+  // Pad missing prescribed rows at the end. Their prescription index is the count
+  // of non-warm-up rows already present, so a padded back-off/plus row still gets
+  // the correct stamp even when the athlete has inserted a warm-up.
+  let working = existing.filter((s) => !(s && s.type === 'W')).length;
+  const padded = Array.from({ length: count - existing.length }, () => blankAt(working++));
+  return [...existing, ...padded];
 }
 
 // ==========================================
