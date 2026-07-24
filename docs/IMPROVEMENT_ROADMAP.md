@@ -788,6 +788,33 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · Jacked & Tan: Shed Edition — logger set-role rendering on
+  `claude/jacked-tan-shed-logger-p9nco1`. The tier-aware resolver already produced the correct
+  set COUNTS + rich card label, but the live cockpit still drew generic identical "Log S1/S2…"
+  rows: the structured `setPlan` roles (top set / back-off / plus / target / MRS / light /
+  assessment) were resolved but never shown per row. Added a pure `jtSetRoleTags(setPlan)`
+  formatter (`js/programs/jt-shed-model.js`) that maps each set-plan entry to a short role tag
+  (numbering MRS in order; plain straight-set `work` stays untagged so ordinary sets are
+  uncluttered). `js/workout.js` maps those tags onto the WORKING set rows in prescription order
+  (warm-ups skipped, so an inserted warm-up never shifts the top-set/back-off labels; appended
+  extra rows get no tag), and `buildSetRow` (`js/templates.js`) renders a full-width role chip
+  + `data-set-role` on both the row and the tag. RENDER-ONLY: nothing is stamped onto stored
+  sets (still plain `{w,r,c}`), so draft/reconcile/warmup predicates, snapshots, completed
+  history and analytics are byte-for-byte unchanged; non-J&T programs pass `roleTag=null` and
+  are unaffected. CSS: `.set-role-tag` chip, warm/blue accents for the load-driving rows,
+  light+dark. Tests: `tests/jt_shed_logger.test.js` (11 cases — T1 top-set/back-off/plus labels
+  tracking the weekly rep-max, week-6 single + week-12 assessment, T2b/T2c + T3 target/MRS
+  numbering, T2a/pull-up/spec-row/core untagged, week-6 recovery/light, defensive junk input,
+  `buildSetRow` role markup + generic-program no-tag + warm-up suppression, tag-count == set-
+  count per tier). Browser check extended (`scripts/jt-shed-browser-check.mjs` B4h–B4l): real
+  cockpit T1 rows read `['repmax','backoff','backoff','plus']` with a "Back-off +" plus
+  indicator + "Top set · 10RM" label, and an expanded accessory reads `['target','mrs','mrs']`.
+  Local evidence: `node --test` 1258/1258, typecheck + smoke + precache:check + workflow:check
+  green, and the full Playwright J&T browser check passed (Chromium available here). Cache
+  advances to v120. Next: consider surfacing the same role labels in completed workout history
+  (re-derivable from the snapshot's program/week/day + working-set index) and dynamic T1
+  block-2 back-off load recalculation in-session.
+
 - 2026-07-24 · Jacked & Tan: Shed Edition — tier-aware prescription fix on
   `claude/jacked-tan-shed-edition-52x0g5`. Root cause: every J&T lift is a bare string with
   no inline spec, so `liftTarget`/`prescribeSetsForLift` fell back to the single shared

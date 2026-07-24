@@ -10,7 +10,7 @@ export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData) {
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData, roleTag = null) {
   const ghostWeight = historicalSetData?.w || weightUnit;
   const ghostReps   = historicalSetData?.r || prescribedReps || 'reps';
   const type = sData.type || '';
@@ -32,7 +32,16 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   // Full-word type label for the (now roomier) expander, vs the terse column badge.
   const typeFullLabels = { '': 'Working set', 'W': 'Warm-up', 'D': 'Drop set', 'F': 'AMRAP (max reps)' };
 
-  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}" data-load-mode="${directMode}">
+  // Tier-aware role tag (J&T top set / back-off / plus / target / MRS …). It is a
+  // RENDER-only label derived from the structured prescription's setPlan — never
+  // stored on the set — so the athlete can see each row's job without opening the
+  // card header. Warm-up rows never carry a role tag.
+  const roleTagHtml = (roleTag && type !== 'W')
+    ? `<span class="set-role-tag set-role-tag--${escapeHtml(String(roleTag.role))}${roleTag.emphasis ? ' is-emphasis' : ''}" data-set-role="${escapeHtml(String(roleTag.role))}">${escapeHtml(String(roleTag.label))}</span>`
+    : '';
+
+  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}"${roleTag && type !== 'W' ? ` data-set-role="${escapeHtml(String(roleTag.role))}"` : ''} data-set-index="${sIdx}" data-load-mode="${directMode}">
+    ${roleTagHtml}
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
     ${bodyweightCapable ? `<div class="set-load-choice" role="group" aria-label="Load mode for set ${sIdx + 1}">
       ${['bodyweight', 'weighted', 'assisted'].map(mode => `<button type="button"

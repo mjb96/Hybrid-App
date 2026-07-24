@@ -2989,6 +2989,47 @@ html[data-theme="light"] .cockpit-set-row.is-pr {
 }
 
 /* ==========================================================================
+   SET ROLE TAG (Jacked & Tan tier model — top set / back-off / plus / MRS …)
+   Full-width chip at the top of a working set row, so each row's job is legible
+   without opening the card header. Render-only; never stored on the set.
+   ========================================================================== */
+.set-role-tag {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--overlay-sm);
+  border: 1px solid var(--overlay-sm);
+  line-height: 1.4;
+}
+.set-role-tag.is-emphasis {
+  color: var(--text-strong);
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.32);
+}
+/* Top set + plus set are the load-driving rows — give them a warm accent so they
+   read as the "money" sets at a glance. */
+.set-role-tag--repmax,
+.set-role-tag--plus,
+.set-role-tag--assessment {
+  color: var(--color-amber, #f59e0b);
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.34);
+}
+html[data-theme="light"] .set-role-tag--repmax,
+html[data-theme="light"] .set-role-tag--plus,
+html[data-theme="light"] .set-role-tag--assessment {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.34);
+}
+
+/* ==========================================================================
    ACTIVITY CALENDAR
    ========================================================================== */
 .cal-legend {

@@ -236,6 +236,36 @@ try {
       // The default-expanded T1 card renders its real 4 set rows in the DOM.
       if (t1Card && t1Card.rows > 0) eq(t1Card.rows, 4, 'B4g expanded T1 card renders 4 real set rows');
 
+      // B4h — the T1 set rows carry tier ROLES (top set + back-off + a plus set on
+      // the FINAL back-off), derived from the structured prescription rather than
+      // guessed from raw position. This is the logger fix under test.
+      if (t1Card && t1Card.rows > 0) {
+        const t1RowSel = `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] .cockpit-set-row`;
+        const t1Roles = await page.$$eval(t1RowSel, els => els.map(e => e.getAttribute('data-set-role')));
+        eq(t1Roles, ['repmax', 'backoff', 'backoff', 'plus'], 'B4h T1 rows = top set · back-off · back-off · plus');
+        const plusLabel = await page.$eval(
+          `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] [data-set-role="plus"].set-role-tag`,
+          el => el.textContent.trim()).catch(() => '');
+        ok(/\+/.test(plusLabel), `B4i final back-off shows a plus-set indicator (got "${plusLabel}")`);
+        const topLabel = await page.$eval(
+          `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] [data-set-role="repmax"].set-role-tag`,
+          el => el.textContent.trim()).catch(() => '');
+        ok(/Top set/i.test(topLabel) && /RM/.test(topLabel), `B4j top set labels its rep-max (got "${topLabel}")`);
+      }
+
+      // B4k — a target/MRS accessory (expand its collapsed card) shows the
+      // Target + MRS 1 + MRS 2 roles, not three identical generic sets.
+      const mrsName = cards.find(c => /MRS/.test(c.target))?.name;
+      ok(mrsName, 'B4k at least one accessory uses the target/MRS scheme');
+      if (mrsName) {
+        await page.click(`#cockpitExercisesContainer .cockpit-exercise[data-liftname="${mrsName}"] [data-action="toggle-accordion"]`).catch(() => {});
+        await page.waitForTimeout(200);
+        const mrsRoles = await page.$$eval(
+          `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${mrsName}"] .cockpit-set-row`,
+          els => els.map(e => e.getAttribute('data-set-role'))).catch(() => []);
+        if (mrsRoles.length) eq(mrsRoles, ['target', 'mrs', 'mrs'], `B4l ${mrsName} rows = target · MRS 1 · MRS 2`);
+      }
+
       const NOTE = 'Back tweak on RDL — cut it short, felt strong on squats.';
       await enterSessionNote(page, NOTE);
       const afterType = await readState(page);

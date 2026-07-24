@@ -5,7 +5,7 @@ import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
-import { jtLiftTarget } from './programs/jt-shed-model.js';
+import { jtLiftTarget, jtSetRoleTags } from './programs/jt-shed-model.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer, bindWorkoutTimerSession } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
@@ -290,6 +290,10 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
 
   let blueprintLabel = 'Target: Working Sets';
   let diagnostic = { isStalled: false, suggestedWeight: '', progression: null };
+  // Per-working-set role tags (J&T tier model). Render-only, derived from the
+  // structured prescription's setPlan; null for every non-J&T program so the
+  // generic logger is byte-for-byte unchanged.
+  let jtRoleTags = null;
   // Keep the resolved prescription available while rendering the set rows.
   // The fallback is deliberately blank rather than inventing a numeric target
   // if an old/custom program cannot be resolved.
@@ -313,6 +317,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       // 2 MRS, 3 × 6–10, …) instead of collapsing every tier to sets×reps.
       const jtTarget = jtLiftTarget(activeProgram, wk, selectedDay, displayLiftName);
       blueprintLabel = jtTarget ? `Target: ${jtTarget.label}` : `Target: ${target.sets} × ${target.reps}`;
+      if (jtTarget?.prescription?.setPlan?.length) jtRoleTags = jtSetRoleTags(jtTarget.prescription.setPlan);
     }
     // Auto-progression hint: a concrete next move derived from last session.
     const prog = diagnostic.progression;
@@ -370,13 +375,19 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
     : null;
   let priorWorkingIndex = 0;
+  let jtWorkingIndex = 0;
   const setsMarkup = setsArr.map((sData, sIdx) => {
-    const previousSet = isWarmupSet(sData) ? null : priorPerformance?.workingSets?.[priorWorkingIndex++];
+    const isWarmup = isWarmupSet(sData);
+    const previousSet = isWarmup ? null : priorPerformance?.workingSets?.[priorWorkingIndex++];
+    // Roles map onto WORKING rows in prescription order; warm-ups are skipped so
+    // an inserted warm-up never shifts the top-set/back-off labels. Extra working
+    // rows the athlete appends beyond the plan get no tag.
+    const roleTag = (!isWarmup && jtRoleTags) ? (jtRoleTags[jtWorkingIndex++] || null) : null;
     let ghostSet = suggestedGhost;
     if (!ghostSet && previousSet && (previousSet.w || previousSet.r)) ghostSet = previousSet;
     return buildSetRow(
       sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
-      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps), previousSet,
+      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps), previousSet, roleTag,
     );
   }).join('');
 

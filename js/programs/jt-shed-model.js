@@ -503,6 +503,49 @@ export function resolveJtPrescription(program, week, dayKey, name, opts = {}) {
 }
 
 /**
+ * Turn a resolved `setPlan` into per-row role tags for the live logger. Purely a
+ * RENDER helper — it never touches stored sets. The cockpit maps these onto the
+ * materialised WORKING set rows in order (warm-ups skipped), so a row's role is
+ * derived from the structured prescription, not guessed from raw set position.
+ *
+ * A plain straight-set `work` role returns `null` (no tag) so ordinary sets stay
+ * uncluttered; the meaningful roles (top set / back-off / plus / target / MRS /
+ * light / assessment) each get a short label + stable slug for the data-attribute
+ * and CSS. MRS rows are numbered in order (MRS 1, MRS 2).
+ * @param {Array<{role:string, reps?:(number|string), pct?:number, plus?:boolean}>} setPlan
+ * @returns {Array<null | { role:string, label:string, emphasis:boolean }>}
+ */
+export function jtSetRoleTags(setPlan) {
+  if (!Array.isArray(setPlan)) return [];
+  let mrs = 0;
+  return setPlan.map((s) => {
+    const role = s && s.role;
+    switch (role) {
+      case 'repmax':
+        return { role: 'repmax', label: s.reps != null ? `Top set · ${s.reps}RM` : 'Top set', emphasis: true };
+      case 'backoff':
+        return { role: 'backoff', label: 'Back-off', emphasis: false };
+      case 'plus':
+        return { role: 'plus', label: 'Back-off +', emphasis: true };
+      case 'target':
+        return { role: 'target', label: s.reps != null ? `Target · ${s.reps}` : 'Target', emphasis: true };
+      case 'mrs':
+        mrs += 1;
+        return { role: 'mrs', label: `MRS ${mrs}`, emphasis: false };
+      case 'light':
+        return { role: 'light', label: 'Light', emphasis: false };
+      case 'assessment':
+        return { role: 'assessment', label: 'Assessment', emphasis: true };
+      // Plain straight-set work needs no tag — the card label already states the
+      // full sets×reps (e.g. "4 × 10 @ 50%"), so tagging every row is just noise.
+      case 'work':
+      default:
+        return null;
+    }
+  });
+}
+
+/**
  * The {sets, reps, label} triple the cockpit/preview need. `reps` is the primary
  * numeric target used for the label + auto-progression rep goal; `label` is the
  * full tier-aware prescription string. Returns null for non-J&T / unknown lifts
