@@ -69,6 +69,7 @@ const EQUIP_KEY = {
   barbell: 'barbell', rack: 'rack', dumbbells: 'dumbbells', cables: 'cables',
   'pull-up-bar': 'pullupBar', pullups: 'pullupBar', kettlebell: 'kettlebells',
   kettlebells: 'kettlebells', bands: 'bands', treadmill: 'treadmill',
+  ezBar: 'ezBar', 'ez-bar': 'ezBar', ezbar: 'ezBar',
 };
 
 /**

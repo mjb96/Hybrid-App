@@ -5,6 +5,7 @@ import { devWarn } from './debug.js';
 import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
+import { copyProgramAsText, handleProgramTextAction } from './programs/copy-program.js';
 import { openCompareModal, closeCompareModal, pickCompareB, renderComparePicker, handleCompareSearch } from './programs/compare-ui.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { activateProgramWithConfirm, resumeActivationWithConfirm } from './programs/activation.js';
@@ -603,6 +604,7 @@ function _renderActivePlanHero() {
       <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${escapeHtml(appState.activeProgramId || '')}" title="Rate this program">★</button>
     </div>
     <button class="aplan-edit-btn" data-action="edit-active-program">✏️ Edit program</button>
+    <button class="aplan-edit-btn aplan-copy-btn" data-action="copy-program-text" data-program-id="${escapeHtml(appState.activeProgramId || '')}">📋 Copy for AI review</button>
   `;
 }
 
@@ -1054,6 +1056,8 @@ document.addEventListener('click', (e) => {
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   else if (action === 'customize-program') customizeProgram(progId);
   else if (action === 'edit-active-program') editActiveProgram();
+  else if (action === 'copy-program-text') copyProgramAsText(progId);
+  else if (handleProgramTextAction(action)) { /* copy-program preview modal buttons */ }
   else if (action === 'open-compare') openCompareModal(progId);
   else if (action === 'compare-pick') pickCompareB(progId);
   else if (action === 'compare-reset') { document.getElementById('compareSearchWrap').style.display = ''; renderComparePicker(''); }

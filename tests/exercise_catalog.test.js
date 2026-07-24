@@ -5,7 +5,7 @@ import { PROGRAM_CATALOG } from '../js/programs/catalog.js';
 import {
   EQUIPMENT, EXERCISES, MOVEMENT_PATTERNS, MUSCLES,
   canonicalExerciseId, exerciseLibraryByCategory, normaliseExerciseName, resolveExercise,
-  exerciseStatForName,
+  exerciseStatForName, equipmentLabel, searchExercises,
 } from '../js/exercises/catalog.js';
 import { exercisePerformanceHistory } from '../js/workout/exercise-history.js';
 import { computeExercisePRs } from '../js/engine.js';
@@ -155,6 +155,77 @@ test('an equipment filter over the catalogue surfaces the barbell calf raise for
   assert.ok(names.has('Seated Calf Raise'));
   // A machine-only exercise is filtered out for this kit.
   assert.ok(!names.has('Leg Press'), 'machine-only work is excluded from a home-gym kit');
+});
+
+test('EZ-bar exercises are a distinct equipment identity from barbell/dumbbell', () => {
+  // Existing id kept and reclassified to ezBar.
+  const curl = resolveExercise('EZ-Bar Curl');
+  assert.equal(curl.id, 'ez_bar_curl');
+  assert.deepEqual([...curl.equipment], ['ezBar']);
+  assert.equal(canonicalExerciseId('EZ Bar Curl'), 'ez_bar_curl');
+  assert.equal(canonicalExerciseId('Ezy Bar Curl'), 'ez_bar_curl');
+  assert.equal(canonicalExerciseId('E-Z Bar Curls'), 'ez_bar_curl');
+  assert.equal(canonicalExerciseId('EZ Curl Bar Curl'), 'ez_bar_curl');
+  assert.equal(canonicalExerciseId('EZ-Bar Biceps Curl'), 'ez_bar_curl');
+
+  // Straight-bar curl stays separate.
+  assert.equal(canonicalExerciseId('Barbell Curl'), 'barbell_curl');
+  assert.equal(canonicalExerciseId('Bicep Curl'), 'barbell_curl');
+
+  // EZ-bar skull crusher is separate from the dumbbell one; its aliases do not
+  // bleed onto skull_crusher.
+  assert.equal(canonicalExerciseId('EZ Bar Skull Crushers'), 'ez_bar_skull_crusher');
+  assert.equal(canonicalExerciseId('Lying EZ-Bar Triceps Extension'), 'ez_bar_skull_crusher');
+  assert.equal(canonicalExerciseId('EZ Curl Bar Skull Crusher'), 'ez_bar_skull_crusher');
+  assert.equal(canonicalExerciseId('Dumbbell Skull Crusher'), 'skull_crusher');
+  assert.equal(canonicalExerciseId('Lying DB Tricep Extension'), 'skull_crusher');
+  assert.deepEqual([...resolveExercise('EZ-Bar Skull Crusher').equipment].sort(), ['bench', 'ezBar']);
+
+  // The other EZ-bar variations.
+  assert.equal(canonicalExerciseId('EZ Bar Reverse Curl'), 'ez_bar_reverse_curl');
+  assert.equal(canonicalExerciseId('Reverse EZ-Bar Curl'), 'ez_bar_reverse_curl');
+  assert.equal(canonicalExerciseId('Reverse Curl'), 'reverse_curl');
+  assert.equal(canonicalExerciseId('EZ-Bar Overhead Tricep Extension'), 'ez_bar_overhead_triceps_extension');
+  assert.equal(canonicalExerciseId('Overhead Tricep Extension'), 'overhead_triceps_extension');
+  assert.equal(canonicalExerciseId('Close-Grip EZ-Bar Bench Press'), 'ez_bar_close_grip_bench_press');
+  assert.equal(canonicalExerciseId('EZ-Bar Spider Curls'), 'ez_bar_spider_curl');
+  assert.equal(canonicalExerciseId('EZ Bar Upright Row'), 'ez_bar_upright_row');
+  assert.equal(canonicalExerciseId('Upright Row'), 'upright_row');
+});
+
+test('ezBar is a canonical equipment key with a readable label', () => {
+  assert.ok(EQUIPMENT.includes('ezBar'));
+  assert.equal(equipmentLabel('ezBar'), 'EZ bar');
+  assert.equal(equipmentLabel('barbell'), 'Barbell');
+  assert.equal(equipmentLabel('pullupBar'), 'Pull-up bar');
+});
+
+test('equipment filtering distinguishes barbell-only from EZ-bar owners', () => {
+  const barbellOnly = new Set(['barbell', 'rack', 'bench', 'dumbbells', 'bands']);
+  const withEz = new Set([...barbellOnly, 'ezBar']);
+  const trainable = (owned) => new Set(EXERCISES
+    .filter((item) => item.equipment.every((eq) => owned.has(eq) || eq === 'bodyweight'))
+    .map((i) => i.name));
+  assert.ok(!trainable(barbellOnly).has('EZ-Bar Curl'), 'no EZ bar → EZ-Bar Curl excluded');
+  assert.ok(trainable(withEz).has('EZ-Bar Curl'), 'EZ bar owned → EZ-Bar Curl included');
+  // Straight-bar curl is available to a barbell owner regardless.
+  assert.ok(trainable(barbellOnly).has('Barbell Curl'));
+});
+
+test('search ranks the EZ-bar variation first for an EZ-bar query', () => {
+  const ez = searchExercises('EZ bar skull crusher', 5).map((i) => i.name);
+  assert.equal(ez[0], 'EZ-Bar Skull Crusher');
+  assert.ok(!ez.includes('Skull Crusher'), 'a specific EZ-bar query does not surface the dumbbell one');
+  // A generic "lying skull crusher" may show both, EZ variation ranked first.
+  const lying = searchExercises('lying skull crusher', 5).map((i) => i.name);
+  assert.ok(lying.includes('EZ-Bar Skull Crusher') && lying.includes('Skull Crusher'));
+  // A straight-bar query ranks the straight-bar curl first.
+  assert.equal(searchExercises('barbell curl', 3)[0].name, 'Barbell Curl');
+});
+
+test('muscle attribution is retained for the reclassified EZ-bar curl', () => {
+  assert.deepEqual({ ...resolveExercise('EZ-Bar Curl').muscles }, { biceps: 1, brachialis: 0.25 });
+  assert.deepEqual({ ...resolveExercise('EZ-Bar Reverse Curl').muscles }, { brachialis: 1, forearms: 0.5, biceps: 0.25 });
 });
 
 test('derived PR stats exclude high-rep, bodyweight and nominal-band loads', () => {

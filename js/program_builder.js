@@ -7,7 +7,7 @@ import {
   saveStateToLocalStorage, getProgramById, appState, reconcileActiveProgramEdits,
 } from './state.js';
 import { escapeHtml } from './util.js';
-import { EXERCISES, canonicalExerciseId, normaliseExerciseName } from './exercises/catalog.js';
+import { canonicalExerciseId, normaliseExerciseName, equipmentLabel, searchExercises } from './exercises/catalog.js';
 import {
   ensureWeeklyMods, setWeekField, markWeekDeload, isDeloadWeek, weekKeys,
 } from './programs/progression.js';
@@ -348,9 +348,8 @@ function closeExercisePicker() {
 function renderPickerResults(query) {
   const target = document.getElementById('builderExerciseResults');
   if (!target) return;
-  const needle = normaliseExerciseName(query);
-  const matches = EXERCISES.filter((item) => !needle || normaliseExerciseName(`${item.name} ${item.aliases.join(' ')}`).includes(needle)).slice(0, 40);
-  target.innerHTML = `${matches.map((item) => `<button data-action="b-pick-exercise" data-name="${escapeHtml(item.name)}"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.movement.replaceAll('_', ' '))} · ${escapeHtml(item.equipment.join(', '))}</small></span><b>+</b></button>`).join('')}${String(query || '').trim() ? `<button class="program-editor__custom-exercise" data-action="b-pick-custom" data-name="${escapeHtml(String(query).trim().slice(0, 80))}"><span><strong>Use “${escapeHtml(String(query).trim().slice(0, 80))}”</strong><small>Create a custom exercise name</small></span><b>+</b></button>` : ''}${!matches.length && !String(query || '').trim() ? '<p>No exercises found.</p>' : ''}`;
+  const matches = searchExercises(query, 40);
+  target.innerHTML = `${matches.map((item) => `<button data-action="b-pick-exercise" data-name="${escapeHtml(item.name)}"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.movement.replaceAll('_', ' '))} · ${escapeHtml(item.equipment.map(equipmentLabel).join(', '))}</small></span><b>+</b></button>`).join('')}${String(query || '').trim() ? `<button class="program-editor__custom-exercise" data-action="b-pick-custom" data-name="${escapeHtml(String(query).trim().slice(0, 80))}"><span><strong>Use “${escapeHtml(String(query).trim().slice(0, 80))}”</strong><small>Create a custom exercise name</small></span><b>+</b></button>` : ''}${!matches.length && !String(query || '').trim() ? '<p>No exercises found.</p>' : ''}`;
 }
 
 function sameExercise(a, b) {

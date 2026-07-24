@@ -14,6 +14,8 @@ const EQUIPMENT_BY_TIER = Object.freeze({
     pullupBar: true,
     bands: true,
     kettlebells: true,
+    // An EZ bar is a deliberate opt-in — never assumed from a tier.
+    ezBar: false,
     treadmill: false,
   }),
   gym: Object.freeze({
@@ -24,6 +26,7 @@ const EQUIPMENT_BY_TIER = Object.freeze({
     pullupBar: true,
     bands: true,
     kettlebells: true,
+    ezBar: false,
     treadmill: true,
   }),
 });
