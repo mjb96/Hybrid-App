@@ -788,6 +788,17 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · Settings close button vs Android status bar — on
+  `claude/settings-close-button-android-mope1q`. The Settings header (`index.html`
+  `.settings-header`, avatar hero + close ✕ in one flex row) had `padding: 20px 20px 16px`
+  with no top safe-area inset, so under `viewport-fit=cover` the whole header (close button
+  included) sat behind the Android status icons. Fix: top padding is now
+  `calc(20px + env(safe-area-inset-top, 0px))` so the header — avatar and button together —
+  clears the status bar / notch / PWA inset, while `env()` resolves to 0 in a normal browser
+  (unchanged look there). The button stays in normal flex flow (not viewport-absolute), stays
+  vertically centred with the avatar via the existing `align-items:center`, and remains 44×44
+  through the shared `--touch-target` rule — the shared `.settings-close-btn` class (5 modals)
+  was left untouched. Next: device-test the APK against the reported screenshot.
 - 2026-07-24 · Jacked & Tan: Shed Edition — Block-2 dynamic back-off + stable stored roles on
   `claude/jacked-tan-shed-logger-p9nco1` (builds on the approved af4b225 set-role rendering).
   (1) **Dynamic T1 Block-2 back-off (weeks 7–11):** the back-off load is now 85%/90% of THAT

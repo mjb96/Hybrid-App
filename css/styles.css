@@ -2285,7 +2285,10 @@ body.sheet-scroll-locked {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 16px;
+  /* Top padding clears the Android status bar (and any notch/PWA inset) so the
+     whole header — avatar and close button together — sits below it. env()
+     resolves to 0 in a normal browser, preserving the original 20px look. */
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 16px;
   border-bottom: 1px solid var(--border-default);
   background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);
   flex-shrink: 0;
