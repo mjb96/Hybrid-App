@@ -103,6 +103,20 @@ async function openDetailById(page, id) {
   await page.waitForTimeout(150);
 }
 
+// The session-notes textarea lives inside a collapsed <details> ("Session
+// Overview"); expand it and enter a note the way a user would (save fires on
+// focusout → commitWorkoutUIState).
+async function enterSessionNote(page, note) {
+  const summary = '#view-workout details.wk-overview > summary.wk-overview__summary';
+  if (!(await page.$eval('#view-workout details.wk-overview', el => el.open).catch(() => false))) {
+    await page.click(summary);
+  }
+  await page.waitForSelector('#sessionNotesInput', { state: 'visible', timeout: 6000 });
+  await page.fill('#sessionNotesInput', note);
+  await page.locator('#sessionNotesInput').blur(); // real focusout → save
+  await page.waitForTimeout(300);
+}
+
 async function dayPreview(page, day) {
   await page.click(`#programDetailScreen [data-action="open-day-preview"][data-day="${day}"]`);
   await page.waitForSelector('#wpmSheet .wpm-exercise-item', { timeout: 6000 });
@@ -171,10 +185,7 @@ try {
       ok(names.length >= 7, `B4 cockpit renders today's (${todayKey}) J&T session`);
 
       const NOTE = 'Back tweak on RDL — cut it short, felt strong on squats.';
-      await page.fill('#sessionNotesInput', NOTE);
-      await page.dispatchEvent('#sessionNotesInput', 'change');
-      await page.dispatchEvent('#sessionNotesInput', 'blur');
-      await page.waitForTimeout(300);
+      await enterSessionNote(page, NOTE);
       const afterType = await readState(page);
       eq(afterType.weeks['1'].notes[todayKey], NOTE, 'B5 session note saved to the workout snapshot');
 
@@ -209,9 +220,7 @@ try {
     await page.fill(`${row0} .input-weight-node`, '100');
     await page.fill(`${row0} .input-reps-node`, '10');
     await page.check(`${row0} .gym-check`).catch(async () => { await page.click(`${row0} .gym-check`).catch(() => {}); });
-    await page.fill('#sessionNotesInput', 'J&T squat day done.');
-    await page.dispatchEvent('#sessionNotesInput', 'change');
-    await page.waitForTimeout(300);
+    await enterSessionNote(page, 'J&T squat day done.');
 
     const before = await readState(page);
     const completedSnapshot = JSON.stringify(before.weeks['1'].lifts[todayKey][firstLift]);
@@ -238,7 +247,10 @@ try {
 
     const after = await readState(page);
     // The completed J&T work is archived byte-for-byte (kept, not mutated).
-    const archKey = Object.keys(after.weeks).find((k) => k.startsWith('arch:'));
+    // Multiple switches create multiple archives — pick the one holding J&T's set.
+    const archKey = Object.keys(after.weeks)
+      .filter((k) => k.startsWith('arch:'))
+      .find((k) => after.weeks[k]?.lifts?.[todayKey]?.[firstLift]);
     ok(archKey, 'C2 previous J&T run archived on switch');
     if (archKey) {
       eq(JSON.stringify(after.weeks[archKey].lifts[todayKey][firstLift]), completedSnapshot, 'C3 completed workout unchanged after switching away and back');
