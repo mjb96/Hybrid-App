@@ -6,6 +6,7 @@ import { openBuilder } from './program_builder.js';
 import { initProgramLibrary, updateLibraryState, renderLibrary, handleLibraryAction, returnToLibrary } from './programs/library.js';
 import { handleDetailAction, closeDayPreviewModal } from './programs/detail.js';
 import { copyProgramAsText, handleProgramTextAction } from './programs/copy-program.js';
+import { openActionMenu, closeActionMenu, isActionMenuOpen } from './ui/action-menu.js';
 import { openCompareModal, closeCompareModal, pickCompareB, renderComparePicker, handleCompareSearch } from './programs/compare-ui.js';
 import { getCatalogEntry } from './programs/catalog.js';
 import { activateProgramWithConfirm, resumeActivationWithConfirm } from './programs/activation.js';
@@ -39,7 +40,7 @@ import {
 } from './state.js';
 import { initSyncConflictUI } from './state/sync-conflict-ui.js';
 import { confirmModal } from './ui/confirm-modal.js';
-import { paintIcons } from './ui/icons.js';
+import { paintIcons, icon as svgIcon } from './ui/icons.js';
 import { closeManagedModal, initModalStack, openManagedModal, requestCloseTopModal } from './ui/modal-stack.js';
 import { initSentry } from './monitoring/sentry.js';
 import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
@@ -601,10 +602,12 @@ function _renderActivePlanHero() {
         </div>
         <div class="aplan-hero-weeks">${actualWk} of ${totalWeeks} weeks</div>
       </div>
-      <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${escapeHtml(appState.activeProgramId || '')}" title="Rate this program">★</button>
+      <div class="aplan-hero-actions">
+        <button class="aplan-icon-action" data-action="copy-program-text" data-program-id="${escapeHtml(appState.activeProgramId || '')}" aria-label="Copy program" title="Copy program">${svgIcon('clipboard', { size: 20 })}</button>
+        <button class="aplan-rate-btn" data-action="rate-program" data-program-id="${escapeHtml(appState.activeProgramId || '')}" aria-label="Rate this program" title="Rate this program">★</button>
+      </div>
     </div>
     <button class="aplan-edit-btn" data-action="edit-active-program">✏️ Edit program</button>
-    <button class="aplan-edit-btn aplan-copy-btn" data-action="copy-program-text" data-program-id="${escapeHtml(appState.activeProgramId || '')}">📋 Copy for AI review</button>
   `;
 }
 
@@ -1056,6 +1059,14 @@ document.addEventListener('click', (e) => {
   else if (action === 'duplicate-program') executeDuplicateProgram(progId);
   else if (action === 'customize-program') customizeProgram(progId);
   else if (action === 'edit-active-program') editActiveProgram();
+  else if (action === 'open-program-menu') {
+    // Toggle a compact overflow menu of secondary program actions.
+    if (isActionMenuOpen()) closeActionMenu();
+    else openActionMenu(target, [
+      { label: 'Copy program', action: 'copy-program-text', programId: progId, icon: svgIcon('clipboard', { size: 18 }) },
+    ], { label: 'Program actions' });
+  }
+  else if (action === 'close-action-menu') closeActionMenu();
   else if (action === 'copy-program-text') copyProgramAsText(progId);
   else if (handleProgramTextAction(action)) { /* copy-program preview modal buttons */ }
   else if (action === 'open-compare') openCompareModal(progId);
@@ -1613,6 +1624,10 @@ function _submitProgramRating() {
 // ==========================================
 if (typeof window !== 'undefined') {
   window.__onAndroidBack = function () {
+    // A transient overflow/action menu is the shallowest surface — Back dismisses
+    // it first (it manages no history of its own to avoid modal collisions).
+    if (isActionMenuOpen()) { closeActionMenu(); return 'handled'; }
+
     // Shared dialog/sheet stack owns modal dismissal, focus restoration and
     // semantics. This also covers surfaces whose visual class is not `.active`.
     if (requestCloseTopModal()) return 'handled';

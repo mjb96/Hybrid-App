@@ -203,6 +203,7 @@ const REQUIRED_ASSETS = [
   "./js/templates.js",
   "./js/timers.js",
   "./js/toast.js",
+  "./js/ui/action-menu.js",
   "./js/ui/celebration.js",
   "./js/ui/clipboard.js",
   "./js/ui/confirm-modal.js",

@@ -151,6 +151,10 @@ export function renderProgramDetail(programId, appState) {
                 aria-label="${saved ? 'Remove bookmark' : 'Save program'}">
           ${saved ? '🔖' : '🤍'}
         </button>
+        <button class="detail-bookmark-btn detail-overflow-btn"
+                data-action="open-program-menu"
+                data-program-id="${safeProgramId}"
+                aria-label="More program actions" aria-haspopup="menu" aria-expanded="false">⋯</button>
       </div>
     </div>
 
@@ -247,7 +251,6 @@ export function renderProgramDetail(programId, appState) {
         <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="${isCustom ? 'open-builder' : (isActive ? 'edit-active-program' : 'customize-program')}" data-program-id="${safeProgramId}">✏️ ${isCustom || isActive ? 'Edit' : 'Customize'}</button>
         <button class="detail-complete-btn" style="flex:1;margin-top:0;" data-action="open-compare" data-program-id="${safeProgramId}">⚖️ Compare</button>
       </div>
-      <button class="detail-complete-btn" style="width:100%;margin-top:8px;" data-action="copy-program-text" data-program-id="${safeProgramId}">📋 Copy for AI review</button>
       ${personalRating
         ? `<div class="detail-your-rating" data-action="rate-program" data-program-id="${safeProgramId}" role="button" tabindex="0">
              <span class="detail-your-rating-label">Your rating</span>
