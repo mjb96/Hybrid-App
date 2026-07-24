@@ -788,6 +788,33 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · Jacked & Tan: Shed Edition program on `claude/jacked-tan-shed-edition-52x0g5`.
+  New 12-week, five-day home-gym program added through the EXISTING catalog shape
+  (`js/programs/catalog/jt-shed.js`: `days{}` bare-string lifts + `weeklyVolModifiers`),
+  registered via the catalog aggregator, so activation/switch/cockpit/day-preview/persistence
+  reuse the standard path — one library entry, no parallel program model, no duplicate on
+  activation, and existing programs/completed workouts untouched. The tiered per-exercise/
+  per-week progression maths (T1 rep-max + back-off, T2a percentages, T2b/T2c/T3 target-rep,
+  pull-up and Saturday-row double progression, TM rounding + honest missing-TM handling) and
+  the authored program/week/day/exercise notes live in a pure, side-effect-free model
+  (`js/programs/jt-shed-model.js`) surfaced additively in the program detail view (program
+  notes, per-week phase brief that tracks the selected week, expandable per-exercise coaching
+  notes) — nothing mutates state or the program definition. User session notes reuse the
+  existing per-day snapshot (`state.weeks[wk].notes[day]`), kept separate from the static
+  authored notes. Tests: `tests/jt_shed_program.test.js` (19 cases — registration, single-copy
+  activation, five-day schedule, per-day exercises, full T1/T2a/T2b/T2c/T3 tables for all 12
+  weeks, pull-up + Saturday-row exceptions, deload/pivot/assessment weeks, TM calc/rounding,
+  missing-TM handling, note content, session-note snapshot persistence + reload, completed-
+  workout snapshot protection, program-switch isolation, no-duplicate creation, existing-program
+  regression). Browser check `scripts/jt-shed-browser-check.mjs` (wired into the required list)
+  drives library→preview→notes→per-day exercises (Pull-Up on Tue, Band Lat Pulldown on Sat)→
+  activation→session-note save+reload→switch-away-and-back isolation. Local evidence: typecheck,
+  precache:check, workflow:check, smoke green; `node --test` 1224/1225 pass (the one failure is
+  the pre-existing `route_db_migration.test.js`, which needs the `fake-indexeddb` dev dependency
+  absent from this environment — unrelated to this change). The Playwright browser suite is
+  CI-only in this environment (Playwright not installed locally), so the new browser check was
+  verified for syntax + skip-path but runs for real in CI. Cache advances to v118.
+
 - 2026-07-24 · EZ-bar equipment + Copy-program-as-text on
   `claude/program-editor-mobile-picker-wr1kn6`. (1) EZ bar is now a proper canonical
   equipment type (`ezBar`) with a readable label, added to the exercise-equipment vocabulary,

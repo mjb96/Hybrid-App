@@ -11,6 +11,7 @@ import hypertrophyPrograms   from './catalog/hypertrophy.js';
 import runningPrograms       from './catalog/running.js';
 import fitnessPrograms       from './catalog/fitness.js';
 import hyroxPrograms         from './catalog/hyrox.js';
+import jtShedPrograms        from './catalog/jt-shed.js';
 
 export const CATEGORIES = {
   hybrid:          { label: 'Hybrid',           icon: '⚡', color: '#8b5cf6' },
@@ -44,6 +45,7 @@ export const PROGRAM_CATALOG = [
   ...runningPrograms,
   ...fitnessPrograms,
   ...hyroxPrograms,
+  ...jtShedPrograms,
 ];
 
 // Quick lookup map by ID

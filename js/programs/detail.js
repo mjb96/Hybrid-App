@@ -14,6 +14,10 @@ import { PROGRAMS } from '../constants.js';
 import { resolveProgramPhase } from './phase.js';
 import { getWeekModifier } from '../schema.js';
 import { liftTarget } from '../engine.js';
+import {
+  programNotes as jtProgramNotes, weekNote as jtWeekNote, dayExercises as jtDayExercises,
+  t1Prescription, t2aPrescription, t2bcPrescription, t3Prescription,
+} from './jt-shed-model.js';
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating, isCustomProgram } from '../state.js';
 import { escapeHtml, safeCssColor } from '../util.js';
 import { evaluateSessionCompletion } from '../workout/completion-policy.js';
@@ -111,6 +115,7 @@ export function renderProgramDetail(programId, appState) {
         <div class="detail-section-title">Equipment</div>
         <div class="detail-equipment">${program.equipment.map(e => `<span class="detail-equipment-chip">${formatEquipment(e)}</span>`).join('')}</div>
       </div>` : ''}
+    ${renderJtProgramNotes(program)}
   `;
 
   const structureHTML = `
@@ -567,8 +572,107 @@ function renderWeekAtAGlance(program, isActive, appState, totalWeeks, week) {
     <div class="detail-section">
       <div class="detail-section-title">This week at a glance</div>
       ${stepper}
+      ${renderJtWeekBrief(program, week)}
       ${showChanges ? `<div class="wag-changes"><span class="wag-changes-label">Changes from Week 1</span>${changes.map(c => `<span class="wag-change">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
       <div class="wag-list">${rowsHTML}</div>
+    </div>`;
+}
+
+// ── Jacked & Tan: Shed Edition — tiered progression + notes (additive) ───────
+// Rendered only for the program that carries progressionModel==='jt-shed'. All
+// numbers come from ./jt-shed-model.js so the preview can never disagree with
+// the tests or the cockpit's week label. Never touches user workout notes.
+
+function _isJtShed(program) {
+  return program?.progressionModel === 'jt-shed';
+}
+
+// The selected week's phase label + week instructions + this week's tier
+// prescriptions — makes the week-at-a-glance preview reflect the chosen week
+// (deload/pivot/assessment weeks read correctly).
+function renderJtWeekBrief(program, week) {
+  if (!_isJtShed(program)) return '';
+  const wn = jtWeekNote(program, week);
+  const t1 = t1Prescription(week);
+  const t2a = t2aPrescription(week);
+  const t2bc = t2bcPrescription(week);
+  const t3 = t3Prescription(week);
+
+  const t1Line = t1
+    ? (t1.assessment
+        ? 'Assessment — controlled 1RM, 2RM, 3RM or rep PR (true 1RM optional). No back-off.'
+        : t1.singleTop
+          ? 'To a controlled heavy single — no back-off.'
+          : `To a controlled ${t1.repMax}RM, then ${t1.backoff.sets}×${t1.backoff.reps} @ ${t1.backoff.pct}% ${t1.backoff.basis === 'dayMax' ? 'of the day’s rep-max' : 'TM'}${t1.backoff.plusSet ? ' (last set +)' : ''}.`)
+    : '';
+  const t2aLine = t2a
+    ? `${t2a.pct}% ${t2a.basis === 'updatedTm' ? 'updated TM' : 'TM'} · ${t2a.sets}×${t2a.reps}.`
+    : 'No T2a work this week.';
+  const t2bcLine = t2bc.none
+    ? 'No T2b/T2c work this week.'
+    : t2bc.recovery
+      ? 'Recovery-only.'
+      : `Target ${t2bc.target}, then 2 max-rep sets (~1–2 RIR).`;
+  const t3Line = t3.rest
+    ? (t3.optionalLight ? 'Rest or optional very light pump work.' : 'Rest.')
+    : t3.light
+      ? `${t3.lightSets} light sets of ~${t3.lightApprox}, no max-rep sets.`
+      : `Target ${t3.target}, then 2 max-rep sets (~1–2 RIR).`;
+
+  const rows = [
+    { tier: 'T1', text: t1Line },
+    { tier: 'T2a', text: t2aLine },
+    { tier: 'T2b / T2c', text: t2bcLine },
+    { tier: 'T3', text: t3Line },
+  ].filter(r => r.text);
+
+  return `
+    <div class="jt-week-brief" style="margin:0 0 12px;padding:12px;background:var(--overlay-sm);border-radius:12px;">
+      <div style="font-weight:700;font-size:0.9rem;color:var(--text-inverse);">Week ${wn.week} · ${escapeHtml(wn.label)}</div>
+      ${wn.notes.length ? `<ul style="margin:8px 0 0;padding-left:18px;color:var(--text-secondary);font-size:0.78rem;line-height:1.5;">${wn.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+      <div style="margin-top:10px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:0.76rem;">
+        ${rows.map(r => `<span style="font-family:ui-monospace,monospace;color:var(--text-muted);">${r.tier}</span><span style="color:var(--text-secondary);">${escapeHtml(r.text)}</span>`).join('')}
+      </div>
+    </div>`;
+}
+
+// Program-level coaching notes + a per-day tier legend with expandable exercise
+// coaching notes. Program notes render in the Overview tab; exercise notes are
+// accessible via <details> so they don't clutter the primary surface.
+function renderJtProgramNotes(program) {
+  if (!_isJtShed(program)) return '';
+  const notes = jtProgramNotes(program);
+  const dayNames = { mon: 'Monday', tue: 'Tuesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
+  const dayBlocks = ['mon', 'tue', 'thu', 'fri', 'sat'].map((dk) => {
+    const exs = jtDayExercises(program, dk);
+    if (!exs.length) return '';
+    const rows = exs.map((ex) => `
+      <details class="jt-ex-note" style="border-top:1px solid var(--overlay-sm);padding:6px 0;">
+        <summary style="cursor:pointer;display:flex;align-items:baseline;gap:8px;list-style:none;">
+          <span style="font-family:ui-monospace,monospace;font-size:0.66rem;color:var(--text-muted);min-width:64px;">${escapeHtml(ex.tier)}</span>
+          <span style="font-size:0.84rem;color:var(--text-inverse);flex:1;">${escapeHtml(ex.name)}</span>
+          <span style="font-size:0.66rem;color:var(--text-muted);">${escapeHtml(ex.progression)}</span>
+        </summary>
+        ${ex.notes.length ? `<ul style="margin:6px 0 2px;padding-left:80px;color:var(--text-secondary);font-size:0.76rem;line-height:1.5;">${ex.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+      </details>`).join('');
+    return `
+      <div class="jt-day-block" style="margin-top:12px;">
+        <div style="font-weight:700;font-size:0.82rem;color:var(--text-inverse);margin-bottom:2px;">${escapeHtml(dayNames[dk])}</div>
+        ${rows}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title">Program notes</div>
+      <ul class="jt-program-notes" style="margin:0;padding-left:18px;color:var(--text-secondary);font-size:0.82rem;line-height:1.6;">
+        ${notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
+      </ul>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Tiers &amp; exercise notes</div>
+      <p class="text-xs text-muted" style="margin:-6px 0 4px;">T1 = main lift · T2a = percentage work · T2b/T2c = target-rep + max-rep sets · T3 = isolation. Tap an exercise for its coaching notes.</p>
+      ${dayBlocks}
     </div>`;
 }
 
