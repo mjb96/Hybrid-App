@@ -188,7 +188,7 @@ function renderDay(program, dayKey, modifier) {
   const lifts = (Array.isArray(day.lifts) ? day.lifts : [])
     .filter((n) => typeof n === 'string' && n.trim());
   lifts.forEach((name, i) => {
-    lines.push(formatLiftLine(i + 1, name, liftTarget(day.desc, name, modifier)));
+    lines.push(formatLiftLine(i + 1, name, liftTarget(day.desc, name, modifier, { program, week: 1, dayKey })));
   });
 
   if (lifts.length) lines.push('');

@@ -5,6 +5,7 @@ import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
+import { jtLiftTarget } from './programs/jt-shed-model.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer, bindWorkoutTimerSession } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
@@ -172,7 +173,7 @@ function blankProgramDay(state, week, day) {
   const modifier = getWeekModifier(program, week);
   for (const liftName of (blueprint.lifts || [])) {
     if (typeof liftName !== 'string' || !liftName.trim()) continue;
-    lifts[liftName] = prescribeSetsForLift(week, day, liftName, blueprint.desc, modifier);
+    lifts[liftName] = prescribeSetsForLift(week, day, liftName, blueprint.desc, modifier, { program, week, dayKey: day });
     liftOrder.push(liftName);
   }
   return { lifts, liftOrder };
@@ -301,12 +302,17 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
     } else {
       // Resolve the prescribed target first so the auto-progression engine can
       // judge whether last session actually hit the rep goal.
-      const weekModifier = getWeekModifier(getProgramById(appState.activeProgramId), wk);
-      target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier);
+      const activeProgram = getProgramById(appState.activeProgramId);
+      const weekModifier = getWeekModifier(activeProgram, wk);
+      const jtCtx = { program: activeProgram, week: wk, dayKey: selectedDay };
+      target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier, jtCtx);
       diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, repGoalFromTarget(target.reps) || 0);
       // Label shows the SAME target we materialise (inline spec or week modifier),
-      // so "Target: 4 × 5" always matches the number of set rows populated.
-      blueprintLabel = `Target: ${target.sets} × ${target.reps}`;
+      // so "Target: 4 × 5" always matches the number of set rows populated. For the
+      // tiered J&T model, use its rich per-exercise label (10RM + 3×6 @ 70%, 15RM +
+      // 2 MRS, 3 × 6–10, …) instead of collapsing every tier to sets×reps.
+      const jtTarget = jtLiftTarget(activeProgram, wk, selectedDay, displayLiftName);
+      blueprintLabel = jtTarget ? `Target: ${jtTarget.label}` : `Target: ${target.sets} × ${target.reps}`;
     }
     // Auto-progression hint: a concrete next move derived from last session.
     const prog = diagnostic.progression;
@@ -1922,7 +1928,7 @@ export function executeResetActiveDayMetrics() {
     blueprint.lifts.forEach(liftName => {
       try {
         const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
-        lifts[liftName] = prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier);
+        lifts[liftName] = prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier, { program: activeProgram, week: wk, dayKey: selectedDay });
         liftOrder.push(liftName);
       } catch(e) { console.warn(e); }
     });

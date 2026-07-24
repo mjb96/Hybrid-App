@@ -9,6 +9,7 @@ import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js
 import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
 import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import { daysBetween } from './dates.js';
+import { jtLiftTarget } from './programs/jt-shed-model.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -345,18 +346,33 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
 // description when present (e.g. "Back Squat (4×5)"), otherwise the week's
 // volume modifier. Used for BOTH what we materialise and what the cockpit label
 // shows, so the two can never disagree.
-export function liftTarget(desc, liftName, weekModifier = {}) {
+/**
+ * @param {any} desc
+ * @param {any} liftName
+ * @param {any} [weekModifier]
+ * @param {{ program?:any, week?:(number|string), dayKey?:string, opts?:any }} [ctx]
+ *   When the active program carries the tiered J&T progression model, the
+ *   per-exercise/per-week prescription is resolved from that model instead of
+ *   the single shared week modifier — so different tiers on the same day no
+ *   longer all collapse to the week modifier's sets×reps (the "everything is
+ *   4 × 10" bug). Non-J&T programs are entirely unaffected.
+ */
+export function liftTarget(desc, liftName, weekModifier = {}, ctx) {
+  if (ctx?.program?.progressionModel === 'jt-shed') {
+    const jt = jtLiftTarget(ctx.program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
+    if (jt) return { sets: jt.sets, reps: jt.reps };
+  }
   const parsed = parseTargetFromDescription(desc, liftName);
   if (parsed.matched) return { sets: parsed.sets, reps: parsed.reps };
   return { sets: weekModifier.sets || 4, reps: weekModifier.reps || 5 };
 }
 
-export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier) {
+export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier, ctx) {
   // Materialise exactly the program's prescribed number of sets. Weight and reps
   // are left blank so the cockpit can show the latest dated performance as an editable
   // light-grey ghost; the set/rep target lives on the card label. The diagnostic
   // engine advises (stall/fatigue notes) but never silently removes sets.
-  const { sets: setsCount } = liftTarget(desc, liftName, weekModifier);
+  const { sets: setsCount } = liftTarget(desc, liftName, weekModifier, ctx);
   const sets = [];
   for (let i = 0; i < setsCount; i++) {
     sets.push({ w: '', r: '', c: false });

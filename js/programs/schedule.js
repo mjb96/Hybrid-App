@@ -74,7 +74,7 @@ export function buildWeekSchedule(program, week = 1) {
       if (lifts.length) {
         let totalSets = 0;
         for (const n of lifts) {
-          const t = liftTarget(day.desc, n, mod);
+          const t = liftTarget(day.desc, n, mod, { program, week, dayKey: key });
           const s = Number(t && t.sets);
           if (Number.isFinite(s)) totalSets += s;
         }

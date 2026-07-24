@@ -788,6 +788,37 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · Jacked & Tan: Shed Edition — tier-aware prescription fix on
+  `claude/jacked-tan-shed-edition-52x0g5`. Root cause: every J&T lift is a bare string with
+  no inline spec, so `liftTarget`/`prescribeSetsForLift` fell back to the single shared
+  `weeklyVolModifiers` week value (`{sets:4, reps:10}`) for ALL exercises — the "everything is
+  4 × 10" bug, affecting both generated set counts and every prescription label. Fix: a central
+  tier-aware resolver (`resolveJtPrescription`/`jtLiftTarget`/`jtSchemeFor` in
+  `js/programs/jt-shed-model.js`) returns one structured prescription per program/week/day/
+  exercise (tier, sets, targetReps/repRange, percentage+source, repMax+back-off, plus-set,
+  MRS count, loadMode, displayLabel, setPlan). `liftTarget`/`prescribeSetsForLift` take an
+  optional `ctx` and delegate to it only when `program.progressionModel === 'jt-shed'` (all
+  other programs byte-for-byte unchanged). Threaded that ctx through EVERY resolution surface:
+  `verifyWeekStorageSchema` (materialise + reconcile), `reseedActiveProgramIntoWeek`,
+  `reconcileActiveProgramEdits` (state.js), cockpit label + reset/blank materialisers
+  (workout.js), day preview + sample session (detail.js), week-view schedule (schedule.js),
+  session completion/adherence (completion-policy.js), volume guide and program export.
+  Per-set roles (target/MRS/back-off/plus) are a RENDER concern in `setPlan` and are NOT
+  stamped onto stored sets, so `hasUnfinishedEditedSet`/`reconcilePrescribedSets`/warmup
+  predicates are unaffected (a fresh J&T day is not mis-detected as a started draft). Logged
+  sets and user notes are preserved; the existing non-destructive reconcile only pads blank
+  rows to the corrected per-tier count. Week 1 now resolves correctly per day (T1 10RM + 3×6
+  @ 70% +, T2a 4 × 10 @ 50%, T2b/T2c 15RM + 2 MRS, T3 20RM + 2 MRS, Pull-Up 3 × 6–10, Saturday
+  row 4 × 8–12, core 3 × 6–15), and the Monday week-view shows 23 working sets (4+4+3+3+3+3+3)
+  not 28. Tests: `tests/jt_shed_prescription.test.js` (13 cases — all 15 required scenarios
+  incl. same-day tier divergence, missing-TM no-4×10 fallback, independent week changes, no
+  non-J&T regression, snapshot/notes preserved) plus the existing 19-case suite (32/32).
+  Browser check extended to assert day-preview specs (Back Squat not 4×10; only T2a shows
+  4×10 per day; Saturday row 4×8–12) and real cockpit generated set counts + tier labels.
+  Local: typecheck, precache:check, smoke green; `node --test` 1237/1238 (the one failure is
+  the pre-existing `route_db_migration.test.js`). Cache advances to v119. Browser suite is
+  CI-only here (Playwright not installed locally).
+
 - 2026-07-24 · Jacked & Tan: Shed Edition program on `claude/jacked-tan-shed-edition-52x0g5`.
   New 12-week, five-day home-gym program added through the EXISTING catalog shape
   (`js/programs/catalog/jt-shed.js`: `days{}` bare-string lifts + `weeklyVolModifiers`),

@@ -54,7 +54,7 @@ export function projectProgramMuscleCredits(program, weekKey = '1') {
     if (!day || typeof day !== 'object') continue;
     for (const storedName of Array.isArray(day.lifts) ? day.lifts : []) {
       if (typeof storedName !== 'string' || !storedName.trim()) continue;
-      const target = liftTarget(day.desc, storedName, modifier);
+      const target = liftTarget(day.desc, storedName, modifier, { program, week: weekKey, dayKey });
       const sets = Number.parseInt(String(target.sets), 10);
       if (!(sets > 0)) continue;
       const credits = muscleCreditsForExercise(storedName) || {};

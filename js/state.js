@@ -477,7 +477,7 @@ export function verifyWeekStorageSchema(wk) {
 
         liftNames.forEach(liftName => {
           appState.weeks[wk].lifts[d][liftName] =
-            prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier);
+            prescribeSetsForLift(wk, d, liftName, dayBlueprint.desc, weekModifier, { program: activeProgram, week: wk, dayKey: d });
         });
         // Stamp the explicit display order (blueprint order). Render reads this
         // instead of object-key enumeration, which would otherwise float any
@@ -500,7 +500,7 @@ export function verifyWeekStorageSchema(wk) {
   DEFAULT_DAYS.forEach((day) => {
     const blueprint = activeProgram.days?.[day];
     for (const liftName of (blueprint?.lifts || [])) {
-      const target = liftTarget(blueprint.desc, liftName, modifier);
+      const target = liftTarget(blueprint.desc, liftName, modifier, { program: activeProgram, week: wk, dayKey: day });
       const existing = week.lifts?.[day]?.[liftName];
       const reconciled = reconcilePrescribedSets(existing, target.sets);
       if (!week.lifts[day]) week.lifts[day] = {};
@@ -560,7 +560,7 @@ export function reconcileActiveProgramEdits(programId) {
       const liftNames = (blueprint.lifts || []).filter(name => typeof name === 'string' && name.trim());
       const next = {};
       for (const liftName of liftNames) {
-        next[liftName] = prescribeSetsForLift(wk, day, liftName, blueprint.desc, modifier);
+        next[liftName] = prescribeSetsForLift(wk, day, liftName, blueprint.desc, modifier, { program, week: wk, dayKey: day });
       }
       week.lifts[day] = next;
       week.liftOrder[day] = [...liftNames];
@@ -625,7 +625,7 @@ export function reseedActiveProgramIntoWeek(wk) {
     //    sets are never touched (liftHasLoggedData guard).
     blueprintLifts.forEach(liftName => {
       if (!existing[liftName] || !liftHasLoggedData(existing[liftName])) {
-        existing[liftName] = prescribeSetsForLift(wk, d, liftName, program.days[d]?.desc, weekModifier);
+        existing[liftName] = prescribeSetsForLift(wk, d, liftName, program.days[d]?.desc, weekModifier, { program, week: wk, dayKey: d });
       }
     });
     // 3. Rebuild order: blueprint order, then retained logged lifts (history).

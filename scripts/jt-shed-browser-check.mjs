@@ -120,10 +120,16 @@ async function enterSessionNote(page, note) {
 async function dayPreview(page, day) {
   await page.click(`#programDetailScreen [data-action="open-day-preview"][data-day="${day}"]`);
   await page.waitForSelector('#wpmSheet .wpm-exercise-item', { timeout: 6000 });
-  const names = await previewNames(page);
+  // Each preview row is [name, prescription-spec]; capture both by exercise.
+  const rows = await page.$$eval('#wpmSheet .wpm-exercise-item', els => els.map(e => {
+    const spans = e.querySelectorAll('span');
+    return { name: (spans[0]?.textContent || '').trim(), spec: (spans[1]?.textContent || '').trim() };
+  }));
   await page.click('#wpmSheet [data-action="close-day-preview"], #wpmBackdrop').catch(() => {});
   await page.waitForTimeout(150);
-  return names;
+  const names = rows.map(r => r.name);
+  const specOf = (n) => (rows.find(r => r.name === n) || {}).spec || '';
+  return { names, rows, specOf };
 }
 
 const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
@@ -144,16 +150,36 @@ try {
     ok((await page.$$('#programDetailScreen details.jt-ex-note')).length >= 20, 'A4 per-exercise coaching notes present');
 
     // Week 1 Monday exercises (deterministic via the day preview).
-    eq(await dayPreview(page, 'mon'),
+    const mon = await dayPreview(page, 'mon');
+    eq(mon.names,
       ['Back Squat', 'Romanian Deadlift', 'Dumbbell Bulgarian Split Squat', 'Chest-Supported Dumbbell Row', 'Band Leg Curl', 'Barbell Standing Calf Raise', 'Ab Wheel Rollout'],
       'A5 Week 1 Monday exercises');
 
+    // A5b — the BUG regression: each Monday exercise shows its TIER prescription,
+    // not a universal 4 × 10.
+    ok(/10RM/.test(mon.specOf('Back Squat')) && /3×6/.test(mon.specOf('Back Squat')) && /70%/.test(mon.specOf('Back Squat')),
+      `A5b Back Squat shows 10RM + 3×6 @ 70% (got "${mon.specOf('Back Squat')}")`);
+    ok(!/4 × 10/.test(mon.specOf('Back Squat')), 'A5c Back Squat is NOT 4 × 10');
+    eq(mon.specOf('Romanian Deadlift'), '4 × 10 @ 50%', 'A5d Romanian Deadlift (T2a) = 4 × 10 @ 50%');
+    eq(mon.specOf('Dumbbell Bulgarian Split Squat'), '15RM + 2 MRS', 'A5e Bulgarian Split Squat = 15RM + 2 MRS');
+    eq(mon.specOf('Band Leg Curl'), '20RM + 2 MRS', 'A5f Band Leg Curl = 20RM + 2 MRS');
+    ok(/3 × 6–15/.test(mon.specOf('Ab Wheel Rollout')), `A5g core = 3 × 6–15 (got "${mon.specOf('Ab Wheel Rollout')}")`);
+    // Only the T2a exercise shows 4 × 10 on Monday.
+    eq(mon.names.filter(n => /4 × 10/.test(mon.specOf(n))), ['Romanian Deadlift'], 'A5h only T2a shows 4 × 10 on Monday');
+
     // Tuesday uses Pull-Up (not Band Lat Pulldown); Saturday keeps Band Lat Pulldown.
     const tue = await dayPreview(page, 'tue');
-    ok(tue.includes('Pull-Up'), 'A6 Tuesday includes Pull-Up');
-    ok(!tue.includes('Band Lat Pulldown'), 'A6b Tuesday excludes Band Lat Pulldown');
+    ok(tue.names.includes('Pull-Up'), 'A6 Tuesday includes Pull-Up');
+    ok(!tue.names.includes('Band Lat Pulldown'), 'A6b Tuesday excludes Band Lat Pulldown');
+    ok(/10RM/.test(tue.specOf('Barbell Bench Press')), 'A6c Bench Press shows the T1 prescription');
+    eq(tue.specOf('Standing Barbell Overhead Press'), '4 × 10 @ 50%', 'A6d Overhead Press (T2a) = 4 × 10 @ 50%');
+    ok(/3 × 6–10/.test(tue.specOf('Pull-Up')), `A6e Pull-Up = 3 × 6–10 (got "${tue.specOf('Pull-Up')}")`);
+    eq(tue.names.filter(n => /4 × 10/.test(tue.specOf(n))), ['Standing Barbell Overhead Press'], 'A6f only T2a shows 4 × 10 on Tuesday');
+
     const sat = await dayPreview(page, 'sat');
-    ok(sat.includes('Band Lat Pulldown'), 'A7 Saturday includes Band Lat Pulldown');
+    ok(sat.names.includes('Band Lat Pulldown'), 'A7 Saturday includes Band Lat Pulldown');
+    ok(/4 × 8–12/.test(sat.specOf('Chest-Supported Dumbbell Row')), `A7b Saturday row = 4 × 8–12 (got "${sat.specOf('Chest-Supported Dumbbell Row')}")`);
+    eq(sat.specOf('Band Lat Pulldown'), '15RM + 2 MRS', 'A7c Band Lat Pulldown = 15RM + 2 MRS');
 
     if (errors.length) fail(`A browser errors: ${errors.join(' | ')}`);
     await ctx.close();
@@ -183,6 +209,32 @@ try {
       await page.waitForSelector('#view-workout .cockpit-ex-name', { timeout: 8000 });
       const names = await cockpitNames(page);
       ok(names.length >= 7, `B4 cockpit renders today's (${todayKey}) J&T session`);
+
+      // B4a — the BUG regression at the cockpit: the generated set arrays are
+      // per-tier, not a uniform 4 across the board. Read the real generated sets
+      // from the snapshot the cockpit just materialised.
+      const st = await readState(page);
+      const order = st.weeks['1'].liftOrder[todayKey];
+      const counts = order.map((n) => st.weeks['1'].lifts[todayKey][n].length);
+      eq(counts[0], 4, `B4a T1 (${order[0]}) generated 4 set rows`);
+      ok(new Set(counts).size >= 2, `B4b set counts vary by tier, not uniform 4 (counts=${JSON.stringify(counts)})`);
+      ok(counts.includes(3), 'B4c at least one tier generated 3 set rows');
+
+      // B4d — cockpit target LABELS reflect the tier (real DOM, per exercise).
+      const cards = await page.$$eval('#cockpitExercisesContainer .cockpit-exercise', els => els.map(e => ({
+        name: (e.querySelector('.cockpit-ex-name')?.textContent || '').trim(),
+        target: (e.querySelector('.cockpit-ex-target')?.textContent
+          || e.querySelector('.cockpit-ex-target')?.getAttribute('data-target-label') || '').trim(),
+        rows: e.querySelectorAll('.cockpit-set-row').length,
+      })));
+      const t1Card = cards.find(c => c.name === order[0]);
+      const t2aCard = cards.find(c => c.name === order[1]);
+      ok(t1Card && /RM/.test(t1Card.target) && !/4 × 10/.test(t1Card.target),
+        `B4d T1 label shows a rep-max target, not 4 × 10 (got "${t1Card && t1Card.target}")`);
+      ok(t2aCard && /4 × 10/.test(t2aCard.target), `B4e T2a label shows 4 × 10 (got "${t2aCard && t2aCard.target}")`);
+      ok(cards.some(c => /MRS/.test(c.target)), 'B4f at least one exercise labels its max-rep sets (MRS)');
+      // The default-expanded T1 card renders its real 4 set rows in the DOM.
+      if (t1Card && t1Card.rows > 0) eq(t1Card.rows, 4, 'B4g expanded T1 card renders 4 real set rows');
 
       const NOTE = 'Back tweak on RDL — cut it short, felt strong on squats.';
       await enterSessionNote(page, NOTE);
