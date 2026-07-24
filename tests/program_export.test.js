@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   buildProgramExportText, serializeProgram, extractSessionNotes, PROGRAM_REVIEW_HEADER,
+  resolveProgramEquipment,
 } from '../js/programs/program-export.js';
 import { replaceProgramExercise } from '../js/programs/editor-model.js';
 import { getCatalogEntry } from '../js/programs/catalog.js';
@@ -167,6 +168,68 @@ test('extractSessionNotes keeps narrative and drops per-lift prescriptions', () 
   assert.equal(extractSessionNotes('10×10 Bench and Row.'), '10×10 Bench and Row.');
 });
 
+// ── Equipment line: declared ∪ inferred-from-day.lifts ───────────────────────
+const oneLiftProgram = (equipment, lift) => ({
+  name: 'Eq', totalWeeks: 1, equipment,
+  days: { mon: { title: 'D', desc: '', runs: 'Rest', lifts: [lift] } },
+  weeklyVolModifiers: { '1': { sets: 3, reps: 10 } },
+});
+
+test('equipment: a barbell-only program containing EZ-Bar Curl exports Barbell and EZ bar', () => {
+  const eq = resolveProgramEquipment(oneLiftProgram(['barbell'], 'EZ-Bar Curl'));
+  assert.deepEqual(eq, ['Barbell', 'EZ bar']);
+  assert.ok(serializeProgram(oneLiftProgram(['barbell'], 'EZ-Bar Curl')).includes('Equipment: Barbell, EZ bar'));
+});
+
+test('equipment: removing the last EZ-bar lift drops inferred EZ bar unless declared', () => {
+  // Replace the only EZ-bar lift with a straight-bar one → no inferred ezBar.
+  assert.deepEqual(resolveProgramEquipment(oneLiftProgram(['barbell'], 'Barbell Curl')), ['Barbell']);
+  // But an explicit declaration keeps it even with no EZ-bar lift.
+  assert.deepEqual(resolveProgramEquipment(oneLiftProgram(['barbell', 'ezBar'], 'Barbell Curl')), ['Barbell', 'EZ bar']);
+});
+
+test('equipment: a stale EZ-bar name in day.desc adds nothing (day.lifts is authoritative)', () => {
+  const prog = {
+    name: 'X', totalWeeks: 1, equipment: ['barbell'],
+    days: { mon: { title: 'D', desc: 'EZ-Bar Curl (3×10). Barbell Curl (3×10).', runs: 'Rest', lifts: ['Barbell Curl'] } },
+    weeklyVolModifiers: { '1': { sets: 3, reps: 10 } },
+  };
+  assert.deepEqual(resolveProgramEquipment(prog), ['Barbell']);
+});
+
+test('equipment: unknown custom exercises add no inferred equipment and do not break export', () => {
+  const eq = resolveProgramEquipment(oneLiftProgram(['dumbbells'], 'My Totally Custom Move'));
+  assert.deepEqual(eq, ['Dumbbells']);
+});
+
+test('equipment: repeated EZ-bar exercises yield a single EZ bar entry', () => {
+  const prog = {
+    name: 'X', totalWeeks: 1, equipment: [],
+    days: {
+      mon: { title: 'A', desc: '', runs: 'Rest', lifts: ['EZ-Bar Curl', 'EZ-Bar Skull Crusher'] },
+      tue: { title: 'B', desc: '', runs: 'Rest', lifts: ['EZ-Bar Reverse Curl'] },
+    },
+    weeklyVolModifiers: { '1': { sets: 3, reps: 10 } },
+  };
+  const eq = resolveProgramEquipment(prog);
+  assert.equal(eq.filter((e) => e === 'EZ bar').length, 1, 'EZ bar appears once');
+});
+
+test('equipment: output order is deterministic (canonical EQUIPMENT order)', () => {
+  const prog = oneLiftProgram(['dumbbells', 'barbell'], 'EZ-Bar Skull Crusher'); // ezBar + bench inferred
+  const a = resolveProgramEquipment(prog);
+  const b = resolveProgramEquipment(prog);
+  assert.deepEqual(a, b);
+  // Canonical order is barbell, ezBar, bench, dumbbells … regardless of declared order.
+  assert.deepEqual(a, ['Barbell', 'EZ bar', 'Adjustable bench', 'Dumbbells']);
+});
+
+test('equipment: no duplicate label when a lift infers an already-declared item', () => {
+  const eq = resolveProgramEquipment(oneLiftProgram(['barbell', 'bench'], 'Barbell Bench Press'));
+  assert.equal(eq.filter((e) => e === 'Barbell').length, 1);
+  assert.deepEqual(eq, ['Barbell', 'Adjustable bench']);
+});
+
 // ── Real-program regression: home_gym_rebuild_5day, personal + edited ─────────
 test('real home_gym_rebuild_5day: edited personal program exports current exercises', () => {
   // A personal backing program is a deep clone of the catalog source.
@@ -200,6 +263,12 @@ test('real home_gym_rebuild_5day: edited personal program exports current exerci
   assert.ok(thuBlock.includes('EZ-Bar Skull Crusher'), 'EZ-Bar Skull Crusher present on Push Hypertrophy');
   // Narrative never leaks in as an exercise.
   assert.ok(!/\d+\.\sSquat \+ hinge foundation/.test(text));
+
+  // The Equipment line now reflects what the edited program actually uses — the
+  // EZ-bar edits are honestly disclosed even though the source array never had it.
+  const equipLine = text.split('\n').find((l) => l.startsWith('Equipment:'));
+  assert.ok(equipLine.includes('EZ bar'), `Equipment line discloses EZ bar (${equipLine})`);
+  assert.ok(equipLine.includes('Barbell') && equipLine.includes('Resistance bands'));
 
   // The source catalog remains unchanged.
   assert.ok(getCatalogEntry('home_gym_rebuild_5day').days.tue.lifts.includes('Weighted Sit-Up'));

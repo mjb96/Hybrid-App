@@ -125,6 +125,8 @@ function assertCopiedText(text, labelPrefix) {
   ok(!/Weighted Sit-Up/.test(tue), `${labelPrefix} stale Weighted Sit-Up absent from Lower Strength`);
   ok(!/Dumbbell Curl/.test(mon), `${labelPrefix} replaced Dumbbell Curl absent from Upper Strength`);
   ok(!/prog_/.test(text), `${labelPrefix} no internal program id in text`);
+  const equipLine = text.split('\n').find((l) => l.startsWith('Equipment:')) || '';
+  ok(/EZ bar/.test(equipLine), `${labelPrefix} Equipment line discloses EZ bar after the edit (${equipLine})`);
 }
 
 const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });

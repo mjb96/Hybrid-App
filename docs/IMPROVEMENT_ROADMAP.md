@@ -813,7 +813,11 @@ implementation register.
   `exercise_catalog` for EZ-bar identity/equipment/search), typecheck, smoke, precache green;
   new `copy-program-browser-check.mjs` proves the edited personal text reaches the clipboard
   (mocked + fallback) through the real UI with no state mutation, registered in
-  `run-browser-checks`. Cache advances to v117. · Next: none.
+  `run-browser-checks`. The export's Equipment line is the union of the program's declared
+  equipment AND the equipment inferred from the current `day.lifts` (canonical-catalogue
+  resolved, deduped, canonical-order), so an edited program that adds EZ-Bar work honestly
+  discloses "EZ bar" — never the user's whole Settings kit, never stale desc/source equipment.
+  Cache advances to v117. · Next: none.
 - 2026-07-23 · Program-editor preview consistency, canonical exercise names, mobile picker +
   home-gym exercises on `claude/program-editor-mobile-picker-wr1kn6`. Fixed the reported phone
   bug: the Lower Strength day-preview kept showing stale/narrative exercises after an edit. Root

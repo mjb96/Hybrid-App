@@ -19,7 +19,7 @@ import { getWeekModifier } from '../schema.js';
 import { DIFFICULTY_LABELS } from './catalog.js';
 import { weekKeys, isDeloadWeek } from './progression.js';
 import { EDITOR_DAYS, EDITOR_DAY_LABELS, dayTrainingSummary, isRunPlanned } from './editor-model.js';
-import { equipmentLabel } from '../exercises/catalog.js';
+import { EQUIPMENT, equipmentLabel, resolveExercise } from '../exercises/catalog.js';
 
 // The instruction block prepended in "AI review" mode. Kept as an exported
 // constant so both the formatter and its tests reference one source of truth.
@@ -56,6 +56,75 @@ function labelProgramEquipment(token) {
   return PROGRAM_EQUIPMENT_LABELS[key.toLowerCase()]
     || equipmentLabel(key) // catalogue camelCase keys (ezBar → EZ bar)
     || key.replace(/[-_]/g, ' ');
+}
+
+// Program-facing labels for canonical exercise-equipment keys (nicer/longer than
+// the short picker labels: "Squat rack" not "Rack").
+const CATALOG_EQUIPMENT_LABELS = {
+  barbell: 'Barbell', ezBar: 'EZ bar', rack: 'Squat rack', bench: 'Adjustable bench',
+  dumbbells: 'Dumbbells', bands: 'Resistance bands', cables: 'Cable machine',
+  machine: 'Machine', pullupBar: 'Pull-up bar', kettlebells: 'Kettlebells',
+  sled: 'Sled', sandbag: 'Sandbag', erg: 'Erg',
+};
+function labelCatalogEquipment(key) {
+  return CATALOG_EQUIPMENT_LABELS[key] || equipmentLabel(key);
+}
+
+// Not real equipment constraints — never inferred onto the export.
+const NON_EQUIPMENT_KEYS = new Set(['bodyweight', 'other']);
+
+// A declared program-equipment token → canonical catalogue key, so a declared
+// "rack"/"kettlebell"/"ez-bar" dedupes with equipment inferred from the lifts.
+const DECLARED_TO_CATALOG_KEY = {
+  kettlebell: 'kettlebells', 'pull-up-bar': 'pullupBar', pullups: 'pullupBar',
+  'ez-bar': 'ezBar', ezbar: 'ezBar', 'ski-erg': 'erg', 'rowing-machine': 'erg',
+};
+function declaredToCatalogKey(token) {
+  const t = String(token || '').trim();
+  if (!t) return null;
+  if (EQUIPMENT.includes(t)) return t;
+  return DECLARED_TO_CATALOG_KEY[t.toLowerCase()] || null;
+}
+
+/**
+ * The equipment the exported program ACTUALLY uses: the union of the program's
+ * declared equipment and the equipment required by every CURRENT exercise in
+ * every day.lifts (resolved through the canonical catalogue). This keeps the
+ * copied constraints honest after edits — e.g. a barbell program that now
+ * contains EZ-Bar Curl exports both Barbell and EZ bar. day.lifts is
+ * authoritative (never day.desc or the source catalog); unknown custom names add
+ * no inferred equipment; output is de-duplicated and ordered by the canonical
+ * EQUIPMENT order (declared-only tokens with no catalogue key trail after).
+ * @returns {string[]} readable equipment labels
+ */
+export function resolveProgramEquipment(program) {
+  const catalogKeys = new Set();
+  const rawExtras = []; // declared tokens with no catalogue key, in declared order
+
+  for (const token of (Array.isArray(program?.equipment) ? program.equipment : [])) {
+    const key = declaredToCatalogKey(token);
+    if (key) {
+      catalogKeys.add(key);
+    } else {
+      const label = labelProgramEquipment(token);
+      if (label && !rawExtras.includes(label)) rawExtras.push(label);
+    }
+  }
+
+  for (const dayKey of EDITOR_DAYS) {
+    const day = program?.days?.[dayKey];
+    const lifts = Array.isArray(day?.lifts) ? day.lifts : [];
+    for (const name of lifts) {
+      const ex = resolveExercise(name); // aliases + inline specs handled; unknown → null
+      if (!ex) continue;
+      for (const key of (ex.equipment || [])) {
+        if (!NON_EQUIPMENT_KEYS.has(key)) catalogKeys.add(key);
+      }
+    }
+  }
+
+  const ordered = EQUIPMENT.filter((k) => catalogKeys.has(k)).map(labelCatalogEquipment);
+  return [...ordered, ...rawExtras];
 }
 
 function titleCaseGoal(value) {
@@ -170,9 +239,7 @@ export function serializeProgram(program, context = {}) {
   if (Number.isFinite(weeks) && weeks > 0) meta.push(`Length: ${weeks} week${weeks === 1 ? '' : 's'}`);
   const sessions = parseInt(program.sessionsPerWeek, 10);
   if (Number.isFinite(sessions) && sessions > 0) meta.push(`Sessions per week: ${sessions}`);
-  const equipment = Array.isArray(program.equipment)
-    ? program.equipment.map(labelProgramEquipment).filter(Boolean)
-    : [];
+  const equipment = resolveProgramEquipment(program);
   if (equipment.length) meta.push(`Equipment: ${equipment.join(', ')}`);
   if (meta.length) blocks.push(meta.join('\n'));
 
