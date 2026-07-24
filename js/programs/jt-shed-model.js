@@ -341,6 +341,183 @@ export function dayExercises(program, dayKey) {
 }
 
 // -----------------------------------------------------------------------------
+// CENTRAL PRESCRIPTION RESOLVER
+// Given a program + week + day + exercise, resolve the ONE structured
+// prescription every surface must agree on (preview, cockpit label, set-row
+// count, week brief). Pure — no state, no mutation. The resolved `sets` is the
+// number of set rows to materialise; per-set roles live in `setPlan` and are a
+// RENDER concern only (never stamped onto stored sets, which stay plain
+// {w,r,c} so draft/reconcile/warmup predicates are unaffected).
+// -----------------------------------------------------------------------------
+
+/** ~1–2 reps in reserve. */
+const RIR = '1–2';
+
+/**
+ * Map an exercise (by day + name + authored tier) to its progression scheme.
+ * Driven by the explicit authored tier metadata, not by guessing from the load
+ * type — so a percentage lift is only T2a because its tier says so.
+ * @param {string} dayKey @param {string} name @param {string} tier
+ * @returns {'t1'|'t2a'|'t2bc'|'t3'|'pullup'|'spec_row'|'core_mon'|'core_sat'|null}
+ */
+export function jtSchemeFor(dayKey, name, tier) {
+  const t = String(tier || '');
+  if (name === 'Pull-Up') return 'pullup';               // T2c special — NOT the target-rep table
+  if (t === 'Specialization') return 'spec_row';         // Saturday chest-supported row 4×8–12
+  if (t === 'Core') return dayKey === 'mon' ? 'core_mon' : 'core_sat';
+  if (t.startsWith('T1')) return 't1';
+  if (t.startsWith('T2a')) return 't2a';
+  if (t.startsWith('T2b') || t.startsWith('T2c')) return 't2bc';
+  if (t.startsWith('T3')) return 't3';
+  return null;
+}
+
+const _pct = (p) => (p == null ? '' : (Number.isInteger(p) ? `${p}%` : `${p}%`));
+
+/**
+ * Resolve the structured prescription for one exercise in one week.
+ * @param {any} program
+ * @param {number} week
+ * @param {string} dayKey
+ * @param {string} name
+ * @param {{ trainingMax?:number|null, dayRepMaxWeight?:number|null, increment?:number }} [opts]
+ * @returns {null | {
+ *   scheme:string, tier:string, progressionType:string,
+ *   sets:number, targetReps:(number|null), repRange:(number[]|null),
+ *   percentage:(number|null), percentageSource:(string|null),
+ *   repMaxTarget:(number|null), backoffSets:(number|null), backoffReps:(number|null),
+ *   isPlusSet:boolean, mrsCount:number, rirTarget:string,
+ *   loadMode:(string|null), doubleProgression:boolean,
+ *   load:(number|null), needsTrainingMax:boolean,
+ *   displayLabel:string, setPlan:Array<{role:string, reps?:(number|string), pct?:number, plus?:boolean}>
+ * }}
+ */
+export function resolveJtPrescription(program, week, dayKey, name, opts = {}) {
+  if (program?.progressionModel !== 'jt-shed') return null;
+  const w = _wk(week);
+  if (!w) return null;
+  const meta = dayExercises(program, dayKey).find((e) => e.name === name);
+  const tier = meta?.tier || '';
+  const scheme = jtSchemeFor(dayKey, name, tier);
+  if (!scheme) return null;
+
+  const base = {
+    scheme, tier, progressionType: scheme,
+    sets: 0, targetReps: null, repRange: null,
+    percentage: null, percentageSource: null,
+    repMaxTarget: null, backoffSets: null, backoffReps: null,
+    isPlusSet: false, mrsCount: 0, rirTarget: RIR,
+    loadMode: null, doubleProgression: false,
+    load: null, needsTrainingMax: false,
+    displayLabel: '', setPlan: [],
+  };
+
+  if (scheme === 't1') {
+    const p = t1Prescription(w);
+    if (p.assessment) {
+      return { ...base, progressionType: 't1-assessment', sets: 1, repMaxTarget: null,
+        displayLabel: '1RM / 2RM / 3RM or rep-PR assessment (true 1RM optional)',
+        setPlan: [{ role: 'assessment', reps: '1–3' }] };
+    }
+    if (p.singleTop) {
+      return { ...base, progressionType: 't1-single', sets: 1, repMaxTarget: 1,
+        displayLabel: 'Work to a controlled heavy single (no back-off)',
+        setPlan: [{ role: 'repmax', reps: 1 }] };
+    }
+    const bo = p.backoff;
+    const load = t1BackoffLoad(w, { trainingMax: opts.trainingMax, dayRepMaxWeight: opts.dayRepMaxWeight, increment: opts.increment });
+    const basisTxt = bo.basis === 'dayMax' ? ' of day-max' : '';
+    const setPlan = [{ role: 'repmax', reps: p.repMax }];
+    for (let i = 0; i < bo.sets; i++) {
+      setPlan.push({ role: i === bo.sets - 1 && bo.plusSet ? 'plus' : 'backoff', reps: bo.reps, pct: bo.pct, plus: i === bo.sets - 1 && bo.plusSet });
+    }
+    return { ...base, progressionType: 't1', sets: 1 + bo.sets, repMaxTarget: p.repMax,
+      targetReps: p.repMax, backoffSets: bo.sets, backoffReps: bo.reps,
+      percentage: bo.pct, percentageSource: bo.basis === 'dayMax' ? 'dayRepMax' : 'trainingMax',
+      isPlusSet: bo.plusSet, load: load.load, needsTrainingMax: !!load.needsTrainingMax,
+      displayLabel: `${p.repMax}RM + ${bo.sets}×${bo.reps} @ ${_pct(bo.pct)}${basisTxt}${bo.plusSet ? ' (+)' : ''}`,
+      setPlan };
+  }
+
+  if (scheme === 't2a') {
+    const p = t2aPrescription(w);
+    if (!p) return { ...base, progressionType: 't2a-none', sets: 0, displayLabel: 'No T2a work this week' };
+    const load = t2aLoad(w, opts.trainingMax, { increment: opts.increment });
+    return { ...base, progressionType: 't2a', sets: p.sets, targetReps: p.reps,
+      percentage: p.pct, percentageSource: p.basis === 'updatedTm' ? 'updatedTrainingMax' : 'trainingMax',
+      load: load.load, needsTrainingMax: !!load.needsTrainingMax,
+      displayLabel: `${p.sets} × ${p.reps} @ ${_pct(p.pct)}`,
+      setPlan: Array.from({ length: p.sets }, () => ({ role: 'work', reps: p.reps, pct: p.pct })) };
+  }
+
+  if (scheme === 't2bc') {
+    const p = t2bcPrescription(w);
+    if (p.none) return { ...base, progressionType: 't2bc-none', sets: 0, displayLabel: 'No T2b/T2c work this week' };
+    if (p.recovery) return { ...base, progressionType: 't2bc-recovery', sets: 2, repRange: [10, 12],
+      displayLabel: 'Recovery-only — 2 light sets', setPlan: [{ role: 'light' }, { role: 'light' }] };
+    return { ...base, progressionType: 't2bc', sets: 3, targetReps: p.target, mrsCount: 2,
+      displayLabel: `${p.target}RM + 2 MRS`,
+      setPlan: [{ role: 'target', reps: p.target }, { role: 'mrs' }, { role: 'mrs' }] };
+  }
+
+  if (scheme === 't3') {
+    const p = t3Prescription(w);
+    if (p.rest) return { ...base, progressionType: 't3-rest', sets: 0,
+      displayLabel: p.optionalLight ? 'Rest or optional very light pump work' : 'Rest' };
+    if (p.light) return { ...base, progressionType: 't3-light', sets: p.lightSets, repRange: [p.lightApprox, p.lightApprox],
+      displayLabel: `${p.lightSets} × ~${p.lightApprox} (light, no max-rep sets)`,
+      setPlan: Array.from({ length: p.lightSets }, () => ({ role: 'light', reps: p.lightApprox })) };
+    return { ...base, progressionType: 't3', sets: 3, targetReps: p.target, mrsCount: 2,
+      displayLabel: `${p.target}RM + 2 MRS`,
+      setPlan: [{ role: 'target', reps: p.target }, { role: 'mrs' }, { role: 'mrs' }] };
+  }
+
+  if (scheme === 'pullup') {
+    return { ...base, progressionType: 'double-progression', sets: PULLUP_SCHEME.sets,
+      repRange: [PULLUP_SCHEME.minReps, PULLUP_SCHEME.maxReps], doubleProgression: true, loadMode: 'bodyweight',
+      displayLabel: `${PULLUP_SCHEME.sets} × ${PULLUP_SCHEME.minReps}–${PULLUP_SCHEME.maxReps} (double progression)`,
+      setPlan: Array.from({ length: PULLUP_SCHEME.sets }, () => ({ role: 'work', reps: `${PULLUP_SCHEME.minReps}–${PULLUP_SCHEME.maxReps}` })) };
+  }
+
+  if (scheme === 'spec_row') {
+    return { ...base, progressionType: 'double-progression', sets: SATURDAY_ROW_SCHEME.sets,
+      repRange: [SATURDAY_ROW_SCHEME.minReps, SATURDAY_ROW_SCHEME.maxReps], doubleProgression: true,
+      displayLabel: `${SATURDAY_ROW_SCHEME.sets} × ${SATURDAY_ROW_SCHEME.minReps}–${SATURDAY_ROW_SCHEME.maxReps} (double progression)`,
+      setPlan: Array.from({ length: SATURDAY_ROW_SCHEME.sets }, () => ({ role: 'work', reps: `${SATURDAY_ROW_SCHEME.minReps}–${SATURDAY_ROW_SCHEME.maxReps}` })) };
+  }
+
+  if (scheme === 'core_mon') {
+    return { ...base, progressionType: 'double-progression', sets: MONDAY_CORE_SCHEME.sets,
+      repRange: [MONDAY_CORE_SCHEME.minReps, MONDAY_CORE_SCHEME.maxReps], doubleProgression: true,
+      displayLabel: `${MONDAY_CORE_SCHEME.sets} × ${MONDAY_CORE_SCHEME.minReps}–${MONDAY_CORE_SCHEME.maxReps} (double progression)`,
+      setPlan: Array.from({ length: MONDAY_CORE_SCHEME.sets }, () => ({ role: 'work', reps: `${MONDAY_CORE_SCHEME.minReps}–${MONDAY_CORE_SCHEME.maxReps}` })) };
+  }
+
+  if (scheme === 'core_sat') {
+    return { ...base, progressionType: 'double-progression', sets: SATURDAY_CORE_SCHEME.sets, doubleProgression: true,
+      displayLabel: `${SATURDAY_CORE_SCHEME.sets} sets (double progression)`,
+      setPlan: Array.from({ length: SATURDAY_CORE_SCHEME.sets }, () => ({ role: 'work' })) };
+  }
+
+  return null;
+}
+
+/**
+ * The {sets, reps, label} triple the cockpit/preview need. `reps` is the primary
+ * numeric target used for the label + auto-progression rep goal; `label` is the
+ * full tier-aware prescription string. Returns null for non-J&T / unknown lifts
+ * so callers fall back to the generic liftTarget.
+ * @returns {null | { sets:number, reps:(number|string), label:string, prescription:any }}
+ */
+export function jtLiftTarget(program, week, dayKey, name, opts = {}) {
+  const p = resolveJtPrescription(program, week, dayKey, name, opts);
+  if (!p) return null;
+  const reps = p.targetReps != null ? p.targetReps
+    : (p.repRange ? `${p.repRange[0]}–${p.repRange[1]}` : (p.repMaxTarget != null ? p.repMaxTarget : ''));
+  return { sets: p.sets, reps, label: p.displayLabel, prescription: p };
+}
+
+// -----------------------------------------------------------------------------
 function _wk(week) {
   const w = Math.floor(Number(week));
   return Number.isFinite(w) && w >= 1 && w <= JT_SHED_WEEKS ? w : null;

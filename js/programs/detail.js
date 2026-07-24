@@ -16,8 +16,17 @@ import { getWeekModifier } from '../schema.js';
 import { liftTarget } from '../engine.js';
 import {
   programNotes as jtProgramNotes, weekNote as jtWeekNote, dayExercises as jtDayExercises,
-  t1Prescription, t2aPrescription, t2bcPrescription, t3Prescription,
+  t1Prescription, t2aPrescription, t2bcPrescription, t3Prescription, jtLiftTarget,
 } from './jt-shed-model.js';
+
+// The tier-aware J&T prescription label for one exercise, or null for non-J&T /
+// unknown lifts (caller then falls back to the generic sets×reps). Keeps the
+// day preview + sample session in lock-step with the cockpit and week brief.
+function jtSpecLabel(ctx, name) {
+  if (!ctx || ctx.program?.progressionModel !== 'jt-shed') return null;
+  const jt = jtLiftTarget(ctx.program, ctx.week, ctx.dayKey, name);
+  return jt ? jt.label : null;
+}
 import { isBookmarked, toggleBookmark, isProgramCompleted, markProgramCompleted, getProgramById, getPersonalRating, isCustomProgram } from '../state.js';
 import { escapeHtml, safeCssColor } from '../util.js';
 import { evaluateSessionCompletion } from '../workout/completion-policy.js';
@@ -411,9 +420,13 @@ function renderSampleWorkout(program, programData, wod = false) {
   } else if (chosenDay.lifts?.length) {
     const shown = chosenDay.lifts.slice(0, 5);
     const extra = chosenDay.lifts.length - shown.length;
+    const jtCtx = { program, week: 1, dayKey: chosenKey };
     bodyHtml = `
       <div class="sample-exercise-list">
-        ${shown.map(l => `<div class="sample-exercise-row"><span class="sample-ex-name">${escapeHtml(l)}</span></div>`).join('')}
+        ${shown.map(l => {
+          const jt = jtSpecLabel(jtCtx, l);
+          return `<div class="sample-exercise-row"><span class="sample-ex-name">${escapeHtml(l)}</span>${jt ? `<span class="sample-ex-prescription">${escapeHtml(jt)}</span>` : ''}</div>`;
+        }).join('')}
         ${extra > 0 ? `<div class="sample-ex-more">+${extra} more exercises</div>` : ''}
       </div>`;
   } else if (chosenDay.runs && chosenDay.runs !== 'Rest') {
@@ -896,7 +909,7 @@ export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   } else if (day.workoutPreview?.type === 'HYROX') {
     previewHtml = renderHyroxPreview(day.workoutPreview);
   } else {
-    previewHtml = renderFallbackPreview(day, mod);
+    previewHtml = renderFallbackPreview(day, mod, { program: catalog || program, week: wk, dayKey });
   }
 
   bodyEl.innerHTML = weekBar + previewHtml;
@@ -940,7 +953,7 @@ export function openDayPreviewModal(dayKey, programId, weekIndex, opts = {}) {
   }
 }
 
-function renderFallbackPreview(day, mod) {
+function renderFallbackPreview(day, mod, ctx) {
   let html = '';
   const hasRun = day.runs && day.runs !== 'Rest';
   const names = (Array.isArray(day.lifts) ? day.lifts : [])
@@ -964,8 +977,11 @@ function renderFallbackPreview(day, mod) {
       <div class="wpm-type-label wpm-type-label--strength" style="${hasRun ? 'margin-top:16px;' : ''}">🏋️ Strength Session</div>
       <div class="wpm-exercise-list">
         ${names.map(name => {
+          // Tiered J&T model wins so different tiers on one day don't all show the
+          // week modifier's sets×reps; otherwise the generic liftTarget spec.
+          const jt = jtSpecLabel(ctx, name);
           const t = liftTarget(day.desc, name, mod || {});
-          const spec = `${t.sets} × ${t.reps}`;
+          const spec = jt || `${t.sets} × ${t.reps}`;
           return `<div class="wpm-exercise-item" style="display:flex;justify-content:space-between;gap:10px;">
             <span>${escapeHtml(name)}</span><span style="font-family:ui-monospace,monospace;color:var(--text-secondary);flex-shrink:0;">${escapeHtml(spec)}</span>
           </div>`;

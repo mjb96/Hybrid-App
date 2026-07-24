@@ -30,11 +30,11 @@ export function classifyPlannedSession(blueprint) {
   };
 }
 
-function plannedWorkingSets(program, week, blueprint) {
+function plannedWorkingSets(program, week, blueprint, dayKey) {
   if (!Array.isArray(blueprint?.lifts)) return 0;
   const modifier = getWeekModifier(program, week);
   return blueprint.lifts.reduce((total, lift) => {
-    const target = liftTarget(blueprint.desc, lift, modifier);
+    const target = liftTarget(blueprint.desc, lift, modifier, { program, week, dayKey });
     const sets = Number(target?.sets);
     return total + (Number.isFinite(sets) && sets > 0 ? Math.floor(sets) : 0);
   }, 0);
@@ -98,7 +98,7 @@ export function evaluateSessionCompletion(state, program, week, day) {
   }
   const blueprint = program?.days?.[day] || null;
   const plan = classifyPlannedSession(blueprint);
-  const expectedSets = plan.hasGym ? plannedWorkingSets(program, weekKey, blueprint) : 0;
+  const expectedSets = plan.hasGym ? plannedWorkingSets(program, weekKey, blueprint, day) : 0;
   const allDayLifts = weekData.lifts?.[day] || {};
   const activeNames = activeSessionLiftNames(weekData, day, blueprint);
   const activeDayLifts = Object.fromEntries(activeNames.map((name) => [name, allDayLifts[name]]));
