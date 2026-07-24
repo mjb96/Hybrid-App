@@ -788,6 +788,68 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-07-24 · Settings close button vs Android status bar — on
+  `claude/settings-close-button-android-mope1q`. The Settings header (`index.html`
+  `.settings-header`, avatar hero + close ✕ in one flex row) had `padding: 20px 20px 16px`
+  with no top safe-area inset, so under `viewport-fit=cover` the whole header (close button
+  included) sat behind the Android status icons.
+  **A CSS-only fix was tried first and did NOT work on device — recording why, because it
+  is not obvious:** `MainActivity` runs edge-to-edge
+  (`WindowCompat.setDecorFitsSystemWindows(window, false)`), so the WebView draws behind the
+  status bar, but Android WebView only reports a non-zero `env(safe-area-inset-top)` for a
+  **display cutout** — not for the status bar. On a notchless phone `env()` is `0px`, so
+  padding by it alone changes nothing. There was no native inset plumbing at all
+  (no insets listener, no `--app-safe-top`; the layout is a bare `FrameLayout` with no
+  `fitsSystemWindows`, so insets do reach the WebView).
+  Fix now spans both layers: (1) **native** — `installSafeAreaBridge()` attaches an
+  `OnApplyWindowInsetsListener` to the WebView, unions `statusBars()`+`displayCutout()`,
+  converts device px → CSS px by display density, and publishes it as `--app-safe-top`
+  (formatted `Locale.US` so a comma-decimal locale can't emit `24,5px`); it returns the
+  insets unconsumed, re-fires on rotation, and republishes on `onPageFinished` because the
+  listener fires before a document exists. (2) **CSS** — the header top padding is
+  `calc(20px + max(env(safe-area-inset-top, 0px), var(--app-safe-top, 0px)))`, so the APK
+  uses the native value while installed-PWA/browser/notched devices use `env()`; a literal
+  `padding: 20px 20px 16px` precedes it so an engine without `max()` falls back instead of
+  collapsing to 0. The button stays in normal flex flow (not viewport-absolute), stays
+  centred with the avatar via the existing `align-items:center`, and remains 44×44 through
+  the shared `--touch-target` rule — the shared `.settings-close-btn` class (5 modals) was
+  left untouched. `tests/settings_safe_area_guard.test.js` guards both halves (verified to
+  fail when either is reverted). Note: `env(safe-area-inset-bottom)` usages elsewhere have
+  the same latent blind spot on this shell; deliberately NOT changed here (untested layout
+  risk across the nav) — worth a follow-up. **Kotlin verified by CI**: the Android
+  verification job (`gradle testDebugUnitTest lintDebug assembleDebug`) passed on 57d2b1e,
+  so the native change compiles, lints and assembles (it could not be built locally — this
+  container has no Android SDK). Next `[You]`: device-test portrait + landscape against the
+  reported screenshot; the inset value itself is only observable on hardware.
+- 2026-07-24 · CI green-up: the J&T browser check was weekday-fragile, NOT a J&T regression.
+  `Required verification` was RED on this branch (runs 111–114) with 5 failures in
+  `scripts/jt-shed-browser-check.mjs` — B4d/B4e (tier target labels) and B4h/B4i/B4j (set
+  roles `[null,null,null,null]`). Confirmed pre-existing on stock `main` (`9e7d2c4`,
+  identical 5 failures), so it was never caused by the Settings work.
+  **Root cause: the test, not the app.** Scenario B gated on
+  `isJtTrainingDay = mon/tue/thu/fri/sat`, then asserted T1/T2a expectations unconditionally.
+  But Saturday is the *Bodybuilding* day ("Back, Arms, Delts & Core" — the catalog desc
+  literally says "without turning this into another main-lift day"): its lead exercise is
+  tier **`Specialization`** and its second is **`T2b`**; there is no T1 and no T2a. The check
+  even contradicted itself — A7b/A7c assert Saturday's row is
+  `4 × 8–12 (double progression)` and `15RM + 2 MRS` and PASS, which are exactly the labels
+  B4d/B4e rejected. Roles were `null` because top-set/back-off/plus are Block-2 T1 concepts
+  that don't exist on Saturday. Scenario D already had the correct guard
+  (`isMainLiftDay = mon/tue/thu/fri`, "only main-lift days carry a T1").
+  Fix: hoist `isMainLiftDay` next to `isJtTrainingDay` and gate B4d/B4e + B4h–B4j on it, with
+  explicit skip lines so the skip is visible rather than silent. Everything day-agnostic
+  (B4, B4a–B4c, B4f, B4g, B4k, B4l, B5, B6) still runs every day.
+  **Proven not neutered**: re-ran the check against a date-shifted copy (browser `Date` and
+  the node-side day key both moved to Monday) — B4d `Target: 10RM + 3×6 @ 70% (+)`,
+  B4e `Target: 4 × 10 @ 50%`, B4h `["repmax","backoff","backoff","plus"]`, B4i `Back-off +`,
+  B4j `Top set · 10RM` all RUN and PASS. So the J&T feature merged in #171 was correct all
+  along; only its check was date-dependent. `npm run verify` is 1280/1280 and the J&T check
+  is green on a Saturday.
+  Follow-ups worth doing (not done here): (1) `verify.yml` only triggers on `pull_request`
+  and pushes to `claude/**`/`codex/**`, so `main` is never verified directly — a weekday-only
+  green can land and go red on the weekend; consider adding `main`. (2) The check derives the
+  session from the real current date, so coverage varies by the day CI happens to run;
+  driving it from a fixed injected date would make it deterministic.
 - 2026-07-24 · Jacked & Tan: Shed Edition — Block-2 dynamic back-off + stable stored roles on
   `claude/jacked-tan-shed-logger-p9nco1` (builds on the approved af4b225 set-role rendering).
   (1) **Dynamic T1 Block-2 back-off (weeks 7–11):** the back-off load is now 85%/90% of THAT

@@ -2285,7 +2285,18 @@ body.sheet-scroll-locked {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 16px;
+  /* Top padding clears the status bar / notch so the whole header — avatar and
+     close button together — sits below it.
+       - var(--app-safe-top): set by the Android shell (MainActivity) from the
+         real status-bar inset. Needed because the WebView is edge-to-edge but
+         only reports env(safe-area-inset-top) for a DISPLAY CUTOUT, so on a
+         notchless phone env() is 0 and the header would still sit under the bar.
+       - env(safe-area-inset-top): covers installed PWA / browser / notched
+         devices, where no native shell is publishing the variable.
+     max() takes whichever is actually reporting; both are 0 in a desktop
+     browser, preserving the original 20px look. */
+  padding: 20px 20px 16px; /* fallback: an engine without max() keeps the old padding, never 0 */
+  padding: calc(20px + max(env(safe-area-inset-top, 0px), var(--app-safe-top, 0px))) 20px 16px;
   border-bottom: 1px solid var(--border-default);
   background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);
   flex-shrink: 0;
