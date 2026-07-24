@@ -503,6 +503,135 @@ export function resolveJtPrescription(program, week, dayKey, name, opts = {}) {
 }
 
 /**
+ * Turn a resolved `setPlan` into per-row role tags for the live logger. Purely a
+ * RENDER helper — it never touches stored sets. The cockpit maps these onto the
+ * materialised WORKING set rows in order (warm-ups skipped), so a row's role is
+ * derived from the structured prescription, not guessed from raw set position.
+ *
+ * A plain straight-set `work` role returns `null` (no tag) so ordinary sets stay
+ * uncluttered; the meaningful roles (top set / back-off / plus / target / MRS /
+ * light / assessment) each get a short label + stable slug for the data-attribute
+ * and CSS. MRS rows are numbered in order (MRS 1, MRS 2).
+ * @param {Array<{role:string, reps?:(number|string), pct?:number, plus?:boolean}>} setPlan
+ * @returns {Array<null | { role:string, label:string, emphasis:boolean }>}
+ */
+export function jtSetRoleTags(setPlan) {
+  if (!Array.isArray(setPlan)) return [];
+  let mrs = 0;
+  return setPlan.map((s) => {
+    const role = s && s.role;
+    switch (role) {
+      case 'repmax':
+        return { role: 'repmax', label: s.reps != null ? `Top set · ${s.reps}RM` : 'Top set', emphasis: true };
+      case 'backoff':
+        return { role: 'backoff', label: 'Back-off', emphasis: false };
+      case 'plus':
+        return { role: 'plus', label: 'Back-off +', emphasis: true };
+      case 'target':
+        return { role: 'target', label: s.reps != null ? `Target · ${s.reps}` : 'Target', emphasis: true };
+      case 'mrs':
+        mrs += 1;
+        return { role: 'mrs', label: `MRS ${mrs}`, emphasis: false };
+      case 'light':
+        return { role: 'light', label: 'Light', emphasis: false };
+      case 'assessment':
+        return { role: 'assessment', label: 'Assessment', emphasis: true };
+      // Plain straight-set work needs no tag — the card label already states the
+      // full sets×reps (e.g. "4 × 10 @ 50%"), so tagging every row is just noise.
+      case 'work':
+      default:
+        return null;
+    }
+  });
+}
+
+/**
+ * Role descriptors to STAMP onto the materialised set objects so a row's role
+ * travels with the row (stable across warm-up insertion / set removal), and the
+ * completed snapshot is self-describing for history. Aligned to the resolved
+ * `setPlan`; a plain `work` entry stamps nothing (returns null) so straight-set
+ * tiers and non-J&T programs keep byte-identical plain `{w,r,c}` scaffolding.
+ *
+ * The stamp is prescription METADATA only — it carries no user input, and the
+ * draft/warmup/reconcile predicates deliberately ignore it (they key off
+ * w/r/type/rpe/rir/bw/band/loadMode), so a fresh role-stamped day is still not
+ * mis-detected as a started draft.
+ * @returns {Array<null | { role:string, roleReps?:number|null, boPct?:number|null, boSrc?:string|null }>}
+ */
+export function jtStoredRolesFor(program, week, dayKey, name, opts = {}) {
+  const p = resolveJtPrescription(program, week, dayKey, name, opts);
+  if (!p || !Array.isArray(p.setPlan)) return [];
+  return p.setPlan.map((s) => {
+    switch (s && s.role) {
+      case 'repmax':
+        return { role: 'repmax', roleReps: typeof s.reps === 'number' ? s.reps : null };
+      case 'backoff':
+        return { role: 'backoff', boPct: s.pct ?? p.percentage ?? null, boSrc: p.percentageSource || null };
+      case 'plus':
+        return { role: 'plus', boPct: s.pct ?? p.percentage ?? null, boSrc: p.percentageSource || null };
+      case 'target':
+        return { role: 'target', roleReps: typeof s.reps === 'number' ? s.reps : null };
+      case 'mrs':
+        return { role: 'mrs' };
+      case 'light':
+        return { role: 'light' };
+      case 'assessment':
+        return { role: 'assessment' };
+      default:
+        return null; // 'work' — straight sets stay untagged/unstamped
+    }
+  });
+}
+
+/**
+ * Build a single role tag from a STORED set (`set.role` + `set.roleReps` /
+ * `set.boPct` / `set.boSrc`). This is the render source of truth once a set has
+ * been materialised, so labels survive row edits and match the completed
+ * snapshot in history. Returns null for an unrolled/`work`/warm-up set.
+ * @param {any} set
+ * @param {number} [mrsOrdinal] 1-based MRS number (the caller counts them in order)
+ * @returns {null | { role:string, label:string, emphasis:boolean, boPct?:number|null, boSrc?:string|null }}
+ */
+export function jtStoredRoleTag(set, mrsOrdinal = 1) {
+  const role = set && set.role;
+  switch (role) {
+    case 'repmax':
+      return { role, label: set.roleReps != null ? `Top set · ${set.roleReps}RM` : 'Top set', emphasis: true };
+    case 'backoff':
+      return { role, label: 'Back-off', emphasis: false, boPct: set.boPct ?? null, boSrc: set.boSrc ?? null };
+    case 'plus':
+      return { role, label: 'Back-off +', emphasis: true, boPct: set.boPct ?? null, boSrc: set.boSrc ?? null };
+    case 'target':
+      return { role, label: set.roleReps != null ? `Target · ${set.roleReps}` : 'Target', emphasis: true };
+    case 'mrs':
+      return { role, label: `MRS ${mrsOrdinal}`, emphasis: false };
+    case 'light':
+      return { role, label: 'Light', emphasis: false };
+    case 'assessment':
+      return { role, label: 'Assessment', emphasis: true };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Suggested T1 back-off load from THAT DAY's top-set weight (Block 2, weeks
+ * 7–11: 85% or 90% of the entered rep-max load), rounded to the app increment.
+ * Returns null (never NaN/0) when the top-set or percentage is missing, so the
+ * caller shows an empty suggestion rather than a fabricated load.
+ * @param {number|null|undefined} topWeight
+ * @param {number|null|undefined} pct
+ * @param {{ increment?:number }} [opts]
+ * @returns {number|null}
+ */
+export function jtBackoffFromTopSet(topWeight, pct, opts = {}) {
+  const w = Number(topWeight);
+  const p = Number(pct);
+  if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(p) || p <= 0) return null;
+  return roundLoad((w * p) / 100, opts.increment);
+}
+
+/**
  * The {sets, reps, label} triple the cockpit/preview need. `reps` is the primary
  * numeric target used for the label + auto-progression rep goal; `label` is the
  * full tier-aware prescription string. Returns null for non-J&T / unknown lifts

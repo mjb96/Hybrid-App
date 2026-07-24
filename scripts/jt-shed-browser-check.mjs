@@ -74,6 +74,20 @@ function otherActiveFixture() {
   };
 }
 
+// J&T already active at program Week 7 (Block 2), no week seeded → the app
+// materialises week 7 fresh on boot, so the T1 back-off rows are the dynamic
+// dayRepMax kind under test.
+function jtWeek7Fixture() {
+  return {
+    schemaVersion: 5, currentWeek: '7', activeProgramId: JT_ID, activeActivationId: 'act_jt',
+    settings: { name: 'T', theme: 'dark', weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', onboardingComplete: true },
+    activations: [{ id: 'act_jt', programId: JT_ID, startWeek: 1, status: 'active', startedAt: new Date().toISOString() }],
+    customPrograms: [],
+    weeks: {},
+    programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
+  };
+}
+
 async function newPage(browser, fixture) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture)]);
@@ -236,6 +250,36 @@ try {
       // The default-expanded T1 card renders its real 4 set rows in the DOM.
       if (t1Card && t1Card.rows > 0) eq(t1Card.rows, 4, 'B4g expanded T1 card renders 4 real set rows');
 
+      // B4h — the T1 set rows carry tier ROLES (top set + back-off + a plus set on
+      // the FINAL back-off), derived from the structured prescription rather than
+      // guessed from raw position. This is the logger fix under test.
+      if (t1Card && t1Card.rows > 0) {
+        const t1RowSel = `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] .cockpit-set-row`;
+        const t1Roles = await page.$$eval(t1RowSel, els => els.map(e => e.getAttribute('data-set-role')));
+        eq(t1Roles, ['repmax', 'backoff', 'backoff', 'plus'], 'B4h T1 rows = top set · back-off · back-off · plus');
+        const plusLabel = await page.$eval(
+          `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] [data-set-role="plus"].set-role-tag`,
+          el => el.textContent.trim()).catch(() => '');
+        ok(/\+/.test(plusLabel), `B4i final back-off shows a plus-set indicator (got "${plusLabel}")`);
+        const topLabel = await page.$eval(
+          `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] [data-set-role="repmax"].set-role-tag`,
+          el => el.textContent.trim()).catch(() => '');
+        ok(/Top set/i.test(topLabel) && /RM/.test(topLabel), `B4j top set labels its rep-max (got "${topLabel}")`);
+      }
+
+      // B4k — a target/MRS accessory (expand its collapsed card) shows the
+      // Target + MRS 1 + MRS 2 roles, not three identical generic sets.
+      const mrsName = cards.find(c => /MRS/.test(c.target))?.name;
+      ok(mrsName, 'B4k at least one accessory uses the target/MRS scheme');
+      if (mrsName) {
+        await page.click(`#cockpitExercisesContainer .cockpit-exercise[data-liftname="${mrsName}"] [data-action="toggle-accordion"]`).catch(() => {});
+        await page.waitForTimeout(200);
+        const mrsRoles = await page.$$eval(
+          `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${mrsName}"] .cockpit-set-row`,
+          els => els.map(e => e.getAttribute('data-set-role'))).catch(() => []);
+        if (mrsRoles.length) eq(mrsRoles, ['target', 'mrs', 'mrs'], `B4l ${mrsName} rows = target · MRS 1 · MRS 2`);
+      }
+
       const NOTE = 'Back tweak on RDL — cut it short, felt strong on squats.';
       await enterSessionNote(page, NOTE);
       const afterType = await readState(page);
@@ -317,6 +361,115 @@ try {
     await ctx.close();
   } else {
     console.log(`  ok · Scenario C skipped — today (${todayKey}) is a J&T rest day`);
+  }
+
+  // ---- Scenario D: Block-2 dynamic back-off + role stability + history -------
+  // Only main-lift days (mon/tue/thu/fri) carry a T1 exercise; other days skip.
+  const isMainLiftDay = ['mon', 'tue', 'thu', 'fri'].includes(todayKey);
+  if (isMainLiftDay) {
+    const { ctx, page, errors } = await newPage(browser, jtWeek7Fixture());
+    await page.click('.nav-item[data-target="home"]').catch(() => {});
+    await page.waitForTimeout(200);
+    await page.click('#homePrimaryCta');
+    await page.waitForSelector('#view-workout .cockpit-ex-name', { timeout: 8000 });
+
+    const t1Name = (await cockpitNames(page))[0];
+    const card = `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${t1Name}"]`;
+    const roles = await page.$$eval(`${card} .cockpit-set-row`, els => els.map(e => e.getAttribute('data-set-role')));
+    ok(roles[0] === 'repmax' && roles.includes('backoff') && roles[roles.length - 1] === 'plus',
+      `D1 Block-2 T1 (${t1Name}) rows carry repmax/back-off/plus roles (${JSON.stringify(roles)})`);
+
+    const topSel = `${card} .cockpit-set-row[data-set-role="repmax"] .input-weight-node`;
+    const boRows = page.locator(`${card} .cockpit-set-row[data-bo-src="dayRepMax"]`);
+
+    // Enter the top set → the back-off suggestion + source line update immediately.
+    await page.fill(topSel, '120');
+    await page.waitForTimeout(120);
+    eq(await boRows.first().locator('.input-weight-node').evaluate(el => el.placeholder), '102.5',
+      'D2 back-off placeholder updates live = 85% of 120 = 102.5');
+    const hint = await boRows.first().locator('.set-backoff-hint').evaluate(el => el.textContent.trim());
+    ok(/85%/.test(hint) && /120/.test(hint), `D3 hint references 85% of today's 120 top set (got "${hint}")`);
+
+    // Persist the top set, then MANUALLY override the first back-off row.
+    await page.locator(topSel).blur();
+    await boRows.first().locator('.input-weight-node').fill('110');
+    await boRows.first().locator('.input-weight-node').blur();
+
+    // Change the top set again → untouched rows follow, the override does NOT.
+    await page.fill(topSel, '140');
+    await page.waitForTimeout(120);
+    eq(await boRows.first().locator('.input-weight-node').evaluate(el => el.value), '110',
+      'D4 manual override preserved after top-set change');
+    eq(await boRows.nth(1).locator('.input-weight-node').evaluate(el => el.placeholder), '120',
+      'D5 untouched back-off follows new top set (85% of 140 → 120)');
+    await page.locator(topSel).blur();
+
+    // Add a warm-up — the top-set / back-off / plus roles must not shift.
+    await page.click(`${card} [data-action="append-warmup-set"]`);
+    await page.waitForTimeout(200);
+    const afterWarm = await page.$$eval(`${card} .cockpit-set-row`, els => els.map(e => e.getAttribute('data-set-role')));
+    eq(afterWarm[0], null, 'D6 inserted warm-up row carries no role');
+    eq(afterWarm[1], 'repmax', 'D6b top-set role unchanged after warm-up insert');
+    ok(afterWarm[afterWarm.length - 1] === 'plus', 'D6c plus role unchanged after warm-up insert');
+
+    // Add an extra working set — it is untagged and steals no prescribed role.
+    await page.click(`${card} [data-action="append-set"]`);
+    await page.waitForTimeout(200);
+    const afterExtra = await page.$$eval(`${card} .cockpit-set-row`, els => els.map(e => e.getAttribute('data-set-role')));
+    eq(afterExtra[afterExtra.length - 1], null, 'D7 appended extra set is untagged');
+    ok(afterExtra.filter(r => r === 'repmax').length === 1 && afterExtra.filter(r => r === 'plus').length === 1,
+      'D7b exactly one top set + one plus set remain');
+
+    // Reload — top set, override and roles persist without recalculating over them.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.click('.nav-item[data-target="home"]').catch(() => {});
+    await page.waitForTimeout(200);
+    await page.click('#homePrimaryCta').catch(() => {}); // re-open today's in-progress session
+    await page.waitForSelector(`${card} .cockpit-set-row`, { timeout: 8000 });
+    eq(await page.$eval(topSel, el => el.value), '140', 'D8 top-set value persists across reload');
+    eq(await page.locator(`${card} .cockpit-set-row[data-bo-src="dayRepMax"]`).first().locator('.input-weight-node').evaluate(el => el.value), '110',
+      'D8b manual override persists across reload');
+    const rolesReload = await page.$$eval(`${card} .cockpit-set-row`, els => els.map(e => e.getAttribute('data-set-role')));
+    ok(rolesReload.includes('repmax') && rolesReload.includes('plus'), 'D8c roles persist across reload');
+
+    // Complete the top set, finish with the remaining prescribed sets omitted.
+    const topRow = `${card} .cockpit-set-row[data-set-role="repmax"]`;
+    await page.fill(`${topRow} .input-reps-node`, '6');
+    await page.check(`${topRow} .gym-check`).catch(async () => { await page.click(`${topRow} .gym-check`).catch(() => {}); });
+    await page.waitForTimeout(150);
+    await page.click('[data-action="open-finish-modal"]');
+    await page.waitForSelector('#summaryModal #summarySaveAction', { state: 'visible', timeout: 6000 });
+    await page.click('#summarySaveAction');
+    await page.waitForTimeout(400);
+
+    const finished = await readState(page);
+    // A warm-up now sits at index 0, so locate the top set by its stored role.
+    const t1Stored = finished.weeks['7'].lifts[todayKey][t1Name];
+    const topStored = t1Stored.find((s) => s.role === 'repmax');
+    ok(topStored && topStored.c === true, 'D9 top set saved as completed');
+    ok(topStored && topStored.role === 'repmax', 'D9b completed snapshot keeps the top-set role');
+    // Omitted back-off sets are preserved as blank (not fabricated zero-rep fails).
+    const omitted = t1Stored.filter((s) => (s.role === 'backoff' || s.role === 'plus') && !s.c);
+    ok(omitted.length >= 1 && omitted.every((s) => String(s.w ?? '').trim() === '' || s.w === '110'),
+      'D9c omitted back-off sets stay blank/override — no zero-rep failures invented');
+
+    // Open the completed session in history → the breakdown shows role chips.
+    await page.evaluate(([w, d]) => {
+      const b = document.createElement('button');
+      b.setAttribute('data-action', 'open-session-detail');
+      b.setAttribute('data-week', w); b.setAttribute('data-day', d);
+      b.style.display = 'none'; document.body.appendChild(b); b.click(); b.remove();
+    }, ['7', todayKey]);
+    await page.waitForTimeout(300);
+    await page.click('#activitiesContent [data-recap-tab="breakdown"]').catch(() => {});
+    await page.waitForTimeout(250);
+    const histRoles = await page.$$eval('#activitiesContent .rc-set__role', els => els.map(e => e.getAttribute('data-set-role'))).catch(() => []);
+    ok(histRoles.includes('repmax'), `D10 history breakdown labels the top-set role (${JSON.stringify(histRoles)})`);
+
+    if (errors.length) fail(`D browser errors: ${errors.join(' | ')}`);
+    await ctx.close();
+  } else {
+    console.log(`  ok · Scenario D skipped — today (${todayKey}) has no J&T T1 (Block-2) exercise`);
   }
 
   if (failures.length) { console.error(`\n${failures.length} failure(s).`); process.exit(1); }

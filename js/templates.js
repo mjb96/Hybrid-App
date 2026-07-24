@@ -10,7 +10,7 @@ export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData) {
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData, roleTag = null) {
   const ghostWeight = historicalSetData?.w || weightUnit;
   const ghostReps   = historicalSetData?.r || prescribedReps || 'reps';
   const type = sData.type || '';
@@ -32,7 +32,29 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   // Full-word type label for the (now roomier) expander, vs the terse column badge.
   const typeFullLabels = { '': 'Working set', 'W': 'Warm-up', 'D': 'Drop set', 'F': 'AMRAP (max reps)' };
 
-  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}" data-set-index="${sIdx}" data-load-mode="${directMode}">
+  // Tier-aware role tag (J&T top set / back-off / plus / target / MRS …). The
+  // label is derived from the role STORED on the set (stable across row edits)
+  // and matches the completed snapshot in history. Warm-up rows never carry one.
+  const hasRole = roleTag && type !== 'W';
+  const roleTagHtml = hasRole
+    ? `<span class="set-role-tag set-role-tag--${escapeHtml(String(roleTag.role))}${roleTag.emphasis ? ' is-emphasis' : ''}" data-set-role="${escapeHtml(String(roleTag.role))}">${escapeHtml(String(roleTag.label))}</span>`
+    : '';
+
+  // Block-2 back-off (weeks 7–11): when the day's top set is known, seed the
+  // WEIGHT placeholder with the 85%/90% suggestion and show its source line.
+  // data-ghost-default preserves the non-suggestion ghost so clearing the top set
+  // restores it (no stale calculated load). A row the athlete has filled keeps
+  // its value (never overwritten); the suggestion only ever fills a blank.
+  const boSrc = hasRole && roleTag.boSrc ? String(roleTag.boSrc) : '';
+  const ghostDefault = String(ghostWeight);
+  const weightPlaceholder = (hasRole && roleTag.backoffSuggest != null) ? String(roleTag.backoffSuggest) : ghostDefault;
+  const backoffHint = hasRole && roleTag.backoffHint ? String(roleTag.backoffHint) : '';
+  const boAttrs = boSrc
+    ? ` data-bo-src="${escapeHtml(boSrc)}" data-bo-pct="${escapeHtml(String(roleTag.boPct ?? ''))}"`
+    : '';
+
+  return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}"${hasRole ? ` data-set-role="${escapeHtml(String(roleTag.role))}"` : ''}${boAttrs} data-set-index="${sIdx}" data-load-mode="${directMode}">
+    ${roleTagHtml}
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
     ${bodyweightCapable ? `<div class="set-load-choice" role="group" aria-label="Load mode for set ${sIdx + 1}">
       ${['bodyweight', 'weighted', 'assisted'].map(mode => `<button type="button"
@@ -51,8 +73,8 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
          Log ${numLabels[type]}
     </button>
     <div class="set-entry">
-      <input type="number" inputmode="decimal" class="input-weight-node" aria-label="Effective load for set ${sIdx + 1}" placeholder="${escapeHtml(String(ghostWeight))}" value="${escapeHtml(effectiveValue)}">
-      ${previousSetData?.w ? `<small>Last ${escapeHtml(String(previousSetData.w))}${escapeHtml(weightUnit)}</small>` : ''}
+      <input type="number" inputmode="decimal" class="input-weight-node" aria-label="Effective load for set ${sIdx + 1}" placeholder="${escapeHtml(weightPlaceholder)}" data-ghost-default="${escapeHtml(ghostDefault)}" value="${escapeHtml(effectiveValue)}">
+      ${boSrc ? `<small class="set-backoff-hint">${escapeHtml(backoffHint)}</small>` : previousSetData?.w ? `<small>Last ${escapeHtml(String(previousSetData.w))}${escapeHtml(weightUnit)}</small>` : ''}
     </div>
     <div class="set-entry">
       <input type="number" inputmode="numeric" class="input-reps-node" data-target-reps="${escapeHtml(String(prescribedRepGoal || ''))}" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">

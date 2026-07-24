@@ -2989,6 +2989,50 @@ html[data-theme="light"] .cockpit-set-row.is-pr {
 }
 
 /* ==========================================================================
+   SET ROLE TAG (Jacked & Tan tier model — top set / back-off / plus / MRS …)
+   Full-width chip at the top of a working set row, so each row's job is legible
+   without opening the card header. Render-only; never stored on the set.
+   ========================================================================== */
+.set-role-tag {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--overlay-sm);
+  border: 1px solid var(--overlay-sm);
+  line-height: 1.4;
+}
+.set-role-tag.is-emphasis {
+  color: var(--text-strong);
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.32);
+}
+/* Live back-off suggestion source line under the weight input (Block 2). */
+.set-backoff-hint { display: block; color: var(--color-amber, #f59e0b); font-weight: 600; }
+html[data-theme="light"] .set-backoff-hint { color: #b45309; }
+/* Top set + plus set are the load-driving rows — give them a warm accent so they
+   read as the "money" sets at a glance. */
+.set-role-tag--repmax,
+.set-role-tag--plus,
+.set-role-tag--assessment {
+  color: var(--color-amber, #f59e0b);
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.34);
+}
+html[data-theme="light"] .set-role-tag--repmax,
+html[data-theme="light"] .set-role-tag--plus,
+html[data-theme="light"] .set-role-tag--assessment {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.34);
+}
+
+/* ==========================================================================
    ACTIVITY CALENDAR
    ========================================================================== */
 .cal-legend {
@@ -8201,6 +8245,10 @@ html[data-theme="light"] .activity-filter--active { color: #07566b; }
 .rc-set__tag--d { color: #a78bfa; background: rgba(167,139,250,0.12); }
 .rc-set__tag--f { color: #ef4444; background: rgba(239,68,68,0.12); }
 .rc-set__rir { flex: 0 0 auto; font-size: 0.64rem; font-weight: 700; color: var(--text-muted, #94a3b8); }
+/* J&T tier role chip in history (Top set / Back-off / MRS …) — snapshot-derived. */
+.rc-set__role { flex: 0 0 auto; font-size: 0.58rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 6px; color: var(--text-muted, #94a3b8); background: rgba(255,255,255,0.05); }
+.rc-set__role--repmax, .rc-set__role--plus, .rc-set__role--assessment { color: #f59e0b; background: rgba(245,158,11,0.12); }
+.rc-set__role--target { color: #60a5fa; background: rgba(59,130,246,0.14); }
 .rc-set__vol { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; color: var(--text-tertiary, #7c8aa0); font-variant-numeric: tabular-nums; }
 
 /* Muscle focus bars */

@@ -5,7 +5,7 @@ import { getProgramById } from './state.js';
 import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
-import { jtLiftTarget } from './programs/jt-shed-model.js';
+import { jtLiftTarget, jtSetRoleTags, jtStoredRoleTag, jtBackoffFromTopSet } from './programs/jt-shed-model.js';
 import { isCompletedSet, isWarmupSet, setVolume } from './set-utils.js';
 import { triggerRestTimerEngine, adjustRestDuration, moveRestTimerToActiveExercise, dismissRestTimer, stopAndResetWorkoutTimer, getWorkoutElapsedSeconds, startWorkoutTimer, bindWorkoutTimerSession } from './timers.js';
 import { mountExerciseDragAndDropSystems } from './dragdrop.js';
@@ -290,6 +290,10 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
 
   let blueprintLabel = 'Target: Working Sets';
   let diagnostic = { isStalled: false, suggestedWeight: '', progression: null };
+  // Per-working-set role tags (J&T tier model). Render-only, derived from the
+  // structured prescription's setPlan; null for every non-J&T program so the
+  // generic logger is byte-for-byte unchanged.
+  let jtRoleTags = null;
   // Keep the resolved prescription available while rendering the set rows.
   // The fallback is deliberately blank rather than inventing a numeric target
   // if an old/custom program cannot be resolved.
@@ -313,6 +317,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       // 2 MRS, 3 × 6–10, …) instead of collapsing every tier to sets×reps.
       const jtTarget = jtLiftTarget(activeProgram, wk, selectedDay, displayLiftName);
       blueprintLabel = jtTarget ? `Target: ${jtTarget.label}` : `Target: ${target.sets} × ${target.reps}`;
+      if (jtTarget?.prescription?.setPlan?.length) jtRoleTags = jtSetRoleTags(jtTarget.prescription.setPlan);
     }
     // Auto-progression hint: a concrete next move derived from last session.
     const prog = diagnostic.progression;
@@ -369,14 +374,46 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   const suggestedGhost = (diagnostic.progression && diagnostic.progression.weight)
     ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
     : null;
+  // The day's top-set (T1 rep-max) actual weight drives the Block-2 (weeks 7–11)
+  // back-off suggestion. Read it from the STORED rep-max row so it survives edits
+  // and reload; recomputed here at render, and live on input (see recalcJtBackoff).
+  const topSetRow = Array.isArray(setsArr) ? setsArr.find((s) => s && s.role === 'repmax') : null;
+  const topSetWeight = topSetRow ? parseFloat(topSetRow.w) : NaN;
+
   let priorWorkingIndex = 0;
+  let jtWorkingIndex = 0;
+  let mrsOrdinal = 0;
   const setsMarkup = setsArr.map((sData, sIdx) => {
-    const previousSet = isWarmupSet(sData) ? null : priorPerformance?.workingSets?.[priorWorkingIndex++];
+    const isWarmup = isWarmupSet(sData);
+    const previousSet = isWarmup ? null : priorPerformance?.workingSets?.[priorWorkingIndex++];
+    // Prefer the role STORED on the set (stable across warm-up insertion / set
+    // removal — the role travels with the row). Fall back to the positional
+    // setPlan mapping only for pre-role sessions, skipping warm-ups. Appended
+    // extra working rows carry no role and stay untagged.
+    let roleTag = null;
+    if (!isWarmup) {
+      if (sData && sData.role) {
+        if (sData.role === 'mrs') mrsOrdinal += 1;
+        roleTag = jtStoredRoleTag(sData, mrsOrdinal);
+      } else if (jtRoleTags) {
+        roleTag = jtRoleTags[jtWorkingIndex] || null;
+      }
+      jtWorkingIndex += 1;
+      // Block-2 back-off: suggest 85%/90% of the entered top-set load on rows the
+      // athlete hasn't already filled. A row with a typed weight is a deliberate
+      // override and is never auto-filled. No top set yet → no suggestion (never 0).
+      if (roleTag && (roleTag.role === 'backoff' || roleTag.role === 'plus') && roleTag.boSrc === 'dayRepMax') {
+        const alreadyEntered = String(sData?.w ?? '').trim() !== '';
+        const suggest = jtBackoffFromTopSet(topSetWeight, roleTag.boPct);
+        roleTag = { ...roleTag, unit: wUnit, backoffSuggest: (!alreadyEntered && suggest != null) ? suggest : null,
+          backoffHint: suggest != null ? `${roleTag.boPct}% of ${topSetWeight}${wUnit} top set · ${suggest}${wUnit}` : '' };
+      }
+    }
     let ghostSet = suggestedGhost;
     if (!ghostSet && previousSet && (previousSet.w || previousSet.r)) ghostSet = previousSet;
     return buildSetRow(
       sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
-      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps), previousSet,
+      _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps), previousSet, roleTag,
     );
   }).join('');
 
@@ -976,6 +1013,33 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
 
   _saveState(true);
   evaluateAccordionAutoFlowTransitions();
+}
+
+// T1 Block-2 (weeks 7–11) live back-off recalculation. When the day's top-set
+// weight changes, recompute the 85%/90% suggestion for every dayRepMax back-off
+// row in the SAME exercise card and refresh its placeholder + source line —
+// without a re-render or reload. A row the athlete has already filled is a
+// deliberate override and is left untouched. Clearing the top set clears the
+// suggestion (restores the row's default ghost) rather than leaving a stale load.
+function recalcJtBackoff(exCard) {
+  if (!exCard || typeof exCard.querySelector !== 'function') return;
+  const topRow = exCard.querySelector('.cockpit-set-row[data-set-role="repmax"]');
+  if (!topRow) return;
+  const topW = parseFloat(topRow.querySelector('.input-weight-node')?.value);
+  const valid = Number.isFinite(topW) && topW > 0;
+  const unit = _getState?.()?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+  exCard.querySelectorAll('.cockpit-set-row[data-bo-src="dayRepMax"]').forEach((row) => {
+    const wInput = row.querySelector('.input-weight-node');
+    if (!wInput) return;
+    const pct = parseFloat(row.getAttribute('data-bo-pct'));
+    const suggest = valid ? jtBackoffFromTopSet(topW, pct) : null;
+    const hasValue = String(wInput.value || '').trim() !== '';
+    if (!hasValue) {
+      wInput.placeholder = suggest != null ? String(suggest) : (wInput.getAttribute('data-ghost-default') || unit);
+    }
+    const hintEl = row.querySelector('.set-backoff-hint');
+    if (hintEl) hintEl.textContent = suggest != null ? `${pct}% of ${topW}${unit} top set · ${suggest}${unit}` : '';
+  });
 }
 
 // Ghost targets #4 — accept the coach's suggestion for the whole exercise in one
@@ -2207,6 +2271,14 @@ document.addEventListener('focusout', (e) => {
 
 document.addEventListener('input', (e) => {
   const target = e.target;
+  // Live T1 Block-2 back-off recalculation: editing a top-set (rep-max) weight
+  // immediately refreshes the suggested back-off loads in the same card.
+  if (target.classList && target.classList.contains('input-weight-node')) {
+    const row = target.closest?.('.cockpit-set-row');
+    if (row && row.getAttribute('data-set-role') === 'repmax') {
+      recalcJtBackoff(target.closest('.cockpit-exercise'));
+    }
+  }
   if (target.matches('#runInputDist, #runInputTime, #runInputRpeCockpit, #runInputPace, #runInputNotes')) {
     const state = _getState();
     const day = activeWorkoutDay(state, _getSelectedDay());
