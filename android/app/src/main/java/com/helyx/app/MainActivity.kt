@@ -25,7 +25,9 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.webkit.WebViewAssetLoader
@@ -34,6 +36,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.net.URLDecoder
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -47,6 +50,20 @@ class MainActivity : AppCompatActivity() {
 
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var lastBackPressTime = 0L
+
+    /**
+     * Latest top inset (status bar / display cutout) in CSS pixels, published to
+     * the web layer as `--app-safe-top`. Held so a page that finishes loading
+     * AFTER the inset arrived still gets the current value — the insets listener
+     * generally fires before first paint.
+     *
+     * This exists because `env(safe-area-inset-top)` is NOT sufficient here: the
+     * activity is edge-to-edge (setDecorFitsSystemWindows(false)), but Android
+     * WebView only reports a non-zero top safe-area inset for a DISPLAY CUTOUT,
+     * not for the status bar. On a device with no notch it stays 0px, so CSS
+     * alone cannot know how far down the content must start.
+     */
+    private var safeTopCssPx = 0f
 
     // Pending geolocation permission callback — held while the OS permission dialog is shown.
     private var pendingGeoCallback: GeolocationPermissions.Callback? = null
@@ -172,6 +189,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         configureWebView()
+        installSafeAreaBridge()
         // Registers OnBackPressedCallback for API 26+. AndroidX activity:1.8+ automatically
         // bridges this to OnBackInvokedCallback on API 33+ when
         // android:enableOnBackInvokedCallback="true" is set in the manifest, giving full
@@ -266,6 +284,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Publishes the real top system inset to CSS as `--app-safe-top`.
+     *
+     * Re-fires on rotation and on any inset change, so portrait/landscape both
+     * stay correct. The listener returns the insets unconsumed so nothing else
+     * in the view tree is starved of them.
+     */
+    private fun installSafeAreaBridge() {
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+            val top = insets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
+            ).top
+            val density = resources.displayMetrics.density.takeIf { it > 0f } ?: 1f
+            val cssPx = top / density
+            if (cssPx != safeTopCssPx) {
+                safeTopCssPx = cssPx
+                applySafeTopToDocument()
+            }
+            insets
+        }
+    }
+
+    /**
+     * Sets `--app-safe-top` on the document element. Formatted with Locale.US so
+     * a comma-decimal locale can't emit an invalid CSS length ("24,5px").
+     */
+    private fun applySafeTopToDocument() {
+        val value = String.format(Locale.US, "%.2fpx", safeTopCssPx)
+        webView.evaluateJavascript(
+            "document.documentElement.style.setProperty('--app-safe-top', '$value');",
+            null,
+        )
+    }
+
     private fun registerBackHandler() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -323,6 +375,12 @@ class MainActivity : AppCompatActivity() {
             view: WebView,
             request: WebResourceRequest,
         ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+
+        override fun onPageFinished(view: WebView, url: String) {
+            // The insets listener usually fires before there is a document to set
+            // the property on, so republish the current value once the page exists.
+            applySafeTopToDocument()
+        }
 
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val uri = request.url

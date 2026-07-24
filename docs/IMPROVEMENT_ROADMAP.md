@@ -792,13 +792,33 @@ implementation register.
   `claude/settings-close-button-android-mope1q`. The Settings header (`index.html`
   `.settings-header`, avatar hero + close ✕ in one flex row) had `padding: 20px 20px 16px`
   with no top safe-area inset, so under `viewport-fit=cover` the whole header (close button
-  included) sat behind the Android status icons. Fix: top padding is now
-  `calc(20px + env(safe-area-inset-top, 0px))` so the header — avatar and button together —
-  clears the status bar / notch / PWA inset, while `env()` resolves to 0 in a normal browser
-  (unchanged look there). The button stays in normal flex flow (not viewport-absolute), stays
-  vertically centred with the avatar via the existing `align-items:center`, and remains 44×44
-  through the shared `--touch-target` rule — the shared `.settings-close-btn` class (5 modals)
-  was left untouched. Next: device-test the APK against the reported screenshot.
+  included) sat behind the Android status icons.
+  **A CSS-only fix was tried first and did NOT work on device — recording why, because it
+  is not obvious:** `MainActivity` runs edge-to-edge
+  (`WindowCompat.setDecorFitsSystemWindows(window, false)`), so the WebView draws behind the
+  status bar, but Android WebView only reports a non-zero `env(safe-area-inset-top)` for a
+  **display cutout** — not for the status bar. On a notchless phone `env()` is `0px`, so
+  padding by it alone changes nothing. There was no native inset plumbing at all
+  (no insets listener, no `--app-safe-top`; the layout is a bare `FrameLayout` with no
+  `fitsSystemWindows`, so insets do reach the WebView).
+  Fix now spans both layers: (1) **native** — `installSafeAreaBridge()` attaches an
+  `OnApplyWindowInsetsListener` to the WebView, unions `statusBars()`+`displayCutout()`,
+  converts device px → CSS px by display density, and publishes it as `--app-safe-top`
+  (formatted `Locale.US` so a comma-decimal locale can't emit `24,5px`); it returns the
+  insets unconsumed, re-fires on rotation, and republishes on `onPageFinished` because the
+  listener fires before a document exists. (2) **CSS** — the header top padding is
+  `calc(20px + max(env(safe-area-inset-top, 0px), var(--app-safe-top, 0px)))`, so the APK
+  uses the native value while installed-PWA/browser/notched devices use `env()`; a literal
+  `padding: 20px 20px 16px` precedes it so an engine without `max()` falls back instead of
+  collapsing to 0. The button stays in normal flex flow (not viewport-absolute), stays
+  centred with the avatar via the existing `align-items:center`, and remains 44×44 through
+  the shared `--touch-target` rule — the shared `.settings-close-btn` class (5 modals) was
+  left untouched. `tests/settings_safe_area_guard.test.js` guards both halves (verified to
+  fail when either is reverted). Note: `env(safe-area-inset-bottom)` usages elsewhere have
+  the same latent blind spot on this shell; deliberately NOT changed here (untested layout
+  risk across the nav) — worth a follow-up. **Not compiled**: this container has no Android
+  SDK, so the Kotlin is unverified by build. Next `[You]`: build the APK and device-test
+  portrait + landscape against the reported screenshot.
 - 2026-07-24 · Jacked & Tan: Shed Edition — Block-2 dynamic back-off + stable stored roles on
   `claude/jacked-tan-shed-logger-p9nco1` (builds on the approved af4b225 set-role rendering).
   (1) **Dynamic T1 Block-2 back-off (weeks 7–11):** the back-off load is now 85%/90% of THAT
