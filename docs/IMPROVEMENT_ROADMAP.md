@@ -816,9 +816,24 @@ implementation register.
   left untouched. `tests/settings_safe_area_guard.test.js` guards both halves (verified to
   fail when either is reverted). Note: `env(safe-area-inset-bottom)` usages elsewhere have
   the same latent blind spot on this shell; deliberately NOT changed here (untested layout
-  risk across the nav) — worth a follow-up. **Not compiled**: this container has no Android
-  SDK, so the Kotlin is unverified by build. Next `[You]`: build the APK and device-test
-  portrait + landscape against the reported screenshot.
+  risk across the nav) — worth a follow-up. **Kotlin verified by CI**: the Android
+  verification job (`gradle testDebugUnitTest lintDebug assembleDebug`) passed on 57d2b1e,
+  so the native change compiles, lints and assembles (it could not be built locally — this
+  container has no Android SDK). Next `[You]`: device-test portrait + landscape against the
+  reported screenshot; the inset value itself is only observable on hardware.
+- 2026-07-24 · CI note (no code change) — `Required verification` is RED on
+  `claude/settings-close-button-android-mope1q` (runs 111–114) and this is **inherited from
+  `main`, not from the Settings work**. The Web job fails at `npm run browser:verify` with 5
+  assertions in `scripts/jt-shed-browser-check.mjs`: B4d/B4e (T1 shows
+  `4 × 8–12 (double progression)` and T2a shows `15RM + 2 MRS` — the two labels are
+  swapped/unresolved) and B4h/B4i/B4j (set roles come back `[null,null,null,null]`, so no
+  `repmax`/`backoff`/`plus` tags render in the live logger). Verified pre-existing by running
+  the same check on a clean worktree at `9e7d2c4` (stock `main`, none of this branch's
+  commits): **identical 5 failures**. So the J&T set-role work merged in #171 regressed its
+  own browser contract. Not fixed here — out of scope for the Settings fix and it needs the
+  J&T tier/role owner. Also worth noting: `verify.yml` only triggers on `pull_request` and
+  pushes to `claude/**`/`codex/**`, so pushes to `main` are never verified — the regression
+  landed unseen. Consider adding `main` to the push triggers.
 - 2026-07-24 · Jacked & Tan: Shed Edition — Block-2 dynamic back-off + stable stored roles on
   `claude/jacked-tan-shed-logger-p9nco1` (builds on the approved af4b225 set-role rendering).
   (1) **Dynamic T1 Block-2 back-off (weeks 7–11):** the back-off load is now 85%/90% of THAT
