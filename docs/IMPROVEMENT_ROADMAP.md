@@ -817,7 +817,12 @@ implementation register.
   equipment AND the equipment inferred from the current `day.lifts` (canonical-catalogue
   resolved, deduped, canonical-order), so an edited program that adds EZ-Bar work honestly
   discloses "EZ bar" — never the user's whole Settings kit, never stale desc/source equipment.
-  Cache advances to v117. · Next: none.
+  Copy is a SECONDARY utility: on Program Detail it lives in a new compact "⋯" overflow menu
+  (`js/ui/action-menu.js` — anchored, viewport-clamped, closes on outside tap / Escape /
+  Android Back via `__onAndroidBack` / after selection, focus returns to the trigger, no leaked
+  document listeners) and on Active Program it's a small ≥44px clipboard icon beside the rating
+  control — no large full-width button, primary Edit/Activate stays dominant. Visible wording is
+  the neutral "Copy program"; the toast is "Program copied". Cache advances to v117. · Next: none.
 - 2026-07-23 · Program-editor preview consistency, canonical exercise names, mobile picker +
   home-gym exercises on `claude/program-editor-mobile-picker-wr1kn6`. Fixed the reported phone
   bug: the Lower Strength day-preview kept showing stale/narrative exercises after an edit. Root

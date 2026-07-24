@@ -7,7 +7,7 @@
 // (personal definition wins over the catalog source — never the pre-edit
 // built-in), builds the GPT-friendly text with the pure serializer, copies it,
 // and reports honestly:
-//   • success  → toast "Program copied — paste it into ChatGPT";
+//   • success  → toast "Program copied";
 //   • failure  → a select-and-copy preview modal + an honest failure message.
 //
 // It never mutates program or app state — copying is read-only.
@@ -21,7 +21,7 @@ import { showToast } from '../toast.js';
 import { openManagedModal, closeManagedModal } from '../ui/modal-stack.js';
 import { escapeHtml } from '../util.js';
 
-const SUCCESS_MESSAGE = 'Program copied — paste it into ChatGPT';
+const SUCCESS_MESSAGE = 'Program copied';
 const FAILURE_MESSAGE = 'Couldn’t access the clipboard — select and copy the text below';
 
 /**

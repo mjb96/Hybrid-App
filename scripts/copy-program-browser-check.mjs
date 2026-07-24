@@ -78,7 +78,7 @@ async function openDetailById(page, id) {
     b.style.display = 'none';
     document.body.appendChild(b); b.click(); b.remove();
   }, id);
-  await page.waitForSelector(`#programDetailScreen [data-action="copy-program-text"][data-program-id="${id}"]`, { timeout: 8000 });
+  await page.waitForSelector(`#programDetailScreen [data-action="open-program-menu"][data-program-id="${id}"]`, { timeout: 8000 });
   await page.waitForTimeout(150);
 }
 
@@ -94,6 +94,28 @@ async function replaceOnDay(page, day, oldName, newName) {
   const exact = await page.$(`#builderExerciseResults [data-action="b-pick-exercise"][data-name="${newName}"]`);
   if (exact) await exact.click(); else await page.click('#builderExerciseResults [data-action="b-pick-custom"]');
   await page.waitForTimeout(250);
+}
+
+// Copy via the REAL compact UI on Program Detail: open the "⋯" overflow menu,
+// then click its "Copy program" item. No hidden button is injected.
+async function copyViaDetailMenu(page, id) {
+  await page.click(`#programDetailScreen [data-action="open-program-menu"][data-program-id="${id}"]`);
+  await page.waitForSelector('.action-menu [data-action="copy-program-text"]', { timeout: 4000 });
+  const menuName = await page.$eval('.action-menu [data-action="copy-program-text"] span:last-child', el => el.textContent.trim());
+  ok(menuName === 'Copy program', `menu item label is "Copy program" (got "${menuName}")`);
+  await page.click('.action-menu [data-action="copy-program-text"]');
+  await page.waitForTimeout(300);
+}
+
+// Copy via the REAL compact UI on the Active Program view: the small clipboard
+// icon button beside the rating control in the hero.
+async function copyViaActivePlanIcon(page) {
+  await page.click('#programDetailScreen [data-action="view-active-program"]');
+  await page.waitForSelector('#activePlanHero .aplan-icon-action[data-action="copy-program-text"]', { timeout: 6000 });
+  const label = await page.$eval('#activePlanHero .aplan-icon-action[data-action="copy-program-text"]', el => el.getAttribute('aria-label'));
+  ok(label === 'Copy program', `active-plan icon aria-label is "Copy program" (got "${label}")`);
+  await page.click('#activePlanHero .aplan-icon-action[data-action="copy-program-text"]');
+  await page.waitForTimeout(300);
 }
 
 // Fork the active built-in and apply the reported edits. Returns the personal id.
@@ -144,13 +166,14 @@ try {
       return { active: s.activeProgramId, count: s.customPrograms.length, week: s.currentWeek, blob: localStorage.getItem('hybrid_engine_v2_state') };
     });
 
-    await page.click(`#programDetailScreen [data-action="copy-program-text"][data-program-id="${personalId}"]`);
-    await page.waitForTimeout(300);
+    await copyViaDetailMenu(page, personalId);
 
-    const clip1 = await page.evaluate(() => (window.__clip || [])[window.__clip.length - 1]);
+    const clip1 = await page.evaluate(() => (window.__clip || [])[(window.__clip || []).length - 1]);
     assertCopiedText(clip1, 'P1');
     const toast1 = await page.evaluate(() => document.getElementById('sysToast')?.textContent || '');
-    ok(/paste it into ChatGPT/.test(toast1), `P1 success toast shown ("${toast1}")`);
+    ok(/Program copied/.test(toast1), `P1 success toast shown ("${toast1}")`);
+    // The overflow menu closed itself after the action.
+    ok(await page.evaluate(() => !document.querySelector('.action-menu')), 'P1 overflow menu closed after copy');
 
     const stateAfter = await page.evaluate(() => {
       const s = JSON.parse(localStorage.getItem('hybrid_engine_v2_state'));
@@ -160,12 +183,17 @@ try {
     ok(stateAfter.active === stateBefore.active && stateAfter.week === stateBefore.week, 'P1 active id and week unchanged');
     ok(stateAfter.blob === stateBefore.blob, 'P1 app state byte-for-byte unchanged by copying');
 
-    // Reload and repeat — same edited text, still one program.
+    // The Active Program view exposes the same action as a compact icon button.
+    await openDetailById(page, personalId);
+    await copyViaActivePlanIcon(page);
+    const clipActive = await page.evaluate(() => (window.__clip || [])[(window.__clip || []).length - 1]);
+    assertCopiedText(clipActive, 'P1-active-icon');
+
+    // Reload and repeat via the detail menu — same edited text, still one program.
     await page.reload({ waitUntil: 'networkidle' });
     await openDetailById(page, personalId);
-    await page.click(`#programDetailScreen [data-action="copy-program-text"][data-program-id="${personalId}"]`);
-    await page.waitForTimeout(300);
-    const clip2 = await page.evaluate(() => (window.__clip || [])[window.__clip.length - 1]);
+    await copyViaDetailMenu(page, personalId);
+    const clip2 = await page.evaluate(() => (window.__clip || [])[(window.__clip || []).length - 1]);
     assertCopiedText(clip2, 'P1-reload');
     const count2 = await page.evaluate(() => JSON.parse(localStorage.getItem('hybrid_engine_v2_state')).customPrograms.length);
     ok(count2 === 1, 'P1-reload still exactly one personal program');
@@ -179,7 +207,7 @@ try {
     const { ctx, page, errors } = await newPage(browser, CLIP_BROKEN);
     const personalId = await forkAndEdit(page);
     await openDetailById(page, personalId);
-    await page.click(`#programDetailScreen [data-action="copy-program-text"][data-program-id="${personalId}"]`);
+    await copyViaDetailMenu(page, personalId);
     await page.waitForSelector('#programTextModal.active', { timeout: 6000 });
     const modalText = await page.$eval('#programTextModalArea', el => el.value);
     assertCopiedText(modalText, 'P2-fallback');
@@ -192,6 +220,80 @@ try {
     ok(gone, 'P2 fallback modal closes');
 
     if (errors.length) fail(`P2 browser errors: ${errors.join(' | ')}`);
+    await ctx.close();
+  }
+
+  // ---- Pass 3: compact-UI hierarchy + mobile layout (320/390/412) ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+    await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture())]);
+    await ctx.addInitScript(CLIP_MOCK);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('console', (m) => { if (m.type() === 'error' && !/frame-ancestors|net::ERR_/.test(m.text())) errors.push(m.text()); });
+    await page.goto(BASE, { waitUntil: 'networkidle' });
+
+    for (const width of [320, 390, 412]) {
+      await page.setViewportSize({ width, height: 844 });
+      await openDetailById(page, PROGRAM_ID);
+      await page.waitForTimeout(120);
+
+      // No horizontal overflow in the program screen.
+      const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+      ok(noOverflow, `${width}px program detail has no horizontal overflow`);
+
+      // There is NO large/full-width copy button anywhere.
+      const bigCopy = await page.evaluate(() => {
+        const els = [...document.querySelectorAll('[data-action="copy-program-text"]')];
+        return els.some((el) => el.getBoundingClientRect().width > window.innerWidth * 0.6);
+      });
+      ok(!bigCopy, `${width}px no large/full-width Copy button`);
+
+      // The primary CTA (Start/View/Edit) dominates the compact overflow trigger.
+      const hierarchy = await page.evaluate(() => {
+        const primary = document.querySelector('#programDetailScreen .detail-cta-btn');
+        const overflow = document.querySelector('#programDetailScreen [data-action="open-program-menu"]');
+        return {
+          primaryW: primary ? primary.getBoundingClientRect().width : 0,
+          overflowW: overflow ? overflow.getBoundingClientRect().width : 0,
+          hitAfter: overflow ? getComputedStyle(overflow, '::after').width : '',
+        };
+      });
+      ok(hierarchy.primaryW > hierarchy.overflowW * 3, `${width}px primary action visually dominant (${Math.round(hierarchy.primaryW)} vs ${Math.round(hierarchy.overflowW)})`);
+      ok(hierarchy.hitAfter === '44px', `${width}px overflow trigger has a 44px touch target (${hierarchy.hitAfter})`);
+
+      // The overflow menu opens fully inside the viewport, above the bottom nav.
+      await page.click(`#programDetailScreen [data-action="open-program-menu"][data-program-id="${PROGRAM_ID}"]`);
+      await page.waitForSelector('.action-menu [role="menuitem"]', { timeout: 4000 });
+      const menu = await page.evaluate(() => {
+        const m = document.querySelector('.action-menu');
+        const item = document.querySelector('.action-menu [role="menuitem"]');
+        const mr = m.getBoundingClientRect();
+        const ir = item.getBoundingClientRect();
+        return { left: mr.left, right: mr.right, top: mr.top, bottom: mr.bottom, vw: window.innerWidth, vh: window.innerHeight, itemH: ir.height };
+      });
+      ok(menu.left >= 0 && menu.right <= menu.vw + 0.5 && menu.top >= 0 && menu.bottom <= menu.vh + 0.5, `${width}px overflow menu stays inside the viewport`);
+      ok(menu.itemH >= 44, `${width}px menu item is a ≥44px target (${Math.round(menu.itemH)})`);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(120);
+      ok(await page.evaluate(() => !document.querySelector('.action-menu')), `${width}px Escape closes the overflow menu`);
+
+      // Active Program: the copy control is a compact ≥44px icon, not a full row.
+      await page.click('#programDetailScreen [data-action="view-active-program"]');
+      await page.waitForSelector('#activePlanHero .aplan-icon-action[data-action="copy-program-text"]', { timeout: 6000 });
+      const icon = await page.evaluate(() => {
+        const b = document.querySelector('#activePlanHero .aplan-icon-action[data-action="copy-program-text"]');
+        const r = b.getBoundingClientRect();
+        return { w: r.width, h: r.height, right: r.right, vw: window.innerWidth };
+      });
+      ok(icon.w >= 44 && icon.h >= 44, `${width}px active-program copy icon is ≥44×44 (${Math.round(icon.w)}×${Math.round(icon.h)})`);
+      ok(icon.right <= icon.vw + 0.5, `${width}px active-program copy icon stays in the viewport`);
+      const activeNoOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+      ok(activeNoOverflow, `${width}px active-program view has no horizontal overflow`);
+    }
+
+    if (errors.length) fail(`P3 browser errors: ${errors.join(' | ')}`);
     await ctx.close();
   }
 } finally {
