@@ -11,7 +11,7 @@ import hypertrophyPrograms   from './catalog/hypertrophy.js';
 import runningPrograms       from './catalog/running.js';
 import fitnessPrograms       from './catalog/fitness.js';
 import hyroxPrograms         from './catalog/hyrox.js';
-import jtShedPrograms        from './catalog/jt-shed.js';
+import jtShedPrograms, { LEGACY_JT_SHED_PROGRAMS } from './catalog/jt-shed.js';
 
 export const CATEGORIES = {
   hybrid:          { label: 'Hybrid',           icon: '⚡', color: '#8b5cf6' },
@@ -48,9 +48,16 @@ export const PROGRAM_CATALOG = [
   ...jtShedPrograms,
 ];
 
-// Quick lookup map by ID
+// Retired programs stay out of discovery/search/comparison, but remain
+// resolvable for existing activations and historical links. This prevents a
+// program replacement from silently changing an athlete's active prescription.
+export const RETIRED_PROGRAM_CATALOG = [
+  ...LEGACY_JT_SHED_PROGRAMS,
+];
+
+// Quick lookup map by ID, including history-safe retired entries.
 export const CATALOG_MAP = Object.fromEntries(
-  PROGRAM_CATALOG.map(p => [p.id, p])
+  [...PROGRAM_CATALOG, ...RETIRED_PROGRAM_CATALOG].map(p => [p.id, p])
 );
 
 // Get catalog entry for a program ID

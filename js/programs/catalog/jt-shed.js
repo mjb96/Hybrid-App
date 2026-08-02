@@ -155,8 +155,12 @@ const weeklyVolModifiers = {
   '12': { sets: 1, reps: 3,  intensityLabel: 'Assessment — T1 1/2/3RM or rep PR (true 1RM optional), no back-off' },
 };
 
-/** @type {any[]} */
-export default [
+/**
+ * Retired from discovery, but kept resolvable so an athlete already running the
+ * original tiered program is never silently moved onto a different plan.
+ * @type {any[]}
+ */
+export const LEGACY_JT_SHED_PROGRAMS = [
   {
     id: 'jt_shed_edition',
     name: 'Jacked & Tan: Shed Edition',
@@ -191,3 +195,194 @@ export default [
     dossier: { creator: 'Helyx', focus: 'Strength + Hypertrophy (home gym)', philosophy: 'Adapt the Jacked & Tan 2.0 tier structure to a home gym: four main-lift days plus a lower-fatigue back/arms/delts/core day.' },
   },
 ];
+
+// =============================================================================
+// JACKED & TAN: SHED EDITION — SIMPLIFIED
+//
+// This is the discoverable replacement. It deliberately uses a distinct stable
+// id and progression model so a legacy activation cannot change prescription
+// underneath an athlete. The central resolver in ../jt-shed-model.js turns the
+// bare-string day templates into the exact per-week set/rep targets below.
+// =============================================================================
+
+const SIMPLIFIED_PROGRAM_NOTES = [
+  'This is a simplified home-gym adaptation inspired by Jacked & Tan’s volume-to-strength progression; it is not an exact reproduction of Jacked & Tan 2.0.',
+  'Main lifts use fixed rep blocks. If every set is clean at the intended RIR, add a small amount next week; if work was borderline, repeat the load; if several reps were missed or technique deteriorated, reduce it slightly.',
+  'Suggested main-lift increases: bench and overhead press 1–2.5 kg; squat and deadlift 2.5–5 kg. Increases are optional, not automatic.',
+  'Accessory double progression: for exercises with a repetition range, begin at the lower end with about 2 RIR. Keep the load while adding reps; once every set reaches the top cleanly, increase resistance and return to the lower end.',
+  'RIR means repetitions in reserve: 3 RIR means about three clean reps remained; 2 RIR is challenging but controlled; 1 RIR is very hard with one clean rep probably available; 0 RIR is maximum effort or failure. Most compound work here should finish at 1–3 RIR.',
+  'Rest about 2–4 minutes (180 seconds by default) for main lifts, 90–150 seconds for secondary compounds, 45–90 seconds for isolation and band work, and about 90 seconds for unilateral leg work or ab wheel rollouts.',
+  'Estimated session times: Monday 60–75 min · Tuesday 65–80 min · Thursday 45–60 min · Friday 55–70 min · Saturday 45–60 min.',
+  'Week 12 uses one controlled rep-PR set per main lift with approximately the Week 10 load. Stop with one clean repetition still available; a true 1RM is optional and not required.',
+];
+
+const SIMPLIFIED_WEEK_NOTES = {
+  '1':  { label: 'Volume & technique', notes: ['Begin conservatively. Each main-lift set should finish with approximately three good repetitions still available.'] },
+  '2':  { label: 'Volume & technique', notes: ['Use a slightly heavier load where appropriate while keeping approximately two repetitions in reserve.'] },
+  '3':  { label: 'Volume & technique', notes: ['The final working sets should feel difficult but controlled. Do not train to failure.'] },
+  '4':  { label: 'Deload', notes: ['Reduce Week 3 loads by approximately 10–15%, halve accessory volume and keep every set comfortable with at least four repetitions in reserve.'] },
+  '5':  { label: 'Strength & hypertrophy', notes: ['Begin the new block with a manageable load. Lower repetitions allow more weight, but this week should remain controlled.'] },
+  '6':  { label: 'Strength & hypertrophy', notes: ['Add a small amount of weight if all Week 5 sets were completed with clean technique and about two repetitions in reserve.'] },
+  '7':  { label: 'Strength & hypertrophy', notes: ['Work hard, but stop before technical failure. The final set should leave approximately one good repetition available.'] },
+  '8':  { label: 'Deload', notes: ['Reduce Week 7 loads by approximately 10–15%, halve accessory sets and prioritise recovery before the final training block.'] },
+  '9':  { label: 'Intensification', notes: ['Begin with strong, repeatable sets at approximately three repetitions in reserve. Lower reps are not permission to grind.'] },
+  '10': { label: 'Intensification', notes: ['Progress the load modestly where all Week 9 repetitions were clean, keeping approximately two repetitions in reserve.'] },
+  '11': { label: 'Intensification', notes: ['This is the hardest normal training week. Keep approximately one good repetition in reserve and avoid failed attempts.'] },
+  '12': { label: 'Controlled rep-PR assessment', notes: ['Use approximately the Week 10 load for one clean rep-PR set per main lift, stop at one RIR and halve the remaining accessory volume. A true 1RM is not required.'] },
+};
+
+const simplifiedRestDay = (title = 'Rest') => ({
+  title,
+  badge: 'Recovery',
+  color: 'var(--text-muted)',
+  desc: 'Optional easy walking or light mobility. Avoid demanding intervals or hard conditioning.',
+  runs: RM,
+  lifts: [],
+});
+
+const simplifiedDays = {
+  mon: {
+    title: 'Bench and Upper Push',
+    badge: 'Primary Bench',
+    color: 'var(--accent-blue)',
+    desc: 'Bench press is the priority. Keep the overhead press moderate because Thursday is the main overhead-press session. Pull-ups provide vertical pulling balance before the smaller shoulder and arm exercises.',
+    runs: RM,
+    lifts: ['Barbell Bench Press', 'Pull-Up', 'Standing Barbell Overhead Press', 'Incline Dumbbell Press', 'Dumbbell Lateral Raise', 'Band Triceps Pushdown', 'Band Face Pull'],
+  },
+  tue: {
+    title: 'Squat and Posterior Chain',
+    badge: 'Primary Squat',
+    color: 'var(--accent-green)',
+    desc: 'Back squats are the priority. Keep Romanian deadlifts controlled and stop before lower-back position deteriorates. Two hard sets of Bulgarian split squats per leg are sufficient after the main lifts.',
+    runs: RM,
+    lifts: ['Back Squat', 'Romanian Deadlift', 'Dumbbell Bulgarian Split Squat', 'Chest-Supported Dumbbell Row', 'Band Leg Curl', 'Barbell Standing Calf Raise', 'Ab Wheel Rollout'],
+  },
+  wed: simplifiedRestDay(),
+  thu: {
+    title: 'Overhead Press and Upper Body',
+    badge: 'Primary OHP',
+    color: 'var(--accent-amber)',
+    desc: 'This is the primary overhead-press session. Close-grip bench press provides a second chest and triceps exposure without repeating Monday’s exact workout.',
+    runs: RM,
+    lifts: ['Standing Barbell Overhead Press', 'Close-Grip Bench Press', 'One-Arm Dumbbell Row', 'Dumbbell Rear-Delt Raise', 'Dumbbell Skull Crusher'],
+  },
+  fri: {
+    title: 'Deadlift and Lower Body',
+    badge: 'Primary Deadlift',
+    color: 'var(--accent-green)',
+    desc: 'Conventional deadlifts are trained primarily for strength rather than high-repetition conditioning. Keep front squats challenging but avoid grinding after the deadlifts.',
+    runs: RM,
+    lifts: ['Conventional Deadlift', 'Front Squat', 'Reverse Lunge', 'Band Leg Curl', 'Seated Dumbbell Calf Raise', 'EZ-Bar Curl'],
+  },
+  sat: {
+    title: 'Back, Arms, Delts and Core',
+    badge: 'Bodybuilding',
+    color: 'var(--accent-pink)',
+    desc: 'This is a lower-systemic-fatigue bodybuilding session. Use controlled repetitions and aim for a strong pump without turning it into another main-lift day. Chest-supported rows avoid unnecessary lower-back fatigue after Friday’s deadlifts.',
+    runs: RM,
+    lifts: ['Chest-Supported Dumbbell Row', 'Band Lat Pulldown', 'EZ-Bar Curl', 'Band Triceps Pushdown', 'Dumbbell Lateral Raise', 'Band Face Pull', 'Ab Wheel Rollout'],
+  },
+  sun: simplifiedRestDay(),
+};
+
+const simplifiedDayExercises = {
+  mon: [
+    { name: 'Barbell Bench Press', tier: 'Primary', progression: 'Fixed main-lift block', notes: ['Rest about 2–4 minutes.', 'Use rack safeties when training alone.'] },
+    { name: 'Pull-Up', tier: 'Accessory', progression: '3 × 5–10 · double progression', notes: ['Reps are clean full-range repetitions.', 'Add load after all three sets reach 10; otherwise use a slower eccentric or pause.'] },
+    { name: 'Standing Barbell Overhead Press', tier: 'Secondary', progression: '2 × 8–10 · double progression', notes: ['Keep this moderate; Thursday is the primary overhead-press day.'] },
+    { name: 'Incline Dumbbell Press', tier: 'Accessory', progression: '2 × 8–12 · double progression', notes: [] },
+    { name: 'Dumbbell Lateral Raise', tier: 'Accessory', progression: '3 × 12–20 · double progression', notes: [] },
+    { name: 'Band Triceps Pushdown', tier: 'Accessory', progression: '2 × 12–20 · double progression', notes: [] },
+    { name: 'Band Face Pull', tier: 'Accessory', progression: '2 × 15–25 · double progression', notes: [] },
+  ],
+  tue: [
+    { name: 'Back Squat', tier: 'Primary', progression: 'Fixed main-lift block', notes: ['Rest about 2–4 minutes.', 'Use rack safeties.'] },
+    { name: 'Romanian Deadlift', tier: 'Secondary', progression: '3 × 8–10 · double progression', notes: ['Use a controlled eccentric and stop before spinal position changes.'] },
+    { name: 'Dumbbell Bulgarian Split Squat', tier: 'Accessory', progression: '2 × 8–12 per leg · double progression', notes: ['One logged set represents the prescribed work per leg.'] },
+    { name: 'Chest-Supported Dumbbell Row', tier: 'Accessory', progression: '3 × 8–12 · double progression', notes: ['Keep the chest supported throughout.'] },
+    { name: 'Band Leg Curl', tier: 'Accessory', progression: '2 × 15–25 · double progression', notes: [] },
+    { name: 'Barbell Standing Calf Raise', tier: 'Accessory', progression: '3 × 10–20 · double progression', notes: [] },
+    { name: 'Ab Wheel Rollout', tier: 'Core', progression: '2 × 6–15 · double progression', notes: ['Stop when the lower back begins to extend.'] },
+  ],
+  thu: [
+    { name: 'Standing Barbell Overhead Press', tier: 'Primary', progression: 'Fixed main-lift block', notes: ['Rest about 2–4 minutes.', 'Avoid excessive layback.'] },
+    { name: 'Close-Grip Bench Press', tier: 'Secondary', progression: '3 × 6–10 · double progression', notes: ['Use a comfortable grip slightly inside your normal bench grip.'] },
+    { name: 'One-Arm Dumbbell Row', tier: 'Accessory', progression: '3 × 8–12 per side · double progression', notes: ['One logged set represents the prescribed work per side.'] },
+    { name: 'Dumbbell Rear-Delt Raise', tier: 'Accessory', progression: '2 × 15–25 · double progression', notes: [] },
+    { name: 'Dumbbell Skull Crusher', tier: 'Accessory', progression: '2 × 10–15 · double progression', notes: [] },
+  ],
+  fri: [
+    { name: 'Conventional Deadlift', tier: 'Primary', progression: 'Fixed main-lift block', notes: ['Rest about 2–4 minutes.', 'Reset position between repetitions and stop before technical breakdown.'] },
+    { name: 'Front Squat', tier: 'Secondary', progression: '3 × 6–8 · double progression', notes: ['Keep these challenging but avoid grinding after deadlifts.'] },
+    { name: 'Reverse Lunge', tier: 'Accessory', progression: '2 × 8–12 per leg · double progression', notes: ['One logged set represents the prescribed work per leg.'] },
+    { name: 'Band Leg Curl', tier: 'Accessory', progression: '3 × 12–20 · double progression', notes: [] },
+    { name: 'Seated Dumbbell Calf Raise', tier: 'Accessory', progression: '3 × 12–20 · double progression', notes: [] },
+    { name: 'EZ-Bar Curl', tier: 'Accessory', progression: '2 × 8–15 · double progression', notes: [] },
+  ],
+  sat: [
+    { name: 'Chest-Supported Dumbbell Row', tier: 'Accessory', progression: '3 × 8–12 · double progression', notes: ['Keep this strict and low-fatigue.'] },
+    { name: 'Band Lat Pulldown', tier: 'Accessory', progression: '3 × 12–20 · double progression', notes: ['Secure the band to the top of the rack.'] },
+    { name: 'EZ-Bar Curl', tier: 'Accessory', progression: '3 × 8–15 · double progression', notes: [] },
+    { name: 'Band Triceps Pushdown', tier: 'Accessory', progression: '3 × 12–20 · double progression', notes: [] },
+    { name: 'Dumbbell Lateral Raise', tier: 'Accessory', progression: '3 × 12–20 · double progression', notes: [] },
+    { name: 'Band Face Pull', tier: 'Accessory', progression: '2 × 15–25 · double progression', notes: [] },
+    { name: 'Ab Wheel Rollout', tier: 'Core', progression: '3 × 6–15 · double progression', notes: [] },
+  ],
+};
+
+const simplifiedWeeklyVolModifiers = {
+  '1':  { sets: 4, reps: 8, intensityLabel: 'Volume & technique · 3 RIR' },
+  '2':  { sets: 4, reps: 8, intensityLabel: 'Volume & technique · 2 RIR' },
+  '3':  { sets: 4, reps: 8, intensityLabel: 'Volume & technique · 1–2 RIR' },
+  '4':  { sets: 2, reps: 8, intensityLabel: 'Deload · reduce load 10–15% · 4+ RIR' },
+  '5':  { sets: 4, reps: 6, intensityLabel: 'Strength & hypertrophy · 3 RIR' },
+  '6':  { sets: 4, reps: 6, intensityLabel: 'Strength & hypertrophy · 2 RIR' },
+  '7':  { sets: 4, reps: 6, intensityLabel: 'Strength & hypertrophy · 1 RIR' },
+  '8':  { sets: 2, reps: 6, intensityLabel: 'Deload · reduce load 10–15% · 4+ RIR' },
+  '9':  { sets: 5, reps: 4, intensityLabel: 'Intensification · 3 RIR' },
+  '10': { sets: 5, reps: 4, intensityLabel: 'Intensification · 2 RIR' },
+  '11': { sets: 5, reps: 4, intensityLabel: 'Intensification · 1 RIR' },
+  '12': { sets: 1, reps: '4+', intensityLabel: 'Assessment · controlled rep-PR · stop at 1 RIR' },
+};
+
+/** @type {any[]} */
+const JT_SHED_SIMPLIFIED_PROGRAMS = [
+  {
+    id: 'jacked-tan-shed-simplified',
+    name: 'Jacked & Tan: Shed Edition — Simplified',
+    tagline: 'A straightforward 12-week strength and hypertrophy program for a barbell, dumbbells, bands and a pull-up bar.',
+    description: 'A simplified home- or shed-gym adaptation inspired by Jacked & Tan’s volume-to-strength progression. It uses fixed rep blocks, RIR guidance, double progression, planned deloads and a controlled Week 12 rep-PR assessment without daily rep-max calculations.',
+    author: { name: 'Helyx', type: 'community', verified: false },
+    category: 'hypertrophy',
+    subcategory: 'strength-hypertrophy',
+    tags: ['intermediate', 'strength', 'hypertrophy', 'muscle-gain', 'body-composition', 'work-capacity', 'home-gym', 'jacked-and-tan', 'fixed-rep-blocks', 'double-progression', '5-day'],
+    durationWeeks: 12,
+    sessionsPerWeek: 5,
+    sessionDurationMinutes: { min: 45, max: 80 },
+    difficulty: 'intermediate',
+    equipment: ['barbell', 'ez-bar', 'rack', 'bench', 'dumbbells', 'bands', 'pullup-bar'],
+    equipmentTier: 'home-gym',
+    goals: ['strength', 'hypertrophy', 'muscle-gain', 'body-composition', 'work-capacity'],
+    metrics: { strengthEmphasis: 80, hypertrophyEmphasis: 82, enduranceEmphasis: 10, conditioningEmphasis: 30, recoveryDemand: 68, weeklyVolumeScore: 76 },
+    highlights: ['4 main-lift days + 1 lower-fatigue bodybuilding day', 'Fixed rep blocks with simple RIR guidance', 'Double progression for accessories', 'Deloads in Weeks 4 and 8', 'Controlled rep-PR assessment in Week 12'],
+    expectedOutcomes: ['Stronger squat, bench, deadlift and overhead press', 'More muscle across the whole body', 'Improved body composition and work capacity', 'A repeatable shed-gym progression method'],
+    popularity: 60, rating: 0, ratingCount: 0, completionRate: 0, enrolledCount: 0,
+    featured: false, verified: false, isNew: true,
+    coverGradient: ['#2a1a05', '#3d2a0a'], accentColor: accent, icon: '🏝️',
+    collections: ['hypertrophy-collection', 'home-gym'],
+    days: simplifiedDays,
+    weeklyVolModifiers: simplifiedWeeklyVolModifiers,
+    programNotes: SIMPLIFIED_PROGRAM_NOTES,
+    weekNotes: SIMPLIFIED_WEEK_NOTES,
+    dayExercises: simplifiedDayExercises,
+    trainingMaxLifts: [],
+    progressionModel: 'jt-shed-simplified',
+    dossier: {
+      creator: 'Helyx',
+      focus: 'Strength + Hypertrophy (home or shed gym)',
+      philosophy: 'Use straightforward fixed-rep blocks, planned deloads, RIR guidance and double progression without daily rep-max calculations.',
+    },
+  },
+];
+
+export default JT_SHED_SIMPLIFIED_PROGRAMS;

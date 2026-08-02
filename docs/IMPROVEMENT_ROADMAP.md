@@ -636,6 +636,10 @@ entry, plus the
 legacy-compatible R20 program-editor foundation, are engineering-complete; remaining Strength e1RM/profile/calendar/balance and
 Recovery/Health/Hybrid/Home/Profile follow-ups remain reviewable Stage 4–5 slices, and R25
 remains an incremental seam-by-seam practice.
+The discoverable J&T offering is now **Jacked & Tan: Shed Edition — Simplified** on
+`codex/jt-shed-simplified`: fixed-rep blocks, RIR guidance, double-progression accessories,
+Weeks 4/8 deloads and a controlled Week 12 rep-PR. The retired tiered plan remains
+resolver-only for existing activations/history and is absent from discovery.
 The active launch item is **R15 release evidence**: required Android JVM/lint/APK checks must
 pass, then the owner completes `docs/android-gps-device-checklist.md`; failures return to R15
 before beta.
@@ -788,6 +792,22 @@ Engineering should provide exact checklists, fixtures, expected results, and bui
 Newest first; keep entries short and link commits or checklists instead of repeating the
 implementation register.
 
+- 2026-08-03 · Replaced the discoverable Jacked & Tan program with
+  **Jacked & Tan: Shed Edition — Simplified** on `codex/jt-shed-simplified`. The new stable
+  `jacked-tan-shed-simplified` program keeps the exact Mon/Tue/Thu/Fri/Sat schedule and
+  home-gym exercise order, resolves per-exercise fixed main-lift blocks and accessory ranges
+  through the existing J&T prescription seam, halves actual set rows in Weeks 4/8/12, and
+  stamps the existing `assessment` role onto Week 12’s controlled 4+/3+ rep-PR sets. The old
+  `jt_shed_edition` card is retired from discovery but remains resolver-only so an existing
+  activation or historical link is never rewritten. No new persisted schema fields or exercise
+  entries were needed; all 24 authored names resolve through the canonical catalogue. Evidence:
+  `npm run verify` green (1,288/1,288; typecheck, precache, workflow, smoke), focused J&T
+  unit regression green (68/68), and the new real-browser discovery→W1/W5/W9/W12
+  preview→activation→cockpit→reload journey passed. The complete browser suite also passed
+  every check through the new J&T journey, then the unrelated exercise-picker check could not
+  start because the host disk had only 123 MB free (`ENOSPC`); rerun the suite after freeing
+  disk space. · Next: review/merge this bounded replacement; R15 physical-device/release
+  evidence remains the launch gate.
 - 2026-07-24 · Settings close button vs Android status bar — on
   `claude/settings-close-button-android-mope1q`. The Settings header (`index.html`
   `.settings-header`, avatar hero + close ✕ in one flex row) had `padding: 20px 20px 16px`
