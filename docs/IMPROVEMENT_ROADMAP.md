@@ -1,421 +1,635 @@
-# Helyx Improvement Roadmap
+# Helyx Product Improvement Roadmap
 
-> Product, engineering, and release source of truth.
+> Product and engineering source of truth.
 >
-> Last reconciled against the repository and rendered application: **3 August
-> 2026**.
+> Reframed on **3 August 2026** around product quality rather than release
+> readiness.
 
-## 1. Current objective
+## 1. Product objective
 
-Ship a trustworthy **free Android public beta on Google Play**. The web/PWA and
-custom Android WebView shell are the launch surfaces. iOS, Capacitor/TWA
-migration, subscriptions, paywalls, and advertising are explicitly out of
-scope.
+Make Helyx feel like the most natural way to combine strength and running:
 
-Helyx is already a broad, coherent hybrid-training product. The constraint is
-not a missing feature set; it is release proof. The next milestone is reached
-when the existing core works safely on real Android devices for long-lived,
-offline-first training data.
+- obvious without being simplistic;
+- fast during training;
+- calm and useful outside training;
+- trustworthy when interpreting progress;
+- adaptable without exposing unnecessary complexity.
 
-### Repository snapshot
+The active goal is **not** Play Store release. Release work is parked while the
+core product is improved. The next milestone is an app that feels coherent and
+effortless in repeated personal use, not an app with more features.
 
-- Vanilla JavaScript ES modules, service-worker PWA, custom Android WebView.
-- 57 built-in programs plus editable personal copies and custom programs.
-- 154 canonical exercises; 16 reviewed EZ-bar variations.
-- Local-first state with optional Supabase blob sync, conflict choice, and
-  pre-overwrite recovery snapshots.
-- Calendar-correct strength/running analytics, deterministic coaching, GPS,
-  Health Connect, export, restore, and Android automatic backups.
-- 1,292 Node tests after the 3 August catalogue/UI review, plus typecheck,
-  smoke, workflow, precache, and required real-browser gates.
+Helyx should answer three questions exceptionally well:
 
-## 2. Settled product and data rules
+1. **What should I do today?**
+2. **How do I log it with minimal friction?**
+3. **Is my training working, and what should I do next?**
 
-These are constraints, not backlog items:
+Everything on a primary screen must help answer one of those questions.
 
-1. **Android public beta first.** Do not build iOS or monetisation during this
-   launch push.
-2. **Local-first and loss-averse.** Local storage remains the primary working
-   copy. Sync changes require recovery points and conflict guards before any
-   behavioural change.
-3. **One user-owned cloud blob for now.** Supabase `user_data` remains
-   last-write-wins at blob level, with server `updated_at`, warn-and-choose
-   conflict UI, RLS, and recovery snapshots. Normalised cloud sessions require
-   a separate migration ADR and are deferred.
-4. **Program activations never share workout slots.** Old runs stay archived in
-   `state.weeks` and count toward dated/all-time history, but never leak into a
-   new active program.
-5. **Program week and calendar week are different domains.** Prescriptions,
-   adherence, deloads, and “Week N” use the program week. “This week” analytics
-   and detail navigation use real Monday-based calendar dates.
-6. **Logged evidence beats plans.** Analytics count completed working sets and
-   actual run sessions. Warm-ups, incomplete rows, future dates, and undated
-   legacy work are excluded where the metric requires real dated activity.
-7. **Finishing is deliberate.** A user can finish below 100% adherence, but a
-   blank or warm-up-only workout cannot become training history.
-8. **Guidance must be honest.** Set credits, load, readiness, projections, and
-   reference ranges are estimates—not medical advice, personal recovery limits,
-   or promised outcomes. Sparse evidence must be labelled.
-9. **No mutable remote JavaScript in the privileged WebView.** Runtime
-   libraries are vendored, CSP uses `script-src 'self'`, and the service worker
-   must never reintroduce remote executable assets.
-10. **Accessibility and data recovery are release features.** TalkBack,
-    keyboard/focus behaviour, large text, export/restore, and offline recovery
-    are not optional polish.
-11. **Human evidence stays human-owned.** Accounts, SQL deployment, signed
-    builds, device testing, legal review, listing assets, and store submission
-    are `[You]` tasks. Engineering may prepare the exact artifact but must not
-    mark the task complete without evidence.
+## 2. Current-state assessment
 
-## 3. Reconciliation: roadmap versus implementation
+### What is strong
 
-### Completed or materially complete
+- The core training model is unusually capable: planned and one-off strength
+  sessions, running, program activations, real calendar attribution, exercise
+  history, bodyweight loading, swaps, supersets, timers, GPS, Health Connect,
+  backups, and sync protection.
+- The app has meaningful analytics rather than decorative charts: strength,
+  running, recovery, load, readiness, exact workout evidence, and honest
+  partial-week comparisons.
+- The visual identity is established and distinctive.
+- Data safety and automated verification are strong foundations.
+- The program and exercise catalogues are deep enough for product work to focus
+  on discovery and clarity rather than more content.
 
-- The original truth/security foundation (R1–R6) is implemented: evidence-aware
-  briefing, shared load/readiness models, conflict-safe sync, RLS proof, crash
-  scrubbing, and honest recovery language.
-- Core product expansion (R7–R14) is implemented: workout UX, program
-  discovery/detail/compare/customisation, Hybrid Score, analytics foundations,
-  one-off workouts, history, exact deletion/undo, and week-correct reporting.
-- Runtime/data hardening (R16–R19, R21–R22) is implemented: vendored runtime
-  JavaScript, signed publication gates, account deletion path, bodyweight load
-  modes, export/restore, GPS journal recovery, and Android automatic backups.
-- Product/visual consolidation (R27–R29, R31) is implemented: shared brand
-  system, focused Home, calendar-correct Profile, and simplified Jacked & Tan
-  program variants.
-- Several R30 analytics families are complete: Running Performance, Strength
-  Volume, Gym Performance, Run Performance, and Recovery Performance.
-- Program-editor foundations from R20 are complete: personal copies, stable
-  identity, schedule/progression editing, preview parity, active-program
-  reconciliation, and mobile keyboard-safe exercise selection.
+### What holds the experience back
 
-### Partially complete
+- The product exposes too much of its capability at once. Home, Insights,
+  Programs, Settings, and the workout cockpit can all become information-dense.
+- Navigation reflects implementation areas more than user intent. Planned
+  Workout and the central Start menu overlap, while “Insights” is less natural
+  than “Progress”.
+- Home contains several competing summaries and calls to action before the
+  user reaches the answer to “what do I do now?”
+- Analytics has many valid metrics but insufficient hierarchy. Users can see
+  numbers without immediately knowing which matter, why they changed, or what
+  action follows.
+- Programs offers 57 choices before establishing a strong recommended path.
+- Advanced logging controls are valuable but can visually compete with the
+  basic set-completion flow.
+- Some surfaces still behave like separate feature additions rather than one
+  continuous interaction system.
+- Non-EZ exercise technique metadata remains incomplete.
+- Large modules and CSS specificity make consistent UX changes riskier than
+  they should be.
 
-- **R15 Android release evidence:** engineering controls, CI, checklists,
-  backups, bridge security, and browser proof exist. Physical GPS/Health
-  Connect/TalkBack/export/backup evidence, signed install proof, legal URLs,
-  listing assets, and dogfood evidence remain open.
-- **R20 normalised prescriptions:** the editor works within the existing
-  single-week template plus shared weekly modifier. True per-lift/per-week
-  prescriptions and migration do not exist and remain deliberately deferred.
-- **R23 projections:** VDOT fallbacks and transparent projections exist, but
-  confidence/sample-size treatment and long-term calibration remain incomplete.
-- **R25 maintainability:** analytics has been split substantially, but
-  `js/workout.js`, `js/app.js`, `js/state.js`, `js/settings.js`, the main
-  stylesheet, inline styles, and specificity overrides remain large.
-- **R26 product hierarchy:** Home is focused, but 57 programs, a long Settings
-  sheet, and deep Insights navigation still need observation-led simplification.
-- **Exercise details:** the schema and UI now support instructions, difficulty,
-  movement, equipment, muscles, and safety. The 16 EZ-bar entries are complete;
-  the other catalogue entries still need an editorial enrichment pass before
-  claiming catalogue-wide technique guidance.
+### Product diagnosis
 
-### Outdated items corrected in this review
+Helyx does not need a broad redesign or a new visual identity. It needs
+**progressive disclosure, clearer hierarchy, fewer competing actions, and
+stronger continuity between planning, training, and review**.
 
-- Security/versioning docs still described Supabase/Sentry CDN execution and
-  only three native bridges. Runtime code is vendored and five bridges ship.
-- The service worker still attempted a best-effort jsDelivr Supabase fetch even
-  though the application had moved to bundled runtime JavaScript. The obsolete
-  fetch was removed and regression-tested.
-- Store copy still advertised MEV/MAV/MRV guidance after the product moved to
-  transparent estimated set credits and general references. The claim was
-  corrected.
-- The Hybrid Score document still called Morning Briefing integration a future
-  task even though it is implemented.
-- Older status text treated the program editor, analytics details, automatic
-  backups, and Jacked & Tan simplification as future work.
+## 3. Opinionated product direction
 
-### Duplicated material consolidated
+These are the working decisions for the improvement programme. They can change
+when usability evidence contradicts them.
 
-The previous roadmap repeated the same work across an audit, recommendation
-register, implementation register, phase tables, active queue, and a very long
-session log. This version keeps:
+### Recommended information architecture
 
-- one ordered phase plan;
-- one quality backlog;
-- one delivered-foundations register;
-- one human release gate;
-- a short recent session log.
+Use four primary destinations:
 
-Git history remains the durable line-by-line implementation archive.
+1. **Home** — today, immediate coaching, and this-week orientation.
+2. **Train** — planned session, quick start, active session, and recent
+   activities.
+3. **Progress** — strength, running, consistency, and recovery.
+4. **Plans** — current plan, recommendations, programme discovery, and builder.
 
-### Missing items added
+Profile and Settings remain accessible from the avatar. The current central
+Start destination should become part of **Train** and context-aware Home actions
+rather than compete with Workout in the bottom navigation.
 
-- Exercise catalogue editorial completeness and duplicate/alias QA.
-- Equipment/category filtering and exercise-detail accessibility.
-- Service-worker remote-JavaScript drift protection.
-- Documentation/product-claim drift review before store submission.
-- Measured performance budgets for startup, render, long-history analytics, and
-  picker/program-list interaction.
-- Consistent loading/error/retry/empty-state language across networked surfaces.
-- Real-device TalkBack plus large-font checks for newly added picker/detail
-  flows.
-- Explicit beta evidence for Settings and Programs information density before
-  any subjective redesign.
+This is a proposed structural change. Implement it behind focused browser tests
+and keep existing deep links/back routes working during migration.
 
-## 4. Prioritised delivery plan
+### Home should be a decision surface
 
-Status: **DONE**, **ACTIVE**, **NEXT**, **LATER**, or **DEFERRED**.
+The first viewport should contain:
 
-## Phase 0 — Public-beta release gate
+- a concise greeting/date;
+- one dominant Today card;
+- planned session or rest-day status;
+- Start, Resume, or Review as the single primary action;
+- one short coaching sentence;
+- a compact weekly-progress strip.
 
-**Outcome:** a signed candidate survives real-device, offline, recovery, and
-legal checks. This phase blocks Play submission.
+Hybrid Score, readiness, streaks, weekly charts, goals, and highlights can
+remain, but below the primary decision or inside Progress. Home should not
+repeat the same metric in multiple forms.
 
-| Status | Task | Owner | Acceptance evidence |
-| --- | --- | --- | --- |
-| ACTIVE | Run the complete Android device checklist on at least one Android 14+ phone and one compact/older supported device | `[You]` | Completed `docs/android-device-checklist.md` with device/OS/build and screenshots or recordings for failures |
-| ACTIVE | Prove GPS cold start, background/locked-screen tracking, permission denial, process death, journal replay, duplicate prevention, and route persistence | `[You]` | Device evidence attached to release record; no acknowledged fixes lost |
-| ACTIVE | Prove Health Connect absent/denied/partial/full permissions and metric refresh | `[You]` | All checklist branches recorded; no misleading success state |
-| ACTIVE | Run TalkBack, 200% text/display size, keyboard, rotation, Android Back, and touch-target checks across onboarding, Home, workout, exercise picker/detail, program editor, Insights, Settings, export, and conflict dialogs | `[You]` | No focus escape, unreachable control, clipped blocking action, or unlabelled interactive element |
-| ACTIVE | Prove complete export/restore and Android automatic daily/weekly backups with GPS routes, failure injection, and empty-state recovery gate | `[You]` | Byte-valid export, successful restore, retained routes, and failed writes never reported as success |
-| NEXT | Restore and commit the Gradle wrapper so local Android builds match CI | Engineering | `./gradlew test lintDebug assembleDebug` works from a clean checkout |
-| ACTIVE | Produce a signed internal release through CI and install the exact artifact on a device | `[You]` | Artifact checksum, versionName/versionCode, install/upgrade proof, WebView debugging off |
-| ACTIVE | Deploy and verify account deletion edge function; host privacy/deletion URLs; complete Play Data Safety answers | `[You]` | Real URLs, independent-account deletion test, no placeholders, legal review recorded |
-| ACTIVE | Complete a minimum 30-day dogfood with normal edits, deletes, program switches, offline periods, sync conflicts, exports, restores, and app upgrades | `[You]` | No unexplained data loss; issues triaged with reproduction/evidence |
-| ACTIVE | Prepare final store listing, screenshots, feature graphic, support email, and release notes | `[You]` | Play Console accepts all assets/copy; screenshots match the candidate |
+### Train should feel physical and immediate
 
-Do not compensate for missing device evidence by adding features. Fix only
-release-blocking defects discovered by this phase, with regression coverage.
+- Planned training and quick-start modes live in one place.
+- During a workout, the current exercise and next action dominate.
+- Advanced controls appear when requested or when context makes them relevant.
+- Inputs favour one-handed use, large targets, predictable keyboard behaviour,
+  and immediate feedback.
+- Finishing creates a short useful review, not another form to complete.
+- Running gets an equally clear active-session mode rather than feeling like an
+  attachment to the strength cockpit.
 
-## Phase 1 — Core-loop quality after the release gate is underway
+### Progress should explain, not merely report
 
-**Outcome:** lower friction and clearer evidence without changing the training
-model.
+Every analytics surface should answer, in order:
 
-### Delivered in the 3 August review
+1. What changed?
+2. Is the change meaningful and comparable?
+3. What contributed to it?
+4. What, if anything, should I do?
+5. How was it calculated?
 
-- **DONE — Exercise discovery:** shared equipment/category filters in workout
-  addition and program editing; alias-aware ranked search; result counts; clear
-  empty states; 44px detail controls; shared detail sheet; nested-modal focus
-  return.
-- **DONE — EZ-bar data:** 16 distinct variations spanning push, pull, arms,
-  shoulders, back, and suitable leg/posterior-chain work, with instructions,
-  difficulty, muscle credits, movement pattern, equipment, and safety notes.
-- **DONE — Runtime drift:** removed obsolete service-worker CDN request and
-  added a remote-JavaScript regression test.
-- **DONE — Documentation claims:** corrected security, versioning, store,
-  Hybrid Score, and Android picker/device-check documents.
+The default Progress landing page should prioritise:
 
-### Next low-risk slices
+- consistency and completed training;
+- strength progress;
+- running progress;
+- training balance/recovery.
 
-| Priority | Task | Acceptance |
-| --- | --- | --- |
-| P1 | Complete R30 Strength Performance detail (estimated 1RM, comparable same-lift evidence, calendar ranges) | One shared model, exact contributing workouts, sparse/zero states, edit/delete refresh, no cross-exercise subtraction |
-| P1 | Complete remaining R30 Recovery detail (sleep, resting HR, HRV, steps, readiness components) | Permission-aware fields, source/confidence labels, calendar-correct ranges, no medical thresholds |
-| P1 | Audit all network-dependent loading/error/retry states | Auth, sync, map tiles, Health Connect, deletion, export/share, and optional crash reporting use consistent plain-language states; offline remains usable |
-| P1 | Catalogue data-quality pass | Every alias is unique; every built-in program lift resolves; ambiguous generic names are documented; no duplicate canonical exercise; reviewed metadata coverage reported |
-| P1 | Enrich non-EZ exercise guidance in bounded, sourced batches | Each edited entry has two or more actionable steps, difficulty, safety notes, and reviewed muscle/equipment classification; browser details never imply missing content is complete |
-| P1 | Add the new picker/detail flow to the physical accessibility checklist | TalkBack names filters and info controls; topmost modal traps focus; close restores context; 200% text and compact width remain usable |
+Advanced metrics remain available through drilldowns. Do not add more metrics
+until the existing ones have a clear audience, hierarchy, and action.
 
-### Observation-led UX work
+### Plans should recommend before asking users to browse
 
-Do not redesign these from taste alone. Collect beta evidence first:
+- Lead with the active plan and its next week.
+- Offer a small set of clearly explained recommendations based on goal,
+  experience, schedule, and equipment.
+- Keep Browse all as a secondary path.
+- Explain why a plan fits, its weekly commitment, progression, and equipment
+  before showing catalogue-style detail.
+- Offer Simple and Advanced editing paths rather than presenting every
+  programme field at once.
 
-- **Programs:** measure whether 57 choices, chips, collections, and compare
-  controls slow first-program selection. Candidate intervention: progressive
-  disclosure around recommended/equipment-compatible programs, while keeping
-  full search and filters.
-- **Settings:** measure findability and completion time in the long modal.
-  Candidate intervention: a short account/training/data landing page with
-  deeper subpages, without hiding export/delete/recovery actions.
-- **Insights:** identify dead-end or duplicated destinations. Candidate
-  intervention: keep the four-domain hub and move optional fasting/projection
-  surfaces behind explicit interests.
-- **Desktop/tablet:** the narrow phone canvas is intentional for Android launch.
-  Only introduce wider layouts when a real PWA/tablet use case is prioritised;
-  first improve information density, not visual identity.
-- **Workout forms:** observe weight/reps/RIR/error recovery with sweaty, one-hand
-  use. Fix clear focus, validation, keyboard, and destructive-action issues;
-  retain the established cockpit structure.
+### Coaching should be brief, specific, and inspectable
 
-## Phase 2 — Training-model correctness and personalisation
+- One primary recommendation at a time.
+- Name the evidence behind it.
+- State confidence when data is sparse.
+- Prefer “because” over unexplained scores.
+- Offer one relevant action, not several generic question chips.
+- Never let coaching contradict the planned session, completion status, or
+  recovery warning.
 
-**Outcome:** deepen the coaching model only after beta evidence shows the core
-data is trustworthy.
+## 4. Interaction principles
 
-| ID | Status | Task | Required decision/evidence |
-| --- | --- | --- | --- |
-| R20 | DEFERRED | Normalised per-lift/per-week prescription schema | ADR covering schema, v1 string migration, inline target precedence, custom-program compatibility, preview/logger parity, activation reconciliation, export/sync compatibility, and rollback |
-| R23 | LATER | Projection confidence and calibration | Minimum sample rules, uncertainty wording, test profiles, comparison against observed outcomes; never present deterministic race promises |
-| VOLUME | LATER | Individual volume baselines | At least 6–8 weeks of stable training evidence, deload/recovery adjustment, direct versus indirect credits, and explicit non-medical framing |
-| COACH | LATER | Learn from accepted/rejected recommendations | Privacy-preserving local signals first; clear controls and no opaque behavioural profiling |
-| JT | LATER | Further Jacked & Tan management | Only after beta feedback: training-max UX, per-set role clarity, notes/rest fields, and Block 2 progression evidence |
+Every new or revised surface must follow these rules:
 
-## Phase 3 — Maintainability, performance, and scale
+1. **One obvious primary action.** Secondary actions are visually quieter.
+2. **Progressive disclosure.** Show the common path first; advanced options
+   remain reachable without dominating it.
+3. **Direct manipulation.** Tapping the thing should edit or open the thing.
+4. **Immediate feedback.** Logging, reordering, filtering, saving, and deleting
+   visibly respond without requiring a refresh.
+5. **Safe reversibility.** Prefer Undo and recoverable edits over repeated
+   confirmation dialogs.
+6. **Spatial continuity.** Closing a sheet returns focus and scroll to the
+   initiating context.
+7. **No gesture-only behaviour.** Swipes may accelerate an action but never be
+   the only way to perform it.
+8. **Natural language.** Use training language rather than storage, schema, or
+   analytics jargon.
+9. **Honest states.** Loading, empty, unavailable, partial, failed, and offline
+   states are visually and verbally distinct.
+10. **One-handed mobile use.** Frequent controls stay reachable, at least
+    44px, and clear of keyboards and safe areas.
+11. **Respect user attention.** Avoid decorative alerts, duplicate summaries,
+    and low-value badges.
+12. **Preserve identity.** Keep the current technical visual character,
+    restrained orange accent, and dark/light themes.
 
-**Outcome:** reduce change risk without a framework rewrite.
+## 5. Prioritised roadmap
 
-| ID | Status | Task | Acceptance |
-| --- | --- | --- | --- |
-| R25-A | NEXT | Split `js/workout.js` by logger rendering, mutations, exercise selection, run logging, and session completion | Public behaviour unchanged; focused unit tests; smoke/browser gates green |
-| R25-B | NEXT | Split `js/app.js` routing/event delegation and large Settings/state surfaces | Clear ownership boundaries; no duplicate listeners; import graph remains offline-precache complete |
-| R25-C | NEXT | Continue CSS tokenisation and remove inline styles/`!important` hotspots by surface | Visual regression/browser evidence at 320, 390, 412, desktop, light/dark, reduced motion |
-| PERF | NEXT | Establish measured budgets before optimisation | Record cold/warm startup, JS/CSS transfer, Home/workout render, 57-program filtering, 154-exercise filtering, and 5-year history analytics on target Android hardware |
-| PERF | LATER | Optimise only budget failures | Prefer keyed updates, bounded DOM, deferred optional work, and smaller modules; preserve offline behaviour |
-| DOCS | NEXT | Add release-time documentation/claim audit | Automated checks for placeholders, remote runtime claims, version alignment, privacy copy, and store-copy model names |
-| R24 | DEFERRED | Normalised Supabase session persistence | Separate ADR, RLS migration, dual-read/write rollout, backup/rollback, conflict semantics, and adversarial proof; never a launch-blocker |
+Status: **ACTIVE**, **NEXT**, **LATER**, **DONE**, or **PARKED**.
 
-## 5. Cross-cutting quality backlog
+## Phase 0 — Experience map and product contract
 
-### Bugs and reliability
+**Status: ACTIVE**
 
-- Treat any lost/duplicated workout, route, export, restore, sync, or program
-  activation data as P0.
-- Close the local Gradle wrapper gap.
-- Continue process-death and duplicate-delivery tests for native callback paths.
-- Verify service-worker upgrades retain the prior cache if any required asset
-  fails; remote executable assets remain forbidden.
-- Test long custom exercise names, Unicode, duplicate aliases, missing metadata,
-  and imported legacy labels in both pickers and analytics.
+**Outcome:** a shared model of the app’s main jobs, destinations, and interface
+rules before individual screens are polished in isolation.
+
+### Tasks
+
+- Inventory every app screen, sheet, modal, entry point, back route, primary
+  action, empty state, loading state, and destructive action.
+- Map these end-to-end journeys:
+  - first use to first useful session;
+  - open app to start/resume today’s workout;
+  - quick-start strength/run/walk;
+  - log, edit, finish, and review a workout;
+  - understand this week’s progress;
+  - choose or modify a plan;
+  - find and understand an exercise;
+  - recover from offline, sync, permission, or data errors.
+- Classify every visible item as primary, supporting, advanced, or removable.
+- Create a shared vocabulary for page headers, section titles, metric labels,
+  actions, empty states, and error language.
+- Record a baseline for taps, decision points, and time-to-completion on the
+  core journeys.
+
+### Acceptance
+
+- Each journey has one clear start, completion, and recovery path.
+- Every current navigation destination has a stated user job.
+- Duplicate or competing actions are listed with a proposed owner.
+- The proposed Home / Train / Progress / Plans structure is validated against
+  all current deep links before implementation.
+
+## Phase 1 — Navigation and Home hierarchy
+
+**Status: NEXT**
+
+**Outcome:** opening Helyx immediately answers what matters today.
+
+### 1A. Navigation
+
+- Prototype the four-destination navigation.
+- Consolidate Workout and Start into Train.
+- Rename Insights to Progress.
+- Keep avatar access to Profile and Settings.
+- Preserve history/back behaviour for every analytics and programme drilldown.
+- Make active state, labels, and icons unambiguous at 320–412px and 200% text.
+
+### 1B. Home
+
+- Replace multiple competing top-level cards/actions with one Today card.
+- Support these mutually exclusive states:
+  - planned session ready;
+  - session in progress;
+  - session completed;
+  - rest day;
+  - no active plan;
+  - unresolved workout from another day;
+  - limited/offline data.
+- Combine readiness/coaching into one short contextual message.
+- Reduce Hybrid Score to a supporting summary unless it has enough evidence to
+  explain a meaningful change.
+- Replace full Home charts with a compact weekly strip and one or two relevant
+  highlights.
+- Move detailed analytics to Progress with exact deep links.
+- Make Choose another workout a clear secondary action inside Today/Train.
+
+### Acceptance
+
+- A user can identify and start the intended action in under five seconds.
+- The first viewport has one primary button.
+- No metric or training status is repeated in two adjacent components.
+- Rest, completed, and in-progress states cannot recommend starting the wrong
+  session.
+- Home remains useful with no history, sparse data, or no active plan.
+
+## Phase 2 — Natural workout and run logging
+
+**Status: NEXT**
+
+**Outcome:** logging feels faster than remembering the workout later.
+
+### 2A. Strength cockpit
+
+- Make the active exercise visually dominant; collapse completed/future
+  exercises while retaining a clear session overview.
+- Design a consistent set-row interaction:
+  - previous values visible;
+  - weight and reps easy to edit;
+  - completion is the strongest row action;
+  - RIR/RPE, set type, load mode, and notes progressively disclosed;
+  - invalid or incomplete input explained inline.
+- Test whether ticking a set should advance focus or open the rest timer without
+  surprising the user.
+- Keep rest timing attached to the active exercise/set, with obvious
+  pause/skip/adjust controls.
+- Make add, swap, reorder, superset, warm-up, and plate-math actions contextual
+  instead of equally prominent.
+- Add a lightweight session outline so users can see what remains without
+  scrolling through every expanded control.
+- Preserve all existing data and programme-target semantics.
+
+### 2B. Session completion
+
+- Replace the current completion form feeling with a concise review:
+  completed work, duration, optional effort, notable progress, and one Finish
+  action.
+- Keep notes optional and remember where they were entered.
+- Explain low adherence without blocking deliberate completion.
+- Make discard/delete scope unmistakable and recoverable where possible.
+- Return to a useful completed state with Review workout and Progress links.
+
+### 2C. Running
+
+- Give active GPS/manual running its own focused session surface.
+- Prioritise elapsed time, distance, pace, GPS quality, pause/resume, and Finish.
+- Move imports and setup controls out of the active-session hierarchy.
+- Clarify GPS acquisition, permission denial, background tracking, replay, and
+  partial-route states.
+- Use the user’s distance unit consistently at every boundary.
+
+### Acceptance
+
+- A normal working set can be logged with one edit-and-complete sequence.
+- Advanced controls never obstruct basic logging.
+- No keyboard covers the active input or primary action.
+- Changing exercise/day/session preserves user-entered work.
+- Strength and running finish flows use the same interaction vocabulary.
+
+## Phase 3 — Progress and analytics redesign
+
+**Status: NEXT**
+
+**Outcome:** Progress turns training history into understandable decisions.
+
+### 3A. Progress landing page
+
+Create four primary domains:
+
+1. **Consistency** — sessions completed, planned versus performed, and streak
+   context without shame.
+2. **Strength** — comparable lift progress, volume, and muscle set credits.
+3. **Running** — distance, pace, duration, and performance trends.
+4. **Recovery & Load** — readiness inputs, training load, and balance.
+
+Each domain shows one headline, one trend, one interpretation, and one link to
+detail. Optional fasting analytics appear only when the user enables fasting.
+
+### 3B. Metric hierarchy
+
+Classify every metric:
+
+- **Headline:** useful to most users and actionable.
+- **Supporting:** explains a headline.
+- **Advanced:** useful to an informed subset.
+- **Diagnostic:** visible only when explaining a model.
+- **Remove/merge:** duplicates another metric or has no clear action.
+
+Initial recommendations:
+
+- Promote completed sessions, same-exercise estimated 1RM trend, weekly running
+  volume, best sustainable pace, and readiness confidence.
+- Keep CTL/ATL/TSB and formula-level values behind explanations.
+- Treat Hybrid Score as an optional synthesis, not the sole definition of
+  progress.
+- Merge “Gym Performance”, “Strength Stats”, and overlapping strength
+  destinations into a clearer Strength Progress hierarchy.
+- Use Training Load and Recovery as related but distinct concepts.
+
+### 3C. Detail-screen contract
+
+Every metric detail includes:
+
+- plain-language title and current value;
+- date range and comparison basis;
+- accessible trend visual;
+- “What changed” summary;
+- exact contributing activities;
+- “How this is calculated” disclosure;
+- honest empty, sparse, partial-week, and permission-limited states.
+
+### 3D. Remaining model work
+
+- Complete Strength Performance around calendar-dated, same-exercise estimated
+  1RM and exact evidence.
+- Complete recovery details for sleep, resting HR, HRV, steps, and readiness
+  components.
+- Add projection sample-size/confidence treatment.
+- Audit every metric for calendar-week/program-week correctness.
+- Verify edit/delete/import changes propagate immediately across Home, Progress,
+  detail screens, coaching, and Hybrid Score.
+
+### Acceptance
+
+- A non-expert can explain the main trend after reading one screen.
+- No default screen requires knowledge of analytics acronyms.
+- Every recommendation links to its evidence.
+- Partial weeks compare like-for-like elapsed periods.
+- Zero, sparse, or missing data never produces false precision.
+- No new analytics metric is added without an audience and action statement.
+
+## Phase 4 — Plans, exercise discovery, and editing
+
+**Status: LATER**
+
+**Outcome:** choosing and changing training feels guided rather than
+catalogue-driven.
+
+### 4A. Plans landing page
+
+- Lead with the active plan, current week, next session, and progress.
+- Show three to five recommendations with explicit “why it fits” reasons.
+- Ask only for missing information needed to improve recommendations.
+- Make Browse all secondary but complete.
+- Reduce category-chip and collection overload.
+- Let users compare no more than two or three programmes with consistent fields.
+
+### 4B. Programme detail
+
+- Present in this order:
+  1. who it is for;
+  2. weekly commitment;
+  3. equipment fit;
+  4. sample week;
+  5. progression;
+  6. full plan;
+  7. Start or Customise.
+- Remove repeated stats and decorative labels that do not affect a decision.
+- Keep preview/logger prescription parity.
+
+### 4C. Builder
+
+- Introduce **Simple** editing for name, days, exercises, and broad progression.
+- Keep **Advanced** editing for weekly targets, deloads, and future per-lift
+  prescriptions.
+- Make day selection, reorder, replace, copy, rest-day conversion, and preview
+  feel direct and reversible.
+- Do not introduce normalised per-lift prescriptions until an ADR covers
+  migration, old workout history, exports, sync, and rollback.
+
+### 4D. Exercises
+
+- Complete instructions, difficulty, safety notes, muscles, movement, and
+  equipment for the remaining catalogue in reviewed batches.
+- Add primary-muscle and equipment browsing without exposing anatomical clutter.
+- Preserve distinct identities for materially different equipment variations.
+- Consider favourites and recent exercises only if they reduce repeat search.
+- Keep custom exercises first-class and clearly identified.
+
+### Acceptance
+
+- A user can reach a suitable plan without browsing all 57.
+- Plan recommendation reasons are understandable and correct.
+- Common programme edits require no knowledge of the storage schema.
+- Exercise search, filters, details, aliases, and custom entries behave the same
+  in workout and programme flows.
+
+## Phase 5 — Coaching and personalisation
+
+**Status: LATER**
+
+**Outcome:** the app adapts its presentation and advice without becoming opaque.
+
+- Let users choose the domains they care about: strength, running, recovery,
+  fasting, body weight, and advanced load metrics.
+- Hide irrelevant optional surfaces while keeping them recoverable in Settings.
+- Turn Morning Briefing into one recommendation with evidence and one action.
+- Remember dismissed or repeatedly ignored prompts locally.
+- Make recommendation confidence explicit.
+- Improve goal-aware coaching only when the underlying evidence is sufficient.
+- Investigate personal volume baselines after at least 6–8 stable weeks of data;
+  do not label general ranges as personal limits.
+- Keep all coaching deterministic or inspectable unless a future product
+  decision explicitly changes that rule.
+
+## Phase 6 — Visual system, accessibility, and performance
+
+**Status: CONTINUOUS**
+
+These are part of every phase, not a final polish pass.
+
+### Visual system
+
+- Establish a small spacing scale and use it consistently.
+- Reduce unnecessary nested cards, borders, badges, and uppercase micro-labels.
+- Increase minimum body/metadata legibility where the current dense style falls
+  below comfortable mobile reading.
+- Standardise headers, section spacing, cards, list rows, inputs, segmented
+  controls, bottom sheets, dialogs, toasts, and empty states.
+- Keep colour semantic: orange for restrained emphasis, red for destructive or
+  genuine danger, green for completion/success, blue for information/action.
+- Use motion to explain continuity, never to delay interaction.
 
 ### Accessibility
 
-- Finish physical TalkBack and Switch Access review; automated names/focus tests
-  are necessary but not sufficient.
-- Maintain 44px touch targets for primary/icon controls.
-- Verify focus return and Back/Escape behaviour for every nested modal.
-- Keep zoom enabled and test 200% font/display scaling, landscape, compact
-  phones, reduced motion, light/dark contrast, and safe areas.
-- Add `aria-live` only for meaningful state changes; avoid noisy per-keystroke
-  announcements beyond concise result counts.
+- Maintain 44px targets and zoom support.
+- Test TalkBack, keyboard, Switch Access, focus return, Android Back/Escape,
+  reduced motion, light/dark contrast, landscape, safe areas, and 200% text.
+- Ensure charts have meaningful summaries and interactive data has a non-visual
+  equivalent.
+- Avoid noisy live regions and unlabeled icon controls.
 
 ### Performance
 
-- Create a repeatable target-device benchmark before setting numerical budgets.
-- Watch the 8k+ line main stylesheet, large vendored runtime bundles, 57-program
-  catalogue, analytics over archived history, and full exercise lists.
-- Measure service-worker install/upgrade and offline startup separately.
-- Avoid speculative lazy loading that could break signed-bundle/offline
-  guarantees.
+- Establish baselines on representative hardware for:
+  - cold and warm startup;
+  - Home and Train first meaningful render;
+  - opening a workout;
+  - filtering 154 exercises and 57 programmes;
+  - analytics over five years of history;
+  - service-worker upgrade/offline startup.
+- Set budgets from measured baselines.
+- Optimise only demonstrated bottlenecks.
+- Prefer bounded DOM, keyed updates, deferred optional work, and smaller modules
+  without weakening offline behaviour.
 
-### Testing
+### Maintainability
 
-- Keep `npm run verify` green: typecheck, precache generation/check, workflow
-  validation, Node tests, and smoke.
-- Keep required browser checks green at 320/390/412 widths, desktop, reduced
-  motion, light/dark, keyboard-simulated viewport, and mandatory CI mode.
-- Add pure-model tests before UI for analytics, prescriptions, state migration,
-  and data mutation.
-- Every bug fix needs a failing regression test at the lowest useful layer.
-- Android release candidates additionally require Gradle unit tests, lint,
-  assemble/bundle, signed install, and physical checklist evidence.
+- Split `js/workout.js` by rendering, set mutations, exercise selection, run
+  logging, and completion.
+- Split `js/app.js` routing/event ownership.
+- Continue decomposing State and Settings by domain.
+- Reduce inline styles and specificity/`!important` hotspots.
+- Add reusable view primitives only after two real surfaces share the pattern.
 
-### Exercise and program data quality
+## 6. Cross-cutting data and reliability rules
 
-- Canonical ID, display name, and aliases must be unique.
-- Equipment describes what the movement actually requires; EZ-bar, straight
-  barbell, dumbbell, cable, and bodyweight variations stay distinct.
-- Primary muscle uses credit `1`; meaningful secondary credits use `0.5` or
-  `0.25`; stabilisers are not inflated into volume claims.
-- Only include mechanically reasonable variations. An available implement is
-  not sufficient reason to create an exercise.
-- Built-in program lift strings remain compatible with the canonical resolver.
-- Instructions and safety notes are concise general guidance, not diagnosis or
-  a substitute for coaching.
+Product improvement must not weaken these foundations:
 
-### UX consistency
+- Local data and successful training logs are never silently overwritten.
+- Programme activations never leak old workout slots into a new run.
+- Calendar analytics use real dates; programme progression uses programme week.
+- Warm-ups and incomplete work do not become completed training evidence.
+- Exercise aliases preserve historical identity without rewriting stored keys.
+- Sync, import, restore, deletion, and programme edits require recovery paths.
+- Estimates remain labelled as estimates.
+- Runtime JavaScript remains bundled and origin-restricted.
+- Every bug fix adds the smallest useful regression test.
 
-- Every list needs search/filter feedback, a meaningful empty state, and a
-  reachable reset path.
-- Every asynchronous action needs one clear loading, success, failure, and
-  retry story.
-- Destructive actions name the exact scope and preserve undo/recovery where
-  practical.
-- Editing previews and the workout logger must resolve the same prescription.
-- Preserve the technical dark/light identity, orange accent restraint, type
-  hierarchy, and compact Android-first layout unless measured usability
-  evidence supports a change.
+## 7. Product validation loop
 
-## 6. Human-owned public-beta checklist
+Each shippable slice follows this loop:
 
-These are not complete until `[You]` records evidence:
+1. **State the user job.**
+2. **Record the current friction** with screenshots, taps, decision points, and
+   failure cases.
+3. **Implement the smallest coherent change.**
+4. **Test the full journey**, not only the changed component.
+5. **Compare before and after** at compact/mobile/desktop widths and sparse,
+   normal, long-history, loading, empty, offline, and error states.
+6. **Keep, adjust, or revert** based on evidence.
+7. **Record the result** in the session log.
 
-- [ ] Physical GPS, Health Connect, notifications, export, restore, and backup
-      checklist.
-- [ ] TalkBack, large text, compact phone, rotation, keyboard, Back, and
-      reduced-motion checklist.
-- [ ] Signed internal candidate installed and upgraded from a prior build.
-- [ ] Gradle wrapper restored for clean local reproduction.
-- [ ] Account deletion function deployed and independently verified.
-- [ ] Privacy policy and account deletion URLs hosted; placeholders removed.
-- [ ] Play Data Safety and content rating legally reviewed.
-- [ ] Support email, screenshots, feature graphic, listing copy, and release
-      notes finalised.
-- [ ] At least 30 days of representative dogfood with no unexplained data loss.
-- [ ] Final `npm run verify`, Android tests/lint/bundle, artifact checksum, and
-      release sign-off recorded.
+Use a small set of representative profiles:
 
-## 7. Delivered foundations register
+- new user with no data;
+- beginner following a simple plan;
+- experienced strength-focused user;
+- running-focused user;
+- balanced hybrid user;
+- sparse recovery permissions;
+- long-history user;
+- offline/local-only user;
+- signed-in multi-device user;
+- user returning after missed weeks.
 
-This preserves the useful outcome history without duplicating implementation
-detail already visible in tests and Git:
+## 8. Definition of done for a product slice
 
-| Area | Delivered |
+A slice is complete only when:
+
+- the primary user job is easier or clearer;
+- the common path has fewer or better decisions;
+- loading, empty, offline, error, and recovery states are covered;
+- mobile, text scaling, keyboard, and accessibility behaviour are verified;
+- existing user work and historical data remain intact;
+- unit, typecheck, smoke, precache, and relevant browser checks pass;
+- the roadmap status and session log are updated;
+- the change is committed as one understandable unit.
+
+## 9. Explicitly parked
+
+These are valid future concerns but are not active priorities:
+
+- Play Store submission, listing assets, legal publication, and signed release
+  evidence;
+- iOS, Capacitor, TWA, and other shell migrations;
+- subscriptions, billing, advertising, and paywalls;
+- normalised Supabase session persistence;
+- major framework rewrites;
+- social feeds, public leaderboards, or community marketplace features;
+- additional analytics families without a clear user decision;
+- further catalogue expansion before discovery and metadata quality are strong.
+
+Data-loss, security, sync-isolation, and destructive-action defects remain P0
+even while release work is parked.
+
+## 10. Delivered foundations
+
+| Area | Current capability |
 | --- | --- |
-| State safety | Activation isolation, v3 adoption, additive session status, exact deletion/undo, cloud conflict choice, local/cloud recovery snapshots |
-| Security/privacy | Proven RLS, vendored runtime JS, strict CSP, external-link routing, bridge input sanitisation, PII-scrubbed DSN-gated crash reporting, no ads/behavioural analytics |
-| Android native | Health Connect, foreground GPS, fsynced journal and acknowledgement, notifications, file export, automatic backup bridge |
-| Workout | Fast logging, previous values, warm-ups/drop/failure sets, bodyweight/weighted/assisted modes, exercise swaps, supersets, plate math, one-off sessions, deliberate finish |
-| Programs | 57-program catalogue, equipment fit, comparison, detail Plan timeline, stable editable personal copies, builder preview parity, Jacked & Tan variants |
-| Analytics | Calendar-week strength/running aggregation, exact evidence drilldowns, load/readiness, Hybrid Score, weekly/monthly reviews, Gym/Run/Recovery performance details |
-| Coaching | Evidence-aware Morning Briefing, deterministic Q&A, completion-aware recommendations, sparse-data confidence language |
-| Recovery/portability | Complete JSON/CSV export, route-inclusive restore, Android daily/weekly backups, empty-scaffold overwrite guard |
-| Quality system | Typecheck, 1,292 tests, smoke, precache integrity, workflow guards, real-browser responsive/accessibility gates, Android CI |
+| Home/coaching | Today context, Morning Briefing, Hybrid Score, weekly focus, deep links |
+| Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion |
+| Plans | 57-program catalogue, recommendations, comparison, details, timeline, editable personal copies, builder |
+| Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
+| Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
+| History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
+| Quality | 1,292 tests, typecheck, smoke, precache/workflow gates, responsive/accessibility browser checks |
 
-## 8. Significant changes made by the 3 August review
+## 11. Immediate execution queue
 
-1. Reframed the roadmap from a feature backlog to a **release-proof plan**.
-2. Promoted physical Android evidence, legal hosting, signed install, Gradle
-   wrapper, and dogfood to the blocking Phase 0.
-3. Consolidated repeated completed work into one delivered register.
-4. Marked program editing and several analytics families as implemented rather
-   than future work.
-5. Kept normalised prescriptions, session persistence, and personal volume
-   models deferred behind ADR/evidence requirements.
-6. Added explicit exercise data quality, metadata completeness, picker/detail
-   accessibility, documentation drift, and performance measurement work.
-7. Corrected obsolete remote-runtime and MEV/MAV/MRV claims.
-8. Put subjective Programs/Settings/Insights/desktop redesign behind beta
-   observation rather than arbitrary visual change.
+Work in this order unless user evidence changes it:
 
-## 9. Recent session log
+1. **Complete the Phase 0 experience inventory and journey map.**
+2. **Prototype Home / Train / Progress / Plans navigation without changing
+   stored data.**
+3. **Rebuild the Home first viewport around one Today card.**
+4. **Simplify the common strength set-row interaction.**
+5. **Create the new Progress landing hierarchy and metric classification.**
+6. **Rework Plans discovery around recommendations before Browse all.**
+7. **Continue exercise metadata and shared visual-system cleanup in bounded
+   batches.**
 
-- **2026-08-03 — Full repository/roadmap/UI/exercise review.** Reconciled code,
-  docs, tests, data, and rendered desktop/mobile flows. Rewrote the roadmap.
-  Expanded the catalogue from 145 to 154 exercises and from 7 to 16 EZ-bar
-  variations with complete reviewed metadata. Added equipment/category filters,
-  alias-aware results, counts, empty states, and shared exercise details to
-  workout/program pickers. Removed obsolete service-worker CDN runtime fetch.
-  Corrected security/versioning/store/Hybrid Score/device-check docs. Added
-  catalogue, detail, remote-runtime, and mobile real-browser coverage. Next:
-  execute Phase 0 physical release evidence.
+Avoid parallel redesign of every screen. Each step should be usable and
+testable on its own.
+
+## 12. Session log
+
+- **2026-08-03 — Roadmap refocused on product experience.** Release readiness
+  moved to the parked list. Reorganised the work around Home, Train, Progress,
+  Plans, natural workout controls, understandable analytics, guided programme
+  discovery, coaching, accessibility, performance, and evidence-based product
+  iteration. Next: inventory all screens/actions/states and prototype the
+  proposed four-destination information architecture.
+- **2026-08-03 — Repository/UI/exercise review.** Reconciled implementation and
+  documentation, expanded the catalogue to 16 reviewed EZ-bar variations,
+  added shared exercise filtering/details, fixed obsolete service-worker CDN
+  behaviour, and completed unit/browser verification.
 - **2026-08-03 — Simplified Jacked & Tan option.** Added a lower-complexity
-  Block 1 base-volume variant while retaining the advanced program.
-- **2026-07-24 — Home-gym catalogue and picker.** Added missing home-gym
-  movements, canonical EZ-bar equipment, mobile keyboard-safe editor picker,
-  preview/logger parity, and active-program edit reconciliation.
-- **2026-07-23 — Roadmap reconciliation and analytics completion.** Closed
-  Gym/Run/Recovery performance slices and documented the remaining release and
-  architecture work.
-- **2026-07-22 — Android automatic backups.** Added persisted folder access,
-  daily/weekly route-complete backups, recovery gate, and native/JS tests.
-- **2026-07-19 — Release hardening.** Vendored privileged runtime JavaScript,
-  added signed publication and accessibility gates, and strengthened export,
-  restore, GPS, and release evidence.
-
-## 10. Stop conditions
-
-Stop a release and investigate immediately if:
-
-- any training, route, sync, backup, export, restore, or activation data is
-  lost, duplicated, silently overwritten, or attributed to the wrong date/run;
-- RLS isolation or account deletion cannot be independently proven;
-- a required runtime module is missing offline or remote JavaScript reaches the
-  privileged WebView;
-- a blocking dialog is inaccessible with TalkBack, large text, keyboard, or
-  Android Back;
-- tests, typecheck, smoke, precache, workflow, browser, Android unit, lint, or
-  signed-build gates are red;
-- legal/store copy claims a capability, privacy behaviour, or scientific
-  certainty the shipped product does not support.
+  programme while retaining the advanced version.
+- **2026-07-24 — Programme editor and exercise discovery.** Added mobile
+  keyboard-safe selection, preview/logger parity, active-program edit
+  reconciliation, and home-gym catalogue coverage.

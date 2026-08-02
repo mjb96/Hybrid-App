@@ -86,14 +86,16 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   discard clears both fields and blank or warm-up-only work cannot be finished as training.
 
 ## Roadmap Working Agreements
-Active goal: Android public beta on Google Play (free at launch). See
-`docs/IMPROVEMENT_ROADMAP.md` for the phased plan, implementation status, human-owned
-release checklist, and session log. iOS/Capacitor and any billing/paywall are
-explicitly deferred — do not build them now.
+Active goal: improve the product experience end to end before focusing on
+release. See `docs/IMPROVEMENT_ROADMAP.md` for the current Home → Train →
+Progress → Plans direction, interaction principles, prioritised phases,
+implementation status, and session log. Android public-beta work is parked, not
+cancelled. iOS/Capacitor and any billing/paywall remain explicitly deferred.
 
 Product/UX source of truth: `docs/IMPROVEMENT_ROADMAP.md`. It owns the settled product
-rules, rejected scope, execution status, release gates, and session log. Read it before
-product-facing work; do not create parallel progress, audit, or checklist trackers.
+rules, rejected scope, execution status, quality gates, parked work, and session log.
+Read it before product-facing work; do not create parallel progress, audit, or
+checklist trackers.
 
 ### Session protocol
 - START: read this file, `docs/IMPROVEMENT_ROADMAP.md`, and `git log --oneline -15`. State in one line
