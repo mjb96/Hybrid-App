@@ -1,9 +1,9 @@
 # Helyx Android WebView — Threat Model & Hardening
 
-_Last reviewed: 2026-07-10._
+_Last reviewed against the shipped code: 2026-08-03._
 
 Helyx ships as a custom Android **WebView shell** (not Capacitor/TWA). The web
-layer runs bundled assets and talks to three native `@JavascriptInterface`
+layer runs bundled assets and talks to five native `@JavascriptInterface`
 bridges. Because those bridges reach real device capabilities (location, Health
 Connect, notifications, file saving), the WebView is a **privileged execution
 context** and is treated as a trust boundary.
@@ -21,33 +21,29 @@ context** and is treated as a trust boundary.
   **false**; zoom controls off; overscroll off. No `file://` access is needed
   because assets are served over the virtual https origin.
 
-## Remote code — the main residual risk, now contained
+## Executable code — bundled and origin-restricted
 
-The web app pulls a small number of third-party libraries. Left unpinned/uncsp'd
-these ran with full bridge access. Mitigations:
+Production runtime JavaScript is shipped inside the signed app/PWA bundle.
+Third-party code does not execute from a CDN:
 
 1. **Content-Security-Policy** (meta tag in `index.html`):
-   `script-src 'self' https://cdn.jsdelivr.net` and `object-src 'none'` —
-   arbitrary remote scripts, inline scripts, and plugins **cannot execute**.
+   `script-src 'self'` and `object-src 'none'` — arbitrary remote scripts,
+   inline scripts, and plugins **cannot execute**.
    `frame-ancestors 'none'` blocks clickjacking; `base-uri 'self'` blocks base
-   tag injection; `connect-src` is limited to Supabase + Sentry + jsdelivr.
-2. **Leaflet is bundled** (`js/vendor/leaflet/`, pinned to the version in
-   `package.json`) — no CDN fetch, works offline.
-3. **Supabase is exact-version-pinned + SRI-checked**
-   (`@2.45.4/dist/umd/supabase.js`, `integrity=sha384-…`). A compromised or
-   hijacked CDN cannot substitute different code: the browser rejects any script
-   whose hash doesn't match.
-4. **Sentry is exact-version-pinned** and DSN-gated (inert without a DSN).
-
-> Deferred: fully vendoring the webpack-chunked Supabase UMD build was **not**
-> done because its runtime `publicPath` behaviour can't be verified in this repo
-> without a real browser, and breaking auth/sync would risk user data. Pin+SRI
-> gives equivalent tamper-resistance with zero behavioural change.
+   tag injection. Network destinations are separated by type: `connect-src` is
+   limited to Supabase and Sentry, `img-src` allows the approved map tiles, and
+   font/style origins allow the configured Google font.
+2. **Leaflet, Supabase, and Sentry are vendored** under `js/vendor/`, pinned to
+   exact package versions, and included in the service-worker precache.
+3. **Vendored Supabase bytes are hash-checked in tests**, and the service worker
+   has a regression guard that rejects remote-JavaScript cache entries.
+4. **Sentry remains DSN-gated** and inert without an explicit configuration.
 
 ## Bridges (`addJavascriptInterface`)
 
-Three bridges are injected: `HybridHealthBridge`, `HybridGpsBridge`,
-`HybridNotifyBridge`. Because CSP + bundled assets + external-link routing mean
+Five bridges are injected: `HybridHealthBridge`, `HybridGpsBridge`,
+`HybridNotifyBridge`, `HybridFileExportBridge`, and
+`HybridAutoBackupBridge`. Because CSP + bundled assets + external-link routing mean
 **only first-party code executes in the WebView**, the bridges are only
 reachable by trusted code. Defence-in-depth applied on top:
 
@@ -69,8 +65,11 @@ reachable by trusted code. Defence-in-depth applied on top:
   proves the app only ever generates safe ids.
 - `scripts/check-precache.mjs` / `tests/precache_manifest.test.js` prove the
   offline bundle is complete (no privileged screen silently fetches remote JS).
-- Manual device checks (see the final report) confirm external links open in the
-  browser and that GPS/Health/notifications still function under CSP.
+- `tests/csp_vendored_runtime.test.js` proves `script-src 'self'`, checks the
+  reviewed Supabase bytes, and rejects CDN/remote-JS entries in the service worker.
+- Manual device checks in `docs/android-device-checklist.md` remain required to
+  confirm external-link routing and GPS/Health/notification/export/backup
+  behaviour on the signed candidate.
 
 ## Assumptions that remain the user's responsibility
 

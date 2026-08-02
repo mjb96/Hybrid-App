@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+const serviceWorker = readFileSync(join(ROOT, 'sw.js'), 'utf8');
 
 function cspDirective(name) {
   const meta = html.match(/http-equiv="Content-Security-Policy"\s+content="([\s\S]*?)"/);
@@ -33,6 +34,11 @@ test('CSP script-src is exactly \'self\' (no CDN)', () => {
   assert.equal(cspDirective('script-src'), "'self'");
   // jsdelivr must be gone from connect-src too (no CDN dependency remains).
   assert.ok(!/cdn\.jsdelivr\.net/.test(html), 'jsdelivr must not appear anywhere in index.html');
+});
+
+test('the service worker does not fetch or cache remote JavaScript', () => {
+  assert.ok(!/cdn\.jsdelivr\.net|https?:\/\/[^'"]+\.js/i.test(serviceWorker), 'remote JS must not appear in sw.js');
+  assert.ok(!/CDN_ASSETS/.test(serviceWorker), 'obsolete CDN cache list must stay removed');
 });
 
 test('vendored runtime libraries are referenced and present on disk', () => {

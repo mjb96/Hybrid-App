@@ -3,10 +3,11 @@ import { test } from 'node:test';
 import { PROGRAMS } from '../js/constants.js';
 import { PROGRAM_CATALOG } from '../js/programs/catalog.js';
 import {
-  EQUIPMENT, EXERCISES, MOVEMENT_PATTERNS, MUSCLES,
+  browseExercises, EQUIPMENT, EXERCISES, EXERCISE_DIFFICULTIES, MOVEMENT_PATTERNS, MUSCLES,
   canonicalExerciseId, exerciseLibraryByCategory, normaliseExerciseName, resolveExercise,
   exerciseStatForName, equipmentLabel, searchExercises,
 } from '../js/exercises/catalog.js';
+import { exerciseDetailHtml } from '../js/exercises/detail.js';
 import { exercisePerformanceHistory } from '../js/workout/exercise-history.js';
 import { computeExercisePRs } from '../js/engine.js';
 
@@ -33,6 +34,9 @@ test('every exercise has valid classification fields and set credits', () => {
     assert.ok(item.name && item.category, `${item.id} needs a display name and category`);
     assert.ok(validMovement.has(item.movement), `${item.id} has invalid movement ${item.movement}`);
     assert.ok(item.equipment.length > 0, `${item.id} needs equipment metadata`);
+    assert.ok(Array.isArray(item.instructions), `${item.id} instructions must be an array`);
+    assert.ok(Array.isArray(item.safetyNotes), `${item.id} safetyNotes must be an array`);
+    assert.ok(item.difficulty === null || EXERCISE_DIFFICULTIES.includes(item.difficulty), `${item.id} has invalid difficulty`);
     item.equipment.forEach((value) => assert.ok(validEquipment.has(value), `${item.id} has invalid equipment ${value}`));
     const credits = Object.entries(item.muscles);
     if (item.volumeEligible) assert.ok(credits.some(([, value]) => value === 1), `${item.id} needs a dominant muscle`);
@@ -191,6 +195,57 @@ test('EZ-bar exercises are a distinct equipment identity from barbell/dumbbell',
   assert.equal(canonicalExerciseId('EZ-Bar Spider Curls'), 'ez_bar_spider_curl');
   assert.equal(canonicalExerciseId('EZ Bar Upright Row'), 'ez_bar_upright_row');
   assert.equal(canonicalExerciseId('Upright Row'), 'upright_row');
+});
+
+test('the reviewed EZ-bar catalogue spans suitable muscle groups with complete guidance', () => {
+  const expected = [
+    'EZ-Bar Bent-Over Row',
+    'EZ-Bar Close-Grip Bench Press',
+    'EZ-Bar Curl',
+    'EZ-Bar Drag Curl',
+    'EZ-Bar Floor Press',
+    'EZ-Bar Front Raise',
+    'EZ-Bar Glute Bridge',
+    'EZ-Bar Overhead Triceps Extension',
+    'EZ-Bar Pullover',
+    'EZ-Bar Reverse Curl',
+    'EZ-Bar Romanian Deadlift',
+    'EZ-Bar Shrug',
+    'EZ-Bar Skull Crusher',
+    'EZ-Bar Spider Curl',
+    'EZ-Bar Upright Row',
+    'EZ-Bar Zercher Squat',
+  ];
+  const items = browseExercises({ equipment: 'ezBar' }, 100);
+  assert.deepEqual(items.map((item) => item.name), expected);
+  assert.deepEqual([...new Set(items.map((item) => item.category))].sort(), ['legs', 'pull', 'push']);
+  for (const item of items) {
+    assert.ok(item.equipment.includes('ezBar'), `${item.name} uses the EZ-bar equipment identity`);
+    assert.ok(item.instructions.length >= 2, `${item.name} has actionable instructions`);
+    assert.ok(EXERCISE_DIFFICULTIES.includes(item.difficulty), `${item.name} has reviewed difficulty`);
+    assert.ok(item.safetyNotes.length >= 1, `${item.name} has exercise-specific safety guidance`);
+    assert.ok(Object.values(item.muscles).includes(1), `${item.name} has a primary muscle`);
+  }
+});
+
+test('EZ-bar filtering and aliases do not collapse distinct straight-bar variations', () => {
+  assert.equal(canonicalExerciseId('EZ Bar Row'), 'ez_bar_bent_over_row');
+  assert.equal(canonicalExerciseId('Barbell Bent-Over Row'), 'barbell_row');
+  assert.equal(canonicalExerciseId('EZ Bar RDL'), 'ez_bar_romanian_deadlift');
+  assert.equal(canonicalExerciseId('RDL'), 'romanian_deadlift');
+  assert.equal(canonicalExerciseId('EZ Curl Bar Floor Press'), 'ez_bar_floor_press');
+  assert.equal(canonicalExerciseId('Barbell Floor Press'), 'barbell_floor_press');
+  const legs = browseExercises({ equipment: 'ezBar', category: 'legs' }, 100).map((item) => item.name);
+  assert.deepEqual(legs, ['EZ-Bar Glute Bridge', 'EZ-Bar Romanian Deadlift', 'EZ-Bar Zercher Squat']);
+  assert.equal(browseExercises({ query: 'ez curl bar row', equipment: 'ezBar' })[0]?.name, 'EZ-Bar Bent-Over Row');
+});
+
+test('exercise detail output exposes supported metadata and escapes unknown markup', () => {
+  const html = exerciseDetailHtml('EZ-Bar Romanian Deadlift');
+  for (const expected of ['Intermediate', 'Hinge', 'EZ bar', 'Hamstrings', 'Glutes', 'How to perform it', 'Safety']) {
+    assert.ok(html.includes(expected), `detail includes ${expected}`);
+  }
+  assert.ok(!exerciseDetailHtml('<img src=x onerror=alert(1)>').includes('<img'));
 });
 
 test('ezBar is a canonical equipment key with a readable label', () => {

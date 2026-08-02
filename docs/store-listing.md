@@ -20,8 +20,8 @@ of your training actually add up.
 BUILT FOR HYBRID TRAINING
 • Strength and running in a single weekly plan — no juggling two apps.
 • Ready-made programs plus a builder for your own blocks.
-• Auto-progression and per-muscle volume guidance (MEV/MAV/MRV) so you push the
-  right lifts at the right time.
+• Auto-progression plus estimated direct/indirect muscle set credits with
+  transparent general reference ranges.
 
 LOG IT FAST
 • Quick set logging with weight, reps, and per-set RIR.

@@ -1889,12 +1889,48 @@
       <div class="el-search-wrap">
         <input type="search" id="elSearchInput" class="el-search" placeholder="Search exercises&#x2026;" autocomplete="off">
       </div>
+      <div class="el-filter-row">
+        <label><span class="sr-only">Filter by muscle group</span><select id="elCategoryFilter">
+          <option value="">All muscle groups</option>
+          <option value="push">Push</option>
+          <option value="pull">Pull</option>
+          <option value="legs">Legs</option>
+          <option value="core">Core</option>
+          <option value="conditioning">Conditioning</option>
+        </select></label>
+        <label><span class="sr-only">Filter by equipment</span><select id="elEquipmentFilter">
+          <option value="">All equipment</option>
+          <option value="ezBar">EZ bar</option>
+          <option value="barbell">Barbell</option>
+          <option value="rack">Rack</option>
+          <option value="bench">Bench</option>
+          <option value="dumbbells">Dumbbells</option>
+          <option value="bands">Bands</option>
+          <option value="cables">Cables</option>
+          <option value="machine">Machine</option>
+          <option value="bodyweight">Bodyweight</option>
+          <option value="kettlebells">Kettlebells</option>
+          <option value="pullupBar">Pull-up bar</option>
+          <option value="erg">Erg</option>
+          <option value="sled">Sled</option>
+          <option value="sandbag">Sandbag</option>
+          <option value="other">Other</option>
+        </select></label>
+      </div>
+      <p id="elResultSummary" class="el-result-summary" role="status" aria-live="polite"></p>
       <div class="el-list" id="elList"></div>
       <div class="el-custom-row">
         <input type="text" id="customExerciseTextInput" class="el-custom-input" placeholder="Or type a custom exercise name&#x2026;" autocomplete="off">
         <button class="el-custom-add-btn" data-action="confirm-add-exercise">Add</button>
       </div>
     </div>
+  </div>
+
+  <div class="modal-overlay exercise-detail-overlay" id="exerciseDetailModal" role="dialog" aria-labelledby="exerciseDetailTitle" data-modal-root data-modal-close-action="close-exercise-detail" inert aria-hidden="true">
+    <article class="modal-content exercise-detail-card">
+      <button class="settings-close-btn exercise-detail__close" data-action="close-exercise-detail" aria-label="Close exercise details">&#x2715;</button>
+      <div id="exerciseDetailBody"></div>
+    </article>
   </div>
 
   <div class="modal-overlay el-overlay" id="programCompareModal" role="dialog" aria-label="Compare Programs" data-modal-root data-modal-close-action="close-compare" inert aria-hidden="true">

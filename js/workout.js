@@ -2,7 +2,6 @@
 // WORKOUT VIEW
 // ==========================================
 import { getProgramById } from './state.js';
-import { EXERCISE_LIBRARY } from './constants.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
 import { jtLiftTarget, jtSetRoleTags, jtStoredRoleTag, jtBackoffFromTopSet } from './programs/jt-shed-model.js';
@@ -30,7 +29,10 @@ import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft } from './workout/delete-day.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
-import { exerciseStatForName } from './exercises/catalog.js';
+import {
+  browseExercises, equipmentLabel, exerciseStatForName, EXERCISE_CATEGORY_LABELS,
+} from './exercises/catalog.js';
+import { openExerciseDetail } from './exercises/detail.js';
 import { exerciseLoggerHistory } from './workout/exercise-history.js';
 import { estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import {
@@ -1787,45 +1789,67 @@ export function toggleAccordionManual(elementNode) {
   try { moveRestTimerToActiveExercise(); } catch(e) { console.warn(e); }
 }
 
-function _exChip(name, appState) {
+function _exChip(item, appState) {
+  const pr = isE1rmExercise(item.name)
+    ? exerciseStatForName(appState.exerciseStats, item.name)?.allTimeMax
+    : 0;
+  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
+  const meta = `${item.movement.replaceAll('_', ' ')} · ${item.equipment.map(equipmentLabel).join(', ')}`;
+  return `<div class="el-exercise-row">
+    <button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(item.name)}">
+      <span class="el-chip-copy"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(meta)}</small></span>${prStr}
+    </button>
+    <button class="el-info-btn" data-action="el-info" data-exname="${escapeHtml(item.name)}" aria-label="View details for ${escapeHtml(item.name)}">i</button>
+  </div>`;
+}
+
+function _customExChip(name, appState) {
   const pr = isE1rmExercise(name)
     ? exerciseStatForName(appState.exerciseStats, name)?.allTimeMax
     : 0;
   const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
-  return `<button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}">${escapeHtml(name)}${prStr}</button>`;
+  return `<div class="el-exercise-row el-exercise-row--custom"><button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}"><span class="el-chip-copy"><strong>${escapeHtml(name)}</strong><small>Custom exercise</small></span>${prStr}</button></div>`;
 }
 
-function _renderExerciseLibraryList(query) {
+function _renderExerciseLibraryList(query = '') {
   const container = document.getElementById('elList');
   if (!container) return;
   const appState = _getState();
-  const q = (query || '').toLowerCase().trim();
+  const q = String(query || '').trim();
+  const category = document.getElementById('elCategoryFilter')?.value || '';
+  const equipment = document.getElementById('elEquipmentFilter')?.value || '';
+  const matches = browseExercises({ query: q, category, equipment }, 500);
+  const customMatches = !category && !equipment
+    ? (appState.customExercises || []).filter((name) => !q || name.toLowerCase().includes(q.toLowerCase()))
+    : [];
   let html = '';
 
-  if (q) {
-    const results = [];
-    for (const [cat, exs] of Object.entries(EXERCISE_LIBRARY)) {
-      exs.forEach(ex => { if (ex.toLowerCase().includes(q)) results.push({ ex, cat }); });
-    }
-    (appState.customExercises || []).forEach(ex => {
-      if (ex.toLowerCase().includes(q)) results.push({ ex, cat: 'Custom' });
-    });
-    if (results.length === 0) {
-      html = '<div class="el-empty">No matches — type a custom name below</div>';
-    } else {
-      html = results.map(({ ex }) => _exChip(ex, appState)).join('');
+  if (!matches.length && !customMatches.length) {
+    html = '<div class="el-empty">No matches. Try another search or clear a filter.</div>';
+  } else if (q || category || equipment) {
+    html = matches.map((item) => _exChip(item, appState)).join('');
+    if (customMatches.length) {
+      html += '<div class="el-cat-label">⭐ Custom</div>';
+      html += [...customMatches].sort().map((name) => _customExChip(name, appState)).join('');
     }
   } else {
-    for (const [cat, exs] of Object.entries(EXERCISE_LIBRARY)) {
-      html += `<div class="el-cat-label">${cat}</div>`;
-      html += [...exs].sort().map(ex => _exChip(ex, appState)).join('');
+    for (const categoryKey of Object.keys(EXERCISE_CATEGORY_LABELS)) {
+      const items = matches.filter((item) => item.category === categoryKey);
+      if (!items.length) continue;
+      html += `<div class="el-cat-label">${EXERCISE_CATEGORY_LABELS[categoryKey]}</div>`;
+      html += items.map((item) => _exChip(item, appState)).join('');
     }
     if (appState.customExercises?.length) {
       html += `<div class="el-cat-label">⭐ Custom</div>`;
-      html += [...appState.customExercises].sort().map(ex => _exChip(ex, appState)).join('');
+      html += [...appState.customExercises].sort().map((name) => _customExChip(name, appState)).join('');
     }
   }
   container.innerHTML = html;
+  const summary = document.getElementById('elResultSummary');
+  if (summary) {
+    const total = matches.length + customMatches.length;
+    summary.textContent = `${total} exercise${total === 1 ? '' : 's'}${equipment ? ` · ${equipmentLabel(equipment)}` : ''}`;
+  }
 }
 
 export function handleExerciseSearch(query) {
@@ -1940,8 +1964,12 @@ export function openAddExerciseModal() {
   if (!modal) return;
   const searchInput = document.getElementById('elSearchInput');
   const customInput = document.getElementById('customExerciseTextInput');
+  const categoryFilter = document.getElementById('elCategoryFilter');
+  const equipmentFilter = document.getElementById('elEquipmentFilter');
   if (searchInput) searchInput.value = '';
   if (customInput) customInput.value = '';
+  if (categoryFilter) categoryFilter.value = '';
+  if (equipmentFilter) equipmentFilter.value = '';
   _renderExerciseLibraryList('');
   modal.classList.add('active');
   setTimeout(() => searchInput?.focus(), 80);
@@ -2238,6 +2266,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-add-exercise') openAddExerciseModal();
   else if (action === 'close-add-exercise') closeAddExerciseModal();
   else if (action === 'el-pick') addExerciseToDayFromLibrary(e.target.closest('[data-action="el-pick"]')?.getAttribute('data-exname'));
+  else if (action === 'el-info') openExerciseDetail(target.getAttribute('data-exname'));
   else if (action === 'confirm-add-exercise') confirmAddExercise();
   else if (action === 'swap-exercise') openSwapModal(liftName);
   else if (action === 'close-swap-exercise') closeSwapModal();
@@ -2255,7 +2284,9 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('change', (e) => {
   const target = e.target;
-  if (target.classList.contains('input-weight-node') || target.classList.contains('input-reps-node')) {
+  if (target.id === 'elCategoryFilter' || target.id === 'elEquipmentFilter') {
+    _renderExerciseLibraryList(document.getElementById('elSearchInput')?.value || '');
+  } else if (target.classList.contains('input-weight-node') || target.classList.contains('input-reps-node')) {
     updateInputState(target);
   } else if (target.classList.contains('gym-check')) {
     toggleGymCheckLoggingState(target);
