@@ -40,9 +40,9 @@ const PROGRAM = getCatalogEntry(JT_SHED_ID);
 
 // ---- 1. Program-library registration ---------------------------------------
 
-test('1. registered once in the catalog with the expected metadata', () => {
+test('1. retired from discovery but retained in the resolver with its original metadata', () => {
   const matches = PROGRAM_CATALOG.filter((p) => p.id === JT_SHED_ID);
-  assert.equal(matches.length, 1, 'exactly one catalog entry');
+  assert.equal(matches.length, 0, 'retired program is not discoverable');
   assert.equal(CATALOG_MAP[JT_SHED_ID].name, 'Jacked & Tan: Shed Edition');
   assert.equal(PROGRAM.durationWeeks, 12);
   assert.equal(PROGRAM.sessionsPerWeek, 5);
@@ -73,7 +73,8 @@ test('2/19. activating resolves the shared catalog entry and creates no duplicat
   assert.ok(resolved, 'catalog program resolves');
   assert.equal(resolved.id, JT_SHED_ID);
   assert.equal(appState.customPrograms.length, 0, 'no duplicate custom program created');
-  assert.equal(PROGRAM_CATALOG.filter((p) => p.id === JT_SHED_ID).length, 1, 'still one library copy');
+  assert.equal(PROGRAM_CATALOG.filter((p) => p.id === JT_SHED_ID).length, 0, 'retired program stays out of discovery');
+  assert.equal(CATALOG_MAP[JT_SHED_ID].id, JT_SHED_ID, 'legacy activation remains resolvable');
 });
 
 // ---- 3. Five-day schedule ---------------------------------------------------

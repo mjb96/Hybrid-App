@@ -16,7 +16,14 @@
 // =============================================================================
 
 export const JT_SHED_ID = 'jt_shed_edition';
+export const JT_SHED_SIMPLIFIED_ID = 'jacked-tan-shed-simplified';
 export const JT_SHED_WEEKS = 12;
+
+/** Both the retired tiered plan and its discoverable simplified replacement. */
+export function isJtShedProgram(program) {
+  return program?.progressionModel === 'jt-shed'
+    || program?.progressionModel === 'jt-shed-simplified';
+}
 
 /** The four T1 main lifts (each anchors one of the four main-lift days). */
 export const T1_LIFTS = [
@@ -353,6 +360,149 @@ export function dayExercises(program, dayKey) {
 /** ~1–2 reps in reserve. */
 const RIR = '1–2';
 
+const SIMPLIFIED_MAIN_BY_DAY = Object.freeze({
+  mon: 'Barbell Bench Press',
+  tue: 'Back Squat',
+  thu: 'Standing Barbell Overhead Press',
+  fri: 'Conventional Deadlift',
+});
+
+const SIMPLIFIED_ACCESSORY_TABLE = Object.freeze({
+  'mon:Pull-Up': { sets: 3, min: 5, max: 10 },
+  'mon:Standing Barbell Overhead Press': { sets: 2, min: 8, max: 10 },
+  'mon:Incline Dumbbell Press': { sets: 2, min: 8, max: 12 },
+  'mon:Dumbbell Lateral Raise': { sets: 3, min: 12, max: 20 },
+  'mon:Band Triceps Pushdown': { sets: 2, min: 12, max: 20 },
+  'mon:Band Face Pull': { sets: 2, min: 15, max: 25 },
+  'tue:Romanian Deadlift': { sets: 3, min: 8, max: 10 },
+  'tue:Dumbbell Bulgarian Split Squat': { sets: 2, min: 8, max: 12 },
+  'tue:Chest-Supported Dumbbell Row': { sets: 3, min: 8, max: 12 },
+  'tue:Band Leg Curl': { sets: 2, min: 15, max: 25 },
+  'tue:Barbell Standing Calf Raise': { sets: 3, min: 10, max: 20 },
+  'tue:Ab Wheel Rollout': { sets: 2, min: 6, max: 15 },
+  'thu:Close-Grip Bench Press': { sets: 3, min: 6, max: 10 },
+  'thu:One-Arm Dumbbell Row': { sets: 3, min: 8, max: 12 },
+  'thu:Dumbbell Rear-Delt Raise': { sets: 2, min: 15, max: 25 },
+  'thu:Dumbbell Skull Crusher': { sets: 2, min: 10, max: 15 },
+  'fri:Front Squat': { sets: 3, min: 6, max: 8 },
+  'fri:Reverse Lunge': { sets: 2, min: 8, max: 12 },
+  'fri:Band Leg Curl': { sets: 3, min: 12, max: 20 },
+  'fri:Seated Dumbbell Calf Raise': { sets: 3, min: 12, max: 20 },
+  'fri:EZ-Bar Curl': { sets: 2, min: 8, max: 15 },
+  'sat:Chest-Supported Dumbbell Row': { sets: 3, min: 8, max: 12 },
+  'sat:Band Lat Pulldown': { sets: 3, min: 12, max: 20 },
+  'sat:EZ-Bar Curl': { sets: 3, min: 8, max: 15 },
+  'sat:Band Triceps Pushdown': { sets: 3, min: 12, max: 20 },
+  'sat:Dumbbell Lateral Raise': { sets: 3, min: 12, max: 20 },
+  'sat:Band Face Pull': { sets: 2, min: 15, max: 25 },
+  'sat:Ab Wheel Rollout': { sets: 3, min: 6, max: 15 },
+});
+
+/** @type {Record<number, any>} */
+const SIMPLIFIED_WEEK_TABLE = {
+  1:  { phase: 'Volume & technique', rir: '3', main: { sets: 4, reps: 8 }, deadlift: { sets: 3, reps: 6 } },
+  2:  { phase: 'Volume & technique', rir: '2', main: { sets: 4, reps: 8 }, deadlift: { sets: 3, reps: 6 } },
+  3:  { phase: 'Volume & technique', rir: '1–2', main: { sets: 4, reps: 8 }, deadlift: { sets: 3, reps: 6 } },
+  4:  { phase: 'Deload', rir: '4+', deload: true, main: { sets: 2, reps: 8 }, deadlift: { sets: 2, reps: 6 } },
+  5:  { phase: 'Strength & hypertrophy', rir: '3', main: { sets: 4, reps: 6 }, deadlift: { sets: 3, reps: 4 } },
+  6:  { phase: 'Strength & hypertrophy', rir: '2', main: { sets: 4, reps: 6 }, deadlift: { sets: 3, reps: 4 } },
+  7:  { phase: 'Strength & hypertrophy', rir: '1', main: { sets: 4, reps: 6 }, deadlift: { sets: 3, reps: 4 } },
+  8:  { phase: 'Deload', rir: '4+', deload: true, main: { sets: 2, reps: 6 }, deadlift: { sets: 2, reps: 4 } },
+  9:  { phase: 'Intensification', rir: '3', main: { sets: 5, reps: 4 }, deadlift: { sets: 4, reps: 3 } },
+  10: { phase: 'Intensification', rir: '2', main: { sets: 5, reps: 4 }, deadlift: { sets: 4, reps: 3 } },
+  11: { phase: 'Intensification', rir: '1', main: { sets: 5, reps: 4 }, deadlift: { sets: 4, reps: 3 } },
+  12: { phase: 'Controlled rep-PR assessment', rir: '1', assessment: true, main: { sets: 1, reps: 4 }, deadlift: { sets: 1, reps: 3 } },
+};
+
+/**
+ * Public, detached week description for the simplified program's detail view
+ * and tests. The `main` row applies to bench/squat/OHP; `deadlift` is separate.
+ */
+export function simplifiedWeekPlan(week) {
+  const w = _wk(week);
+  if (!w) return null;
+  const row = SIMPLIFIED_WEEK_TABLE[w];
+  return {
+    week: w,
+    phase: row.phase,
+    rir: row.rir,
+    deload: !!row.deload,
+    assessment: !!row.assessment,
+    main: { ...row.main },
+    deadlift: { ...row.deadlift },
+    accessoryScale: row.deload || row.assessment ? 0.5 : 1,
+  };
+}
+
+function simplifiedPrescription(program, week, dayKey, name) {
+  const plan = simplifiedWeekPlan(week);
+  if (!plan) return null;
+  const meta = dayExercises(program, dayKey).find((exercise) => exercise.name === name);
+  if (!meta) return null;
+
+  const shared = {
+    tier: meta.tier || '',
+    percentage: null,
+    percentageSource: null,
+    repMaxTarget: null,
+    backoffSets: null,
+    backoffReps: null,
+    isPlusSet: false,
+    mrsCount: 0,
+    loadMode: name === 'Pull-Up' ? 'bodyweight' : null,
+    load: null,
+    needsTrainingMax: false,
+  };
+
+  if (SIMPLIFIED_MAIN_BY_DAY[dayKey] === name) {
+    const target = name === 'Conventional Deadlift' ? plan.deadlift : plan.main;
+    if (plan.assessment) {
+      return {
+        ...shared,
+        scheme: 'simplified-main',
+        progressionType: 'controlled-rep-pr',
+        sets: 1,
+        targetReps: target.reps,
+        repRange: [target.reps, target.reps],
+        rirTarget: '1',
+        doubleProgression: false,
+        displayLabel: `1 controlled rep-PR set · ${target.reps}+ reps · stop at 1 RIR`,
+        setPlan: [{ role: 'assessment', reps: `${target.reps}+` }],
+      };
+    }
+    return {
+      ...shared,
+      scheme: 'simplified-main',
+      progressionType: plan.deload ? 'deload-straight-sets' : 'fixed-rep-block',
+      sets: target.sets,
+      targetReps: target.reps,
+      repRange: [target.reps, target.reps],
+      rirTarget: plan.rir,
+      doubleProgression: false,
+      displayLabel: `${target.sets} × ${target.reps} · ${plan.rir} RIR${plan.deload ? ' · reduce load 10–15%' : ''}`,
+      setPlan: Array.from({ length: target.sets }, () => ({ role: 'work', reps: target.reps })),
+    };
+  }
+
+  const accessory = SIMPLIFIED_ACCESSORY_TABLE[`${dayKey}:${name}`];
+  if (!accessory) return null;
+  const reduced = plan.deload || plan.assessment;
+  const sets = reduced ? Math.max(1, Math.ceil(accessory.sets / 2)) : accessory.sets;
+  const rir = plan.deload ? '4+' : plan.assessment ? '2–3' : '2';
+  return {
+    ...shared,
+    scheme: 'simplified-accessory',
+    progressionType: 'double-progression',
+    sets,
+    targetReps: accessory.min,
+    repRange: [accessory.min, accessory.max],
+    rirTarget: rir,
+    doubleProgression: true,
+    displayLabel: `${sets} × ${accessory.min}–${accessory.max} · double progression${reduced ? ' · reduced volume' : ''}`,
+    setPlan: Array.from({ length: sets }, () => ({ role: 'work', reps: `${accessory.min}–${accessory.max}` })),
+  };
+}
+
 /**
  * Map an exercise (by day + name + authored tier) to its progression scheme.
  * Driven by the explicit authored tier metadata, not by guessing from the load
@@ -393,6 +543,9 @@ const _pct = (p) => (p == null ? '' : (Number.isInteger(p) ? `${p}%` : `${p}%`))
  * }}
  */
 export function resolveJtPrescription(program, week, dayKey, name, opts = {}) {
+  if (program?.progressionModel === 'jt-shed-simplified') {
+    return simplifiedPrescription(program, week, dayKey, name);
+  }
   if (program?.progressionModel !== 'jt-shed') return null;
   const w = _wk(week);
   if (!w) return null;

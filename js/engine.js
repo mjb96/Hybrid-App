@@ -9,7 +9,7 @@ import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js
 import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
 import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import { daysBetween } from './dates.js';
-import { jtLiftTarget, jtStoredRolesFor } from './programs/jt-shed-model.js';
+import { isJtShedProgram, jtLiftTarget, jtStoredRolesFor } from './programs/jt-shed-model.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -358,7 +358,7 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
  *   4 × 10" bug). Non-J&T programs are entirely unaffected.
  */
 export function liftTarget(desc, liftName, weekModifier = {}, ctx) {
-  if (ctx?.program?.progressionModel === 'jt-shed') {
+  if (isJtShedProgram(ctx?.program)) {
     const jt = jtLiftTarget(ctx.program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
     if (jt) return { sets: jt.sets, reps: jt.reps };
   }
@@ -387,7 +387,7 @@ export function prescribeSetsForLift(wk, dayKey, liftName, desc, weekModifier, c
  * @returns {Array<any>|null}
  */
 export function jtRoleStampsForCtx(ctx, liftName) {
-  if (ctx?.program?.progressionModel !== 'jt-shed') return null;
+  if (!isJtShedProgram(ctx?.program)) return null;
   const stamps = jtStoredRolesFor(ctx.program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
   return Array.isArray(stamps) && stamps.length ? stamps : null;
 }

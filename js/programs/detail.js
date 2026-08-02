@@ -17,13 +17,14 @@ import { liftTarget } from '../engine.js';
 import {
   programNotes as jtProgramNotes, weekNote as jtWeekNote, dayExercises as jtDayExercises,
   t1Prescription, t2aPrescription, t2bcPrescription, t3Prescription, jtLiftTarget,
+  isJtShedProgram, simplifiedWeekPlan,
 } from './jt-shed-model.js';
 
 // The tier-aware J&T prescription label for one exercise, or null for non-J&T /
 // unknown lifts (caller then falls back to the generic sets×reps). Keeps the
 // day preview + sample session in lock-step with the cockpit and week brief.
 function jtSpecLabel(ctx, name) {
-  if (!ctx || ctx.program?.progressionModel !== 'jt-shed') return null;
+  if (!ctx || !isJtShedProgram(ctx.program)) return null;
   const jt = jtLiftTarget(ctx.program, ctx.week, ctx.dayKey, name);
   return jt ? jt.label : null;
 }
@@ -597,7 +598,7 @@ function renderWeekAtAGlance(program, isActive, appState, totalWeeks, week) {
 // the tests or the cockpit's week label. Never touches user workout notes.
 
 function _isJtShed(program) {
-  return program?.progressionModel === 'jt-shed';
+  return isJtShedProgram(program);
 }
 
 // The selected week's phase label + week instructions + this week's tier
@@ -606,6 +607,25 @@ function _isJtShed(program) {
 function renderJtWeekBrief(program, week) {
   if (!_isJtShed(program)) return '';
   const wn = jtWeekNote(program, week);
+  if (program?.progressionModel === 'jt-shed-simplified') {
+    const plan = simplifiedWeekPlan(week);
+    if (!plan) return '';
+    const mainLine = plan.assessment
+      ? `Bench, squat and overhead press: 1 controlled rep-PR set of 4+; deadlift: 1 controlled rep-PR set of 3+. Stop at 1 RIR.`
+      : `Bench, squat and overhead press: ${plan.main.sets}×${plan.main.reps}; deadlift: ${plan.deadlift.sets}×${plan.deadlift.reps}. Target ${plan.rir} RIR${plan.deload ? ' and reduce the prior week’s load by 10–15%' : ''}.`;
+    const accessoryLine = plan.accessoryScale < 1
+      ? 'Accessory sets are halved (3 sets become 2; 2 sets become 1).'
+      : 'Accessories keep their authored repetition ranges and use double progression.';
+    return `
+      <div class="jt-week-brief" style="margin:0 0 12px;padding:12px;background:var(--overlay-sm);border-radius:12px;">
+        <div style="font-weight:700;font-size:0.9rem;color:var(--text-inverse);">Week ${wn.week} · ${escapeHtml(wn.label)}</div>
+        ${wn.notes.length ? `<ul style="margin:8px 0 0;padding-left:18px;color:var(--text-secondary);font-size:0.78rem;line-height:1.5;">${wn.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+        <div style="margin-top:10px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:0.76rem;">
+          <span style="font-family:ui-monospace,monospace;color:var(--text-muted);">Main lifts</span><span style="color:var(--text-secondary);">${escapeHtml(mainLine)}</span>
+          <span style="font-family:ui-monospace,monospace;color:var(--text-muted);">Accessories</span><span style="color:var(--text-secondary);">${escapeHtml(accessoryLine)}</span>
+        </div>
+      </div>`;
+  }
   const t1 = t1Prescription(week);
   const t2a = t2aPrescription(week);
   const t2bc = t2bcPrescription(week);
@@ -655,6 +675,7 @@ function renderJtWeekBrief(program, week) {
 function renderJtProgramNotes(program) {
   if (!_isJtShed(program)) return '';
   const notes = jtProgramNotes(program);
+  const simplified = program?.progressionModel === 'jt-shed-simplified';
   const dayNames = { mon: 'Monday', tue: 'Tuesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
   const dayBlocks = ['mon', 'tue', 'thu', 'fri', 'sat'].map((dk) => {
     const exs = jtDayExercises(program, dk);
@@ -683,8 +704,10 @@ function renderJtProgramNotes(program) {
       </ul>
     </div>
     <div class="detail-section">
-      <div class="detail-section-title">Tiers &amp; exercise notes</div>
-      <p class="text-xs text-muted" style="margin:-6px 0 4px;">T1 = main lift · T2a = percentage work · T2b/T2c = target-rep + max-rep sets · T3 = isolation. Tap an exercise for its coaching notes.</p>
+      <div class="detail-section-title">${simplified ? 'Exercise progression &amp; notes' : 'Tiers &amp; exercise notes'}</div>
+      <p class="text-xs text-muted" style="margin:-6px 0 4px;">${simplified
+        ? 'Primary lifts use the selected week’s fixed-rep block. Repetition ranges use double progression. Tap an exercise for coaching notes.'
+        : 'T1 = main lift · T2a = percentage work · T2b/T2c = target-rep + max-rep sets · T3 = isolation. Tap an exercise for its coaching notes.'}</p>
       ${dayBlocks}
     </div>`;
 }
