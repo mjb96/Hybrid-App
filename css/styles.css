@@ -150,6 +150,19 @@
   --pink-alpha:   rgba(236, 72, 153, 0.10);
 }
 
+/* Accessible name without adding visual layout. */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 
 /* ==========================================================================
    2. RESET & BASE
@@ -3758,6 +3771,7 @@ html[data-theme="light"] .ob-prog-card.active {
 }
 .el-search {
   width: 100%;
+  min-height: 44px;
   background: var(--overlay-lg);
   border: 1px solid var(--border-medium);
   border-radius: 10px;
@@ -3770,10 +3784,37 @@ html[data-theme="light"] .ob-prog-card.active {
   -webkit-appearance: none;
 }
 .el-search:focus { border-color: rgba(99,102,241,0.55); }
+.el-filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 16px 4px;
+  flex-shrink: 0;
+}
+.el-filter-row select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 30px 8px 11px;
+  border: 1px solid var(--border-medium);
+  border-radius: 10px;
+  background: var(--overlay-lg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.el-result-summary {
+  min-height: 20px;
+  margin: 0;
+  padding: 2px 17px 0;
+  color: var(--text-faint);
+  font-size: .64rem;
+  font-weight: 700;
+}
 .el-list {
   flex: 1;
   overflow-y: auto;
-  padding: 6px 16px 12px;
+  padding: 2px 16px 12px;
 }
 .el-cat-label {
   font-size: 0.58rem;
@@ -3784,19 +3825,58 @@ html[data-theme="light"] .ob-prog-card.active {
   padding: 12px 0 6px;
 }
 .el-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
+  min-width: 0;
+  min-height: 48px;
+  width: 100%;
   font-size: 0.78rem;
   font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 20px;
+  padding: 8px 11px;
+  border-radius: 11px;
   background: var(--overlay-md);
   border: 1px solid var(--border-medium);
   color: var(--text-strong);
   cursor: pointer;
-  margin: 3px 4px 3px 0;
+  margin: 0;
   transition: all 0.15s ease;
+  text-align: left;
+}
+.el-exercise-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 7px;
+  margin: 0 0 7px;
+}
+.el-exercise-row--custom .el-chip { grid-column: 1 / -1; }
+.el-chip-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.el-chip-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.el-chip-copy small {
+  color: var(--text-faint);
+  font-size: .62rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.el-info-btn {
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--border-medium);
+  border-radius: 11px;
+  background: var(--overlay-md);
+  color: var(--accent-blue);
+  font-size: .88rem;
+  font-weight: 900;
+  cursor: pointer;
 }
 .el-chip:hover, .el-chip:active {
   background: rgba(99,102,241,0.18);
@@ -3826,6 +3906,7 @@ html[data-theme="light"] .ob-prog-card.active {
 }
 .el-custom-input {
   flex: 1;
+  min-height: 44px;
   background: var(--overlay-md);
   border: 1px solid var(--border-medium);
   border-radius: 10px;
@@ -3838,6 +3919,7 @@ html[data-theme="light"] .ob-prog-card.active {
 }
 .el-custom-input:focus { border-color: rgba(99,102,241,0.55); }
 .el-custom-add-btn {
+  min-height: 44px;
   padding: 8px 18px;
   border-radius: 10px;
   background: rgba(99,102,241,0.2);
@@ -3857,6 +3939,11 @@ html[data-theme="light"] .el-search {
   border-color: rgba(0,0,0,0.12);
   color: #0f172a;
 }
+html[data-theme="light"] .el-filter-row select,
+html[data-theme="light"] .el-info-btn {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.12);
+}
 html[data-theme="light"] .el-chip {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.10);
@@ -3871,6 +3958,65 @@ html[data-theme="light"] .el-custom-input {
   background: rgba(0,0,0,0.05);
   border-color: rgba(0,0,0,0.12);
   color: #0f172a;
+}
+
+/* Shared exercise guide opened from workout and program-building pickers. */
+.exercise-detail-overlay { z-index: calc(var(--z-modal) + 1); align-items: flex-end; padding: 0; }
+.exercise-detail-card {
+  position: relative;
+  width: 100%;
+  max-height: min(88dvh, 760px);
+  overflow-y: auto;
+  padding: 24px 20px max(28px, env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  text-align: left;
+}
+.exercise-detail__close { position: absolute; z-index: 1; top: 16px; right: 16px; }
+.exercise-detail__hero { padding-right: 48px; }
+.exercise-detail__eyebrow {
+  margin: 0 0 5px;
+  color: var(--accent-blue);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+.exercise-detail__hero h2 { margin: 0; color: var(--text-primary); font-size: 1.35rem; line-height: 1.15; }
+.exercise-detail__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.exercise-detail__chips span {
+  padding: 5px 8px;
+  border: 1px solid var(--border-medium);
+  border-radius: 999px;
+  background: var(--overlay-md);
+  color: var(--text-secondary);
+  font-size: .62rem;
+  font-weight: 700;
+}
+.exercise-detail__section { margin-top: 20px; }
+.exercise-detail__section h3 { margin: 0 0 9px; color: var(--text-primary); font-size: .8rem; }
+.exercise-detail__muscles { display: grid; gap: 7px; margin: 0; }
+.exercise-detail__muscles div {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: var(--overlay-sm);
+}
+.exercise-detail__muscles dt { color: var(--text-faint); font-size: .66rem; font-weight: 800; text-transform: uppercase; }
+.exercise-detail__muscles dd { margin: 0; color: var(--text-secondary); font-size: .74rem; }
+.exercise-detail__steps,
+.exercise-detail__safety { display: grid; gap: 8px; margin: 0; padding-left: 21px; color: var(--text-secondary); font-size: .76rem; line-height: 1.5; }
+.exercise-detail__section--safety {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 30%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-amber) 7%, transparent);
+}
+.exercise-detail__empty { margin: 0; color: var(--text-faint); font-size: .76rem; line-height: 1.5; }
+
+@media (min-width: 640px) {
+  .exercise-detail-overlay { align-items: center; padding: 16px; }
+  .exercise-detail-card { width: min(100%, 560px); border-radius: 20px; }
 }
 
 /* Activity History link button on home screen */

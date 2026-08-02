@@ -210,7 +210,7 @@ guard on the gauge animation, keyboard-activatable card.
 - **Stage E — UI**: Home hero gauge card (first thing on Home) + Insights hub link + detail
   view (pillar breakdown, drivers, level progress, trend). ✅ Shipped and visually verified
   via headless-Chrome render at phone width. `ui.js` (pure HTML builders) + `css/hybrid-score.css`.
-  Remaining follow-up: fold the score line into the Morning Briefing (R1) when that lands.
+  The score line is also included in the Morning Briefing.
 
 **Tech:** all pure and modular under `js/brain/hybrid-score/`; weights/thresholds/levels live
 in `config.js` for easy tuning; one recompute reuses the existing dashboard model (no extra

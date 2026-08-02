@@ -16,7 +16,7 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v121';
+const CACHE_NAME = 'helyx-v122';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
@@ -114,6 +114,7 @@ const REQUIRED_ASSETS = [
   "./js/dragdrop.js",
   "./js/engine.js",
   "./js/exercises/catalog.js",
+  "./js/exercises/detail.js",
   "./js/fasting.js",
   "./js/fasting/fasting-achievements.js",
   "./js/fasting/fasting-actions.js",
@@ -248,22 +249,15 @@ const OPTIONAL_ASSETS = [
   "./js/vendor/leaflet/images/layers-2x.png",
 ];
 
-// Third-party libraries pinned + integrity-checked in index.html. Best-effort
-// cache so auth works offline after the first successful load; a CORS/network
-// miss here never fails the install.
-const CDN_ASSETS = [
-  new Request('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js', { mode: 'cors' }),
-];
-
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
     // Atomic — rejects (and aborts the install, keeping the old cache) if any
     // required asset can't be fetched.
     await cache.addAll(REQUIRED_ASSETS);
-    // Optional + CDN: best-effort, never block activation.
+    // Optional assets: best-effort, never block activation.
     await Promise.allSettled(
-      [...OPTIONAL_ASSETS, ...CDN_ASSETS].map((a) =>
+      OPTIONAL_ASSETS.map((a) =>
         cache.add(a).catch((err) =>
           console.warn('[SW] optional asset skipped:', typeof a === 'string' ? a : a.url, err)
         )
@@ -324,7 +318,7 @@ self.addEventListener('fetch', (event) => {
         )
     );
   } else {
-    // Cache-first for everything else (HTML, CSS, icons, fonts, CDN).
+    // Cache-first for everything else (HTML, CSS, icons, fonts, approved assets).
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {

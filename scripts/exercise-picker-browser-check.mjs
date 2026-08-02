@@ -10,7 +10,9 @@
 //     rendered geometry: the picker is top-anchored, the search field is visible,
 //     results begin below it, the results list ends ABOVE the simulated keyboard
 //     boundary, a result is clickable in one tap without dismissing anything, and
-//     the underlying editor keeps its scroll position.
+//     the underlying editor keeps its scroll position. It also proves that both
+//     program-building and workout pickers can filter the reviewed EZ-bar
+//     catalogue and open its technique/safety details.
 // =============================================================================
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -100,6 +102,35 @@ try {
   await page.waitForSelector('#builderExercisePicker.active', { timeout: 6000 });
   await page.waitForTimeout(150);
 
+  // Equipment filtering exposes the complete, distinct EZ-bar catalogue.
+  await page.selectOption('#builderExerciseEquipment', 'ezBar');
+  await page.waitForTimeout(120);
+  const builderEzNames = await page.$$eval(
+    '#builderExerciseResults [data-action="b-pick-exercise"]',
+    (buttons) => buttons.map((button) => button.getAttribute('data-name')),
+  );
+  ok(builderEzNames.length === 16, `program picker lists all 16 EZ-bar exercises (${builderEzNames.length})`);
+  ok(builderEzNames.every((name) => name?.startsWith('EZ-Bar')), 'program picker EZ filter excludes straight-bar variations');
+  ok(builderEzNames.includes('EZ-Bar Romanian Deadlift') && builderEzNames.includes('EZ-Bar Floor Press'), 'program picker spans legs and chest');
+
+  // Details open above the picker and expose every new editorial field.
+  await page.click('#builderExerciseResults [data-action="b-exercise-info"][data-name="EZ-Bar Romanian Deadlift"]');
+  await page.waitForSelector('#exerciseDetailModal.active', { timeout: 3000 });
+  const detailText = await page.textContent('#exerciseDetailBody');
+  ok(/Intermediate/.test(detailText) && /Hamstrings/.test(detailText) && /How to perform it/.test(detailText) && /Safety/.test(detailText), 'exercise detail shows difficulty, muscles, instructions, and safety');
+  const nestedSemantics = await page.evaluate(() => ({
+    parentHidden: document.getElementById('builderExercisePicker')?.getAttribute('aria-hidden'),
+    parentInert: document.getElementById('builderExercisePicker')?.hasAttribute('inert'),
+    detailModal: document.getElementById('exerciseDetailModal')?.getAttribute('aria-modal'),
+  }));
+  ok(nestedSemantics.parentHidden === 'true' && nestedSemantics.parentInert && nestedSemantics.detailModal === 'true', 'only the topmost detail dialog is exposed to assistive technology');
+  await page.click('#exerciseDetailModal [data-action="close-exercise-detail"]');
+  await page.waitForTimeout(100);
+  ok(await page.isVisible('#builderExercisePicker.active'), 'closing exercise details returns to the program picker');
+  ok(await page.getAttribute('#builderExercisePicker', 'aria-modal') === 'true', 'program picker regains modal semantics after details close');
+  await page.selectOption('#builderExerciseEquipment', '');
+  await page.focus('#builderExerciseSearch');
+
   // The helper wired the CSS var on open (real visualViewport height).
   const varSet = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--visible-viewport-height').trim());
   ok(/\dpx$/.test(varSet), `--visible-viewport-height is published on open (${varSet || 'unset'})`);
@@ -147,6 +178,31 @@ try {
   // The CSS var is cleared after the picker closes (no stale height lingers).
   const varAfter = await page.evaluate(() => document.documentElement.style.getPropertyValue('--visible-viewport-height'));
   ok(varAfter === '', 'visible-viewport CSS var cleared on close');
+
+  // The workout add-exercise flow shares the same filters/details and remains
+  // usable at the target mobile viewport.
+  await page.click('#builderViewContainer [data-action="close-builder"]');
+  await page.click('.nav-item[data-target="workout"]');
+  await page.waitForTimeout(250);
+  await page.click('#view-workout [data-action="open-add-exercise"]');
+  await page.waitForSelector('#addExerciseModal.active', { timeout: 3000 });
+  await page.selectOption('#elEquipmentFilter', 'ezBar');
+  await page.waitForTimeout(100);
+  const workoutEzNames = await page.$$eval(
+    '#elList [data-action="el-pick"]',
+    (buttons) => buttons.map((button) => button.getAttribute('data-exname')),
+  );
+  ok(workoutEzNames.length === 16, `workout picker lists all 16 EZ-bar exercises (${workoutEzNames.length})`);
+  ok(workoutEzNames.every((name) => name?.startsWith('EZ-Bar')), 'workout picker EZ filter excludes other equipment');
+  await page.fill('#elSearchInput', 'zercher');
+  await page.waitForTimeout(100);
+  ok(await page.getAttribute('#elList [data-action="el-pick"]', 'data-exname') === 'EZ-Bar Zercher Squat', 'workout search and equipment filter compose');
+  await page.click('#elList [data-action="el-info"][data-exname="EZ-Bar Zercher Squat"]');
+  await page.waitForSelector('#exerciseDetailModal.active', { timeout: 3000 });
+  ok(/Quads/.test(await page.textContent('#exerciseDetailBody')), 'workout picker opens the same reviewed exercise detail');
+  await page.click('#exerciseDetailModal [data-action="close-exercise-detail"]');
+  await page.waitForTimeout(100);
+  ok(await page.isVisible('#addExerciseModal.active'), 'closing details returns to the workout picker');
 
   if (errors.length) fail(`browser errors: ${errors.join(' | ')}`);
   await ctx.close();

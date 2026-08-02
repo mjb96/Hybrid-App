@@ -7,7 +7,11 @@ import {
   saveStateToLocalStorage, getProgramById, appState, reconcileActiveProgramEdits,
 } from './state.js';
 import { escapeHtml } from './util.js';
-import { canonicalExerciseId, normaliseExerciseName, equipmentLabel, searchExercises } from './exercises/catalog.js';
+import {
+  browseExercises, canonicalExerciseId, EQUIPMENT, EXERCISE_CATEGORIES,
+  EXERCISE_CATEGORY_LABELS, equipmentLabel, normaliseExerciseName,
+} from './exercises/catalog.js';
+import { openExerciseDetail } from './exercises/detail.js';
 import {
   ensureWeeklyMods, setWeekField, markWeekDeload, isDeloadWeek, weekKeys,
 } from './programs/progression.js';
@@ -309,7 +313,18 @@ function ensurePicker() {
   root.setAttribute('data-modal-close-action', 'b-close-picker');
   root.setAttribute('inert', '');
   root.setAttribute('aria-hidden', 'true');
-  root.innerHTML = `<div class="modal-content program-editor__picker"><div class="program-editor__picker-head"><div><div class="program-editor__eyebrow">EXERCISE LIBRARY</div><h2 id="builderExercisePickerTitle">Add exercise</h2></div><button data-action="b-close-picker" aria-label="Close exercise picker">×</button></div><label class="program-editor__picker-search"><span class="sr-only">Search exercises</span><input id="builderExerciseSearch" type="search" autocomplete="off" placeholder="Search bench, squat, row…"></label><div id="builderExerciseResults" class="program-editor__picker-results"></div></div>`;
+  const categoryOptions = EXERCISE_CATEGORIES.map((key) => `<option value="${key}">${EXERCISE_CATEGORY_LABELS[key]}</option>`).join('');
+  const equipmentOptions = EQUIPMENT.map((key) => `<option value="${key}">${escapeHtml(equipmentLabel(key))}</option>`).join('');
+  root.innerHTML = `<div class="modal-content program-editor__picker">
+    <div class="program-editor__picker-head"><div><div class="program-editor__eyebrow">EXERCISE LIBRARY</div><h2 id="builderExercisePickerTitle">Add exercise</h2></div><button data-action="b-close-picker" aria-label="Close exercise picker">×</button></div>
+    <label class="program-editor__picker-search"><span class="sr-only">Search exercises</span><input id="builderExerciseSearch" type="search" autocomplete="off" placeholder="Search bench, squat, row…"></label>
+    <div class="program-editor__picker-filters">
+      <label><span class="sr-only">Filter by muscle group</span><select id="builderExerciseCategory"><option value="">All muscle groups</option>${categoryOptions}</select></label>
+      <label><span class="sr-only">Filter by equipment</span><select id="builderExerciseEquipment"><option value="">All equipment</option>${equipmentOptions}</select></label>
+    </div>
+    <p id="builderExerciseSummary" class="program-editor__picker-summary" role="status" aria-live="polite"></p>
+    <div id="builderExerciseResults" class="program-editor__picker-results"></div>
+  </div>`;
   document.body.appendChild(root);
   return root;
 }
@@ -320,7 +335,11 @@ function openExercisePicker(day, index = null) {
   const title = root.querySelector('#builderExercisePickerTitle');
   if (title) title.textContent = pickerTarget.index == null ? 'Add exercise' : 'Replace exercise';
   const search = /** @type {HTMLInputElement|null} */ (root.querySelector('#builderExerciseSearch'));
+  const category = /** @type {HTMLSelectElement|null} */ (root.querySelector('#builderExerciseCategory'));
+  const equipment = /** @type {HTMLSelectElement|null} */ (root.querySelector('#builderExerciseEquipment'));
   if (search) search.value = '';
+  if (category) category.value = '';
+  if (equipment) equipment.value = '';
   // Initial/recent choices are shown immediately; the results list starts at the
   // top so the first match sits directly below the search field.
   renderPickerResults('');
@@ -348,8 +367,22 @@ function closeExercisePicker() {
 function renderPickerResults(query) {
   const target = document.getElementById('builderExerciseResults');
   if (!target) return;
-  const matches = searchExercises(query, 40);
-  target.innerHTML = `${matches.map((item) => `<button data-action="b-pick-exercise" data-name="${escapeHtml(item.name)}"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.movement.replaceAll('_', ' '))} · ${escapeHtml(item.equipment.map(equipmentLabel).join(', '))}</small></span><b>+</b></button>`).join('')}${String(query || '').trim() ? `<button class="program-editor__custom-exercise" data-action="b-pick-custom" data-name="${escapeHtml(String(query).trim().slice(0, 80))}"><span><strong>Use “${escapeHtml(String(query).trim().slice(0, 80))}”</strong><small>Create a custom exercise name</small></span><b>+</b></button>` : ''}${!matches.length && !String(query || '').trim() ? '<p>No exercises found.</p>' : ''}`;
+  const category = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderExerciseCategory'))?.value || '';
+  const equipment = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderExerciseEquipment'))?.value || '';
+  const allMatches = browseExercises({ query, category, equipment }, 500);
+  const matches = allMatches.slice(0, 80);
+  const custom = String(query || '').trim() && !category && !equipment
+    ? `<button class="program-editor__custom-exercise" data-action="b-pick-custom" data-name="${escapeHtml(String(query).trim().slice(0, 80))}"><span><strong>Use “${escapeHtml(String(query).trim().slice(0, 80))}”</strong><small>Create a custom exercise name</small></span><b>+</b></button>`
+    : '';
+  target.innerHTML = `${matches.map((item) => `<div class="program-editor__picker-result">
+    <button data-action="b-pick-exercise" data-name="${escapeHtml(item.name)}"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.movement.replaceAll('_', ' '))} · ${escapeHtml(item.equipment.map(equipmentLabel).join(', '))}</small></span><b>+</b></button>
+    <button class="program-editor__picker-info" data-action="b-exercise-info" data-name="${escapeHtml(item.name)}" aria-label="View details for ${escapeHtml(item.name)}">i</button>
+  </div>`).join('')}${custom}${!matches.length && !custom ? '<p class="program-editor__picker-empty">No matches. Try another search or clear a filter.</p>' : ''}`;
+  const summary = document.getElementById('builderExerciseSummary');
+  if (summary) {
+    const visible = allMatches.length > matches.length ? `Showing ${matches.length} of ${allMatches.length}` : `${allMatches.length}`;
+    summary.textContent = `${visible} exercise${allMatches.length === 1 ? '' : 's'}${equipment ? ` · ${equipmentLabel(equipment)}` : ''}`;
+  }
 }
 
 function sameExercise(a, b) {
@@ -458,6 +491,7 @@ document.addEventListener('click', async (event) => {
   const index = Number.parseInt(target.dataset.i || '', 10);
 
   if (action === 'b-close-picker') closeExercisePicker();
+  else if (action === 'b-exercise-info') openExerciseDetail(target.dataset.name || '');
   else if (action === 'b-pick-exercise' || action === 'b-pick-custom') chooseExercise(target.dataset.name || '');
   else if (!target.closest('#builderViewContainer')) return;
   else if (action === 'close-builder') closeBuilder();
@@ -508,6 +542,11 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
   const target = /** @type {HTMLInputElement|HTMLSelectElement|null} */ (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement ? event.target : null);
+  if (target?.id === 'builderExerciseCategory' || target?.id === 'builderExerciseEquipment') {
+    const search = /** @type {HTMLInputElement|null} */ (document.getElementById('builderExerciseSearch'));
+    renderPickerResults(search?.value || '');
+    return;
+  }
   if (!target?.closest('#builderViewContainer')) return;
   const program = getProgram();
   if (!program) return;

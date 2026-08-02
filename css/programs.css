@@ -2332,12 +2332,23 @@ html[data-theme="light"] .create-cta-inner {
 .program-editor__picker-head > button { flex: 0 0 auto; width: 44px; height: 44px; border: 1px solid var(--border-light); border-radius: 50%; background: var(--bg-input); color: var(--text-primary); font-size: 1.3rem; }
 .program-editor__picker-search { flex: 0 0 auto; display: block; margin: 0; padding: 12px 16px 10px; }
 .program-editor__picker-search input { width: 100%; min-height: 48px; padding: 10px 13px; border: 1px solid var(--border-light); border-radius: 12px; background: var(--bg-input); color: var(--text-primary); font-size: 1rem; }
+.program-editor__picker-filters { flex: 0 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 16px 4px; }
+.program-editor__picker-filters select { width: 100%; min-height: 44px; padding: 8px 28px 8px 10px; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-input); color: var(--text-primary); font: inherit; font-size: .7rem; font-weight: 700; }
+.program-editor__picker-summary { flex: 0 0 auto; min-height: 21px; margin: 0; padding: 3px 17px 1px; color: var(--text-muted); font-size: .64rem; font-weight: 700; }
 .program-editor__picker-results { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; gap: 6px; align-content: start; padding: 0 16px max(16px, env(safe-area-inset-bottom)); }
-.program-editor__picker-results > button { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid var(--border-light); border-radius: 11px; background: var(--bg-card); color: var(--text-primary); text-align: left; }
-.program-editor__picker-results > button span { min-width: 0; display: grid; gap: 3px; }
-.program-editor__picker-results > button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; }
-.program-editor__picker-results > button small { color: var(--text-muted); font-size: .62rem; text-transform: capitalize; }
-.program-editor__picker-results > button b { color: var(--accent-blue); font-size: 1.1rem; }
+.program-editor__picker-results > button,
+.program-editor__picker-result > button:first-child { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid var(--border-light); border-radius: 11px; background: var(--bg-card); color: var(--text-primary); text-align: left; }
+.program-editor__picker-results > button span,
+.program-editor__picker-result > button:first-child span { min-width: 0; display: grid; gap: 3px; }
+.program-editor__picker-results > button strong,
+.program-editor__picker-result > button:first-child strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; }
+.program-editor__picker-results > button small,
+.program-editor__picker-result > button:first-child small { color: var(--text-muted); font-size: .62rem; text-transform: capitalize; }
+.program-editor__picker-results > button b,
+.program-editor__picker-result > button:first-child b { color: var(--accent-blue); font-size: 1.1rem; }
+.program-editor__picker-result { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 7px; }
+.program-editor__picker-info { min-height: 44px; border: 1px solid var(--border-light); border-radius: 11px; background: var(--bg-card); color: var(--accent-blue); font-size: .88rem; font-weight: 900; }
+.program-editor__picker-empty { margin: 0; padding: 24px 8px; color: var(--text-muted); font-size: .76rem; text-align: center; }
 .program-editor__custom-exercise { border-color: color-mix(in srgb, var(--accent-blue) 36%, var(--border-light)) !important; }
 .program-editor__picker-error { margin: 0; padding: 10px; border-radius: 9px; background: color-mix(in srgb, var(--color-red) 10%, transparent); color: var(--color-red); font-size: .72rem; }
 
@@ -2361,6 +2372,8 @@ html[data-theme="light"] .program-editor__tabs { background: rgba(244,247,251,.9
   .program-editor__picker { margin: auto; width: min(100%, 560px); height: auto; max-height: min(84dvh, 760px); border-radius: 20px; padding: 18px; }
   .program-editor__picker-head { padding: 0; }
   .program-editor__picker-search { padding: 14px 0 10px; }
+  .program-editor__picker-filters { padding: 0 0 4px; }
+  .program-editor__picker-summary { padding: 3px 1px 1px; }
   .program-editor__picker-results { padding: 0; }
   .program-editor__picker-overlay { align-items: center; padding: 16px; }
 }

@@ -32,13 +32,14 @@ cache on any asset change, which happens more often than a marketing version bum
 - Production JS libraries are pinned to **exact** versions in `package.json`
   (`@supabase/supabase-js`, `@sentry/browser`, `leaflet`) and `package-lock.json`
   is committed, so `npm ci` is reproducible.
-- Leaflet is vendored (`js/vendor/leaflet/`); Supabase/Sentry are exact-pinned +
-  (Supabase) SRI-checked CDN references. No broad `@2`/`@8` major-range CDN refs.
+- Leaflet, Supabase, and Sentry are vendored under `js/vendor/`; production
+  runtime JavaScript never loads from a CDN. Supabase's reviewed vendored bytes
+  are protected by a SHA-384 regression test.
 - **Dependency updates:** bump the exact version in `package.json`, run
-  `npm install` to refresh the lockfile, re-vendor Leaflet if it changed
-  (`cp node_modules/leaflet/dist/* js/vendor/leaflet/…`), recompute the Supabase
-  SRI (`openssl dgst -sha384 -binary node_modules/@supabase/supabase-js/dist/umd/supabase.js | openssl base64 -A`),
-  and run `npm run verify`. Do not enable automatic major upgrades.
+  `npm install` to refresh the lockfile, copy the reviewed production files into
+  `js/vendor/`, update the expected Supabase hash in
+  `tests/csp_vendored_runtime.test.js`, regenerate the precache, and run
+  `npm run verify`. Do not enable automatic major upgrades.
 
 ## Known gap (requires a one-time local step)
 `android/gradle/wrapper/gradle-wrapper.jar` and the `gradlew` scripts are **not**
