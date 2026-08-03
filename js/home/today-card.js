@@ -13,8 +13,8 @@ const DAY_NAMES = Object.freeze({
   fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 });
 
-export function todayProgramDay(now = new Date()) {
-  const todayISO = dateKey(now);
+export function todayProgramDay(now = new Date(), tz = undefined) {
+  const todayISO = dateKey(now, tz);
   // Parse the intentional local date at UTC noon so the weekday is stable in
   // tests and on devices whose process timezone differs from their display TZ.
   return DAY_KEYS[new Date(`${todayISO}T12:00:00Z`).getUTCDay()];
@@ -113,8 +113,8 @@ function scoreSupport(score) {
   };
 }
 
-function baseModel({ state, program, model, briefing, score, now, offline }) {
-  const todayDay = todayProgramDay(now);
+function baseModel({ state, program, model, briefing, score, now, offline, tz }) {
+  const todayDay = todayProgramDay(now, tz);
   return {
     state: 'ready',
     tone: 'ready',
@@ -138,16 +138,16 @@ function baseModel({ state, program, model, briefing, score, now, offline }) {
 /**
  * @param {{
  *  state:any, program?:any, model?:any, briefing?:any, score?:any,
- *  now?:Date, offline?:boolean
+ *  now?:Date, offline?:boolean, tz?:string
  * }} options
  */
 export function buildTodayCardModel(options) {
   const {
     state, program = null, model = null, briefing = null, score = null,
-    now = new Date(), offline = false,
+    now = new Date(), offline = false, tz = undefined,
   } = options;
-  const todayISO = dateKey(now);
-  const card = baseModel({ state, program, model, briefing, score, now, offline });
+  const todayISO = dateKey(now, tz);
+  const card = baseModel({ state, program, model, briefing, score, now, offline, tz });
   const weekKey = card.week;
 
   // A one-off strength session is the most explicit unfinished intent. Keep it

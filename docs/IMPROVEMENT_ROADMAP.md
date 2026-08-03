@@ -755,6 +755,13 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-03 — Home Today timezone CI correction.** Made the pure Today-card
+  model accept an optional display timezone so calendar-day fixtures are
+  deterministic without changing the runtime default of the user's device
+  timezone. Added a same-instant UTC/Sydney regression and verified every
+  Today state in both process timezones. The full Node 20 verification and
+  browser suites pass, including mobile layouts and preservation of both In
+  Focus cards. Next: simplify the common strength set-row interaction.
 - **2026-08-03 — Home analytics hierarchy, corrected by owner direction.**
   Preserved the full Strength and Running In Focus cards, including historical
   week navigation, exact-day activity taps, and Progress detail routes. Removed
