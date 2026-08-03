@@ -145,6 +145,8 @@ try {
           cardWithinViewport: !!cardRect && cardRect.left >= 0 && cardRect.right <= innerWidth && cardRect.bottom <= innerHeight,
           primaryHeight: primary?.getBoundingClientRect().height || 0,
           secondaryHeight: secondary?.getBoundingClientRect().height || 0,
+          inFocusCards: document.querySelectorAll('#strengthBarChart, #runBarChart').length,
+          glanceGrids: document.querySelectorAll('#glanceGrid').length,
           overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         };
       });
@@ -152,6 +154,8 @@ try {
       ok(layout.primaryCount === 1, `${theme} ${width}px has exactly one Today primary action`);
       ok(layout.cardWithinViewport, `${theme} ${width}px keeps the complete Today decision in the first viewport`);
       ok(layout.primaryHeight >= 44 && layout.secondaryHeight >= 44, `${theme} ${width}px controls meet 44px touch target`);
+      ok(layout.inFocusCards === 2, `${theme} ${width}px preserves both In Focus cards`);
+      ok(layout.glanceGrids === 0, `${theme} ${width}px removes the repeated At-a-Glance grid`);
       ok(!layout.overflow, `${theme} ${width}px has no horizontal overflow`);
       await context.close();
     }

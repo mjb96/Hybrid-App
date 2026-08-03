@@ -208,15 +208,27 @@ try {
 
     await page.click('#view-analytics .subview-back-btn');
     await page.waitForSelector('#analytics-running.active');
+    await page.click('#analytics-running [data-an-tab="stats"]');
+    await page.waitForSelector('#analytics-running [data-metric-id="running.average-pace"]');
+
+    await page.click('#analytics-running [data-metric-id="running.average-pace"]');
+    await page.waitForSelector('#analytics-running-metric.active');
+    const averagePaceDestination = await page.textContent('#runningMetricDetail h2');
+    if (averagePaceDestination?.trim() !== 'Average Pace') failures.push(`${width}px: Average Pace did not open its exact Progress metric`);
+    await page.click('#view-analytics .subview-back-btn');
+    await page.waitForSelector('#analytics-running.active');
 
     await page.click('.nav-item[data-target="home"]');
-    await page.waitForSelector('#view-home.active [data-metric-id="running.average-pace"]');
-    await page.click('#view-home [data-metric-id="running.average-pace"]');
-    await page.waitForSelector('#analytics-running-metric.active');
-    const homeDestination = await page.textContent('#runningMetricDetail h2');
-    if (homeDestination?.trim() !== 'Average Pace') failures.push(`${width}px: Home Average Pace did not open its exact metric`);
+    await page.waitForSelector('#view-home.active #runBarChart [data-wfg-action="open-detail"]');
+    if (await page.locator('#view-home [data-metric-id="running.average-pace"]').count()) {
+      failures.push(`${width}px: Home still repeats the Average Pace metric`);
+    }
+    await page.click('#runBarChart [data-wfg-action="open-detail"]');
+    await page.waitForSelector('#analytics-run-performance.active');
+    const homeDestination = await page.textContent('#analytics-run-performance h2');
+    if (homeDestination?.trim() !== 'Run Performance') failures.push(`${width}px: Home In Focus did not open Run Performance`);
     await page.click('#view-analytics .subview-back-btn');
-    if (!await page.$eval('#view-home', (view) => view.classList.contains('active'))) failures.push(`${width}px: metric Back did not return to Home`);
+    if (!await page.$eval('#view-home', (view) => view.classList.contains('active'))) failures.push(`${width}px: In Focus Back did not return to Home`);
 
     if (errors.length) failures.push(`${width}px browser errors: ${errors.join(' | ')}`);
     await context.close();

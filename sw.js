@@ -133,7 +133,6 @@ const REQUIRED_ASSETS = [
   "./js/home/activity-calendar.js",
   "./js/home/dashboard-model.js",
   "./js/home/fasting-card.js",
-  "./js/home/tile-renderers.js",
   "./js/home/today-card.js",
   "./js/home/weekly-fitness-graph.js",
   "./js/metrics/metrics-load.js",

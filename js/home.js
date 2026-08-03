@@ -14,13 +14,11 @@ import { answerCoachQuestion } from './brain/coach-qa.js';
 import { pushOvertrainingWarning, pushFastingStageNudge } from './notifications.js';
 import { reconcileStreakFreezes } from './brain/streak.js';
 import { shouldSuggestDeload } from './engine.js';
-import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation, HOME_TILE_IDS } from './dashboard.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
-import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
-import { setHTML, reconcileKeyed } from './ui/render.js';
+import { setHTML } from './ui/render.js';
 import { reportHandledError, renderSafely } from './monitoring/report-error.js';
 import { todayKey } from './dates.js';
 import { buildVolumeGuideModel, hasExplicitMusclePriorities } from './analytics/volume-guide.js';
@@ -29,19 +27,16 @@ let _getState;
 let _getSelectedDay;
 let _getDays;
 
-// Weekly fitness graph instances (one per In Focus card)
 let _strengthGraph = null;
-let _runGraph      = null;
+let _runGraph = null;
 
 export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getState = getStateFn;
   _getSelectedDay = getSelectedDayFn;
   _getDays = getDaysFn;
   initFastingCard(getStateFn);
-
-  // Initialize the Garmin-style weekly fitness graphs inside the In Focus cards
   _strengthGraph = initWeeklyFitnessGraph('strengthBarChart', 'strength', getStateFn);
-  _runGraph      = initWeeklyFitnessGraph('runBarChart',      'running',  getStateFn);
+  _runGraph = initWeeklyFitnessGraph('runBarChart', 'running', getStateFn);
 }
 
 export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
@@ -178,63 +173,16 @@ function renderOvertrainingCard(appState, model, assessment) {
 }
 
 // ==========================================
-// GLANCE GRID RENDERER
-// Builds / updates the .glance-grid dynamically from TILE_REGISTRY
+// HOME SUPPORTING SIGNALS
+// Keep the live-fast affordance and owner-preferred In Focus cards. The
+// duplicated At-a-Glance tile grid is intentionally no longer rendered.
 // ==========================================
-function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sharedModel) {
-  const grid = document.getElementById('glanceGrid');
-  if (!grid) return;
-
-  // One shared brain pass for the whole dashboard — every tile reads the same
-  // model. renderHome computes it once and passes it in.
-  const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
+function renderHomeSupportingSignals(appState, model) {
   updateQuickActions(model);
 
-  // Fasting stage / goal nudge (S1d): if an active fast crossed a metabolic
-  // stage or hit its goal since last seen, deliver it now (app-open / return).
   if (appState.fastingSession?.active) {
     pushFastingStageNudge(appState, () => saveStateToLocalStorage(true));
   }
-
-  // V2 (S3): exactly four fixed tiles, in order — no customiser, no hidden/order
-  // state. Curated defaults beat a customiser.
-  const byId = new Map(TILE_REGISTRY.map(t => [t.id, t]));
-  const visible = HOME_TILE_IDS.map(id => byId.get(id)).filter(Boolean);
-
-  // Keyed reconciliation: tile nodes persist across renders (identity, one-time
-  // listeners and order preserved); only new tiles are created, hidden/removed
-  // tiles are dropped, and each tile's inner HTML is rewritten only when it
-  // actually changed (setHTML).
-  reconcileKeyed(grid, visible, {
-    key: (config) => config.id,
-    create: (config) => {
-      const article = document.createElement('article');
-      article.id        = `glance-tile-${config.id}`;
-      article.className = 'card-dark glance-card tile-interactive'
-        + (config.type === DashboardTileType.CONNECT ? ' glance-card--full glance-card--connect' : '');
-      article.setAttribute('role', 'button');
-      article.setAttribute('tabindex', '0');
-      article.setAttribute('aria-label', `${config.label} — tap for details`);
-
-      const nav = resolveTileNavigation(config.navTarget, config.metricId);
-      if (nav) {
-        article.style.cursor = 'pointer';
-        if (config.metricId) article.setAttribute('data-metric-id', config.metricId);
-        article.addEventListener('click', nav);
-        article.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') nav(); });
-      }
-      return article;
-    },
-    update: (article, config) => {
-      let data;
-      try {
-        data = config.renderData(appState, defaultDays, activeProgram, selectedDay, model);
-      } catch (e) {
-        data = { state: 'error' };
-      }
-      setHTML(article, renderTileContent(config, data));
-    },
-  });
 }
 
 // ==========================================
@@ -342,15 +290,8 @@ export function renderHome() {
   const engineAlertCard = document.getElementById('homeEngineAlertCard');
   if (engineAlertCard) engineAlertCard.style.display = 'none';
 
-  // Weekly fitness graphs handle their own rendering and data refresh. They
-  // remain below the fold until the compact weekly-strip follow-up slice.
-  // Legacy hero/sub elements are hidden by the graphs on mount.
-  if (_strengthGraph) {
-    refreshWeeklyFitnessGraph('strengthBarChart');
-  }
-  if (_runGraph) {
-    refreshWeeklyFitnessGraph('runBarChart');
-  }
+  if (_strengthGraph) refreshWeeklyFitnessGraph('strengthBarChart');
+  if (_runGraph) refreshWeeklyFitnessGraph('runBarChart');
 
   const scoreResult = renderHybridScoreHome(appState, model);
 
@@ -382,7 +323,7 @@ export function renderHome() {
     });
     setHTML(todayMount, todayCardHTML(card));
   }
-  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, homeDay, model);
+  renderHomeSupportingSignals(appState, model);
   renderHomeVolumeGuide(appState, activeProgram);
 
   // V2 (S4): the week-compare card moves off Home — it was one of several

@@ -539,8 +539,8 @@
         <span class="home-volume-guide__arrow" aria-hidden="true">›</span>
       </button>
 
-      <!-- In Focus: home-screen weekly bar graphs (strength + running), built
-           from the shared week-chart model. -->
+      <!-- In Focus: the owner's preferred Home analytics cards. These use the
+           shared calendar-week model and retain exact-date bar interaction. -->
       <div class="app-section-heading">
         <div class="app-section-heading__title">In Focus</div>
         <div class="app-section-heading__sub">Your training this week</div>
@@ -571,15 +571,8 @@
 
       </div>
 
-      <!-- V2 (S4): check-in / weight quick actions stay off Home (one tap away in
-           Progress). Fasting was promoted back to Home above (owner request). -->
-
-      <div class="app-section-heading" style="margin-top: 20px;">
-        <div class="app-section-heading__title">At a Glance</div>
-        <div class="app-section-heading__sub">Key metrics snapshot</div>
-      </div>
-
-      <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
+      <!-- At-a-Glance was removed because it repeated metrics already owned by
+           Today, In Focus, and Progress. Fasting remains above by owner choice. -->
 
       <button class="btn-history-link mb-4" data-action="open-activities">
         <span>📅 Activities</span>

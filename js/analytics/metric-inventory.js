@@ -40,7 +40,7 @@ const runningSurfaces = {
   'running.weekly-duration': ['Running Stats', 'Profile This Week'],
   'running.weekly-run-count': ['Running Stats'],
   'running.total-run-count': ['Running Stats', 'Profile Performance'],
-  'running.average-pace': ['Home At a Glance', 'Running Stats'],
+  'running.average-pace': ['Running Stats'],
   'running.best-pace': ['Running Overview', 'Running Stats', 'Profile Performance'],
   'running.longest-run': ['Running Stats', 'Profile Performance'],
   'running.weekly-elevation': ['Running Stats'],
@@ -170,7 +170,7 @@ const STRENGTH_INVENTORY = group('strength', 'js/analytics/views/view-strength.j
 }, [
   { id: 'strength.estimated-1rm', label: 'Estimated 1RM', unit: 'weight', surfaces: ['Strength Overview', 'Strength Stats', 'Profile PRs'], currentInteractive: 'mixed', currentDestination: 'Exercise detail for dynamic lift rows; static hero/profile instances', intendedDestination: 'strength-metric:strength.estimated-1rm', implementation: 'existing-partial' },
   { id: 'strength.weekly-e1rm-change', label: 'e1RM Change This Week', unit: 'weight/percent', surfaces: ['Strength Overview'], currentInteractive: 'static', currentDestination: 'none' },
-  { id: 'strength.weekly-volume', label: 'Weekly Volume', unit: 'weight-volume', surfaces: ['Home At a Glance', 'Strength Overview', 'Strength Stats', 'Profile This Week'], currentInteractive: 'exact-detail', currentDestination: 'weekly-volume', intendedDestination: 'weekly-volume', implementation: 'supported-existing' },
+  { id: 'strength.weekly-volume', label: 'Weekly Volume', unit: 'weight-volume', surfaces: ['Strength Overview', 'Strength Stats', 'Profile This Week'], currentInteractive: 'exact-detail', currentDestination: 'weekly-volume', intendedDestination: 'weekly-volume', implementation: 'supported-existing' },
   { id: 'strength.four-week-volume', label: '4-Week Volume', unit: 'weight-volume', surfaces: ['Strength Stats'], ...strengthDetailContract('strength.four-week-volume') },
   { id: 'strength.acute-load', label: '7-Day Load (ATL)', unit: 'load', surfaces: ['Strength Stats'], timeScope: 'rolling-7d', currentInteractive: 'static', currentDestination: 'none' },
   { id: 'strength.chronic-load', label: '28-Day Load (CTL)', unit: 'load', surfaces: ['Strength Stats'], timeScope: 'rolling-28d', currentInteractive: 'static', currentDestination: 'none' },
@@ -194,7 +194,7 @@ const RECOVERY_INVENTORY = group('recovery', 'js/analytics/views/view-recovery.j
   exactEvidence: 'No consistent exact-record evidence navigation yet.',
   tests: ['tests/readiness.test.js', 'tests/recovery_calendar.test.js', 'tests/load_models.test.js'],
 }, [
-  { id: 'recovery.readiness', label: 'Readiness', unit: 'score', surfaces: ['Home At a Glance', 'Recovery Overview'], beforeInteraction: 'domain-only', currentInteractive: 'domain-only', currentDestination: 'Recovery & Load Stats' },
+  { id: 'recovery.readiness', label: 'Readiness', unit: 'score', surfaces: ['Home Today', 'Recovery Overview'], beforeInteraction: 'supporting-guidance', currentInteractive: 'domain-only', currentDestination: 'Recovery & Load Stats' },
   { id: 'recovery.confidence', label: 'Readiness Confidence', unit: 'percent', surfaces: ['Recovery Overview'], currentInteractive: 'static', currentDestination: 'none' },
   { id: 'recovery.form', label: 'Form (TSB)', unit: 'load', surfaces: ['Recovery Overview', 'Recovery Stats'], timeScope: 'rolling-ewma', currentInteractive: 'static', currentDestination: 'none' },
   { id: 'recovery.load-ratio', label: 'Load Ratio (ACWR)', unit: 'ratio', surfaces: ['Recovery Overview', 'Recovery Stats'], timeScope: 'rolling-ewma', currentInteractive: 'static', currentDestination: 'none' },
@@ -306,7 +306,7 @@ const BODY_AND_PROJECTION_INVENTORY = group('other', 'js/analytics/views/view-bo
   emptyState: 'The screen names the input required.', historicalSeries: 'Bodyweight has a trend; projections have no retained model snapshots.',
   exactEvidence: 'No exact activity evidence contract yet.', tests: ['tests/predictions.test.js', 'tests/dashboard_model.test.js'],
 }, [
-  { id: 'bodyweight.trend', label: 'Body Weight Trend', domain: 'bodyweight', unit: 'weight', surfaces: ['Body Weight', 'Home At a Glance'], currentInteractive: 'exact-detail', currentDestination: 'Body Weight', intendedDestination: 'bodyweight', implementation: 'supported-existing' },
+  { id: 'bodyweight.trend', label: 'Body Weight Trend', domain: 'bodyweight', unit: 'weight', surfaces: ['Body Weight'], currentInteractive: 'exact-detail', currentDestination: 'Body Weight', intendedDestination: 'bodyweight', implementation: 'supported-existing' },
   { id: 'projections.race-times', label: 'Predicted Race Times', domain: 'projections', unit: 'duration/pace', surfaces: ['Projections'], currentInteractive: 'static', currentDestination: 'none' },
   { id: 'projections.strength-milestones', label: 'Strength Milestone ETA', domain: 'projections', unit: 'date/weight', surfaces: ['Projections'], currentInteractive: 'static', currentDestination: 'none' },
 ]);
@@ -324,7 +324,7 @@ export const ANALYTICS_INVENTORY = Object.freeze([
 ]);
 
 export const ANALYTICS_EXCLUSIONS = Object.freeze([
-  { pattern: 'Dormant TILE_REGISTRY configurations outside HOME_TILE_IDS', reason: 'No longer rendered by the curated Home grid, so they are code configurations rather than current user-facing tiles.' },
+  { pattern: 'Dormant TILE_REGISTRY configurations', reason: 'The former Home At-a-Glance grid has been removed; these remain code configurations pending safe deletion, not current user-facing analytics.' },
   { pattern: 'Activity rows and recent-session rows', reason: 'Evidence/navigation records, not derived analytics; they remain exact interactive destinations.' },
   { pattern: 'Program cards and workout prescriptions', reason: 'Plans and actions, not measurements of completed performance.' },
   { pattern: 'Coach recommendations and warning copy', reason: 'Interpretations of metrics, inventoried through their source metric rather than counted as duplicate numeric tiles.' },
