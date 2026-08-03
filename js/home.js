@@ -255,7 +255,7 @@ function updateQuickActions(model) {
   const fastBtn = document.getElementById('qaFasting');
   if (fastRow && fastBtn) {
     const f = model.fasting;
-    // Home is quiet: starting a fast lives in the centre "+" sheet now. The only
+    // Home is quiet: starting a fast lives in Train's Quick start sheet. The only
     // fasting thing that surfaces on Home is a live status pill while a fast is
     // actually running — an in-progress timer should never be buried in a menu.
     fastRow.style.display = f.active ? '' : 'none';

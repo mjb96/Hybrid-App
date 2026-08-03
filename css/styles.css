@@ -585,7 +585,7 @@ select.native-select {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   height: 66px;
   z-index: var(--z-nav);
   border-radius: var(--radius-2xl);
@@ -637,19 +637,6 @@ select.native-select {
     transform var(--duration-base) var(--ease-bounce);
 }
 .nav-item.active::after { opacity: 1; transform: scaleX(1); }
-
-/* Centre quick-start "Start" — the entry to the start sheet. It's a plain
-   .nav-item and carries NO styling of its own on purpose: any override (even
-   `background: none`) makes it diverge from its peers — here it punched a
-   transparent hole through the default button fill and read as a dark box. By
-   adding nothing, .nav-fab matches the other tabs exactly; it simply never
-   gets the .active tab state.
-   The one intentional exception: the "+" glyph is tinted orange at full
-   opacity so the primary "start something" affordance stands out from the
-   muted tab icons. Scoped to the icon only — the "Start" label stays default. */
-.nav-fab span.icon { color: var(--color-orange); opacity: 1; }
-.nav-fab:hover span.icon { opacity: 1; }
-
 
 /* --- 5e. Modals --- */
 .modal-overlay {
@@ -1831,7 +1818,7 @@ body.sheet-scroll-locked {
 }
 .bottom-sheet-actions .btn-action-block { flex: 1; }
 
-/* --- Quick-start sheet (centre "+" FAB) --- */
+/* --- Quick-start sheet (owned by Train) --- */
 .qs-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -4953,6 +4940,7 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 .wch-label {
   font-size: 0.6rem;
@@ -4975,6 +4963,40 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   color: rgba(16,185,129,0.70);
   letter-spacing: 0.04em;
   margin-top: 3px;
+}
+
+.wch-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.train-quick-start-btn {
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  background: var(--overlay-sm);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.train-quick-start-btn .icon {
+  color: var(--color-orange);
+  font-size: 1rem;
+}
+
+.train-quick-start-btn:active {
+  transform: scale(0.97);
 }
 
 /* Cockpit live score hook — "… train and it rises to 85", updates as you log. */
