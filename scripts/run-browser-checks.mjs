@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 
 const checks = [
+  'scripts/home-today-browser-check.mjs',
   'scripts/home-attribution-check.mjs',
   'scripts/running-analytics-check.mjs',
   'scripts/gym-performance-browser-check.mjs',
@@ -12,6 +13,7 @@ const checks = [
   'scripts/active-program-edit-browser-check.mjs',
   'scripts/program-preview-consistency-browser-check.mjs',
   'scripts/jt-shed-simplified-browser-check.mjs',
+  'scripts/workout-history-browser-check.mjs',
   'scripts/exercise-picker-browser-check.mjs',
   'scripts/copy-program-browser-check.mjs',
   'scripts/modal-accessibility-check.mjs',

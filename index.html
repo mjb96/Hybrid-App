@@ -484,22 +484,14 @@
         <button class="home-avatar" id="homeAvatar" data-action="open-profile" aria-label="Open your profile">?</button>
       </div>
 
-      <!-- HYBRID SCORE — the signature surface; first thing the athlete sees -->
-      <div id="hybridScoreHome"></div>
+      <!-- TODAY — one state-aware decision surface for the current session.
+           The full Hybrid Score and detailed coaching evidence live in Progress. -->
+      <div id="homeTodayCard"></div>
 
-      <!-- MORNING BRIEFING — the one coaching surface (greeting · session · mission · coach) -->
-      <div id="morningBriefing"></div>
-
-      <!-- Primary CTA — one tap from Home into today's logging. Label + action
-           are set day-aware in renderHome (a rest day routes to the check-in,
-           not "Go to Today's Workout", which contradicts the rest-day coach). -->
-      <button id="homePrimaryCta" class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
-      <button id="homeChooseWorkout" class="home-choose-workout-btn mb-4" data-action="open-program-workout-picker">Choose another workout</button>
-
-      <!-- Starting a run / walk / fast now lives in the centre "+" nav FAB, so
-           Home stays quiet. The only thing that surfaces here is a live status
-           pill while a fast is actually running (never hide an in-progress
-           timer behind a menu). -->
+      <!-- Starting a run / walk / fast now lives in Train's Quick start, so Home
+           stays quiet. The only thing that surfaces here is a live status pill
+           while a fast is actually running (never hide an in-progress timer
+           behind a menu). -->
       <div class="qa-row qa-row--fasting mb-4" id="dashboardQuickActions" aria-label="Active fast" style="grid-template-columns:1fr;margin-top:10px;display:none;">
         <button class="qa-btn" id="qaFasting" data-action="open-fasting-detail" aria-label="View your active fast">
           <span class="qa-icon">⏱️</span>
@@ -547,8 +539,8 @@
         <span class="home-volume-guide__arrow" aria-hidden="true">›</span>
       </button>
 
-      <!-- In Focus: home-screen weekly bar graphs (strength + running), built
-           from the shared week-chart model. -->
+      <!-- In Focus: the owner's preferred Home analytics cards. These use the
+           shared calendar-week model and retain exact-date bar interaction. -->
       <div class="app-section-heading">
         <div class="app-section-heading__title">In Focus</div>
         <div class="app-section-heading__sub">Your training this week</div>
@@ -579,15 +571,8 @@
 
       </div>
 
-      <!-- V2 (S4): check-in / weight quick actions stay off Home (one tap away in
-           Insights). Fasting was promoted back to Home above (owner request). -->
-
-      <div class="app-section-heading" style="margin-top: 20px;">
-        <div class="app-section-heading__title">At a Glance</div>
-        <div class="app-section-heading__sub">Key metrics snapshot</div>
-      </div>
-
-      <div class="glance-grid mb-4" id="glanceGrid" aria-label="At a Glance metrics"></div>
+      <!-- At-a-Glance was removed because it repeated metrics already owned by
+           Today, In Focus, and Progress. Fasting remains above by owner choice. -->
 
       <button class="btn-history-link mb-4" data-action="open-activities">
         <span>📅 Activities</span>
@@ -596,17 +581,23 @@
 
     </section>
 
-    <section id="view-workout" class="view-container" aria-label="Workout Cockpit">
+    <section id="view-workout" class="view-container" aria-label="Train">
 
       <div class="workout-cockpit-header">
         <div class="wch-meta">
-          <span class="wch-label">Workout</span>
+          <span class="wch-label">Train</span>
           <h2 class="wch-title" id="cockpitWorkoutTitle">Today's Session</h2>
           <span class="wch-sub" id="cockpitSessionStatus">Ready to train</span>
         </div>
-        <div class="wch-badge" id="cockpitDayBadge">
-          <span class="wch-badge-dot"></span>
-          Today
+        <div class="wch-actions">
+          <div class="wch-badge" id="cockpitDayBadge">
+            <span class="wch-badge-dot"></span>
+            Today
+          </div>
+          <button class="train-quick-start-btn" data-action="open-quick-start" aria-label="Start another activity">
+            <span class="icon" data-icon="plus" aria-hidden="true"></span>
+            <span>Quick start</span>
+          </button>
         </div>
       </div>
 
@@ -812,7 +803,7 @@
       <button class="wk-clear-link mt-2" data-action="open-reset-modal">Clear today's log</button>
     </section>
 
-    <section id="view-analytics" class="view-container" aria-label="Performance Analytics">
+    <section id="view-analytics" class="view-container" aria-label="Progress">
 
       <button class="subview-back-btn" data-action="switch-tab" data-target="home">
         ← Back to Dashboard
@@ -830,11 +821,11 @@
         <button id="weekNavNext" class="week-nav-arrow" aria-label="Next week" disabled>&#8594;</button>
       </div>
 
-      <!-- ── Insights Hub (index of every analytics section) ────── -->
+      <!-- ── Progress Hub (index of every analytics section) ────── -->
       <div id="analytics-hub" class="analytics-section">
         <div class="hub-head">
-          <h2 class="hub-title">Insights</h2>
-          <p class="hub-sub">One number each, then the depth.</p>
+          <h2 class="hub-title">Progress</h2>
+          <p class="hub-sub">See what changed, why it matters, and where to look next.</p>
         </div>
 
         <div class="hub-group">
@@ -1048,7 +1039,7 @@
 
     </section>
 
-    <section id="view-program" class="view-container" aria-label="Program Library">
+    <section id="view-program" class="view-container" aria-label="Plans">
 
       <!-- ═══════ LIBRARY SCREEN (default entry) ═══════ -->
       <div id="programLibraryScreen">
@@ -1825,10 +1816,9 @@
 
   <nav class="bottom-nav" aria-label="Main Navigation">
     <button class="nav-item active" data-target="home" data-action="switch-tab" aria-current="page"><span class="icon" data-icon="home" aria-hidden="true"></span><span>Home</span></button>
-    <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" data-icon="dumbbell" aria-hidden="true"></span><span>Workout</span></button>
-    <button class="nav-item nav-fab" data-action="open-quick-start" aria-label="Start a run, walk, or fast"><span class="icon" data-icon="plus" aria-hidden="true"></span><span>Start</span></button>
-    <button class="nav-item" data-target="analytics" data-action="switch-tab"><span class="icon" data-icon="chart" aria-hidden="true"></span><span>Insights</span></button>
-    <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" data-icon="clipboard" aria-hidden="true"></span><span>Programs</span></button>
+    <button class="nav-item" data-target="workout" data-action="switch-tab"><span class="icon" data-icon="dumbbell" aria-hidden="true"></span><span>Train</span></button>
+    <button class="nav-item" data-target="analytics" data-action="switch-tab"><span class="icon" data-icon="chart" aria-hidden="true"></span><span>Progress</span></button>
+    <button class="nav-item" data-target="program" data-action="switch-tab"><span class="icon" data-icon="clipboard" aria-hidden="true"></span><span>Plans</span></button>
   </nav>
 
   <!-- Program Rating Modal -->
@@ -1964,10 +1954,10 @@
   <div class="modal-overlay" id="confirmResetModal" role="dialog" aria-labelledby="resetModalTitle" data-modal-root data-modal-close-action="close-reset-modal" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="resetModalTitle" class="text-2xl font-heavy text-accent-red mb-1">Clear Today's Log?</h2>
-      <p class="text-lg text-muted mb-5">This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.</p>
+      <p id="resetModalCopy" class="text-lg text-muted mb-5">This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.</p>
       <div class="flex gap-2">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-reset-modal">Cancel</button>
-        <button class="btn-action-block btn-danger mt-0" data-action="execute-reset">Clear Logs</button>
+        <button id="resetModalAction" class="btn-action-block btn-danger mt-0" data-action="execute-reset">Clear Logs</button>
       </div>
     </div>
   </div>
@@ -2024,12 +2014,12 @@
     <div id="programWorkoutPickerList" class="program-workout-picker__list"></div>
   </div>
 
-  <!-- Quick-start sheet — opened by the centre "+" nav FAB; start Run / Walk / Fast from any tab. -->
+  <!-- Quick-start sheet — opened from Train; start another workout, run, walk or fast. -->
   <div id="quickStartBackdrop" class="sheet-backdrop" data-action="close-quick-start"></div>
   <div id="quickStartSheet" class="bottom-sheet" role="dialog" aria-labelledby="qsTitle" data-modal-root data-modal-close-action="close-quick-start" data-modal-companion="#quickStartBackdrop" inert aria-hidden="true">
     <div class="bottom-sheet-handle"></div>
     <div class="bottom-sheet-header">
-      <h3 id="qsTitle" class="bottom-sheet-title">Start</h3>
+      <h3 id="qsTitle" class="bottom-sheet-title">Quick start</h3>
       <button class="sheet-close-btn" data-action="close-quick-start" aria-label="Close">✕</button>
     </div>
     <div class="qs-grid">

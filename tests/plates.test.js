@@ -50,7 +50,8 @@ test('per-side plate breakdown is not rendered in the workout logger', () => {
     plates: '25 + 1.25 / side',
   });
   assert.doesNotMatch(html, /per side|\/ side|cct-plates|🍩/i);
-  assert.match(html, /Target <b>72\.5 × 5<\/b>/);
+  assert.match(html, /Suggested next · this program run/);
+  assert.match(html, /<b>72\.5kg × 5 reps<\/b>/);
 });
 
 test('logger uses a neutral progress check instead of branding a plateau', () => {

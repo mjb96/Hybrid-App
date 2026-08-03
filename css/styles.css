@@ -585,7 +585,7 @@ select.native-select {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   height: 66px;
   z-index: var(--z-nav);
   border-radius: var(--radius-2xl);
@@ -637,19 +637,6 @@ select.native-select {
     transform var(--duration-base) var(--ease-bounce);
 }
 .nav-item.active::after { opacity: 1; transform: scaleX(1); }
-
-/* Centre quick-start "Start" — the entry to the start sheet. It's a plain
-   .nav-item and carries NO styling of its own on purpose: any override (even
-   `background: none`) makes it diverge from its peers — here it punched a
-   transparent hole through the default button fill and read as a dark box. By
-   adding nothing, .nav-fab matches the other tabs exactly; it simply never
-   gets the .active tab state.
-   The one intentional exception: the "+" glyph is tinted orange at full
-   opacity so the primary "start something" affordance stands out from the
-   muted tab icons. Scoped to the icon only — the "Start" label stays default. */
-.nav-fab span.icon { color: var(--color-orange); opacity: 1; }
-.nav-fab:hover span.icon { opacity: 1; }
-
 
 /* --- 5e. Modals --- */
 .modal-overlay {
@@ -1141,25 +1128,26 @@ select.native-select {
 
 .previous-session {
   margin-bottom: var(--space-4);
-  border: 1px solid rgba(59, 130, 246, 0.20);
-  border-radius: var(--radius-lg);
-  background: var(--blue-alpha);
+  border: 1px solid var(--overlay-md);
+  border-radius: var(--radius-md);
+  background: var(--overlay-sm);
   overflow: hidden;
 }
 .previous-session summary {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  min-height: 58px; padding: 10px 12px; cursor: pointer; list-style: none;
+  min-height: var(--touch-target); padding: 8px 12px; cursor: pointer; list-style: none;
 }
 .previous-session summary::-webkit-details-marker { display: none; }
 .previous-session summary span { display: grid; gap: 3px; min-width: 0; }
-.previous-session summary small { color: var(--text-muted); font-size: .68rem; font-weight: 650; }
-.previous-session summary strong { color: var(--text-primary); font-size: .78rem; }
-.previous-session summary b { color: var(--color-blue); font-size: .68rem; white-space: nowrap; }
+.previous-session summary small { color: var(--text-muted); font-size: .66rem; font-weight: 650; }
+.previous-session summary strong { color: var(--text-secondary); font-size: .76rem; }
+.previous-session summary b { color: var(--text-muted); font-size: .66rem; white-space: nowrap; }
+.previous-session[open] summary b { color: var(--color-blue); }
 .previous-session__context { padding: 0 12px 8px; color: var(--text-muted); font-size: .68rem; }
-.previous-session__sets { display: grid; border-block: 1px solid rgba(59,130,246,.14); }
+.previous-session__sets { display: grid; border-block: 1px solid var(--overlay-md); }
 .previous-session__set {
   display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px;
-  min-height: 38px; padding: 6px 12px; border-bottom: 1px solid rgba(59,130,246,.10);
+  min-height: 38px; padding: 6px 12px; border-bottom: 1px solid var(--overlay-sm);
 }
 .previous-session__set:last-child { border-bottom: 0; }
 .previous-session__set span, .previous-session__set small { color: var(--text-muted); font-size: .68rem; }
@@ -1167,8 +1155,8 @@ select.native-select {
 .previous-session__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
 .previous-session__actions button {
   min-height: var(--touch-target); border-radius: var(--radius-md);
-  border: 1px solid rgba(59,130,246,.28); background: rgba(59,130,246,.10);
-  color: var(--color-blue); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer;
+  border: 1px solid var(--overlay-lg); background: var(--overlay-sm);
+  color: var(--text-secondary); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer;
 }
 
 
@@ -1182,7 +1170,16 @@ select.native-select {
   border: 1px solid rgba(16,185,129,0.26);
 }
 .cct-text { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary, #cbd5e1); }
+.cct-text small, .cct-text em { display: block; }
+.cct-text small {
+  margin-bottom: 2px; color: var(--text-muted); font-size: .62rem;
+  font-style: normal; font-weight: 800; letter-spacing: .025em;
+}
 .cct-text b { color: var(--color-green, #10b981); font-weight: 800; }
+.cct-text em {
+  margin-top: 2px; color: var(--text-muted); font-size: .64rem;
+  font-style: normal; font-weight: 550; line-height: 1.35;
+}
 .cct-logall {
   flex: 0 0 auto; font: inherit; font-size: 0.72rem; font-weight: 800;
   padding: 6px 12px; border-radius: 999px; cursor: pointer;
@@ -1821,7 +1818,7 @@ body.sheet-scroll-locked {
 }
 .bottom-sheet-actions .btn-action-block { flex: 1; }
 
-/* --- Quick-start sheet (centre "+" FAB) --- */
+/* --- Quick-start sheet (owned by Train) --- */
 .qs-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1867,6 +1864,170 @@ body.sheet-scroll-locked {
   font: inherit; font-size: 0.84rem; font-weight: 750; cursor: pointer;
 }
 .home-choose-workout-btn:active { transform: scale(0.98); }
+
+/* Home Today card — one natural decision surface instead of separate score,
+   coaching and workout cards competing in the first viewport. */
+.today-card {
+  --today-accent: var(--color-blue, #2563eb);
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, var(--today-accent) 18%, transparent), transparent 58%),
+    linear-gradient(155deg, rgba(16, 27, 42, 0.99), rgba(7, 17, 31, 0.99));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+}
+.today-card--complete { --today-accent: var(--color-green, #10b981); }
+.today-card--rest { --today-accent: var(--color-cyan, #22d3ee); }
+.today-card--progress { --today-accent: var(--color-amber, #f59e0b); }
+.today-card--quiet { --today-accent: var(--text-muted, #94a3b8); }
+.today-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--today-accent);
+}
+.today-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.today-card__eyebrow {
+  color: var(--today-accent);
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.today-card__state {
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--today-accent) 34%, transparent);
+  border-radius: 999px;
+  color: var(--today-accent);
+  background: color-mix(in srgb, var(--today-accent) 10%, transparent);
+  font-size: .62rem;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+.today-card__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.35rem, 6vw, 1.8rem);
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+.today-card__meta {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: .74rem;
+  line-height: 1.4;
+}
+.today-card__guidance {
+  max-width: 46ch;
+  margin: 15px 0 0;
+  color: var(--text-secondary);
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.today-card__score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin: 13px 0 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(96, 165, 250, .13);
+  border-radius: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, .025);
+  font: inherit;
+  font-size: .7rem;
+  text-align: left;
+  cursor: pointer;
+}
+.today-card__score strong {
+  color: var(--text-primary);
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+.today-card__why { margin-top: 10px; }
+.today-card__why summary {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: .69rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.today-card__why ul {
+  margin: 2px 0 0;
+  padding: 0 0 0 18px;
+  color: var(--text-muted);
+  font-size: .7rem;
+  line-height: 1.45;
+}
+.today-card__offline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  color: var(--color-amber, #f59e0b);
+  font-size: .68rem;
+  font-weight: 700;
+}
+.today-card__offline span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.today-card__actions {
+  display: grid;
+  gap: 3px;
+  margin-top: 16px;
+}
+.today-card__primary {
+  min-height: 50px;
+  padding: 13px 16px;
+  border-radius: 13px;
+  font-size: .83rem;
+  letter-spacing: .045em;
+}
+.today-card__secondary {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: .79rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.today-card__secondary:active { transform: scale(.98); }
+
+html[data-theme="light"] .today-card {
+  border-color: rgba(37, 99, 235, .14);
+  background:
+    radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, var(--today-accent) 10%, transparent), transparent 58%),
+    linear-gradient(155deg, #fff, #f8fafc);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
+}
+html[data-theme="light"] .today-card__score {
+  border-color: rgba(37, 99, 235, .12);
+  background: rgba(37, 99, 235, .025);
+}
 
 .program-workout-picker { max-height: min(82vh, 680px); }
 .program-workout-picker__sub {
@@ -4943,6 +5104,7 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 .wch-label {
   font-size: 0.6rem;
@@ -4965,6 +5127,40 @@ html[data-theme="light"] .btn-danger-ghost:hover {
   color: rgba(16,185,129,0.70);
   letter-spacing: 0.04em;
   margin-top: 3px;
+}
+
+.wch-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.train-quick-start-btn {
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  background: var(--overlay-sm);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.train-quick-start-btn .icon {
+  color: var(--color-orange);
+  font-size: 1rem;
+}
+
+.train-quick-start-btn:active {
+  transform: scale(0.97);
 }
 
 /* Cockpit live score hook — "… train and it rises to 85", updates as you log. */

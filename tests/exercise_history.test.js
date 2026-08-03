@@ -32,7 +32,7 @@ function historyFixture() {
         activationId: 'act_new', programId: 'program_b',
         dates: { tue: '2026-07-08' },
         lifts: { tue: {
-          Squat: [done(105), done(50, 10, { type: 'W' }), done(110, 3, { c: false })],
+          Squat: [done(105, 5, { tr: 5 }), done(50, 10, { type: 'W' }), done(110, 3, { c: false })],
           'Paused Squat': [done(120)],
         } },
       },
@@ -109,17 +109,49 @@ test('undated and future performances are never guessed into eligible chronology
   assert.equal(rows.some((row) => row.weekKey === 'future'), false);
 });
 
-test('diagnostic progression uses the newest dated cross-day archived performance', () => {
+test('new-program progression ignores global history from another activation', () => {
   const state = historyFixture();
-  // Exclude the active Tue slot; the archived Thu session is the prior eligible
-  // performance despite belonging to another activation/program.
+  // The archived Program A performance remains global history, but it is not
+  // progression evidence for Program B. The older Program B performance is on
+  // a different workout day, so its potentially different prescription is not
+  // silently reused either.
   initEngine(() => state, () => DAYS);
   const result = computeDiagnosticForLift('2', 'tue', 'Squat', 5);
-  assert.equal(result.suggestedWeight, 102.5);
+  assert.equal(result.suggestedWeight, '');
+  assert.equal(result.progression, null);
+
+  const globalReference = exerciseLoggerHistory(state, 'Squat', {
+    weekKey: '2', day: 'tue', beforeDate: '2026-07-08',
+  });
+  assert.equal(globalReference.latest?.weight, 100, 'Program A remains visible as read-only history');
+});
+
+test('progression uses a prior matching day only inside the current activation', () => {
+  const state = historyFixture();
+  state.weeks['3'] = {
+    activationId: 'act_new', programId: 'program_b',
+    dates: {}, lifts: { tue: { Squat: [{ w: '', r: '', c: false }] } },
+  };
+  initEngine(() => state, () => DAYS);
+  const result = computeDiagnosticForLift('3', 'tue', 'Squat', 5);
+  assert.equal(result.suggestedWeight, 107.5);
   assert.equal(result.progression?.action, 'load-up');
 });
 
-test('logger history carries an exercise across a program switch and supplies set ghosts', () => {
+test('a changed prescription does not reuse same-activation progression state', () => {
+  const state = historyFixture();
+  state.weeks['3'] = {
+    activationId: 'act_new', programId: 'program_b',
+    dates: {}, lifts: { tue: { Squat: [{ w: '', r: '', c: false }] } },
+  };
+  initEngine(() => state, () => DAYS);
+  const result = computeDiagnosticForLift('3', 'tue', 'Squat', 8);
+  assert.equal(result.suggestedWeight, '');
+  assert.equal(result.progression, null);
+  assert.equal(latestExercisePerformance(state, 'Squat')?.weight, 105, 'performance stays in history');
+});
+
+test('logger history carries an exercise across a program switch as a read-only reference', () => {
   const state = historyFixture();
   const logger = exerciseLoggerHistory(state, 'Back Squat', {
     weekKey: '2', day: 'tue', beforeDate: '2026-07-08',

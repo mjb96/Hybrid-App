@@ -78,7 +78,13 @@ const STORAGE_KEY = 'hybrid_engine_v2_state';
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
 let failed = false;
 try {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    // This check owns a long, stateful UI flow. Service-worker activation and
+    // controller reloads are covered separately and make the interaction
+    // assertions race a navigation rather than the app state under test.
+    serviceWorkers: 'block',
+  });
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} },
     [STORAGE_KEY, JSON.stringify(seeded)]);
   const page = await ctx.newPage();
@@ -219,11 +225,15 @@ try {
     settings: { weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', autoAdvanceWeek: false },
     weeks: { '3': {
       dates: { mon: iso(prevMon), wed: iso(curMon) },
+      sessionStatus: { mon: 'finished', wed: 'finished' },
       lifts: { mon: { 'Bench Press': nSets(3, 100, 5) }, wed: { 'Bench Press': nSets(3, 105, 5) } },
       runs: {}, gymStats: {}, notes: {}, gymRpe: {}, bodyWeight: {}, liftMeta: {}, liftOrder: {},
     } },
   };
-  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const ctx2 = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: 'block',
+  });
   await ctx2.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} }, [STORAGE_KEY, JSON.stringify(s2)]);
   const page2 = await ctx2.newPage();
   await page2.goto(BASE, { waitUntil: 'networkidle' });
@@ -266,7 +276,24 @@ try {
     console.error('FAIL: Empty Workout was not isolated from the programmed session.', emptyState);
     failed = true;
   }
-  await page2.click('.nav-item[data-target="home"]');
+  // A blank one-off cannot be finished as training, but its explicit Discard
+  // path must remove the unresolved session and return Home.
+  await page2.click('[data-action="open-finish-modal"]');
+  await page2.click('#summaryDiscardAction');
+  const discardCopy = await page2.$eval('#confirmResetModal', el => el.textContent);
+  if (!/Discard this workout/.test(discardCopy) || !/programmed sessions.*history stay unchanged/i.test(discardCopy)) {
+    console.error('FAIL: one-off discard did not name its safe scope.');
+    failed = true;
+  }
+  await page2.click('#resetModalAction');
+  await page2.waitForTimeout(250);
+  const emptyDiscardState = await page2.evaluate(() => ({
+    homeActive: document.getElementById('view-home')?.classList.contains('active'),
+    workoutActive: document.getElementById('view-workout')?.classList.contains('active'),
+    resetOpen: document.getElementById('confirmResetModal')?.classList.contains('active'),
+  }));
+  console.log('Empty one-off discard:', JSON.stringify(emptyDiscardState));
+  await page2.waitForSelector('#view-home.active', { timeout: 10000 });
   await page2.click('#homeChooseWorkout');
   await page2.click('[data-action="show-copy-workouts"]');
   await page2.waitForSelector('[data-action="copy-past-workout"]', { timeout: 10000 });
@@ -285,7 +312,10 @@ try {
     console.error('FAIL: Copy Past Workout did not preserve an editable, incomplete copy.', copyState);
     failed = true;
   }
-  await page2.click('.nav-item[data-target="home"]');
+  await page2.click('[data-action="open-finish-modal"]');
+  await page2.click('#summaryDiscardAction');
+  await page2.click('#resetModalAction');
+  await page2.waitForSelector('#view-home.active', { timeout: 10000 });
   await page2.click('#homeChooseWorkout');
   const alternateDay = DAY[(new Date().getDay() + 6) % 7] === 'wed' ? 'fri' : 'wed';
   const alternateTitle = alternateDay === 'wed' ? 'Legs Power' : 'Pull B + Easy Run';

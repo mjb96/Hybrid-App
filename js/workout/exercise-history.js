@@ -1,12 +1,12 @@
 // @ts-check
 // =============================================================================
-// EXERCISE HISTORY — one chronological, date-strict progression query.
+// EXERCISE HISTORY — one chronological, date-strict performance query.
 //
-// Storage is organised by program week/day, but progression belongs to an
-// exercise across real sessions. This query therefore scans every stored week
-// key (numeric, archived and one-off), attributes a performance only by its
-// persisted local date, and resolves only explicit catalogue aliases. Unknown
-// custom exercises retain exact-name identity. Dates are never invented.
+// Storage is organised by program week/day. Global exercise history scans every
+// stored week key (numeric, archived and one-off), while active progression
+// callers select an explicit activation/program scope. Every performance is
+// attributed only by its persisted local date and explicit catalogue aliases;
+// unknown custom exercises retain exact-name identity. Dates are never invented.
 // =============================================================================
 import { localDayKey } from '../dates.js';
 import { isValidWorkingSet } from '../set-utils.js';
@@ -152,7 +152,7 @@ export function latestExercisePerformance(state, exerciseName, options = {}) {
 }
 
 /**
- * One source for the workout logger's history line and per-set ghosts. Dated
+ * One source for the workout logger's read-only Last performed reference. Dated
  * history wins; a legacy aggregate stat still prevents a false "first time"
  * claim when the underlying session predates reliable date stamps.
  *

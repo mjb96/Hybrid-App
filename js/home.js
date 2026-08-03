@@ -4,25 +4,21 @@
 import { resolveProgramPhase } from './programs/phase.js';
 import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
-import { projectScore } from './brain/hybrid-score/project.js';
-import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { dayVerdict } from './brain/day-verdict.js';
-import { briefingCardHTML } from './home/morning-briefing-card.js';
+import { buildTodayCardModel, todayCardHTML, todayProgramDay } from './home/today-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
 import { answerCoachQuestion } from './brain/coach-qa.js';
 import { pushOvertrainingWarning, pushFastingStageNudge } from './notifications.js';
 import { reconcileStreakFreezes } from './brain/streak.js';
 import { shouldSuggestDeload } from './engine.js';
-import { TILE_REGISTRY, DashboardTileType, CONNECT_HEALTH_TILE, resolveTileNavigation, HOME_TILE_IDS } from './dashboard.js';
 import { computeDashboardModel } from './home/dashboard-model.js';
-import { renderTileContent } from './home/tile-renderers.js';
 import { renderActivityCalendar } from './home/activity-calendar.js';
 import { initFastingCard } from './home/fasting-card.js';
 import { initWeeklyFitnessGraph, refreshWeeklyFitnessGraph } from './home/weekly-fitness-graph.js';
-import { setHTML, reconcileKeyed } from './ui/render.js';
+import { setHTML } from './ui/render.js';
 import { reportHandledError, renderSafely } from './monitoring/report-error.js';
 import { todayKey } from './dates.js';
 import { buildVolumeGuideModel, hasExplicitMusclePriorities } from './analytics/volume-guide.js';
@@ -31,35 +27,27 @@ let _getState;
 let _getSelectedDay;
 let _getDays;
 
-// Weekly fitness graph instances (one per In Focus card)
 let _strengthGraph = null;
-let _runGraph      = null;
+let _runGraph = null;
 
 export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
   _getState = getStateFn;
   _getSelectedDay = getSelectedDayFn;
   _getDays = getDaysFn;
   initFastingCard(getStateFn);
-
-  // Initialize the Garmin-style weekly fitness graphs inside the In Focus cards
   _strengthGraph = initWeeklyFitnessGraph('strengthBarChart', 'strength', getStateFn);
-  _runGraph      = initWeeklyFitnessGraph('runBarChart',      'running',  getStateFn);
+  _runGraph = initWeeklyFitnessGraph('runBarChart', 'running', getStateFn);
 }
 
 export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
 
 // ==========================================
-// HYBRID SCORE HERO — the signature surface at the top of Home.
-// Computed from the same shared dashboard model (no extra pass) and recorded
-// once per day so tomorrow's delta/trend/XP is available. Returns the score
-// result so the Morning Briefing below reuses it without recomputing.
+// HYBRID SCORE — still computed and recorded once per day, but the full gauge
+// now lives in Progress. Home only shows a compact supporting row when the
+// score has enough real-data confidence to be useful.
 // ==========================================
 function renderHybridScoreHome(appState, model) {
-  const el = document.getElementById('hybridScoreHome');
-  if (!el) return null;
   const result = computeHybridScore(model, appState, _getDays(), getProgramById(appState.activeProgramId));
-  // The Morning Briefing directly below owns the day's action — one voice.
-  setHTML(el, heroHTML(result, { showAction: false }));
   try {
     const { changed, milestones } = recordDailyScore(appState, result, model);
     if (changed) saveStateToLocalStorage(true);
@@ -74,9 +62,8 @@ function renderHybridScoreHome(appState, model) {
 }
 
 // ==========================================
-// MORNING BRIEFING — the one coaching surface (replaces the old coaching card
-// + insight banner pair). Narrative for the day: greeting, session, mission,
-// coach line. Anchored by (and rendered directly under) the Hybrid Score hero.
+// TODAY COACHING — compose the existing evidence-backed briefing, then reduce
+// it to the short contextual line inside Home's Today card.
 // ==========================================
 // C2 — Ask the coach. Recomputes the live context (readiness model, Hybrid Score
 // + delta, overtraining risk, today's session) and answers deterministically
@@ -86,7 +73,7 @@ export function answerCoachOnHome(intent) {
   if (!el) return;
   try {
     const appState = _getState();
-    const selectedDay = _getSelectedDay();
+    const selectedDay = todayProgramDay();
     const days = _getDays();
     const activeProgram = getProgramById(appState.activeProgramId);
     const model = computeDashboardModel(appState, days, activeProgram, selectedDay);
@@ -106,17 +93,13 @@ export function answerCoachOnHome(intent) {
   }
 }
 
-function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive = false) {
-  const el = document.getElementById('morningBriefing');
-  if (!el) return;
+function buildHomeBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive = false) {
   const firstSession = !!appState._justOnboarded;
-  const projection = projectScore(model, appState, _getDays(), { program: activeProgram });
   const briefing = buildMorningBriefing({
-    state: appState, model, score: scoreResult, projection,
+    state: appState, model, score: scoreResult, projection: null,
     program: activeProgram, selectedDay, firstSession,
     overtrainingActive, days: _getDays(),
   });
-  setHTML(el, briefingCardHTML(briefing));
 
   // R14 — the guided first session: once, right after onboarding, welcome the
   // athlete and draw the eye to their first mission.
@@ -127,10 +110,12 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
     celebrate({
       icon: '🎉',
       title: name ? `Welcome, ${name}!` : "You're all set!",
-      subtitle: 'Your daily coach is ready. Your first mission is waiting below — tap it to begin.',
+      subtitle: 'Your first session is ready on Home — tap Start workout when you are ready.',
     });
-    setTimeout(() => { try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 900);
+    const el = document.getElementById('homeTodayCard');
+    setTimeout(() => { try { el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 900);
   }
+  return briefing;
 }
 
 // ==========================================
@@ -188,63 +173,16 @@ function renderOvertrainingCard(appState, model, assessment) {
 }
 
 // ==========================================
-// GLANCE GRID RENDERER
-// Builds / updates the .glance-grid dynamically from TILE_REGISTRY
+// HOME SUPPORTING SIGNALS
+// Keep the live-fast affordance and owner-preferred In Focus cards. The
+// duplicated At-a-Glance tile grid is intentionally no longer rendered.
 // ==========================================
-function renderGlanceGrid(appState, defaultDays, activeProgram, selectedDay, sharedModel) {
-  const grid = document.getElementById('glanceGrid');
-  if (!grid) return;
-
-  // One shared brain pass for the whole dashboard — every tile reads the same
-  // model. renderHome computes it once and passes it in.
-  const model = sharedModel || computeDashboardModel(appState, defaultDays, activeProgram, selectedDay);
+function renderHomeSupportingSignals(appState, model) {
   updateQuickActions(model);
 
-  // Fasting stage / goal nudge (S1d): if an active fast crossed a metabolic
-  // stage or hit its goal since last seen, deliver it now (app-open / return).
   if (appState.fastingSession?.active) {
     pushFastingStageNudge(appState, () => saveStateToLocalStorage(true));
   }
-
-  // V2 (S3): exactly four fixed tiles, in order — no customiser, no hidden/order
-  // state. Curated defaults beat a customiser.
-  const byId = new Map(TILE_REGISTRY.map(t => [t.id, t]));
-  const visible = HOME_TILE_IDS.map(id => byId.get(id)).filter(Boolean);
-
-  // Keyed reconciliation: tile nodes persist across renders (identity, one-time
-  // listeners and order preserved); only new tiles are created, hidden/removed
-  // tiles are dropped, and each tile's inner HTML is rewritten only when it
-  // actually changed (setHTML).
-  reconcileKeyed(grid, visible, {
-    key: (config) => config.id,
-    create: (config) => {
-      const article = document.createElement('article');
-      article.id        = `glance-tile-${config.id}`;
-      article.className = 'card-dark glance-card tile-interactive'
-        + (config.type === DashboardTileType.CONNECT ? ' glance-card--full glance-card--connect' : '');
-      article.setAttribute('role', 'button');
-      article.setAttribute('tabindex', '0');
-      article.setAttribute('aria-label', `${config.label} — tap for details`);
-
-      const nav = resolveTileNavigation(config.navTarget, config.metricId);
-      if (nav) {
-        article.style.cursor = 'pointer';
-        if (config.metricId) article.setAttribute('data-metric-id', config.metricId);
-        article.addEventListener('click', nav);
-        article.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') nav(); });
-      }
-      return article;
-    },
-    update: (article, config) => {
-      let data;
-      try {
-        data = config.renderData(appState, defaultDays, activeProgram, selectedDay, model);
-      } catch (e) {
-        data = { state: 'error' };
-      }
-      setHTML(article, renderTileContent(config, data));
-    },
-  });
 }
 
 // ==========================================
@@ -255,7 +193,7 @@ function updateQuickActions(model) {
   const fastBtn = document.getElementById('qaFasting');
   if (fastRow && fastBtn) {
     const f = model.fasting;
-    // Home is quiet: starting a fast lives in the centre "+" sheet now. The only
+    // Home is quiet: starting a fast lives in Train's Quick start sheet. The only
     // fasting thing that surfaces on Home is a live status pill while a fast is
     // actually running — an in-progress timer should never be buried in a menu.
     fastRow.style.display = f.active ? '' : 'none';
@@ -304,7 +242,9 @@ function renderHomeVolumeGuide(appState, activeProgram) {
 
 export function renderHome() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
+  // Home is a calendar-today surface. The cockpit's selected day is navigation
+  // state and may point at a session the athlete merely previewed.
+  const homeDay = todayProgramDay();
   const DEFAULT_DAYS = _getDays(); 
 
   const wk = appState?.currentWeek || "1";
@@ -342,7 +282,7 @@ export function renderHome() {
 
   // One shared brain pass — the header progress, week-compare card and every
   // tile all read from this single model so their numbers never diverge.
-  const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, selectedDay);
+  const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, homeDay);
 
   // V2 (S4): engine stall alerts move off Home — the one-hero Home keeps only
   // the recovery flag slot (overtraining/deload). Stall diagnostics still surface
@@ -350,30 +290,8 @@ export function renderHome() {
   const engineAlertCard = document.getElementById('homeEngineAlertCard');
   if (engineAlertCard) engineAlertCard.style.display = 'none';
 
-  // Weekly fitness graphs handle their own rendering and data refresh.
-  // Legacy hero/sub elements are hidden by the graphs on mount.
-  if (_strengthGraph) {
-    refreshWeeklyFitnessGraph('strengthBarChart');
-  }
-  if (_runGraph) {
-    refreshWeeklyFitnessGraph('runBarChart');
-  }
-
-  // Day-aware primary CTA: on a rest day, "Go to Today's Workout" contradicts
-  // the rest-day coach right above it — route to the wellness check-in instead.
-  const primaryCta = document.getElementById('homePrimaryCta');
-  if (primaryCta) {
-    const isRest = model?.rec?.sessionLabel === 'Rest Day';
-    if (isRest) {
-      primaryCta.textContent = '📝 Log a wellness check-in';
-      primaryCta.setAttribute('data-action', 'open-wellness-checkin');
-      primaryCta.setAttribute('aria-label', 'Log a wellness check-in');
-    } else {
-      primaryCta.textContent = "🏋️ Go to Today's Workout";
-      primaryCta.setAttribute('data-action', 'start-today-workout');
-      primaryCta.setAttribute('aria-label', "Go to today's workout");
-    }
-  }
+  if (_strengthGraph) refreshWeeklyFitnessGraph('strengthBarChart');
+  if (_runGraph) refreshWeeklyFitnessGraph('runBarChart');
 
   const scoreResult = renderHybridScoreHome(appState, model);
 
@@ -392,8 +310,20 @@ export function renderHome() {
   // actually on screen (high AND not acknowledged) — one red voice, not two.
   const overtrainingActive = !!(otAssessment && otAssessment.level === 'high' && !otAcknowledged);
 
-  renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive);
-  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
+  const briefing = buildHomeBriefing(appState, model, scoreResult, activeProgram, homeDay, overtrainingActive);
+  const todayMount = document.getElementById('homeTodayCard');
+  if (todayMount) {
+    const card = buildTodayCardModel({
+      state: appState,
+      program: activeProgram,
+      model,
+      briefing,
+      score: scoreResult,
+      offline: typeof navigator !== 'undefined' && navigator.onLine === false,
+    });
+    setHTML(todayMount, todayCardHTML(card));
+  }
+  renderHomeSupportingSignals(appState, model);
   renderHomeVolumeGuide(appState, activeProgram);
 
   // V2 (S4): the week-compare card moves off Home — it was one of several
@@ -414,7 +344,7 @@ export function renderHome() {
     const alreadyApplied   = appState.deloadApplied === appState.currentWeek;
     // Never suggest a deload during a week that already IS a deload — you can't
     // be told to deload while deloading (the briefing already explains it).
-    const inDeloadWeek = dayVerdict(model, appState, activeProgram, selectedDay).isDeloadWeek;
+    const inDeloadWeek = dayVerdict(model, appState, activeProgram, homeDay).isDeloadWeek;
     if (overtrainingShowing || inDeloadWeek) {
       deloadCard.style.display = 'none';
     } else if (!alreadyDismissed && !alreadyApplied) {

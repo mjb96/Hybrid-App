@@ -47,9 +47,9 @@ Everything on a primary screen must help answer one of those questions.
 
 - The product exposes too much of its capability at once. Home, Insights,
   Programs, Settings, and the workout cockpit can all become information-dense.
-- Navigation reflects implementation areas more than user intent. Planned
-  Workout and the central Start menu overlap, while “Insights” is less natural
-  than “Progress”.
+- The four-destination shell now uses Home / Train / Progress / Plans, but Train
+  still opens directly into the workout cockpit rather than a true landing
+  surface. Quick starts and recent activities need a more coherent Train home.
 - Home contains several competing summaries and calls to action before the
   user reaches the answer to “what do I do now?”
 - Analytics has many valid metrics but insufficient hierarchy. Users can see
@@ -192,7 +192,7 @@ Status: **ACTIVE**, **NEXT**, **LATER**, **DONE**, or **PARKED**.
 
 ## Phase 0 — Experience map and product contract
 
-**Status: ACTIVE**
+**Status: DONE 2026-08-03**
 
 **Outcome:** a shared model of the app’s main jobs, destinations, and interface
 rules before individual screens are polished in isolation.
@@ -216,65 +216,197 @@ rules before individual screens are polished in isolation.
 - Record a baseline for taps, decision points, and time-to-completion on the
   core journeys.
 
+### Completed experience inventory
+
+The inventory below was reconciled against `index.html`, the app/action routers,
+the analytics context router, programme and workout modules, automated browser
+journeys, and the rendered app at 320px and 390px. It describes product
+surfaces, not implementation-file ownership.
+
+#### Primary and full-screen surfaces
+
+| Surface | Current user job and entry | Important states/actions | Product owner |
+| --- | --- | --- | --- |
+| **Home** | Open app and decide what matters today | One state-aware Today card, alerts, two retained In Focus graphs, Activities; sparse-data, rest-day, completed, active-fast, warning, and offline states | **Home**. Today owns the first decision; In Focus remains the intentional weekly analytics surface and Progress owns deeper interpretation. |
+| **Train** (`workout` route retained) | Start/resume a planned or one-off session and log strength/running | Day selector, schedule context, session timer, GPS/manual run, exercise/set logger, advanced set options, swap/add/reorder/superset/plate math, finish, clear; rest, empty one-off, in-progress, completed, GPS wait/failure and invalid-input states | **Train**. The new shell owns both the old Workout destination and Quick Start. A true Train landing remains future work. |
+| **Progress hub** (`analytics` route retained) | Understand training history and choose a domain | Hybrid Score, Strength, Running, Recovery & Load, Review, optional Fasting, Body Weight, Projections | **Progress**. The old visible “Insights” label is retired; internal context IDs remain compatible. |
+| **Progress details** | Explain a metric and expose evidence | Strength overview/stats, weekly volume, Gym Performance, exercise/muscle/metric drilldowns; Running overview/stats/performance/metric; Recovery overview/stats/performance; Review week/month; Hybrid Score; activity calendar; fasting/bodyweight/projections | **Progress**. Origin-aware Back returns to Home or Progress; entity drilldowns return to their parent and preserve calendar week. |
+| **Plans library** (`program` route retained) | Continue, discover, save, compare, or create a plan | Active-plan banner, Discover/Saved/Completed, search, 16 category filters, five level filters, recommendations, collections and empty results | **Plans**. Phase 4 will lead with fit/recommendations before catalogue controls. |
+| **Plan detail / active plan** | Decide whether a plan fits and inspect the current run | Overview/Structure/Plan, week/day preview, commitment/equipment, compare, save/copy/start/customise; current week/schedule and prior-run continuity | **Plans**. Preserve preview/logger prescription parity and activation isolation. |
+| **Plan builder** | Create or modify a personal plan | Name/duration, days, exercise picker, order/replace/remove, weekly progression, preview/save/delete; unsaved and invalid states | **Plans**. Split Simple and Advanced paths later. |
+| **Profile** | Review identity, all-time stats, active plan and achievements | Opened from Home avatar; links to plan, settings and goal editing; sparse-stat and no-plan states | **Profile**, reached from avatar rather than primary navigation. |
+| **Settings** | Configure identity, units, training behaviour, equipment, notifications, appearance, backups, Health Connect and account | Long modal panel; permission unavailable, signed-out, backup unavailable, recoverable snapshot, destructive reset/delete and import-replace states | **Profile/Settings**. Preserve focus return, Android Back/Escape and explicit destructive scope. |
+| **Activities list/detail** | Find exact logged strength, run and walk evidence; edit/delete a record | Filtered list, same-day separate runs, detail, route, empty history, missing route, delete with Undo | **Train** for recent activity; linked evidence also remains reachable from **Progress**. |
+| **Session recap** | Review a just-finished or historical session | Completed work, comparisons, notable progress, share, route; sparse/partial session states | **Train**, with deep links into Progress evidence. |
+| **Quick activity** | Track a run or walk now | GPS acquisition, live time/distance/pace, pause/resume, finish/cancel, permission/background/replay failures | **Train**. Phase 2C will give this surface parity with the strength cockpit. |
+| **Onboarding and auth/restore** | Start safely with a new profile or recover existing work | Restore-first gateway, name, goal, experience/frequency/recovery/equipment, recommended plan, optional units/bodyweight, notification choice, provisional score; sign-in/import failure paths | **First use**. New setup must never obscure restore options or trap a permission denial. |
+
+#### Visible hierarchy classification
+
+| Surface | Primary | Supporting | Advanced / disclose on demand | Merge, move, or remove from default hierarchy |
+| --- | --- | --- | --- | --- |
+| **Home** | Today status + Start/Resume/Review | Greeting/date, one coaching sentence, retained Strength/Running In Focus cards | Calculation details beyond In Focus | Keep briefing/CTA/status merged into Today; remove repeated glance metrics; preserve In Focus and suppress score prominence while calibrating |
+| **Train** | Current session, active exercise/set or active run, Finish | Day/session context, remaining outline, rest timer, Last performed | RPE/RIR, set type, load mode, notes, swap/add/reorder/superset, plate math | Move imports/setup out of active run; collapse completed/future exercise detail; keep alternate activity behind Quick Start |
+| **Progress** | Consistency, Strength, Running, Recovery & Load headlines | Trend, interpretation, evidence link | Formula explanations, CTL/ATL/TSB, diagnostics, optional fasting | Merge overlapping Gym/Strength destinations; make Hybrid Score optional synthesis; remove equal visual weight from all eight current hub entries |
+| **Plans** | Active plan and three-to-five explained recommendations | Weekly commitment, fit, sample week, progression, Browse all | Full filters, compare, complete plan, Advanced builder | Move 16 category and five level filters behind Browse all; remove repeated stats/decorative labels |
+| **Profile/Settings** | Identity and entry to settings | Current goals, active plan and all-time context | Equipment map, notification tuning, integrations, backup/account controls | Group the long settings panel by job; never mix destructive data/account actions with everyday preferences |
+| **Onboarding** | Restore existing data or set up a new profile; start first plan | Goal, experience, schedule/equipment fit | Units/bodyweight, notifications, score explanation | Shorten or defer optional score reveal/settings if first-session observation shows they delay training |
+
+#### Dialog, sheet, and system-state inventory
+
+| Group | Surfaces | Required close/recovery contract |
+| --- | --- | --- |
+| **Training** | Today summary, manual run logger, finish review, add exercise, exercise detail, swap exercise, clear today, workout picker, Quick Start, workout preview, rest/plate/set action disclosures | Escape/Android Back/visible Close where dismissible; commit current inputs before navigation; return focus and scroll to the trigger. Clear/discard names the exact workout and must not imply account deletion. |
+| **Plans** | Create programme, activation/start-week choice, compare, builder exercise picker, programme-text fallback, programme rating | Return to the exact library/detail/builder context. Starting/restarting archives prior runs; it never edits catalogue data. |
+| **Progress/profile** | Fasting detail, PR goal, settings, avatar/photo choice, celebration/share | Dismissal returns to the originating card. Optional or unavailable integrations remain skippable. |
+| **Data and account safety** | Generic confirm, auth, sync conflict choose-device-version, migration recovery, import preview, pre-sync/pre-overwrite recovery, reset all data, delete account | No silent default. Explain local/cloud scope, retain recovery snapshot where supported, and require an explicit destructive verb. |
+| **System feedback** | Offline status, toast, loading copy, GPS acquisition/quality, Health Connect permission, service-worker update | Loading, offline, permission-denied, partial success and failure use different language; logging remains locally safe. |
+
+#### Duplicate and competing ownership
+
+| Current overlap | Decision |
+| --- | --- |
+| Workout tab versus global Start tab | **Resolved in the shell prototype:** Train owns the planned cockpit and Quick Start; no fifth Start destination. |
+| Home CTA, Morning Briefing mission and Choose another workout | Phase 1B combines status/coaching/action into one Today card. One primary action; alternate workout remains secondary. |
+| Home In Focus graphs, former At-a-Glance tiles and Progress domains | **Resolved:** Home retains the two owner-preferred In Focus graphs; the repeated At-a-Glance grid is removed. Progress owns deeper comparison and calculation detail. |
+| Home Activities, Progress activity calendar and session evidence | Train owns recent/history browsing. Progress links to the same exact records as evidence rather than maintaining a competing history. |
+| Manual run logger, cockpit run card and GPS Quick Activity | Train distinguishes **Track now** from **Log a past activity**; the active-session hierarchy is shared in Phase 2C. |
+| Active-plan banner in Plans, Home programme week and workout day selector | Plans owns plan management; Home shows only today/this-week context; Train owns session/day selection. |
+| Current body weight in Settings and Body Weight history in Progress | Settings owns the profile baseline/unit; Progress owns dated entries and trend interpretation. |
+
+### Journey map and baseline
+
+Tap counts are the shortest current path from the named start with the needed
+data already present. “Decision points” count screens/sheets where the user must
+choose a path, not individual form fields. Human recognition time has not been
+measured; the repeatable baseline is tap/decision count plus the visible
+first-viewport evidence. Phase acceptance that specifies seconds still requires
+direct usability observation.
+
+| Journey | Current shortest path and completion | Baseline | Recovery and principal friction | Intended owner |
+| --- | --- | --- | --- | --- |
+| **First use → first useful session** | Restore/new gateway → name → goal → experience/equipment → choose recommended plan → optional setup → notification choice → score reveal → Home → Today | 8–10 taps after text entry; 7 decision surfaces | Back exists through setup; import/sign-in are available before creating empty data. It is capable but long, and the provisional score delays first training. | First use → Home → Train |
+| **Open → planned start/resume** | Home → Start/Resume today | 1 tap; 0 intermediate decisions | Strong path. Rest/completed/unresolved-day states must never reuse the wrong action. | Home → Train |
+| **Choose another strength session** | Home → Choose another workout → programme/empty/copy-past choice | 2 taps plus session choice; 1 sheet | Choice sheet is safe and activation-aware, but “planned”, “empty” and “copy past” need clearer hierarchy. | Home/Train |
+| **Quick run/walk/fast** | Train → Quick start → mode | 2 taps when already in Train; 3 from another destination | The four-tab prototype removes a competing global Start destination but adds one tap from Home. A future Train landing should expose common modes without crowding the active cockpit. | Train |
+| **Log → edit → finish → review strength** | Edit weight/reps → complete set; repeat → Finish Workout → Finish → recap | Normal set: 3 interactions; finish: 2 taps; 1 finish decision | Explicit validation, session persistence, Keep Training and Discard exist. Advanced controls and long scrolling compete with the active exercise. | Train |
+| **Understand this week** | Home orientation → tap strength/run/readiness/volume → Progress detail/evidence | 1 tap to a detail; 1 domain decision if entering Progress directly | Accurate calendar attribution is strong; Home repeats summaries and Progress presents eight equal entry choices before interpretation. | Home → Progress |
+| **Choose or modify a plan** | Plans → search/filter/recommendation → detail → Start/Customise → activation/builder | 3–6 taps before activation; 2–4 catalogue decisions | Compare, fit and safe copy exist. Sixteen category filters and 57 programmes precede a confident recommendation path. | Plans |
+| **Find and understand an exercise** | Train add/swap or builder picker → search/filter → detail → select | 3–5 taps; 2 picker decisions | Shared search/detail/aliases are consistent and custom exercises are preserved. Technique metadata outside reviewed EZ-bar entries remains incomplete. | Train/Plans shared picker |
+| **Recover from failure** | Offline banner/local save; GPS/Health permission message; sync choose-version modal; import preview; snapshot recovery in Settings | 1–3 decisions depending on failure | Data recovery is strong but scattered. Error copy and a single “where do I fix this?” route need standardisation. | Context first, Settings for durable repair |
+
+### Shared product vocabulary
+
+| Meaning | Use | Avoid or reserve |
+| --- | --- | --- |
+| Primary destinations | **Home, Train, Progress, Plans** | Workout/Insights/Programs as destination labels |
+| Named schedule | **plan** in navigation and general guidance; **programme** when referring to a specific catalogue/builder object | Routine, template, schema |
+| One performed occurrence | **session**; use **workout** for strength-oriented sessions and **activity** for cross-modality history | Day slot, record, blob |
+| Begin/resume/review | **Start**, **Resume**, or **Review** according to actual state | Go to, continue when the resulting state is ambiguous |
+| Persist deliberate work | **Save** for forms/imports; set completion is direct and immediate; **Finish workout/activity** ends a session | Submit, commit, sync as user-facing verbs |
+| History-derived values | **Last performed** for read-only evidence; **Suggested next** for active-run progression; **Use previous values** for explicit copying | Previous target, auto-filled history |
+| Empty/loading/error | “No … yet” + next action; “Loading …”; “Saved on this device”; specific failure + recovery action | Blank cards, perpetual spinners, generic “Something went wrong” |
+| Destructive actions | Verb + exact object: **Discard workout**, **Delete activity**, **Reset all data**, **Delete account and cloud data** | Clear, remove, reset without scope |
+
+### Four-destination route contract
+
+The visible information architecture can change without a risky route rewrite:
+
+| Stable internal target | Visible destination | Compatibility rule |
+| --- | --- | --- |
+| `home` | Home | Remains the default landing and owner of today’s single primary action. |
+| `workout` | Train | Existing Home, programme, quick-start and resume actions continue to resolve. Train owns the Quick Start trigger. |
+| `analytics` + existing context IDs | Progress | All current contexts and `app:navigate` deep links remain valid. Internal origin value `insights` is retained for compatibility; visible Back copy says Progress. |
+| `program` | Plans | Programme details, active-plan view, builder, profile links and browser checks retain their current targets. |
+| `profile` / `custom:settings` | Avatar surfaces | No primary nav item. Back closes the modal/subview before returning Home. |
+| full-screen activity/recap and managed modals | Contextual child surfaces | Android Back/Escape closes the top child first and restores the initiating surface/focus. |
+
 ### Acceptance
 
-- Each journey has one clear start, completion, and recovery path.
-- Every current navigation destination has a stated user job.
-- Duplicate or competing actions are listed with a proposed owner.
-- The proposed Home / Train / Progress / Plans structure is validated against
-  all current deep links before implementation.
+- **Met:** each journey has a stated start, completion, recovery and friction.
+- **Met:** every destination, important full-screen surface and modal group has a
+  user job and product owner.
+- **Met:** duplicate actions have an explicit owner and resolution.
+- **Met:** Home / Train / Progress / Plans keeps stable internal route IDs and
+  was validated against current action routes before the shell prototype.
 
 ## Phase 1 — Navigation and Home hierarchy
 
-**Status: NEXT**
+**Status: FOUNDATION COMPLETE — In Focus polish remains a later bounded pass**
 
 **Outcome:** opening Helyx immediately answers what matters today.
 
 ### 1A. Navigation
 
-- Prototype the four-destination navigation.
-- Consolidate Workout and Start into Train.
-- Rename Insights to Progress.
-- Keep avatar access to Profile and Settings.
-- Preserve history/back behaviour for every analytics and programme drilldown.
-- Make active state, labels, and icons unambiguous at 320–412px and 200% text.
+- **DONE 2026-08-03:** Replaced the five-item Home / Workout / Start / Insights /
+  Programs shell with four intent-led destinations: Home / Train / Progress /
+  Plans. Quick Start moved inside Train, visible analytics/back copy now says
+  Progress, and internal route/context IDs remain unchanged for compatibility.
+- [x] Prototype the four-destination navigation.
+- [x] Consolidate Workout and Start into Train.
+- [x] Rename Insights to Progress.
+- [x] Keep avatar access to Profile and Settings.
+- [x] Preserve history/back behaviour for every analytics and programme drilldown.
+- [x] Make active state, labels, and icons unambiguous at 320–412px and 200% text.
 
 ### 1B. Home
 
-- Replace multiple competing top-level cards/actions with one Today card.
-- Support these mutually exclusive states:
+- **DONE 2026-08-03:** Replaced the full Hybrid Score hero, Morning Briefing,
+  standalone workout CTA, and separate alternate-workout action with one
+  calendar-day-aware Today card. It owns the first decision and does not follow
+  a stale day last selected in Train.
+- **DONE 2026-08-03:** Support these mutually exclusive states:
   - planned session ready;
   - session in progress;
   - session completed;
   - rest day;
-  - no active plan;
   - unresolved workout from another day;
   - limited/offline data.
-- Combine readiness/coaching into one short contextual message.
-- Reduce Hybrid Score to a supporting summary unless it has enough evidence to
+- **SETTLED:** a missing/corrupt active plan continues to route directly to the
+  existing Plans recovery surface, which explains that history is safe and asks
+  for a replacement. The pure Today model also has a no-plan fallback, but Home
+  must not bypass that stronger data-recovery contract.
+- [x] Combine readiness/coaching into one short contextual message.
+- [x] Reduce Hybrid Score to a supporting summary unless it has enough evidence to
   explain a meaningful change.
-- Replace full Home charts with a compact weekly strip and one or two relevant
-  highlights.
-- Move detailed analytics to Progress with exact deep links.
-- Make Choose another workout a clear secondary action inside Today/Train.
+- **OWNER DIRECTION 2026-08-03:** Keep the Strength and Running **In Focus**
+  cards on Home. Their inspectable weekly bars and exact-day interaction are a
+  valued part of the product, not expendable duplication.
+- **DONE 2026-08-03:** Removed the four-card At-a-Glance grid because its
+  Readiness, Weekly Volume, Top Lifts, and Average Pace repeated information
+  already owned by Today, In Focus, and Progress.
+- [x] Preserve and clarify the In Focus cards, including their exact Progress
+  and activity routes.
+- [x] Move repeated supporting metrics out of Home.
+- [ ] Revisit In Focus visual density only as a deliberate polish pass; do not
+  replace or remove the cards without owner direction.
+- [x] Make Choose another workout a clear secondary action inside Today/Train.
 
 ### Acceptance
 
-- A user can identify and start the intended action in under five seconds.
-- The first viewport has one primary button.
-- No metric or training status is repeated in two adjacent components.
-- Rest, completed, and in-progress states cannot recommend starting the wrong
+- **Needs direct observation:** a user can identify and start the intended
+  action in under five seconds.
+- **Met in responsive browser checks:** the first viewport has one primary
+  button and the complete decision card remains visible at 320–412px.
+- **Met:** no separate At-a-Glance grid repeats Today/In Focus metrics; the
+  retained In Focus cards remain the intentional Home analytics surface.
+- **Met in state and routing tests:** rest, completed, in-progress, and
+  unresolved states cannot recommend starting the wrong
   session.
-- Home remains useful with no history, sparse data, or no active plan.
+- **Met:** Home remains useful with no history and sparse data; missing/corrupt
+  plans use the explicit Plans recovery surface.
 
 ## Phase 2 — Natural workout and run logging
 
-**Status: NEXT**
+**Status: ACTIVE**
 
 **Outcome:** logging feels faster than remembering the workout later.
 
 ### 2A. Strength cockpit
 
+- **DONE 2026-08-03:** Separate global Last performed history from
+  activation-and-workout-day-scoped progression suggestions. New-program fields
+  stay blank and historical values enter them only after **Use previous values**.
 - Make the active exercise visually dominant; collapse completed/future
   exercises while retaining a clear session overview.
 - Design a consistent set-row interaction:
@@ -513,6 +645,9 @@ These are part of every phase, not a final polish pass.
   logging, and completion.
 - Split `js/app.js` routing/event ownership.
 - Continue decomposing State and Settings by domain.
+- Retire the now-dormant Home tile registry/renderers after Progress confirms
+  which pieces still merit reuse; retain the weekly-chart presenter used by In
+  Focus.
 - Reduce inline styles and specificity/`!important` hotspots.
 - Add reusable view primitives only after two real surfaces share the pattern.
 
@@ -591,23 +726,25 @@ even while release work is parked.
 
 | Area | Current capability |
 | --- | --- |
-| Home/coaching | Today context, Morning Briefing, Hybrid Score, weekly focus, deep links |
+| Navigation | Four intent-led destinations — Home, Train, Progress, Plans — with stable legacy route IDs and origin-aware drilldown Back behaviour |
+| Home/coaching | One state-aware Today card followed by retained Strength/Running In Focus cards; repeated At-a-Glance tiles are removed |
 | Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion |
 | Plans | 57-program catalogue, recommendations, comparison, details, timeline, editable personal copies, builder |
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,292 tests, typecheck, smoke, precache/workflow gates, responsive/accessibility browser checks |
+| Quality | 1,312 tests, typecheck, smoke, precache/workflow gates, responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
 Work in this order unless user evidence changes it:
 
-1. **Complete the Phase 0 experience inventory and journey map.**
-2. **Prototype Home / Train / Progress / Plans navigation without changing
-   stored data.**
-3. **Rebuild the Home first viewport around one Today card.**
-4. **Simplify the common strength set-row interaction.**
+1. **DONE — Complete the Phase 0 experience inventory and journey map.**
+2. **DONE — Prototype Home / Train / Progress / Plans navigation without
+   changing stored data.**
+3. **DONE — Establish Home hierarchy with one Today decision card, retain the
+   owner-preferred In Focus cards, and remove the repeated At-a-Glance grid.**
+4. **ACTIVE — Simplify the common strength set-row interaction.**
 5. **Create the new Progress landing hierarchy and metric classification.**
 6. **Rework Plans discovery around recommendations before Browse all.**
 7. **Continue exercise metadata and shared visual-system cleanup in bounded
@@ -618,6 +755,49 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-03 — Home Today timezone CI correction.** Made the pure Today-card
+  model accept an optional display timezone so calendar-day fixtures are
+  deterministic without changing the runtime default of the user's device
+  timezone. Added a same-instant UTC/Sydney regression and verified every
+  Today state in both process timezones. The full Node 20 verification and
+  browser suites pass, including mobile layouts and preservation of both In
+  Focus cards. Next: simplify the common strength set-row interaction.
+- **2026-08-03 — Home analytics hierarchy, corrected by owner direction.**
+  Preserved the full Strength and Running In Focus cards, including historical
+  week navigation, exact-day activity taps, and Progress detail routes. Removed
+  only the repeated four-card At-a-Glance grid, whose Readiness, Weekly Volume,
+  Top Lifts, and Average Pace duplicated Today, In Focus, or Progress. Recorded
+  In Focus as a deliberate product preference so future density work polishes
+  rather than replaces it. Verified calendar attribution, exact activity
+  routing, dark/light responsive layouts, and Home overflow. Next: simplify the
+  common strength set-row interaction.
+- **2026-08-03 — State-aware Home Today card.** Replaced the competing Home
+  score, briefing, and standalone actions with one calendar-day-aware decision
+  card. Added Start, Resume, Review, rest, unresolved-session, offline, and
+  sparse-data behaviour; kept missing plans on the safer Plans recovery route;
+  made Hybrid Score supporting only at meaningful confidence; and fixed Home
+  opening a stale day last selected in Train. The browser flow also exposed and
+  fixed blank one-off workouts remaining unresolved after Discard, including a
+  two-dialog history race that could navigate to a blank page. Verified state
+  routing, summary review, safe one-off cleanup, dark/light layouts, 44px
+  targets, first-viewport fit, and no overflow at 320/390/412px. Next: replace
+  the two full Home charts and repeated metric tiles with a compact weekly strip
+  and one or two highlights.
+- **2026-08-03 — Experience map and four-destination shell.** Completed the
+  screen/modal inventory, journey baselines, action ownership, shared vocabulary
+  and route-compatibility contract. Replaced the competing Workout + Start
+  navigation with Home / Train / Progress / Plans, moved Quick Start into Train,
+  and kept the existing internal targets so deep links and historical state were
+  untouched. Verified 44px controls, no horizontal overflow from 320–412px,
+  200% text, modal focus return and Progress back routing. Next: Phase 1B, a
+  single Today card for Home's first viewport.
+- **2026-08-03 — New-program logger progression isolation.** Traced the stale
+  target to the diagnostic engine querying all exercise history and reusing the
+  newest global set as a target/quick-log ghost. Scoped progression to the
+  active program activation and workout day, kept global history in a quieter
+  expandable Last performed panel, removed implicit history prefills, and kept
+  the explicit Use previous values action. Next: continue the broader strength
+  set-row simplification with this prescription/history boundary preserved.
 - **2026-08-03 — Roadmap refocused on product experience.** Release readiness
   moved to the parked list. Reorganised the work around Home, Train, Progress,
   Plans, natural workout controls, understandable analytics, guided programme

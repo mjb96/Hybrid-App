@@ -536,14 +536,9 @@ export const DEFAULT_HIDDEN_TILES = Object.freeze([
   'hrv', 'resting-hr', 'sleep', 'steps',
 ]);
 
-// V2 (S3): the Home dashboard shows exactly four fixed tiles — no customiser,
-// no hidden/order state. One glanceable number per hybrid dimension:
-// recovery (Readiness) · strength volume (Weekly Volume) · a strength number
-// (Top Lifts) · a running number (Avg Pace). These are curated defaults.
-export const HOME_TILE_IDS = Object.freeze(['readiness', 'weekly-volume', 'top-lifts', 'avg-pace']);
-
-// Synthetic full-width tile shown in place of the Health-Connect metric tiles
-// when the Health app isn't linked — kills dead "Setup" placeholders.
+// The registry is retained temporarily as a calculation/presenter catalogue
+// while Progress is reworked. Home no longer consumes a configurable/fixed tile
+// grid; the owner-preferred In Focus cards use the weekly chart model directly.
 export const CONNECT_HEALTH_TILE = {
   id: 'connect-health', type: DashboardTileType.CONNECT, icon: '⌚', label: 'Connect Health',
   accentVar: '--color-blue', navTarget: 'custom:settings', order: 99,

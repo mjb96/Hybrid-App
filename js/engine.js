@@ -6,7 +6,11 @@ import { CONFIG } from './constants.js';
 import { devWarn } from './debug.js';
 import { isCompletedSet, isWarmupSet } from './set-utils.js';
 import { canonicalExerciseId, exerciseStatForName } from './exercises/catalog.js';
-import { exercisePerformanceHistory, latestExercisePerformance } from './workout/exercise-history.js';
+import {
+  EXERCISE_HISTORY_SCOPE,
+  exercisePerformanceHistory,
+  latestExercisePerformance,
+} from './workout/exercise-history.js';
 import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import { daysBetween } from './dates.js';
 import { isJtShedProgram, jtLiftTarget, jtStoredRolesFor } from './programs/jt-shed-model.js';
@@ -170,10 +174,38 @@ export function computeDiagnosticForLift(currentWeekString, dayKey, liftName, re
   const appState = _getState();
   if (!appState?.weeks) return result;
 
-  const history = exercisePerformanceHistory(appState, liftName, {
-    scope: 'all',
+  // Progression is active-program state, not global exercise history. A program
+  // switch/restart mints a new activation and archives the old numeric weeks;
+  // only performances stamped with the current activation may influence the
+  // next-load suggestion. Restricting to the same workout day also prevents a
+  // heavy/low-rep occurrence of a lift from becoming the target for another
+  // day with a different prescription. If the activation identity is missing,
+  // fail closed: history remains visible through exerciseLoggerHistory(), but
+  // it is not safe to present any of it as a current progression requirement.
+  const currentWeek = appState.weeks[String(currentWeekString)];
+  const activeActivationId = currentWeek?.activationId || appState.activeActivationId;
+  if (!activeActivationId) return result;
+
+  const scopedHistory = exercisePerformanceHistory(appState, liftName, {
+    scope: EXERCISE_HISTORY_SCOPE.ACTIVATION,
+    activationId: activeActivationId,
+    days: [dayKey],
     exclude: { weekKey: currentWeekString, day: dayKey },
   });
+  // `tr` is the persisted rep prescription captured with the performed set.
+  // Requiring the same target prevents an in-place program edit or a later
+  // phase with a different prescription from inheriting an obsolete rule.
+  // Legacy rows without a trustworthy prescription remain global history but
+  // cannot generate an active requirement.
+  const history = repTarget > 0
+    ? scopedHistory.filter((performance) => {
+        const targetStamps = performance.workingSets
+          .map((set) => Number(set?.tr))
+          .filter((value) => Number.isFinite(value) && value > 0);
+        return targetStamps.length > 0
+          && targetStamps.every((value) => value === repTarget);
+      })
+    : scopedHistory;
 
   if (history.length === 0) return result;
 

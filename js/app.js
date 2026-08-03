@@ -159,27 +159,35 @@ export function openAnalyticsView(context, scrollToId, contextOptions = {}) {
   }
 }
 
-export function switchGlobalAppTab(targetViewID) {
-  if (activeTab === 'workout') {
+function syncPrimaryNavigation(targetViewID) {
+  document.querySelectorAll('.nav-item[data-target]').forEach((item) => {
+    const isActive = item.getAttribute('data-target') === targetViewID;
+    item.classList.toggle('active', isActive);
+    if (isActive) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
+}
+
+export function switchGlobalAppTab(targetViewID, options = {}) {
+  if (activeTab === 'workout' && !options.skipWorkoutCommit) {
     try { commitWorkoutUIState(); } catch(e) { console.warn(e); }
   }
   
   document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   
   setActiveTab(targetViewID);
   
   const targetPanel = document.getElementById('view-' + targetViewID);
   if (targetPanel) targetPanel.classList.add('active');
   
-  const navItem = document.querySelector('.nav-item[data-target="' + targetViewID + '"]');
-  if (navItem) navItem.classList.add('active');
+  syncPrimaryNavigation(targetViewID);
   
   hydrateCurrentView();
   window.scrollTo(0, 0);
 }
 
-// Quick-start bottom sheet (the centre "+" FAB). Reachable from every tab.
+// Quick-start bottom sheet. The visible entry point lives in Train so planned
+// and unplanned training no longer compete as separate global destinations.
 function toggleQuickStart(show) {
   const sheet = document.getElementById('quickStartSheet');
   const back  = document.getElementById('quickStartBackdrop');
@@ -460,10 +468,9 @@ export function hydrateCurrentView() {
     // Route to the explicit recovery surface without changing the stored ID or
     // touching its weeks. Replacement only happens through normal activation.
     document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     setActiveTab('program');
     document.getElementById('view-program')?.classList.add('active');
-    document.querySelector('.nav-item[data-target="program"]')?.classList.add('active');
+    syncPrimaryNavigation('program');
     showActivePlanView(false);
     updateLibraryState(appState);
     renderLibrary();
@@ -1145,7 +1152,7 @@ document.addEventListener('click', (e) => {
     handleOnboardingAction(action, target);
   }
 
-  // Quick-start sheet (centre "+" FAB) — start Run / Walk / Fast from any tab.
+  // Quick-start sheet — start another workout, run, walk or fast from Train.
   else if (action === 'open-quick-start')  { toggleQuickStart(true); }
   else if (action === 'close-quick-start') { toggleQuickStart(false); }
   else if (action === 'qs-workout') { toggleQuickStart(false); launchActiveWorkoutCockpit(); }
@@ -1206,7 +1213,11 @@ else if (action === 'export-csv') triggerCSVExport();
   }
   
   // Summary Modals
-  else if (action === 'open-today-summary') openTodaySummaryModal();
+  else if (action === 'open-today-summary') {
+    const day = target.getAttribute('data-day');
+    if (day) setSelectedDay(day);
+    openTodaySummaryModal();
+  }
   else if (action === 'close-today-summary') closeTodaySummaryModal();
   else if (action === 'close-today-summary-nav') { 
     closeTodaySummaryModal(); 

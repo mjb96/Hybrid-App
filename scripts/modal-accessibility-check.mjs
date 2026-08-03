@@ -54,7 +54,10 @@ try {
     check(!item.modalClaims, `${item.id}: closed root claims aria-modal`);
   }
 
-  const trigger = page.locator('[data-action="open-quick-start"]');
+  // Quick Start is owned by Train rather than competing as a fifth global tab.
+  await page.click('.bottom-nav [data-target="workout"]');
+  await page.waitForSelector('#view-workout.active');
+  const trigger = page.locator('#view-workout [data-action="open-quick-start"]');
   await trigger.focus();
   await trigger.click();
   await page.waitForFunction(() => document.getElementById('quickStartSheet')?.getAttribute('aria-hidden') === 'false', null, { timeout: 10000 })

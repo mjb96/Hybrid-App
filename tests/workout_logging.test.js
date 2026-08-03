@@ -70,7 +70,8 @@ function freshState() {
   return {
     currentWeek: '1',
     activeProgramId: 'hybrid_engine',
-    weeks: { '1': { lifts: { mon: {} }, liftOrder: { mon: [] }, runs: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} } },
+    activeActivationId: 'active_program_run',
+    weeks: { '1': { activationId: 'active_program_run', programId: 'hybrid_engine', lifts: { mon: {} }, liftOrder: { mon: [] }, runs: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} } },
     settings: { bandWeights: { L: 10, M: 20, H: 30 } },
     bodyWeightLog: [{ weight: 80 }],
     exerciseStats: {},
@@ -216,13 +217,129 @@ test('workout card carries prior sets across program archives and exercise alias
 
   const benchCard = created.find((el) => /cockpit-ex-name">Bench Press</.test(el.innerHTML || ''));
   assert.ok(benchCard, 'current program Bench Press card renders');
-  assert.match(benchCard.innerHTML, /Previous session/);
-  assert.match(benchCard.innerHTML, /1 set · top 80kg × 5/);
-  assert.match(benchCard.innerHTML, /Last 80kg/);
-  assert.match(benchCard.innerHTML, /Last 5 reps/);
+  assert.match(benchCard.innerHTML, /Last performed/);
+  assert.match(benchCard.innerHTML, /top 80kg × 5 · 1 set/);
   assert.match(benchCard.innerHTML, /data-action="use-previous-values"/);
   assert.match(benchCard.innerHTML, /data-action="open-activity-detail"/);
+  assert.doesNotMatch(benchCard.innerHTML, /placeholder="80"/);
+  assert.doesNotMatch(benchCard.innerHTML, /Suggested next/);
   assert.doesNotMatch(benchCard.innerHTML, /First time logging/);
+});
+
+test('resuming a current workout renders its own entries separately from prior history', () => {
+  initWith(freshState());
+  state.weeks['1'].lifts.mon['Bench Press'] = [{ w: '85', r: '6', c: false }];
+  state.weeks['1'].liftOrder.mon = ['Bench Press'];
+  state.weeks['arch:old:1'] = {
+    activationId: 'old', programId: 'old_program',
+    dates: { tue: '2026-07-18' },
+    lifts: { tue: { 'Barbell Bench Press': [{ w: '80', r: '5', c: true }] } },
+    runs: {}, notes: {}, gymRpe: {}, gymStats: {},
+  };
+
+  const created = [];
+  const origCreate = globalThis.document.createElement;
+  globalThis.document.createElement = (tag) => { const el = origCreate(tag); created.push(el); return el; };
+  try {
+    workout.renderWorkout();
+  } finally {
+    globalThis.document.createElement = origCreate;
+  }
+
+  const benchCard = created.find((el) => /cockpit-ex-name">Bench Press</.test(el.innerHTML || ''));
+  assert.ok(benchCard);
+  assert.match(benchCard.innerHTML, /value="85"/);
+  assert.match(benchCard.innerHTML, /value="6"/);
+  assert.match(benchCard.innerHTML, /Last performed/);
+  assert.match(benchCard.innerHTML, /top 80kg × 5/);
+  assert.doesNotMatch(benchCard.innerHTML, /Suggested next/);
+});
+
+test('quick log never imports another activation without Use previous values', () => {
+  initWith(freshState());
+  state.weeks['1'].lifts.mon['Bench Press'] = [{ w: '', r: '', c: false }];
+  state.weeks['arch:old:1'] = {
+    activationId: 'old', programId: 'old_program',
+    dates: { tue: '2026-07-18' },
+    lifts: { tue: { 'Barbell Bench Press': [{ w: '80', r: '5', c: true }] } },
+    runs: {}, notes: {}, gymRpe: {}, gymStats: {},
+  };
+
+  let weightFocused = false;
+  const weight = makeEl();
+  weight.getAttribute = (name) => name === 'placeholder' ? 'kg' : null;
+  weight.focus = () => { weightFocused = true; };
+  const reps = makeEl();
+  reps.getAttribute = (name) => name === 'placeholder' ? '5' : null;
+  reps.dataset.targetReps = '5';
+  const checkbox = { checked: false };
+  const card = { querySelectorAll: () => [row] };
+  const row = {
+    dataset: { loadMode: 'weighted' },
+    classList: { contains: () => false },
+    querySelector(selector) {
+      if (selector === '.input-weight-node') return weight;
+      if (selector === '.input-reps-node') return reps;
+      if (selector === '.gym-check') return checkbox;
+      return null;
+    },
+    closest(selector) {
+      return selector === '.cockpit-exercise' ? card : null;
+    },
+  };
+  const label = { closest: () => row };
+
+  workout.executeOneTapQuickLog(label, 'Bench Press', 0);
+
+  assert.deepEqual(state.weeks['1'].lifts.mon['Bench Press'], [{ w: '', r: '', c: false }]);
+  assert.equal(checkbox.checked, false);
+  assert.equal(weightFocused, true, 'the logger requests a current load instead of copying history');
+});
+
+test('checking a blank set never imports another activation without explicit use', () => {
+  initWith(freshState());
+  state.weeks['1'].lifts.mon['Bench Press'] = [{ w: '', r: '', c: false }];
+  state.weeks['arch:old:1'] = {
+    activationId: 'old', programId: 'old_program',
+    dates: { tue: '2026-07-18' },
+    lifts: { tue: { 'Barbell Bench Press': [{ w: '80', r: '5', c: true }] } },
+    runs: {}, notes: {}, gymRpe: {}, gymStats: {},
+  };
+
+  let weightFocused = false;
+  const weight = makeEl();
+  weight.placeholder = 'kg';
+  weight.focus = () => { weightFocused = true; };
+  const reps = makeEl();
+  reps.placeholder = '5';
+  const rowClassList = { add: noop, remove: noop, contains: () => false };
+  const card = {
+    getAttribute: (name) => name === 'data-liftname' ? 'Bench Press' : null,
+    querySelectorAll: () => [row],
+  };
+  const row = {
+    classList: rowClassList,
+    querySelector(selector) {
+      if (selector === '.input-weight-node') return weight;
+      if (selector === '.input-reps-node') return reps;
+      if (selector === '.gym-check') return checkbox;
+      return null;
+    },
+  };
+  const checkbox = {
+    checked: true,
+    closest(selector) {
+      if (selector === '.cockpit-set-row') return row;
+      if (selector === '.cockpit-exercise') return card;
+      return null;
+    },
+  };
+
+  workout.toggleGymCheckLoggingState(checkbox);
+
+  assert.equal(checkbox.checked, false);
+  assert.deepEqual(state.weeks['1'].lifts.mon['Bench Press'], [{ w: '', r: '', c: false }]);
+  assert.equal(weightFocused, true);
 });
 
 test('Use previous values fills blank fields without overwriting or completing sets', () => {
