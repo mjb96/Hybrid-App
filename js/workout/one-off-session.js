@@ -38,6 +38,17 @@ export function clearActiveOneOffSession(state) {
   if (state && state.activeStrengthSessionKey) delete state.activeStrengthSessionKey;
 }
 
+/** Remove the active unfinished one-off without touching programmed workouts. */
+export function discardActiveOneOffSession(state) {
+  const active = activeOneOffSession(state);
+  if (!active) return null;
+  const day = active.week.sessionDay || null;
+  const sessionId = active.week.sessionId;
+  delete state.weeks[active.key];
+  clearActiveOneOffSession(state);
+  return { key: active.key, day, sessionId };
+}
+
 function blankCopiedSet(set) {
   const next = clone(set) || {};
   next.c = false;

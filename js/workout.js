@@ -37,9 +37,10 @@ import { exerciseLoggerHistory } from './workout/exercise-history.js';
 import { estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import {
   activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
-  clearActiveOneOffSession, oneOffBlueprint,
+  clearActiveOneOffSession, discardActiveOneOffSession, oneOffBlueprint,
 } from './workout/one-off-session.js';
 import { workoutSessionKey } from './workout/session-identity.js';
+import { replaceManagedModal } from './ui/modal-stack.js';
 
 let _getState;
 let _getSelectedDay;
@@ -1953,9 +1954,24 @@ export function confirmAddExercise() {
   addExerciseToDayFromLibrary(name);
 }
 
-export function openConfirmResetModal() {
+export function openConfirmResetModal(options = {}) {
   const modal = document.getElementById('confirmResetModal');
-  if (modal) modal.classList.add('active');
+  if (!modal) return;
+  const oneOff = activeOneOffSession(_getState?.());
+  const title = document.getElementById('resetModalTitle');
+  const copy = document.getElementById('resetModalCopy');
+  const action = document.getElementById('resetModalAction');
+  if (oneOff) {
+    if (title) title.textContent = 'Discard this workout?';
+    if (copy) copy.textContent = 'This removes this unfinished one-off workout. Your programmed sessions and workout history stay unchanged.';
+    if (action) action.textContent = 'Discard workout';
+  } else {
+    if (title) title.textContent = "Clear today's log?";
+    if (copy) copy.textContent = 'This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.';
+    if (action) action.textContent = 'Clear logs';
+  }
+  if (options.replaceFrom) replaceManagedModal(options.replaceFrom, modal);
+  else modal.classList.add('active');
 }
 
 export function closeConfirmResetModal() {
@@ -1971,17 +1987,28 @@ export function executeResetActiveDayMetrics() {
   const activeProgram = getProgramById(appState.activeProgramId);
   const oneOff = activeOneOffSession(appState);
   const blueprint = oneOffBlueprint(appState, activeProgram?.days?.[selectedDay]);
+
+  if (oneOff) {
+    const discarded = discardActiveOneOffSession(appState);
+    try {
+      stopAndResetWorkoutTimer(workoutSessionKey(appState, wk, selectedDay));
+      dismissRestTimer();
+    } catch(e) { console.warn(e); }
+    _saveState(true);
+    closeConfirmResetModal();
+    showToast('Workout discarded');
+    if (_switchTab) _switchTab('home', { skipWorkoutCommit: true });
+    if (discarded) {
+      deleteMapFromDB(discarded.key, discarded.day, { sessionId: discarded.sessionId }).catch(() => {});
+    }
+    return;
+  }
+
   /** @type {Record<string, any[]>} */
   const lifts = {};
   const liftOrder = [];
 
-  if (oneOff) {
-    for (const liftName of blueprint?.lifts || []) {
-      const current = appState.weeks[wk]?.lifts?.[selectedDay]?.[liftName] || [];
-      lifts[liftName] = current.map((set) => ({ ...set, w: '', r: '', c: false, isPR: undefined }));
-      liftOrder.push(liftName);
-    }
-  } else if (blueprint && blueprint.lifts) {
+  if (blueprint && blueprint.lifts) {
     blueprint.lifts.forEach(liftName => {
       try {
         const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
@@ -2000,7 +2027,7 @@ export function executeResetActiveDayMetrics() {
   
   _saveState(true);
   
-  deleteMapFromDB(wk, selectedDay, { activationId: oneOff ? null : appState.activeActivationId }).then(() => {
+  deleteMapFromDB(wk, selectedDay, { activationId: appState.activeActivationId }).then(() => {
     renderWorkout();
   }).catch(() => renderWorkout());
   
@@ -2111,8 +2138,7 @@ export function cancelFinishSessionModal() {
 }
 
 export function discardFinishWorkout() {
-  cancelFinishSessionModal();
-  openConfirmResetModal();
+  openConfirmResetModal({ replaceFrom: document.getElementById('summaryModal') });
 }
 
 export function closeFinishSessionModal() {

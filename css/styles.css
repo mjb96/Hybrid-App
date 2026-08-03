@@ -1865,6 +1865,170 @@ body.sheet-scroll-locked {
 }
 .home-choose-workout-btn:active { transform: scale(0.98); }
 
+/* Home Today card — one natural decision surface instead of separate score,
+   coaching and workout cards competing in the first viewport. */
+.today-card {
+  --today-accent: var(--color-blue, #2563eb);
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, var(--today-accent) 18%, transparent), transparent 58%),
+    linear-gradient(155deg, rgba(16, 27, 42, 0.99), rgba(7, 17, 31, 0.99));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+}
+.today-card--complete { --today-accent: var(--color-green, #10b981); }
+.today-card--rest { --today-accent: var(--color-cyan, #22d3ee); }
+.today-card--progress { --today-accent: var(--color-amber, #f59e0b); }
+.today-card--quiet { --today-accent: var(--text-muted, #94a3b8); }
+.today-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--today-accent);
+}
+.today-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.today-card__eyebrow {
+  color: var(--today-accent);
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.today-card__state {
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--today-accent) 34%, transparent);
+  border-radius: 999px;
+  color: var(--today-accent);
+  background: color-mix(in srgb, var(--today-accent) 10%, transparent);
+  font-size: .62rem;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+.today-card__title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.35rem, 6vw, 1.8rem);
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+.today-card__meta {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: .74rem;
+  line-height: 1.4;
+}
+.today-card__guidance {
+  max-width: 46ch;
+  margin: 15px 0 0;
+  color: var(--text-secondary);
+  font-size: .84rem;
+  line-height: 1.5;
+}
+.today-card__score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin: 13px 0 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(96, 165, 250, .13);
+  border-radius: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, .025);
+  font: inherit;
+  font-size: .7rem;
+  text-align: left;
+  cursor: pointer;
+}
+.today-card__score strong {
+  color: var(--text-primary);
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+.today-card__why { margin-top: 10px; }
+.today-card__why summary {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: .69rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.today-card__why ul {
+  margin: 2px 0 0;
+  padding: 0 0 0 18px;
+  color: var(--text-muted);
+  font-size: .7rem;
+  line-height: 1.45;
+}
+.today-card__offline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  color: var(--color-amber, #f59e0b);
+  font-size: .68rem;
+  font-weight: 700;
+}
+.today-card__offline span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.today-card__actions {
+  display: grid;
+  gap: 3px;
+  margin-top: 16px;
+}
+.today-card__primary {
+  min-height: 50px;
+  padding: 13px 16px;
+  border-radius: 13px;
+  font-size: .83rem;
+  letter-spacing: .045em;
+}
+.today-card__secondary {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: .79rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.today-card__secondary:active { transform: scale(.98); }
+
+html[data-theme="light"] .today-card {
+  border-color: rgba(37, 99, 235, .14);
+  background:
+    radial-gradient(120% 100% at 100% 0%, color-mix(in srgb, var(--today-accent) 10%, transparent), transparent 58%),
+    linear-gradient(155deg, #fff, #f8fafc);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
+}
+html[data-theme="light"] .today-card__score {
+  border-color: rgba(37, 99, 235, .12);
+  background: rgba(37, 99, 235, .025);
+}
+
 .program-workout-picker { max-height: min(82vh, 680px); }
 .program-workout-picker__sub {
   margin: 4px 0 0; max-width: 290px; color: var(--text-secondary);

@@ -294,6 +294,34 @@ export function closeManagedModal(root) {
   if (entry) closeEntry(entry); else if (root) setClosedSemantics(root);
 }
 
+// Swap one open dialog for another while retaining a single browser-history
+// marker. Closing and immediately opening two separate managed modals can race
+// history.back() against the new pushState(), which may pop past the app entry
+// entirely. A hand-off keeps Back/Escape semantics intact without navigating.
+export function replaceManagedModal(currentRoot, nextRoot, opts = {}) {
+  if (!nextRoot) return null;
+  const current = stack.find((entry) => entry.root === currentRoot);
+  const inheritedHistory = Boolean(current?.historyPushed);
+
+  if (currentRoot) {
+    const openClass = currentRoot.dataset.modalOpenClass || 'active';
+    currentRoot.classList.remove(openClass);
+    if (currentRoot.dataset.modalOpenStyle === 'true') currentRoot.style.display = 'none';
+    if (current) {
+      current.historyPushed = false;
+      closeEntry(current);
+    } else {
+      setClosedSemantics(currentRoot);
+    }
+  }
+
+  const nextOpenClass = nextRoot.dataset.modalOpenClass || 'active';
+  nextRoot.classList.add(nextOpenClass);
+  const next = openEntry(nextRoot, { ...opts, history: inheritedHistory ? false : opts.history });
+  if (next && inheritedHistory) next.historyPushed = true;
+  return next;
+}
+
 export function requestCloseTopModal() {
   return requestClose(stack[stack.length - 1]);
 }

@@ -168,8 +168,8 @@ function syncPrimaryNavigation(targetViewID) {
   });
 }
 
-export function switchGlobalAppTab(targetViewID) {
-  if (activeTab === 'workout') {
+export function switchGlobalAppTab(targetViewID, options = {}) {
+  if (activeTab === 'workout' && !options.skipWorkoutCommit) {
     try { commitWorkoutUIState(); } catch(e) { console.warn(e); }
   }
   
@@ -1213,7 +1213,11 @@ else if (action === 'export-csv') triggerCSVExport();
   }
   
   // Summary Modals
-  else if (action === 'open-today-summary') openTodaySummaryModal();
+  else if (action === 'open-today-summary') {
+    const day = target.getAttribute('data-day');
+    if (day) setSelectedDay(day);
+    openTodaySummaryModal();
+  }
   else if (action === 'close-today-summary') closeTodaySummaryModal();
   else if (action === 'close-today-summary-nav') { 
     closeTodaySummaryModal(); 

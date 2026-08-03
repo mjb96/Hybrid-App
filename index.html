@@ -484,17 +484,9 @@
         <button class="home-avatar" id="homeAvatar" data-action="open-profile" aria-label="Open your profile">?</button>
       </div>
 
-      <!-- HYBRID SCORE — the signature surface; first thing the athlete sees -->
-      <div id="hybridScoreHome"></div>
-
-      <!-- MORNING BRIEFING — the one coaching surface (greeting · session · mission · coach) -->
-      <div id="morningBriefing"></div>
-
-      <!-- Primary CTA — one tap from Home into today's logging. Label + action
-           are set day-aware in renderHome (a rest day routes to the check-in,
-           not "Go to Today's Workout", which contradicts the rest-day coach). -->
-      <button id="homePrimaryCta" class="btn-action-block btn-green mb-4" data-action="start-today-workout" aria-label="Go to today's workout">🏋️ Go to Today's Workout</button>
-      <button id="homeChooseWorkout" class="home-choose-workout-btn mb-4" data-action="open-program-workout-picker">Choose another workout</button>
+      <!-- TODAY — one state-aware decision surface for the current session.
+           The full Hybrid Score and detailed coaching evidence live in Progress. -->
+      <div id="homeTodayCard"></div>
 
       <!-- Starting a run / walk / fast now lives in Train's Quick start, so Home
            stays quiet. The only thing that surfaces here is a live status pill
@@ -1969,10 +1961,10 @@
   <div class="modal-overlay" id="confirmResetModal" role="dialog" aria-labelledby="resetModalTitle" data-modal-root data-modal-close-action="close-reset-modal" inert aria-hidden="true">
     <div class="modal-content">
       <h2 id="resetModalTitle" class="text-2xl font-heavy text-accent-red mb-1">Clear Today's Log?</h2>
-      <p class="text-lg text-muted mb-5">This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.</p>
+      <p id="resetModalCopy" class="text-lg text-muted mb-5">This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.</p>
       <div class="flex gap-2">
         <button class="btn-action-block btn-ghost mt-0" data-action="close-reset-modal">Cancel</button>
-        <button class="btn-action-block btn-danger mt-0" data-action="execute-reset">Clear Logs</button>
+        <button id="resetModalAction" class="btn-action-block btn-danger mt-0" data-action="execute-reset">Clear Logs</button>
       </div>
     </div>
   </div>

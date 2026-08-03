@@ -351,31 +351,42 @@ The visible information architecture can change without a risky route rewrite:
 
 ### 1B. Home
 
-- Replace multiple competing top-level cards/actions with one Today card.
-- Support these mutually exclusive states:
+- **DONE 2026-08-03:** Replaced the full Hybrid Score hero, Morning Briefing,
+  standalone workout CTA, and separate alternate-workout action with one
+  calendar-day-aware Today card. It owns the first decision and does not follow
+  a stale day last selected in Train.
+- **DONE 2026-08-03:** Support these mutually exclusive states:
   - planned session ready;
   - session in progress;
   - session completed;
   - rest day;
-  - no active plan;
   - unresolved workout from another day;
   - limited/offline data.
-- Combine readiness/coaching into one short contextual message.
-- Reduce Hybrid Score to a supporting summary unless it has enough evidence to
+- **SETTLED:** a missing/corrupt active plan continues to route directly to the
+  existing Plans recovery surface, which explains that history is safe and asks
+  for a replacement. The pure Today model also has a no-plan fallback, but Home
+  must not bypass that stronger data-recovery contract.
+- [x] Combine readiness/coaching into one short contextual message.
+- [x] Reduce Hybrid Score to a supporting summary unless it has enough evidence to
   explain a meaningful change.
-- Replace full Home charts with a compact weekly strip and one or two relevant
+- [ ] Replace full Home charts with a compact weekly strip and one or two relevant
   highlights.
-- Move detailed analytics to Progress with exact deep links.
-- Make Choose another workout a clear secondary action inside Today/Train.
+- [ ] Move detailed analytics to Progress with exact deep links.
+- [x] Make Choose another workout a clear secondary action inside Today/Train.
 
 ### Acceptance
 
-- A user can identify and start the intended action in under five seconds.
-- The first viewport has one primary button.
-- No metric or training status is repeated in two adjacent components.
-- Rest, completed, and in-progress states cannot recommend starting the wrong
+- **Needs direct observation:** a user can identify and start the intended
+  action in under five seconds.
+- **Met in responsive browser checks:** the first viewport has one primary
+  button and the complete decision card remains visible at 320–412px.
+- **Met for the first viewport:** no metric or training status is repeated in
+  two adjacent components.
+- **Met in state and routing tests:** rest, completed, in-progress, and
+  unresolved states cannot recommend starting the wrong
   session.
-- Home remains useful with no history, sparse data, or no active plan.
+- **Met:** Home remains useful with no history and sparse data; missing/corrupt
+  plans use the explicit Plans recovery surface.
 
 ## Phase 2 — Natural workout and run logging
 
@@ -705,13 +716,13 @@ even while release work is parked.
 | Area | Current capability |
 | --- | --- |
 | Navigation | Four intent-led destinations — Home, Train, Progress, Plans — with stable legacy route IDs and origin-aware drilldown Back behaviour |
-| Home/coaching | Today context, Morning Briefing, Hybrid Score, weekly focus, deep links |
+| Home/coaching | One state-aware Today card, concise evidence-backed guidance, confidence-gated Hybrid Score summary, weekly focus and deep links |
 | Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion |
 | Plans | 57-program catalogue, recommendations, comparison, details, timeline, editable personal copies, builder |
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,299 tests, typecheck, smoke, precache/workflow gates, responsive/accessibility browser checks |
+| Quality | 1,312 tests, typecheck, smoke, precache/workflow gates, responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -720,7 +731,8 @@ Work in this order unless user evidence changes it:
 1. **DONE — Complete the Phase 0 experience inventory and journey map.**
 2. **DONE — Prototype Home / Train / Progress / Plans navigation without
    changing stored data.**
-3. **NEXT — Rebuild the Home first viewport around one Today card.**
+3. **ACTIVE — Finish Home hierarchy with a compact weekly strip and at most two
+   evidence-backed highlights; the Today card is done.**
 4. **Simplify the common strength set-row interaction.**
 5. **Create the new Progress landing hierarchy and metric classification.**
 6. **Rework Plans discovery around recommendations before Browse all.**
@@ -732,6 +744,18 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-03 — State-aware Home Today card.** Replaced the competing Home
+  score, briefing, and standalone actions with one calendar-day-aware decision
+  card. Added Start, Resume, Review, rest, unresolved-session, offline, and
+  sparse-data behaviour; kept missing plans on the safer Plans recovery route;
+  made Hybrid Score supporting only at meaningful confidence; and fixed Home
+  opening a stale day last selected in Train. The browser flow also exposed and
+  fixed blank one-off workouts remaining unresolved after Discard, including a
+  two-dialog history race that could navigate to a blank page. Verified state
+  routing, summary review, safe one-off cleanup, dark/light layouts, 44px
+  targets, first-viewport fit, and no overflow at 320/390/412px. Next: replace
+  the two full Home charts and repeated metric tiles with a compact weekly strip
+  and one or two highlights.
 - **2026-08-03 — Experience map and four-destination shell.** Completed the
   screen/modal inventory, journey baselines, action ownership, shared vocabulary
   and route-compatibility contract. Replaced the competing Workout + Start

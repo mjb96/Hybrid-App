@@ -4,12 +4,10 @@
 import { resolveProgramPhase } from './programs/phase.js';
 import { getProgramById, saveStateToLocalStorage } from './state.js';
 import { computeHybridScore } from './brain/hybrid-score/hybrid-score.js';
-import { projectScore } from './brain/hybrid-score/project.js';
-import { heroHTML } from './brain/hybrid-score/ui.js';
 import { recordDailyScore } from './brain/hybrid-score/history.js';
 import { buildMorningBriefing } from './brain/morning-briefing.js';
 import { dayVerdict } from './brain/day-verdict.js';
-import { briefingCardHTML } from './home/morning-briefing-card.js';
+import { buildTodayCardModel, todayCardHTML, todayProgramDay } from './home/today-card.js';
 import { celebrateMilestone, celebrate } from './ui/celebration.js';
 import { assessOvertrainingRisk, riskSignature } from './brain/risk.js';
 import { answerCoachQuestion } from './brain/coach-qa.js';
@@ -49,17 +47,12 @@ export function initHome(getStateFn, getSelectedDayFn, getDaysFn) {
 export { openFastingDetail, closeFastingDetail, openHistoryEditPanel, closeHistoryEditPanel } from './home/fasting-card.js';
 
 // ==========================================
-// HYBRID SCORE HERO — the signature surface at the top of Home.
-// Computed from the same shared dashboard model (no extra pass) and recorded
-// once per day so tomorrow's delta/trend/XP is available. Returns the score
-// result so the Morning Briefing below reuses it without recomputing.
+// HYBRID SCORE — still computed and recorded once per day, but the full gauge
+// now lives in Progress. Home only shows a compact supporting row when the
+// score has enough real-data confidence to be useful.
 // ==========================================
 function renderHybridScoreHome(appState, model) {
-  const el = document.getElementById('hybridScoreHome');
-  if (!el) return null;
   const result = computeHybridScore(model, appState, _getDays(), getProgramById(appState.activeProgramId));
-  // The Morning Briefing directly below owns the day's action — one voice.
-  setHTML(el, heroHTML(result, { showAction: false }));
   try {
     const { changed, milestones } = recordDailyScore(appState, result, model);
     if (changed) saveStateToLocalStorage(true);
@@ -74,9 +67,8 @@ function renderHybridScoreHome(appState, model) {
 }
 
 // ==========================================
-// MORNING BRIEFING — the one coaching surface (replaces the old coaching card
-// + insight banner pair). Narrative for the day: greeting, session, mission,
-// coach line. Anchored by (and rendered directly under) the Hybrid Score hero.
+// TODAY COACHING — compose the existing evidence-backed briefing, then reduce
+// it to the short contextual line inside Home's Today card.
 // ==========================================
 // C2 — Ask the coach. Recomputes the live context (readiness model, Hybrid Score
 // + delta, overtraining risk, today's session) and answers deterministically
@@ -86,7 +78,7 @@ export function answerCoachOnHome(intent) {
   if (!el) return;
   try {
     const appState = _getState();
-    const selectedDay = _getSelectedDay();
+    const selectedDay = todayProgramDay();
     const days = _getDays();
     const activeProgram = getProgramById(appState.activeProgramId);
     const model = computeDashboardModel(appState, days, activeProgram, selectedDay);
@@ -106,17 +98,13 @@ export function answerCoachOnHome(intent) {
   }
 }
 
-function renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive = false) {
-  const el = document.getElementById('morningBriefing');
-  if (!el) return;
+function buildHomeBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive = false) {
   const firstSession = !!appState._justOnboarded;
-  const projection = projectScore(model, appState, _getDays(), { program: activeProgram });
   const briefing = buildMorningBriefing({
-    state: appState, model, score: scoreResult, projection,
+    state: appState, model, score: scoreResult, projection: null,
     program: activeProgram, selectedDay, firstSession,
     overtrainingActive, days: _getDays(),
   });
-  setHTML(el, briefingCardHTML(briefing));
 
   // R14 — the guided first session: once, right after onboarding, welcome the
   // athlete and draw the eye to their first mission.
@@ -127,10 +115,12 @@ function renderMorningBriefing(appState, model, scoreResult, activeProgram, sele
     celebrate({
       icon: '🎉',
       title: name ? `Welcome, ${name}!` : "You're all set!",
-      subtitle: 'Your daily coach is ready. Your first mission is waiting below — tap it to begin.',
+      subtitle: 'Your first session is ready on Home — tap Start workout when you are ready.',
     });
-    setTimeout(() => { try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 900);
+    const el = document.getElementById('homeTodayCard');
+    setTimeout(() => { try { el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {} }, 900);
   }
+  return briefing;
 }
 
 // ==========================================
@@ -304,7 +294,9 @@ function renderHomeVolumeGuide(appState, activeProgram) {
 
 export function renderHome() {
   const appState = _getState();
-  const selectedDay = _getSelectedDay();
+  // Home is a calendar-today surface. The cockpit's selected day is navigation
+  // state and may point at a session the athlete merely previewed.
+  const homeDay = todayProgramDay();
   const DEFAULT_DAYS = _getDays(); 
 
   const wk = appState?.currentWeek || "1";
@@ -342,7 +334,7 @@ export function renderHome() {
 
   // One shared brain pass — the header progress, week-compare card and every
   // tile all read from this single model so their numbers never diverge.
-  const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, selectedDay);
+  const model = computeDashboardModel(appState, DEFAULT_DAYS, activeProgram, homeDay);
 
   // V2 (S4): engine stall alerts move off Home — the one-hero Home keeps only
   // the recovery flag slot (overtraining/deload). Stall diagnostics still surface
@@ -350,29 +342,14 @@ export function renderHome() {
   const engineAlertCard = document.getElementById('homeEngineAlertCard');
   if (engineAlertCard) engineAlertCard.style.display = 'none';
 
-  // Weekly fitness graphs handle their own rendering and data refresh.
+  // Weekly fitness graphs handle their own rendering and data refresh. They
+  // remain below the fold until the compact weekly-strip follow-up slice.
   // Legacy hero/sub elements are hidden by the graphs on mount.
   if (_strengthGraph) {
     refreshWeeklyFitnessGraph('strengthBarChart');
   }
   if (_runGraph) {
     refreshWeeklyFitnessGraph('runBarChart');
-  }
-
-  // Day-aware primary CTA: on a rest day, "Go to Today's Workout" contradicts
-  // the rest-day coach right above it — route to the wellness check-in instead.
-  const primaryCta = document.getElementById('homePrimaryCta');
-  if (primaryCta) {
-    const isRest = model?.rec?.sessionLabel === 'Rest Day';
-    if (isRest) {
-      primaryCta.textContent = '📝 Log a wellness check-in';
-      primaryCta.setAttribute('data-action', 'open-wellness-checkin');
-      primaryCta.setAttribute('aria-label', 'Log a wellness check-in');
-    } else {
-      primaryCta.textContent = "🏋️ Go to Today's Workout";
-      primaryCta.setAttribute('data-action', 'start-today-workout');
-      primaryCta.setAttribute('aria-label', "Go to today's workout");
-    }
   }
 
   const scoreResult = renderHybridScoreHome(appState, model);
@@ -392,8 +369,20 @@ export function renderHome() {
   // actually on screen (high AND not acknowledged) — one red voice, not two.
   const overtrainingActive = !!(otAssessment && otAssessment.level === 'high' && !otAcknowledged);
 
-  renderMorningBriefing(appState, model, scoreResult, activeProgram, selectedDay, overtrainingActive);
-  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, selectedDay, model);
+  const briefing = buildHomeBriefing(appState, model, scoreResult, activeProgram, homeDay, overtrainingActive);
+  const todayMount = document.getElementById('homeTodayCard');
+  if (todayMount) {
+    const card = buildTodayCardModel({
+      state: appState,
+      program: activeProgram,
+      model,
+      briefing,
+      score: scoreResult,
+      offline: typeof navigator !== 'undefined' && navigator.onLine === false,
+    });
+    setHTML(todayMount, todayCardHTML(card));
+  }
+  renderGlanceGrid(appState, DEFAULT_DAYS, activeProgram, homeDay, model);
   renderHomeVolumeGuide(appState, activeProgram);
 
   // V2 (S4): the week-compare card moves off Home — it was one of several
@@ -414,7 +403,7 @@ export function renderHome() {
     const alreadyApplied   = appState.deloadApplied === appState.currentWeek;
     // Never suggest a deload during a week that already IS a deload — you can't
     // be told to deload while deloading (the briefing already explains it).
-    const inDeloadWeek = dayVerdict(model, appState, activeProgram, selectedDay).isDeloadWeek;
+    const inDeloadWeek = dayVerdict(model, appState, activeProgram, homeDay).isDeloadWeek;
     if (overtrainingShowing || inDeloadWeek) {
       deloadCard.style.display = 'none';
     } else if (!alreadyDismissed && !alreadyApplied) {
