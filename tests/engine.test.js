@@ -99,11 +99,22 @@ test('pace round-trips: format(paceSecondsPerKm(dist,time)) is stable', () => {
 // Helpers: one week of history so history.length===1 (stall check skipped),
 // RPE path reached.
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const makeDiagState = (week1Sets, week1GymRpe = null) => ({
+const DIAG_ACTIVATION = 'diag_activation';
+const DIAG_PROGRAM = 'diag_program';
+function stampDiagnosticState(state) {
+  state.activeActivationId = DIAG_ACTIVATION;
+  state.activeProgramId = DIAG_PROGRAM;
+  Object.values(state.weeks || {}).forEach((week) => {
+    week.activationId = DIAG_ACTIVATION;
+    week.programId = DIAG_PROGRAM;
+  });
+  return state;
+}
+const makeDiagState = (week1Sets, week1GymRpe = null) => stampDiagnosticState({
   currentWeek: '2',
   weeks: {
     '1': {
-      lifts: { mon: { Squat: week1Sets } },
+      lifts: { mon: { Squat: week1Sets.map((set) => set?.type === 'W' ? set : { tr: 5, ...set }) } },
       dates: { mon: '2026-07-07' },
       gymRpe: week1GymRpe != null ? { mon: String(week1GymRpe) } : {},
       runs: {},
@@ -379,7 +390,7 @@ test('computeDiagnosticForLift: warm-up effort is excluded from the fatigue aver
 
 test('computeDiagnosticForLift: completed targets are progression evidence, not a plateau', () => {
   // Three identical sessions all met the target, so double progression wins.
-  const flat = [{ w: '100', r: '5', c: true }];
+  const flat = [{ w: '100', r: '5', c: true, tr: 5 }];
   const state = {
     currentWeek: '4',
     weeks: {
@@ -389,6 +400,7 @@ test('computeDiagnosticForLift: completed targets are progression evidence, not 
       '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
     },
   };
+  stampDiagnosticState(state);
   initEngine(() => state, () => DAYS);
   const r = computeDiagnosticForLift('4', 'mon', 'Squat', 5);
   assert.equal(r.isStalled, false);
@@ -399,7 +411,7 @@ test('computeDiagnosticForLift: completed targets are progression evidence, not 
 });
 
 test('computeDiagnosticForLift: repeated target misses over a meaningful span prompt a progress check', () => {
-  const missed = [{ w: '100', r: '4', c: true }];
+  const missed = [{ w: '100', r: '4', c: true, tr: 5 }];
   const state = {
     currentWeek: '4',
     weeks: {
@@ -409,6 +421,7 @@ test('computeDiagnosticForLift: repeated target misses over a meaningful span pr
       '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
     },
   };
+  stampDiagnosticState(state);
   initEngine(() => state, () => DAYS);
   const result = computeDiagnosticForLift('4', 'mon', 'Squat', 5);
   assert.equal(result.isStalled, true);
@@ -418,7 +431,7 @@ test('computeDiagnosticForLift: repeated target misses over a meaningful span pr
 });
 
 test('computeDiagnosticForLift: three sessions inside two weeks are too soon for a progress warning', () => {
-  const missed = [{ w: '100', r: '4', c: true }];
+  const missed = [{ w: '100', r: '4', c: true, tr: 5 }];
   const state = {
     currentWeek: '4', weeks: {
       '1': { dates: { mon: '2026-07-01' }, lifts: { mon: { Squat: missed } }, gymRpe: {}, runs: {} },
@@ -427,12 +440,13 @@ test('computeDiagnosticForLift: three sessions inside two weeks are too soon for
       '4': { lifts: { mon: { Squat: [] } }, gymRpe: {}, runs: {} },
     },
   };
+  stampDiagnosticState(state);
   initEngine(() => state, () => DAYS);
   assert.equal(computeDiagnosticForLift('4', 'mon', 'Squat', 5).isStalled, false);
 });
 
 test('computeDiagnosticForLift: high-rep work cannot fabricate an e1RM plateau', () => {
-  const highRep = [{ w: '40', r: '20', c: true }];
+  const highRep = [{ w: '40', r: '20', c: true, tr: 20 }];
   const state = {
     currentWeek: '4',
     weeks: {
@@ -442,6 +456,7 @@ test('computeDiagnosticForLift: high-rep work cannot fabricate an e1RM plateau',
       '4': { lifts: { mon: { Curl: [] } }, gymRpe: {}, runs: {} },
     },
   };
+  stampDiagnosticState(state);
   initEngine(() => state, () => DAYS);
   const result = computeDiagnosticForLift('4', 'mon', 'Curl', 20);
   assert.equal(result.isStalled, false);

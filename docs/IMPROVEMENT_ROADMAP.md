@@ -275,6 +275,9 @@ rules before individual screens are polished in isolation.
 
 ### 2A. Strength cockpit
 
+- **DONE 2026-08-03:** Separate global Last performed history from
+  activation-and-workout-day-scoped progression suggestions. New-program fields
+  stay blank and historical values enter them only after **Use previous values**.
 - Make the active exercise visually dominant; collapse completed/future
   exercises while retaining a clear session overview.
 - Design a consistent set-row interaction:
@@ -618,6 +621,13 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-03 — New-program logger progression isolation.** Traced the stale
+  target to the diagnostic engine querying all exercise history and reusing the
+  newest global set as a target/quick-log ghost. Scoped progression to the
+  active program activation and workout day, kept global history in a quieter
+  expandable Last performed panel, removed implicit history prefills, and kept
+  the explicit Use previous values action. Next: continue the broader strength
+  set-row simplification with this prescription/history boundary preserved.
 - **2026-08-03 — Roadmap refocused on product experience.** Release readiness
   moved to the parked list. Reorganised the work around Home, Train, Progress,
   Plans, natural workout controls, understandable analytics, guided programme

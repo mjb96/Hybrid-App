@@ -1141,25 +1141,26 @@ select.native-select {
 
 .previous-session {
   margin-bottom: var(--space-4);
-  border: 1px solid rgba(59, 130, 246, 0.20);
-  border-radius: var(--radius-lg);
-  background: var(--blue-alpha);
+  border: 1px solid var(--overlay-md);
+  border-radius: var(--radius-md);
+  background: var(--overlay-sm);
   overflow: hidden;
 }
 .previous-session summary {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  min-height: 58px; padding: 10px 12px; cursor: pointer; list-style: none;
+  min-height: var(--touch-target); padding: 8px 12px; cursor: pointer; list-style: none;
 }
 .previous-session summary::-webkit-details-marker { display: none; }
 .previous-session summary span { display: grid; gap: 3px; min-width: 0; }
-.previous-session summary small { color: var(--text-muted); font-size: .68rem; font-weight: 650; }
-.previous-session summary strong { color: var(--text-primary); font-size: .78rem; }
-.previous-session summary b { color: var(--color-blue); font-size: .68rem; white-space: nowrap; }
+.previous-session summary small { color: var(--text-muted); font-size: .66rem; font-weight: 650; }
+.previous-session summary strong { color: var(--text-secondary); font-size: .76rem; }
+.previous-session summary b { color: var(--text-muted); font-size: .66rem; white-space: nowrap; }
+.previous-session[open] summary b { color: var(--color-blue); }
 .previous-session__context { padding: 0 12px 8px; color: var(--text-muted); font-size: .68rem; }
-.previous-session__sets { display: grid; border-block: 1px solid rgba(59,130,246,.14); }
+.previous-session__sets { display: grid; border-block: 1px solid var(--overlay-md); }
 .previous-session__set {
   display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px;
-  min-height: 38px; padding: 6px 12px; border-bottom: 1px solid rgba(59,130,246,.10);
+  min-height: 38px; padding: 6px 12px; border-bottom: 1px solid var(--overlay-sm);
 }
 .previous-session__set:last-child { border-bottom: 0; }
 .previous-session__set span, .previous-session__set small { color: var(--text-muted); font-size: .68rem; }
@@ -1167,8 +1168,8 @@ select.native-select {
 .previous-session__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
 .previous-session__actions button {
   min-height: var(--touch-target); border-radius: var(--radius-md);
-  border: 1px solid rgba(59,130,246,.28); background: rgba(59,130,246,.10);
-  color: var(--color-blue); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer;
+  border: 1px solid var(--overlay-lg); background: var(--overlay-sm);
+  color: var(--text-secondary); font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer;
 }
 
 
@@ -1182,7 +1183,16 @@ select.native-select {
   border: 1px solid rgba(16,185,129,0.26);
 }
 .cct-text { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary, #cbd5e1); }
+.cct-text small, .cct-text em { display: block; }
+.cct-text small {
+  margin-bottom: 2px; color: var(--text-muted); font-size: .62rem;
+  font-style: normal; font-weight: 800; letter-spacing: .025em;
+}
 .cct-text b { color: var(--color-green, #10b981); font-weight: 800; }
+.cct-text em {
+  margin-top: 2px; color: var(--text-muted); font-size: .64rem;
+  font-style: normal; font-weight: 550; line-height: 1.35;
+}
 .cct-logall {
   flex: 0 0 auto; font: inherit; font-size: 0.72rem; font-weight: 800;
   padding: 6px 12px; border-radius: 999px; cursor: pointer;

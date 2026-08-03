@@ -80,6 +80,12 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
   between days (`neighborDay`). Coach: deterministic **ask-the-coach** Q&A
   (`js/brain/coach-qa.js`, chips on the briefing) + PR share card (`js/brain/pr-share.js`).
+- Logger progression and history are deliberately separate: global dated exercise
+  history (`exerciseLoggerHistory`) powers the read-only **Last performed** panel
+  and analytics, while `computeDiagnosticForLift` only derives a next-load
+  suggestion from the same activation + workout day. A new activation starts with
+  blank editable load/rep values; history enters those fields only through the
+  explicit **Use previous values** action.
 - Session lifecycle: additive `weeks[key].sessionStatus[day]` (`in_progress|finished`)
   and `sessionSummary[day]` sidecars are owned by `js/workout/session-status.js`.
   Deliberate Finish marks the workout finished even below 100% plan adherence; deletion/

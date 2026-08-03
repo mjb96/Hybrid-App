@@ -259,8 +259,8 @@ function _previousSessionPanel(appState, performance, exerciseName, weightUnit) 
     return `<div class="previous-session__set"><span>S${index + 1}</span><strong>${weight > 0 ? `${escapeHtml(String(weight))}${escapeHtml(weightUnit)} × ` : ''}${escapeHtml(String(reps))}</strong><small>${effort}</small></div>`;
   }).join('');
   return `<details class="previous-session">
-    <summary><span><small>Previous session · ${escapeHtml(_priorDateLabel(performance.date))}</small><strong>${sets.length} ${sets.length === 1 ? 'set' : 'sets'} · ${escapeHtml(top)}${volume > 0 ? ` · ${volume.toLocaleString()} ${escapeHtml(weightUnit)}` : ''}</strong></span><b>View sets</b></summary>
-    <div class="previous-session__context">${escapeHtml(title)}</div>
+    <summary><span><small>Last performed · ${escapeHtml(_priorDateLabel(performance.date))}</small><strong>${escapeHtml(top)} · ${sets.length} ${sets.length === 1 ? 'set' : 'sets'}</strong></span><b>Details</b></summary>
+    <div class="previous-session__context">${escapeHtml(title)}${volume > 0 ? ` · ${volume.toLocaleString()} ${escapeHtml(weightUnit)} volume` : ''}</div>
     <div class="previous-session__sets">${rows}</div>
     <div class="previous-session__actions"><button type="button" data-action="use-previous-values">Use previous values</button><button type="button" data-action="open-activity-detail" data-activity-id="${escapeHtml(performance.activityId)}">View workout</button></div>
   </details>`;
@@ -321,14 +321,6 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       blueprintLabel = jtTarget ? `Target: ${jtTarget.label}` : `Target: ${target.sets} × ${target.reps}`;
       if (jtTarget?.prescription?.setPlan?.length) jtRoleTags = jtSetRoleTags(jtTarget.prescription.setPlan);
     }
-    // Auto-progression hint: a concrete next move derived from last session.
-    const prog = diagnostic.progression;
-    if (prog && prog.action !== 'baseline') {
-      const icon = { 'load-up': '▲', 'hold': '▬', 'rep-up': '＋', 'deload': '▼' }[prog.action] || '›';
-      blueprintLabel += ` · ${icon} ${prog.rationale}`;
-    } else if (diagnostic.isStalled) {
-      blueprintLabel += ' · ⚠️ progress check — hold load and review recovery';
-    }
   } catch(e) { console.warn(e); }
 
   // #5 single-focus accordion — a finished exercise reads as a one-line achieved
@@ -369,10 +361,9 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   const safeLiftName = escapeHtml(liftName);
   const displaySafeName = escapeHtml(displayLiftName);
 
-  // The auto-progression suggestion becomes the ghost target on every set row.
-  // When a numeric progression is not possible (for example bodyweight or
-  // max-rep work), preserve the matching set from the latest dated performance
-  // across days, programs and archived activations.
+  // Only an activation-scoped progression suggestion may become an editable
+  // ghost target. Global exercise history remains read-only in the Last
+  // performed panel until the athlete deliberately chooses Use previous values.
   const suggestedGhost = (diagnostic.progression && diagnostic.progression.weight)
     ? { w: diagnostic.progression.weight, r: diagnostic.progression.reps }
     : null;
@@ -411,8 +402,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
           backoffHint: suggest != null ? `${roleTag.boPct}% of ${topSetWeight}${wUnit} top set · ${suggest}${wUnit}` : '' };
       }
     }
-    let ghostSet = suggestedGhost;
-    if (!ghostSet && previousSet && (previousSet.w || previousSet.r)) ghostSet = previousSet;
+    const ghostSet = suggestedGhost;
     return buildSetRow(
       sData, sIdx, safeLiftName, ghostSet, wUnit, displayLiftName,
       _currentBodyweight(appState), target.reps, repGoalFromTarget(target.reps), previousSet, roleTag,
@@ -430,7 +420,7 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
   } catch (_) {}
 
   try {
-    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, historyPanelHTML, setsMarkup, groupId, ssColor, plates });
+    exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, historyPanelHTML, setsMarkup, groupId, ssColor, plates, weightUnit: wUnit });
   } catch(e) {
     exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
   }
@@ -938,18 +928,6 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
     if (ph != null) targetR = String(ph);
   }
 
-  if (!targetW || !targetR) {
-    const historicalSet = exerciseLoggerHistory(appState, liftName, {
-      weekKey: wk,
-      day: selectedDay,
-      beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
-    }).latest?.workingSets?.[sIdx];
-    if (historicalSet && historicalSet.w && historicalSet.r) {
-      if (!targetW) targetW = historicalSet.w;
-      if (!targetR) targetR = historicalSet.r;
-    }
-  }
-
   // Carry forward the athlete's own earlier set this session (straight sets), so
   // one-tapping S2–S3 copies S1 instead of inventing numbers.
   if (!targetW || !targetR) {
@@ -960,7 +938,7 @@ export function executeOneTapQuickLog(labelNode, liftName, sIdx) {
     }
   }
 
-  // Nothing honest to log (no typed value, no ghost, no history, no prior set) —
+  // Nothing honest to log (no typed value, active target, or prior set) —
   // ask for the numbers rather than fabricating a 40×10. Matches the manual-tick
   // path, which bounces the same way instead of inventing a load.
   if (!targetW || !targetR) {
@@ -1252,11 +1230,6 @@ export function toggleGymCheckLoggingState(checkboxNode) {
   
   if (checkboxNode.checked) {
     if (parentRow) parentRow.classList.add('is-complete');
-    hapticTick();
-    // Auto-start the session clock on the first completed set, so the finish
-    // modal has a real duration to confirm even if the user never tapped
-    // "Start Workout" (idempotent — no-op once running).
-    try { startWorkoutTimer(workoutSessionKey(lifecycleState, lifecycleWeek, lifecycleDay)); } catch (_) {}
 
     const wInput = parentRow ? parentRow.querySelector('.input-weight-node') : null;
     const rInput = parentRow ? parentRow.querySelector('.input-reps-node') : null;
@@ -1268,20 +1241,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
       const sIdx = Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(parentRow);
       
-      // 1) Prefer this set's real value from the latest dated performance,
-      // even when it belongs to another day, program or archived activation.
-      const historicalSet = liftName
-        ? exerciseLoggerHistory(appState, liftName, {
-            weekKey: wk,
-            day: selectedDay,
-            beforeDate: appState.weeks?.[wk]?.dates?.[selectedDay] || dateKey(),
-          }).latest?.workingSets?.[sIdx]
-        : null;
-      if (historicalSet && historicalSet.w && historicalSet.r) {
-        if (!wInput.value) wInput.value = historicalSet.w;
-        if (!rInput.value) rInput.value = historicalSet.r;
-      }
-      // 2) Otherwise carry forward the athlete's own earlier set this session —
+      // 1) Carry forward the athlete's own earlier set this session —
       //    straight-set logging (3×8 at one weight) without re-typing, and the
       //    only fill a brand-new user with no coach target/history can get.
       if (!wInput.value || !rInput.value) {
@@ -1291,7 +1251,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
           if (!rInput.value) rInput.value = inh.r;
         }
       }
-      // 3) Otherwise fall back to the visible ghost/target shown in the field —
+      // 2) Otherwise fall back to the visible active target shown in the field —
       //    but only when it's an actual number. Never invent an arbitrary load.
       const wGhost = parseFloat(wInput.placeholder);
       const rGhost = parseInt(rInput.placeholder, 10);
@@ -1308,6 +1268,11 @@ export function toggleGymCheckLoggingState(checkboxNode) {
         return;
       }
     }
+
+    hapticTick();
+    // Auto-start only after the set has valid current-session values. A bounced
+    // blank check must not create a running timer for work that was never logged.
+    try { startWorkoutTimer(workoutSessionKey(lifecycleState, lifecycleWeek, lifecycleDay)); } catch (_) {}
 
     try {
       const liftName = exCard ? exCard.getAttribute('data-liftname') : null;
