@@ -69,8 +69,14 @@ function evidenceHTML(records, model) {
   }).join('')}</div>`;
 }
 
-export function renderGymPerformance(state) {
-  const root = document.getElementById('gymPerformanceDetail');
+/**
+ * Render the period explorer into a caller-supplied container. Phase 3B made
+ * this the "Trends" TAB of the merged Strength Volume screen rather than its
+ * own destination reachable only from a Home carousel card.
+ * @param {HTMLElement|null} root
+ * @param {any} state
+ */
+export function renderGymPerformanceBody(root, state) {
   if (!root) return;
   const paint = () => {
     const offset = offsets.get(selectedRange) || 0;
@@ -90,7 +96,6 @@ export function renderGymPerformance(state) {
     const excluded = [model.exclusions.future ? `${model.exclusions.future} future` : '', model.exclusions.undated ? `${model.exclusions.undated} undated` : ''].filter(Boolean).join(' · ');
     root.innerHTML = `<div class="gym-performance">
       <header class="metric-detail__header gym-performance__header">
-        <span class="metric-detail__eyebrow">Gym activity</span><h2>Gym Performance</h2>
         <div class="gym-performance__period-nav"><button type="button" data-gym-period="-1" aria-label="Previous period">‹</button><strong>${esc(periodLabel(model))}</strong><button type="button" data-gym-period="1" aria-label="Next period" ${model.canGoNext ? '' : 'disabled'}>›</button></div>
         <div class="metric-detail__value">${esc(model.formattedTotal)}</div>
         <p>${model.recordCount} ${model.recordCount === 1 ? 'workout' : 'workouts'} in this period</p>
@@ -123,4 +128,12 @@ export function renderGymPerformance(state) {
     }));
   };
   paint();
+}
+
+/**
+ * Backwards-compatible entry point for the standalone container.
+ * @param {any} state
+ */
+export function renderGymPerformance(state) {
+  renderGymPerformanceBody(document.getElementById('gymPerformanceDetail'), state);
 }

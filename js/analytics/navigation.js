@@ -5,7 +5,10 @@
 export function analyticsBackDestination(context, origin = 'insights', parentContext = null, returnParentContext, returnOrigin) {
   if (context === 'hub') return null;
   if (parentContext) {
-    const labels = { 'weekly-volume': 'Weekly Volume', strength: 'Strength', strength_pr: 'Strength', running: 'Running', recovery: 'Recovery' };
+    const labels = {
+      'weekly-volume': 'Volume', 'strength-volume': 'Volume', 'gym-performance': 'Volume',
+      strength: 'Strength', strength_pr: 'Strength', running: 'Running', recovery: 'Recovery',
+    };
     return {
       action: 'open-analytics', context: parentContext,
       label: `← Back to ${labels[parentContext] || 'Insights'}`, preserveWeek: true,

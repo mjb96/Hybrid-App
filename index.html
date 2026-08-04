@@ -548,7 +548,7 @@
 
       <div class="in-focus-carousel">
 
-        <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="gym-performance">
+        <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="strength-volume">
           <div class="hmcard-top">
             <span class="hmcard-icon">🏋️</span>
             <span class="hmcard-label">Gym Performance</span>
@@ -896,12 +896,12 @@
         </article>
       </div>
 
-      <div id="analytics-weekly-volume" class="analytics-section">
-        <div id="weeklyVolumeDetail"></div>
-      </div>
-
-      <div id="analytics-gym-performance" class="analytics-section">
-        <div id="gymPerformanceDetail"></div>
+      <!-- Phase 3B: Weekly Volume and Gym Performance merged into ONE
+           Strength Volume destination with "This week" and "Trends" tabs.
+           The old `weekly-volume` and `gym-performance` contexts both resolve
+           here and pick the opening tab, so deep links keep working. -->
+      <div id="analytics-strength-volume" class="analytics-section">
+        <div id="strengthVolumeDetail"></div>
       </div>
 
       <div id="analytics-run-performance" class="analytics-section">

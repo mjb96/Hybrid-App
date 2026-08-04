@@ -5,6 +5,7 @@ import { buildWeeklyStrengthVolumeDetail } from '../strength-volume-detail.js';
 import { getSelectedWeekStart } from '../week-nav.js';
 import { MUSCLE_LABELS } from '../calculations/volume-landmarks.js';
 import { esc } from './screen-kit.js';
+import { weightUnitOf } from '../utils.js';
 
 let _activeBreakdown = 'days';
 let _selectedDay = null;
@@ -114,23 +115,27 @@ function musclesBreakdown(model) {
   </section>`;
 }
 
-/** @param {any} state */
-export function renderWeeklyVolume(state) {
-  const root = document.getElementById('weeklyVolumeDetail');
+/**
+ * Render the weekly breakdown into a caller-supplied container. Phase 3B made
+ * this a TAB of the merged Strength Volume screen rather than its own
+ * destination, so the container is passed in instead of looked up by id.
+ * @param {HTMLElement|null} root
+ * @param {any} state
+ */
+export function renderWeeklyVolumeBody(root, state) {
   if (!root) return;
   const weekStart = getSelectedWeekStart();
   const model = buildWeeklyStrengthVolumeDetail(state, { weekStart });
-  const unit = state?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+  const unit = weightUnitOf(state);
   const tab = (id, label) => `<button class="an-segment__button ${_activeBreakdown === id ? 'is-active' : ''}" data-volume-tab="${id}" aria-pressed="${_activeBreakdown === id}">${label}</button>`;
   const content = _activeBreakdown === 'workouts' ? workoutsBreakdown(model, unit)
     : _activeBreakdown === 'exercises' ? exercisesBreakdown(model, unit)
       : _activeBreakdown === 'muscles' ? musclesBreakdown(model)
         : dayBreakdown(model, unit);
 
-  root.innerHTML = `<header class="an-detail-head">
-      <div><span class="an-detail-kicker">Strength analytics</span><h2>Weekly Volume</h2></div>
+  root.innerHTML = `<div class="an-detail-substatus">
       <span class="an-period-status ${model.isCurrentWeek ? 'is-live' : ''}">${model.status}</span>
-    </header>
+    </div>
     <p class="an-detail-period">${fmtDate(model.weekStart, true)} – ${fmtDate(model.weekEnd, true)}${model.isCurrentWeek ? ` · through ${fmtDate(model.today)}` : ''}</p>
     <section class="an-volume-summary" aria-label="Weekly strength summary">
       <article><span>Total tonnage</span><strong>${fmtVolume(model.totals.volumeKg, unit)}</strong></article>
@@ -146,10 +151,19 @@ export function renderWeeklyVolume(state) {
 
   root.querySelectorAll('[data-volume-tab]').forEach(button => button.addEventListener('click', () => {
     _activeBreakdown = button.getAttribute('data-volume-tab') || 'days';
-    renderWeeklyVolume(state);
+    renderWeeklyVolumeBody(root, state);
   }));
   root.querySelectorAll('[data-volume-day]').forEach(button => button.addEventListener('click', () => {
     _selectedDay = button.getAttribute('data-volume-day');
-    renderWeeklyVolume(state);
+    renderWeeklyVolumeBody(root, state);
   }));
+}
+
+/**
+ * Backwards-compatible entry point for the standalone container. Retained so
+ * any caller still targeting #weeklyVolumeDetail keeps working.
+ * @param {any} state
+ */
+export function renderWeeklyVolume(state) {
+  renderWeeklyVolumeBody(document.getElementById('weeklyVolumeDetail'), state);
 }

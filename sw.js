@@ -76,6 +76,7 @@ const REQUIRED_ASSETS = [
   "./js/analytics/views/view-running.js",
   "./js/analytics/views/view-strength-entity.js",
   "./js/analytics/views/view-strength-metric.js",
+  "./js/analytics/views/view-strength-volume.js",
   "./js/analytics/views/view-strength.js",
   "./js/analytics/views/view-weekly-review.js",
   "./js/analytics/views/view-weekly-volume.js",

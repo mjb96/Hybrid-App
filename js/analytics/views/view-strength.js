@@ -76,7 +76,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   el.innerHTML = `
     <h2 class="section-header mt-2">Training Load Dashboard</h2>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Volume', value: fmtWeight(volCur, unit), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus, action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
+      ${statCard({ label: 'Weekly Volume', value: fmtWeight(volCur, unit), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus, action: 'open-analytics', context: 'strength-volume', parentContext: 'strength', preserveWeek: true })}
       ${statCard({ label: '4-Week Volume', value: fourWeek?.formattedValue || '—', sub: 'trailing 28 calendar days', color: '#8b5cf6', action: 'open-analytics', context: 'strength-metric', entity: 'strength.four-week-volume', parentContext: 'strength_pr', metricId: 'strength.four-week-volume' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
@@ -435,7 +435,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
       ${statCard(_weeklyE1rmCard(cs, unit))}
-      ${statCard({ label: 'Weekly Volume', value: fmtWeight(volCur, unit), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6', action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
+      ${statCard({ label: 'Weekly Volume', value: fmtWeight(volCur, unit), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6', action: 'open-analytics', context: 'strength-volume', parentContext: 'strength', preserveWeek: true })}
     </div>
     ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}
   `;

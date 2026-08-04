@@ -20,7 +20,7 @@ test('the Progress hub has no redundant back button', () => {
 
 test('an entity drilldown returns to its parent analytics surface', () => {
   assert.deepEqual(analyticsBackDestination('exercise', 'insights', 'weekly-volume'), {
-    action: 'open-analytics', context: 'weekly-volume', label: '← Back to Weekly Volume', preserveWeek: true,
+    action: 'open-analytics', context: 'weekly-volume', label: '← Back to Volume', preserveWeek: true,
   });
 });
 
@@ -34,15 +34,28 @@ test('a third-level drilldown restores the parent surface own return path', () =
   assert.deepEqual(
     analyticsBackDestination('exercise', 'home', 'weekly-volume', 'strength', 'insights'),
     {
-      action: 'open-analytics', context: 'weekly-volume', label: '← Back to Weekly Volume',
+      action: 'open-analytics', context: 'weekly-volume', label: '← Back to Volume',
       preserveWeek: true, parentContext: 'strength', origin: 'insights',
     },
   );
   assert.deepEqual(
     analyticsBackDestination('exercise', 'home', 'weekly-volume', null, 'home'),
     {
-      action: 'open-analytics', context: 'weekly-volume', label: '← Back to Weekly Volume',
+      action: 'open-analytics', context: 'weekly-volume', label: '← Back to Volume',
       preserveWeek: true, origin: 'home',
     },
   );
+});
+
+// Phase 3B merged Weekly Volume and Gym Performance into one Volume destination.
+// All three contexts must label their Back link identically, so a drilldown
+// never claims to return somewhere that no longer exists as its own screen.
+test('every volume context shares one Back label after the merge', () => {
+  for (const parent of ['weekly-volume', 'strength-volume', 'gym-performance']) {
+    assert.equal(
+      analyticsBackDestination('exercise', 'insights', parent).label,
+      '← Back to Volume',
+      `parent context ${parent}`,
+    );
+  }
 });

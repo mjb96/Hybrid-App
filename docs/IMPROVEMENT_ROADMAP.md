@@ -808,6 +808,30 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Phase 3B: metric hierarchy + merged the Volume destination.**
+  Two parts.
+  **(1) Classification.** `js/analytics/metric-tiers.js` classifies every metric
+  as headline / supporting / advanced / diagnostic, and declares which surfaces
+  each tier may appear on. An UNCLASSIFIED metric defaults to `advanced`, so a
+  new metric has to earn promotion by being named rather than defaulting onto a
+  primary screen. Headline is deliberately scarce — exactly four, one per
+  Progress-landing domain, and a test fails if a fifth appears. Hybrid Score is
+  `supporting`, not headline: a composite summarises the domains, it does not
+  replace them.
+  **(2) The merge.** Weekly Volume and Gym Performance were two screens
+  answering "how much have I lifted" at different scopes, with no route between
+  them — Gym Performance was reachable ONLY from a Home carousel card. They are
+  now one **Volume** destination (`view-strength-volume.js`) with "This week"
+  (day/workouts/exercises/muscles depth) and "Trends" (7D/4W/1Y across time,
+  sessions, sets and volume). Both old views became body renderers that take a
+  container, so no functionality was rewritten or lost. The `weekly-volume` and
+  `gym-performance` contexts both resolve to the merged screen and choose the
+  opening tab, so every existing entry point, Back destination and saved deep
+  link keeps working. Verified: 1379 unit tests, typecheck, precache, workflow
+  gates, smoke, plus `scripts/strength-volume-browser-check.mjs` proving both
+  legacy deep links land on the right tab, every control from BOTH old screens
+  survives, and the merged screen has one title rather than two stacked headers.
+
 - **2026-08-04 — Progress hub trends (finishes Phase 3A).** Added a labelled
   sparkline to each domain card that has an honest series behind it:
   Consistency draws training days over 8 weeks from the same date-strict set
