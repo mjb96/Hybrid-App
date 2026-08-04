@@ -6,7 +6,7 @@ export function analyticsBackDestination(context, origin = 'insights', parentCon
   if (context === 'hub') return null;
   if (parentContext) {
     const labels = {
-      'weekly-volume': 'Volume', 'strength-volume': 'Volume', 'gym-performance': 'Volume',
+      'weekly-volume': 'Volume', 'strength-volume': 'Volume', 'strength-volume-trends': 'Volume', 'gym-performance': 'Volume',
       strength: 'Strength', strength_pr: 'Strength', running: 'Running', recovery: 'Recovery',
     };
     return {

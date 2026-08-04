@@ -808,6 +808,29 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — CI fix: the Volume merge broke a check I could not see fail.**
+  `gym-performance-browser-check.mjs` waited on `#analytics-gym-performance`,
+  the section Phase 3B deleted when it merged Gym Performance into the Volume
+  screen. CI caught it; local runs did not, because that check was among the
+  only TWO browser checks lacking the `net::ERR_` console filter every other
+  check has — so behind a restrictive egress proxy it died on third-party font
+  and Sentry fetches long before reaching its assertions. It had been dismissed
+  as an environmental failure, which is exactly when it stopped being one.
+  Fixes, in order of importance:
+  1. **Root cause** — added the standard `net::ERR_` filter to
+     `gym-performance`, `run-performance` and `running-analytics`, so every
+     browser check is now runnable locally and this class of regression is
+     catchable before CI. (running-analytics still fails locally on a genuine
+     PERFORMANCE threshold — 15.3s vs CI's 2.2s on this hardware. That
+     threshold was deliberately NOT weakened.)
+  2. **A real product bug the check exposed** — the Home gym card, which is
+     about gym activity over time, was landing on the current week's tonnage
+     breakdown after the merge. Added an explicit `strength-volume-trends`
+     deep link so it opens on Trends, and the check now asserts that landing
+     tab rather than only the controls.
+  3. The gym check keeps its unique assertions (per-range bin counts, exact
+     evidence rows) and drives the merged screen the way a user does.
+
 - **2026-08-04 — Train landing (Phase 0/2).** Train opened straight into the
   workout cockpit: a day-selector bar and an exercise list, with no answer to
   "what am I doing today, and what else could I start?". Quick start hid behind

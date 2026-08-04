@@ -137,6 +137,11 @@ function captureErrors(page, bucket) {
     // Chromium reports this standards limitation as an error even though the
     // rest of the app CSP is active and the browser journey is unaffected.
     if (/frame-ancestors.*ignored.*meta/i.test(value)) return;
+    // Third-party fetch failures (web fonts, Sentry) say nothing about the
+    // app's own behaviour, and made this check un-runnable behind a restrictive
+    // egress proxy — the same blindness that let a broken selector reach CI.
+    // The offline journey is still asserted positively, by the title it renders.
+    if (/net::ERR_/.test(value)) return;
     bucket.push(`console: ${value}`);
   });
 }

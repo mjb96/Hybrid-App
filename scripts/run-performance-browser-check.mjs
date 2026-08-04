@@ -66,7 +66,7 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
-      if (message.type() === 'error' && !/frame-ancestors.*ignored.*meta/i.test(message.text())) errors.push(message.text());
+      if (message.type() === 'error' && !/frame-ancestors.*ignored.*meta/i.test(message.text()) && !/net::ERR_/.test(message.text())) errors.push(message.text());
     });
     await page.goto(BASE, { waitUntil: 'networkidle' });
     // Click the card label (not the mini bar chart, whose bars open that day's

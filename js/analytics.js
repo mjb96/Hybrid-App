@@ -347,7 +347,7 @@ export function renderAnalytics() {
   // A leaf remembers where it was opened: Home deep-links return Home, while
   // leaves opened from the Insights hub return to that hub.
   const weekNav = document.getElementById('analyticsWeekNav');
-  if (weekNav) weekNav.style.display = ['strength', 'strength_pr', 'weekly-volume', 'strength-volume', 'running', 'muscle'].includes(context) ? '' : 'none';
+  if (weekNav) weekNav.style.display = ['strength', 'strength_pr', 'weekly-volume', 'strength-volume', 'strength-volume-trends', 'running', 'muscle'].includes(context) ? '' : 'none';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
     const destination = analyticsBackDestination(
@@ -441,6 +441,13 @@ export function renderAnalytics() {
       renderStrengthVolume(_getState());
       break;
     case 'strength-volume':
+      // No tab forced: this context means "the Volume screen", so it keeps
+      // whichever tab the athlete last used.
+      document.getElementById('analytics-strength-volume').classList.add('active');
+      renderStrengthVolume(_getState());
+      break;
+    case 'strength-volume-trends':
+      setStrengthVolumeTab('trends');
       document.getElementById('analytics-strength-volume').classList.add('active');
       renderStrengthVolume(_getState());
       break;
