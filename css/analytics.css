@@ -523,8 +523,11 @@
 .vg-summary > button { cursor:pointer; }
 .vg-summary span { display:block; color:var(--text-muted); font-size:.61rem; margin-bottom:4px; }
 .vg-summary strong { display:block; color:var(--text-primary); font-size:.9rem; overflow-wrap:anywhere; }
-.vg-tabs { display:flex; gap:6px; margin-bottom:12px; }
-.vg-tab { flex:1; min-height:44px; border:1px solid var(--border-default); border-radius:9px; background:var(--overlay-xs); color:var(--text-muted); font-size:.72rem; font-weight:700; }
+/* Four tabs must still clear 44px at 320px, so they wrap to two rows rather
+   than shrinking below the touch target. */
+.vg-tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+.vg-tab { flex:1 1 calc(50% - 3px); min-width:0; min-height:44px; padding:0 6px; border:1px solid var(--border-default); border-radius:9px; background:var(--overlay-xs); color:var(--text-muted); font-size:.7rem; font-weight:700; }
+@media (min-width: 420px) { .vg-tab { flex:1 1 0; } }
 .vg-tab.is-active { border-color:var(--color-blue); background:color-mix(in srgb,var(--color-blue) 16%,transparent); color:var(--text-primary); }
 .vg-guide__note { margin:0 0 10px; padding:8px 9px; border-left:3px solid var(--color-blue); background:color-mix(in srgb,var(--color-blue) 6%,transparent); color:var(--text-secondary); font-size:.68rem; line-height:1.45; }
 .vg-muscle-list { display:grid; gap:11px; }
@@ -534,12 +537,37 @@
 .vg-priority select { min-height:44px; max-width:116px; border:1px solid var(--border-default); border-radius:8px; background:var(--bg-card); color:var(--text-primary); font-size:.68rem; padding:0 8px; }
 .vg-muscle-row__numbers,.vg-muscle-row__meta { color:var(--text-muted); font-size:.62rem; }
 .vg-muscle-row__meta strong { color:var(--text-secondary); font-size:.62rem; text-align:right; }
-.vg-credit-track { position:relative; height:9px; overflow:hidden; border-radius:999px; background:var(--overlay-sm); }
-.vg-credit-track__reference { position:absolute; inset-block:0; background:color-mix(in srgb,var(--color-green) 15%,transparent); border-inline:1px solid color-mix(in srgb,var(--color-green) 50%,transparent); }
-.vg-credit-track__direct,.vg-credit-track__indirect { position:absolute; inset-block:0; left:0; }
-.vg-credit-track__direct { background:var(--color-blue); }
-.vg-credit-track__indirect { background:var(--color-cyan); }
-.vg-credit-track__plan { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--text-primary); }
+/* Landmark scale: axis runs 0 → MRV (the usual ceiling), with MV/MEV/MAV/MRV
+   labelled. Replaces the old unlabelled 4-overlay bar, on which "12 of 10–20"
+   and "30 of 10–20" were indistinguishable. */
+.vg-scale { margin:3px 0 2px; }
+.vg-scale__track { position:relative; height:10px; border-radius:999px; background:var(--overlay-sm); overflow:hidden; }
+.vg-scale__band { position:absolute; inset-block:0; background:color-mix(in srgb,var(--color-green) 16%,transparent); border-inline:1px solid color-mix(in srgb,var(--color-green) 45%,transparent); }
+.vg-scale__direct,.vg-scale__indirect { position:absolute; inset-block:0; left:0; }
+.vg-scale__direct { background:var(--color-blue); }
+.vg-scale__indirect { background:var(--color-cyan); }
+.vg-scale__plan { position:absolute; inset-block:0; width:2px; background:var(--text-primary); }
+.vg-scale__ticks { position:relative; height:13px; margin-top:2px; }
+.vg-tick { position:absolute; top:0; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; }
+.vg-tick i { display:block; width:1px; height:3px; background:var(--border-strong,var(--border-default)); }
+.vg-tick b { color:var(--text-muted); font-size:.5rem; font-weight:700; letter-spacing:.02em; line-height:1.4; }
+
+.vg-muscle-row__numbers strong { color:var(--text-primary); font-size:.86rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.vg-muscle-row__numbers { justify-content:flex-start; gap:6px; align-items:baseline; flex-wrap:wrap; }
+.vg-muscle-row__planned { margin-left:auto; }
+.vg-muscle-row__detail { margin:1px 0 0; color:var(--text-muted); font-size:.63rem; line-height:1.4; }
+/* Attention tones. Amber/blue, never red: a volume band is guidance, not danger. */
+.vg-status--low { color:var(--color-amber)!important; }
+.vg-status--high { color:var(--color-amber)!important; }
+.vg-status--ok { color:var(--color-green)!important; }
+.vg-muscle-row--low { border-color:color-mix(in srgb,var(--color-amber) 34%,var(--border-default)); }
+.vg-muscle-row--high { border-color:color-mix(in srgb,var(--color-amber) 34%,var(--border-default)); }
+
+.vg-spread { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:11px; }
+.vg-spread__item { flex:1 1 auto; min-width:0; padding:5px 8px; border:1px solid var(--border-default); border-radius:999px; color:var(--text-muted); font-size:.62rem; font-weight:650; text-align:center; white-space:nowrap; }
+.vg-spread__item--low,.vg-spread__item--high { border-color:color-mix(in srgb,var(--color-amber) 32%,transparent); color:var(--color-amber); }
+.vg-spread__item--ok { border-color:color-mix(in srgb,var(--color-green) 32%,transparent); color:var(--color-green); }
+
 .vg-legend { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 4px; color:var(--text-muted); font-size:.6rem; }
 .vg-legend span { display:flex; align-items:center; gap:4px; }
 .vg-legend i { display:inline-block; width:13px; height:5px; border-radius:2px; }

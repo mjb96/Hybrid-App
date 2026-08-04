@@ -485,6 +485,31 @@ detail. Optional fasting analytics appear only when the user enables fasting.
 - [ ] Remaining: the domain cards show no trend visual yet; add sparklines once
   3D's per-domain series work lands.
 
+**Volume Guide (MEV) — DONE 2026-08-04.** The guide was the weakest analytics
+surface: buried under Strength → Stats, drawn as one unlabelled bar stacking
+four overlays, and described in vocabulary rather than facts.
+
+- [x] Unified onto the single `classifyVolume` landmark classifier. The module
+  had been re-implementing weaker thresholds of its own, so the guide and the
+  muscle landmark report could describe identical volume differently.
+- [x] Rows now carry the full MV/MEV/MAV/MRV scale and draw against an axis that
+  runs to the usual ceiling, with the landmarks labelled. Previously the band
+  collapsed to min–max and discarded MRV, so 30 credits against a ceiling of 26
+  looked identical to a merely productive week.
+- [x] Statuses state facts and distances — "4 credits below the 8–18 typical
+  range", "26 credits is the usual weekly ceiling" — replacing "Below general
+  reference" / "Covered". Guidance never becomes a prescription; a browser
+  assertion fails the build if any status starts instructing.
+- [x] Focus tab sorts by what needs attention (below range, then above ceiling,
+  then in range).
+- [x] Priority selects moved off the 19-row default list into their own
+  Priorities tab.
+- [x] Summary splits into in-range / below / above-ceiling / not-started, and
+  the four buckets always sum to the focus count.
+- [ ] Deferred by owner decision: per-muscle multi-week corridor charts
+  (`muscleVolumeCorridor` exists but is barely surfaced) and any review of the
+  landmark values themselves.
+
 ### 3B. Metric hierarchy
 
 Classify every metric:
@@ -761,11 +786,14 @@ Work in this order unless user evidence changes it:
 4. **Simplify the common strength set-row interaction.**
 5. **DONE — Create the new Progress landing hierarchy.** Metric classification
    (3B) and the Volume Guide / MEV rebuild remain.
-5a. **ACTIVE — Rebuild the Volume Guide (MEV) presentation.** Unify it onto the
-   existing `classifyVolume` landmark classifier, expose the full
-   MV→MEV→MAV→MRV scale with readable numbers, replace vocabulary statuses
-   ("Below general reference") with actionable ones, and move priority-setting
-   out of the 19-row list.
+5a. **DONE — Rebuilt the Volume Guide (MEV) presentation.** Unified onto the
+   existing `classifyVolume` classifier, full MV→MEV→MAV→MRV scale with
+   labelled landmarks, factual statuses, attention-ordered focus list and
+   priorities moved to their own tab.
+5b. **ACTIVE — Phase 3B metric classification.** Classify every metric as
+   headline / supporting / advanced / diagnostic / remove, then merge the
+   overlapping "Gym Performance", "Strength Stats" and Weekly Volume
+   destinations that still present the same facts twice.
 6. **Rework Plans discovery around recommendations before Browse all.**
 7. **Continue exercise metadata and shared visual-system cleanup in bounded
    batches.**
@@ -775,6 +803,27 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Volume Guide (MEV) rebuilt on the single classifier.** The
+  guide had been running its own weaker thresholds while
+  `calculations/volume-landmarks.js` already owned a five-zone `classifyVolume`
+  — two classification systems, with the richer one unused, so the guide and
+  the landmark report could describe the same volume differently. Unified onto
+  the shared classifier and kept the full MV/MEV/MAV/MRV scale in the model
+  instead of collapsing it to a min–max band, which had been discarding the MRV
+  ceiling entirely: 30 credits against a ceiling of 26 rendered exactly like a
+  merely productive week. Rows now draw against a labelled axis running to that
+  ceiling, lead with "12 of 10–20 typical", and state distances as facts —
+  "4 credits below the 8–18 typical range" — instead of "Below general
+  reference"/"Covered". Scheduled work that will reach the band reads as "On
+  plan" rather than a shortfall. Focus sorts by what needs attention; the 19
+  per-row priority selects moved to their own Priorities tab; the summary splits
+  into in-range/below/above-ceiling/not-started buckets that always sum to the
+  focus count. Guidance is held to description, not prescription, by both a unit
+  test and a browser assertion. Verified: 1349 unit tests, typecheck, precache,
+  workflow gates, smoke, and a new `scripts/volume-guide-browser-check.mjs`
+  across both themes at 320/390/412px. Next: Phase 3B metric classification and
+  merging the overlapping Gym Performance / Strength Stats / Weekly Volume
+  destinations.
 - **2026-08-04 — Progress landing hierarchy (Phase 3A).** Replaced the static
   eight-link Progress index with four live domain cards — Consistency,
   Strength, Running, Recovery & Load — each answering what changed, how it

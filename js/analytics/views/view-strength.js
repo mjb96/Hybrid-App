@@ -178,32 +178,68 @@ function priorityOptions(selected) {
   ].map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
 }
 
+// One muscle row, drawn against the FULL landmark scale rather than a single
+// min–max band. The axis runs 0 → the usual ceiling (MRV), so a week far above
+// that ceiling now looks different from a merely productive one — the old track
+// stacked four overlays on an unlabelled axis and both read the same.
 function volumeGuideRow(row, { showPriority = true } = {}) {
-  const ceiling = Math.max(row.logged.total, row.planned.total, row.reference?.max || 0, 1);
-  const referenceLeft = row.reference ? Math.max(0, row.reference.min / ceiling * 100) : 0;
-  const referenceWidth = row.reference ? Math.max(0, (row.reference.max - row.reference.min) / ceiling * 100) : 0;
-  const directWidth = Math.min(100, row.logged.direct / ceiling * 100);
-  const indirectWidth = Math.min(100 - directWidth, row.logged.indirect / ceiling * 100);
-  const planLeft = Math.min(100, row.planned.total / ceiling * 100);
-  return `<article class="vg-muscle-row">
+  const lm = row.landmarks;
+  // Scale headroom: always show the ceiling, and stretch if the athlete is past it.
+  const ceiling = Math.max(lm?.mrv || 0, row.logged.total, row.planned.total, 1);
+  const pct = (value) => Math.max(0, Math.min(100, (Number(value || 0) / ceiling) * 100));
+
+  const directWidth = pct(row.logged.direct);
+  const indirectWidth = Math.max(0, Math.min(100 - directWidth, pct(row.logged.indirect)));
+  const bandLeft = row.reference ? pct(row.reference.min) : 0;
+  const bandWidth = row.reference ? Math.max(1, pct(row.reference.max) - bandLeft) : 0;
+
+  // Landmark ticks, de-duplicated so coincident values don't stack illegibly.
+  const ticks = lm
+    ? [['MV', lm.mv], ['MEV', lm.mev], ['MAV', lm.mav], ['MRV', lm.mrv]]
+      .filter(([, value], index, all) => value > 0 && all.findIndex(([, v]) => v === value) === index)
+      .map(([label, value]) => `<span class="vg-tick" style="left:${pct(value)}%"><i></i><b>${label}</b></span>`)
+      .join('')
+    : '';
+
+  const scaleLabel = lm
+    ? `${esc(row.name)}: ${fmtCredit(row.logged.total)} set credits logged. `
+      + `Typical reference ${row.reference ? `${fmtCredit(row.reference.min)} to ${fmtCredit(row.reference.max)}` : 'not set'}, `
+      + `usual ceiling ${fmtCredit(lm.mrv)}. ${esc(row.status.label)}.`
+    : `${esc(row.name)}: ${fmtCredit(row.logged.total)} set credits logged.`;
+
+  return `<article class="vg-muscle-row vg-muscle-row--${esc(row.status.tone)}">
     <div class="vg-muscle-row__head">
       <button type="button" class="an-entity-link" data-action="open-analytics" data-context="muscle" data-entity="${esc(row.id)}" data-entity-name="${esc(row.name)}" data-parent-context="strength_pr" data-preserve-week="true">${esc(row.name)}<span aria-hidden="true">›</span></button>
       ${showPriority ? `<label class="vg-priority"><span class="sr-only">${esc(row.name)} priority</span><select data-volume-priority="${esc(row.id)}">${priorityOptions(row.priority)}</select></label>` : `<span class="vg-priority-label">${musclePriorityLabel(row.priority)}</span>`}
     </div>
-    <div class="vg-muscle-row__numbers"><span>${fmtCredit(row.logged.total)} logged</span><span>${fmtCredit(row.planned.total)} planned</span></div>
-    <div class="vg-credit-track" aria-label="${esc(row.name)}: ${fmtCredit(row.logged.direct)} direct and ${fmtCredit(row.logged.indirect)} indirect credits; ${fmtCredit(row.planned.total)} planned">
-      ${row.reference ? `<span class="vg-credit-track__reference" style="left:${referenceLeft}%;width:${referenceWidth}%"></span>` : ''}
-      <span class="vg-credit-track__direct" style="width:${directWidth}%"></span>
-      <span class="vg-credit-track__indirect" style="left:${directWidth}%;width:${indirectWidth}%"></span>
-      ${row.planned.total > 0 ? `<span class="vg-credit-track__plan" style="left:${planLeft}%"></span>` : ''}
+    <div class="vg-muscle-row__numbers">
+      <strong>${fmtCredit(row.logged.total)}</strong>
+      <span>${row.reference ? `of ${fmtCredit(row.reference.min)}–${fmtCredit(row.reference.max)} typical` : 'set credits'}</span>
+      ${row.planned.total > 0 ? `<span class="vg-muscle-row__planned">${fmtCredit(row.planned.total)} planned</span>` : ''}
     </div>
-    <div class="vg-muscle-row__meta"><span>${fmtCredit(row.logged.direct)} direct · ${fmtCredit(row.logged.indirect)} indirect</span><strong>${esc(row.status)}</strong></div>
+    <div class="vg-scale" role="img" aria-label="${scaleLabel}">
+      <div class="vg-scale__track">
+        ${row.reference ? `<span class="vg-scale__band" style="left:${bandLeft}%;width:${bandWidth}%"></span>` : ''}
+        <span class="vg-scale__direct" style="width:${directWidth}%"></span>
+        <span class="vg-scale__indirect" style="left:${directWidth}%;width:${indirectWidth}%"></span>
+        ${row.planned.total > 0 ? `<span class="vg-scale__plan" style="left:${pct(row.planned.total)}%"></span>` : ''}
+      </div>
+      <div class="vg-scale__ticks">${ticks}</div>
+    </div>
+    <div class="vg-muscle-row__meta">
+      <span>${fmtCredit(row.logged.direct)} direct · ${fmtCredit(row.logged.indirect)} indirect</span>
+      <strong class="vg-status vg-status--${esc(row.status.tone)}">${esc(row.status.label)}</strong>
+    </div>
+    <p class="vg-muscle-row__detail">${esc(row.status.detail)}</p>
   </article>`;
 }
 
+// Priorities moved off the default list into their own tab: 19 muscle rows each
+// carrying a <select> made the common "how did my week go?" read heavy, and
+// setting a priority is a rare, deliberate act rather than a per-visit one.
 function volumeGuideTabs() {
   return `<div class="vg-tabs" role="tablist" aria-label="Volume Guide sections">
-    ${[['overview', 'Overview'], ['muscles', 'Muscles'], ['plan', 'Plan']].map(([id, label]) => `<button type="button" role="tab" aria-selected="${_volumeGuideTab === id}" class="vg-tab${_volumeGuideTab === id ? ' is-active' : ''}" data-volume-tab="${id}">${label}</button>`).join('')}
+    ${[['overview', 'Focus'], ['muscles', 'All muscles'], ['plan', 'Planned'], ['priorities', 'Priorities']].map(([id, label]) => `<button type="button" role="tab" aria-selected="${_volumeGuideTab === id}" class="vg-tab${_volumeGuideTab === id ? ' is-active' : ''}" data-volume-tab="${id}">${label}</button>`).join('')}
   </div>`;
 }
 
@@ -214,10 +250,19 @@ function renderMuscleGroupAnalysis(sa, appState) {
   const model = buildVolumeGuideModel(appState, { program: activeProgram, weekStart: getSelectedWeekStart() });
   const focus = model.muscles.filter((row) => row.priority !== 'track');
   const planned = model.muscles.filter((row) => row.planned.total > 0);
-  const displayed = _volumeGuideTab === 'overview' ? focus : _volumeGuideTab === 'plan' ? planned : model.muscles;
+  // Focus leads with whatever needs attention: below range first, then above
+  // the ceiling, then everything sitting comfortably in range.
+  const attentionRank = { low: 0, high: 1, ok: 2, neutral: 3 };
+  const byAttention = (a, b) =>
+    (attentionRank[a.status.tone] ?? 9) - (attentionRank[b.status.tone] ?? 9)
+    || b.logged.total - a.logged.total
+    || a.name.localeCompare(b.name);
+  const displayed = _volumeGuideTab === 'overview' ? [...focus].sort(byAttention)
+    : _volumeGuideTab === 'plan' ? planned
+    : model.muscles;
 
   const summaryText = model.summary.focusCount
-    ? `${model.summary.coveredCount} of ${model.summary.focusCount} focus muscles covered`
+    ? `${model.summary.inRangeCount} of ${model.summary.focusCount} focus muscles in their typical range`
     : 'Choose muscle priorities to create your guide';
   const planText = !model.isCurrentWeek
     ? 'Historical weeks show logged work only.'
@@ -235,11 +280,17 @@ function renderMuscleGroupAnalysis(sa, appState) {
         <div><span>Planned</span><strong>${model.isCurrentWeek ? fmtCredit(model.summary.plannedCredits) : '—'}</strong></div>
         <div><span>Week context</span><strong>${model.deload ? 'Deload' : 'Training'}</strong></div>
       </div>
+      ${model.summary.focusCount ? `<div class="vg-spread">
+        <span class="vg-spread__item vg-spread__item--ok">${model.summary.inRangeCount} in range</span>
+        <span class="vg-spread__item vg-spread__item--low">${model.summary.belowCount} below</span>
+        <span class="vg-spread__item vg-spread__item--high">${model.summary.aboveCount} above ceiling</span>
+        ${model.summary.notStartedCount ? `<span class="vg-spread__item">${model.summary.notStartedCount} not started</span>` : ''}
+      </div>` : ''}
       ${volumeGuideTabs()}
       ${_volumeGuideTab === 'plan' ? `<p class="vg-guide__note">${planText}</p>` : ''}
-      <div class="vg-muscle-list">${displayed.length ? displayed.map((row) => volumeGuideRow(row, { showPriority: _volumeGuideTab !== 'plan' })).join('') : '<p class="an-empty-inline">No mapped muscle volume is available for this view.</p>'}</div>
-      <div class="vg-legend"><span><i class="is-direct"></i>Direct</span><span><i class="is-indirect"></i>Indirect</span><span><i class="is-reference"></i>General reference</span><span><i class="is-plan"></i>Planned</span></div>
-      <details class="an-method"><summary>How is this calculated?</summary><p>Only completed working sets with recorded reps count. Main muscles receive 1 set credit, meaningful supporting muscles 0.5, and minor contributors 0.25. Planned credits use the exact set targets shown by the workout logger.</p><p>Grow, Maintain and Track only are your planning priorities. General reference bands are descriptive guidance, not a personal minimum, recovery limit, readiness score or instruction to add sets.</p></details>
+      <div class="vg-muscle-list">${displayed.length ? displayed.map((row) => volumeGuideRow(row, { showPriority: _volumeGuideTab === 'priorities' })).join('') : '<p class="an-empty-inline">No mapped muscle volume is available for this view.</p>'}</div>
+      <div class="vg-legend"><span><i class="is-direct"></i>Direct</span><span><i class="is-indirect"></i>Indirect</span><span><i class="is-reference"></i>Typical range</span><span><i class="is-plan"></i>Planned</span></div>
+      <details class="an-method"><summary>How is this calculated?</summary><p>Only completed working sets with recorded reps count. Main muscles receive 1 set credit, meaningful supporting muscles 0.5, and minor contributors 0.25. Planned credits use the exact set targets shown by the workout logger.</p><p>The scale marks four population landmarks: <strong>MV</strong> (maintenance volume), <strong>MEV</strong> (minimum effective volume), <strong>MAV</strong> (maximum adaptive volume) and <strong>MRV</strong> (maximum recoverable volume). Your highlighted range is MEV–MAV when a muscle is set to Grow, and MV–MEV when it is set to Maintain.</p><p>These are broad population references, not personal prescriptions: adaptation depends on effort, exercise choice, training age and recovery, none of which the logger fully observes. Treat a gap as information, not an instruction to add sets.</p></details>
     </article>`;
 
   el.querySelectorAll('[data-volume-tab]').forEach((button) => button.addEventListener('click', () => {
