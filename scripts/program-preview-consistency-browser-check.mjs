@@ -189,6 +189,9 @@ try {
   // The workout cockpit for Lower Strength agrees.
   await page.click('.nav-item[data-target="workout"]');
   await page.waitForSelector('#view-workout', { timeout: 6000 });
+  // Train opens on its landing; step into the cockpit for the day selector.
+  await page.click('#trainLanding [data-action="qs-workout"]');
+  await page.waitForSelector('#trainCockpit:not([hidden])');
   await page.click(`#cockpitDaySelectorBar .day-pill[data-day="${DAY}"]`);
   await page.waitForTimeout(300);
   eq(await cockpitNames(page), EXPECTED, '8 cockpit shows the edited Lower Strength');
@@ -201,6 +204,9 @@ try {
   await closePreview(page);
   await page.click('.nav-item[data-target="workout"]');
   await page.waitForSelector('#view-workout', { timeout: 6000 });
+  // Train opens on its landing; step into the cockpit for the day selector.
+  await page.click('#trainLanding [data-action="qs-workout"]');
+  await page.waitForSelector('#trainCockpit:not([hidden])');
   await page.click(`#cockpitDaySelectorBar .day-pill[data-day="${DAY}"]`);
   await page.waitForTimeout(300);
   eq(await cockpitNames(page), EXPECTED, '9 cockpit correct after reload');

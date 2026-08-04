@@ -583,6 +583,15 @@
 
     <section id="view-workout" class="view-container" aria-label="Train">
 
+      <!-- Phase 0/2: Train is a LANDING first, not the cockpit. Today's session,
+           quick starts and recent activity live here; the cockpit opens on an
+           explicit action. Rendered by js/train/view-train-landing.js. -->
+      <div id="trainLanding"></div>
+
+      <div id="trainCockpit" hidden>
+
+      <button class="subview-back-btn" data-action="back-to-train-landing">← Back to Train</button>
+
       <div class="workout-cockpit-header">
         <div class="wch-meta">
           <span class="wch-label">Train</span>
@@ -801,6 +810,7 @@
 
       <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Workout</button>
       <button class="wk-clear-link mt-2" data-action="open-reset-modal">Clear today's log</button>
+      </div>
     </section>
 
     <section id="view-analytics" class="view-container" aria-label="Progress">

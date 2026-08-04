@@ -6,6 +6,7 @@ const checks = [
   'scripts/progress-hub-browser-check.mjs',
   'scripts/volume-guide-browser-check.mjs',
   'scripts/strength-volume-browser-check.mjs',
+  'scripts/train-landing-browser-check.mjs',
   'scripts/running-analytics-check.mjs',
   'scripts/gym-performance-browser-check.mjs',
   'scripts/run-performance-browser-check.mjs',

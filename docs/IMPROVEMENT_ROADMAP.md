@@ -808,6 +808,29 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Train landing (Phase 0/2).** Train opened straight into the
+  workout cockpit: a day-selector bar and an exercise list, with no answer to
+  "what am I doing today, and what else could I start?". Quick start hid behind
+  a sheet and recent activity was not on the screen at all.
+  Train now opens on a **landing** — one dominant Today card with a single
+  primary action, the four quick starts inline, and recent activity. The
+  cockpit sits behind an explicit action and keeps a Back control; entering
+  Train from the nav always returns to the landing, the same rule Progress
+  follows. Today comes from `buildTodayCardModel`, the SAME model Home renders,
+  so Train and Home can never disagree about today's session or whether it is
+  finished.
+  Safety: an unfinished session is never buried — the landing surfaces it as
+  "In progress · Resume workout" with a visual marker, and both faces stay
+  rendered so switching never tears down the cockpit's state machine mid-session.
+  This changed the app's most-used path, so six existing browser checks needed
+  updating to step into the cockpit rather than assume it is the tab's first
+  face (core-ergonomics, modal-accessibility, workout-history, exercise-picker,
+  active-program-edit, program-preview-consistency). Their assertions were kept
+  intact, and core-ergonomics now additionally asserts the LANDING at 200% text.
+  Verified: 1389 unit tests, typecheck, precache, workflow gates, smoke, and
+  every runnable browser gate including the new
+  `scripts/train-landing-browser-check.mjs`.
+
 - **2026-08-04 — Phase 3C: one detail-screen contract.** Every detail screen
   must answer the same five questions, but Running and Strength each
   hand-rolled the "How this is calculated" footer — which is precisely how they
