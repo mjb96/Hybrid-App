@@ -808,6 +808,25 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Phase 3C: one detail-screen contract.** Every detail screen
+  must answer the same five questions, but Running and Strength each
+  hand-rolled the "How this is calculated" footer — which is precisely how they
+  drifted: Running stated Confidence, Strength did not, and neither said how
+  much interpretive weight a metric deserved.
+  `views/metric-contract.js` now owns that footer, so the contract is
+  implemented once and enforced by a test rather than by a reviewer noticing a
+  missing `<dt>`. Required rows: Source, Confidence, **How to read it** (the
+  Phase 3B tier, in plain words), Included history, Excluded. A caller that
+  cannot supply a field gets an honest statement ("No explicit confidence
+  treatment for this metric") rather than a silently omitted row, which had
+  read as "this metric has no such concern" instead of "unknown".
+  Care taken not to regress on the way: running's `paceIneligible` exclusion
+  category is passed through rather than dropped by the shared shape, and the
+  footer takes an explicit plural because naive `+ 's'` produced "independent
+  activitys". Verified: 1389 unit tests, typecheck, precache, workflow gates
+  and smoke, including a test that drives BOTH real detail screens and asserts
+  every contract row survives.
+
 - **2026-08-04 — Phase 3B: metric hierarchy + merged the Volume destination.**
   Two parts.
   **(1) Classification.** `js/analytics/metric-tiers.js` classifies every metric

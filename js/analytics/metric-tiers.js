@@ -42,6 +42,13 @@ export const TIER_DESCRIPTION = Object.freeze({
 // -----------------------------------------------------------------------------
 // The classification.
 //
+// SCOPE: this covers every metric SHOWN to a user, which is a superset of the
+// metrics that have their own detail screen. `strength.e1rm-change` is the
+// Strength headline on the Progress landing but has no drilldown of its own,
+// while `strength.muscle-set-credits` has both. Classifying only the
+// drilldown-able ones would leave the most prominent numbers in the app
+// unclassified, which is the opposite of the point.
+//
 // Anything not listed defaults to `advanced`: a new metric has to EARN
 // promotion by being named here, rather than defaulting onto a primary screen
 // because someone forgot to classify it. That default is the point — it fails

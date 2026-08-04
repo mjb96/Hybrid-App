@@ -3,6 +3,7 @@
 // calculation disclosure and exact Activity Detail evidence.
 import { buildRunningMetricDetail, collectRunningHistory } from '../running-detail.js';
 import { esc } from './screen-kit.js';
+import { metricMethodHTML } from './metric-contract.js';
 
 const rangeByMetric = new Map();
 const selectedPointByMetric = new Map();
@@ -146,13 +147,13 @@ export function renderRunningMetricDetail(state, entity = {}) {
       if (selectedKey) selectedPointByMetric.set(metricId, selectedKey);
     }
     const selectedPoint = model.series.find((point) => point.key === selectedKey) || null;
-    const excluded = model.exclusions;
-    const exclusionText = [
-      excluded.future ? `${excluded.future} future` : '',
-      excluded.undated ? `${excluded.undated} undated` : '',
-      excluded.paceIneligible && ['running.average-pace', 'running.best-pace', 'running.vdot', 'running.fitness-trend'].includes(metricId)
-        ? `${excluded.paceIneligible} pace-ineligible` : '',
-    ].filter(Boolean).join(' · ');
+    // Pace-derived metrics exclude activities without usable pace; that
+    // category is running-specific, so it is passed to the shared footer
+    // rather than being dropped by it.
+    const paceIneligible = model.exclusions.paceIneligible
+      && ['running.average-pace', 'running.best-pace', 'running.vdot', 'running.fitness-trend'].includes(metricId)
+      ? [`${model.exclusions.paceIneligible} pace-ineligible`]
+      : [];
 
     container.innerHTML = `
       <header class="metric-detail__header">
@@ -179,17 +180,18 @@ export function renderRunningMetricDetail(state, entity = {}) {
         <div class="metric-detail__section-head"><div><span>Evidence</span><h3 id="runningMetricEvidenceTitle">Contributing activities</h3></div></div>
         ${evidenceHTML(model, selectedPoint)}
       </section>
-      <details class="metric-method">
-        <summary>How this is calculated</summary>
-        <p>${esc(model.definition.calculation)}</p>
-        <dl>
-          <div><dt>Source</dt><dd>${esc(model.dataSource)}</dd></div>
-          <div><dt>Confidence</dt><dd>${esc(model.confidence)}</dd></div>
-          <div><dt>Included history</dt><dd>${model.recordCount} dated independent ${model.recordCount === 1 ? 'activity' : 'activities'} across all program activations.</dd></div>
-          <div><dt>Excluded</dt><dd>${esc(exclusionText || 'No future or undated records found.')}</dd></div>
-        </dl>
-        ${model.definition.limitations.length ? `<ul>${model.definition.limitations.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>` : ''}
-      </details>`;
+      ${metricMethodHTML({
+        metricId: model.metricId,
+        calculation: model.definition.calculation,
+        source: model.dataSource,
+        confidence: model.confidence,
+        recordCount: model.recordCount,
+        recordNoun: 'independent activity',
+        recordNounPlural: 'independent activities',
+        exclusions: model.exclusions,
+        extraExclusions: paceIneligible,
+        limitations: model.definition.limitations,
+      })}`;
 
     container.querySelectorAll('[data-metric-range]').forEach((button) => {
       button.addEventListener('click', () => {

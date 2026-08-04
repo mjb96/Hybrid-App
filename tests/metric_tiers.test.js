@@ -11,6 +11,7 @@ import {
   TIERS, TIER_PLACEMENT, METRIC_TIERS, tierFor, allowedOn, metricsAtTier, tierSummary,
 } from '../js/analytics/metric-tiers.js';
 import { RUNNING_METRICS } from '../js/analytics/running-detail.js';
+import { STRENGTH_METRICS } from '../js/analytics/strength-detail.js';
 
 test('every classified metric uses a known tier', () => {
   for (const [id, tier] of Object.entries(METRIC_TIERS)) {
@@ -83,4 +84,25 @@ test('the tier summary accounts for every classified metric', () => {
   const total = TIERS.reduce((sum, tier) => sum + summary[tier], 0);
   assert.equal(total, Object.keys(METRIC_TIERS).length);
   assert.ok(summary.headline < summary.advanced, 'headline must be scarcer than advanced');
+});
+
+test('every metric with its own detail screen is classified', () => {
+  // The tier map covers displayed metrics generally, but anything a user can
+  // drill into MUST be classified — its detail footer states the tier, so an
+  // unclassified one would silently describe itself as "advanced".
+  const classified = new Set(Object.keys(METRIC_TIERS));
+  const registered = [...RUNNING_METRICS, ...STRENGTH_METRICS].map((metric) => metric.id);
+  const missing = registered.filter((id) => !classified.has(id));
+  assert.deepEqual(missing, [], `metrics with a detail screen but no tier: ${missing.join(', ')}`);
+});
+
+test('classified strength ids that claim a detail screen really have one', () => {
+  const real = new Set(STRENGTH_METRICS.map((metric) => metric.id));
+  // These three are the registered detail metrics; the rest of the strength
+  // entries are displayed-only and deliberately have no drilldown yet.
+  const withDetail = ['strength.four-week-volume', 'strength.volume-progression', 'strength.muscle-set-credits'];
+  for (const id of withDetail) {
+    assert.ok(real.has(id), `${id} is no longer a registered strength metric`);
+    assert.ok(METRIC_TIERS[id], `${id} lost its tier`);
+  }
 });
