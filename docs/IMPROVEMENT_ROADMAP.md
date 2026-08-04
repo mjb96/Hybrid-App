@@ -482,8 +482,13 @@ detail. Optional fasting analytics appear only when the user enables fasting.
 - [x] Fasting appears only for profiles with an active or completed fast.
 - [x] Review is owned by the Consistency card alone — the duplicate secondary
   entry to the same screen was removed.
-- [ ] Remaining: the domain cards show no trend visual yet; add sparklines once
-  3D's per-domain series work lands.
+- [x] **DONE 2026-08-04:** domain cards now carry a labelled trend sparkline
+  where an honest series exists — Consistency (training days, 8 weeks),
+  Strength (the named lift's own e1RM, 12 weeks, same-exercise) and Running
+  (the metric engine's weekly points). Recovery has no trend, because
+  readiness keeps no history and a fabricated flat line would be worse than
+  none. Fixed `spark()` while doing it: a constant series was pinned to the
+  baseline, so a steady 3 sessions a week rendered identically to zero.
 
 **Volume Guide (MEV) — DONE 2026-08-04.** The guide was the weakest analytics
 surface: buried under Strength → Stats, drawn as one unlabelled bar stacking
@@ -802,6 +807,23 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-04 — Progress hub trends (finishes Phase 3A).** Added a labelled
+  sparkline to each domain card that has an honest series behind it:
+  Consistency draws training days over 8 weeks from the same date-strict set
+  as its headline, Strength follows the exact lift the headline names (12
+  weeks, same-exercise — never a cross-lift line), and Running reuses the
+  metric engine's own weekly points rather than computing distance a second
+  way. Recovery deliberately has no trend: readiness keeps no history, and a
+  flat fabricated line would imply stability nobody measured.
+  Found and fixed a flaw in the shared `spark()` helper while verifying: a
+  constant series has zero span, so every point was pinned to the baseline and
+  a steady 3-sessions-a-week trend rendered identically to a series of zeros.
+  Constant series now draw through the middle; genuine zeros still sit on the
+  floor. Also replaced the Running card's empty-state copy, which was echoing
+  the metric engine's internal phrasing ("0 contributing activities in the
+  current scope") onto a default screen. 1366 unit tests, typecheck, precache,
+  workflow gates, smoke and the browser gates all pass.
 
 - **2026-08-04 — Analytics correctness pass.** Three defects where the app
   contradicted itself, each with a regression test.

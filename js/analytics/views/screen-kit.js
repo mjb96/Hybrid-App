@@ -36,11 +36,17 @@ export function spark(values, color) {
   while (vals.length && vals[vals.length - 1] === 0) vals.pop();
   const nz = vals.filter(v => v > 0);
   if (nz.length < 2) return '';
-  const max = Math.max(...vals), min = Math.min(...nz), span = (max - min) || 1;
+  const max = Math.max(...vals), min = Math.min(...nz);
   const w = 100, h = 30;
+  // A CONSTANT series (every week identical) has zero span. Scaling it the
+  // normal way pins every point to the floor, which is visually identical to a
+  // series of zeros — a steady 3 sessions a week would read as "nothing". Draw
+  // it through the middle instead: flat, and honestly non-zero.
+  const flat = max === min;
+  const span = (max - min) || 1;
   const pts = vals.map((v, i) => {
     const x = (i / (vals.length - 1)) * w;
-    const y = v > 0 ? h - ((v - min) / span) * h : h;
+    const y = v > 0 ? (flat ? h / 2 : h - ((v - min) / span) * h) : h;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
   return `<svg class="an-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

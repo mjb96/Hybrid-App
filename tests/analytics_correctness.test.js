@@ -157,3 +157,33 @@ test('no analytics view hardcodes a kg label', async () => {
   }
   assert.deepEqual(offenders, [], `hardcoded kg labels: ${offenders.join(', ')}`);
 });
+
+// ---- 4. sparkline honesty ---------------------------------------------------
+
+test('a constant sparkline series is drawn mid-height, not on the floor', async () => {
+  const { spark } = await import('../js/analytics/views/screen-kit.js');
+  // A steady 3 sessions a week is not "nothing": pinning a zero-span series to
+  // the baseline made it visually identical to a series of zeros.
+  const flat = spark([3, 3, 3, 3], '#3b82f6');
+  assert.match(flat, /points="[^"]*"/);
+  const ys = [...flat.matchAll(/,(\d+\.\d)/g)].map((m) => Number(m[1]));
+  assert.ok(ys.every((y) => y === 15), `expected mid-height 15, got ${ys.join(',')}`);
+
+  // Genuine zeros still sit on the floor.
+  const zeros = spark([0, 0, 5, 5.0001], '#3b82f6');
+  assert.match(zeros, /,30\.0/, 'a real zero stays at the baseline');
+});
+
+test('a varying series still scales across the full height', async () => {
+  const { spark } = await import('../js/analytics/views/screen-kit.js');
+  const ys = [...spark([1, 2, 3], '#3b82f6').matchAll(/,(\d+\.\d)/g)].map((m) => Number(m[1]));
+  assert.equal(Math.max(...ys), 30, 'the minimum sits at the baseline');
+  assert.equal(Math.min(...ys), 0, 'the maximum reaches the top');
+});
+
+test('too little data draws no sparkline at all', async () => {
+  const { spark } = await import('../js/analytics/views/screen-kit.js');
+  assert.equal(spark([], '#3b82f6'), '');
+  assert.equal(spark([5], '#3b82f6'), '');
+  assert.equal(spark([0, 0, 0], '#3b82f6'), '');
+});

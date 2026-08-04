@@ -390,7 +390,9 @@ export function renderAnalytics() {
         days,
         program,
         readiness: dashboard.ready,
-        runningMetric: (id) => buildRunningMetricDetail(st, id, { includeSeries: false }),
+        // Series included: the hub's Running card draws a trend spark from the
+        // metric engine's own weekly points rather than computing a second one.
+        runningMetric: (id) => buildRunningMetricDetail(st, id, { range: '12w' }),
       }));
       break;
     }
