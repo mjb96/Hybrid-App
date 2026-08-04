@@ -28,7 +28,8 @@
 import { weekStartOf, localDayKey, addDaysISO, DAY_KEYS } from './weekly-aggregate.js';
 import { loggedDateSet } from './logged-days.js';
 import { comparePeriodValues } from './period-comparison.js';
-import { calendarStrengthSummary } from './strength-calendar.js';
+import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift } from './strength-calendar.js';
+import { weightUnitOf } from './utils.js';
 import { classifyPlannedSession } from '../workout/completion-policy.js';
 
 /** Days of a Monday-based week that have already elapsed, 1..7. */
@@ -88,9 +89,29 @@ function domain(config) {
     headline: config.headline,          // { value:string, unit:string|null }
     support: config.support || null,    // one short supporting fact
     delta: config.delta || null,        // { text:string, tone:'up'|'down'|'flat'|'none' }
+    // { values:number[], label:string } — omitted where no honest series exists
+    // (readiness keeps no history, so Recovery has no trend rather than a
+    // fabricated flat line).
+    trend: config.trend || null,
     interpretation: config.interpretation,
     empty: !!config.empty,
   };
+}
+
+/**
+ * Trailing weekly counts of training days, oldest → newest, ending on the
+ * selected week. Same date-strict source as the headline, so the sparkline and
+ * the number can never tell different stories.
+ * @param {Set<string>} dates
+ * @param {string} weekStart
+ * @param {number} weeks
+ */
+function consistencySeries(dates, weekStart, weeks = 8) {
+  const values = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    values.push(trainedDaysIn(dates, /** @type {string} */ (addDaysISO(weekStart, -i * 7))));
+  }
+  return values;
 }
 
 /** Direction → tone, respecting metrics where lower is better. */
@@ -146,6 +167,7 @@ function consistencyDomain(state, { days, program, todayISO, weekStart }) {
     title: 'Consistency',
     context: 'weekly-review',
     headline: { value: String(trained), unit: planned ? `of ${planned} planned` : `session${trained === 1 ? '' : 's'}` },
+    trend: { values: consistencySeries(dates, weekStart), label: 'Training days, last 8 weeks' },
     delta: comparison.isComparable
       ? {
         // "0 vs same point last week" is technically true and reads badly; a
@@ -165,7 +187,7 @@ function consistencyDomain(state, { days, program, todayISO, weekStart }) {
  * two different lifts, and says so plainly when there is no prior week to
  * compare the same exercise against.
  */
-function strengthDomain(state, { weekStart }) {
+function strengthDomain(state, { weekStart, unit }) {
   const cs = calendarStrengthSummary(state, { weekStart });
 
   if (!cs.hasCurrentWork) {
@@ -191,8 +213,13 @@ function strengthDomain(state, { weekStart }) {
       id: 'strength',
       title: 'Strength',
       context: 'strength',
-      headline: { value: `${delta >= 0 ? '+' : ''}${delta}`, unit: 'kg est. 1RM' },
+      headline: { value: `${delta >= 0 ? '+' : ''}${delta}`, unit: `${unit} est. 1RM` },
       support: prSupport,
+      // Same exercise as the headline names — never a cross-lift line.
+      trend: {
+        values: calendarWeekE1rmSeriesForLift(state, cs.topChange.exerciseName, { weeks: 12, today: weekStart }),
+        label: `${cs.topChange.exerciseName} est. 1RM, last 12 weeks`,
+      },
       delta: {
         text: `${cs.topChange.exerciseName} vs last week`,
         tone: delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat',
@@ -209,8 +236,12 @@ function strengthDomain(state, { weekStart }) {
     id: 'strength',
     title: 'Strength',
     context: 'strength',
-    headline: { value: String(Math.round(cs.bestThisWeek.e1rm)), unit: 'kg est. 1RM' },
+    headline: { value: String(Math.round(cs.bestThisWeek.e1rm)), unit: `${unit} est. 1RM` },
     support: prSupport,
+    trend: {
+      values: calendarWeekE1rmSeriesForLift(state, cs.bestThisWeek.exerciseName, { weeks: 12, today: weekStart }),
+      label: `${cs.bestThisWeek.exerciseName} est. 1RM, last 12 weeks`,
+    },
     delta: { text: 'No prior week for the same lift', tone: 'none' },
     interpretation: `Best estimated 1RM this week is ${cs.bestThisWeek.exerciseName}. Repeat it next week to get a like-for-like comparison.`,
   });
@@ -231,18 +262,22 @@ function runningDomain(runningMetric) {
       title: 'Running',
       context: 'running',
       headline: { value: '—', unit: null },
-      interpretation: model?.interpretation
-        || 'No runs logged this week. Your first dated run unlocks distance, pace and comparisons.',
+      // The metric engine's empty copy is written for a detail screen and can
+      // read as jargon here ("0 contributing activities in the current scope").
+      // The hub speaks training language, so it states the same fact plainly.
+      interpretation: 'No runs logged in this week yet. A dated run unlocks distance, pace and week-on-week comparison.',
       empty: true,
     });
   }
 
   const comparison = model.comparison;
+  const points = Array.isArray(model.series) ? model.series.map((p) => Number(p?.value) || 0) : [];
   return domain({
     id: 'running',
     title: 'Running',
     context: 'running',
     headline: { value: model.formattedValue, unit: null },
+    trend: points.length > 1 ? { values: points, label: 'Weekly distance' } : null,
     delta: comparison?.isComparable
       ? {
         text: `${comparison.percentageChange > 0 ? '+' : ''}${comparison.percentageChange}% ${comparison.comparisonLabel}`,
@@ -343,9 +378,10 @@ export function buildProgressLanding(state, opts = {}) {
   const weekEnd = /** @type {string} */ (addDaysISO(weekStart, 6));
   const isCurrentWeek = weekStart === weekStartOf(todayISO);
 
+  const unit = weightUnitOf(state);
   const domains = [
     consistencyDomain(state, { days, program: opts.program, todayISO, weekStart }),
-    strengthDomain(state, { weekStart }),
+    strengthDomain(state, { weekStart, unit }),
     runningDomain(opts.runningMetric),
     recoveryDomain(opts.readiness),
   ];

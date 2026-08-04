@@ -1,20 +1,23 @@
 // ==========================================
 // PROGRESS VIEW (analytics/views/view-progress.js)
 // ==========================================
-import { formatPace, rpeColour, paceZoneColour } from '../utils.js';
+import { formatPace, rpeColour, paceZoneColour, formatWeight, weightUnitOf } from '../utils.js';
 import { renderVolumeChart, renderConsistencyHeatmap } from '../charts.js';
-import { dateKey } from '../../dates.js';
 import { getProgramById } from '../../state.js';
 import { isCompletedSet } from '../../set-utils.js';
 import { streakFreezeInfo } from '../../brain/streak.js';
 import { runDaySummary } from '../../state/run-sessions.js';
+import { activeTrainingDates, computeStreak } from '../../home/dashboard-model.js';
+import { isNumericWeekKey } from '../../state/activation-identity.js';
 
 export function renderProgressAnalytics(data, getState) {
   const tbody = document.getElementById('analyticsTimelineTableBody');
   if (!tbody) return;
 
   tbody.innerHTML = '';
-  const currentWeekStr = getState().currentWeek;
+  const state = getState();
+  const currentWeekStr = state.currentWeek;
+  const unit = weightUnitOf(state);
   data.weekLabels.forEach((lbl, i) => {
     const wKey    = (i + 1).toString();
     const isActive = wKey === currentWeekStr;
@@ -28,7 +31,7 @@ export function renderProgressAnalytics(data, getState) {
 
     tr.innerHTML =
       `<td class="py-2"><strong style="${isActive ? 'color:#3b82f6;' : 'color:#fff;'}">${lbl}</strong></td>` +
-      `<td class="py-2" style="color:#fff;">${data.volData[i] > 0 ? data.volData[i].toLocaleString() + ' kg' : '--'}</td>` +
+      `<td class="py-2" style="color:#fff;">${formatWeight(data.volData[i], unit)}</td>` +
       `<td class="py-2" style="color:#fff;">${data.runData[i] > 0 ? data.runData[i].toFixed(1) + ' km' : '--'}</td>` +
       `<td class="py-2" style="color:${paceCol};font-variant-numeric:tabular-nums;">${avgPace}</td>` +
       `<td class="py-2" style="${rpeStyle}">${avgRpe}</td>`;
@@ -39,6 +42,7 @@ export function renderProgressAnalytics(data, getState) {
 export function renderWeeklyVolumeDetail(data, getState, getDays) {
   const appState    = getState();
   const defaultDays = getDays();
+  const unit        = weightUnitOf(appState);
   const wk          = appState.currentWeek || '1';
   const weekData    = appState.weeks?.[wk];
 
@@ -70,7 +74,7 @@ export function renderWeeklyVolumeDetail(data, getState, getDays) {
   if (repsEl)    repsEl.textContent    = totalReps.toLocaleString();
   if (tonnageEl) tonnageEl.textContent = totalVol >= 1000
     ? `${(totalVol / 1000).toFixed(2)}t`
-    : `${Math.round(totalVol).toLocaleString()} kg`;
+    : formatWeight(totalVol, unit, { empty: '0 ' + unit });
 
   const chartEl = document.getElementById('weekVolChartContainer');
   if (chartEl) renderVolumeChart(chartEl, data.weekLabels || [], data.volData || [], data.runData || []);
@@ -80,49 +84,15 @@ export function renderStreakDetail(data, getState, getDays) {
   const appState    = getState();
   const defaultDays = getDays();
 
-  const activeDates = new Set();
-  for (const wk in appState.weeks || {}) {
-    const wkData = appState.weeks[wk];
-    defaultDays.forEach((d, dayIdx) => {
-      const rDist = parseFloat(runDaySummary(wkData, d).dist) || 0;
-      let completedSets = 0;
-      const dayLifts = wkData?.lifts?.[d] || {};
-      for (const lift in dayLifts) {
-        if (Array.isArray(dayLifts[lift])) {
-          completedSets += dayLifts[lift].filter(s => isCompletedSet(s)).length;
-        }
-      }
-      if (rDist > 0 || completedSets > 0) {
-        const weekNum = parseInt(wk, 10) || 1;
-        const base    = appState.weekStartedAt ? new Date(appState.weekStartedAt) : new Date();
-        const approx  = new Date(base);
-        approx.setDate(base.getDate() - ((parseInt(appState.currentWeek, 10) - weekNum) * 7) + dayIdx);
-        activeDates.add(dateKey(approx));
-      }
-    });
-  }
-
-  const today = new Date();
-  let streak = 0;
-  for (let i = 0; i <= 90; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const ds = dateKey(d);
-    if (activeDates.has(ds)) { if (i === streak) streak++; }
-    else { if (i === streak) break; }
-  }
-
-  let longest = 0, tempStreak = 0, prev = null;
-  [...activeDates].sort().forEach(ds => {
-    if (prev) {
-      const diff = (new Date(ds) - new Date(prev)) / 86400000;
-      tempStreak = diff === 1 ? tempStreak + 1 : 1;
-    } else {
-      tempStreak = 1;
-    }
-    if (tempStreak > longest) longest = tempStreak;
-    prev = ds;
-  });
+  // ONE streak definition, shared with Home. This screen used to rebuild the
+  // set of trained dates by approximating each slot's date from
+  // `weekStartedAt ± currentWeek` arithmetic, which produced a DIFFERENT streak
+  // from the one Home shows: it guessed dates instead of reading the stamped
+  // `.dates[day]`, so moved sessions, gaps in logging and archived activations
+  // all landed on invented days. computeStreak/activeTrainingDates are the
+  // canonical, date-strict owners (they also honour streak freezes).
+  const { current: streak, longest } = computeStreak(appState.weeks || {}, defaultDays, appState);
+  const activeDates = activeTrainingDates(appState.weeks || {}, defaultDays, appState);
 
   const currentEl = document.getElementById('streakCurrent');
   const longestEl = document.getElementById('streakLongest');
@@ -177,9 +147,15 @@ export function renderStreakDetail(data, getState, getDays) {
     }
   }
 
-  // Consistency heatmap
+  // Consistency heatmap. This grid is PROGRAM-week indexed (its columns are the
+  // "Week N" labels), so only numeric week keys belong on it — an archived
+  // activation's `arch:<id>:<n>` key is a previous program run and has no column
+  // here. parseInt on such a key returns NaN, which slipped past the renderer's
+  // range guard (every NaN comparison is false) and emitted <rect x="NaN">.
   const trainingDays = [];
   for (const wk in appState.weeks || {}) {
+    if (!isNumericWeekKey(wk)) continue;
+    const weekNum = parseInt(wk, 10);
     const wkData = appState.weeks[wk];
     defaultDays.forEach((d, dayIdx) => {
       let completedSets = 0;
@@ -192,7 +168,7 @@ export function renderStreakDetail(data, getState, getDays) {
       const gymHasData = completedSets > 0;
       const runHasData = (parseFloat(runDaySummary(wkData, d).dist) || 0) > 0;
       if (gymHasData || runHasData) {
-        trainingDays.push({ week: parseInt(wk, 10), dayIdx, gym: gymHasData, run: runHasData });
+        trainingDays.push({ week: weekNum, dayIdx, gym: gymHasData, run: runHasData });
       }
     });
   }

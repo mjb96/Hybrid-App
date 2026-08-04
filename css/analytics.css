@@ -1536,6 +1536,21 @@ html[data-theme="light"] .hub-link__icon {
   font-size: 0.72rem;
   color: var(--text-muted, #94a3b8);
 }
+.ph-card__trend {
+  display: block;
+  margin: 2px 0 1px;
+}
+.ph-card__trend .an-spark {
+  display: block;
+  width: 100%;
+  height: 26px;
+}
+.ph-card__trend small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  color: var(--text-muted, #94a3b8);
+}
 /* The plain-language answer to "so what?" — the reason this card exists. */
 .ph-card__say {
   font-size: 0.78rem;

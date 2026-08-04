@@ -10,7 +10,7 @@
 // Presentation only — every number comes from buildProgressLanding.
 // =============================================================================
 
-import { esc } from './screen-kit.js';
+import { esc, spark } from './screen-kit.js';
 import { icon } from '../../ui/icons.js';
 
 const DOMAIN_ICON = {
@@ -42,6 +42,14 @@ function domainCard(domain) {
 
   const supportHTML = support ? `<p class="ph-card__support">${esc(support)}</p>` : '';
 
+  // spark() returns '' with fewer than two real points, so a sparse domain
+  // shows no line rather than a misleading flat one. The label is what makes
+  // the shape readable — a line with no stated period explains nothing.
+  const sparkSVG = domain.trend ? spark(domain.trend.values, TONE_COLOR[tone] === TONE_COLOR.none ? 'var(--color-blue, #3b82f6)' : TONE_COLOR[tone]) : '';
+  const trendHTML = sparkSVG
+    ? `<span class="ph-card__trend">${sparkSVG}<small>${esc(domain.trend.label)}</small></span>`
+    : '';
+
   return `<button type="button" class="ph-card${domain.empty ? ' ph-card--empty' : ''}"
       data-action="open-analytics" data-context="${esc(domain.context)}" data-parent-context="hub"
       aria-label="${esc(domain.title)}: ${esc(headline.value)}${headline.unit ? ` ${esc(headline.unit)}` : ''}. ${esc(interpretation)}">
@@ -52,6 +60,7 @@ function domainCard(domain) {
     </span>
     <span class="ph-card__value">${esc(headline.value)}${headline.unit ? `<span class="ph-card__unit">${esc(headline.unit)}</span>` : ''}</span>
     ${deltaHTML}
+    ${trendHTML}
     ${supportHTML}
     <p class="ph-card__say">${esc(interpretation)}</p>
   </button>`;

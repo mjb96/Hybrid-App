@@ -263,6 +263,17 @@ test('running is empty and self-explaining when no metric model is supplied', ()
   assert.match(running.interpretation, /No runs logged/);
 });
 
+test('an empty running week speaks training language, not metric-engine jargon', () => {
+  const running = domainOf(buildProgressLanding({ weeks: {} }, {
+    days: DAYS, today: '2026-07-16',
+    // The engine can hand back internal phrasing for an empty-but-not-blank
+    // scope; the hub must not repeat it verbatim.
+    runningMetric: () => ({ empty: true, formattedValue: '—', interpretation: '0 contributing activities in the current scope.' }),
+  }), 'running');
+  assert.doesNotMatch(running.interpretation, /contributing activities|current scope/);
+  assert.match(running.interpretation, /No runs logged/);
+});
+
 test('running reuses the injected metric model rather than recomputing distance', () => {
   const running = domainOf(buildProgressLanding({ weeks: {} }, {
     days: DAYS, today: '2026-07-16',
@@ -320,6 +331,84 @@ test('one signal is described in the singular', () => {
     readiness: { score: 60, status: 'Steady', confidence: 'low', inputCount: 1 },
   }), 'recovery');
   assert.equal(recovery.support, 'low confidence · 1 signal');
+});
+
+// ---- trend series -----------------------------------------------------------
+
+test('the consistency trend is drawn from the same dates as its headline', () => {
+  const state = {
+    currentWeek: '1',
+    weeks: { '1': {
+      // Week of 6 Jul: 2 days. Week of 13 Jul: 1 day.
+      dates: { mon: PREV, tue: '2026-07-07', thu: WK },
+      lifts: {
+        mon: { Bench: [work(100, 5)] }, tue: { Bench: [work(100, 5)] }, thu: { Bench: [work(100, 5)] },
+      },
+    } },
+  };
+  const consistency = domainOf(
+    buildProgressLanding(state, { days: DAYS, today: '2026-07-19', weekStart: WK }),
+    'consistency',
+  );
+  const values = consistency.trend.values;
+  assert.equal(values.length, 8, 'eight trailing weeks');
+  assert.equal(values[values.length - 1], 1, 'the selected week is last');
+  assert.equal(values[values.length - 2], 2, 'the previous week precedes it');
+  assert.match(consistency.trend.label, /8 weeks/);
+});
+
+test('the strength trend follows the exact lift the headline names', () => {
+  const state = {
+    currentWeek: '1',
+    weeks: {
+      '1': { dates: { mon: PREV }, lifts: { mon: { Bench: [work(100, 5)], Squat: [work(200, 5)] } } },
+      '2': { dates: { mon: WK }, lifts: { mon: { Bench: [work(120, 5)], Squat: [work(202, 5)] } } },
+    },
+  };
+  const strength = domainOf(buildProgressLanding(state, { days: DAYS, today: '2026-07-16' }), 'strength');
+  // Bench gained most, so both the headline and the spark must be Bench.
+  assert.match(strength.delta.text, /^Bench/);
+  assert.match(strength.trend.label, /^Bench/);
+  assert.ok(strength.trend.values.length > 1);
+  // Last point is this week's Bench e1RM, not Squat's.
+  const last = strength.trend.values[strength.trend.values.length - 1];
+  assert.equal(Math.round(last), Math.round(120 * (1 + 5 / 30)));
+});
+
+test('domains with no honest series carry no trend rather than a flat line', () => {
+  // Readiness keeps no history, so Recovery must never fabricate one.
+  const recovery = domainOf(buildProgressLanding({ weeks: {} }, {
+    days: DAYS, today: '2026-07-16',
+    readiness: { score: 70, status: 'Ready', confidence: 'high', inputCount: 4 },
+  }), 'recovery');
+  assert.equal(recovery.trend, null);
+
+  // An empty strength week has no lift to follow.
+  const strength = domainOf(
+    buildProgressLanding({ weeks: {} }, { days: DAYS, today: '2026-07-16' }),
+    'strength',
+  );
+  assert.equal(strength.trend, null);
+});
+
+test('running reuses the metric engine series and ignores a single-point one', () => {
+  const many = domainOf(buildProgressLanding({ weeks: {} }, {
+    days: DAYS, today: '2026-07-16',
+    runningMetric: () => ({
+      empty: false, formattedValue: '18.4 km', interpretation: 'x', comparison: null,
+      series: [{ value: 10 }, { value: 14 }, { value: 18.4 }],
+    }),
+  }), 'running');
+  assert.deepEqual(many.trend.values, [10, 14, 18.4]);
+
+  const one = domainOf(buildProgressLanding({ weeks: {} }, {
+    days: DAYS, today: '2026-07-16',
+    runningMetric: () => ({
+      empty: false, formattedValue: '5 km', interpretation: 'x', comparison: null,
+      series: [{ value: 5 }],
+    }),
+  }), 'running');
+  assert.equal(one.trend, null, 'one point is not a trend');
 });
 
 // ---- structure and secondary destinations -----------------------------------

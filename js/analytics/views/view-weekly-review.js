@@ -8,6 +8,7 @@
 // the Share button.
 // =============================================================================
 import { showToast, getProgramById } from '../../state.js';
+import { weightUnitOf } from '../utils.js';
 import { reviewToText, buildWeeklyReview } from '../../brain/weekly-review.js';
 import { sparkline } from '../../brain/hybrid-score/ui.js';
 import { computeDashboardModel } from '../../home/dashboard-model.js';
@@ -151,7 +152,7 @@ export function renderWeeklyReview(review, state) {
     : `${review.totals.distanceKm} km`;
 
   const stats = [
-    { v: review.totals.volume >= 1000 ? `${(review.totals.volume / 1000).toFixed(1)}t` : `${review.totals.volume} kg`, k: 'Lifted', d: deltaChip(review.deltas.volumePct) },
+    { v: review.totals.volume >= 1000 ? `${(review.totals.volume / 1000).toFixed(1)}t` : `${review.totals.volume} ${weightUnitOf(state)}`, k: 'Lifted', d: deltaChip(review.deltas.volumePct) },
     { v: dist, k: 'Run', d: deltaChip(review.deltas.distancePct) },
     { v: String(review.totals.sessions), k: 'Sessions', d: '' },
     { v: String(review.totals.prCount), k: 'PRs', d: review.totals.prCount > 0 ? '<span class="wrev-delta" style="color:var(--color-amber)">🏆</span>' : '' },
@@ -181,7 +182,7 @@ export function renderWeeklyReview(review, state) {
     <h3 class="section-header mt-4">New records</h3>
     ${review.prs.map(p => `<article class="card-dark p-3 mb-2 flex-between">
       <span style="font-weight:700;color:var(--text-inverse);">🏆 ${esc(p.lift)}</span>
-      <span style="color:var(--text-muted);font-size:0.8rem;">e1RM <b style="color:var(--color-amber);">${p.e1rm} kg</b> (was ${p.prevBest})</span>
+      <span style="color:var(--text-muted);font-size:0.8rem;">e1RM <b style="color:var(--color-amber);">${p.e1rm} ${weightUnitOf(state)}</b> (was ${p.prevBest})</span>
     </article>`).join('')}` : '';
 
   el.innerHTML = `

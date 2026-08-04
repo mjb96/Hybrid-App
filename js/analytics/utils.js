@@ -14,6 +14,32 @@ export function formatDist(km, unit = 'km', decimals = 1) {
   return val.toFixed(decimals) + ' ' + unit;
 }
 
+/**
+ * The athlete's weight unit, normalised. Settings stores 'kg' or 'lbs'.
+ *
+ * Note this LABELS rather than converts: the app has no weight conversion
+ * anywhere by design — a set is stored in whatever unit it was entered in, so
+ * the stored number is already in the athlete's unit and only needs naming
+ * correctly. Hardcoding 'kg' therefore mislabels an lbs athlete's own numbers.
+ *
+ * @param {any} state
+ */
+export function weightUnitOf(state) {
+  return state?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+}
+
+/**
+ * Format a weight for display in the athlete's unit.
+ * @param {number|string|null|undefined} value
+ * @param {string} unit  from weightUnitOf
+ * @param {{decimals?:number, empty?:string}} [opts]
+ */
+export function formatWeight(value, unit = 'kg', { decimals = 0, empty = '--' } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return empty;
+  return `${decimals > 0 ? number.toFixed(decimals) : Math.round(number).toLocaleString()} ${unit}`;
+}
+
 export function parsePaceSeconds(distKm, timeStr) {
   if (!distKm || !timeStr || parseFloat(distKm) === 0) return 0;
   const parts = timeStr.split(':').map(Number);

@@ -13,6 +13,7 @@ import {
   generateRunningInsights,
   rankInsights,
 } from './insight-engine.js';
+import { weightUnitOf } from '../utils.js';
 
 const DEFAULT_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -33,6 +34,7 @@ export function buildRankedInsights(state, opts = {}) {
     out.push(...generateStrengthInsights({
       volSeries: sa.volSeries, volProgPct: sa.volProgPct,
       liftProgression: sa.liftProgression, muscleStatus: sa.muscleStatus, acwr: sa.tonnageACWR,
+      unit: weightUnitOf(state),
     }));
   } catch (_) { /* sparse strength data */ }
   try {

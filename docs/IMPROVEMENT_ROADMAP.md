@@ -482,8 +482,13 @@ detail. Optional fasting analytics appear only when the user enables fasting.
 - [x] Fasting appears only for profiles with an active or completed fast.
 - [x] Review is owned by the Consistency card alone — the duplicate secondary
   entry to the same screen was removed.
-- [ ] Remaining: the domain cards show no trend visual yet; add sparklines once
-  3D's per-domain series work lands.
+- [x] **DONE 2026-08-04:** domain cards now carry a labelled trend sparkline
+  where an honest series exists — Consistency (training days, 8 weeks),
+  Strength (the named lift's own e1RM, 12 weeks, same-exercise) and Running
+  (the metric engine's weekly points). Recovery has no trend, because
+  readiness keeps no history and a fabricated flat line would be worse than
+  none. Fixed `spark()` while doing it: a constant series was pinned to the
+  baseline, so a steady 3 sessions a week rendered identically to zero.
 
 **Volume Guide (MEV) — DONE 2026-08-04.** The guide was the weakest analytics
 surface: buried under Strength → Stats, drawn as one unlabelled bar stacking
@@ -802,6 +807,51 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-04 — Progress hub trends (finishes Phase 3A).** Added a labelled
+  sparkline to each domain card that has an honest series behind it:
+  Consistency draws training days over 8 weeks from the same date-strict set
+  as its headline, Strength follows the exact lift the headline names (12
+  weeks, same-exercise — never a cross-lift line), and Running reuses the
+  metric engine's own weekly points rather than computing distance a second
+  way. Recovery deliberately has no trend: readiness keeps no history, and a
+  flat fabricated line would imply stability nobody measured.
+  Found and fixed a flaw in the shared `spark()` helper while verifying: a
+  constant series has zero span, so every point was pinned to the baseline and
+  a steady 3-sessions-a-week trend rendered identically to a series of zeros.
+  Constant series now draw through the middle; genuine zeros still sit on the
+  floor. Also replaced the Running card's empty-state copy, which was echoing
+  the metric engine's internal phrasing ("0 contributing activities in the
+  current scope") onto a default screen. 1366 unit tests, typecheck, precache,
+  workflow gates, smoke and the browser gates all pass.
+
+- **2026-08-04 — Analytics correctness pass.** Three defects where the app
+  contradicted itself, each with a regression test.
+  **(1) Two streak numbers.** Home used the date-strict `computeStreak` while
+  Progress → Review → Stats rebuilt its own trained-date set by approximating
+  each slot from `weekStartedAt ± currentWeek` arithmetic — so the two screens
+  disagreed whenever a session moved, logging had gaps, or an activation was
+  archived. Progress now consumes the canonical `computeStreak` /
+  `activeTrainingDates`, which are date-strict and honour streak freezes.
+  **(2) NaN heatmap cells.** Both training calendars are PROGRAM-week indexed
+  but ran `parseInt` over every week key, including an archived activation's
+  `arch:<id>:<n>`. That yields NaN, which slipped past the renderers' range
+  guards — every NaN comparison is false — and emitted `<rect x="NaN">`.
+  Builders now skip non-numeric keys via the existing `isNumericWeekKey`, and
+  both renderers reject non-finite coordinates as defence in depth.
+  **(3) Mislabelled weights.** Weight display had no owner, so a single screen
+  could read `settings.weightUnit` for one figure and hardcode "kg" for the
+  next; an lbs athlete saw both labels at once. Added `weightUnitOf` /
+  `formatWeight` to `analytics/utils.js` (labelling only — the app has no
+  weight conversion by design, since a set is stored in the unit it was
+  entered in) and threaded the unit through the strength view, charts,
+  insights, weekly review, monthly report, projections, body weight and the
+  timeline table. A source guard over `analytics/views`, `analytics/charts`
+  and `analytics/insights` now fails the build on a hardcoded kg suffix; it
+  deliberately permits `'kg'` as a fallback *value*. Verified with an
+  lbs-profile browser pass: zero stray kg across Strength overview/stats,
+  Review and Projections. 1358 unit tests, typecheck, precache, workflow
+  gates, smoke and the browser gates all pass.
 
 - **2026-08-04 — Volume Guide (MEV) rebuilt on the single classifier.** The
   guide had been running its own weaker thresholds while

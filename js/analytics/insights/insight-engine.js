@@ -66,6 +66,9 @@ export function generateStrengthInsights({
   liftProgression,
   muscleStatus,
   acwr,
+  // Coaching text quotes real loads, so it must use the athlete's unit too —
+  // an insight reading "274 kg" beside a screen of lbs figures is wrong.
+  unit = 'kg',
 }) {
   const insights = [];
   const n = volSeries.length;
@@ -89,7 +92,7 @@ export function generateStrengthInsights({
     if (!prog.hasData) continue;
 
     if (prog.currentWeekPR > 0 && prog.currentWeekPR >= prog.lifetimePR * 0.995) {
-      insights.push({ text: `New estimated 1RM on ${lift}: ${Math.round(prog.currentWeekPR)} kg.`, priority: 'good', category: 'strength' });
+      insights.push({ text: `New estimated 1RM on ${lift}: ${Math.round(prog.currentWeekPR)} ${unit}.`, priority: 'good', category: 'strength' });
     }
 
     if (prog.roi > bestRoi) { bestRoi = prog.roi; bestRoiLift = lift; }
@@ -97,7 +100,7 @@ export function generateStrengthInsights({
     if (prog.projection && prog.projection > prog.lifetimePR * 1.02) {
       const projRounded = Math.round(prog.projection);
       insights.push({
-        text: `${lift} is on track for a ${projRounded} kg 1RM within 4 weeks at the current rate.`,
+        text: `${lift} is on track for a ${projRounded} ${unit} 1RM within 4 weeks at the current rate.`,
         priority: 'good',
         category: 'strength',
       });
@@ -105,7 +108,7 @@ export function generateStrengthInsights({
   }
   if (bestRoiLift && bestRoi > 0.2) {
     insights.push({
-      text: `${bestRoiLift} is showing the strongest improvement rate: +${bestRoi.toFixed(1)} kg/week.`,
+      text: `${bestRoiLift} is showing the strongest improvement rate: +${bestRoi.toFixed(1)} ${unit}/week.`,
       priority: 'good',
       category: 'strength',
     });
