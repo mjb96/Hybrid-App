@@ -1,0 +1,159 @@
+// =============================================================================
+// ANALYTICS CORRECTNESS REGRESSIONS
+//
+// Three defects where the app contradicted itself or emitted invalid output:
+//
+//  1. Two streak numbers. Home used the date-strict computeStreak while
+//     Progress → Review → Stats rebuilt its own set of trained dates by
+//     approximating each slot from `weekStartedAt ± currentWeek` arithmetic.
+//     The two disagreed whenever a session moved, logging had gaps, or an
+//     activation was archived.
+//  2. NaN heatmap cells. The training calendars are PROGRAM-week indexed, but
+//     their builders ran parseInt over every week key — including an archived
+//     activation's `arch:<id>:<n>` — producing NaN, which slipped past the
+//     range guard (every NaN comparison is false) and emitted <rect x="NaN">.
+//  3. Mislabelled weights. Weight display had no single owner, so a screen
+//     could read settings.weightUnit for one figure and hardcode "kg" for the
+//     next. There is no conversion in the app by design: a set is stored in
+//     the unit it was entered in, so hardcoding the label misnames an lbs
+//     athlete's own numbers.
+// =============================================================================
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { computeStreak, activeTrainingDates } from '../js/home/dashboard-model.js';
+import { renderConsistencyHeatmap } from '../js/analytics/charts.js';
+import { renderVolumeCalendarHeatmap } from '../js/analytics/charts/strength-charts.js';
+import { formatWeight, weightUnitOf } from '../js/analytics/utils.js';
+
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const work = (w, r) => ({ c: true, w: String(w), r: String(r) });
+
+const noop = () => {};
+function makeEl() {
+  const e = { setAttribute: noop, getAttribute: () => null, style: {}, dataset: {}, classList: { add: noop, remove: noop, toggle: noop, contains: () => false } };
+  let h = '';
+  Object.defineProperty(e, 'innerHTML', { get: () => h, set: (x) => { h = String(x); } });
+  return e;
+}
+
+// ---- 1. one streak definition ----------------------------------------------
+
+test('the streak is computed from stamped dates, so archived runs still count', () => {
+  const state = {
+    currentWeek: '1',
+    weekStartedAt: '2020-01-01T00:00:00.000Z', // deliberately far from the data
+    weeks: {
+      // Three consecutive days ending today, split across an archived
+      // activation and the live one. The old approximation would have placed
+      // these relative to weekStartedAt and found no streak at all.
+      'arch:old-run:6': { dates: { mon: '2026-07-13' }, lifts: { mon: { Bench: [work(100, 5)] } } },
+      '1': {
+        dates: { tue: '2026-07-14', wed: '2026-07-15' },
+        lifts: { tue: { Bench: [work(100, 5)] }, wed: { Bench: [work(100, 5)] } },
+      },
+    },
+  };
+  const dates = activeTrainingDates(state.weeks, DAYS, state);
+  assert.ok(dates.has('2026-07-13'), 'archived activation contributes its real date');
+  assert.ok(dates.has('2026-07-15'));
+  assert.equal(dates.size, 3);
+
+  const streak = computeStreak(state.weeks, DAYS, state, '2026-07-15');
+  assert.equal(streak.current, 3);
+  assert.equal(streak.longest, 3);
+  assert.equal(streak.total, 3);
+});
+
+test('undated legacy activity never invents a streak day', () => {
+  const state = { currentWeek: '4', weekStartedAt: '2026-07-13T00:00:00.000Z', weeks: {
+    '1': { lifts: { mon: { Bench: [work(100, 5)] } } }, // no dates map at all
+  } };
+  assert.equal(activeTrainingDates(state.weeks, DAYS, state).size, 0);
+  assert.equal(computeStreak(state.weeks, DAYS, state, '2026-07-15').current, 0);
+});
+
+test('a gap breaks the current streak but not the longest', () => {
+  const state = { currentWeek: '1', weeks: { '1': {
+    dates: { mon: '2026-07-06', tue: '2026-07-07', wed: '2026-07-08', sat: '2026-07-11' },
+    lifts: {
+      mon: { Bench: [work(100, 5)] }, tue: { Bench: [work(100, 5)] },
+      wed: { Bench: [work(100, 5)] }, sat: { Bench: [work(100, 5)] },
+    },
+  } } };
+  const streak = computeStreak(state.weeks, DAYS, state, '2026-07-15');
+  assert.equal(streak.current, 0, 'nothing logged on or before today in an unbroken run');
+  assert.equal(streak.longest, 3);
+});
+
+// ---- 2. heatmaps never emit NaN geometry ------------------------------------
+
+for (const [name, render] of [
+  ['consistency heatmap', (el, days, labels) => renderConsistencyHeatmap(el, days, labels)],
+  ['volume calendar heatmap', (el, days, labels) => renderVolumeCalendarHeatmap(el, days, labels, [100, 200, 300])],
+]) {
+  test(`${name} drops a non-numeric week instead of emitting NaN coordinates`, () => {
+    const el = makeEl();
+    render(el, [
+      { week: 2, dayIdx: 1, gym: true, run: false },
+      // What parseInt('arch:old-run:6', 10) yields — the exact production path.
+      { week: NaN, dayIdx: 3, gym: true, run: false },
+      { week: 1, dayIdx: NaN, gym: true, run: false },
+    ], ['W1', 'W2', 'W3']);
+    assert.doesNotMatch(el.innerHTML, /NaN/, 'no NaN reached an SVG attribute');
+    assert.match(el.innerHTML, /<rect/, 'the valid cell still rendered');
+  });
+}
+
+test('heatmaps still reject out-of-range cells', () => {
+  const el = makeEl();
+  renderConsistencyHeatmap(el, [{ week: 99, dayIdx: 0, gym: true, run: false }], ['W1', 'W2']);
+  // Only the background grid and legend — no overlay cell for week 99.
+  assert.doesNotMatch(el.innerHTML, /fill="#3b82f6" opacity/);
+});
+
+// ---- 3. one weight-unit owner ----------------------------------------------
+
+test('weightUnitOf normalises to the two units settings actually stores', () => {
+  assert.equal(weightUnitOf({ settings: { weightUnit: 'lbs' } }), 'lbs');
+  assert.equal(weightUnitOf({ settings: { weightUnit: 'kg' } }), 'kg');
+  assert.equal(weightUnitOf({}), 'kg');
+  assert.equal(weightUnitOf(null), 'kg');
+  assert.equal(weightUnitOf({ settings: { weightUnit: 'stone' } }), 'kg', 'unknown units fall back, never leak through');
+});
+
+test('formatWeight labels in the athlete\'s unit and stays honest about no data', () => {
+  assert.equal(formatWeight(102.4, 'lbs'), '102 lbs');
+  assert.equal(formatWeight(1500, 'kg'), '1,500 kg');
+  assert.equal(formatWeight(2.75, 'kg', { decimals: 1 }), '2.8 kg');
+  // No value must never render as "0 kg".
+  assert.equal(formatWeight(0, 'kg'), '--');
+  assert.equal(formatWeight(null, 'kg'), '--');
+  assert.equal(formatWeight(NaN, 'kg'), '--');
+  assert.equal(formatWeight(undefined, 'kg', { empty: '—' }), '—');
+});
+
+test('no analytics view hardcodes a kg label', async () => {
+  // The defect was mixed units on ONE screen, so this guards the whole folder
+  // rather than the single file that happened to be worst.
+  const { readdir, readFile } = await import('node:fs/promises');
+  // Includes insights: coaching text quotes real loads, so a hardcoded unit
+  // there lands beside correctly-labelled figures on the same screen.
+  const roots = ['js/analytics/views', 'js/analytics/charts', 'js/analytics/insights'];
+  const offenders = [];
+  for (const root of roots) {
+    for (const file of await readdir(root)) {
+      if (!file.endsWith('.js')) continue;
+      const source = await readFile(`${root}/${file}`, 'utf8');
+      source.split('\n').forEach((line, index) => {
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
+        // A literal " kg" SUFFIX emitted into output — i.e. a quoted string
+        // whose kg is preceded by a space, as in `+ ' kg'` or `} kg\``.
+        // Deliberately does NOT flag `weightUnit === 'lbs' ? 'lbs' : 'kg'` or
+        // `unit = 'kg'`: those resolve the unit correctly, and 'kg' with no
+        // leading space is the legitimate fallback value.
+        if (/['"`] kg\b| kg['"`<.,/]|>kg<|\(kg\)/.test(line)) offenders.push(`${root}/${file}:${index + 1}`);
+      });
+    }
+  }
+  assert.deepEqual(offenders, [], `hardcoded kg labels: ${offenders.join(', ')}`);
+});

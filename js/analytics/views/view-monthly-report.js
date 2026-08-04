@@ -5,6 +5,7 @@
 // =============================================================================
 import { showToast } from '../../state.js';
 import { buildMonthlyReport, reportToText } from '../../brain/monthly-report.js';
+import { weightUnitOf } from '../utils.js';
 
 const KM_TO_MI = 0.621371;
 function deltaChip(pct, suffix = 'vs prior 30d') {
@@ -33,7 +34,7 @@ export function renderMonthlyReport(getState, getDays, getProgram) {
 
   const stats = [
     { v: String(r.totals.sessions), k: 'Sessions', d: r.deltas.sessions ? `<span class="wrev-delta" style="color:${r.deltas.sessions > 0 ? 'var(--color-green)' : 'var(--color-red)'}">${r.deltas.sessions > 0 ? '+' : ''}${r.deltas.sessions}</span>` : '' },
-    { v: r.totals.volume >= 1000 ? `${(r.totals.volume / 1000).toFixed(1)}t` : `${r.totals.volume} kg`, k: 'Lifted', d: deltaChip(r.deltas.volumePct) },
+    { v: r.totals.volume >= 1000 ? `${(r.totals.volume / 1000).toFixed(1)}t` : `${r.totals.volume} ${weightUnitOf(state)}`, k: 'Lifted', d: deltaChip(r.deltas.volumePct) },
     { v: dist, k: 'Run', d: deltaChip(r.deltas.distancePct) },
     { v: r.hybridScore.avg !== null ? String(r.hybridScore.avg) : '—', k: 'Avg Score', d: r.hybridScore.delta ? `<span class="wrev-delta" style="color:${r.hybridScore.delta > 0 ? 'var(--color-green)' : 'var(--color-red)'}">${r.hybridScore.delta > 0 ? '+' : ''}${r.hybridScore.delta}</span>` : '' },
   ].map(s => `<div class="wrev-stat"><div class="wrev-stat__v">${s.v}</div><div class="wrev-stat__k">${s.k}</div>${s.d}</div>`).join('');

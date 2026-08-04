@@ -5,6 +5,7 @@
 // strength/running milestone from the pure predictions engine.
 // =============================================================================
 import { buildPredictions } from '../../brain/predictions.js';
+import { weightUnitOf } from '../utils.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const etaLabel = (w) => w == null ? null : w === 0 ? 'reached' : `~${w} week${w === 1 ? '' : 's'}`;
@@ -13,6 +14,7 @@ export function renderProjections(getState, getDays) {
   const el = document.getElementById('projectionsContainer');
   if (!el) return;
   const pred = buildPredictions(getState(), getDays());
+  const unit = weightUnitOf(getState());
 
   if (!pred.hasData) {
     el.innerHTML = `<article class="card-dark p-4 text-center">
@@ -40,10 +42,10 @@ export function renderProjections(getState, getDays) {
   if (pred.strength.length) {
     strHTML = '<h3 class="section-header mt-4">Strength milestones</h3>' + pred.strength.map(s => `
       <article class="card-dark p-3 mb-2 proj-lift">
-        <div class="proj-lift__head"><span class="proj-lift__name">${esc(s.lift)}</span><span class="proj-lift__now">${s.current} kg</span></div>
+        <div class="proj-lift__head"><span class="proj-lift__name">${esc(s.lift)}</span><span class="proj-lift__now">${s.current} ${unit}</span></div>
         <div class="proj-lift__bar"><div class="proj-lift__fill" style="width:${Math.min(100, Math.round((s.current / s.target) * 100))}%"></div></div>
         <div class="proj-lift__foot">
-          <span>Next: <b>${s.target} kg</b></span>
+          <span>Next: <b>${s.target} ${unit}</b></span>
           <span class="${s.etaWeeks == null ? 'proj-muted' : 'proj-eta-chip'}">${s.etaWeeks == null ? 'keep progressing' : etaLabel(s.etaWeeks)}</span>
         </div>
       </article>`).join('');

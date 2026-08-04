@@ -508,6 +508,10 @@ export function renderConsistencyHeatmap(container, trainingDays, weekLabels) {
   let cells = '';
   trainingDays.forEach(({ week, dayIdx, gym, run }) => {
     const w = week - 1;
+    // Number.isFinite first: a non-numeric week key (an archived activation)
+    // parses to NaN, and every NaN comparison below is false — so the range
+    // guard alone let it through and emitted <rect x="NaN">, an invisible cell.
+    if (!Number.isFinite(w) || !Number.isFinite(dayIdx)) return;
     if (w < 0 || w >= nWeeks || dayIdx < 0 || dayIdx >= nDays) return;
     const cx = PAD_L + w * STEP;
     const cy = PAD_T + dayIdx * STEP;

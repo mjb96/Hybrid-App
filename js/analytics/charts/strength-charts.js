@@ -8,7 +8,7 @@ import { zoneColor } from '../calculations/volume-landmarks.js';
 import { escapeHtml } from '../../util.js';
 
 // 1RM Progression chart with projection line and rolling average.
-export function render1RMProgressionChart(container, weekLabels, series, trend, rolling4, lifetimePR, liftName) {
+export function render1RMProgressionChart(container, weekLabels, series, trend, rolling4, lifetimePR, liftName, unit = 'kg') {
   if (!container) return;
   const nonZero = series.filter(v => v > 0);
   if (nonZero.length < 2) {
@@ -47,14 +47,14 @@ export function render1RMProgressionChart(container, weekLabels, series, trend, 
     // Future dot
     const lastExt = trend[trend.length - 1];
     trendExt += `<circle cx="${toX(trend.length - 1).toFixed(1)}" cy="${toY(lastExt).toFixed(1)}" r="5" fill="#60a5fa" stroke="#0d1117" stroke-width="1.5" opacity="0.85"/>`;
-    trendExt += `<text x="${toX(trend.length - 1).toFixed(1)}" y="${(toY(lastExt) - 9).toFixed(1)}" text-anchor="middle" font-size="9" fill="#60a5fa">${Math.round(lastExt)} kg</text>`;
+    trendExt += `<text x="${toX(trend.length - 1).toFixed(1)}" y="${(toY(lastExt) - 9).toFixed(1)}" text-anchor="middle" font-size="9" fill="#60a5fa">${Math.round(lastExt)} ${unit}</text>`;
   }
 
   // Rolling avg
   const raLine = rollingAvgPath(rolling4, toX, toY, 'rgba(255,255,255,0.5)');
 
   // Lifetime PR line
-  const prLine = lifetimePR > 0 ? refLine(toY(lifetimePR), PL, W, PR, `PR ${Math.round(lifetimePR)} kg`, '#10b981', true) : '';
+  const prLine = lifetimePR > 0 ? refLine(toY(lifetimePR), PL, W, PR, `PR ${Math.round(lifetimePR)} ${unit}`, '#10b981', true) : '';
 
   // Y ticks
   const ticks = [0.25, 0.5, 0.75, 1].map(p => minV + p * range);
@@ -74,7 +74,7 @@ export function render1RMProgressionChart(container, weekLabels, series, trend, 
 }
 
 // Volume Progression chart: bars + rolling average overlay + trend line.
-export function renderVolumeProgressionChart(container, weekLabels, volSeries, rolling4, trendArr) {
+export function renderVolumeProgressionChart(container, weekLabels, volSeries, rolling4, trendArr, unit = 'kg') {
   if (!container) return;
   const hasData = volSeries.some(v => v > 0);
   if (!hasData) {
@@ -113,7 +113,7 @@ export function renderVolumeProgressionChart(container, weekLabels, volSeries, r
   const step = n > 8 ? 2 : 1;
   const xLabels = xAxisLabels(weekLabels, centreX, H - 5, { step });
 
-  const legend = `<text x="${PL}" y="12" font-size="9" fill="#3b82f6">▪ Volume (kg)</text>
+  const legend = `<text x="${PL}" y="12" font-size="9" fill="#3b82f6">▪ Volume (${unit})</text>
     <text x="${PL + 74}" y="12" font-size="9" fill="rgba(255,255,255,0.55)">— 4wk avg</text>
     <text x="${PL + 122}" y="12" font-size="9" fill="rgba(96,165,250,0.5)">- - Trend</text>`;
 
@@ -234,6 +234,9 @@ export function renderVolumeCalendarHeatmap(container, trainingDays, weekLabels,
   let cells = '';
   trainingDays.forEach(({ week, dayIdx, gym, run }) => {
     const w = week - 1;
+    // See renderConsistencyHeatmap: a NaN week index passes every range check,
+    // so reject non-finite coordinates before they reach an SVG attribute.
+    if (!Number.isFinite(w) || !Number.isFinite(dayIdx)) return;
     if (w < 0 || w >= nWeeks || dayIdx < 0 || dayIdx >= nDays) return;
     const weekVol = volSeries[w] || 0;
     const intensity = weekVol > 0 ? Math.max(0.3, Math.min(1, weekVol / maxVol)) : 0.3;

@@ -803,6 +803,34 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Analytics correctness pass.** Three defects where the app
+  contradicted itself, each with a regression test.
+  **(1) Two streak numbers.** Home used the date-strict `computeStreak` while
+  Progress → Review → Stats rebuilt its own trained-date set by approximating
+  each slot from `weekStartedAt ± currentWeek` arithmetic — so the two screens
+  disagreed whenever a session moved, logging had gaps, or an activation was
+  archived. Progress now consumes the canonical `computeStreak` /
+  `activeTrainingDates`, which are date-strict and honour streak freezes.
+  **(2) NaN heatmap cells.** Both training calendars are PROGRAM-week indexed
+  but ran `parseInt` over every week key, including an archived activation's
+  `arch:<id>:<n>`. That yields NaN, which slipped past the renderers' range
+  guards — every NaN comparison is false — and emitted `<rect x="NaN">`.
+  Builders now skip non-numeric keys via the existing `isNumericWeekKey`, and
+  both renderers reject non-finite coordinates as defence in depth.
+  **(3) Mislabelled weights.** Weight display had no owner, so a single screen
+  could read `settings.weightUnit` for one figure and hardcode "kg" for the
+  next; an lbs athlete saw both labels at once. Added `weightUnitOf` /
+  `formatWeight` to `analytics/utils.js` (labelling only — the app has no
+  weight conversion by design, since a set is stored in the unit it was
+  entered in) and threaded the unit through the strength view, charts,
+  insights, weekly review, monthly report, projections, body weight and the
+  timeline table. A source guard over `analytics/views`, `analytics/charts`
+  and `analytics/insights` now fails the build on a hardcoded kg suffix; it
+  deliberately permits `'kg'` as a fallback *value*. Verified with an
+  lbs-profile browser pass: zero stray kg across Strength overview/stats,
+  Review and Projections. 1358 unit tests, typecheck, precache, workflow
+  gates, smoke and the browser gates all pass.
+
 - **2026-08-04 — Volume Guide (MEV) rebuilt on the single classifier.** The
   guide had been running its own weaker thresholds while
   `calculations/volume-landmarks.js` already owned a five-zone `classifyVolume`

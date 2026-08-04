@@ -25,6 +25,7 @@ import { summarizeSessionLifts } from '../calculations/session-compare.js';
 import { isProgramDeloadWeek } from '../../brain/day-verdict.js';
 import { resolveProgramForState, saveStateToLocalStorage } from '../../state.js';
 import { esc, screenTabBar, mountScreenTabs, spark as _spark } from './screen-kit.js';
+import { formatWeight, weightUnitOf } from '../utils.js';
 import { getCalendarWeekOffset, getSelectedWeekStart } from '../week-nav.js';
 import { collectCalendarWeek, weekStartOf, localDayKey } from '../weekly-aggregate.js';
 import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift, bestE1rmByLiftForWeek } from '../../metrics/metrics-strength.js';
@@ -37,9 +38,12 @@ function qs(id) { return document.getElementById(id); }
 function setText(id, val) { const el = qs(id); if (el) el.textContent = val; }
 function setHTML(id, html) { const el = qs(id); if (el) el.innerHTML = html; }
 
-function fmtKg(v)   { return v > 0 ? Math.round(v).toLocaleString() + ' kg' : '--'; }
+// Weight display must follow the athlete's unit. This screen previously read
+// settings.weightUnit for its session chips while hardcoding 'kg' everywhere
+// else, so an lbs athlete saw both labels on the same screen.
+function fmtWeight(v, unit, opts) { return formatWeight(v, unit, opts); }
 function fmtPct(v)  { if (v === null || !isFinite(v)) return ''; return (v >= 0 ? '+' : '') + v.toFixed(0) + '%'; }
-function fmtKgWk(v) { if (!v || !isFinite(v)) return ''; return (v >= 0 ? '+' : '') + v.toFixed(1) + ' kg/wk'; }
+function fmtWeightWk(v, unit) { if (!v || !isFinite(v)) return ''; return (v >= 0 ? '+' : '') + v.toFixed(1) + ` ${unit}/wk`; }
 function tone(pct)  { return pct > 0 ? '#10b981' : pct < 0 ? '#ef4444' : 'rgba(255,255,255,0.4)'; }
 
 
@@ -47,6 +51,7 @@ function tone(pct)  { return pct > 0 ? '#10b981' : pct < 0 ? '#ef4444' : 'rgba(2
 function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   const el = qs('strengthTrainingLoadDashboard');
   if (!el) return;
+  const unit = weightUnitOf(appState);
 
   // Honest week-over-week: for the CURRENT (partial) week this compares the
   // elapsed portion against the same point last week; for a completed week it's
@@ -71,7 +76,7 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
   el.innerHTML = `
     <h2 class="section-header mt-2">Training Load Dashboard</h2>
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus, action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
+      ${statCard({ label: 'Weekly Volume', value: fmtWeight(volCur, unit), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#3b82f6', status: volProgStatus, action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
       ${statCard({ label: '4-Week Volume', value: fourWeek?.formattedValue || '—', sub: 'trailing 28 calendar days', color: '#8b5cf6', action: 'open-analytics', context: 'strength-metric', entity: 'strength.four-week-volume', parentContext: 'strength_pr', metricId: 'strength.four-week-volume' })}
     </div>
     <div class="grid-2-col gap-2 mb-2">
@@ -99,9 +104,10 @@ function renderTrainingLoadDashboard(sa, la, weekLabels, appState) {
 }
 
 // ---- Strength Progression -----------------------------------------------
-function renderStrengthProgression(sa, weekLabels) {
+function renderStrengthProgression(sa, weekLabels, appState) {
   const el = qs('strengthProgressionSection');
   if (!el) return;
+  const unit = weightUnitOf(appState);
 
   const lifts = Object.entries(sa.liftProgression || {})
     .filter(([, p]) => p.hasData)
@@ -126,26 +132,26 @@ function renderStrengthProgression(sa, weekLabels) {
     html += `<article class="card-dark p-3 mb-3" style="border:1px solid rgba(59,130,246,0.15);">
       <div class="flex-between mb-2">
         <button class="an-entity-link text-sm font-bold" data-action="open-analytics" data-context="exercise" data-entity="${esc(canonicalExerciseId(liftName) || `custom:${liftName}`)}" data-entity-name="${esc(liftName)}" data-parent-context="strength">${esc(liftName)}${prBadge}<span aria-hidden="true">›</span></button>
-        <span class="text-base font-heavy" style="color:#3b82f6;">${Math.round(prog.lifetimePR)} kg <span class="text-xs text-muted">Lifetime PR</span></span>
+        <span class="text-base font-heavy" style="color:#3b82f6;">${fmtWeight(prog.lifetimePR, unit)} <span class="text-xs text-muted">Lifetime PR</span></span>
       </div>
       <div class="grid-2-col gap-2 mb-2">
         <div style="font-size:0.78rem;">
           <div class="text-muted mb-1">Block PR (4wk)</div>
-          <div class="font-bold text-inverse">${prog.blockPR > 0 ? Math.round(prog.blockPR) + ' kg' : '--'}</div>
+          <div class="font-bold text-inverse">${fmtWeight(prog.blockPR, unit)}</div>
         </div>
         <div style="font-size:0.78rem;">
           <div class="text-muted mb-1">Current Program Week</div>
-          <div class="font-bold text-inverse">${cur > 0 ? Math.round(cur) + ' kg' : '--'}
+          <div class="font-bold text-inverse">${fmtWeight(cur, unit)}
             ${delta !== null ? `<span style="color:${delta >= 0 ? '#10b981' : '#ef4444'};font-size:0.7rem;margin-left:4px;">${delta >= 0 ? '+' : ''}${Math.round(delta)}</span>` : ''}
           </div>
         </div>
         <div style="font-size:0.78rem;">
           <div class="text-muted mb-1">Rate of Improvement</div>
-          <div class="font-bold" style="color:${roiColor};">${fmtKgWk(prog.roi) || '--'}</div>
+          <div class="font-bold" style="color:${roiColor};">${fmtWeightWk(prog.roi, unit) || '--'}</div>
         </div>
         <div style="font-size:0.78rem;">
           <div class="text-muted mb-1">Projected PR (4wk)</div>
-          <div class="font-bold" style="color:#60a5fa;">${prog.projection ? Math.round(prog.projection) + ' kg' : '—'}</div>
+          <div class="font-bold" style="color:#60a5fa;">${fmtWeight(prog.projection, unit, { empty: '—' })}</div>
         </div>
       </div>
       <div id="liftChart_${liftName.replace(/[^a-zA-Z0-9]/g, '_')}"></div>
@@ -159,7 +165,7 @@ function renderStrengthProgression(sa, weekLabels) {
     const chartId = `liftChart_${liftName.replace(/[^a-zA-Z0-9]/g, '_')}`;
     const container = qs(chartId);
     if (container) {
-      render1RMProgressionChart(container, weekLabels, prog.series, prog.trend, prog.rolling4, prog.lifetimePR, liftName);
+      render1RMProgressionChart(container, weekLabels, prog.series, prog.trend, prog.rolling4, prog.lifetimePR, liftName, unit);
     }
   });
 }
@@ -308,7 +314,7 @@ function renderMuscleGroupAnalysis(sa, appState) {
 }
 
 // ---- Volume Progression Chart -------------------------------------------
-function renderVolumeSection(sa, data) {
+function renderVolumeSection(sa, data, unit) {
   const el = qs('strengthVolumeProgressionSection');
   if (!el) return;
 
@@ -320,7 +326,7 @@ function renderVolumeSection(sa, data) {
 
   const chartEl = qs('strengthVolProgressChart');
   if (chartEl) {
-    renderVolumeProgressionChart(chartEl, data.weekLabels, sa.volSeries, sa.weeklyRolling, sa.volTrendLine);
+    renderVolumeProgressionChart(chartEl, data.weekLabels, sa.volSeries, sa.weeklyRolling, sa.volTrendLine, unit);
   }
 }
 
@@ -364,6 +370,7 @@ export function renderStrengthAnalytics(data, getState, getDays) {
     ...generateStrengthInsights({
       volSeries: sa.volSeries, volProgPct: sa.volProgPct,
       liftProgression: sa.liftProgression, muscleStatus: sa.muscleStatus, acwr: sa.tonnageACWR,
+      unit: weightUnitOf(appState),
     }),
     ...generateLoadInsights({
       atl: la.currentATL, ctl: la.currentCTL, ratio: la.currentRatio,
@@ -395,6 +402,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
   // Calendar-week strength summary for the SELECTED week (follows the navigator),
   // every comparison same-exercise. Replaces the old program-week e1RM delta.
   const cs = calendarStrengthSummary(appState, { weekStart: getSelectedWeekStart() });
+  const unit = weightUnitOf(appState);
 
   let hero;
   if (top) {
@@ -405,7 +413,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
       : '';
     hero = `<article class="card-dark an-hero">
       <div class="an-hero__k">All-time est. 1RM · ${esc(top.name)}</div>
-      <div class="an-hero__val">${Math.round(top.allTimeMax)}<span class="an-hero__unit">kg</span></div>
+      <div class="an-hero__val">${Math.round(top.allTimeMax)}<span class="an-hero__unit">${esc(unit)}</span></div>
       ${prChip}
       ${_spark(series, '#3b82f6')}
     </article>`;
@@ -426,8 +434,8 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
     ${_thisWeekSessionsStripHTML(appState, days)}
     ${hero}
     <div class="grid-2-col gap-2 mb-2">
-      ${statCard(_weeklyE1rmCard(cs))}
-      ${statCard({ label: 'Weekly Volume', value: fmtKg(volCur), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6', action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
+      ${statCard(_weeklyE1rmCard(cs, unit))}
+      ${statCard({ label: 'Weekly Volume', value: fmtWeight(volCur, unit), delta: volCmp.deltaPct, sub: volCmp.sub, color: '#8b5cf6', action: 'open-analytics', context: 'weekly-volume', parentContext: 'strength', preserveWeek: true })}
     </div>
     ${shownInsights[0] ? renderInsightsHTML(shownInsights, 1) : ''}
   `;
@@ -435,7 +443,7 @@ function _renderStrengthOverview(body, data, sa, insights, appState, days, maxWe
 
 // The "e1RM change" card params, calendar-correct + honest about missing data.
 // Never compares two different lifts and never reads a stale program week.
-function _weeklyE1rmCard(cs) {
+function _weeklyE1rmCard(cs, unit) {
   if (!cs.hasCurrentWork) {
     return { label: 'e1RM Change', value: '—', sub: 'No strength work logged this week', color: '#64748b' };
   }
@@ -443,7 +451,7 @@ function _weeklyE1rmCard(cs) {
     const d = Math.round(cs.topChange.deltaKg);
     return {
       label: 'e1RM Change',
-      value: `${d >= 0 ? '+' : ''}${d} kg`,
+      value: `${d >= 0 ? '+' : ''}${d} ${unit}`,
       sub: `${cs.topChange.exerciseName} vs previous week`,
       color: d > 0 ? '#10b981' : d < 0 ? '#ef4444' : '#94a3b8',
     };
@@ -451,7 +459,7 @@ function _weeklyE1rmCard(cs) {
   // Trained this week, but no same-exercise result last week to compare against.
   return {
     label: 'e1RM This Week',
-    value: `${Math.round(cs.bestThisWeek.e1rm)} kg`,
+    value: `${Math.round(cs.bestThisWeek.e1rm)} ${unit}`,
     sub: `Best ${cs.bestThisWeek.exerciseName} · no prior week`,
     color: '#3b82f6',
   };
@@ -516,6 +524,7 @@ export function strengthSessionChipModels(appState, days, opts = {}) {
 // Stats: the full strength engine, one tap deeper. Absorbs the old 1RM (strength_pr)
 // and Weekly-Volume leaves so each fact lives in exactly one place.
 function _renderStrengthStats(body, data, sa, la, appState) {
+  const unit = weightUnitOf(appState);
   body.innerHTML = `
     <div id="strengthTrainingLoadDashboard"></div>
     <div id="strengthVolumeProgressionSection"></div>
@@ -526,8 +535,8 @@ function _renderStrengthStats(body, data, sa, la, appState) {
     <div id="allLiftsRmContainer"></div>
   `;
   renderTrainingLoadDashboard(sa, la, data.weekLabels, appState);
-  renderVolumeSection(sa, data);
-  renderStrengthProgression(sa, data.weekLabels);
+  renderVolumeSection(sa, data, unit);
+  renderStrengthProgression(sa, data.weekLabels, appState);
   renderMuscleGroupAnalysis(sa, appState);
   renderStrengthHeatmap(data);
   // Calendar-week per-lift maxes for the selected week + its predecessor, plus the
@@ -539,13 +548,13 @@ function _renderStrengthStats(body, data, sa, la, appState) {
     prevByLift: bestE1rmByLiftForWeek(appState, { weekStart: cs.prevWeekKey }),
     prSet:      new Set(cs.prLifts),
   };
-  render1RMList(qs('allLiftsRmContainer'), data.dynamicStats, calStats);
+  render1RMList(qs('allLiftsRmContainer'), data.dynamicStats, calStats, unit);
 }
 
 // Per-lift PR list. `allTimeMax` (from dynamicStats) is the all-time headline;
 // `calStats` supplies the CALENDAR-week "this week / vs last week / PR" figures
 // (same exercise only). `calStats` optional → all-time-only rendering.
-export function render1RMList(container, dynamicStats, calStats = null) {
+export function render1RMList(container, dynamicStats, calStats = null, unit = 'kg') {
   const entries = Object.entries(dynamicStats)
     .filter(([, v]) => v.allTimeMax > 0)
     .sort(([, a], [, b]) => b.allTimeMax - a.allTimeMax);
@@ -574,15 +583,15 @@ export function render1RMList(container, dynamicStats, calStats = null) {
       const delta = cur - prev;
       const sign  = delta >= 0 ? '+' : '';
       const col   = delta > 0 ? '#10b981' : delta < 0 ? '#ef4444' : 'var(--text-muted)';
-      deltaHtml   = `<span style="font-size:0.72rem;color:${col};margin-left:6px;">${sign}${Math.round(delta)} kg vs last wk</span>`;
+      deltaHtml   = `<span style="font-size:0.72rem;color:${col};margin-left:6px;">${sign}${Math.round(delta)} ${unit} vs last wk</span>`;
     } else if (cur > 0) {
-      deltaHtml = `<span style="font-size:0.72rem;color:var(--text-muted);margin-left:6px;">This week: ~${Math.round(cur)} kg</span>`;
+      deltaHtml = `<span style="font-size:0.72rem;color:var(--text-muted);margin-left:6px;">This week: ~${Math.round(cur)} ${unit}</span>`;
     }
 
     return `<div class="mb-4">
       <div class="flex-between font-bold mb-1">
         <button class="an-entity-link text-sm" data-action="open-analytics" data-context="exercise" data-entity="${esc(canonicalExerciseId(name) || `custom:${name}`)}" data-entity-name="${esc(name)}" data-parent-context="strength">${esc(name)}${badge}<span aria-hidden="true">›</span></button>
-        <span style="color:#3b82f6;" class="text-base">${Math.round(statData.allTimeMax)} kg</span>
+        <span style="color:#3b82f6;" class="text-base">${fmtWeight(statData.allTimeMax, unit)}</span>
       </div>
       ${deltaHtml ? `<div class="mb-2">${deltaHtml}</div>` : ''}
       <div class="trend-track-bg" style="height:10px;border-radius:5px;">

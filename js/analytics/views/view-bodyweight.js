@@ -2,8 +2,10 @@
 // BODY WEIGHT VIEW (analytics/views/view-bodyweight.js)
 // ==========================================
 import { renderBodyWeightWithMA } from '../charts.js';
+import { weightUnitOf } from '../utils.js';
 
 export function renderBodyWeightAnalytics(data, getState) {
+  const unit = weightUnitOf(getState());
   const bwArticle = document.getElementById('bwChartContainer')?.closest('article') ||
                     document.getElementById('bwChartContainer')?.parentElement;
   const bwContainer = document.getElementById('bwChartContainer');
@@ -69,7 +71,7 @@ export function renderBodyWeightAnalytics(data, getState) {
     const color = abs <= 0.1 ? 'rgba(255,255,255,0.5)' : trendKgPerWk < 0 ? '#10b981' : '#ef4444';
     trendHtml = `<div class="flex-between py-2">
       <span class="text-sm text-muted">Trend</span>
-      <span class="font-heavy" style="color:${color};">${sign}${trendKgPerWk.toFixed(1)} kg/wk</span>
+      <span class="font-heavy" style="color:${color};">${sign}${trendKgPerWk.toFixed(1)} ${unit}/wk</span>
     </div>`;
   }
 
@@ -77,7 +79,7 @@ export function renderBodyWeightAnalytics(data, getState) {
     <article class="card-dark p-3 mt-3">
       <div class="flex-between py-2 border-b-glass">
         <span class="text-sm text-muted">7d Avg</span>
-        <span class="font-heavy text-inverse">${avg7.toFixed(1)} kg</span>
+        <span class="font-heavy text-inverse">${avg7.toFixed(1)} ${unit}</span>
       </div>
       ${trendHtml}
     </article>

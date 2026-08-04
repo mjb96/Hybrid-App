@@ -33,6 +33,7 @@ import { renderRecoveryPerformance } from './analytics/views/view-recovery-perfo
 import { buildProgressLanding } from './analytics/progress-landing.js';
 import { renderProgressHub } from './analytics/views/view-progress-hub.js';
 import { buildRunningMetricDetail } from './analytics/running-detail.js';
+import { isNumericWeekKey } from './state/activation-identity.js';
 
 let _getState;
 let _getDays;
@@ -301,8 +302,13 @@ function collectAnalyticsData() {
   const validGymHr = data.gymHrData.filter(h => h > 0);
   data.globalAvgGymHr = validGymHr.length ? validGymHr.reduce((a, b) => a + b, 0) / validGymHr.length : 0;
 
+  // Program-week-indexed grid: numeric week keys only. An archived activation
+  // (`arch:<id>:<n>`) belongs to a previous program run and has no column here,
+  // and parseInt would turn it into NaN — which the heatmap's range guard does
+  // not catch, because every NaN comparison is false.
   const trainingDays = [];
   Object.keys(appState.weeks || {}).forEach(wk => {
+    if (!isNumericWeekKey(wk)) return;
     const wkData = appState.weeks[wk];
     DEFAULT_DAYS.forEach((d, dayIdx) => {
       const dayLifts = wkData?.lifts?.[d] || {};
