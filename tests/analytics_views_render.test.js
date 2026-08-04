@@ -128,8 +128,12 @@ test('completed (navigated) week uses the previous-week label, not the live one'
 
 test('weekly volume and entity drilldowns render useful empty states without throwing', () => {
   const state = { settings: { weightUnit: 'kg' }, weeks: {} };
-  assert.doesNotThrow(() => vw.renderWeeklyVolume(state));
-  const weekly = getEl('weeklyVolumeDetail').innerHTML;
+  // Drive the body renderer the merged Volume screen actually calls — the old
+  // standalone wrapper was removed with its container, and a test against a
+  // function the app never runs is false confidence.
+  const weeklyEl = getEl('weeklyVolumeBody');
+  assert.doesNotThrow(() => vw.renderWeeklyVolumeBody(weeklyEl, state));
+  const weekly = weeklyEl.innerHTML;
   // The screen title moved to the merged Volume header; this body keeps the
   // week's own status, period and breakdown.
   assert.match(weekly, /Total tonnage/);
@@ -143,8 +147,9 @@ test('weekly volume and entity drilldowns render useful empty states without thr
 
 test('Gym Performance renders range, metric and exact-evidence controls without invalid values', () => {
   const state = sampleState();
-  assert.doesNotThrow(() => vgp.renderGymPerformance(state));
-  const html = getEl('gymPerformanceDetail').innerHTML;
+  const gymEl = getEl('gymPerformanceBody');
+  assert.doesNotThrow(() => vgp.renderGymPerformanceBody(gymEl, state));
+  const html = gymEl.innerHTML;
   // Title now belongs to the merged Volume screen; every control survives.
   assert.match(html, /data-gym-range="7d"/);
   assert.match(html, /data-gym-range="4w"/);

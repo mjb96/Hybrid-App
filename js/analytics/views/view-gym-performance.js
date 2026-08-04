@@ -130,10 +130,3 @@ export function renderGymPerformanceBody(root, state) {
   paint();
 }
 
-/**
- * Backwards-compatible entry point for the standalone container.
- * @param {any} state
- */
-export function renderGymPerformance(state) {
-  renderGymPerformanceBody(document.getElementById('gymPerformanceDetail'), state);
-}

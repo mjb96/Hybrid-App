@@ -159,11 +159,3 @@ export function renderWeeklyVolumeBody(root, state) {
   }));
 }
 
-/**
- * Backwards-compatible entry point for the standalone container. Retained so
- * any caller still targeting #weeklyVolumeDetail keeps working.
- * @param {any} state
- */
-export function renderWeeklyVolume(state) {
-  renderWeeklyVolumeBody(document.getElementById('weeklyVolumeDetail'), state);
-}
