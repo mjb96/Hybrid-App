@@ -1395,6 +1395,149 @@ html[data-theme="light"] .hub-link__icon {
 }
 
 /* ==========================================
+   PROGRESS HUB — four live domain cards (roadmap Phase 3A)
+
+   The landing answers "what changed, and does it matter" before the user taps
+   anything, so the four headline domains carry real weight and the remaining
+   destinations are deliberately quieter (.hub-link--quiet).
+   ========================================== */
+.ph-empty {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted, #94a3b8);
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  border-radius: var(--radius-lg, 12px);
+  padding: 14px;
+  margin: 0 0 14px;
+}
+
+.ph-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .ph-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.ph-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 14px;
+  text-align: left;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  border-radius: var(--radius-lg, 12px);
+  color: var(--text-primary, #f8fafc);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+@media (hover: hover) {
+  .ph-card:hover {
+    background: var(--surface-3, rgba(255,255,255,0.07));
+    border-color: rgba(99,102,241,0.35);
+  }
+}
+.ph-card:active { transform: scale(0.99); }
+.ph-card--empty { opacity: 0.82; }
+
+.ph-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ph-card__icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(99,102,241,0.12);
+  color: var(--text-muted, #94a3b8);
+}
+.ph-card__title {
+  flex: 1 1 auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #94a3b8);
+  min-width: 0;
+}
+.ph-card__arrow {
+  flex: 0 0 auto;
+  font-size: 0.95rem;
+  opacity: 0.4;
+}
+
+.ph-card__value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.ph-card__unit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-muted, #94a3b8);
+}
+
+.ph-card__delta,
+.ph-card__support,
+.ph-card__say {
+  margin: 0;
+  line-height: 1.4;
+}
+.ph-card__delta {
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.ph-card__support {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+}
+/* The plain-language answer to "so what?" — the reason this card exists. */
+.ph-card__say {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #cbd5e1);
+  margin-top: 2px;
+}
+
+/* Secondary destinations: same control, lower contrast and no icon well. */
+.hub-link--quiet {
+  min-height: 52px;
+  background: transparent;
+  border-color: var(--border-subtle, rgba(255,255,255,0.06));
+}
+.hub-link--quiet .hub-link__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+html[data-theme="light"] .ph-card,
+html[data-theme="light"] .ph-empty {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="light"] .hub-link--quiet {
+  background: transparent;
+  border-color: rgba(0,0,0,0.07);
+}
+html[data-theme="light"] .ph-card__say { color: var(--text-secondary, #334155); }
+
+/* ==========================================
    PROJECTIONS (R12)
    ========================================== */
 .proj-races { display: flex; flex-direction: column; gap: 2px; }

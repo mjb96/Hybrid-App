@@ -30,6 +30,9 @@ import { renderStrengthMetricDetail } from './analytics/views/view-strength-metr
 import { renderGymPerformance } from './analytics/views/view-gym-performance.js';
 import { renderRunPerformance } from './analytics/views/view-run-performance.js';
 import { renderRecoveryPerformance } from './analytics/views/view-recovery-performance.js';
+import { buildProgressLanding } from './analytics/progress-landing.js';
+import { renderProgressHub } from './analytics/views/view-progress-hub.js';
+import { buildRunningMetricDetail } from './analytics/running-detail.js';
 
 let _getState;
 let _getDays;
@@ -368,9 +371,23 @@ export function renderAnalytics() {
   }
 
   switch (context) {
-    case 'hub':
-      document.getElementById('analytics-hub').classList.add('active');
+    case 'hub': {
+      const hubEl = document.getElementById('analytics-hub');
+      hubEl.classList.add('active');
+      // Readiness comes from the ONE shared dashboard model — the same number
+      // Home shows — so the hub can never disagree with Home about it.
+      const st = _getState();
+      const days = _getDays();
+      const program = getProgramById(st.activeProgramId);
+      const dashboard = computeDashboardModel(st, days, program, days[0] || 'mon');
+      renderProgressHub(hubEl, buildProgressLanding(st, {
+        days,
+        program,
+        readiness: dashboard.ready,
+        runningMetric: (id) => buildRunningMetricDetail(st, id, { includeSeries: false }),
+      }));
       break;
+    }
     // V2 (S2): the Review screen — weekly-review (Overview) + weekly-summary and
     // monthly-report (Stats) collapse into one weekly/monthly story.
     case 'weekly-review':

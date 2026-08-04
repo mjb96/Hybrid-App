@@ -454,7 +454,7 @@ The visible information architecture can change without a risky route rewrite:
 
 ## Phase 3 — Progress and analytics redesign
 
-**Status: NEXT**
+**Status: ACTIVE**
 
 **Outcome:** Progress turns training history into understandable decisions.
 
@@ -470,6 +470,20 @@ Create four primary domains:
 
 Each domain shows one headline, one trend, one interpretation, and one link to
 detail. Optional fasting analytics appear only when the user enables fasting.
+
+- **DONE 2026-08-04:** The hub is no longer a static index of eight equal links.
+  `js/analytics/progress-landing.js` (pure model) and
+  `js/analytics/views/view-progress-hub.js` (presentation) render the four
+  domains above, each with a headline, a like-for-like comparison, one
+  plain-language interpretation and one route to its evidence.
+- [x] Consistency exists as a first-class domain for the first time, built from
+  real stamped dates so archived activations still count.
+- [x] Hybrid Score demoted to a secondary destination (optional synthesis).
+- [x] Fasting appears only for profiles with an active or completed fast.
+- [x] Review is owned by the Consistency card alone — the duplicate secondary
+  entry to the same screen was removed.
+- [ ] Remaining: the domain cards show no trend visual yet; add sparklines once
+  3D's per-domain series work lands.
 
 ### 3B. Metric hierarchy
 
@@ -744,8 +758,14 @@ Work in this order unless user evidence changes it:
    changing stored data.**
 3. **DONE — Establish Home hierarchy with one Today decision card, retain the
    owner-preferred In Focus cards, and remove the repeated At-a-Glance grid.**
-4. **ACTIVE — Simplify the common strength set-row interaction.**
-5. **Create the new Progress landing hierarchy and metric classification.**
+4. **Simplify the common strength set-row interaction.**
+5. **DONE — Create the new Progress landing hierarchy.** Metric classification
+   (3B) and the Volume Guide / MEV rebuild remain.
+5a. **ACTIVE — Rebuild the Volume Guide (MEV) presentation.** Unify it onto the
+   existing `classifyVolume` landmark classifier, expose the full
+   MV→MEV→MAV→MRV scale with readable numbers, replace vocabulary statuses
+   ("Below general reference") with actionable ones, and move priority-setting
+   out of the 19-row list.
 6. **Rework Plans discovery around recommendations before Browse all.**
 7. **Continue exercise metadata and shared visual-system cleanup in bounded
    batches.**
@@ -755,6 +775,33 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Progress landing hierarchy (Phase 3A).** Replaced the static
+  eight-link Progress index with four live domain cards — Consistency,
+  Strength, Running, Recovery & Load — each answering what changed, how it
+  compares, what it means and where the evidence is, before the user taps
+  anything. Split as a pure model (`analytics/progress-landing.js`) plus
+  presentation (`views/view-progress-hub.js`), with readiness injected from the
+  shared dashboard model so Progress and Home can never disagree about it.
+  Consistency became a first-class domain for the first time, built from real
+  stamped dates via `loggedDateSet`, so archived activations count and nothing
+  lands on a guessed date. Hybrid Score dropped to a secondary destination,
+  Fasting now appears only for profiles that actually fast, and Review's
+  duplicate secondary entry was removed so the Consistency card owns it.
+  **Bug found and fixed while verifying:** the DEFAULT programme's Sunday
+  (`js/constants.js`) was titled "Full Rest" with desc "No lifting. No running."
+  but carried `runs: "Rest execution criteria verified."`, which matched none of
+  `scheduledRun`'s rest patterns — so the canonical `classifyPlannedSession`
+  returned **"Run Day"** for the rest day of the programme every new user gets,
+  misleading the Today card, coach and morning briefing. Set to the `"Rest"`
+  convention every other programme uses, with a regression test.
+  `plannedTrainingDays` now calls that canonical classifier rather than a second
+  reading of `day.runs`. Verified: 1340 unit tests, typecheck, precache,
+  workflow gates, smoke, plus a new `scripts/progress-hub-browser-check.mjs`
+  covering both themes at 320/390/412px, 44px targets, no overflow, the empty
+  profile and domain routing. Next: the Volume Guide / MEV surface — unify it
+  onto the single `classifyVolume` landmark classifier it already owns but does
+  not use, show the full MV→MEV→MAV→MRV scale, and replace vocabulary statuses
+  with actionable ones.
 - **2026-08-03 — Home Today timezone CI correction.** Made the pure Today-card
   model accept an optional display timezone so calendar-day fixtures are
   deterministic without changing the runtime default of the user's device

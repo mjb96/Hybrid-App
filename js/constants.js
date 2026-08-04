@@ -104,7 +104,13 @@ export const PROGRAMS = {
       thu: { title: "Tempo Run + Push B", badge: "Lactate Threshold", color: "var(--accent-amber)", desc: "Targets: Incline Barbell Press (4x6)...", runs: "🔥 Tempo: Comfortably hard", lifts: ["Incline Barbell Press", "Seated DB Shoulder Press", "Dips", "Lateral Raise", "Close-Grip Push-Ups"] },
       fri: { title: "Pull B + Easy Run", badge: "Hypertrophy", color: "var(--accent-blue)", desc: "Targets: Barbell Bent-Over Row (4x5)...", runs: "Easy conversational run • 30 min", lifts: ["Barbell Bent-Over Row", "Chin-Ups", "Single-Arm DB Row", "Incline DB Curl", "Barbell Biceps Curl (Light)"] },
       sat: { title: "Parkrun / Long Run", badge: "Volume Run", color: "var(--accent-pink)", desc: "Parkrun effort or Easy Aerobic Run.", runs: "Parkrun Effort OR 45-60m Easy Aerobic", lifts: [] },
-      sun: { title: "Full Rest", badge: "System Rest", color: "var(--text-muted)", desc: "No lifting. No running.", runs: "Rest execution criteria verified.", lifts: [] }
+      // `runs` must use the "Rest" convention every other programme uses: it is
+      // not display copy alone — classifyPlannedSession reads it to decide
+      // whether a day is a rest day. The previous "Rest execution criteria
+      // verified." string matched none of the rest patterns, so the DEFAULT
+      // programme's rest day was classified as a Run Day everywhere it mattered
+      // (Today card, coach, morning briefing, planned-session counting).
+      sun: { title: "Full Rest", badge: "System Rest", color: "var(--text-muted)", desc: "No lifting. No running.", runs: "Rest", lifts: [] }
     },
     weeklyVolModifiers: {
       "1": { sets: 3, reps: 8, intensityLabel: "Base Accumulation" },

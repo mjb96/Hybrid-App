@@ -22,6 +22,7 @@ const PATHS = Object.freeze({
   heart:     '<path d="M12 20s-7-4.6-9-9.2A4.6 4.6 0 0 1 12 6a4.6 4.6 0 0 1 9 4.8C19 15.4 12 20 12 20z"/>',
   book:      '<path d="M5 5a2 2 0 0 1 2-2h12v15H7a2 2 0 0 0-2 2z"/><path d="M5 5v13"/>',
   clock:     '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  calendar:  '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/>',
   scale:     '<path d="M4 20h16"/><path d="M12 4v16"/><path d="M7.5 8h9l-2.2 5H9.7z"/>',
   sparkle:   '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>',
   plus:      '<path d="M12 5v14M5 12h14"/>',

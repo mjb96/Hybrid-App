@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 const checks = [
   'scripts/home-today-browser-check.mjs',
   'scripts/home-attribution-check.mjs',
+  'scripts/progress-hub-browser-check.mjs',
   'scripts/running-analytics-check.mjs',
   'scripts/gym-performance-browser-check.mjs',
   'scripts/run-performance-browser-check.mjs',
