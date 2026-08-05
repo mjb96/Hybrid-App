@@ -12,6 +12,7 @@ import {
 } from '../js/analytics/metric-tiers.js';
 import { RUNNING_METRICS } from '../js/analytics/running-detail.js';
 import { STRENGTH_METRICS } from '../js/analytics/strength-detail.js';
+import { RECOVERY_METRICS } from '../js/analytics/recovery-detail.js';
 
 test('every classified metric uses a known tier', () => {
   for (const [id, tier] of Object.entries(METRIC_TIERS)) {
@@ -91,7 +92,7 @@ test('every metric with its own detail screen is classified', () => {
   // drill into MUST be classified — its detail footer states the tier, so an
   // unclassified one would silently describe itself as "advanced".
   const classified = new Set(Object.keys(METRIC_TIERS));
-  const registered = [...RUNNING_METRICS, ...STRENGTH_METRICS].map((metric) => metric.id);
+  const registered = [...RUNNING_METRICS, ...STRENGTH_METRICS, ...RECOVERY_METRICS].map((metric) => metric.id);
   const missing = registered.filter((id) => !classified.has(id));
   assert.deepEqual(missing, [], `metrics with a detail screen but no tier: ${missing.join(', ')}`);
 });

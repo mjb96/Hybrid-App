@@ -13,6 +13,7 @@ import {
   renderReadinessRingLarge,
 } from '../charts/recovery-charts.js';
 import { statCard } from '../charts/chart-primitives.js';
+import { RECOVERY_METRICS, buildRecoveryMetricDetail, formatRecoveryValue } from '../recovery-detail.js';
 import { computeRecoveryAnalytics } from '../calculations/recovery-calcs.js';
 import { computeLoadAnalytics } from '../calculations/load-calcs.js';
 import { computeDashboardModel } from '../../home/dashboard-model.js';
@@ -280,6 +281,27 @@ export function renderRecoveryScoreDetail(data, getState, getDays, sectionId = '
         ${_rhrBaselineHTML(recov.rhrDev)}
       </article>`;
   }
+
+  // Inspectable recovery signals (roadmap 3D). Until now every recovery number
+  // was a dead end: this domain had no detail screens at all, so nothing here
+  // could be examined the way a Running or Strength metric can.
+  _ensureDiv(section, 'recoverySignalCards');
+  qs('recoverySignalCards').innerHTML = `
+    <h2 class="section-header mt-2">Recovery signals</h2>
+    <div class="grid-2-col gap-2 mb-3">
+      ${RECOVERY_METRICS.map((definition) => {
+        const detail = buildRecoveryMetricDetail(appState, definition.id, { range: '4w' });
+        return statCard({
+          label: definition.label,
+          value: formatRecoveryValue(definition, detail?.value),
+          sub: detail?.readingCount ? `${detail.readingCount} readings · 4 weeks` : 'No readings yet',
+          color: definition.color,
+          action: 'open-analytics', context: 'recovery-metric',
+          entity: definition.id, entityName: definition.label,
+          parentContext: 'recovery', metricId: definition.id,
+        });
+      }).join('')}
+    </div>`;
 
   // Summary metric cards
   _ensureDiv(section, 'recoverySummaryCards');

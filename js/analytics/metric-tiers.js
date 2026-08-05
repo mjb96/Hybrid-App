@@ -114,6 +114,8 @@ export const METRIC_TIERS = Object.freeze({
   'recovery.readiness': 'headline',
   'recovery.sleep': 'supporting',
   'recovery.hrv': 'supporting',
+  // Resting HR sits alongside HRV as a device-measured recovery signal.
+  'recovery.resting-hr': 'supporting',
   'recovery.form-tsb': 'advanced',
   'recovery.load-ratio': 'advanced',
   'recovery.soreness': 'supporting',

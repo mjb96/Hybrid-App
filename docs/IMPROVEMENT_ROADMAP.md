@@ -808,6 +808,35 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Recovery metric details (3D).** Recovery was the only domain
+  with NO inspectable metrics: Running had 30 detail screens, Strength 3,
+  Recovery zero — every recovery number was `static` or `domain-only` in the
+  inventory, so the new Progress hub's Recovery card drilled into a screen
+  where nothing could be examined.
+  `js/analytics/recovery-detail.js` registers sleep, HRV, resting heart rate,
+  soreness and mood with dated series, honest period comparisons, exact
+  contributing readings and stated confidence; `views/view-recovery-metric.js`
+  renders them on the shared Phase 3C contract footer rather than a fourth
+  hand-rolled copy. Recovery Stats gained a "Recovery signals" card row so they
+  are reachable.
+  Two obligations unique to this domain, both enforced by tests AND a browser
+  assertion in the same fixture: **lower is better** for resting HR and
+  soreness (a fall reads green there and amber on sleep — tone comes from the
+  metric, never the arrow), and **self-reported vs device-measured** readings
+  state different confidence instead of being presented as equally objective.
+  Missing days are skipped rather than counted as zero; future-dated and
+  implausible readings are excluded and counted in the footer.
+  Two further fixes found by looking at the rendered screen:
+  1. `.metric-range` buttons had `min-height: 36px` — below the 44px target.
+     That rule is SHARED, so every range selector in Running, Strength and
+     Recovery details was undersized. Raised at source.
+  2. The headline showed "55 bpm" while the sentence beneath said "54.6 bpm" —
+     one number, two answers. The interpretation now quotes the same formatted
+     value the headline renders.
+  Verified: 1409 unit tests, typecheck, precache, workflow gates, smoke, and
+  `scripts/recovery-metric-browser-check.mjs` across both themes at
+  320/390/412px including an empty profile.
+
 - **2026-08-04 — CI fix: the Volume merge broke a check I could not see fail.**
   `gym-performance-browser-check.mjs` waited on `#analytics-gym-performance`,
   the section Phase 3B deleted when it merged Gym Performance into the Volume
