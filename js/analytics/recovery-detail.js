@@ -104,6 +104,15 @@ export const RECOVERY_METRICS = Object.freeze([
       plausible: [1, 5],
       limitations: ['Soreness is a poor proxy for adaptation — its absence does not mean a session was ineffective.'],
     }),
+  metric('recovery.steps', 'Daily Steps', 'steps', SOURCE_KIND.DEVICE,
+    'Mean daily step count across the days in the selected period with a reading. Days the device recorded nothing are skipped rather than counted as a zero-step day.', {
+      color: '#14b8a6',
+      plausible: [1, 100000],
+      limitations: [
+        'Steps measure general daily movement, not training load — a heavy gym session can register very few.',
+        'Phone-only step counts miss any activity done without the phone on you.',
+      ],
+    }),
   metric('recovery.mood', 'Mood', 'rating', SOURCE_KIND.SELF,
     'Mean self-rated mood (1–5) across the days in the selected period with an entry.', {
       color: '#a855f7',
@@ -132,10 +141,12 @@ function rawReadings(state, definition) {
     }
     return out;
   }
-  const bucket = definition.id === 'recovery.hrv' ? state?.healthConnect?.hrv : state?.healthConnect?.restingHR;
+  const bucket = definition.id === 'recovery.hrv' ? state?.healthConnect?.hrv
+    : definition.id === 'recovery.steps' ? state?.healthConnect?.steps
+    : state?.healthConnect?.restingHR;
   for (const entry of Array.isArray(bucket) ? bucket : []) {
     // Health Connect rows have used different value keys across versions.
-    const value = Number(entry?.rmssd ?? entry?.bpm ?? entry?.value);
+    const value = Number(entry?.rmssd ?? entry?.bpm ?? entry?.value ?? entry?.count);
     const date = localDayKey(entry?.date);
     if (!date || !Number.isFinite(value)) continue;
     out.push({ date, value, sourceLabel: 'Health Connect' });
@@ -246,6 +257,7 @@ export function unitWord(definition) {
   if (definition.unit === 'hours') return 'hours';
   if (definition.unit === 'ms') return 'ms';
   if (definition.unit === 'bpm') return 'bpm';
+  if (definition.unit === 'steps') return 'steps';
   return 'out of 5';
 }
 
@@ -256,5 +268,6 @@ export function formatRecoveryValue(definition, value) {
   if (definition.unit === 'hours') return `${number.toFixed(1)} h`;
   if (definition.unit === 'ms') return `${Math.round(number)} ms`;
   if (definition.unit === 'bpm') return `${Math.round(number)} bpm`;
+  if (definition.unit === 'steps') return `${Math.round(number).toLocaleString()} steps`;
   return `${number.toFixed(1)} / 5`;
 }

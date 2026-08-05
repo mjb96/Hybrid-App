@@ -105,7 +105,7 @@ try {
       entities: [...el.querySelectorAll('[data-context="recovery-metric"]')].map((b) => b.getAttribute('data-entity')),
     }));
     console.log(`Recovery signals ${width}px/${theme}:`, JSON.stringify(cards));
-    for (const id of ['recovery.sleep', 'recovery.hrv', 'recovery.resting-hr', 'recovery.soreness', 'recovery.mood']) {
+    for (const id of ['recovery.sleep', 'recovery.hrv', 'recovery.resting-hr', 'recovery.steps', 'recovery.soreness', 'recovery.mood']) {
       if (!cards.entities.includes(id)) failures.push(`${width}px: no signal card for ${id}`);
     }
 

@@ -454,7 +454,8 @@ The visible information architecture can change without a risky route rewrite:
 
 ## Phase 3 — Progress and analytics redesign
 
-**Status: ACTIVE**
+**Status: COMPLETE except readiness-component details, which need a persisted
+readiness history (see 3D) and are deferred to a data-model change.**
 
 **Outcome:** Progress turns training history into understandable decisions.
 
@@ -550,14 +551,37 @@ Every metric detail includes:
 
 ### 3D. Remaining model work
 
-- Complete Strength Performance around calendar-dated, same-exercise estimated
-  1RM and exact evidence.
-- Complete recovery details for sleep, resting HR, HRV, steps, and readiness
-  components.
-- Add projection sample-size/confidence treatment.
-- Audit every metric for calendar-week/program-week correctness.
-- Verify edit/delete/import changes propagate immediately across Home, Progress,
-  detail screens, coaching, and Hybrid Score.
+**Status: SUBSTANTIALLY DONE 2026-08-04 — one item deliberately not attempted.**
+
+- [x] **Strength Performance on calendar-dated, same-exercise e1RM + exact
+  evidence.** Satisfied by `strength-calendar.js` / `calendarStrengthSummary`
+  (same-exercise only, identity = the lift's bare-string name) plus
+  `strength-detail.js`'s evidence rows. Verified during the audit below rather
+  than rebuilt.
+- [x] **Recovery details** for sleep, resting HR, HRV and steps —
+  `js/analytics/recovery-detail.js` + `views/view-recovery-metric.js`. Soreness
+  and mood were added alongside them.
+- [ ] **Readiness COMPONENTS remain undone, and not by oversight.** Readiness is
+  computed on demand and no history is persisted, so a component detail would
+  have no series to show. Giving it one means persisting a readiness history —
+  a data-model change with sync and migration consequences, which does not
+  belong inside a presentation phase. Deliberately deferred, not forgotten.
+- [x] **Projection sample-size/confidence treatment** — `trendQuality` grades
+  each projection on sample count AND fit, and the horizon it may claim is
+  capped by that grade.
+- [x] **Calendar-week/program-week audit.** Result: `running-detail.js`,
+  `strength-detail.js` and `strength-volume-detail.js` contain ZERO genuine
+  `state.currentWeek` reads (their `currentWeek` mentions are local period
+  parameters). The only real reads are `logged-days.js`'s `resolveSlotDate`
+  pair, which legitimately owns the legacy program-slot mapping used when
+  writing an activity back to a program day. `tests/analytics_calendar_guard.js`
+  now covers five further modules so this stays true; the extension was verified
+  by planting a violation and confirming it fails.
+- [x] **Edit/delete/import propagation** — `tests/analytics_propagation.test.js`
+  mutates state in place (the same object identity the app mutates) and asserts
+  every model recomputes: deleting a workout, editing a set weight, correcting a
+  DATE so work moves week, importing a run, importing wellness readings, and
+  coaching projections losing confidence as history is removed.
 
 ### Acceptance
 
@@ -807,6 +831,27 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-04 — Phase 3D completion + branch consolidation.** Folded the
+  recovery-details and projection-confidence branches into one and finished the
+  phase's remaining model work.
+  **Calendar audit.** Swept every analytics module for program-week/calendar
+  conflation. Clean where it matters: `running-detail`, `strength-detail` and
+  `strength-volume-detail` have no genuine `state.currentWeek` reads. Extended
+  `analytics_calendar_guard` from 4 modules to 9 and proved the extension bites
+  by planting a violation.
+  **Propagation.** `tests/analytics_propagation.test.js` mutates state IN PLACE
+  — the same object identity the app mutates, so anything memoising on identity
+  rather than content would return stale data — and asserts every model
+  recomputes across delete, edit, re-date, run import, wellness import and
+  coaching projections.
+  **Steps** added to the recovery details, completing that 3D bullet.
+  **Readiness components deliberately NOT done:** readiness is computed on
+  demand with no persisted history, so a component detail would have no series.
+  Adding one means persisting a readiness history — a data-model change with
+  sync and migration consequences that does not belong in a presentation phase.
+  Verified: 1431 unit tests, typecheck, precache, workflow gates, smoke, and
+  every browser gate.
 
 - **2026-08-04 — Recovery metric details (3D).** Recovery was the only domain
   with NO inspectable metrics: Running had 30 detail screens, Strength 3,

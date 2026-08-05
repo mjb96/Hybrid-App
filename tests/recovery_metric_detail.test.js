@@ -223,3 +223,26 @@ test('sleep keeps its decimal in both places', () => {
   assert.ok(model.interpretation.includes(formatRecoveryValue(model.definition, model.value)));
   assert.match(model.interpretation, /7\.3 h/);
 });
+
+test('steps read from their own Health Connect bucket and both value keys', () => {
+  for (const key of ['value', 'count']) {
+    const rows = [];
+    for (let i = 0; i < 5; i++) rows.push({ date: day(i), [key]: 9000 });
+    const model = build({ healthConnect: { steps: rows } }, 'recovery.steps');
+    assert.equal(model.value, 9000, `steps via "${key}"`);
+    assert.equal(formatRecoveryValue(model.definition, model.value), '9,000 steps');
+  }
+});
+
+test('more steps is better, and a stepless day is skipped not zeroed', () => {
+  const rows = [];
+  for (let i = 0; i < 28; i++) rows.push({ date: day(i), value: 11000 });
+  for (let i = 28; i < 56; i++) rows.push({ date: day(i), value: 9000 });
+  const model = build({ healthConnect: { steps: rows } }, 'recovery.steps');
+  assert.equal(model.comparison.favourable, true, 'steps are not an inverse metric');
+
+  // Two logged days in a 28-day window average those two days, not 28.
+  const sparse = build({ healthConnect: { steps: [{ date: day(0), value: 10000 }, { date: day(5), value: 12000 }] } }, 'recovery.steps');
+  assert.equal(sparse.value, 11000);
+  assert.equal(sparse.readingCount, 2);
+});
