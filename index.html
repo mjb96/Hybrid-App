@@ -633,7 +633,11 @@
 
       <div class="global-timer-bar" id="cockpitTimerBar">
         <div class="rest-timer-body">
-          <span class="timer-label" id="restTimerLabel">⏸ REST</span>
+          <!-- The label IS the pause control: it used to render a decorative ⏸
+               with no pause behind it, which reads as a broken button. -->
+          <button type="button" class="timer-label" id="restPauseBtn"
+                  data-action="rest-pause" aria-pressed="false"
+                  aria-label="Pause rest timer">⏸ REST</button>
           <span class="timer-clock" id="cockpitTimerClock">1:30</span>
           <div class="rest-timer-actions">
             <button class="rest-adj-btn" data-action="rest-adjust" data-delta="-30">−30s</button>

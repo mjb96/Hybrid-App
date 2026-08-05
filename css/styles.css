@@ -1266,6 +1266,12 @@ select.native-select {
 .set-row-msg[hidden] { display: none; }
 .set-row-msg.is-warning { color: var(--color-amber, #f59e0b); }
 
+/* Roadmap 2A — contextual row actions. Adding a warm-up stops making sense once
+   working sets are logged, so it steps aside rather than sitting at equal
+   weight beside + Working Set and ⇄ Swap for the whole session. Any row can
+   still be re-typed to a warm-up from its ⋯ menu. */
+.cockpit-exercise.has-logged-work .btn-append-warmup { display: none; }
+
 .set-adv-row {
   grid-column: 1 / -1;
   display: none;
@@ -1285,6 +1291,22 @@ select.native-select {
   color: var(--text-secondary);
   text-align: center;
   opacity: 0.6;
+}
+/* Roadmap 2A, "completion is the strongest row action". Quick-log and the
+   tick BOTH complete a set, and quick-log used to be the loud one: a filled
+   blue button beside a plain grey square. It is the shortcut, not the primary
+   action, so it now reads as a quiet outline. The 44px target is unchanged —
+   this de-emphasises it, it does not shrink it. */
+.cockpit-set-row .set-num-lbl[data-action="quick-log"] {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary, var(--text-secondary));
+  cursor: pointer;
+  opacity: 0.8;
+}
+.cockpit-set-row .set-num-lbl[data-action="quick-log"]:active {
+  background: var(--overlay-sm);
 }
 .cockpit-set-row.is-complete input {
   color: var(--color-green);
@@ -1307,8 +1329,11 @@ input[type="checkbox"].gym-check {
   appearance: none;
   width: 36px;
   height: 36px;
-  background: var(--bg-input);
-  border: 1px solid var(--glass-border);
+  /* The primary action of the row, so it is drawn as one even before it is
+     ticked — previously the quietest control in a row that also held a filled
+     blue button doing the same job. */
+  background: rgba(16, 185, 129, 0.08);
+  border: 2px solid rgba(16, 185, 129, 0.45);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition:
@@ -2349,7 +2374,20 @@ html[data-theme="light"] .today-card__score {
   justify-content: space-between;
   width: 100%;
 }
-.timer-label { font-size: 0.7rem; font-weight: 700; color: #a3e635; letter-spacing: 0.08em; text-transform: uppercase; }
+.timer-label {
+  font-size: 0.7rem; font-weight: 700; color: #a3e635; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* Now a real button (it doubles as pause), so it needs a button's reset and
+     a tap area — but it must keep reading as the bar's label, not a fourth
+     action competing with -30s / +30s / Done. */
+  background: none; border: 0; padding: 4px 2px; margin: -4px -2px;
+  min-height: 44px; display: inline-flex; align-items: center;
+  cursor: pointer; font-family: inherit;
+}
+.timer-label:active { opacity: 0.7; }
+/* A held countdown must not look like a running one. */
+.global-timer-bar.rest-paused .timer-label { color: var(--color-amber, #f59e0b); }
+.global-timer-bar.rest-paused .rest-progress-fill { opacity: 0.45; }
 .rest-timer-actions { display: flex; gap: 6px; align-items: center; }
 .rest-adj-btn {
   font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 8px;
@@ -5017,7 +5055,7 @@ html[data-theme="light"] .rest-skip-btn {
 }
 
 /* Rest timer label */
-html[data-theme="light"] #restTimerLabel {
+html[data-theme="light"] #restPauseBtn {
   color: rgba(0, 0, 0, 0.50);
 }
 html[data-theme="light"] #cockpitTimerClock {

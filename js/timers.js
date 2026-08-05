@@ -33,6 +33,7 @@ let _restOverrides = {};       // { liftName: seconds } — remembered ± adjust
 let _currentLift = null;       // exercise whose rest is currently running
 let _currentWorking = false;   // is that set a working set (override-eligible)?
 let _onOverridesChange = null; // persistence callback (app layer owns the save)
+let _restPaused = false;       // countdown deliberately held by the athlete
 
 const _clampRest = (v, fallback) => {
   const n = parseInt(v, 10);
@@ -218,10 +219,59 @@ export function triggerRestTimerEngine(liftName, setRpe, setType) {
     timerBar.classList.remove('rest-warning', 'rest-done');
   }
 
+  // A new set's rest always starts running — a pause held over from the last
+  // set would silently stop this one from counting down at all.
+  _restPaused = false;
+  _syncRestPauseUi();
+
   _updateRestTimerDisplay(duration, duration);
   moveRestTimerToActiveExercise();
   _startRestCountdown();
 }
+
+/**
+ * Reflect the paused/running state on the control. The label doubles AS the
+ * control: it previously rendered a decorative "⏸ REST" with no pause behind
+ * it, which is a worse lie than having no pause at all.
+ */
+function _syncRestPauseUi() {
+  const button = document.getElementById('restPauseBtn');
+  const timerBar = document.getElementById('cockpitTimerBar');
+  timerBar?.classList.toggle('rest-paused', _restPaused);
+  if (!button) return;
+  button.setAttribute('aria-pressed', String(_restPaused));
+  button.setAttribute('aria-label', _restPaused ? 'Resume rest timer' : 'Pause rest timer');
+  button.textContent = _restPaused ? '▶ PAUSED' : '⏸ REST';
+}
+
+/**
+ * Hold or resume the countdown. Rest is not always uninterrupted — a machine is
+ * taken, someone talks to you — and without this the only options were to watch
+ * it run out or dismiss it and lose the prescription.
+ *
+ * Resuming re-derives from `_restRemaining`, so a pause of any length costs
+ * exactly the time it was held and nothing else.
+ * @returns {boolean} whether the timer is now paused
+ */
+export function toggleRestPause() {
+  const timerBar = document.getElementById('cockpitTimerBar');
+  // Nothing to pause when no rest is running, or when it has already finished —
+  // "pausing" a completed timer would show a held countdown at 0:00.
+  if (!timerBar || !timerBar.classList.contains('active') || _restRemaining <= 0) return false;
+
+  if (restTimerInt !== null) {
+    clearInterval(restTimerInt);
+    restTimerInt = null;
+    _restPaused = true;
+  } else {
+    _restPaused = false;
+    _startRestCountdown();
+  }
+  _syncRestPauseUi();
+  return _restPaused;
+}
+
+export function isRestPaused() { return _restPaused; }
 
 export function adjustRestDuration(delta) {
   // Adjust ONLY the running countdown — never a hidden global baseline (which
@@ -245,6 +295,9 @@ export function dismissRestTimer() {
   clearInterval(restTimerInt);
   restTimerInt = null;
   _restRemaining = _restDuration;
+  // Dismissing ends the rest entirely, so a held pause ends with it — otherwise
+  // the next set's timer would inherit a "PAUSED" label it never earned.
+  _restPaused = false;
 
   const timerBar = document.getElementById('cockpitTimerBar');
   const clockDisplay = document.getElementById('cockpitTimerClock');
@@ -265,6 +318,7 @@ export function dismissRestTimer() {
     clockDisplay.textContent = m + ':' + s;
   }
   if (progressFill) progressFill.style.width = '100%';
+  _syncRestPauseUi();
 }
 
 // ==========================================

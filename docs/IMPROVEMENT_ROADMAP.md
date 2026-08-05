@@ -407,8 +407,10 @@ The visible information architecture can change without a risky route rewrite:
 - **DONE 2026-08-03:** Separate global Last performed history from
   activation-and-workout-day-scoped progression suggestions. New-program fields
   stay blank and historical values enter them only after **Use previous values**.
-- Make the active exercise visually dominant; collapse completed/future
-  exercises while retaining a clear session overview.
+- **DONE 2026-08-05:** Make the active exercise visually dominant; collapse
+  completed/future exercises while retaining a clear session overview. The
+  accordion already did the dominance and collapsing; the session outline (below)
+  supplied the missing "clear session overview" half.
 - Design a consistent set-row interaction:
   - **DONE 2026-08-05 — previous values visible.** Last time's numbers were only
     ever an input PLACEHOLDER, so they vanished on the first keystroke — exactly
@@ -417,7 +419,11 @@ The visible information architecture can change without a risky route rewrite:
     `priorPerformance.workingSets` the call site was already computing and
     `buildSetRow` was silently discarding.
   - weight and reps easy to edit;
-  - completion is the strongest row action;
+  - **DONE 2026-08-05 — completion is the strongest row action.** Quick-log and
+    the tick both complete a set, and quick-log was the loud one: a filled blue
+    button beside a plain grey square. Quick-log is now a quiet outline and the
+    tick is drawn as the primary control even before it is ticked. Touch targets
+    unchanged at 44px — this de-emphasises, it does not shrink.
   - RIR/RPE, set type, load mode, and notes progressively disclosed *(RIR is
     already disclosed on completion via CSS; set type/load/remove sit behind the
     `⋯` control)*;
@@ -426,12 +432,22 @@ The visible information architecture can change without a risky route rewrite:
     both accepted. `validateSetEntry` (`js/workout/set-entry.js`) refuses
     impossible values and warns on merely surprising ones, and the message
     renders on the offending row instead of in a toast.
-- Test whether ticking a set should advance focus or open the rest timer without
-  surprising the user.
-- Keep rest timing attached to the active exercise/set, with obvious
-  pause/skip/adjust controls.
-- Make add, swap, reorder, superset, warm-up, and plate-math actions contextual
-  instead of equally prominent.
+- **SETTLED 2026-08-05:** ticking a set opens the rest timer (existing
+  behaviour) rather than advancing focus. Keeping it: rest is the thing that
+  actually happens next, and with the timer now attached to the card and
+  pausable, it no longer takes the screen away from the athlete. Advancing focus
+  would also fight the auto-flow accordion, which already moves on when an
+  exercise finishes. Recorded as a decision, not left implicit.
+- **DONE 2026-08-05:** Keep rest timing attached to the active exercise/set,
+  with obvious pause/skip/adjust controls. Adjust (±30s) and skip (Done) already
+  existed and the bar already re-parents into the open card; **pause did not** —
+  the bar rendered a decorative "⏸ REST" label with no pause behind it.
+  `toggleRestPause` makes that label the control it looked like.
+- **PARTLY DONE 2026-08-05:** Make add, swap, reorder, superset, warm-up, and
+  plate-math actions contextual instead of equally prominent. `+ Warmup` now
+  steps aside once a working set is logged (you do not warm up after your work;
+  any row can still be re-typed to a warm-up from its ⋯ menu). Superset, reorder
+  and plate-math prominence are untouched.
 - **DONE 2026-08-05:** Lightweight session outline above the accordion
   (`js/workout/session-outline.js` pure model + render in `js/workout.js`):
   one row per exercise with its working-set count and done/active/todo status,
@@ -847,6 +863,51 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-05 — Rest timer pause + row action prominence (Phase 2A).**
+  - **A control that looked real and did nothing.** The rest bar rendered a
+    decorative `⏸ REST` label with no pause behind it, beside working −30s,
+    +30s and Done buttons. That is worse than having no pause: you press it,
+    nothing happens, and you stop trusting the whole bar. `toggleRestPause`
+    makes the label the control it appeared to be. Rest is not always
+    uninterrupted — a machine is taken, someone talks to you — and the only
+    options before were to watch it run out or dismiss it and lose the
+    prescription.
+  - The state machine's real risk is leakage, so that is what the tests pin: a
+    hold carried into the next set would mean that set's rest never counts down
+    at all. Cleared on both `triggerRestTimerEngine` and `dismissRestTimer`.
+    Adjusting while paused deliberately stays paused — ±30s corrects the
+    prescription, it is not a request to start counting.
+  - **Completion is now the strongest row action.** Quick-log and the tick both
+    complete a set and quick-log was the loud one — a filled blue button next to
+    a plain grey square. Reversed: quick-log is a quiet outline, the tick is
+    drawn as primary even unticked. Targets stay 44px; this de-emphasises rather
+    than shrinks, and the browser check asserts both halves.
+  - **`+ Warmup` is contextual.** It steps aside once a working set is logged.
+    The capability is not lost — any row can still be re-typed to a warm-up from
+    its ⋯ menu.
+  - **Ticking a set keeps opening the rest timer** rather than advancing focus.
+    Settled and recorded rather than left implicit: rest is what actually
+    happens next, the timer no longer takes the screen away now that it is
+    attached to the card and pausable, and advancing focus would fight the
+    auto-flow accordion that already moves on when an exercise finishes.
+  - **Two mistakes worth recording.**
+    1. I first made `+ Warmup` a template branch on a `hasLoggedWork` flag. It
+       worked at render and was wrong from the first tick, because ticking
+       updates the DOM *without* re-rendering the card — the third time this
+       session that same path has caught a change. It is now one CSS-driven
+       class kept current by `refreshContextualRowActions()`, beside
+       `refreshSessionOutline()`.
+    2. A backtick inside an HTML comment **inside a JS template literal** closed
+       the string early and killed the whole exercise-card render. Unit tests
+       and typecheck both passed; only the browser check saw it, and only after
+       I fixed that check to print console errors before bailing out — it was
+       reporting a dozen confusing assertion failures while swallowing the one
+       line that explained them.
+  - `tests/rest_timer_pause.test.js` (7 tests, verified non-vacuous by planting
+    the pause-leak regression) and `scripts/rest-timer-browser-check.mjs`, which
+    drives the real timer: pause it, prove the clock is frozen across 1.8s,
+    resume it, prove it moves again.
 
 - **2026-08-05 — Set row: previous values and inline validation (Phase 2A).**
   Two of the set-row contract's five requirements.

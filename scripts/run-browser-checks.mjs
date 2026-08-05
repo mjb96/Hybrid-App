@@ -9,6 +9,7 @@ const checks = [
   'scripts/train-landing-browser-check.mjs',
   'scripts/session-outline-browser-check.mjs',
   'scripts/set-row-browser-check.mjs',
+  'scripts/rest-timer-browser-check.mjs',
   'scripts/recovery-metric-browser-check.mjs',
   'scripts/running-analytics-check.mjs',
   'scripts/gym-performance-browser-check.mjs',

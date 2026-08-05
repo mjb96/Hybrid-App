@@ -66,7 +66,7 @@ import {
   activeWorkoutTimerKey,
 } from './workout.js';
 
-import { startWorkoutTimer, dismissRestTimer, checkActiveTimerOnLoad } from './timers.js';
+import { startWorkoutTimer, dismissRestTimer, toggleRestPause, checkActiveTimerOnLoad } from './timers.js';
 import { saveMapToDB } from './db.js';
 import { initGarminRunImport, initGarminGymImport } from './garmin.js';
 import { initRunLogger, openRunLogger, closeRunLogger, saveManualRun } from './run-logger.js';
@@ -1093,6 +1093,7 @@ document.addEventListener('click', (e) => {
   // Timers
   else if (action === 'start-timer') startWorkoutTimer(activeWorkoutTimerKey());
   else if (action === 'dismiss-rest') dismissRestTimer();
+  else if (action === 'rest-pause') toggleRestPause();
 
   // Programs & Library
   else if (action === 'open-create-program') openCreateProgramModal();
