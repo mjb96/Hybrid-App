@@ -410,11 +410,22 @@ The visible information architecture can change without a risky route rewrite:
 - Make the active exercise visually dominant; collapse completed/future
   exercises while retaining a clear session overview.
 - Design a consistent set-row interaction:
-  - previous values visible;
+  - **DONE 2026-08-05 — previous values visible.** Last time's numbers were only
+    ever an input PLACEHOLDER, so they vanished on the first keystroke — exactly
+    when you want to compare against them. Each row now carries a persistent
+    `Last 62.5kg × 8` line (`previousSetLabel`), from the same
+    `priorPerformance.workingSets` the call site was already computing and
+    `buildSetRow` was silently discarding.
   - weight and reps easy to edit;
   - completion is the strongest row action;
-  - RIR/RPE, set type, load mode, and notes progressively disclosed;
-  - invalid or incomplete input explained inline.
+  - RIR/RPE, set type, load mode, and notes progressively disclosed *(RIR is
+    already disclosed on completion via CSS; set type/load/remove sit behind the
+    `⋯` control)*;
+  - **DONE 2026-08-05 — invalid or incomplete input explained inline.**
+    Completion previously ran a blank-check only, so `-50` and `0` reps were
+    both accepted. `validateSetEntry` (`js/workout/set-entry.js`) refuses
+    impossible values and warns on merely surprising ones, and the message
+    renders on the offending row instead of in a toast.
 - Test whether ticking a set should advance focus or open the rest timer without
   surprising the user.
 - Keep rest timing attached to the active exercise/set, with obvious
@@ -836,6 +847,48 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-05 — Set row: previous values and inline validation (Phase 2A).**
+  Two of the set-row contract's five requirements.
+  - **A data-integrity defect, not a UX one.** Completing a set only ever asked
+    "is this field non-empty?", so `-50` kg and `0` reps both logged. `setVolume`
+    is `parseFloat(w) * parseInt(r)`, so a negative weight **subtracts** from
+    tonnage, weekly volume, muscle set credits and every MV/MEV/MAV/MRV
+    comparison built on them — one mistyped minus quietly corrupting the
+    analytics the app exists to provide. A zero-rep set was worse in a different
+    way: it read as done in the cockpit while `isValidWorkingSet` dropped it
+    from analytics, so the screen and the numbers disagreed.
+  - `js/workout/set-entry.js` (pure) draws the line deliberately asymmetrically.
+    Impossible values are **errors** and block the tick; merely surprising ones
+    (>100 reps, >1500 load) are **warnings** that inform and get out of the way.
+    An athlete really can rep 120 bodyweight squats, and a logger that argues
+    with them is a logger they stop using. The weight bound is set at the loose
+    (lbs) end because the app never converts units — a missed warning costs far
+    less than refusing a real lift.
+  - Blank weight is exempt on **bodyweight/assisted** rows, which derive their
+    load from body mass and band assistance. Where the load mode is unreadable
+    it defaults to `weighted` — the strict mode — so the fallback can only
+    over-require, never under-require.
+  - **Previous values visible.** `buildSetRow` was already being *handed*
+    `previousSetData` — real work at the call site, from
+    `priorPerformance.workingSets` — and threw it away. Each row now shows a
+    persistent `Last 62.5kg × 8`, which stays put while typing rather than
+    living in a placeholder that clears on the first keystroke. No prior set
+    renders nothing at all: `-- × --` reads as data that failed to load.
+  - The message renders **on the row**, replacing the old toast — a toast
+    appears away from the offending field and is gone before you look up.
+  - **Found by driving it, not by a test:** clearing the error was wired to
+    `change`, which only fires on blur, so the complaint sat there through the
+    entire retype. Moved to an `input` listener that only *clears* — re-validating
+    per keystroke would flag `-` and `1.` as the number is still being typed.
+  - `tests/set_entry.test.js` (25 tests) and
+    `scripts/set-row-browser-check.mjs`, which drives the real cockpit and
+    asserts the refused set never reaches `localStorage` — the tick bouncing
+    visually would be worth little if the value were stored anyway.
+  - **Still outstanding in 2A:** completion as the strongest row action (the
+    blue `Log Sn` quick-log button still competes with the checkbox), the
+    tick-advances-focus vs opens-rest-timer question, and making
+    add/swap/reorder/superset contextual rather than equally prominent.
 
 - **2026-08-05 — Session outline (Phase 2A).** The cockpit already collapsed
   completed and inactive exercises, but answering "how much is left?" still

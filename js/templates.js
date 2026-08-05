@@ -5,6 +5,7 @@
 import { DAY_NAMES_FULL } from './constants.js';
 import { escapeHtml } from './util.js';
 import { isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { previousSetLabel } from './workout/set-entry.js';
 
 export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
@@ -53,6 +54,16 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
     ? ` data-bo-src="${escapeHtml(boSrc)}" data-bo-pct="${escapeHtml(String(roleTag.boPct ?? ''))}"`
     : '';
 
+  // Roadmap 2A, "previous values visible". Last time's numbers were only ever a
+  // PLACEHOLDER, so they disappeared the instant you typed — precisely when you
+  // want to compare against them. This line stays put. It renders only when
+  // there is a real prior set: a first-ever session shows nothing rather than a
+  // "-- × --" that reads as data which failed to load.
+  const prev = previousSetLabel(previousSetData, weightUnit);
+  const prevHtml = prev
+    ? `<div class="set-prev" aria-label="${escapeHtml(prev.label)}">${escapeHtml(prev.text)}</div>`
+    : '';
+
   return `<div class="cockpit-set-row ${sData.c ? 'is-complete' : ''} ${typeClass} ${sData.isPR ? 'is-pr' : ''}"${hasRole ? ` data-set-role="${escapeHtml(String(roleTag.role))}"` : ''}${boAttrs} data-set-index="${sIdx}" data-load-mode="${directMode}">
     ${roleTagHtml}
     ${sData.isPR ? '<span class="pr-badge">PR</span>' : ''}
@@ -89,6 +100,8 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
             data-action="toggle-set-adv"
             aria-label="Set options"
             title="Set type, load & remove">⋯</button>
+    <div class="set-row-msg" role="status" aria-live="polite" hidden></div>
+    ${prevHtml}
 
     <div class="set-adv-row">
       <button class="type-pill tactile-scale"

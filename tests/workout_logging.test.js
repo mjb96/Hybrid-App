@@ -318,6 +318,9 @@ test('checking a blank set never imports another activation without explicit use
     querySelectorAll: () => [row],
   };
   const row = {
+    // The real row carries data-load-mode; the logger reads it to decide
+    // whether a blank weight is incomplete or simply a bodyweight set.
+    dataset: { loadMode: 'weighted' },
     classList: rowClassList,
     querySelector(selector) {
       if (selector === '.input-weight-node') return weight;

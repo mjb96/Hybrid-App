@@ -28,6 +28,7 @@ import { completionPresentation, evaluateSessionCompletion } from './workout/com
 import { detectRunType } from './workout/run-type.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft } from './workout/delete-day.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
 import {
@@ -1130,7 +1131,11 @@ export function updateInputState(inputNode) {
   if (!row) return;
   
   const sIdx = Array.from(exCard.querySelectorAll('.cockpit-set-row')).indexOf(row);
-  
+
+  // Also cleared live on `input` (see the document input listener); repeated
+  // here so a programmatic value change that only fires `change` clears it too.
+  setRowMessage(row, null);
+
   if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
   if (!appState.weeks[wk].lifts[selectedDay][liftName]) appState.weeks[wk].lifts[selectedDay][liftName] = [];
   if (!appState.weeks[wk].lifts[selectedDay][liftName][sIdx]) {
@@ -1298,13 +1303,31 @@ export function toggleGymCheckLoggingState(checkboxNode) {
       if (!wInput.value && Number.isFinite(wGhost)) wInput.value = String(wGhost);
       if (!rInput.value && Number.isFinite(rGhost)) rInput.value = String(rGhost);
 
-      // 3) Still blank ⇒ there's nothing honest to log. Bounce the tick and ask
-      //    for the numbers rather than silently recording a fabricated 40×10.
-      if (!wInput.value || !rInput.value) {
+    }
+
+    // 3) Validate whatever the row now holds — typed, inherited or suggested.
+    //    This used to be a blank check only, which let `-50` and `0` reps
+    //    through: setVolume is parseFloat(w) * parseInt(r), so a negative weight
+    //    SUBTRACTS from tonnage, weekly volume and every landmark built on it,
+    //    and a zero-rep set reads as done here while isValidWorkingSet drops it
+    //    from analytics. The message lands on the row rather than in a toast —
+    //    a toast appears away from the offending field and is gone before you
+    //    look up (roadmap 2A: "invalid or incomplete input explained inline").
+    if (wInput && rInput) {
+      const verdict = validateSetEntry({
+        weight: wInput.value,
+        reps: rInput.value,
+        // Defaults to 'weighted', the strictest mode: absent the attribute this
+        // can only over-require a weight, never under-require one — and that is
+        // exactly the behaviour this check had before the exemption existed.
+        loadMode: parentRow?.dataset?.loadMode || 'weighted',
+      });
+      const message = primarySetEntryMessage(verdict);
+      setRowMessage(parentRow, message);
+      if (!verdict.ok) {
         checkboxNode.checked = false;
         parentRow.classList.remove('is-complete');
-        showToast('Enter weight & reps first', true);
-        (!wInput.value ? wInput : rInput).focus();
+        (verdict.firstErrorField === 'reps' ? rInput : wInput).focus();
         return;
       }
     }
@@ -1369,9 +1392,33 @@ export function toggleGymCheckLoggingState(checkboxNode) {
     } catch(e) { console.warn(e); }
   } else {
     if (parentRow) parentRow.classList.remove('is-complete');
+    // Un-ticking is the athlete withdrawing the entry, so the complaint about it
+    // goes too. Leaving it would accuse a row that no longer claims anything.
+    setRowMessage(parentRow, null);
   }
   commitWorkoutUIState();
   evaluateAccordionAutoFlowTransitions();
+}
+
+/**
+ * Show (or clear) the inline entry message on one set row.
+ * @param {Element|null} row
+ * @param {{level: string, text: string}|null} message
+ */
+function setRowMessage(row, message) {
+  const slot = row?.querySelector('.set-row-msg');
+  if (!slot) return;
+  if (!message) {
+    slot.textContent = '';
+    slot.setAttribute('hidden', '');
+    slot.classList.remove('is-warning');
+    return;
+  }
+  slot.textContent = message.text;
+  slot.classList.toggle('is-warning', message.level === 'warning');
+  // Removed after the text is set so the live region announces the message
+  // rather than an empty node.
+  slot.removeAttribute('hidden');
 }
 
 // Achieved one-line summary (#5). Two readers: from state sets (full render) and
@@ -2378,6 +2425,14 @@ document.addEventListener('focusout', (e) => {
 
 document.addEventListener('input', (e) => {
   const target = e.target;
+  // Clear an inline entry error the moment the athlete starts answering it.
+  // This lives on `input` rather than `change` because `change` only fires on
+  // blur — the complaint would otherwise sit there through the whole retype.
+  // It only CLEARS; re-validating per keystroke would flag "-" and "1." as the
+  // number is still being typed. The verdict is re-taken when they tick.
+  if (target.classList?.contains('input-weight-node') || target.classList?.contains('input-reps-node')) {
+    setRowMessage(target.closest?.('.cockpit-set-row'), null);
+  }
   // Live T1 Block-2 back-off recalculation: editing a top-set (rep-max) weight
   // immediately refreshes the suggested back-off loads in the same card.
   if (target.classList && target.classList.contains('input-weight-node')) {

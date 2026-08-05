@@ -245,6 +245,7 @@ const REQUIRED_ASSETS = [
   "./js/workout/session-identity.js",
   "./js/workout/session-outline.js",
   "./js/workout/session-status.js",
+  "./js/workout/set-entry.js",
   "./js/workout/substitutions.js",
   "./manifest.json",
 ];
