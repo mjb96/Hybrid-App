@@ -114,6 +114,11 @@ export const METRIC_TIERS = Object.freeze({
   'recovery.readiness': 'headline',
   'recovery.sleep': 'supporting',
   'recovery.hrv': 'supporting',
+  // Resting HR sits alongside HRV as a device-measured recovery signal.
+  'recovery.resting-hr': 'supporting',
+  // Steps describe general daily movement rather than training, so they inform
+  // rather than headline.
+  'recovery.steps': 'supporting',
   'recovery.form-tsb': 'advanced',
   'recovery.load-ratio': 'advanced',
   'recovery.soreness': 'supporting',

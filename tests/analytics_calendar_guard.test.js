@@ -34,7 +34,21 @@ const CALENDAR_CORE = [
   'js/analytics/week-chart-model.js',
   'js/analytics/week-nav.js',
   'js/analytics/strength-calendar.js',
+  // Extended by the roadmap 3D correctness audit. Each of these attributes
+  // work by real dates, and an audit confirmed none reads the program-week
+  // counter today — this keeps that true rather than leaving it to luck.
+  'js/analytics/progress-landing.js',
+  'js/analytics/recovery-detail.js',
+  'js/analytics/strength-volume-detail.js',
+  'js/analytics/running-detail.js',
+  'js/analytics/strength-detail.js',
 ];
+
+// Deliberately NOT guarded: js/analytics/logged-days.js. Its resolveSlotDate /
+// resolveDateToSlot pair OWNS the legacy program-slot approximation used when
+// writing an activity back into a program day, which is a different job from
+// attributing analytics — the run logger and cockpit need it. Guarding it would
+// force the mapping somewhere less visible rather than removing it.
 
 // [pattern, human-readable violation]
 const FORBIDDEN = [

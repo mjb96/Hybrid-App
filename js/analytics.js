@@ -29,6 +29,7 @@ import { renderRunningMetricDetail } from './analytics/views/view-running-metric
 import { renderStrengthMetricDetail } from './analytics/views/view-strength-metric.js';
 import { renderRunPerformance } from './analytics/views/view-run-performance.js';
 import { renderRecoveryPerformance } from './analytics/views/view-recovery-performance.js';
+import { renderRecoveryMetricDetail } from './analytics/views/view-recovery-metric.js';
 import { buildProgressLanding } from './analytics/progress-landing.js';
 import { renderProgressHub } from './analytics/views/view-progress-hub.js';
 import { buildRunningMetricDetail } from './analytics/running-detail.js';
@@ -459,6 +460,10 @@ export function renderAnalytics() {
     case 'run-performance':
       document.getElementById('analytics-run-performance').classList.add('active');
       renderRunPerformance(_getState());
+      break;
+    case 'recovery-metric':
+      document.getElementById('analytics-recovery-metric').classList.add('active');
+      renderRecoveryMetricDetail(_getState(), _analyticsEntity || {});
       break;
     case 'recovery-performance':
       document.getElementById('analytics-recovery-performance').classList.add('active');
