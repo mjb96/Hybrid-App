@@ -421,8 +421,13 @@ The visible information architecture can change without a risky route rewrite:
   pause/skip/adjust controls.
 - Make add, swap, reorder, superset, warm-up, and plate-math actions contextual
   instead of equally prominent.
-- Add a lightweight session outline so users can see what remains without
-  scrolling through every expanded control.
+- **DONE 2026-08-05:** Lightweight session outline above the accordion
+  (`js/workout/session-outline.js` pure model + render in `js/workout.js`):
+  one row per exercise with its working-set count and done/active/todo status,
+  plus a summary stating remaining WORK ("4 sets left · 1 of 5 exercises done"),
+  never a percentage. Tapping a row jumps to that exercise. Counting rules
+  match the logger exactly — warm-ups excluded, `isCompletedSet` decides done —
+  so the outline can never promise more remaining work than the card beneath it.
 - Preserve all existing data and programme-target semantics.
 
 ### 2B. Session completion
@@ -831,6 +836,34 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-05 — Session outline (Phase 2A).** The cockpit already collapsed
+  completed and inactive exercises, but answering "how much is left?" still
+  meant scrolling the accordion and counting sets by eye. Added a compact index
+  above the exercise list.
+  - `js/workout/session-outline.js` is a pure model (`buildSessionOutline`,
+    `outlineSummaryLine`) — no DOM, no state. Its counting rules are the
+    logger's own: warm-ups are not working sets and `isCompletedSet` decides
+    done, so the outline and the card below it can never disagree. 15 tests pin
+    that, including the degenerate cases: an empty session and a
+    warm-ups-only session are NOT "complete" — congratulating someone for an
+    empty workout is the failure mode worth guarding.
+  - The summary states remaining work, not a percentage. "3 sets left" is
+    actionable; "62%" is not.
+  - Tapping a row opens that exercise, reusing the accordion's existing
+    single-open invariant rather than adding a second one.
+  - **Bug the browser check found, not the unit tests:** ticking a set uses a
+    DOM-only update path, so the outline went stale the moment anyone logged
+    anything — a wrong index being worse than none. Fixed with
+    `refreshSessionOutline()` called at the top of
+    `evaluateAccordionAutoFlowTransitions()`, ahead of its early return.
+  - `scripts/session-outline-browser-check.mjs` drives the real cockpit and
+    asserts the outline mirrors the accordion exactly (same names, same order,
+    same counts), updates after a logged set, and keeps 44px rows at 320/390/412px.
+    Registered in `run-browser-checks.mjs`.
+  - **Still outstanding in 2A:** the set-row interaction redesign itself, the
+    tick-advances-focus vs opens-rest-timer question, and making
+    add/swap/reorder/superset contextual rather than equally prominent.
 
 - **2026-08-04 — Phase 3D completion + branch consolidation.** Folded the
   recovery-details and projection-confidence branches into one and finished the
