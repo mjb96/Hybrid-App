@@ -79,8 +79,7 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
          data-liftname="${safeLiftName}"
          data-sidx="${sIdx}"
          title="Tap to log this set at its target"
-         aria-label="Log set ${sIdx + 1} at target"
-         style="cursor:pointer; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); text-align: center;">
+         aria-label="Log set ${sIdx + 1} at target">
          Log ${numLabels[type]}
     </button>
     <div class="set-entry">
@@ -174,6 +173,14 @@ export function buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, 
       <span></span>
     </div>` : ''}
     <div class="set-rows-list">${setsMarkup}</div>
+    <!-- Roadmap 2A, "make add/swap/… contextual instead of equally prominent".
+         Adding a WARM-UP stops making sense once working sets are logged — you
+         do not warm up after your work, so the has-logged-work class on the
+         card hides it. Visibility is CSS-driven from that one class rather than
+         a template branch, because ticking a set updates the DOM WITHOUT
+         re-rendering the card: a template branch would only ever be right until
+         the first tick. The capability is not lost — any row can still be
+         re-typed to a warm-up from its dotted menu. -->
     <div class="append-set-row">
       <button class="btn-pad-append tactile-scale btn-append-warmup" data-action="append-warmup-set" data-liftname="${safeLiftName}">+ Warmup</button>
       <button class="btn-pad-append tactile-scale" data-action="append-set" data-liftname="${safeLiftName}">+ Working Set</button>

@@ -424,6 +424,10 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
 
   try {
     exCard.innerHTML = buildExerciseCard({ displaySafeName, safeLiftName, isCompleted, diagnostic, blueprintLabel, targetLabel, historicalLineText, historyPanelHTML, setsMarkup, groupId, ssColor, plates, weightUnit: wUnit });
+    // Any completed WORKING set means the athlete is past warming up. Kept in
+    // sync on tick by refreshContextualRowActions(), since ticking updates the
+    // DOM without re-rendering this card.
+    exCard.classList.toggle('has-logged-work', (setsArr || []).some((s) => isCompletedSet(s) && !isWarmupSet(s)));
   } catch(e) {
     exCard.innerHTML = `<div class="card-dark p-3 text-inverse">${displaySafeName} (Render Error)</div>`;
   }
@@ -1467,10 +1471,25 @@ export function refreshSessionOutline() {
   );
 }
 
+/**
+ * Keep `.has-logged-work` current on every card. Ticking a set updates the DOM
+ * WITHOUT re-rendering the card, so anything derived from completion state at
+ * render time is only ever right until the first tick. Reads the live rows
+ * rather than state so it cannot disagree with what is on screen.
+ */
+export function refreshContextualRowActions() {
+  document.querySelectorAll('.cockpit-exercise').forEach((card) => {
+    const logged = Array.from(card.querySelectorAll('.cockpit-set-row'))
+      .some((row) => !row.classList.contains('type-warmup') && row.querySelector('.gym-check')?.checked);
+    card.classList.toggle('has-logged-work', logged);
+  });
+}
+
 export function evaluateAccordionAutoFlowTransitions() {
-  // Runs BEFORE the early return: the outline must track every completion
-  // change, including ones made while no card happens to be expanded.
+  // Both run BEFORE the early return: they must track every completion change,
+  // including ones made while no card happens to be expanded.
   try { refreshSessionOutline(); } catch (e) { console.warn(e); }
+  try { refreshContextualRowActions(); } catch (e) { console.warn(e); }
 
   const expandedCard = document.querySelector('.cockpit-exercise:not(.collapsed)');
   if (!expandedCard) return;
