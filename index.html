@@ -548,7 +548,7 @@
 
       <div class="in-focus-carousel">
 
-        <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="gym-performance">
+        <article class="card-dark carousel-card home-metric-card home-metric-card--gym" data-action="open-analytics" data-context="strength-volume-trends">
           <div class="hmcard-top">
             <span class="hmcard-icon">🏋️</span>
             <span class="hmcard-label">Gym Performance</span>
@@ -582,6 +582,15 @@
     </section>
 
     <section id="view-workout" class="view-container" aria-label="Train">
+
+      <!-- Phase 0/2: Train is a LANDING first, not the cockpit. Today's session,
+           quick starts and recent activity live here; the cockpit opens on an
+           explicit action. Rendered by js/train/view-train-landing.js. -->
+      <div id="trainLanding"></div>
+
+      <div id="trainCockpit" hidden>
+
+      <button class="subview-back-btn" data-action="back-to-train-landing">← Back to Train</button>
 
       <div class="workout-cockpit-header">
         <div class="wch-meta">
@@ -801,6 +810,7 @@
 
       <button class="btn-action-block btn-blue mt-5" data-action="open-finish-modal">Finish Workout</button>
       <button class="wk-clear-link mt-2" data-action="open-reset-modal">Clear today's log</button>
+      </div>
     </section>
 
     <section id="view-analytics" class="view-container" aria-label="Progress">
@@ -896,12 +906,12 @@
         </article>
       </div>
 
-      <div id="analytics-weekly-volume" class="analytics-section">
-        <div id="weeklyVolumeDetail"></div>
-      </div>
-
-      <div id="analytics-gym-performance" class="analytics-section">
-        <div id="gymPerformanceDetail"></div>
+      <!-- Phase 3B: Weekly Volume and Gym Performance merged into ONE
+           Strength Volume destination with "This week" and "Trends" tabs.
+           The old `weekly-volume` and `gym-performance` contexts both resolve
+           here and pick the opening tab, so deep links keep working. -->
+      <div id="analytics-strength-volume" class="analytics-section">
+        <div id="strengthVolumeDetail"></div>
       </div>
 
       <div id="analytics-run-performance" class="analytics-section">

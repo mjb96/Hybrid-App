@@ -47,6 +47,9 @@ import { SENTRY_DSN, SENTRY_RELEASE } from './monitoring/sentry-config.js';
 
 import { initEngine, shouldSuggestDeload, paceSecondsPerKm } from './engine.js';
 import { initHome, renderHome, openFastingDetail, answerCoachOnHome } from './home.js';
+import { computeDashboardModel } from './home/dashboard-model.js';
+import { buildTrainLanding } from './train/train-landing.js';
+import { renderTrainLanding } from './train/view-train-landing.js';
 import { initAnalytics, renderAnalytics, saveThresholdPace, logBodyWeight, setAnalyticsContext, shareScoreCard } from './analytics.js';
 import { initSessionRecap, openSessionRecap, closeSessionRecap, isSessionRecapOpen, sharePRFromRecap } from './session-recap.js';
 import { initDragDrop } from './dragdrop.js';
@@ -206,8 +209,42 @@ export function setCockpitActiveDay(dayKey) {
   if (activeTab === 'workout') safeRenderExecution(renderWorkout, "Workout View Render");
 }
 
+// Which face of Train is showing. The landing is the default entry; the
+// cockpit opens on an explicit action (or when a caller launches straight into
+// logging, e.g. Home's "Start workout"). Reset to the landing whenever Train is
+// entered from the nav, so the tab always answers "what am I doing today?"
+// before it answers "log this set".
+let _trainFace = 'landing';
+
+export function setTrainFace(face) {
+  _trainFace = face === 'cockpit' ? 'cockpit' : 'landing';
+  applyTrainFace();
+}
+
+export function getTrainFace() { return _trainFace; }
+
+function applyTrainFace() {
+  const landing = document.getElementById('trainLanding');
+  const cockpit = document.getElementById('trainCockpit');
+  if (!landing || !cockpit) return;
+  const showCockpit = _trainFace === 'cockpit';
+  cockpit.hidden = !showCockpit;
+  landing.hidden = showCockpit;
+}
+
+function renderTrainLandingView() {
+  const container = document.getElementById('trainLanding');
+  if (!container) return;
+  const program = getProgramById(appState.activeProgramId);
+  const dayKey = _todayProgramDay();
+  const model = computeDashboardModel(appState, DEFAULT_DAYS, program, dayKey);
+  renderTrainLanding(container, buildTrainLanding({ state: appState, program, model }));
+  paintIcons(container);
+}
+
 export function launchActiveWorkoutCockpit() {
   switchGlobalAppTab('workout');
+  setTrainFace('cockpit');
   setCockpitActiveDay(selectedDay);
 }
 
@@ -479,7 +516,14 @@ export function hydrateCurrentView() {
   verifyWeekStorageSchema(appState.currentWeek);
 
   if (activeTab === 'home') safeRenderExecution(renderHome, "Home Dashboard Render");
-  else if (activeTab === 'workout') { safeRenderExecution(renderWorkout, "Workout Cockpit Render"); onWorkoutTabActivated(); }
+  else if (activeTab === 'workout') {
+    // Both faces stay rendered so switching between them is instant and the
+    // cockpit's own state machine is never torn down mid-session.
+    safeRenderExecution(renderTrainLandingView, "Train Landing Render");
+    safeRenderExecution(renderWorkout, "Workout Cockpit Render");
+    applyTrainFace();
+    onWorkoutTabActivated();
+  }
   else if (activeTab === 'analytics') safeRenderExecution(renderAnalytics, "Performance Matrix Render");
   else if (activeTab === 'profile') safeRenderExecution(renderAthleteProfile, "Athlete Profile Render");
   else if (activeTab === 'program') {
@@ -1016,6 +1060,10 @@ document.addEventListener('click', (e) => {
     const tgt = target.getAttribute('data-target');
     // Entering Insights via the nav tab always lands on the hub index.
     if (tgt === 'analytics') setAnalyticsContext('hub');
+    // Entering Train via the nav tab always lands on the Train landing, for the
+    // same reason: a top-level destination should open on its index, not on
+    // whatever leaf you happened to be inside last time.
+    if (tgt === 'workout') setTrainFace('landing');
     switchGlobalAppTab(tgt);
   }
   else if (action === 'open-analytics') openAnalyticsView(target.getAttribute('data-context'), null, {
@@ -1030,6 +1078,8 @@ document.addEventListener('click', (e) => {
   else if (action === 'tile-nav') document.dispatchEvent(new CustomEvent('app:navigate', { detail: { target: target.getAttribute('data-nav') } }));
   else if (action === 'set-day') setCockpitActiveDay(target.getAttribute('data-day'));
   else if (action === 'start-today-workout') launchActiveWorkoutCockpit();
+  else if (action === 'open-train-cockpit') setTrainFace('cockpit');
+  else if (action === 'back-to-train-landing') { setTrainFace('landing'); hydrateCurrentView(); }
   else if (action === 'open-program-workout-picker') openProgramWorkoutPicker();
   else if (action === 'close-program-workout-picker') closeProgramWorkoutPicker();
   else if (action === 'select-program-workout') selectProgramWorkout(target.getAttribute('data-day'));
@@ -1156,6 +1206,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'open-quick-start')  { toggleQuickStart(true); }
   else if (action === 'close-quick-start') { toggleQuickStart(false); }
   else if (action === 'qs-workout') { toggleQuickStart(false); launchActiveWorkoutCockpit(); }
+
   else if (action === 'qs-run')  { toggleQuickStart(false); startQuickActivity('run'); }
   else if (action === 'qs-walk') { toggleQuickStart(false); startQuickActivity('walk'); }
   else if (action === 'qs-fast') { toggleQuickStart(false); openFastingDetail(); }

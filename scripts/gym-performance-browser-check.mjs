@@ -68,13 +68,17 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
-      if (message.type() === 'error' && !/frame-ancestors.*ignored.*meta/i.test(message.text())) errors.push(message.text());
+      if (message.type() === 'error' && !/frame-ancestors.*ignored.*meta/i.test(message.text()) && !/net::ERR_/.test(message.text())) errors.push(message.text());
     });
     await page.goto(BASE, { waitUntil: 'networkidle' });
+    // Phase 3B merged Gym Performance into the Volume screen's Trends tab. The
+    // Home gym card deep-links straight there, so this check still enters the
+    // same way a user does — only the destination markup changed.
     await page.click('.home-metric-card--gym');
-    await page.waitForSelector('#analytics-gym-performance.active .gym-performance');
-    const seven = await page.$eval('#analytics-gym-performance', (section) => ({
+    await page.waitForSelector('#analytics-strength-volume.active .gym-performance');
+    const seven = await page.$eval('#analytics-strength-volume', (section) => ({
       title: section.querySelector('h2')?.textContent?.trim(),
+      activeTab: section.querySelector('.sv-tabs .is-active')?.textContent?.trim(),
       ranges: section.querySelectorAll('[data-gym-range]').length,
       metrics: section.querySelectorAll('[data-gym-metric]').length,
       bins: section.querySelectorAll('[data-gym-point]').length,
@@ -84,8 +88,11 @@ try {
         const box = button.getBoundingClientRect(); return box.width > 0 && box.height > 0 && box.height < 43;
       }).length,
     }));
-    console.log(`Gym Performance ${width}px:`, JSON.stringify(seven));
-    if (seven.title !== 'Gym Performance' || seven.ranges !== 3 || seven.metrics !== 4 || seven.bins !== 7) failures.push(`${width}px: incomplete Gym Performance controls`);
+    console.log(`Gym activity ${width}px:`, JSON.stringify(seven));
+    // The merged screen owns the title; the Trends tab owns the controls.
+    if (seven.title !== 'Volume') failures.push(`${width}px: expected the merged Volume title, got "${seven.title}"`);
+    if (seven.activeTab !== 'Trends') failures.push(`${width}px: the Home gym card must land on Trends, got "${seven.activeTab}"`);
+    if (seven.ranges !== 3 || seven.metrics !== 4 || seven.bins !== 7) failures.push(`${width}px: incomplete gym activity controls`);
     if (seven.evidence < 1) failures.push(`${width}px: missing exact workout evidence`);
     if (seven.overflow) failures.push(`${width}px: page-level horizontal overflow`);
     if (seven.smallControls) failures.push(`${width}px: ${seven.smallControls} controls below 44px target`);
@@ -105,4 +112,4 @@ try {
 if (failures.length) {
   failures.forEach((failure) => console.error(`FAIL: ${failure}`)); process.exit(1);
 }
-console.log('Gym Performance browser contract passed.');
+console.log('Gym activity (Volume → Trends) browser contract passed.');

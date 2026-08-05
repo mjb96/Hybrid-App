@@ -808,6 +808,95 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — CI fix: the Volume merge broke a check I could not see fail.**
+  `gym-performance-browser-check.mjs` waited on `#analytics-gym-performance`,
+  the section Phase 3B deleted when it merged Gym Performance into the Volume
+  screen. CI caught it; local runs did not, because that check was among the
+  only TWO browser checks lacking the `net::ERR_` console filter every other
+  check has — so behind a restrictive egress proxy it died on third-party font
+  and Sentry fetches long before reaching its assertions. It had been dismissed
+  as an environmental failure, which is exactly when it stopped being one.
+  Fixes, in order of importance:
+  1. **Root cause** — added the standard `net::ERR_` filter to
+     `gym-performance`, `run-performance` and `running-analytics`, so every
+     browser check is now runnable locally and this class of regression is
+     catchable before CI. (running-analytics still fails locally on a genuine
+     PERFORMANCE threshold — 15.3s vs CI's 2.2s on this hardware. That
+     threshold was deliberately NOT weakened.)
+  2. **A real product bug the check exposed** — the Home gym card, which is
+     about gym activity over time, was landing on the current week's tonnage
+     breakdown after the merge. Added an explicit `strength-volume-trends`
+     deep link so it opens on Trends, and the check now asserts that landing
+     tab rather than only the controls.
+  3. The gym check keeps its unique assertions (per-range bin counts, exact
+     evidence rows) and drives the merged screen the way a user does.
+
+- **2026-08-04 — Train landing (Phase 0/2).** Train opened straight into the
+  workout cockpit: a day-selector bar and an exercise list, with no answer to
+  "what am I doing today, and what else could I start?". Quick start hid behind
+  a sheet and recent activity was not on the screen at all.
+  Train now opens on a **landing** — one dominant Today card with a single
+  primary action, the four quick starts inline, and recent activity. The
+  cockpit sits behind an explicit action and keeps a Back control; entering
+  Train from the nav always returns to the landing, the same rule Progress
+  follows. Today comes from `buildTodayCardModel`, the SAME model Home renders,
+  so Train and Home can never disagree about today's session or whether it is
+  finished.
+  Safety: an unfinished session is never buried — the landing surfaces it as
+  "In progress · Resume workout" with a visual marker, and both faces stay
+  rendered so switching never tears down the cockpit's state machine mid-session.
+  This changed the app's most-used path, so six existing browser checks needed
+  updating to step into the cockpit rather than assume it is the tab's first
+  face (core-ergonomics, modal-accessibility, workout-history, exercise-picker,
+  active-program-edit, program-preview-consistency). Their assertions were kept
+  intact, and core-ergonomics now additionally asserts the LANDING at 200% text.
+  Verified: 1389 unit tests, typecheck, precache, workflow gates, smoke, and
+  every runnable browser gate including the new
+  `scripts/train-landing-browser-check.mjs`.
+
+- **2026-08-04 — Phase 3C: one detail-screen contract.** Every detail screen
+  must answer the same five questions, but Running and Strength each
+  hand-rolled the "How this is calculated" footer — which is precisely how they
+  drifted: Running stated Confidence, Strength did not, and neither said how
+  much interpretive weight a metric deserved.
+  `views/metric-contract.js` now owns that footer, so the contract is
+  implemented once and enforced by a test rather than by a reviewer noticing a
+  missing `<dt>`. Required rows: Source, Confidence, **How to read it** (the
+  Phase 3B tier, in plain words), Included history, Excluded. A caller that
+  cannot supply a field gets an honest statement ("No explicit confidence
+  treatment for this metric") rather than a silently omitted row, which had
+  read as "this metric has no such concern" instead of "unknown".
+  Care taken not to regress on the way: running's `paceIneligible` exclusion
+  category is passed through rather than dropped by the shared shape, and the
+  footer takes an explicit plural because naive `+ 's'` produced "independent
+  activitys". Verified: 1389 unit tests, typecheck, precache, workflow gates
+  and smoke, including a test that drives BOTH real detail screens and asserts
+  every contract row survives.
+
+- **2026-08-04 — Phase 3B: metric hierarchy + merged the Volume destination.**
+  Two parts.
+  **(1) Classification.** `js/analytics/metric-tiers.js` classifies every metric
+  as headline / supporting / advanced / diagnostic, and declares which surfaces
+  each tier may appear on. An UNCLASSIFIED metric defaults to `advanced`, so a
+  new metric has to earn promotion by being named rather than defaulting onto a
+  primary screen. Headline is deliberately scarce — exactly four, one per
+  Progress-landing domain, and a test fails if a fifth appears. Hybrid Score is
+  `supporting`, not headline: a composite summarises the domains, it does not
+  replace them.
+  **(2) The merge.** Weekly Volume and Gym Performance were two screens
+  answering "how much have I lifted" at different scopes, with no route between
+  them — Gym Performance was reachable ONLY from a Home carousel card. They are
+  now one **Volume** destination (`view-strength-volume.js`) with "This week"
+  (day/workouts/exercises/muscles depth) and "Trends" (7D/4W/1Y across time,
+  sessions, sets and volume). Both old views became body renderers that take a
+  container, so no functionality was rewritten or lost. The `weekly-volume` and
+  `gym-performance` contexts both resolve to the merged screen and choose the
+  opening tab, so every existing entry point, Back destination and saved deep
+  link keeps working. Verified: 1379 unit tests, typecheck, precache, workflow
+  gates, smoke, plus `scripts/strength-volume-browser-check.mjs` proving both
+  legacy deep links land on the right tab, every control from BOTH old screens
+  survives, and the merged screen has one title rather than two stacked headers.
+
 - **2026-08-04 — Progress hub trends (finishes Phase 3A).** Added a labelled
   sparkline to each domain card that has an honest series behind it:
   Consistency draws training days over 8 weeks from the same date-strict set

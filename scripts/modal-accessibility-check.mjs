@@ -55,8 +55,13 @@ try {
   }
 
   // Quick Start is owned by Train rather than competing as a fifth global tab.
+  // Train opens on its landing, so step into the cockpit — that is where the
+  // sheet trigger lives. (The landing surfaces the same actions inline, but
+  // this check is specifically about the SHEET's modal semantics.)
   await page.click('.bottom-nav [data-target="workout"]');
   await page.waitForSelector('#view-workout.active');
+  await page.click('#trainLanding [data-action="qs-workout"]');
+  await page.waitForSelector('#trainCockpit:not([hidden])');
   const trigger = page.locator('#view-workout [data-action="open-quick-start"]');
   await trigger.focus();
   await trigger.click();

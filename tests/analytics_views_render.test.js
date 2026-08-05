@@ -36,13 +36,14 @@ function weekDates(m) {
   return o;
 }
 
-let vs, vr, vw, ve, vsm, vgp;
+let vs, vr, vw, ve, vsm, vgp, vsv;
 before(async () => {
   globalThis.document = {
     getElementById: getEl, querySelector: () => null, querySelectorAll: () => [],
     createElement: () => makeEl(), addEventListener: noop, body: makeEl('body'),
   };
   vs = await import('../js/analytics/views/view-strength.js');
+  vsv = await import('../js/analytics/views/view-strength-volume.js');
   vr = await import('../js/analytics/views/view-running.js');
   vw = await import('../js/analytics/views/view-weekly-volume.js');
   ve = await import('../js/analytics/views/view-strength-entity.js');
@@ -69,7 +70,8 @@ test('strength analytics renders on both tabs with the honest current-week label
     const html = getEl('strength-tab-body').innerHTML + getEl('strengthTrainingLoadDashboard').innerHTML;
     assert.match(html, /vs same point last week/, `strength ${tab} tab`);
     assert.doesNotMatch(html, /vs last week/); // the old mislabel is gone
-    assert.match(html, /data-context="weekly-volume"[^>]*data-parent-context="strength"[^>]*data-preserve-week="true"/);
+    // Phase 3B: the Weekly Volume card now points at the merged Volume screen.
+    assert.match(html, /data-context="strength-volume"[^>]*data-parent-context="strength"[^>]*data-preserve-week="true"/);
   }
 });
 
@@ -126,10 +128,16 @@ test('completed (navigated) week uses the previous-week label, not the live one'
 
 test('weekly volume and entity drilldowns render useful empty states without throwing', () => {
   const state = { settings: { weightUnit: 'kg' }, weeks: {} };
-  assert.doesNotThrow(() => vw.renderWeeklyVolume(state));
-  const weekly = getEl('weeklyVolumeDetail').innerHTML;
-  assert.match(weekly, /Weekly Volume/);
+  // Drive the body renderer the merged Volume screen actually calls — the old
+  // standalone wrapper was removed with its container, and a test against a
+  // function the app never runs is false confidence.
+  const weeklyEl = getEl('weeklyVolumeBody');
+  assert.doesNotThrow(() => vw.renderWeeklyVolumeBody(weeklyEl, state));
+  const weekly = weeklyEl.innerHTML;
+  // The screen title moved to the merged Volume header; this body keeps the
+  // week's own status, period and breakdown.
   assert.match(weekly, /Total tonnage/);
+  assert.match(weekly, /In progress|Completed week/);
   assert.match(weekly, /Day.*Workouts.*Exercises.*Muscles/s);
   assert.doesNotMatch(weekly, /NaN|Infinity/);
 
@@ -139,13 +147,61 @@ test('weekly volume and entity drilldowns render useful empty states without thr
 
 test('Gym Performance renders range, metric and exact-evidence controls without invalid values', () => {
   const state = sampleState();
-  assert.doesNotThrow(() => vgp.renderGymPerformance(state));
-  const html = getEl('gymPerformanceDetail').innerHTML;
-  assert.match(html, /Gym Performance/);
+  const gymEl = getEl('gymPerformanceBody');
+  assert.doesNotThrow(() => vgp.renderGymPerformanceBody(gymEl, state));
+  const html = gymEl.innerHTML;
+  // Title now belongs to the merged Volume screen; every control survives.
   assert.match(html, /data-gym-range="7d"/);
   assert.match(html, /data-gym-range="4w"/);
   assert.match(html, /data-gym-range="1y"/);
   assert.match(html, /data-gym-metric="time"/);
   assert.match(html, /Contributing workouts/);
   assert.doesNotMatch(html, /NaN|Infinity/);
+});
+
+// ---- Phase 3B: the merged Volume destination --------------------------------
+
+test('the merged Volume screen renders both tabs from one destination', () => {
+  const state = sampleState();
+
+  vsv.setStrengthVolumeTab('week');
+  assert.doesNotThrow(() => vsv.renderStrengthVolume(state));
+  const weekHTML = getEl('strengthVolumeDetail').innerHTML + getEl('strengthVolumeBody').innerHTML;
+  assert.match(weekHTML, /Total tonnage/, 'This week tab keeps the weekly breakdown');
+  assert.match(weekHTML, /data-strength-volume-tab="trends"/, 'the other tab stays reachable');
+  assert.doesNotMatch(weekHTML, /NaN|Infinity/);
+
+  vsv.setStrengthVolumeTab('trends');
+  assert.doesNotThrow(() => vsv.renderStrengthVolume(state));
+  const trendHTML = getEl('strengthVolumeDetail').innerHTML + getEl('strengthVolumeBody').innerHTML;
+  // Every Gym Performance control survived the merge.
+  assert.match(trendHTML, /data-gym-range="7d"/);
+  assert.match(trendHTML, /data-gym-range="4w"/);
+  assert.match(trendHTML, /data-gym-range="1y"/);
+  assert.match(trendHTML, /data-gym-metric="volume"/);
+  assert.match(trendHTML, /Contributing workouts/);
+  assert.doesNotMatch(trendHTML, /NaN|Infinity/);
+});
+
+test('the merged screen has exactly one title, not one per merged part', () => {
+  // The whole point of the merge is that "how much have I lifted" has ONE
+  // answer. Two stacked headers would just be the old duplication, nested.
+  vsv.setStrengthVolumeTab('week');
+  vsv.renderStrengthVolume(sampleState());
+  const html = getEl('strengthVolumeDetail').innerHTML;
+  assert.equal((html.match(/<h2>/g) || []).length, 1);
+  assert.doesNotMatch(html, /Gym Performance/);
+  assert.doesNotMatch(html, /Weekly Volume<\/h2>/);
+});
+
+test('the tab selection survives a re-render so a deep link opens where it says', () => {
+  vsv.setStrengthVolumeTab('trends');
+  assert.equal(vsv.getStrengthVolumeTab(), 'trends');
+  vsv.renderStrengthVolume(sampleState());
+  assert.equal(vsv.getStrengthVolumeTab(), 'trends');
+  vsv.setStrengthVolumeTab('week');
+  assert.equal(vsv.getStrengthVolumeTab(), 'week');
+  // An unknown value falls back to the safe default rather than blanking.
+  vsv.setStrengthVolumeTab('nonsense');
+  assert.equal(vsv.getStrengthVolumeTab(), 'week');
 });

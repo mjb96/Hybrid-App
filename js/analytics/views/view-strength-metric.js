@@ -1,6 +1,8 @@
 // @ts-check
 import { buildStrengthMetricDetail, collectStrengthHistory } from '../strength-detail.js';
 import { esc } from './screen-kit.js';
+import { metricMethodHTML } from './metric-contract.js';
+import { weightUnitOf } from '../utils.js';
 
 const ranges = new Map();
 const selectedPoints = new Map();
@@ -90,7 +92,6 @@ export function renderStrengthMetricDetail(state, entity = {}) {
     const selected = model.series.find((point) => point.key === selectedKey) || null;
     const evidence = selected?.evidence || model.contributing;
     const periodLabel = selected ? `week of ${dateLabel(selected.weekStart, true)}` : model.period.label;
-    const excluded = [model.exclusions.future ? `${model.exclusions.future} future` : '', model.exclusions.undated ? `${model.exclusions.undated} undated` : ''].filter(Boolean).join(' · ');
     container.innerHTML = `
       <header class="metric-detail__header"><span class="metric-detail__eyebrow">Strength metric</span><h2>${esc(model.definition.label)}</h2>
         <div class="metric-detail__value" style="color:${model.definition.color}">${esc(model.formattedValue)}</div>
@@ -99,11 +100,20 @@ export function renderStrengthMetricDetail(state, entity = {}) {
       <section class="metric-detail__section" aria-labelledby="strengthMetricHistoryTitle"><div class="metric-detail__section-head"><div><span>History</span><h3 id="strengthMetricHistoryTitle">${esc(model.rangeOptions.find((item) => item.id === range)?.label || '12 weeks')}</h3></div>
         <div class="metric-range" role="group" aria-label="History range">${model.rangeOptions.map((item) => `<button type="button" data-strength-metric-range="${item.id}" aria-pressed="${item.id === range}" class="${item.id === range ? 'is-selected' : ''}">${esc(item.label)}</button>`).join('')}</div></div>
         ${chartHTML(model, selectedKey)}${selected ? `<div class="metric-point-summary"><strong>${esc(selected.formatted)}</strong><span>Week of ${esc(dateLabel(selected.weekStart, true))}</span></div>` : ''}</section>
-      <section class="metric-detail__section" aria-labelledby="strengthMetricEvidenceTitle"><div class="metric-detail__section-head"><div><span>Evidence</span><h3 id="strengthMetricEvidenceTitle">Contributing workouts</h3></div></div>${evidenceHTML(evidence, periodLabel, state?.settings?.weightUnit || 'kg')}</section>
-      <details class="metric-method"><summary>How this is calculated</summary><p>${esc(model.definition.calculation)}</p><dl>
-        <div><dt>Source</dt><dd>${esc(model.definition.source)}</dd></div><div><dt>Included history</dt><dd>${model.recordCount} dated strength ${model.recordCount === 1 ? 'workout' : 'workouts'} across all program activations.</dd></div>
-        <div><dt>Excluded</dt><dd>${esc(excluded || 'No future or undated records found.')}</dd></div></dl>
-        ${model.definition.limitations.length ? `<ul>${model.definition.limitations.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>` : ''}</details>`;
+      <section class="metric-detail__section" aria-labelledby="strengthMetricEvidenceTitle"><div class="metric-detail__section-head"><div><span>Evidence</span><h3 id="strengthMetricEvidenceTitle">Contributing workouts</h3></div></div>${evidenceHTML(evidence, periodLabel, weightUnitOf(state))}</section>
+      ${metricMethodHTML({
+        metricId: model.metricId,
+        calculation: model.definition.calculation,
+        source: model.definition.source,
+        // Strength evidence is logged by the athlete rather than measured by a
+        // device, so it is stated as such instead of borrowing running's
+        // device-confidence vocabulary.
+        confidence: 'Logged working sets — depends on accurate weight and rep entry.',
+        recordCount: model.recordCount,
+        recordNoun: 'strength workout',
+        exclusions: model.exclusions,
+        limitations: model.definition.limitations,
+      })}`;
     container.querySelectorAll('[data-strength-metric-range]').forEach((button) => button.addEventListener('click', () => {
       range = button.getAttribute('data-strength-metric-range') || '12w'; ranges.set(metricId, range); selectedPoints.delete(metricId); paint();
     }));

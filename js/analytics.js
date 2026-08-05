@@ -23,11 +23,10 @@ import { runDaySummary, runSessionsForDay } from './state/run-sessions.js';
 import { analyticsBackDestination } from './analytics/navigation.js';
 import { estimatedE1rmForSet } from './strength/e1rm.js';
 import { resolveExercise } from './exercises/catalog.js';
-import { renderWeeklyVolume } from './analytics/views/view-weekly-volume.js';
+import { renderStrengthVolume, setStrengthVolumeTab } from './analytics/views/view-strength-volume.js';
 import { renderExerciseDetail, renderMuscleDetail } from './analytics/views/view-strength-entity.js';
 import { renderRunningMetricDetail } from './analytics/views/view-running-metric.js';
 import { renderStrengthMetricDetail } from './analytics/views/view-strength-metric.js';
-import { renderGymPerformance } from './analytics/views/view-gym-performance.js';
 import { renderRunPerformance } from './analytics/views/view-run-performance.js';
 import { renderRecoveryPerformance } from './analytics/views/view-recovery-performance.js';
 import { buildProgressLanding } from './analytics/progress-landing.js';
@@ -348,7 +347,7 @@ export function renderAnalytics() {
   // A leaf remembers where it was opened: Home deep-links return Home, while
   // leaves opened from the Insights hub return to that hub.
   const weekNav = document.getElementById('analyticsWeekNav');
-  if (weekNav) weekNav.style.display = ['strength', 'strength_pr', 'weekly-volume', 'running', 'muscle'].includes(context) ? '' : 'none';
+  if (weekNav) weekNav.style.display = ['strength', 'strength_pr', 'weekly-volume', 'strength-volume', 'strength-volume-trends', 'running', 'muscle'].includes(context) ? '' : 'none';
   const backBtn = document.querySelector('#view-analytics .subview-back-btn');
   if (backBtn) {
     const destination = analyticsBackDestination(
@@ -434,13 +433,28 @@ export function renderAnalytics() {
       document.getElementById('analytics-strength').classList.add('active');
       renderStrengthAnalytics(data, _getState, _getDays);
       break;
+    // Phase 3B: one Strength Volume destination. The legacy contexts choose
+    // the opening tab so every existing entry point still lands correctly.
     case 'weekly-volume':
-      document.getElementById('analytics-weekly-volume').classList.add('active');
-      renderWeeklyVolume(_getState());
+      setStrengthVolumeTab('week');
+      document.getElementById('analytics-strength-volume').classList.add('active');
+      renderStrengthVolume(_getState());
+      break;
+    case 'strength-volume':
+      // No tab forced: this context means "the Volume screen", so it keeps
+      // whichever tab the athlete last used.
+      document.getElementById('analytics-strength-volume').classList.add('active');
+      renderStrengthVolume(_getState());
+      break;
+    case 'strength-volume-trends':
+      setStrengthVolumeTab('trends');
+      document.getElementById('analytics-strength-volume').classList.add('active');
+      renderStrengthVolume(_getState());
       break;
     case 'gym-performance':
-      document.getElementById('analytics-gym-performance').classList.add('active');
-      renderGymPerformance(_getState());
+      setStrengthVolumeTab('trends');
+      document.getElementById('analytics-strength-volume').classList.add('active');
+      renderStrengthVolume(_getState());
       break;
     case 'run-performance':
       document.getElementById('analytics-run-performance').classList.add('active');
