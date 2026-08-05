@@ -170,8 +170,12 @@ export function exerciseLoggerHistory(state, exerciseName, options = {}) {
   });
   const latest = performances[0] || null;
   const aggregate = exerciseStatForName(state?.exerciseStats, exerciseName);
+  // `allTimeMax` is derived from the stored sets, so it already tracks edits and
+  // deletions. `legacyMax` is rescued pre-catalogue history with no backing sets;
+  // it still counts as a best to beat, otherwise an athlete's genuine old record
+  // would be re-awarded as a "new PR" the first time they trained the lift again.
   const globalBestEstimated1RM = isE1rmExercise(exerciseName)
-    ? (Number(aggregate?.allTimeMax) || 0)
+    ? Math.max(Number(aggregate?.allTimeMax) || 0, Number(aggregate?.legacyMax) || 0)
     : 0;
   const datedBestEstimated1RM = Math.max(0, ...performances.map((row) => row.e1rm));
   return {

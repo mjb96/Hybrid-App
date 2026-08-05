@@ -519,12 +519,29 @@ export function computeEstimated1RMs() {
 
 // ==========================================
 // PER-EXERCISE PR (ESTIMATED 1RM) AGGREGATION
-// Scans all logged sets and raises per-exercise PRs. Mutates and returns
-// `stats` in place; only ever RAISES maxes (sticky by design — a PR is not
-// lost if the set that produced it is later deleted). Verbatim from the
-// former workout.updateExercisePRs(); state and stats are now parameters.
+//
+// `allTimeMax` is DERIVED from the logged sets on every call, not accumulated.
+//
+// It used to only ever RAISE, which was described as deliberate ("a PR is not
+// lost if the set that produced it is later deleted") but made the field
+// permanently wrong the first time anyone mistyped a load. Logging 500 instead
+// of 50 and immediately correcting it left the baseline pinned at 583 kg
+// forever — and because this field is persisted to localStorage AND synced as
+// part of the state blob, the bad number followed the athlete to every device.
+// The cockpit's PR gate reads it, so no genuine PR for that lift could ever fire
+// again. Deleting the workout did not help either.
+//
+// LEGACY FLOOR. Rebuilding from stored sets would discard a pre-existing max
+// whose source sets are not in `state.weeks` at all — real history for anyone
+// whose early sessions predate reliable set storage. Any such unbacked value is
+// snapshotted ONCE into `legacyMax` and preserved. It is kept separate so it can
+// never be mistaken for a derived figure, and unlike the old behaviour it is
+// never raised by subsequent logging.
 // ==========================================
 export function computeExercisePRs(state, stats = {}) {
+  /** @type {Record<string, {allTimeMax:number, currentEstimatedMax:number}>} */
+  const derived = {};
+
   for (let wKey in state.weeks) {
     const weekObj = state.weeks[wKey];
     if (!weekObj || !weekObj.lifts) continue;
@@ -535,32 +552,56 @@ export function computeExercisePRs(state, stats = {}) {
 
       for (let lift in dayLifts) {
         const statKey = canonicalExerciseId(lift) || lift;
-        let maxEstimated1RM = 0;
         const setsArr = dayLifts[lift];
         if (!Array.isArray(setsArr)) continue;
 
+        let maxEstimated1RM = 0;
         setsArr.forEach(set => {
           if (isCompletedSet(set) && set.w && set.r && !isWarmupSet(set)) {
             const e1RM = estimatedE1rmForSet(lift, set);
             if (e1RM > maxEstimated1RM) maxEstimated1RM = e1RM;
           }
         });
+        if (maxEstimated1RM <= 0) continue;
 
-        if (maxEstimated1RM > 0) {
-          if (!stats[statKey]) {
-            stats[statKey] = exerciseStatForName(stats, lift) || { allTimeMax: 0, currentEstimatedMax: 0 };
-          }
-          if (maxEstimated1RM > stats[statKey].allTimeMax) {
-            stats[statKey].allTimeMax = maxEstimated1RM;
-          }
-          if (wKey === state.currentWeek) {
-            if (maxEstimated1RM > (stats[statKey].currentEstimatedMax || 0)) {
-              stats[statKey].currentEstimatedMax = maxEstimated1RM;
-            }
-          }
+        if (!derived[statKey]) derived[statKey] = { allTimeMax: 0, currentEstimatedMax: 0 };
+        if (maxEstimated1RM > derived[statKey].allTimeMax) {
+          derived[statKey].allTimeMax = maxEstimated1RM;
+        }
+        if (wKey === state.currentWeek && maxEstimated1RM > derived[statKey].currentEstimatedMax) {
+          derived[statKey].currentEstimatedMax = maxEstimated1RM;
         }
       }
     }
+  }
+
+  // Rewrite in place: the caller passes `state.exerciseStats` and relies on the
+  // same object identity, and a stale key left behind would keep answering PR
+  // lookups for an exercise whose every set has been deleted.
+  //
+  // `derived: true` marks a stat this function has already rebuilt. The legacy
+  // rescue MUST be gated on it. Inferring legacy from "the old value exceeds the
+  // new one" cannot distinguish genuine pre-migration history from a value this
+  // code derived moments ago whose set has since been deleted or corrected —
+  // which would launder every mistyped load straight back into a permanent
+  // floor and reinstate the exact defect being fixed here.
+  for (const key of Object.keys(stats)) {
+    const previous = Number(stats[key]?.allTimeMax) || 0;
+    const nowDerived = derived[key]?.allTimeMax || 0;
+    const legacy = stats[key]?.derived === true
+      ? Number(stats[key]?.legacyMax) || 0            // already migrated — frozen
+      : Math.max(0, previous > nowDerived ? previous : 0); // one-time rescue
+
+    if (!derived[key] && legacy <= 0) { delete stats[key]; continue; }
+    stats[key] = {
+      allTimeMax: nowDerived,
+      currentEstimatedMax: derived[key]?.currentEstimatedMax || 0,
+      derived: true,
+      ...(legacy > 0 ? { legacyMax: legacy } : {}),
+    };
+  }
+  for (const [key, value] of Object.entries(derived)) {
+    if (!stats[key]) stats[key] = { ...value, derived: true };
   }
   return stats;
 }

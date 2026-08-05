@@ -27,6 +27,12 @@ export function isE1rmEligible(weight, reps) {
 /**
  * Epley estimate: load × (1 + repetitions / 30).
  *
+ * A SINGLE returns the load itself. Epley's algebraic form gives w × 31/30 at
+ * one repetition, which inflated the app's most reliable data point by 3.3% and
+ * meant a tested max could never report as the weight actually lifted — a 100 kg
+ * single displayed as 103 kg. One rep IS the measurement; there is nothing to
+ * estimate from it.
+ *
  * Returns 0 when the set is not eligible. Callers treat 0 as "no defensible
  * estimate", never as a real zero-strength result.
  * @param {unknown} weight
@@ -37,8 +43,42 @@ export function estimatedE1rm(weight, reps) {
   if (!isE1rmEligible(weight, reps)) return 0;
   const w = Number.parseFloat(String(weight));
   const r = Number.parseInt(String(reps), 10);
+  if (r === 1) return w;
   const estimate = w * (1 + r / 30);
   return Number.isFinite(estimate) ? estimate : 0;
+}
+
+/**
+ * Smallest estimated-1RM difference Helyx treats as a real change.
+ *
+ * PR detection was previously spread across five sites using four different
+ * rules — two of which counted an exact TIE as a personal record — so one
+ * session could be a PR in the recap and not in the cockpit. This is the single
+ * threshold they now share.
+ *
+ * 0.5 is deliberate, not a float-comparison epsilon: e1RM is a directional
+ * estimate, so a 0.2 kg "record" is noise dressed as an achievement, and the
+ * displayed value is rounded to whole units anyway — a difference too small to
+ * see must not fire a trophy.
+ */
+export const E1RM_PR_EPSILON = 0.5;
+
+/**
+ * Is `candidate` a genuine new best over `previousBest`?
+ *
+ * Requires prior history: the first-ever log of a lift is a BASELINE, not a
+ * record, and celebrating it fired a trophy on every exercise of a new user's
+ * first session. Beating the previous best by less than the epsilon is not a PR.
+ *
+ * @param {number} candidate      this session's best estimate
+ * @param {number} previousBest   best estimate from strictly prior sessions
+ * @returns {boolean}
+ */
+export function isE1rmPr(candidate, previousBest) {
+  const cur = Number(candidate) || 0;
+  const prior = Number(previousBest) || 0;
+  if (cur <= 0 || prior <= 0) return false;
+  return cur > prior + E1RM_PR_EPSILON;
 }
 
 /**

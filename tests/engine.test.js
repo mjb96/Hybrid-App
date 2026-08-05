@@ -29,7 +29,12 @@ import {
 // ---- epley1RM (D1) --------------------------------------------------------
 test('epley1RM computes the Epley estimate w*(1+r/30)', () => {
   assert.equal(epley1RM(100, 5), 100 * (1 + 5 / 30));
-  assert.ok(Math.abs(epley1RM(60, 1) - 62) < 1e-9); // single rep ≈ load + 1/30
+  // CHANGED 2026-08-05, deliberately: this previously asserted 62 for a 60 kg
+  // single, pinning Epley's algebraic w × 31/30. That inflated the app's single
+  // most reliable data point by 3.3% and meant a tested max could never report
+  // as the weight actually lifted. One rep IS the measurement — see
+  // tests/e1rm_correctness.test.js for the full contract.
+  assert.equal(epley1RM(60, 1), 60);
   assert.equal(epley1RM(100, 0), 0);            // zero reps → 0
   assert.equal(epley1RM(0, 5), 0);              // zero load → 0
 });

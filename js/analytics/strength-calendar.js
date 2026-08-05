@@ -14,7 +14,7 @@
 import { isValidWorkingSet } from '../set-utils.js';
 import { indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { resolveExercise } from '../exercises/catalog.js';
-import { estimatedE1rmForSet } from '../strength/e1rm.js';
+import { estimatedE1rmForSet, isE1rmPr } from '../strength/e1rm.js';
 
 // Backwards-compatible strength-metrics entry point. The implementation lives
 // in one dependency-free primitive shared by the logger, recap and analytics.
@@ -127,7 +127,7 @@ export function calendarStrengthSummary(state, opts = {}) {
     // best for this lift AND prior history exists (a first-ever log is a baseline).
     let priorBest = 0;
     for (const [wk, rec] of weeksMap) { if (wk < weekKey && rec.best > priorBest) priorBest = rec.best; }
-    if (priorBest > 0 && curE >= priorBest - 0.01) prLifts.push(lift);
+    if (isE1rmPr(curE, priorBest)) prLifts.push(lift);
   }
 
   return {

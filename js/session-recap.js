@@ -20,7 +20,7 @@ import { jtStoredRoleTag } from './programs/jt-shed-model.js';
 import { sharePRCard, topPR } from './brain/pr-share.js';
 import { showToast } from './state.js';
 import { sanitizeGpsQuality } from './gps/route-quality.js';
-import { estimatedE1rmForSet } from './strength/e1rm.js';
+import { estimatedE1rmForSet, isE1rmPr } from './strength/e1rm.js';
 import { exercisePerformanceHistory } from './workout/exercise-history.js';
 
 let _getState = null;
@@ -135,7 +135,7 @@ export function buildSessionRecap(state, week, day, sessionId = null, activityKi
     // PR: this session's best e1RM beats the lift's best in every prior session
     // (needs an established previous best — a first-ever lift isn't a "PR").
     const prior = priorBestE1rm(state, week, day, name);
-    const pr = prior > 0 && bestE1 > prior + 0.5;
+    const pr = isE1rmPr(bestE1, prior);
     lifts.push({ name, sets: done.length, reps: liftReps, volume: Math.round(liftVol), topSet, e1rm: Math.round(bestE1), pr, setList });
   }
   lifts.sort((a, b) => b.volume - a.volume);

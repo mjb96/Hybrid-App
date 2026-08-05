@@ -13,7 +13,7 @@ export {
   estimatedE1rm, liftE1rmByCalendarWeek, bestE1rmByLiftForWeek,
   calendarStrengthSummary, calendarWeekE1rmSeriesForLift,
 } from '../analytics/strength-calendar.js';
-import { estimatedE1rmForSet } from '../strength/e1rm.js';
+import { estimatedE1rmForSet, isE1rmPr } from '../strength/e1rm.js';
 import { canonicalExerciseId, legacyMuscleMap, muscleCreditsForExercise, resolveExercise } from '../exercises/catalog.js';
 import { isValidWorkingSet } from '../set-utils.js';
 import { collectCalendarWeek, localDayKey, weekStartOf } from '../analytics/weekly-aggregate.js';
@@ -33,12 +33,11 @@ function e1rm(exerciseName, set) {
  */
 export function isWeeklyPR(stat) {
   if (!stat) return false;
-  const cur   = stat.currentEstimatedMax || 0;
-  const all   = stat.allTimeMax || 0;
-  const prior = stat.priorBestMax || 0;
-  // Must have prior history (else it's a baseline) AND this week must hold the
-  // all-time best (the current-week max is the top e1RM on record).
-  return cur > 0 && prior > 0 && cur >= all - 0.01;
+  // One shared rule (isE1rmPr): needs prior history, and must BEAT it by more
+  // than the shared epsilon. This previously accepted `cur >= all - 0.01`, so
+  // simply repeating a past best counted as a new record — a lift matched every
+  // week reported a PR every week.
+  return isE1rmPr(stat.currentEstimatedMax || 0, stat.priorBestMax || 0);
 }
 
 function isWorkingSet(s) {
