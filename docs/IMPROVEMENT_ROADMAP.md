@@ -808,6 +808,28 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-04 — Projection confidence (3D).** Projections promised ETAs with
+  no statement of how much data stood behind them. Worse, the trend maths made
+  the LEAST trustworthy input the most optimistic: a noisy three-week series
+  (100 → 150 → 110) produced "+5/week", a faster promise than a clean six-week
+  100 → 110 progression at "+2/week", and both rendered identically.
+  `trailingTrend` now also computes the fit (R²) alongside the sample count,
+  and `trendQuality` grades a projection high / moderate / low. The horizon a
+  projection may claim is capped by that grade — 78 weeks at high confidence,
+  26 at moderate, 8 at low — so a weak trend that arithmetically "reaches" a
+  distant target returns no ETA rather than a guess dressed as a plan. Every
+  projection carries its grade and a plain note ("Based on only 3 weeks of
+  inconsistent data — a rough indication, not a forecast"), rendered as a chip
+  on the Projections screen.
+  Also fixed three more hardcoded `kg` sites, all in coaching text —
+  `predictions.js`'s briefing line, plus the weekly and monthly review copy.
+  These survived the earlier unit sweep because that guard only swept
+  `js/analytics`. The guard now also covers `js/brain` **recursively**
+  (`js/brain/hybrid-score/` would otherwise have stayed invisible), and was
+  verified by planting a temporary offender in that subdirectory to prove it
+  fails rather than passing vacuously.
+  Verified: 1396 unit tests, typecheck, precache, workflow gates, smoke.
+
 - **2026-08-04 — CI fix: the Volume merge broke a check I could not see fail.**
   `gym-performance-browser-check.mjs` waited on `#analytics-gym-performance`,
   the section Phase 3B deleted when it merged Gym Performance into the Volume

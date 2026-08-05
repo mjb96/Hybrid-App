@@ -60,7 +60,7 @@ export function renderMonthlyReport(getState, getDays, getProgram) {
 
   const btn = el.querySelector('#mrepShareBtn');
   if (btn) btn.addEventListener('click', async () => {
-    const text = reportToText(r, distUnit);
+    const text = reportToText(r, distUnit, weightUnitOf(state));
     try {
       if (navigator.share) { await navigator.share({ text }); return; }
       throw new Error('no-share');

@@ -71,14 +71,14 @@ export function buildMonthlyReport(state, days, program, now = new Date()) {
     hybridScore: { avg: avgScore, prevAvg: prevAvgScore, delta: (avgScore !== null && prevAvgScore !== null) ? avgScore - prevAvgScore : null },
     fitness: { ctl: Math.round(model.load?.ctl || 0), trend: ctlTrend },
     consistency: model.goal?.avgConsistency || 0,
-    projection: topPredictionLine(pred),
+    projection: topPredictionLine(pred, state?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg'),
   };
 }
 
-export function reportToText(r, distUnit = 'km') {
+export function reportToText(r, distUnit = 'km', weightUnit = 'kg') {
   if (!r.hasData) return 'Your 30-day report will build as you train.';
   const dist = distUnit === 'mi' ? `${Math.round(r.totals.distanceKm * 0.621371)} mi` : `${r.totals.distanceKm} km`;
-  const bits = [`${r.totals.sessions} sessions`, `${r.totals.volume.toLocaleString()} kg`, dist];
+  const bits = [`${r.totals.sessions} sessions`, `${r.totals.volume.toLocaleString()} ${weightUnit}`, dist];
   let txt = `Last 30 days on Helyx: ${bits.join(' · ')}.`;
   if (r.hybridScore.avg !== null) txt += ` Avg Hybrid Score ${r.hybridScore.avg}${r.hybridScore.delta ? ` (${r.hybridScore.delta > 0 ? '+' : ''}${r.hybridScore.delta} vs prior month)` : ''}.`;
   txt += ` Fitness ${r.fitness.trend}.`;
