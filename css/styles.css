@@ -8937,3 +8937,63 @@ html[data-theme="light"] .tl-empty { border-color: rgba(0,0,0,.08); }
 @media (max-width: 340px) {
   .tl-quick { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==========================================
+   SESSION OUTLINE (roadmap Phase 2A)
+
+   A glanceable index above the accordion. The cockpit already collapses
+   inactive exercises, but "how much is left?" still meant scrolling the whole
+   list and counting. Each row is also navigation — tapping jumps to that
+   exercise.
+   ========================================== */
+.session-outline {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,.08));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface-2, rgba(255,255,255,.03));
+}
+.session-outline__head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.session-outline__title {
+  font-size: .66rem; font-weight: 800; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-muted, #94a3b8);
+}
+.session-outline__summary {
+  font-size: .72rem; font-weight: 650; color: var(--text-secondary, #cbd5e1);
+}
+.session-outline__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.session-outline__row {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 44px; padding: 4px 6px; cursor: pointer; text-align: left;
+  background: none; border: 0; border-radius: 8px;
+  color: var(--text-secondary, #cbd5e1); font-size: .78rem;
+}
+@media (hover: hover) { .session-outline__row:hover { background: var(--overlay-xs, rgba(255,255,255,.04)); } }
+.session-outline__row.is-active {
+  background: color-mix(in srgb, var(--color-blue, #3b82f6) 12%, transparent);
+  color: var(--text-primary, #f8fafc); font-weight: 700;
+}
+.session-outline__row.is-done { color: var(--text-muted, #94a3b8); }
+.session-outline__mark {
+  flex: 0 0 auto; width: 14px; text-align: center;
+  color: var(--color-green, #10b981); font-weight: 800; font-size: .8rem;
+}
+.session-outline__name {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.session-outline__row.is-done .session-outline__name { text-decoration: line-through; opacity: .75; }
+.session-outline__dots { flex: 0 0 auto; display: inline-flex; gap: 3px; }
+.session-outline__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--overlay-sm, rgba(255,255,255,.14));
+}
+.session-outline__dot.is-done { background: var(--color-green, #10b981); }
+.session-outline__count {
+  flex: 0 0 auto; min-width: 30px; text-align: right;
+  font-size: .68rem; font-variant-numeric: tabular-nums; color: var(--text-muted, #94a3b8);
+}
+html[data-theme="light"] .session-outline { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.08); }

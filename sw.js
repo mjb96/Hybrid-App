@@ -243,6 +243,7 @@ const REQUIRED_ASSETS = [
   "./js/workout/program-session-picker.js",
   "./js/workout/run-type.js",
   "./js/workout/session-identity.js",
+  "./js/workout/session-outline.js",
   "./js/workout/session-status.js",
   "./js/workout/substitutions.js",
   "./manifest.json",

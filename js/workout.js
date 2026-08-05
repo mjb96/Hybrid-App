@@ -11,6 +11,7 @@ import { mountExerciseDragAndDropSystems } from './dragdrop.js';
 import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
+import { buildSessionOutline, outlineSummaryLine } from './workout/session-outline.js';
 import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
@@ -431,6 +432,40 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
 // ==========================================
 // RENDER
 // ==========================================
+// ---- Session outline (Phase 2A) --------------------------------------------
+// A compact index above the accordion: every exercise, its set progress, and
+// one line answering "how much is left?". Tapping an entry expands that
+// exercise, so the outline is navigation as well as orientation.
+function renderSessionOutline(loggedLiftsData, orderedNames, activeLift) {
+  const el = document.getElementById('cockpitSessionOutline');
+  if (!el) return;
+
+  const outline = buildSessionOutline(loggedLiftsData, orderedNames, { activeLift });
+  if (outline.empty) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+
+  const dots = (entry) => Array.from({ length: entry.total }, (_, i) =>
+    `<i class="session-outline__dot${i < entry.done ? ' is-done' : ''}"></i>`).join('');
+
+  el.innerHTML = `
+    <div class="session-outline__head">
+      <span class="session-outline__title">Session</span>
+      <span class="session-outline__summary">${escapeHtml(outlineSummaryLine(outline))}</span>
+    </div>
+    <ol class="session-outline__list">
+      ${outline.entries.map((entry) => `<li>
+        <button type="button" class="session-outline__row is-${escapeHtml(entry.status)}"
+          data-action="jump-to-exercise" data-liftname="${escapeHtml(entry.name)}"
+          aria-label="${escapeHtml(entry.name)}: ${entry.done} of ${entry.total} sets done">
+          <span class="session-outline__mark" aria-hidden="true">${entry.status === 'done' ? '✓' : ''}</span>
+          <span class="session-outline__name">${escapeHtml(entry.name)}</span>
+          <span class="session-outline__dots" aria-hidden="true">${dots(entry)}</span>
+          <span class="session-outline__count">${entry.done}/${entry.total}</span>
+        </button>
+      </li>`).join('')}
+    </ol>`;
+}
+
 export function renderWorkout() {
   if (!_getState || !_getSelectedDay) return;
   
@@ -745,6 +780,10 @@ export function renderWorkout() {
 
   const orderedNames = activeSessionLiftNames(weekData, selectedDay, homeBlueprint, { oneOff: !!oneOff });
   const activeNames = new Set(orderedNames);
+
+  // Session outline. Rendered from the SAME ordered names the accordion below
+  // uses, so the index can never list an exercise the session does not have.
+  renderSessionOutline(loggedLiftsData, orderedNames, previouslyExpandedLift);
 
   // Build superset group map only from exercises owned by this live session.
   // Quarantined historical rows remain stored for Activities/analytics but can
@@ -1358,7 +1397,34 @@ function _achievedSummaryFromCard(card, unit) {
     done.map(r => parseInt(r.querySelector('.input-reps-node')?.value, 10) || 0), unit);
 }
 
+/**
+ * Re-render the outline from current state without a full cockpit re-render.
+ *
+ * Ticking a set deliberately updates the DOM in place rather than rebuilding
+ * the accordion, so the outline had no way to learn about it and went stale
+ * the moment anyone logged anything — a stale index is worse than no index.
+ */
+export function refreshSessionOutline() {
+  if (!_getState || !_getSelectedDay) return;
+  const appState = _getState();
+  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
+  const weekData = appState.weeks?.[activeWorkoutWeekKey(appState)];
+  if (!weekData) return;
+  const oneOff = activeOneOffSession(appState);
+  const homeBlueprint = oneOffBlueprint(appState,
+    getProgramById(appState.activeProgramId)?.days?.[selectedDay] || { lifts: [], runs: 'Rest' });
+  renderSessionOutline(
+    weekData.lifts?.[selectedDay] || {},
+    activeSessionLiftNames(weekData, selectedDay, homeBlueprint, { oneOff: !!oneOff }),
+    document.querySelector('.cockpit-exercise:not(.collapsed)')?.getAttribute('data-liftname'),
+  );
+}
+
 export function evaluateAccordionAutoFlowTransitions() {
+  // Runs BEFORE the early return: the outline must track every completion
+  // change, including ones made while no card happens to be expanded.
+  try { refreshSessionOutline(); } catch (e) { console.warn(e); }
+
   const expandedCard = document.querySelector('.cockpit-exercise:not(.collapsed)');
   if (!expandedCard) return;
   const rows = Array.from(expandedCard.querySelectorAll('.cockpit-set-row'));
@@ -1734,6 +1800,24 @@ function _nextIncompleteCard(fromCard) {
   for (let i = idx + 1; i < cards.length; i++) if (!cards[i].classList.contains('completed')) return cards[i];
   for (let i = 0; i < idx; i++) if (!cards[i].classList.contains('completed')) return cards[i];
   return null;
+}
+
+/**
+ * Open one exercise from the session outline and bring it into view.
+ * Reuses the accordion's own single-open invariant rather than manipulating
+ * classes directly, so outline navigation and header taps cannot drift apart.
+ * @param {string} liftName
+ */
+export function jumpToExercise(liftName) {
+  if (!liftName) return;
+  const escape = (window.CSS && CSS.escape) ? CSS.escape(liftName) : liftName;
+  const card = document.querySelector(`.cockpit-exercise[data-liftname="${escape}"]`);
+  if (!card) return;
+  document.querySelectorAll('.cockpit-exercise').forEach((c) => c.classList.add('collapsed'));
+  card.classList.remove('collapsed');
+  try { moveRestTimerToActiveExercise(); } catch (e) { console.warn(e); }
+  try { refreshSessionOutline(); } catch (e) { console.warn(e); }
+  try { card.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
 }
 
 export function toggleAccordionManual(elementNode) {
@@ -2252,6 +2336,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'link-superset') pairAsSuperset(liftName, target.getAttribute('data-partner'));
   else if (action === 'unlink-superset') unpairSuperset(liftName);
   else if (action === 'toggle-accordion') toggleAccordionManual(exCard);
+  else if (action === 'jump-to-exercise') jumpToExercise(liftName);
   else if (action === 'set-rir') setPerSetRir(liftName, sIdx, parseInt(target.getAttribute('data-rir'), 10));
   else if (action === 'rest-adjust') adjustRestDuration(parseInt(target.getAttribute('data-delta'), 10));
   else if (action === 'open-add-exercise') openAddExerciseModal();
