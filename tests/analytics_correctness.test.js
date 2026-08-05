@@ -136,14 +136,20 @@ test('no analytics view hardcodes a kg label', async () => {
   // The defect was mixed units on ONE screen, so this guards the whole folder
   // rather than the single file that happened to be worst.
   const { readdir, readFile } = await import('node:fs/promises');
-  // Includes insights: coaching text quotes real loads, so a hardcoded unit
-  // there lands beside correctly-labelled figures on the same screen.
-  const roots = ['js/analytics/views', 'js/analytics/charts', 'js/analytics/insights'];
+  // Includes insights AND js/brain: coaching text, briefings, weekly/monthly
+  // review copy and projection lines all quote real loads. Three hardcoded kg
+  // sites survived in js/brain precisely because the first version of this
+  // guard only swept js/analytics.
+  const roots = ['js/analytics/views', 'js/analytics/charts', 'js/analytics/insights', 'js/brain'];
   const offenders = [];
   for (const root of roots) {
-    for (const file of await readdir(root)) {
-      if (!file.endsWith('.js')) continue;
-      const source = await readFile(`${root}/${file}`, 'utf8');
+    // Recursive: js/brain has subdirectories (hybrid-score/), and a
+    // non-recursive sweep would be blind to them — the same shape of gap that
+    // let the js/brain sites through in the first place.
+    for (const entry of await readdir(root, { withFileTypes: true, recursive: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.js')) continue;
+      const file = `${entry.parentPath || entry.path || root}/${entry.name}`.replace(`${root}/${root}/`, `${root}/`);
+      const source = await readFile(file, 'utf8');
       source.split('\n').forEach((line, index) => {
         if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
         // A literal " kg" SUFFIX emitted into output — i.e. a quoted string
@@ -151,7 +157,7 @@ test('no analytics view hardcodes a kg label', async () => {
         // Deliberately does NOT flag `weightUnit === 'lbs' ? 'lbs' : 'kg'` or
         // `unit = 'kg'`: those resolve the unit correctly, and 'kg' with no
         // leading space is the legitimate fallback value.
-        if (/['"`] kg\b| kg['"`<.,/]|>kg<|\(kg\)/.test(line)) offenders.push(`${root}/${file}:${index + 1}`);
+        if (/['"`] kg\b| kg['"`<.,/]|>kg<|\(kg\)/.test(line)) offenders.push(`${file}:${index + 1}`);
       });
     }
   }

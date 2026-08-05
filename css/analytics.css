@@ -1900,6 +1900,7 @@ html[data-theme="light"] .ph-card__say { color: var(--text-secondary, #334155); 
   .gym-performance__bin-label, .gym-performance__bin-value { font-size: .52rem; }
 }
 
+<<<<<<< HEAD
 /* ==========================================
    RECOVERY METRIC DETAIL (roadmap 3D)
 
@@ -1916,3 +1917,18 @@ html[data-theme="light"] .ph-card__say { color: var(--text-secondary, #334155); 
 }
 .rm-chart__range { font-variant-numeric:tabular-nums; opacity:.8; }
 .metric-evidence-row--static { cursor:default; }
+=======
+/* Projection confidence (roadmap 3D) — an ETA from three uneven weeks must not
+   look like one from six clean ones. */
+.proj-confidence {
+  display:inline-block; margin-left:6px; padding:2px 7px; border-radius:999px;
+  font-size:.58rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  border:1px solid var(--border-default); color:var(--text-muted);
+}
+.proj-confidence--high { border-color:color-mix(in srgb,var(--color-green) 40%,transparent); color:var(--color-green); }
+.proj-confidence--moderate { border-color:color-mix(in srgb,var(--color-amber) 40%,transparent); color:var(--color-amber); }
+.proj-confidence--low { border-color:color-mix(in srgb,var(--color-amber) 30%,transparent); color:var(--color-amber); }
+.proj-lift__confidence { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.proj-lift__confidence span { color:var(--text-muted); font-size:.64rem; line-height:1.4; }
+.proj-eta__note { display:block; margin-top:4px; color:var(--text-muted); font-size:.64rem; line-height:1.4; }
+>>>>>>> claude/projection-confidence

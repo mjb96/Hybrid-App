@@ -202,7 +202,7 @@ export function renderWeeklyReview(review, state) {
   const btn = el.querySelector('#wrevShareBtn');
   if (btn) {
     btn.addEventListener('click', async () => {
-      const text = reviewToText(review, distUnit);
+      const text = reviewToText(review, distUnit, weightUnitOf(state));
       try {
         if (navigator.share) { await navigator.share({ text }); return; }
         throw new Error('no-share');

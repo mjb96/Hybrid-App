@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { weeksToTarget, strengthProjections, runningProjection, buildPredictions, topPredictionLine } from '../js/brain/predictions.js';
+import { weeksToTarget, strengthProjections, runningProjection, buildPredictions, topPredictionLine, trendQuality, confidenceNote } from '../js/brain/predictions.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -68,4 +68,77 @@ test('buildPredictions + topPredictionLine', () => {
   if (line) assert.match(line, /current trend/);
   // No data → no line.
   assert.equal(topPredictionLine({ hasData: false }), null);
+});
+
+// ---- projection confidence (roadmap 3D) -------------------------------------
+
+test('trend quality separates a clean progression from a noisy one', () => {
+  const steady = trendQuality([100, 102, 104, 106, 108, 110]);
+  assert.equal(steady.level, 'high');
+  assert.equal(steady.n, 6);
+  assert.ok(steady.r2 > 0.9);
+
+  // Three wildly inconsistent weeks. Before this, the SAME arithmetic gave
+  // this series a faster projected rate (+5/wk) than the clean one (+2/wk) —
+  // the least trustworthy input produced the most optimistic promise.
+  const noisy = trendQuality([100, 150, 110]);
+  assert.equal(noisy.level, 'low');
+  assert.equal(noisy.n, 3);
+  assert.ok(noisy.r2 < 0.5, `expected a poor fit, got r2=${noisy.r2}`);
+});
+
+test('trend quality is null when there is not enough data to have a trend', () => {
+  assert.equal(trendQuality([100, 100]), null);
+  assert.equal(trendQuality([]), null);
+});
+
+test('a perfectly flat series reports zero fit rather than dividing by zero', () => {
+  const flat = trendQuality([100, 100, 100, 100]);
+  assert.equal(flat.r2, 0);
+  assert.ok(Number.isFinite(flat.r2));
+});
+
+test('a weak trend may not promise a distant horizon', () => {
+  // Noisy 3-point trend that arithmetically "reaches" a far target: the ETA is
+  // withheld rather than dressed up as a plan.
+  const noisy = [100, 150, 110];
+  assert.equal(weeksToTarget(noisy, 500, true), null, 'a low-confidence trend must not project 78 weeks out');
+  // The same series may still speak about something close by.
+  assert.ok(weeksToTarget(noisy, 120, true) != null);
+
+  // A clean six-point trend earns the long horizon.
+  const steady = [100, 102, 104, 106, 108, 110];
+  assert.ok(weeksToTarget(steady, 150, true) != null);
+});
+
+test('strength projections carry their confidence, not just an ETA', () => {
+  const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const weeks = {};
+  [100, 102, 104, 106, 108, 110].forEach((w, i) => {
+    weeks[String(i + 1)] = { lifts: { mon: { 'Back Squat': [{ c: true, w: String(w), r: '5' }] } } };
+  });
+  const out = strengthProjections({ weeks, currentWeek: '6' }, days, 6);
+  const squat = out.find((row) => row.lift === 'Squat');
+  assert.ok(squat, 'squat projection present');
+  assert.ok(['high', 'moderate', 'low'].includes(squat.confidence));
+  assert.ok(squat.samples >= 3);
+  assert.ok(squat.confidenceNote && squat.confidenceNote.length > 10);
+});
+
+test('confidence notes never present a rough guide as a forecast', () => {
+  assert.match(confidenceNote({ level: 'low', n: 3, r2: 0.1 }), /rough indication, not a forecast/);
+  assert.match(confidenceNote({ level: 'moderate', n: 4, r2: 0.6 }), /rough guide/);
+  assert.match(confidenceNote({ level: 'high', n: 6, r2: 0.95 }), /consistent progress/);
+  assert.match(confidenceNote(null), /Not enough history/);
+});
+
+test('the coaching projection line uses the athlete\'s weight unit', () => {
+  const pred = {
+    hasData: true,
+    running: { nextTarget: null },
+    strength: [{ lift: 'Squat', current: 140, target: 150, etaWeeks: 4 }],
+  };
+  assert.match(topPredictionLine(pred), /150 kg/);
+  assert.match(topPredictionLine(pred, 'lbs'), /150 lbs/);
+  assert.doesNotMatch(topPredictionLine(pred, 'lbs'), /kg/);
 });

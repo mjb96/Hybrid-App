@@ -137,11 +137,11 @@ export function buildWeeklyReview(state, days, program) {
 }
 
 // Share / notification copy. Compact, numbers-first, one focus.
-export function reviewToText(r, distUnit = 'km') {
+export function reviewToText(r, distUnit = 'km', weightUnit = 'kg') {
   if (!r.hasData) return `Week ${r.wkNum}: no sessions logged yet — next week is a fresh start.`;
   const dist = distUnit === 'mi' ? `${round1(r.totals.distanceKm * 0.621371)} mi` : `${r.totals.distanceKm} km`;
   const bits = [
-    `${r.totals.volume.toLocaleString()} kg lifted`,
+    `${r.totals.volume.toLocaleString()} ${weightUnit} lifted`,
     `${dist} run`,
     `${r.totals.sessions} session${r.totals.sessions === 1 ? '' : 's'}`,
   ];
