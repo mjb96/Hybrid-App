@@ -321,7 +321,7 @@ function _fireWeeklySummary() {
       const program = (typeof window !== 'undefined' && window._hybridGetProgram?.()) || null;
       const review = buildWeeklyReview(state, WEEK_DAYS, program);
       if (review.hasData) {
-        notify('Week in Review', reviewToText(review, state.settings?.distanceUnit || 'km'), 'weekly-summary');
+        notify('Week in Review', reviewToText(review, state.settings?.distanceUnit || 'km', state.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg'), 'weekly-summary');
         return;
       }
     }

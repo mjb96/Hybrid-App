@@ -10,6 +10,13 @@ import { weightUnitOf } from '../utils.js';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const etaLabel = (w) => w == null ? null : w === 0 ? 'reached' : `~${w} week${w === 1 ? '' : 's'}`;
 
+// A projection's confidence must be visible, not implied. An ETA built on three
+// uneven weeks previously rendered exactly like one built on six clean ones.
+const CONFIDENCE_LABEL = { high: 'High confidence', moderate: 'Rough guide', low: 'Low confidence' };
+const confidenceChip = (level) => (level
+  ? `<span class="proj-confidence proj-confidence--${esc(level)}">${esc(CONFIDENCE_LABEL[level] || level)}</span>`
+  : '');
+
 export function renderProjections(getState, getDays) {
   const el = document.getElementById('projectionsContainer');
   if (!el) return;
@@ -30,7 +37,11 @@ export function renderProjections(getState, getDays) {
     const rows = [r.races.fiveK, r.races.tenK, r.races.halfMar, r.races.marathon].map(x => `
       <div class="proj-race"><span class="proj-race__d">${esc(x.dist)}</span><span class="proj-race__t">${esc(x.time)}</span><span class="proj-race__p">${esc(x.pace)}</span></div>`).join('');
     const next = r.nextTarget && r.nextTarget.etaWeeks != null
-      ? `<div class="proj-eta"><span class="proj-eta__k">On your current trend</span><span class="proj-eta__v">Sub-${esc(r.nextTarget.time)} 5k in <b>${esc(etaLabel(r.nextTarget.etaWeeks))}</b></span></div>`
+      ? `<div class="proj-eta">
+          <span class="proj-eta__k">On your current trend ${confidenceChip(r.nextTarget.confidence)}</span>
+          <span class="proj-eta__v">Sub-${esc(r.nextTarget.time)} 5k in <b>${esc(etaLabel(r.nextTarget.etaWeeks))}</b></span>
+          ${r.nextTarget.confidenceNote ? `<span class="proj-eta__note">${esc(r.nextTarget.confidenceNote)}</span>` : ''}
+        </div>`
       : '';
     runHTML = `
       <h3 class="section-header">Predicted race times${r.vdot ? ` · VDOT ${r.vdot}` : ''}</h3>
@@ -48,9 +59,10 @@ export function renderProjections(getState, getDays) {
           <span>Next: <b>${s.target} ${unit}</b></span>
           <span class="${s.etaWeeks == null ? 'proj-muted' : 'proj-eta-chip'}">${s.etaWeeks == null ? 'keep progressing' : etaLabel(s.etaWeeks)}</span>
         </div>
+        ${s.etaWeeks == null ? '' : `<div class="proj-lift__confidence">${confidenceChip(s.confidence)}<span>${esc(s.confidenceNote || '')}</span></div>`}
       </article>`).join('');
   }
 
   el.innerHTML = runHTML + strHTML +
-    `<p class="proj-note">Projections extend your recent trend — they assume you keep training consistently. Train smart, not just hard.</p>`;
+    `<p class="proj-note">Projections extend your recent trend — they assume you keep training consistently. A projection is only as good as the data behind it, so each one states how many weeks it rests on and how steady those weeks were.</p>`;
 }
