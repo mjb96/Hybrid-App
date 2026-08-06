@@ -43,7 +43,13 @@ test('hybrid session requires both the planned sets and run', () => {
   const strengthPresentation = completionPresentation(withoutRun);
   assert.equal(strengthPresentation.title, 'Finish workout?');
   assert.doesNotMatch(strengthPresentation.title, /partial/i);
-  assert.match(strengthPresentation.body, /treated as skipped/i);
+  // CHANGED DELIBERATELY (Phase 2B): this used to assert the generic
+  // "treated as skipped" copy, which every finishable session received —
+  // including one that completed everything. Adherence now changes the
+  // EXPLANATION (never the availability of Finish), so a session whose strength
+  // work is done is told exactly that, and told what is outstanding.
+  assert.match(strengthPresentation.body, /strength work is complete/i);
+  assert.match(strengthPresentation.body, /run is not logged/i);
   assert.equal(strengthPresentation.emitsRecap, true);
   const withRun = evaluateSessionCompletion(state({ lifts, runSessions: { mon: [{ sessionId: 'run_1', dist: '5', time: '25:00' }] } }), PROGRAM, 1, 'mon');
   assert.equal(withRun.outcome, 'complete');
@@ -54,7 +60,28 @@ test('a completed run on a hybrid day is credited while strength remains open', 
   assert.equal(result.componentOutcome, 'run-complete');
   const presentation = completionPresentation(result);
   assert.equal(presentation.title, 'Finish workout?');
-  assert.match(presentation.body, /treated as skipped/i);
+  // CHANGED DELIBERATELY (Phase 2B) — see the note above. The mirror case: the
+  // run is done, the strength work is not.
+  assert.match(presentation.body, /run is logged/i);
+  assert.match(presentation.body, /strength work is not complete/i);
+});
+
+test('a complete session is not warned about work it did not skip', () => {
+  // The old copy told EVERY finishable session that unfinished work "will be
+  // treated as skipped" — including sessions that finished everything. A
+  // warning that fires every time is one nobody reads when it finally matters.
+  const presentation = completionPresentation({ complete: true, partial: false, anyLogged: true });
+  assert.doesNotMatch(presentation.body, /skipped|not done|did not/i);
+  assert.match(presentation.body, /Everything you planned is logged/i);
+  assert.equal(presentation.action, 'Finish Workout');
+});
+
+test('low adherence explains itself without blocking the finish', () => {
+  const presentation = completionPresentation({ complete: false, partial: true, anyLogged: true });
+  assert.equal(presentation.action, 'Finish Workout', 'Finish must never be withheld for low adherence');
+  assert.equal(presentation.emitsRecap, true);
+  assert.match(presentation.body, /not a failure/i, 'the explanation must not read as a reprimand');
+  assert.doesNotMatch(presentation.title + presentation.body, /partial|incomplete/i);
 });
 
 test('run-only plan does not invent a gym requirement despite its title', () => {

@@ -1217,6 +1217,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
   else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
   else if (action === 'close-session-recap') { closeSessionRecap(); }
+  // The recap is a full-screen section, so navigating away from it must close it
+  // first — otherwise the destination renders underneath and the athlete is
+  // stranded on a recap that no longer matches where they are.
+  else if (action === 'recap-open-history') { closeSessionRecap(); openActivities({}); }
+  else if (action === 'recap-open-progress') { closeSessionRecap(); openAnalyticsView('hub'); }
   else if (action === 'share-pr-card') { sharePRFromRecap(); }
   else if (action === 'gps-start')  {
     const dayIdx = DEFAULT_DAYS.indexOf(selectedDay);

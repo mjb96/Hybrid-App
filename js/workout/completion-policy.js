@@ -147,18 +147,33 @@ export function evaluateSessionCompletion(state, program, week, day) {
 }
 
 export function completionPresentation(result) {
-  if (result?.anyLogged) {
+  if (!result?.anyLogged) {
     return {
-      title: 'Finish workout?',
-      body: 'Your completed sets will be saved. Any exercises or sets you did not complete will be treated as skipped.',
-      action: 'Finish Workout',
-      emitsRecap: true,
+      title: 'No working sets recorded',
+      body: 'Complete at least one working set, or discard this workout. Warm-ups and blank rows are not saved as training volume.',
+      action: null,
+      emitsRecap: false,
     };
   }
-  return {
-    title: 'No working sets recorded',
-    body: 'Complete at least one working set, or discard this workout. Warm-ups and blank rows are not saved as training volume.',
-    action: null,
-    emitsRecap: false,
-  };
+
+  // Adherence changes the EXPLANATION, never the availability of Finish.
+  // Finishing is a lifecycle choice; the app does not get to withhold it because
+  // the athlete did less than the plan. Equally, a session that completed
+  // everything must not be told work "will be treated as skipped" — that read as
+  // a warning about nothing, and a warning that fires every time is one nobody
+  // reads when it finally matters.
+  const body = (() => {
+    if (result.complete) {
+      return 'Everything you planned is logged. Your workout will be saved and added to your history.';
+    }
+    if (result.componentOutcome === 'strength-complete') {
+      return 'Your strength work is complete. The planned run is not logged — finishing now saves the workout without it.';
+    }
+    if (result.componentOutcome === 'run-complete') {
+      return 'Your run is logged. The planned strength work is not complete — finishing now saves the workout without it.';
+    }
+    return 'Your completed sets will be saved. Anything you did not finish is recorded as not done — that is a normal training session, not a failure.';
+  })();
+
+  return { title: 'Finish workout?', body, action: 'Finish Workout', emitsRecap: true };
 }
