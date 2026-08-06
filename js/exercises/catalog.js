@@ -361,6 +361,10 @@ export const EXERCISES = Object.freeze([
   C('lying_leg_raise', 'Lying Leg Raise', [], { core: 1 }, { movement: 'core', equipment: ['bodyweight'], bodyweight: true }),
   C('weighted_crunch', 'Weighted Crunch', [], { core: 1 }, { movement: 'core', equipment: ['other'] }),
   C('cable_crunch', 'Cable Crunch', ['Cable Crunches'], { core: 1 }, { movement: 'core', equipment: ['cables'] }),
+  // The band equivalent of a cable crunch — kept a distinct identity because the
+  // equipment differs and a home-gym athlete's load is not comparable to a
+  // cable stack's.
+  C('band_kneeling_crunch', 'Band Kneeling Crunch', ['Band Kneeling Crunches', 'Banded Kneeling Crunch'], { core: 1 }, { movement: 'core', equipment: ['bands'] }),
   C('weighted_sit_up', 'Weighted Sit-Up', [], { core: 1 }, { movement: 'core', equipment: ['other'] }),
   C('bicycle_crunch', 'Bicycle Crunch', ['Bicycle Crunches'], { core: 1 }, { movement: 'core', equipment: ['bodyweight'], bodyweight: true }),
   C('ab_work', 'Ab Work', [], { core: 1 }, { movement: 'core', equipment: ['other'] }),

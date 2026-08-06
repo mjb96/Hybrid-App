@@ -887,6 +887,50 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-06 — Added Shed PPLUL (Push/Pull/Legs/Upper/Lower).** A 12-week,
+  five-day intermediate program authored by the owner.
+  - **Why it needed more than a catalog entry.** A program is a one-week
+    `days{}` template plus `weeklyVolModifiers`, and `getWeekModifier` returns
+    ONE modifier per week shared by every day. This program runs two main-lift
+    progressions simultaneously — bench/squat/press on 4×8→4×6→5×4 and the
+    deadlift on 3×6→3×5→4×3 — which one shared modifier cannot express.
+  - Resolved with `js/programs/shed-pplul-model.js` + `progressionModel:
+    'shed-pplul'`, consulted by `liftTarget` (`js/engine.js`) through the same
+    declarative hook Jacked & Tan already uses. Four added lines in the engine,
+    gated on a field no other program sets; a test asserts every other catalog
+    program is refused by the new resolver.
+  - **Not shared with J&T, deliberately.** The Simplified table is close but
+    wrong here: its deadlift is 2×6 in week 4 and 3×4 in weeks 5–7 where this
+    spec calls for 2×5 and 3×5, its week 12 is a single set rather than an
+    assessment plus two back-offs, and it anchors main lifts on mon/tue/thu/fri
+    rather than mon/wed/fri/sat. Sharing one table would also have meant a
+    future edit to either program silently changing the other.
+  - **No stored-shape change.** `day.lifts` stay bare strings and nothing
+    per-set is persisted, so this adds no migration, sync or export surface. The
+    Phase 4C ADR gate concerns *normalised per-lift prescription data*, which is
+    untouched — this is a pure read-time resolver.
+  - `days` and `dayExercises` are BUILT from one `DAY_PLAN` in the model, so the
+    Structure preview, day-preview sheet and cockpit cannot drift apart. Verified
+    in a real browser: the week-1 detail view renders 4×8 for the primaries and
+    3×6 for the deadlift, both resolved through `liftTarget` — the same call the
+    logger makes.
+  - Accessories hold their rep range across the block (double progression adds
+    reps, then load) and halve their sets only in weeks 4 and 8. Week 12 keeps
+    accessories at full volume, which differs from the J&T table on purpose.
+  - Added one exercise the catalogue lacked, `Band Kneeling Crunch`. The other
+    28 already resolved — `Dumbbell Farmer Carry` and `Dumbbell Reverse Lunge`
+    via existing aliases/canonical names.
+  - **Observation, not a defect:** the Plans landing renders 25 of the now 58
+    programs, so a new entry is reachable via search but not by browsing. That is
+    the discovery problem Phase 4A already owns; no change made here.
+  - `tests/shed_pplul_program.test.js` (20 tests) pins both progression tables
+    week by week, the divergence between them in all 12 weeks, deload accessory
+    scaling, per-day prescriptions for a lift appearing on two days (Pull-Up,
+    EZ-Bar Curl), and that an unauthored lift falls through instead of
+    inheriting a main-lift prescription.
+  - Verified: 1547 unit tests, typecheck, precache, workflow gates, smoke, and
+    8 browser checks including preview/logger parity and the J&T check.
+
 - **2026-08-06 — Safe-area system + content-hashed cache name.** Two coupled
   defects found by a full-repository audit. Neither was a new regression; both
   had been shipping for months, and each was hiding the other.
