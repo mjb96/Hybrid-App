@@ -12,6 +12,7 @@ import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { buildSessionOutline, outlineSummaryLine } from './workout/session-outline.js';
+import { buildSessionReview } from './workout/session-review.js';
 import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
@@ -2209,6 +2210,44 @@ function _normalizeDuration(v) {
   return Number.isFinite(n) ? `${n}:00` : '';
 }
 
+/**
+ * Render the "notable progress" block, or hide it entirely.
+ *
+ * Hidden rather than showing an encouraging placeholder: most good sessions are
+ * not PR sessions, and a line that appears every time is a line nobody reads.
+ */
+function renderSessionHighlights(appState, weekKey, day, liftNames) {
+  const host = document.getElementById('summaryHighlights');
+  if (!host) return;
+  let review;
+  try {
+    review = buildSessionReview(appState, { weekKey, day, liftNames });
+  } catch (err) {
+    console.warn('session review failed', err);
+    host.hidden = true;
+    host.textContent = '';
+    return;
+  }
+  const highlights = review.highlights || [];
+  if (!highlights.length) {
+    host.hidden = true;
+    host.textContent = '';
+    return;
+  }
+  const unit = _unitOf(appState || {});
+  const round = (value) => (Math.round(value * 10) / 10).toString().replace(/\.0$/, '');
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="summary-highlights__title">Notable progress</div>
+    ${highlights.map((h) => `
+      <div class="summary-highlights__row">
+        <span class="summary-highlights__lift">${escapeHtml(h.lift)}</span>
+        <span class="summary-highlights__gain">${round(h.e1rm)} ${escapeHtml(unit)} est. 1RM · +${round(h.delta)}</span>
+      </div>`).join('')}
+    <div class="summary-highlights__note">Estimated from your best set — not a tested max.</div>
+  `;
+}
+
 export function openFinishSessionModal() {
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
@@ -2255,6 +2294,13 @@ export function openFinishSessionModal() {
 
   if (sumVolEl) sumVolEl.textContent = `${vol} ${_unitOf(_getState?.() || {})}`;
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
+
+  // Notable progress, computed from the SAME canonical primitives the Strength
+  // screen uses, so a "new best" here can never be one the rest of the app
+  // disagrees with. Must run here rather than in the finish handler: that runs
+  // updateExercisePRs() as the sheet closes, i.e. after the only moment the
+  // athlete is looking at it.
+  renderSessionHighlights(appState, wk, selectedDay, activeNames);
   // Prefill duration with an already-logged value (e.g. .FIT import), else the
   // session timer's elapsed — surfaced here so it's confirmed/corrected at the
   // moment of finishing rather than silently logged.
