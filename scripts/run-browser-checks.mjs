@@ -1,6 +1,10 @@
 import { spawnSync } from 'node:child_process';
 
 const checks = [
+  // First: it is the only check that publishes a non-zero safe-area inset, so a
+  // regression that hides controls under the status bar surfaces before the
+  // slower feature checks run.
+  'scripts/safe-area-browser-check.mjs',
   'scripts/home-today-browser-check.mjs',
   'scripts/home-attribution-check.mjs',
   'scripts/progress-hub-browser-check.mjs',

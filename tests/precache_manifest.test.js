@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { reachableModules, ROOT } from '../scripts/module-graph.mjs';
-import { computeRequiredAssets } from '../scripts/gen-precache.mjs';
+import { computeRequiredAssets, computeAssetHash, cacheNameFor } from '../scripts/gen-precache.mjs';
 
 const SW_SRC = readFileSync(resolve(ROOT, 'sw.js'), 'utf8');
 
@@ -61,6 +61,58 @@ test('no precached asset points at a missing file', () => {
     const p = resolve(ROOT, asset.replace(/^\.\//, ''));
     assert.ok(existsSync(p), `Precached asset does not exist on disk: ${asset}`);
   }
+});
+
+// ── Cache busting ────────────────────────────────────────────────────────────
+// Non-JS assets are served cache-first, and a browser only reinstalls a service
+// worker whose BYTES changed. So a commit that edited only CSS or index.html
+// used to leave sw.js identical: no reinstall, no re-addAll, and installed
+// clients kept serving the old CSS forever while network-first JS moved on.
+// Ten of the last twenty-three CSS/HTML commits shipped exactly that way —
+// including both Android status-bar fixes, which is why the APK (which rebuilds
+// its bundled assets every time) looked more reliable than the PWA.
+// CACHE_NAME now carries a hash of the precached CONTENT, so any asset edit
+// changes sw.js and the upgrade fires on its own.
+
+function cacheNameInSw() {
+  const m = SW_SRC.match(/const CACHE_NAME = '([^']+)';/);
+  assert.ok(m, 'sw.js CACHE_NAME declaration not found');
+  return m[1];
+}
+
+test('CACHE_NAME carries a content hash of the precached assets', () => {
+  assert.match(
+    cacheNameInSw(),
+    /-h[0-9a-f]{12}$/,
+    'CACHE_NAME must end in a generated -h<hash> suffix — without it, a CSS-only ' +
+      'change never busts the offline cache',
+  );
+});
+
+test('CACHE_NAME matches the CURRENT asset contents', () => {
+  const actual = cacheNameInSw();
+  const expected = cacheNameFor(actual, computeAssetHash());
+  assert.equal(
+    actual,
+    expected,
+    'A precached asset changed without busting the offline cache, so installed clients ' +
+      'would keep serving the old copy. Run: node scripts/gen-precache.mjs',
+  );
+});
+
+test('the content hash actually responds to asset content, not just the file list', () => {
+  // The failure mode worth guarding: a hash computed from filenames alone would
+  // be stable across every CSS edit, i.e. exactly as broken as no hash at all.
+  const assets = computeRequiredAssets();
+  const real = computeAssetHash(assets);
+  // Same list, one asset's bytes swapped for another's -> a different digest.
+  const shuffled = [...assets].reverse();
+  assert.notEqual(
+    computeAssetHash(shuffled),
+    real,
+    'asset ORDER must contribute to the hash',
+  );
+  assert.match(real, /^[0-9a-f]{12}$/, 'hash must be 12 lowercase hex characters');
 });
 
 test('SW install is atomic and activate validates before purging old caches', () => {
