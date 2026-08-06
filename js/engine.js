@@ -14,6 +14,7 @@ import {
 import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
 import { daysBetween } from './dates.js';
 import { isJtShedProgram, jtLiftTarget, jtStoredRolesFor } from './programs/jt-shed-model.js';
+import { isShedPplulProgram, shedPplulLiftTarget } from './programs/shed-pplul-model.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -393,6 +394,15 @@ export function liftTarget(desc, liftName, weekModifier = {}, ctx) {
   if (isJtShedProgram(ctx?.program)) {
     const jt = jtLiftTarget(ctx.program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
     if (jt) return { sets: jt.sets, reps: jt.reps };
+  }
+  // Shed PPLUL runs bench/squat/press and the deadlift on two different weekly
+  // progressions, which one shared week modifier cannot express. Gated on the
+  // program's own progressionModel, so every other program is unaffected, and
+  // null-returning for unauthored lifts so an exercise added mid-session falls
+  // through rather than inheriting a main-lift prescription.
+  if (isShedPplulProgram(ctx?.program)) {
+    const pp = shedPplulLiftTarget(ctx.program, ctx.week, ctx.dayKey, liftName);
+    if (pp) return { sets: pp.sets, reps: pp.reps };
   }
   const parsed = parseTargetFromDescription(desc, liftName);
   if (parsed.matched) return { sets: parsed.sets, reps: parsed.reps };

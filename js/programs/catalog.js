@@ -12,6 +12,7 @@ import runningPrograms       from './catalog/running.js';
 import fitnessPrograms       from './catalog/fitness.js';
 import hyroxPrograms         from './catalog/hyrox.js';
 import jtShedPrograms, { LEGACY_JT_SHED_PROGRAMS } from './catalog/jt-shed.js';
+import shedPplulPrograms   from './catalog/shed-pplul.js';
 
 export const CATEGORIES = {
   hybrid:          { label: 'Hybrid',           icon: '⚡', color: '#8b5cf6' },
@@ -46,6 +47,7 @@ export const PROGRAM_CATALOG = [
   ...fitnessPrograms,
   ...hyroxPrograms,
   ...jtShedPrograms,
+  ...shedPplulPrograms,
 ];
 
 // Retired programs stay out of discovery/search/comparison, but remain
