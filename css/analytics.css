@@ -438,7 +438,11 @@
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   position: sticky;
+  /* Sticky resolves against the scrollport, not the padded .view-container, so
+     top:0 parks this bar under the status bar once the page scrolls — taking
+     its week-stepper buttons with it. */
   top: 0;
+  top: var(--safe-top);
   z-index: 10;
 }
 
