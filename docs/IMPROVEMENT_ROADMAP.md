@@ -459,9 +459,24 @@ The visible information architecture can change without a risky route rewrite:
 
 ### 2B. Session completion
 
+**Status: ACTIVE — notable progress done 2026-08-06.**
+
 - Replace the current completion form feeling with a concise review:
   completed work, duration, optional effort, notable progress, and one Finish
   action.
+  - **DONE 2026-08-06 — notable progress.** The sheet showed two numbers and
+    asked for three inputs, and could not have shown an achievement even if it
+    wanted to: `updateExercisePRs()` runs inside the finish handler, after the
+    sheet is populated and as it closes. `js/workout/session-review.js`
+    (`buildSessionReview`, pure) computes the session's bests from the SAME
+    canonical primitives the Strength screen uses — `isValidWorkingSet`,
+    `estimatedE1rmForSet`, `isE1rmPr`/`E1RM_PR_EPSILON` — so a "new best" here
+    can never be one the rest of the app disagrees with. Hidden entirely when
+    nothing was beaten: most good sessions are not PR sessions, and a line that
+    appears every time is a line nobody reads. The previous best spans archived
+    program runs, so switching programs cannot hand out fresh records.
+  - [ ] Remaining: the three inputs (duration, gym RPE, run RPE) still read as
+    a form. Consider deferring effort capture to the recap.
 - Keep notes optional and remember where they were entered.
 - Explain low adherence without blocking deliberate completion.
 - Make discard/delete scope unmistakable and recoverable where possible.
@@ -907,6 +922,47 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-06 — Finish review: notable progress (Phase 2B) + agent-brief and
+  tooling cleanup.**
+  - **The finish sheet could not have shown an achievement.** It rendered Total
+    Volume and Sets Completed and asked for duration and two RPEs — two numbers
+    and three inputs, which reads as a form. And `updateExercisePRs()` runs
+    inside the finish HANDLER, after the sheet is populated and as it closes, so
+    the one moment the athlete is looking at the screen and cares most was the
+    one moment the app had nothing to say.
+  - `js/workout/session-review.js` is a pure model computing the session's
+    completed work and any lift that beat its previous best. It reuses the
+    canonical primitives rather than recomputing: `isValidWorkingSet` (warm-ups
+    and zero-rep rows are not training), `estimatedE1rmForSet` (refuses
+    bodyweight/assisted/band work instead of fabricating a load) and
+    `isE1rmPr`/`E1RM_PR_EPSILON` (one shared 0.5 threshold; a first-ever log is
+    a BASELINE, not a record). A "new best" the Strength screen did not also
+    show would be worse than showing nothing.
+  - The previous best is scoped ALL and spans archived `arch:` runs on purpose:
+    a personal best is a fact about the athlete, not the program, so switching
+    programs must not hand out fresh records for lifts already beaten.
+  - **Hidden entirely when nothing was beaten.** Most good sessions are not PR
+    sessions; praise on every finish is a line nobody reads. Verified in the
+    real cockpit both ways — a PR session renders "Barbell Bent-Over Row 122.5
+    kg est. 1RM · +5.8", a normal session renders nothing at all.
+  - Labelled as an estimate at the point of display ("Estimated from your best
+    set — not a tested max"), per the cross-cutting rule.
+  - **Still outstanding in 2B:** duration and the two RPE inputs still read as a
+    form; discard scope wording; the completed-state links.
+  - **Cleanup bundle, committed separately.** (1) CLAUDE.md and AGENTS.md are
+    the same brief for two tools and had drifted — CLAUDE.md still named the
+    PARKED Play-Store goal as active and denied the exercise alias layer that
+    exists. Both auto-load at session start, so an agent reading the stale copy
+    began from wrong facts. Kept as two full copies (a pointer would leave an
+    agent with no brief if unexpanded) and pinned identical below the title by
+    `tests/agent_brief_sync.test.js`. (2) `run-browser-checks.mjs` exited on the
+    first failure, so one environment-sensitive check hid the ~14 behind it; it
+    now runs everything and fails at the end, with `--bail` for the old loop and
+    counts that describe what actually ran. (3) Roadmap §11 listed Phase 3B as
+    ACTIVE two days after it shipped.
+  - Verified: 1582 unit tests, typecheck, precache, workflow gates, smoke, and
+    the cockpit browser checks.
 
 - **2026-08-06 — FIT import: real dates and duplicate detection.** Two defects
   found in the repository audit. Neither had a roadmap entry, and both quietly
