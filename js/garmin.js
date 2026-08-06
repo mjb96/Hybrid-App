@@ -138,6 +138,55 @@ function findSession(garminData, isRun) {
   return found;
 }
 
+/**
+ * A millisecond epoch from whatever the parser produced, or null.
+ * The vendored fit-parser converts FIT timestamps to real `Date` objects, but
+ * fixtures and older exports can carry an ISO string or a bare epoch.
+ */
+function toTs(value) {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
+  if (typeof value === 'string') {
+    const t = Date.parse(value);
+    return Number.isFinite(t) ? t : null;
+  }
+  return null;
+}
+
+/** Plausible activity window — guards against a garbled epoch or a device clock
+ *  left in 1989. Anything outside is treated as "no usable timestamp" rather
+ *  than silently dating an import decades away. */
+const TS_MIN = Date.UTC(2000, 0, 1);
+const tsMax = () => Date.now() + 2 * 86400000;
+
+/**
+ * When the activity actually STARTED, in ms.
+ *
+ * This is the field that decides which calendar day an imported run belongs to.
+ * Without it the app dated every import to whichever day the cockpit happened to
+ * be showing, so a run done last Tuesday landed on today and every date-strict
+ * analytic inherited the wrong day.
+ *
+ * `start_time` is preferred. A FIT session's `timestamp` is the END of the
+ * activity, so it is only used as a fallback with the duration subtracted.
+ */
+export function sessionStartTs(session, durationSeconds = 0) {
+  if (!session || typeof session !== 'object') return null;
+  const inWindow = (t) => (t != null && t >= TS_MIN && t <= tsMax() ? t : null);
+
+  const explicit = inWindow(toTs(pickExact(session, ['start_time', 'startTime'])));
+  if (explicit) return explicit;
+
+  const end = inWindow(toTs(pickExact(session, ['timestamp'])));
+  if (end == null) return null;
+  const secs = num(durationSeconds) || 0;
+  return secs > 0 ? end - Math.round(secs * 1000) : end;
+}
+
 function formatDuration(seconds) {
   const s = num(seconds) || 0;
   const mins = Math.floor(s / 60);
@@ -173,6 +222,11 @@ export function extractSessionStats(garminData, isRun) {
     // This is exactly what the UI's "Anaerobic TE" field displays.
     anaerobicTE:    pickNum(session, ['total_anaerobic_training_effect', 'total_anaerobic_effect'], 0, 5),
     hrZones: Array.isArray(session.time_in_hr_zone) ? session.time_in_hr_zone : null,
+    // When the activity actually happened. Decides the calendar day the import
+    // is attributed to, and doubles as the identity used to refuse a re-import.
+    // Null when the file carries no usable timestamp — callers then fall back to
+    // the existing slot-date behaviour rather than inventing a date.
+    startTs: sessionStartTs(session, durationSeconds),
   };
 
   // Laps → run splits or gym sets.
@@ -241,6 +295,11 @@ export async function extractData(garminData, isRun, onDataExtracted, toast = sh
   } catch (err) {
     saved = false;
   }
+  // `{ handled: true }` means the destination deliberately declined and has
+  // already explained why (a re-import of an activity already logged). That is
+  // not a failure, and re-toasting "Import failed" over the real reason would
+  // replace a specific message with a wrong generic one.
+  if (saved && typeof saved === 'object' && saved.handled) return false;
   if (saved === false) {
     toast('Import failed — nothing was saved.', true);
     return false;

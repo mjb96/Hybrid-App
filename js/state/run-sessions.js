@@ -129,6 +129,44 @@ export function upsertRunSession(week, day, run, meta = {}) {
   return index >= 0 ? list[index] : list[list.length - 1];
 }
 
+/**
+ * Find an already-imported run anywhere in state by its source activity start.
+ *
+ * Re-importing the same FIT file used to mint a fresh session id every time and
+ * append a second identical activity, silently double-counting distance, load
+ * and every weekly total built on them. The activity's own start timestamp is a
+ * natural key — two activities cannot begin at the same millisecond.
+ *
+ * Scans EVERY week key including archived `arch:<id>:<n>` runs, because a
+ * program switch moves weeks there and a re-import must still be recognised.
+ * Matching is scoped to the same import source so a live-tracked GPS run can
+ * never block a file import.
+ *
+ * @param {any} state
+ * @param {number|null|undefined} startTs
+ * @param {string} [source]
+ * @returns {{weekKey:string, day:string, session:any}|null}
+ */
+export function findImportedRunSession(state, startTs, source = 'fit') {
+  const ts = finiteTs(startTs);
+  if (!ts || !state?.weeks || typeof state.weeks !== 'object') return null;
+  for (const weekKey of Object.keys(state.weeks)) {
+    const week = state.weeks[weekKey];
+    const byDay = week?.runSessions;
+    if (!byDay || typeof byDay !== 'object') continue;
+    for (const day of Object.keys(byDay)) {
+      const list = byDay[day];
+      if (!Array.isArray(list)) continue;
+      for (const session of list) {
+        if (session?.source === source && finiteTs(session.startTs) === ts) {
+          return { weekKey, day, session };
+        }
+      }
+    }
+  }
+  return null;
+}
+
 /** Remove one exact session, or every run session for the day when id is absent. */
 export function clearRunSessions(week, day, sessionId = null) {
   if (!week || typeof week !== 'object' || !day) return 0;

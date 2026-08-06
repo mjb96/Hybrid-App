@@ -784,6 +784,10 @@ Product improvement must not weaken these foundations:
 - Warm-ups and incomplete work do not become completed training evidence.
 - Exercise aliases preserve historical identity without rewriting stored keys.
 - Sync, import, restore, deletion, and programme edits require recovery paths.
+- An imported activity is attributed to the day it HAPPENED, from the source
+  file's own timestamp — never to whichever day a screen happened to be showing.
+  Imports carry an identity so re-importing the same file is refused rather than
+  silently double-counted.
 - Estimates remain labelled as estimates.
 - Runtime JavaScript remains bundled and origin-restricted.
 - Every bug fix adds the smallest useful regression test.
@@ -886,6 +890,52 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-06 — FIT import: real dates and duplicate detection.** Two defects
+  found in the repository audit. Neither had a roadmap entry, and both quietly
+  corrupted the date-strict analytics the app has invested most heavily in.
+  - **The importer never read the activity's start time.** `extractSessionStats`
+    mapped distance, duration, HR, elevation, cadence, training effect, zones and
+    laps — but not `start_time` or `timestamp`. The handler then stamped the run
+    with `weeks[currentWeek].dates[selectedDay] || today`, i.e. whichever day the
+    cockpit happened to be showing. Import last Tuesday's run today and it was
+    logged as today, and since every weekly aggregate, streak, calendar week and
+    load model attributes by the stamped date, all of them followed it.
+  - **Nothing identified an activity**, so every import minted a fresh
+    `newRunSessionId()` and appended. Re-importing the same file created a second
+    identical run, double-counting distance and load in every total built on it.
+  - Fixed by reading the activity's own start: `sessionStartTs` prefers
+    `start_time` and falls back to the session `timestamp` **minus the duration**,
+    because FIT writes `timestamp` at the END of a session — using it raw would
+    push a late-evening run into the next day. Implausible values (pre-2000, more
+    than two days ahead) are refused rather than dating an import to 1989.
+  - The stored date needed no relocation work: `running-detail.js` and
+    `activities/model.js` already resolve `run.localDate || week.dates[day]`, so
+    stamping the session's own `localDate` is sufficient and nothing has to move
+    between week/day slots — which also means an import can never re-date the
+    strength work sharing that slot.
+  - Dedup keys on the activity start timestamp (two activities cannot begin in
+    the same millisecond), scoped to `source: 'fit'` so a live-tracked GPS run
+    can never block a file import. It scans **archived `arch:<id>:<n>` weeks
+    too** — a program switch moves weeks there, and without that a switch would
+    silently re-enable duplicate imports of everything already logged. Proven by
+    planting the naive numeric-keys-only version and watching the test fail.
+  - A refused re-import is **not** reported as a failure. `extractData` gained a
+    `{ handled: true }` return so the destination's specific message ("Already
+    imported — logged on 2026-07-14") is not overwritten by a generic "Import
+    failed", which would have been both wrong and alarming.
+  - The gym import got the same date correction, but no dedup: it writes into a
+    slot-scoped `gymStats[day]` object that overwrites rather than appending, so
+    it never had the duplication defect.
+  - **Deliberately NOT done:** no fuzzy matching between a live-tracked run and a
+    later file import of the same session. That is a genuinely different and
+    much less certain problem, and a false positive there would refuse a real
+    import.
+  - `tests/fit_import_identity.test.js` (15 tests) covers extraction from Date /
+    ISO / epoch inputs, end-timestamp fallback, implausible-value rejection,
+    duplicate detection across archived weeks, source scoping, malformed state,
+    and all three destination outcomes.
+  - Verified: 1562 unit tests, typecheck, precache, workflow gates, smoke.
 
 - **2026-08-06 — Added Shed PPLUL (Push/Pull/Legs/Upper/Lower).** A 12-week,
   five-day intermediate program authored by the owner.

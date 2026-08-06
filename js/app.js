@@ -95,7 +95,7 @@ import { isCompletedSet } from './set-utils.js';
 import { strengthDayStats } from './analytics/weekly-aggregate.js';
 import { dateKey, todayKey } from './dates.js';
 import { resolveDateToSlot, resolveSlotDate } from './analytics/logged-days.js';
-import { newRunSessionId, runDaySummary, upsertRunSession } from './state/run-sessions.js';
+import { newRunSessionId, runDaySummary, upsertRunSession, findImportedRunSession } from './state/run-sessions.js';
 import { FASTING_ACTIONS, handleFastingClickAction } from './fasting/fasting-actions.js';
 import { initNotifications, requestNotificationPermission, cancelReminders, checkMissedWorkout } from './notifications.js';
 import { buildProgramSessionChoices } from './workout/program-session-picker.js';
@@ -1525,8 +1525,26 @@ initGarminRunImport(async (distance, timeStr, coordinates, stats) => {
   const wk = appState.currentWeek;
   const sd = selectedDay;
   if (!appState.weeks[wk]) return false; // nothing to save into → honest failure
+
+  const startTs = Number.isFinite(stats?.startTs) ? stats.startTs : null;
+
+  // Refuse a re-import rather than appending a second identical activity, which
+  // would double-count distance and load in every total built on them.
+  const duplicate = startTs ? findImportedRunSession(appState, startTs) : null;
+  if (duplicate) {
+    const when = duplicate.session?.localDate;
+    showToast(when ? `Already imported — logged on ${when}.` : 'Already imported.', true);
+    return { handled: true };
+  }
+
   try {
-    const localDate = appState.weeks[wk]?.dates?.[sd] || dateKey();
+    // The activity's OWN date decides the calendar day. Falling back to the
+    // selected slot only when the file has no usable timestamp: previously every
+    // import inherited whichever day the cockpit was showing, so a run done last
+    // Tuesday was logged as today and every date-strict analytic followed it.
+    const localDate = startTs
+      ? dateKey(new Date(startTs))
+      : (appState.weeks[wk]?.dates?.[sd] || dateKey());
     const sessionId = newRunSessionId();
     if (!appState.weeks[wk].runs) appState.weeks[wk].runs = {};
     upsertRunSession(appState.weeks[wk], sd, {
@@ -1543,7 +1561,9 @@ initGarminRunImport(async (distance, timeStr, coordinates, stats) => {
       anaerobicTE:    stats?.anaerobicTE  != null ? stats.anaerobicTE             : '',
       hrZones:        stats?.hrZones      || null,
       splits:         stats?.splits       || null,
-    }, { sessionId, source: 'fit', localDate });
+      // Persisted because it is the identity a later re-import is matched
+      // against — without it every re-import would append a duplicate.
+    }, { sessionId, source: 'fit', localDate, startTs });
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
     if (!appState.weeks[wk].dates[sd]) appState.weeks[wk].dates[sd] = localDate;
     if (coordinates && coordinates.length > 0) {
@@ -1556,7 +1576,7 @@ initGarminRunImport(async (distance, timeStr, coordinates, stats) => {
       const current = appState.weeks[wk]?.runs?.[sd];
       if (current?.sessionId === sessionId) {
         upsertRunSession(appState.weeks[wk], sd, { ...current, routeId }, {
-          sessionId, source: 'fit', localDate,
+          sessionId, source: 'fit', localDate, startTs,
         });
       }
     }
@@ -1585,7 +1605,13 @@ initGarminGymImport(async (timeStr, stats) => {
     g.anaerobicTE = stats?.anaerobicTE != null ? stats.anaerobicTE            : '';
     g.gymSets     = stats?.gymSets     || null;
     if (!appState.weeks[wk].dates) appState.weeks[wk].dates = {};
-    if (!appState.weeks[wk].dates[sd]) appState.weeks[wk].dates[sd] = dateKey();
+    // Same correction as the run import: stamp an UNDATED slot with the day the
+    // session actually happened rather than today. An already-dated slot is left
+    // alone — its date is shared with any strength work logged there.
+    if (!appState.weeks[wk].dates[sd]) {
+      const gymStartTs = Number.isFinite(stats?.startTs) ? stats.startTs : null;
+      appState.weeks[wk].dates[sd] = gymStartTs ? dateKey(new Date(gymStartTs)) : dateKey();
+    }
     saveStateToLocalStorage(true);
     hydrateCurrentView();
     return true;
