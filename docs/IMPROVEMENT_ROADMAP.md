@@ -716,11 +716,34 @@ These are part of every phase, not a final polish pass.
   genuine danger, green for completion/success, blue for information/action.
 - Use motion to explain continuity, never to delay interaction.
 
+### Mobile viewport correctness
+
+**Status: SAFE-AREA SYSTEM DONE 2026-08-06.** Split out of the accessibility
+bullet below, because "test safe areas" had been true on paper while the app
+shipped controls underneath the Android status bar for months.
+
+- **DONE 2026-08-06:** `--safe-top` / `--safe-bottom` tokens
+  (`css/styles.css`, beside `--touch-target`) consult BOTH inset sources, and
+  every top-anchored surface pads from them: `.view-container` (all five
+  destinations), `.modal-overlay`, `.ob-step`, `.auth-overlay`,
+  `.migration-recovery`, `.week-nav-bar`, plus bottom clearance on
+  `.bottom-sheet`, `.profile-customiser-sheet` and `.fasting-sheet`.
+- **DONE 2026-08-06:** `scripts/safe-area-browser-check.mjs` publishes a
+  non-zero inset the way the Android shell does — the first check in the suite
+  to do so, and the reason this class of defect was previously invisible.
+- **DONE 2026-08-06:** `CACHE_NAME` now carries a content hash, so a CSS-only
+  fix actually reaches installed PWA clients.
+- [ ] Remaining: `--app-safe-bottom` has no publisher in `MainActivity`, so
+  bottom clearance still relies on `env()` alone. Add it if a gesture-bar
+  overlap is observed on device; the CSS side already consumes it.
+- [ ] Remaining: landscape and keyboard-open layouts are not yet covered by the
+  safe-area check.
+
 ### Accessibility
 
 - Maintain 44px targets and zoom support.
 - Test TalkBack, keyboard, Switch Access, focus return, Android Back/Escape,
-  reduced motion, light/dark contrast, landscape, safe areas, and 200% text.
+  reduced motion, light/dark contrast, landscape, and 200% text.
 - Ensure charts have meaningful summaries and interactive data has a non-visual
   equivalent.
 - Avoid noisy live regions and unlabeled icon controls.
@@ -863,6 +886,74 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-06 — Safe-area system + content-hashed cache name.** Two coupled
+  defects found by a full-repository audit. Neither was a new regression; both
+  had been shipping for months, and each was hiding the other.
+  - **The status-bar bug was diagnosed correctly a year ago and fixed on ONE
+    element.** `--app-safe-top` (published by `MainActivity` from the real
+    window insets) existed precisely because Android only reports
+    `env(safe-area-inset-top)` for a DISPLAY CUTOUT — on a notchless phone
+    `env()` is 0px, so `env()` alone silently does nothing. That mechanism was
+    wired to `.settings-header` and nowhere else. `.view-container` — the
+    wrapper for Home, Train, Progress, Plans and Profile — consulted `env()`
+    only. Measured before the fix at 390×844 with a 48px inset published:
+    `.settings-header` padding-top 20px → 68px, `.view-container` 20px → **20px**,
+    and the first control on Home stuck at y=26px.
+  - **The occluded control was the avatar button** — `aria-label="Open your
+    profile"`, the only route to Profile and Settings. So the one screen whose
+    header had been fixed had become the one screen you could not reach. That is
+    the detail that turned this from a polish item into the audit's P1.
+  - Fixed as `--safe-top` / `--safe-bottom` tokens beside `--touch-target`,
+    consumed by `.view-container`, `.modal-overlay`, `.ob-step` (first run),
+    `.auth-overlay`, `.migration-recovery` (the route out of a failed
+    migration), `.week-nav-bar`, and bottom clearance on `.bottom-sheet`,
+    `.profile-customiser-sheet` and `.fasting-sheet`. Every site keeps its
+    pre-token declaration FIRST as a fallback, so an engine that cannot resolve
+    the token keeps today's clearance rather than collapsing to none.
+    `.sheet-backdrop`, `.fasting-sheet-backdrop` and `.settings-overlay` were
+    deliberately NOT padded: they render no content, so the content surfaces
+    behind them are what had to change.
+  - **Why no test ever caught it:** every browser check runs desktop Chromium,
+    where BOTH inset sources are 0px, so the entire defect class was
+    structurally invisible. `scripts/safe-area-browser-check.mjs` is the first
+    check to publish a non-zero inset. It asserts nothing interactive lands
+    above the inset across Home/Train/Progress/Plans/Profile, onboarding and
+    migration-recovery at 320/360/390/412px in both themes, AND that the
+    zero-inset case is unchanged so the tokens can never quietly reflow desktop.
+    Proven non-vacuous by deleting the `.view-container` line and confirming
+    exit 1 on all four widths.
+  - **The second defect is why the first one may never have reached you.**
+    Non-JS assets are cache-first and a browser only reinstalls a service worker
+    whose BYTES changed, so a commit touching only CSS left `sw.js` identical:
+    no reinstall, no re-`addAll`, and installed clients kept serving the old
+    stylesheet indefinitely while network-first JS moved on. **Ten of the last
+    twenty-three CSS/HTML commits shipped that way — including both Android
+    status-bar fixes (`57d2b1e`, `7728951`).** `CACHE_NAME` now carries a
+    12-hex content hash generated by `gen-precache.mjs`; `precache:check` fails
+    when it is stale. This also explains the long-standing impression that the
+    APK is more reliable than the PWA: the APK re-copies its bundled assets on
+    every build and never consults the service-worker cache.
+  - **A mistake worth recording:** while proving the cache guard bites I
+    appended a probe line to `css/styles.css` and reverted it with
+    `git checkout css/styles.css` — which discarded every uncommitted safe-area
+    edit in that file along with the probe. Caught immediately by `git status`
+    and reapplied. Subsequent revert-and-restore cycles used a file copy, not
+    git. The guard itself worked correctly both times.
+  - `tests/settings_safe_area_guard.test.js` → `tests/safe_area_guard.test.js`,
+    widened from one element to the token contract, every consuming surface, the
+    dvh caps, the native half, and a check that the browser check stays
+    registered. Also added `dvh` fallbacks to `.program-workout-picker` and
+    `.profile-customiser-sheet`, which had kept `vh`-only caps the
+    `.bottom-sheet` comment already explains are wrong on Android.
+  - Verified: 1527 unit tests, typecheck, precache, workflow gates, smoke, and
+    24 browser checks (every check except `running-analytics-check.mjs`, which
+    fails locally on a hardware-dependent performance threshold — 15.3s vs
+    ~2.2s in CI — and was deliberately not weakened).
+  - **Deliberately NOT done:** no `--app-safe-bottom` publisher in
+    `MainActivity` (the CSS consumes it, but nothing reports it yet, so bottom
+    clearance still comes from `env()`); no landscape or keyboard-open coverage
+    in the safe-area check; no visual/spacing changes of any kind.
 
 - **2026-08-05 — Estimated 1RM audit + correctness fixes.** Traced e1RM end to
   end (set entry → live state → completion → storage → sync → history → PR
