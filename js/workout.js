@@ -36,7 +36,7 @@ import {
 } from './exercises/catalog.js';
 import { openExerciseDetail } from './exercises/detail.js';
 import { exerciseLoggerHistory } from './workout/exercise-history.js';
-import { estimatedE1rmForSet, isE1rmExercise } from './strength/e1rm.js';
+import { estimatedE1rmForSet, isE1rmExercise, isE1rmPr } from './strength/e1rm.js';
 import {
   activeOneOffSession, activeWorkoutDay, activeWorkoutWeekKey,
   clearActiveOneOffSession, discardActiveOneOffSession, oneOffBlueprint,
@@ -660,7 +660,7 @@ export function renderWorkout() {
               html += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
                           <span>Set ${s.set}</span>
                           <span>${s.reps} reps</span>
-                          <span>${s.weight} kg</span>
+                          <span>${s.weight} ${escapeHtml(_unitOf(_getState?.() || {}))}</span>
                           <span style="color:var(--accent-blue);">${s.category || ''}</span>
                        </div>`;
           });
@@ -1378,7 +1378,7 @@ export function toggleGymCheckLoggingState(checkboxNode) {
           // trophy noise on every exercise of a new user's first session. No
           // history ⇒ this is a baseline, not a record.
           const hasHistory = prior.hasHistory;
-          if (e1rm > 0 && hasHistory && e1rm > prevMax + 0.01) {
+          if (hasHistory && isE1rmPr(e1rm, prevMax)) {
             parentRow.classList.add('is-pr');
             hapticSuccess();
             if (!parentRow.querySelector('.pr-badge')) {
@@ -1905,11 +1905,24 @@ export function toggleAccordionManual(elementNode) {
   try { moveRestTimerToActiveExercise(); } catch(e) { console.warn(e); }
 }
 
+/** Weights are stored in the configured unit and never converted — label, don't assume. */
+function _unitOf(appState) {
+  return appState?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+}
+
+/**
+ * Best estimated 1RM on record for a lift. `allTimeMax` is derived from the
+ * stored sets (so edits and deletions propagate); `legacyMax` is rescued
+ * pre-catalogue history whose source sets are not in state.weeks.
+ */
+function _bestKnownE1rm(appState, name) {
+  const stat = exerciseStatForName(appState?.exerciseStats, name);
+  return Math.max(Number(stat?.allTimeMax) || 0, Number(stat?.legacyMax) || 0);
+}
+
 function _exChip(item, appState) {
-  const pr = isE1rmExercise(item.name)
-    ? exerciseStatForName(appState.exerciseStats, item.name)?.allTimeMax
-    : 0;
-  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
+  const pr = isE1rmExercise(item.name) ? _bestKnownE1rm(appState, item.name) : 0;
+  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}${_unitOf(appState)} PR</span>` : '';
   const meta = `${item.movement.replaceAll('_', ' ')} · ${item.equipment.map(equipmentLabel).join(', ')}`;
   return `<div class="el-exercise-row">
     <button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(item.name)}">
@@ -1920,10 +1933,8 @@ function _exChip(item, appState) {
 }
 
 function _customExChip(name, appState) {
-  const pr = isE1rmExercise(name)
-    ? exerciseStatForName(appState.exerciseStats, name)?.allTimeMax
-    : 0;
-  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}kg PR</span>` : '';
+  const pr = isE1rmExercise(name) ? _bestKnownE1rm(appState, name) : 0;
+  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}${_unitOf(appState)} PR</span>` : '';
   return `<div class="el-exercise-row el-exercise-row--custom"><button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}"><span class="el-chip-copy"><strong>${escapeHtml(name)}</strong><small>Custom exercise</small></span>${prStr}</button></div>`;
 }
 
@@ -2242,7 +2253,7 @@ export function openFinishSessionModal() {
   }
   if (discardEl) discardEl.hidden = false;
 
-  if (sumVolEl) sumVolEl.textContent = vol + ' kg';
+  if (sumVolEl) sumVolEl.textContent = `${vol} ${_unitOf(_getState?.() || {})}`;
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
   // Prefill duration with an already-logged value (e.g. .FIT import), else the
   // session timer's elapsed — surfaced here so it's confirmed/corrected at the

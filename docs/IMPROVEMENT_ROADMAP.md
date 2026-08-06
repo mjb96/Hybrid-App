@@ -864,6 +864,71 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-05 — Estimated 1RM audit + correctness fixes.** Traced e1RM end to
+  end (set entry → live state → completion → storage → sync → history → PR
+  detection → analytics → Hybrid Brain → UI) before changing anything.
+  - **Good news first, because it shaped the fix:** there is exactly ONE formula
+    and one implementation (`js/strength/e1rm.js`, Epley, capped at 12 reps).
+    Eleven modules import it; none reimplement it (`engine.epley1RM` is a thin
+    alias). Set eligibility, exercise identity, same-date dedup, program-run
+    archiving and prescription-vs-performance separation were all already sound.
+    So this is a set of targeted corrections, not a rebuild — and **Epley is
+    kept**, because swapping formulas would rewrite every historical chart and PR
+    for a metric that is directional by design.
+  - **D1 (high) — `exerciseStats.allTimeMax` only ever ROSE.** Documented as
+    deliberate, but it made the field permanently wrong the first time anyone
+    mistyped a load. Logging 500 for 50 and correcting it immediately pinned the
+    baseline at 583 kg; deleting the workout did not help. The field is persisted
+    AND synced, so the bad number followed the athlete to every device, and the
+    cockpit's PR gate reads it — so no genuine PR for that lift could fire again.
+    Now DERIVED from the logged sets on every call, and rebuilt on state load so
+    a deletion propagates without waiting for the next logged set.
+    A **legacy floor** (`legacyMax`) preserves any pre-existing max the stored
+    sets cannot account for — real history for anyone whose early sessions
+    predate reliable set storage — gated on an explicit `derived: true` marker.
+    My first attempt inferred legacy from "old value exceeds new", which cannot
+    distinguish genuine legacy from a value derived moments ago whose set was
+    then deleted: it laundered every typo straight back into a permanent floor.
+    Two tests caught that before it shipped.
+  - **D2 (medium) — a tested single was inflated 3.3%.** Epley's algebraic form
+    gives w × 31/30 at one rep, so a 100 kg single reported as 103.3 kg. The
+    app's most reliable data point was its most distorted, and an actual max
+    could never report as the weight actually lifted. One rep now returns the
+    load itself. Recalculated dynamically — nothing stored, nothing migrated;
+    single-rep points on existing charts drop 3.3% and nothing else moves.
+  - **D3 (medium) — five PR sites, four different rules.** Two counted an exact
+    TIE as a record (so a lift matched every week reported a PR every week), two
+    required +0.5, one +0.01. All now share `isE1rmPr` / `E1RM_PR_EPSILON`.
+    0.5 is chosen as a meaningfulness threshold, not a float epsilon: the
+    displayed value is rounded to whole units, so a difference too small to see
+    must not fire a trophy.
+  - **D4 (medium) — hardcoded `kg` on PR display.** The exercise-picker chips
+    rendered "225kg PR" whatever the athlete's unit. The existing guard missed
+    them twice over: it did not cover `js/workout.js`, AND its pattern required a
+    SPACE before `kg` so the glued `}kg` form was invisible. Widening the pattern
+    also exposed three more sites in `js/brain/hybrid-score/pillars.js` that were
+    already in scope. Guard verified non-vacuous by planting an offender.
+  - **Deliberately NOT done:** no persisted per-estimate metadata (formula,
+    version, confidence, source-set IDs). Everything is deterministically
+    recalculable from the sets, so storing it would add sync surface for no gain.
+    Calculation versioning only earns its place if the formula changes again.
+  - **Conventions now documented in tests:** `w` is the number the athlete typed
+    and is never multiplied or divided, so dumbbell/unilateral loads mean
+    whatever they mean to the athlete — and the logger, the estimate and the
+    display all agree. Barbell and dumbbell variants keep separate identities.
+    Bodyweight/assisted/band work is refused rather than fabricated.
+  - **A false alarm worth recording:** mid-verification a logged set appeared to
+    vanish on reload — apparent catastrophic data loss. It reproduced on
+    unmodified `main`, then turned out to be my harness: Playwright's
+    `addInitScript` re-runs on EVERY navigation, so the fixture re-seeded blank
+    weeks on each reload. Real persistence is fine, confirmed with a seed-once
+    fixture. Checked before reporting it.
+  - `tests/e1rm_correctness.test.js` (39 tests) covers the brief's rep ranges,
+    eligibility rules, identity, conventions, PR detection, edit/delete
+    propagation, program-switch isolation, and empty/single/malformed history.
+    One assertion in `tests/engine.test.js` was changed deliberately and
+    annotated: it pinned `epley1RM(60, 1) === 62`, i.e. the D2 defect itself.
+
 - **2026-08-05 — Rest timer pause + row action prominence (Phase 2A).**
   - **A control that looked real and did nothing.** The rest bar rendered a
     decorative `⏸ REST` label with no pause behind it, beside working −30s,

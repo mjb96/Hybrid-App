@@ -11,6 +11,7 @@
 // =============================================================================
 import { computeDashboardModel } from '../home/dashboard-model.js';
 import { weeklyE1rmByLift } from '../metrics/metrics-strength.js';
+import { isE1rmPr } from '../strength/e1rm.js';
 import { isProgramDeloadWeek } from './day-verdict.js';
 import { addDaysISO, todayKey } from '../dates.js';
 import { runDaySummary } from '../state/run-sessions.js';
@@ -34,7 +35,7 @@ function weekPRs(state, days, wkNum, maxWeek) {
     const thisWeek = arr[idx] || 0;
     if (thisWeek <= 0) continue;
     const priorBest = Math.max(0, ...arr.slice(0, idx));
-    if (priorBest > 0 && thisWeek > priorBest + 0.5) {
+    if (isE1rmPr(thisWeek, priorBest)) {
       prs.push({ lift, e1rm: Math.round(thisWeek), prevBest: Math.round(priorBest) });
     }
   }

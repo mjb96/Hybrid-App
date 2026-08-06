@@ -366,18 +366,21 @@ export function bodyPillar(model, state) {
   const b = model.bodyweight;
   if (!b?.hasData || b.delta7 == null) return { score: null, signals: [] };
   const goal = state?.settings?.weightGoal || 'maintain';
+  // Body weight is stored in whatever unit the athlete configured and is
+  // never converted, so the label has to follow the setting.
+  const wu = state?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
   const d = b.delta7; // kg change vs 7 days ago
   let score, signal;
   if (goal === 'cut') {
     score = d <= 0 ? clamp(70 + Math.min(Math.abs(d), 1) * 30, 70, 100) : clamp(70 - d * 25, 20, 70);
-    signal = d <= 0 ? `down ${Math.abs(d)}kg (cutting)` : `up ${d}kg — off cut target`;
+    signal = d <= 0 ? `down ${Math.abs(d)}${wu} (cutting)` : `up ${d}${wu} — off cut target`;
   } else if (goal === 'bulk') {
     score = d >= 0 ? clamp(70 + Math.min(d, 1) * 30, 70, 100) : clamp(70 + d * 25, 20, 70);
-    signal = d >= 0 ? `up ${d}kg (bulking)` : `down ${Math.abs(d)}kg — off bulk target`;
+    signal = d >= 0 ? `up ${d}${wu} (bulking)` : `down ${Math.abs(d)}${wu} — off bulk target`;
   } else {
     const off = Math.abs(d);
-    score = clamp(100 - off * 40, 30, 100); // maintain: within ~1kg/wk is ideal
-    signal = off <= 1 ? 'weight stable (maintaining)' : `weight moved ${d > 0 ? '+' : '−'}${off}kg`;
+    score = clamp(100 - off * 40, 30, 100); // maintain: within ~1 unit/wk is ideal
+    signal = off <= 1 ? 'weight stable (maintaining)' : `weight moved ${d > 0 ? '+' : '−'}${off}${wu}`;
   }
   return { score: round(score), signals: [signal] };
 }

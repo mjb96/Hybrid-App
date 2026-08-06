@@ -6,7 +6,7 @@
 // ==========================================
 import { PROGRAMS } from './constants.js';
 import { getCatalogEntry } from './programs/catalog.js';
-import { liftTarget, prescribeSetsForLift, reconcilePrescribedSets, jtRoleStampsForCtx } from './engine.js';
+import { liftTarget, prescribeSetsForLift, reconcilePrescribedSets, jtRoleStampsForCtx, computeExercisePRs } from './engine.js';
 import { getWeekModifier } from './schema.js';
 export { showToast } from './toast.js';
 import { showToast } from './toast.js';
@@ -1026,6 +1026,14 @@ export async function pullEngineDataFromStorage() {
   // Schema Patching
   if (!appState.activeProgramId) appState.activeProgramId = "hybrid_engine";
   if (!appState.exerciseStats) appState.exerciseStats = {};
+  // `exerciseStats` is DERIVED from the logged sets, so rebuild it on load.
+  // Without this it only refreshed when a set was ticked, so a workout deleted
+  // (or an import replacing history) left the stale max standing until the next
+  // time the athlete happened to log something — and the cockpit's PR gate
+  // reads that max, so a deleted lift could keep suppressing real PRs.
+  try {
+    computeExercisePRs(appState, appState.exerciseStats);
+  } catch (e) { console.warn('Could not rebuild exercise PRs on load:', e); }
   if (!appState.weeks) appState.weeks = {};
   if (!appState.customExercises) appState.customExercises = [];
   if (!appState.customPrograms) appState.customPrograms = [];

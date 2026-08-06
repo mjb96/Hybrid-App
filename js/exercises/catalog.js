@@ -475,7 +475,10 @@ export function exerciseStatForName(stats, value) {
   return matches.reduce((out, [, stat]) => ({
     allTimeMax: Math.max(out.allTimeMax || 0, Number(stat?.allTimeMax) || 0),
     currentEstimatedMax: Math.max(out.currentEstimatedMax || 0, Number(stat?.currentEstimatedMax) || 0),
-  }), { allTimeMax: 0, currentEstimatedMax: 0 });
+    // Preserved pre-catalogue history whose source sets are not in state.weeks.
+    // Surfaced separately so a derived max and a rescued one stay distinguishable.
+    legacyMax: Math.max(out.legacyMax || 0, Number(stat?.legacyMax) || 0),
+  }), { allTimeMax: 0, currentEstimatedMax: 0, legacyMax: 0 });
 }
 
 export function muscleCreditsForExercise(value) {

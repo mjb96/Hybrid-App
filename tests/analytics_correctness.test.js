@@ -140,9 +140,29 @@ test('no analytics view hardcodes a kg label', async () => {
   // review copy and projection lines all quote real loads. Three hardcoded kg
   // sites survived in js/brain precisely because the first version of this
   // guard only swept js/analytics.
-  const roots = ['js/analytics/views', 'js/analytics/charts', 'js/analytics/insights', 'js/brain'];
+  // A literal kg SUFFIX emitted into output. Covers both a spaced label
+  // (`+ ' kg'`) and one glued straight onto an interpolation (`}kg`) —
+  // the second form is how the exercise-picker PR chips escaped the
+  // original guard entirely. Deliberately does NOT flag
+  // `weightUnit === 'lbs' ? 'lbs' : 'kg'` or `unit = 'kg'`: those resolve
+  // the unit correctly, and bare 'kg' is the legitimate fallback value.
+  const KG_LABEL = /['"`] kg\b| kg['"`<.,/]|>kg<|\(kg\)|\}kg\b/;
+  const roots = ['js/analytics/views', 'js/analytics/charts', 'js/analytics/insights', 'js/brain',
+    // The LOGGER is where loads are entered, so a hardcoded unit there
+    // mislabels the athlete's own numbers at the point of entry. It sat
+    // outside every previous sweep and was rendering "225kg PR" on every
+    // exercise-picker chip regardless of the configured unit.
+    'js/workout', 'js/strength'];
   const offenders = [];
-  for (const root of roots) {
+  for (const root of ['js/workout.js', ...roots]) {
+    if (root.endsWith('.js')) {
+      const source = await readFile(root, 'utf8');
+      source.split('\n').forEach((line, index) => {
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
+        if (KG_LABEL.test(line)) offenders.push(`${root}:${index + 1}`);
+      });
+      continue;
+    }
     // Recursive: js/brain has subdirectories (hybrid-score/), and a
     // non-recursive sweep would be blind to them — the same shape of gap that
     // let the js/brain sites through in the first place.
@@ -157,7 +177,7 @@ test('no analytics view hardcodes a kg label', async () => {
         // Deliberately does NOT flag `weightUnit === 'lbs' ? 'lbs' : 'kg'` or
         // `unit = 'kg'`: those resolve the unit correctly, and 'kg' with no
         // leading space is the legitimate fallback value.
-        if (/['"`] kg\b| kg['"`<.,/]|>kg<|\(kg\)/.test(line)) offenders.push(`${file}:${index + 1}`);
+        if (KG_LABEL.test(line)) offenders.push(`${file}:${index + 1}`);
       });
     }
   }
