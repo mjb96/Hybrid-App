@@ -871,19 +871,36 @@ Work in this order unless user evidence changes it:
    changing stored data.**
 3. **DONE — Establish Home hierarchy with one Today decision card, retain the
    owner-preferred In Focus cards, and remove the repeated At-a-Glance grid.**
-4. **Simplify the common strength set-row interaction.**
+4. **DONE — Simplified the common strength set-row interaction.** Persistent
+   previous values, inline entry validation, completion as the strongest row
+   action, a pausable rest timer attached to the card, and the session outline.
+   One 2A item remains: making add/swap/reorder/superset/plate-math contextual
+   rather than equally prominent (only `+ Warmup` was done).
 5. **DONE — Create the new Progress landing hierarchy.** Metric classification
    (3B) and the Volume Guide / MEV rebuild remain.
 5a. **DONE — Rebuilt the Volume Guide (MEV) presentation.** Unified onto the
    existing `classifyVolume` classifier, full MV→MEV→MAV→MRV scale with
    labelled landmarks, factual statuses, attention-ordered focus list and
    priorities moved to their own tab.
-5b. **ACTIVE — Phase 3B metric classification.** Classify every metric as
-   headline / supporting / advanced / diagnostic / remove, then merge the
-   overlapping "Gym Performance", "Strength Stats" and Weekly Volume
-   destinations that still present the same facts twice.
-6. **Rework Plans discovery around recommendations before Browse all.**
-7. **Continue exercise metadata and shared visual-system cleanup in bounded
+5b. **DONE 2026-08-04 — Phase 3B metric classification.**
+   `js/analytics/metric-tiers.js` classifies every metric, and Gym Performance /
+   Weekly Volume merged into one Volume destination. (This entry read ACTIVE for
+   two days after it shipped; the audit caught the drift.)
+5c. **DONE 2026-08-06 — Mobile viewport correctness + cache busting.** Safe-area
+   tokens across every surface, and a content-hashed `CACHE_NAME` so a CSS-only
+   fix actually reaches installed PWA clients.
+5d. **DONE 2026-08-06 — Imported-activity identity.** FIT files are dated from
+   the activity's own start and a re-import is refused rather than
+   double-counted.
+6. **ACTIVE — Phase 2B session completion.** Replace the completion-form feel
+   with a short review, keep notes optional, explain low adherence without
+   blocking a deliberate finish, make discard scope unmistakable, and land on a
+   useful completed state.
+7. **Phase 2C running:** give the active run its own focused session surface.
+8. **Rework Plans discovery around recommendations before Browse all.** Also
+   surfaces the fact that the Plans landing renders 25 of 58 programmes, so a
+   new programme is findable only by search.
+9. **Continue exercise metadata and shared visual-system cleanup in bounded
    batches.**
 
 Avoid parallel redesign of every screen. Each step should be usable and
