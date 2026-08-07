@@ -6743,6 +6743,64 @@ html[data-theme="light"] .sw-session-chip { background: rgba(0,0,0,0.03); border
 }
 .gps-btn-stop:active { opacity: 0.85; }
 
+/* Run notices — a condition that is still true after a toast would have faded:
+   permission off, no fix, saved without its map. On the Quick Activity screen
+   this is the ONLY content when a start is blocked, so it has to stand alone. */
+.gps-notice {
+  border: 1px solid rgba(244,63,94,0.35);
+  background: rgba(244,63,94,0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.gps-notice-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-inverse);
+  margin-bottom: 4px;
+}
+.gps-notice-body {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.gps-notice-retry {
+  margin-top: 10px;
+  min-height: var(--touch-target, 44px);
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border-medium);
+  background: var(--overlay-lg);
+  color: var(--text-inverse);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gps-notice-retry:active { opacity: 0.75; }
+/* Not an error: the platform simply cannot do what the athlete may assume. */
+.gps-notice[data-kind="native-busy"],
+.gps-notice[data-kind="journal-open"],
+.gps-notice[data-kind="route-lost"] {
+  border-color: rgba(245,158,11,0.35);
+  background: rgba(245,158,11,0.08);
+}
+.gps-notice--screen { margin: 24px 4px; }
+
+/* The standing truth about background tracking, stated before the phone goes
+   in a pocket rather than discovered by losing a run. */
+.gps-background-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.gps-background-note[data-kind="foreground-only"] { color: #f59e0b; }
+#qsBackgroundNote {
+  margin: 12px 4px 0;
+  text-align: center;
+}
+
 /* Live GPS signal chip — shared by the cockpit run card and the Quick Activity
    screen. Answers "is it tracking me right now?", which the whole-run quality
    summary cannot: that one grades a finished run. */

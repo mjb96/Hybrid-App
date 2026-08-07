@@ -17,6 +17,7 @@ const tracker = read('js/gps-tracker.js');
 const html = read('index.html');
 const css = read('css/styles.css');
 const workout = read('js/workout.js');
+const app = read('js/app.js');
 
 test('the live stats are rendered through the shared display model', () => {
   assert.match(tracker, /activeRunStats\(\{[^}]*unit: runDistanceUnit\(appState\)/s);
@@ -80,6 +81,74 @@ test('focus mode hides setup and import, and is scoped to the cockpit run card',
       `${selector} still competes with the live run`,
     );
   }
+});
+
+test('a refused start is reported, not swallowed', () => {
+  // startTracking returned a bare boolean that every caller ignored, so a
+  // refused start left whatever screen had been opened for it sitting empty.
+  assert.match(tracker, /return \{ ok: false, reason: 'permission' \}/);
+  assert.match(tracker, /return \{ ok: false, reason: 'unsupported' \}/);
+  assert.match(tracker, /return \{ ok: false, reason: 'native-busy' \}/);
+  assert.match(tracker, /return \{ ok: true, reason: null \}/);
+  assert.doesNotMatch(tracker, /^\s*return false;$/m);
+});
+
+test('the Quick Activity screen can never be left blank by a blocked start', () => {
+  // It has no start panel, so showPanel('start') rendered nothing at all.
+  const notice = tracker.match(/function showRunNotice\([^]*?\n\}/)?.[0] || '';
+  assert.match(notice, /showPanel\(_scope === 'cockpit' \? 'start' : 'notice'\)/);
+  assert.match(html, /id="qsNotice"/);
+  assert.match(html, /id="qsNoticeTitle"/);
+  assert.match(html, /id="qsNoticeBody"/);
+  // And a way forward from it, since Cancel would throw the intent away.
+  assert.match(html, /id="qsNoticeRetry"[^>]*data-action="qs-retry"/s);
+  assert.match(app, /action === 'qs-retry'/);
+});
+
+test('retry repeats the same activity, not a default one', () => {
+  // A blocked walk must not come back as a run.
+  assert.match(app, /_lastQuickActivityType = kind/);
+  assert.match(app, /function retryQuickActivity\(\)[^]*_lastQuickActivityType/s);
+});
+
+test('a mid-run position error does not tear down the run', () => {
+  // The distance already recorded is real work; a dropout is not a reason to
+  // discard it, and the signal chip reports the dropout on its own.
+  const handler = tracker.match(/function onPositionError\([^]*?\n\}/)?.[0] || '';
+  assert.match(handler, /if \(_status === 'tracking'\) \{ tickSignal\(\); return; \}/);
+});
+
+test('a recovered run is explained without being sent back to the start panel', () => {
+  // A recovered session is still LIVE. Routing it through showRunNotice would
+  // call showPanel('start') and take the running run off the screen.
+  const info = tracker.match(/function showInfoNotice\([^]*?\n\}/)?.[0] || '';
+  assert.ok(info, 'showInfoNotice must exist');
+  assert.doesNotMatch(info, /showPanel\(/);
+  assert.match(tracker, /showInfoNotice\(runRecoveryNotice\(\{ restored: p\.restored, status: p\.status \}\)\)/);
+  // And the transient toast it replaced is gone.
+  assert.doesNotMatch(tracker, /GPS kept tracking/);
+});
+
+test('the background-tracking truth is stated on both surfaces', () => {
+  assert.match(html, /id="gpsBackgroundNote"/);
+  assert.match(html, /id="qsBackgroundNote"/);
+  assert.match(tracker, /function applyBackgroundNotice\(\)[^]*backgroundTrackingNotice\(\{ nativeAvailable: isNativeGpsAvailable\(\) \}\)/s);
+  // Refreshed whenever a panel changes, so it is present before the phone is
+  // pocketed and still there mid-run.
+  assert.match(tracker, /function showPanel\([^]*?applyBackgroundNotice\(\)[^]*?\n\}/);
+});
+
+test('every notice kind the model emits is styled', () => {
+  const notices = read('js/gps/run-notices.js');
+  const kinds = [...notices.matchAll(/kind: '([a-z-]+)'/g)].map((m) => m[1]);
+  assert.ok(kinds.length >= 8, `expected the full set of kinds, got ${kinds.length}`);
+  // Only the non-error kinds get their own treatment; the rest share the
+  // default. What must never happen is a kind with no rule at all.
+  assert.match(css, /\.gps-notice \{/);
+  for (const kind of ['native-busy', 'journal-open', 'route-lost']) {
+    assert.ok(css.includes(`.gps-notice[data-kind="${kind}"]`), `${kind} unstyled`);
+  }
+  assert.match(css, /\.gps-background-note\[data-kind="foreground-only"\]/);
 });
 
 test('a re-render cannot collapse or reparent a live run', () => {
