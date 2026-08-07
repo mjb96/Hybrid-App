@@ -54,6 +54,27 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   pillar stays program-week progression on purpose.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
+- Mobile safe areas: `--safe-top` / `--safe-bottom` (`css/styles.css`, beside
+  `--touch-target`) are the ONLY correct way to clear the system bars. They consult
+  BOTH `env(safe-area-inset-*)` AND `var(--app-safe-*)`, because the Android WebView is
+  edge-to-edge but only reports `env(safe-area-inset-top)` for a DISPLAY CUTOUT — on a
+  notchless phone `env()` is 0px and env-only CSS silently does nothing. Every
+  top-anchored surface pads from the token and keeps its pre-token declaration first as
+  a fallback. `scripts/safe-area-browser-check.mjs` is the only check that publishes a
+  non-zero inset; without it this defect class is invisible to a desktop-Chromium suite.
+  Backdrops that render no content are deliberately NOT padded.
+- Service-worker cache: `CACHE_NAME` carries a generated content hash
+  (`scripts/gen-precache.mjs`), so editing any precached asset changes `sw.js` and the
+  upgrade fires. Non-JS assets are cache-first and a browser only reinstalls a worker
+  whose bytes changed, so before this a CSS-only commit never reached installed PWA
+  clients. Never hand-edit `CACHE_NAME` or the `REQUIRED_ASSETS` block — run
+  `npm run precache:gen`.
+- Imported activities: FIT files are dated from the activity's own start
+  (`sessionStartTs`, `js/garmin.js`) — a session `timestamp` is the END of the activity,
+  so the duration is subtracted. That timestamp is persisted as `startTs` and is the
+  identity `findImportedRunSession` (`js/state/run-sessions.js`) matches to refuse a
+  re-import; it scans archived `arch:<id>:<n>` weeks too, and is scoped to
+  `source: 'fit'` so a live-tracked GPS run never blocks a file import.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads
   bundled assets. Native Health Connect bridge in `js/health/health-bridge.js`
   (Android-only). Android GPS uses a foreground location service plus an app-private,
@@ -75,6 +96,16 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   "Customize" forks ANY program via `duplicateCustomProgram` (a copy — never edits
   shared catalog data). `day.lifts` are bare strings across 150+ sites — do NOT
   migrate to objects casually.
+- Per-lift progressions: a week modifier is per-WEEK and shared by every day, so a
+  program running two main-lift progressions at once needs a resolver. Two exist,
+  each gated on the program's own `progressionModel` field and consulted by
+  `liftTarget` (`js/engine.js`): `jt-shed`/`jt-shed-simplified`
+  (`js/programs/jt-shed-model.js`) and `shed-pplul` (`js/programs/shed-pplul-model.js`,
+  bench/squat/press on one wave and the deadlift on its own). They are deliberately
+  NOT shared — their week tables differ. Both are read-time only: nothing per-set is
+  persisted, so there is no migration/sync/export surface, and the Phase 4C ADR gate on
+  normalised per-lift prescription DATA is untouched. Resolvers return null for
+  unauthored lifts so an exercise added mid-session falls through.
 - Workout cockpit: in-session **exercise swap** (`js/workout/substitutions.js` +
   pure `applyExerciseSwap` in `workout-order.js`; re-keys the sets array to preserve
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe

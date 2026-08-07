@@ -48,15 +48,39 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   planned session stay PROGRAM-week based; CTL/ATL/readiness stay rolling-window. The
   Strength overview's per-lift **estimated-1RM "this week" change + PR indicators** use
   `js/analytics/strength-calendar.js` (`calendarStrengthSummary`, `bestE1rmByLiftForWeek`,
-  canonical `estimatedE1rm`) — calendar-week, same-exercise only (identity = the lift's
-  bare-string name key; no alias layer), honest empty states. The Hybrid Score strength
+  canonical `estimatedE1rm`) — calendar-week, same-exercise only. Stored keys remain bare
+  strings, while `js/exercises/catalog.js` resolves explicit historical aliases to a
+  canonical ID/display name at read time; unknown custom names stay exact. The Hybrid Score strength
   pillar stays program-week progression on purpose.
 - Crash reporting: Sentry in `js/monitoring/`, DSN-gated (off until `sentry-config.js`
   has a DSN), PII-scrubbed for health/location data.
+- Mobile safe areas: `--safe-top` / `--safe-bottom` (`css/styles.css`, beside
+  `--touch-target`) are the ONLY correct way to clear the system bars. They consult
+  BOTH `env(safe-area-inset-*)` AND `var(--app-safe-*)`, because the Android WebView is
+  edge-to-edge but only reports `env(safe-area-inset-top)` for a DISPLAY CUTOUT — on a
+  notchless phone `env()` is 0px and env-only CSS silently does nothing. Every
+  top-anchored surface pads from the token and keeps its pre-token declaration first as
+  a fallback. `scripts/safe-area-browser-check.mjs` is the only check that publishes a
+  non-zero inset; without it this defect class is invisible to a desktop-Chromium suite.
+  Backdrops that render no content are deliberately NOT padded.
+- Service-worker cache: `CACHE_NAME` carries a generated content hash
+  (`scripts/gen-precache.mjs`), so editing any precached asset changes `sw.js` and the
+  upgrade fires. Non-JS assets are cache-first and a browser only reinstalls a worker
+  whose bytes changed, so before this a CSS-only commit never reached installed PWA
+  clients. Never hand-edit `CACHE_NAME` or the `REQUIRED_ASSETS` block — run
+  `npm run precache:gen`.
+- Imported activities: FIT files are dated from the activity's own start
+  (`sessionStartTs`, `js/garmin.js`) — a session `timestamp` is the END of the activity,
+  so the duration is subtracted. That timestamp is persisted as `startTs` and is the
+  identity `findImportedRunSession` (`js/state/run-sessions.js`) matches to refuse a
+  re-import; it scans archived `arch:<id>:<n>` weeks too, and is scoped to
+  `source: 'fit'` so a live-tracked GPS run never blocks a file import.
 - Android: custom WebView shell (NOT Capacitor/TWA) in `android/`, minSdk 26, loads
   bundled assets. Native Health Connect bridge in `js/health/health-bridge.js`
-  (Android-only). GPS in `js/gps-tracker.js` uses web geolocation (unreliable when the
-  screen locks — a problem for run tracking).
+  (Android-only). Android GPS uses a foreground location service plus an app-private,
+  fsynced active-session journal; JS drains/replays native fixes and acknowledges the
+  journal only after app-state persistence. Browser/PWA GPS still uses web geolocation
+  and is foreground-only.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
 - Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)
@@ -72,21 +96,43 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   "Customize" forks ANY program via `duplicateCustomProgram` (a copy — never edits
   shared catalog data). `day.lifts` are bare strings across 150+ sites — do NOT
   migrate to objects casually.
+- Per-lift progressions: a week modifier is per-WEEK and shared by every day, so a
+  program running two main-lift progressions at once needs a resolver. Two exist,
+  each gated on the program's own `progressionModel` field and consulted by
+  `liftTarget` (`js/engine.js`): `jt-shed`/`jt-shed-simplified`
+  (`js/programs/jt-shed-model.js`) and `shed-pplul` (`js/programs/shed-pplul-model.js`,
+  bench/squat/press on one wave and the deadlift on its own). They are deliberately
+  NOT shared — their week tables differ. Both are read-time only: nothing per-set is
+  persisted, so there is no migration/sync/export surface, and the Phase 4C ADR gate on
+  normalised per-lift prescription DATA is untouched. Resolvers return null for
+  unauthored lifts so an exercise added mid-session falls through.
 - Workout cockpit: in-session **exercise swap** (`js/workout/substitutions.js` +
   pure `applyExerciseSwap` in `workout-order.js`; re-keys the sets array to preserve
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
   between days (`neighborDay`). Coach: deterministic **ask-the-coach** Q&A
   (`js/brain/coach-qa.js`, chips on the briefing) + PR share card (`js/brain/pr-share.js`).
+- Logger progression and history are deliberately separate: global dated exercise
+  history (`exerciseLoggerHistory`) powers the read-only **Last performed** panel
+  and analytics, while `computeDiagnosticForLift` only derives a next-load
+  suggestion from the same activation + workout day. A new activation starts with
+  blank editable load/rep values; history enters those fields only through the
+  explicit **Use previous values** action.
+- Session lifecycle: additive `weeks[key].sessionStatus[day]` (`in_progress|finished`)
+  and `sessionSummary[day]` sidecars are owned by `js/workout/session-status.js`.
+  Deliberate Finish marks the workout finished even below 100% plan adherence; deletion/
+  discard clears both fields and blank or warm-up-only work cannot be finished as training.
 
 ## Roadmap Working Agreements
-Active goal: Android public beta on Google Play (free at launch). See
-`docs/IMPROVEMENT_ROADMAP.md` for the phased plan, implementation status, human-owned
-release checklist, and session log. iOS/Capacitor and any billing/paywall are
-explicitly deferred — do not build them now.
+Active goal: improve the product experience end to end before focusing on
+release. See `docs/IMPROVEMENT_ROADMAP.md` for the current Home → Train →
+Progress → Plans direction, interaction principles, prioritised phases,
+implementation status, and session log. Android public-beta work is parked, not
+cancelled. iOS/Capacitor and any billing/paywall remain explicitly deferred.
 
 Product/UX source of truth: `docs/IMPROVEMENT_ROADMAP.md`. It owns the settled product
-rules, rejected scope, execution status, release gates, and session log. Read it before
-product-facing work; do not create parallel progress, audit, or checklist trackers.
+rules, rejected scope, execution status, quality gates, parked work, and session log.
+Read it before product-facing work; do not create parallel progress, audit, or
+checklist trackers.
 
 ### Session protocol
 - START: read this file, `docs/IMPROVEMENT_ROADMAP.md`, and `git log --oneline -15`. State in one line

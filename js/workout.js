@@ -12,6 +12,7 @@ import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { buildSessionOutline, outlineSummaryLine } from './workout/session-outline.js';
+import { buildSessionReview } from './workout/session-review.js';
 import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
@@ -29,7 +30,8 @@ import { detectRunType } from './workout/run-type.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
-import { deleteDayWorkoutData, hasDayWorkoutDraft } from './workout/delete-day.js';
+import { deleteDayWorkoutData, hasDayWorkoutDraft, snapshotDayWorkoutData, restoreDayWorkoutData } from './workout/delete-day.js';
+import { showUndo } from './ui/undo-bar.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
 import {
   browseExercises, equipmentLabel, exerciseStatForName, EXERCISE_CATEGORY_LABELS,
@@ -2115,6 +2117,25 @@ export function confirmAddExercise() {
   addExerciseToDayFromLibrary(name);
 }
 
+const DAY_NAMES = {
+  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
+  fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
+};
+
+/**
+ * Name the workout a discard would remove — "Wednesday's Upper workout", or
+ * "Wednesday's workout" when the day has no title. Used in the confirmation so
+ * the scope is unmistakable regardless of which day is selected.
+ */
+function _discardTargetLabel() {
+  const appState = _getState?.() || {};
+  const day = activeWorkoutDay(appState, _getSelectedDay());
+  const dayName = DAY_NAMES[day] || 'this day';
+  const program = getProgramById(appState.activeProgramId);
+  const title = String(program?.days?.[day]?.title || '').trim();
+  return title ? `${dayName}’s ${title} workout` : `${dayName}’s workout`;
+}
+
 export function openConfirmResetModal(options = {}) {
   const modal = document.getElementById('confirmResetModal');
   if (!modal) return;
@@ -2127,9 +2148,18 @@ export function openConfirmResetModal(options = {}) {
     if (copy) copy.textContent = 'This removes this unfinished one-off workout. Your programmed sessions and workout history stay unchanged.';
     if (action) action.textContent = 'Discard workout';
   } else {
-    if (title) title.textContent = "Clear today's log?";
-    if (copy) copy.textContent = 'This will erase all logged sets, runs, and notes for the currently selected day. This action cannot be undone.';
-    if (action) action.textContent = 'Clear logs';
+    // Name the EXACT workout. The old copy said "today's log", which was simply
+    // wrong whenever the athlete had another day selected — the one moment a
+    // destructive confirmation must not be vague. Shared vocabulary (roadmap
+    // §Shared product vocabulary) reserves "Clear" precisely because it does
+    // not state its scope.
+    const label = _discardTargetLabel();
+    if (title) title.textContent = `Discard ${label}?`;
+    if (copy) {
+      copy.textContent = `This deletes the logged sets, run and notes for ${label}. `
+        + 'Your other days and your workout history are not affected. You can undo this straight afterwards.';
+    }
+    if (action) action.textContent = 'Discard workout';
   }
   if (options.replaceFrom) replaceManagedModal(options.replaceFrom, modal);
   else modal.classList.add('active');
@@ -2178,6 +2208,11 @@ export function executeResetActiveDayMetrics() {
       } catch(e) { console.warn(e); }
     });
   }
+  // Snapshot BEFORE the clear so the discard is reversible. Taken from the same
+  // module that owns the clear, so a field can never be cleared without also
+  // being captured.
+  const snapshot = snapshotDayWorkoutData(appState.weeks[wk], selectedDay);
+
   // Reset restores the prescribed program order and clears every workout-only
   // field through the same path used by historical-session deletion.
   deleteDayWorkoutData(appState.weeks[wk], selectedDay, { lifts, liftOrder });
@@ -2185,15 +2220,20 @@ export function executeResetActiveDayMetrics() {
     stopAndResetWorkoutTimer(workoutSessionKey(appState, wk, selectedDay));
     dismissRestTimer();
   } catch(e) { console.warn(e); }
-  
+
   _saveState(true);
-  
-  deleteMapFromDB(wk, selectedDay, { activationId: appState.activeActivationId }).then(() => {
-    renderWorkout();
-  }).catch(() => renderWorkout());
-  
+  renderWorkout();
   closeConfirmResetModal();
-  showToast('Day Logs Cleared');
+
+  // The stored GPS route is the one part that cannot be reversed, so it is
+  // deferred to finalize() rather than deleted now — otherwise Undo would
+  // restore a run whose route had already been destroyed.
+  showUndo('Workout discarded', () => {
+    restoreDayWorkoutData(appState.weeks[wk], snapshot);
+    _saveState(true);
+    renderWorkout();
+    showToast('Workout restored');
+  }, () => deleteMapFromDB(wk, selectedDay, { activationId: appState.activeActivationId }).catch(() => {}));
 }
 
 // Normalise a duration entry to canonical "M:SS" (matching .FIT imports). A
@@ -2207,6 +2247,44 @@ function _normalizeDuration(v) {
   }
   const n = parseInt(s, 10);
   return Number.isFinite(n) ? `${n}:00` : '';
+}
+
+/**
+ * Render the "notable progress" block, or hide it entirely.
+ *
+ * Hidden rather than showing an encouraging placeholder: most good sessions are
+ * not PR sessions, and a line that appears every time is a line nobody reads.
+ */
+function renderSessionHighlights(appState, weekKey, day, liftNames) {
+  const host = document.getElementById('summaryHighlights');
+  if (!host) return;
+  let review;
+  try {
+    review = buildSessionReview(appState, { weekKey, day, liftNames });
+  } catch (err) {
+    console.warn('session review failed', err);
+    host.hidden = true;
+    host.textContent = '';
+    return;
+  }
+  const highlights = review.highlights || [];
+  if (!highlights.length) {
+    host.hidden = true;
+    host.textContent = '';
+    return;
+  }
+  const unit = _unitOf(appState || {});
+  const round = (value) => (Math.round(value * 10) / 10).toString().replace(/\.0$/, '');
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="summary-highlights__title">Notable progress</div>
+    ${highlights.map((h) => `
+      <div class="summary-highlights__row">
+        <span class="summary-highlights__lift">${escapeHtml(h.lift)}</span>
+        <span class="summary-highlights__gain">${round(h.e1rm)} ${escapeHtml(unit)} est. 1RM · +${round(h.delta)}</span>
+      </div>`).join('')}
+    <div class="summary-highlights__note">Estimated from your best set — not a tested max.</div>
+  `;
 }
 
 export function openFinishSessionModal() {
@@ -2255,6 +2333,13 @@ export function openFinishSessionModal() {
 
   if (sumVolEl) sumVolEl.textContent = `${vol} ${_unitOf(_getState?.() || {})}`;
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
+
+  // Notable progress, computed from the SAME canonical primitives the Strength
+  // screen uses, so a "new best" here can never be one the rest of the app
+  // disagrees with. Must run here rather than in the finish handler: that runs
+  // updateExercisePRs() as the sheet closes, i.e. after the only moment the
+  // athlete is looking at it.
+  renderSessionHighlights(appState, wk, selectedDay, activeNames);
   // Prefill duration with an already-logged value (e.g. .FIT import), else the
   // session timer's elapsed — surfaced here so it's confirmed/corrected at the
   // moment of finishing rather than silently logged.
@@ -2269,6 +2354,21 @@ export function openFinishSessionModal() {
   }
   if (sumGymRpeEl) sumGymRpeEl.value = appState.weeks[wk].gymRpe?.[selectedDay] || '';
   if (sumRunRpeEl) sumRunRpeEl.value = appState.weeks[wk].runs?.[selectedDay]?.rpe || '';
+
+  // Notes are the SAME store the cockpit's notes field writes to
+  // (`week.notes[day]`), not a second place to put them — so whichever surface
+  // the athlete used, the other shows what they already wrote instead of asking
+  // again on a blank field.
+  const sumNotesEl = document.getElementById('summaryNotes');
+  if (sumNotesEl) sumNotesEl.value = appState.weeks[wk].notes?.[selectedDay] || '';
+
+  // Optional by default, but already-entered effort or notes must never hide
+  // behind a closed disclosure — that would read as "not recorded".
+  const effortEl = document.getElementById('summaryEffortDetails');
+  if (effortEl) {
+    const hasEffort = !!(sumGymRpeEl?.value || sumRunRpeEl?.value || sumNotesEl?.value);
+    /** @type {any} */ (effortEl).open = hasEffort;
+  }
 
   // Only ask for the RPE that matches what was actually done today: a run RPE
   // prompt on a lift-only day (and vice versa) is a question with no answer.
@@ -2330,6 +2430,16 @@ export function closeFinishSessionModal() {
     }
   }
   
+  // Notes written in the finish sheet land in the same store as the cockpit's
+  // notes field, so the two can never hold different text for one session.
+  const sumNotesEl = document.getElementById('summaryNotes');
+  if (sumNotesEl) {
+    if (!appState.weeks[wk].notes) appState.weeks[wk].notes = {};
+    appState.weeks[wk].notes[selectedDay] = sumNotesEl.value;
+    const cockpitNotesEl = document.getElementById('sessionNotesInput');
+    if (cockpitNotesEl) cockpitNotesEl.value = sumNotesEl.value;
+  }
+
   const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
   const runRpeEl = document.getElementById('runInputRpeCockpit');
   if (gymRpeEl) gymRpeEl.value = appState.weeks[wk].gymRpe[selectedDay] || '';

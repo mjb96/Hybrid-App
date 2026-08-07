@@ -16,7 +16,7 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v122-h304994cd5b3a';
+const CACHE_NAME = 'helyx-v122-h63357949564c';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
@@ -225,6 +225,7 @@ const REQUIRED_ASSETS = [
   "./js/ui/modal-stack.js",
   "./js/ui/render.js",
   "./js/ui/sortable.js",
+  "./js/ui/undo-bar.js",
   "./js/ui/visible-viewport.js",
   "./js/util.js",
   "./js/util/bridge-callback-id.js",
@@ -246,6 +247,7 @@ const REQUIRED_ASSETS = [
   "./js/workout/run-type.js",
   "./js/workout/session-identity.js",
   "./js/workout/session-outline.js",
+  "./js/workout/session-review.js",
   "./js/workout/session-status.js",
   "./js/workout/set-entry.js",
   "./js/workout/substitutions.js",

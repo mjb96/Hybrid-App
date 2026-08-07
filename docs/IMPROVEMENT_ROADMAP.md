@@ -398,7 +398,7 @@ The visible information architecture can change without a risky route rewrite:
 
 ## Phase 2 — Natural workout and run logging
 
-**Status: ACTIVE**
+**Status: ACTIVE — 2A and 2B complete; 2C (running) is the remaining sub-phase.**
 
 **Outcome:** logging feels faster than remembering the workout later.
 
@@ -459,13 +459,49 @@ The visible information architecture can change without a risky route rewrite:
 
 ### 2B. Session completion
 
-- Replace the current completion form feeling with a concise review:
-  completed work, duration, optional effort, notable progress, and one Finish
-  action.
-- Keep notes optional and remember where they were entered.
-- Explain low adherence without blocking deliberate completion.
-- Make discard/delete scope unmistakable and recoverable where possible.
-- Return to a useful completed state with Review workout and Progress links.
+**Status: DONE 2026-08-06.**
+
+- **DONE — a review, not a form.** The sheet showed two numbers and asked for
+  three inputs. Duration stays visible; gym effort, run effort and notes moved
+  behind an optional disclosure that auto-opens when any of them already has a
+  value (a collapsed field holding real data reads as "not recorded"). Finish is
+  the one dominant action, Keep Training is quiet, and Discard is separated below
+  a divider so it cannot be hit while reaching for Keep Training.
+- **DONE — notable progress.** The sheet could not have shown an achievement
+  even if it wanted to: `updateExercisePRs()` runs inside the finish handler,
+  after the sheet is populated and as it closes. `js/workout/session-review.js`
+  (`buildSessionReview`, pure) computes the session's bests from the SAME
+  canonical primitives the Strength screen uses — `isValidWorkingSet`,
+  `estimatedE1rmForSet`, `isE1rmPr`/`E1RM_PR_EPSILON` — so a "new best" here can
+  never be one the rest of the app disagrees with. Hidden entirely when nothing
+  was beaten. The previous best spans archived program runs, so switching
+  programs cannot hand out fresh records.
+- **DONE — notes optional, and remembered where they were entered.** The sheet's
+  notes field reads and writes `week.notes[day]`, the same store the cockpit's
+  notes field uses, so the two can never hold different text for one session and
+  the athlete is never asked twice on a blank field.
+- **DONE — low adherence explains itself without blocking completion.**
+  `completionPresentation` was returning one generic body for every finishable
+  session — including one that completed everything, which was warned that work
+  "will be treated as skipped" when nothing had been. Adherence now selects the
+  explanation (complete / strength-complete / run-complete / partial) and never
+  the availability of Finish. The partial wording states it is a normal session,
+  not a failure.
+- **DONE — discard scope unmistakable and recoverable.** The confirmation said
+  "Clear today's log?" — wrong whenever another day was selected, and "Clear"
+  is reserved by the shared vocabulary precisely because it states no scope. It
+  now names the exact workout ("Discard Friday's Pull B + Easy Run workout?")
+  and what is and is not affected. `snapshotDayWorkoutData` /
+  `restoreDayWorkoutData` (beside the clear, so a field cannot be cleared
+  without being captured) make it reversible, and the stored GPS route is
+  deferred to the undo window's `finalize` — deleting it immediately would let
+  Undo restore a run whose route was already destroyed.
+- **DONE — the completed state does not dead-end.** The recap offered only
+  "Done"; it now links to the exact record in history and to Progress.
+- **Extracted while doing it:** `js/ui/undo-bar.js`. Activities and the cockpit
+  share one undo DOM element, so two independent implementations would race for
+  the same timer and strand each other's `finalize()` — an orphaned GPS route.
+  One owner, `finalize` guaranteed to run exactly once.
 
 ### 2C. Running
 
@@ -871,25 +907,139 @@ Work in this order unless user evidence changes it:
    changing stored data.**
 3. **DONE — Establish Home hierarchy with one Today decision card, retain the
    owner-preferred In Focus cards, and remove the repeated At-a-Glance grid.**
-4. **Simplify the common strength set-row interaction.**
+4. **DONE — Simplified the common strength set-row interaction.** Persistent
+   previous values, inline entry validation, completion as the strongest row
+   action, a pausable rest timer attached to the card, and the session outline.
+   One 2A item remains: making add/swap/reorder/superset/plate-math contextual
+   rather than equally prominent (only `+ Warmup` was done).
 5. **DONE — Create the new Progress landing hierarchy.** Metric classification
    (3B) and the Volume Guide / MEV rebuild remain.
 5a. **DONE — Rebuilt the Volume Guide (MEV) presentation.** Unified onto the
    existing `classifyVolume` classifier, full MV→MEV→MAV→MRV scale with
    labelled landmarks, factual statuses, attention-ordered focus list and
    priorities moved to their own tab.
-5b. **ACTIVE — Phase 3B metric classification.** Classify every metric as
-   headline / supporting / advanced / diagnostic / remove, then merge the
-   overlapping "Gym Performance", "Strength Stats" and Weekly Volume
-   destinations that still present the same facts twice.
-6. **Rework Plans discovery around recommendations before Browse all.**
-7. **Continue exercise metadata and shared visual-system cleanup in bounded
+5b. **DONE 2026-08-04 — Phase 3B metric classification.**
+   `js/analytics/metric-tiers.js` classifies every metric, and Gym Performance /
+   Weekly Volume merged into one Volume destination. (This entry read ACTIVE for
+   two days after it shipped; the audit caught the drift.)
+5c. **DONE 2026-08-06 — Mobile viewport correctness + cache busting.** Safe-area
+   tokens across every surface, and a content-hashed `CACHE_NAME` so a CSS-only
+   fix actually reaches installed PWA clients.
+5d. **DONE 2026-08-06 — Imported-activity identity.** FIT files are dated from
+   the activity's own start and a re-import is refused rather than
+   double-counted.
+6. **DONE 2026-08-06 — Phase 2B session completion.** Review rather than form,
+   notable progress, optional effort/notes on the cockpit's own store,
+   adherence-aware explanation, a discard that names its exact scope and can be
+   undone, and a completed state that links onward.
+7. **ACTIVE — Phase 2C running:** give the active run its own focused session
+   surface, with elapsed time, distance, pace, GPS quality, pause/resume and
+   Finish prioritised, and imports moved out of the active-session hierarchy.
+8. **Rework Plans discovery around recommendations before Browse all.** Also
+   surfaces the fact that the Plans landing renders 25 of 58 programmes, so a
+   new programme is findable only by search.
+9. **Continue exercise metadata and shared visual-system cleanup in bounded
    batches.**
 
 Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-06 — Phase 2B complete: finishing a workout is a review, not a form.**
+  Finished the four remaining bullets after the notable-progress slice below.
+  - **A form became a review.** Duration stays visible; gym effort, run effort
+    and notes moved behind one optional disclosure. It **auto-opens when any of
+    them already holds a value** — a collapsed field containing real data reads
+    as "not recorded", which is worse than showing it. Finish is the one filled
+    button, Keep Training is quiet, and Discard sits below a divider so it
+    cannot be hit while reaching for Keep Training.
+  - **Notes are remembered where they were entered.** The sheet reads and writes
+    `week.notes[day]` — the SAME store the cockpit's notes field uses — rather
+    than being a second place to type. Whichever surface the athlete used, the
+    other shows what they already wrote.
+  - **Low adherence now explains itself.** `completionPresentation` returned one
+    generic body for every finishable session, so a session that completed
+    everything was still warned that unfinished work "will be treated as
+    skipped". A warning that fires every time is one nobody reads when it
+    finally matters. Adherence selects the explanation (complete /
+    strength-complete / run-complete / partial) and never the availability of
+    Finish. Two existing assertions pinned the old wording and were changed
+    deliberately and annotated.
+  - **The discard confirmation was wrong, not just vague.** It said "Clear
+    today's log?" whatever day was selected — at the one moment a destructive
+    confirmation must be exact. It now names the workout ("Discard Friday's
+    Pull B + Easy Run workout?") and states what is and is not affected.
+    "Clear" is reserved by the shared vocabulary precisely because it states no
+    scope.
+  - **And it is now reversible.** `snapshotDayWorkoutData` /
+    `restoreDayWorkoutData` live beside the clear in `delete-day.js`, so a field
+    cannot be cleared without also being captured — a field cleared but not
+    snapshotted would be silently unrecoverable, the worst way for an Undo to
+    fail because it looks like it worked. The stored GPS route is deferred to
+    the undo window's `finalize`: deleting it immediately would let Undo restore
+    a run whose route had already been destroyed.
+  - **Extracted `js/ui/undo-bar.js` while doing it.** Activities and the cockpit
+    share one undo DOM element, so two independent implementations would not
+    merely duplicate ~20 lines — they would race for the same timer and strand
+    each other's `finalize()`, orphaning a route in IndexedDB. One owner;
+    `finalize` runs exactly once (on timeout, on displacement, never after an
+    undo). Each caller owns its own post-undo message, so a restored workout
+    does not announce "Activity restored".
+  - **A finished workout no longer dead-ends** on "Done": the recap links to the
+    exact record in history and to Progress, closing the recap first because it
+    is a full-screen surface.
+  - `tests/discard_undo.test.js` (11) and the completion-policy additions, plus
+    `scripts/finish-review-browser-check.mjs`, which drives the real cockpit
+    through finish → discard → undo and asserts the restored loads and notes.
+    Proven non-vacuous by restoring the old "Clear today's log?" copy and
+    confirming exit 1.
+  - **Found by driving it:** the undo-bar module touched `document` at import,
+    which made the finalize-exactly-once contract untestable outside a browser —
+    exactly the contract where a mistake orphans a route. Now DOM-guarded.
+  - Verified: 1594 unit tests, typecheck, precache, workflow gates, smoke and
+    the browser suite.
+
+- **2026-08-06 — Finish review: notable progress (Phase 2B) + agent-brief and
+  tooling cleanup.**
+  - **The finish sheet could not have shown an achievement.** It rendered Total
+    Volume and Sets Completed and asked for duration and two RPEs — two numbers
+    and three inputs, which reads as a form. And `updateExercisePRs()` runs
+    inside the finish HANDLER, after the sheet is populated and as it closes, so
+    the one moment the athlete is looking at the screen and cares most was the
+    one moment the app had nothing to say.
+  - `js/workout/session-review.js` is a pure model computing the session's
+    completed work and any lift that beat its previous best. It reuses the
+    canonical primitives rather than recomputing: `isValidWorkingSet` (warm-ups
+    and zero-rep rows are not training), `estimatedE1rmForSet` (refuses
+    bodyweight/assisted/band work instead of fabricating a load) and
+    `isE1rmPr`/`E1RM_PR_EPSILON` (one shared 0.5 threshold; a first-ever log is
+    a BASELINE, not a record). A "new best" the Strength screen did not also
+    show would be worse than showing nothing.
+  - The previous best is scoped ALL and spans archived `arch:` runs on purpose:
+    a personal best is a fact about the athlete, not the program, so switching
+    programs must not hand out fresh records for lifts already beaten.
+  - **Hidden entirely when nothing was beaten.** Most good sessions are not PR
+    sessions; praise on every finish is a line nobody reads. Verified in the
+    real cockpit both ways — a PR session renders "Barbell Bent-Over Row 122.5
+    kg est. 1RM · +5.8", a normal session renders nothing at all.
+  - Labelled as an estimate at the point of display ("Estimated from your best
+    set — not a tested max"), per the cross-cutting rule.
+  - **Still outstanding in 2B:** duration and the two RPE inputs still read as a
+    form; discard scope wording; the completed-state links.
+  - **Cleanup bundle, committed separately.** (1) CLAUDE.md and AGENTS.md are
+    the same brief for two tools and had drifted — CLAUDE.md still named the
+    PARKED Play-Store goal as active and denied the exercise alias layer that
+    exists. Both auto-load at session start, so an agent reading the stale copy
+    began from wrong facts. Kept as two full copies (a pointer would leave an
+    agent with no brief if unexpanded) and pinned identical below the title by
+    `tests/agent_brief_sync.test.js`. (2) `run-browser-checks.mjs` exited on the
+    first failure, so one environment-sensitive check hid the ~14 behind it; it
+    now runs everything and fails at the end, with `--bail` for the old loop and
+    counts that describe what actually ran. (3) Roadmap §11 listed Phase 3B as
+    ACTIVE two days after it shipped.
+  - Verified: 1582 unit tests, typecheck, precache, workflow gates, smoke, and
+    the cockpit browser checks.
 
 - **2026-08-06 — FIT import: real dates and duplicate detection.** Two defects
   found in the repository audit. Neither had a roadmap entry, and both quietly

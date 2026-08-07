@@ -9115,3 +9115,105 @@ html[data-theme="light"] .tl-empty { border-color: rgba(0,0,0,.08); }
   font-size: .68rem; font-variant-numeric: tabular-nums; color: var(--text-muted, #94a3b8);
 }
 html[data-theme="light"] .session-outline { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.08); }
+
+/* ==========================================================================
+   FINISH REVIEW — NOTABLE PROGRESS (roadmap Phase 2B)
+   Shown only when a lift actually beat its previous best, so the block is
+   absent from most sessions by design. Styled as a quiet card in the sheet's
+   existing idiom rather than a celebration banner: it reports a fact, and a
+   trophy on every finish is a trophy nobody reads.
+   ========================================================================== */
+.summary-highlights {
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,.08));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface-2, rgba(255,255,255,.03));
+}
+.summary-highlights__title {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--color-green, #22c55e); margin-bottom: 8px;
+}
+.summary-highlights__row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 3px 0;
+}
+.summary-highlights__lift {
+  font-size: .9rem; font-weight: 600; color: var(--text-primary, #f1f5f9);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.summary-highlights__gain {
+  font-size: .78rem; font-variant-numeric: tabular-nums; color: var(--text-secondary, #94a3b8);
+  flex: 0 0 auto;
+}
+/* The estimate is labelled as an estimate wherever it is shown (roadmap §6). */
+.summary-highlights__note {
+  margin-top: 8px; font-size: .68rem; color: var(--text-muted, #94a3b8);
+}
+html[data-theme="light"] .summary-highlights {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.08);
+}
+
+/* ==========================================================================
+   FINISH SHEET + RECAP NEXT STEPS (roadmap Phase 2B)
+   ========================================================================== */
+
+/* Effort and notes are optional, so they read as a disclosure rather than a
+   form to fill in. The sheet's primary job is Finish. */
+.summary-effort { margin: 0 0 4px; }
+.summary-effort__toggle {
+  display: flex; align-items: center; gap: 8px;
+  min-height: var(--touch-target);
+  font-size: .82rem; font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer; list-style: none;
+}
+.summary-effort__toggle::-webkit-details-marker { display: none; }
+.summary-effort__toggle::before {
+  content: '+'; font-size: 1rem; line-height: 1;
+  width: 20px; height: 20px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-medium, rgba(255,255,255,.10));
+  border-radius: 6px;
+}
+.summary-effort[open] .summary-effort__toggle::before { content: '−'; }
+.summary-effort__hint {
+  font-size: .68rem; font-weight: 500; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-muted, #94a3b8);
+}
+.summary-effort__body { padding-top: 10px; }
+.summary-effort__body textarea {
+  width: 100%; resize: vertical; min-height: 56px;
+}
+
+/* Destructive action, held away from the two safe ones so it cannot be hit
+   while reaching for Keep Training. */
+.summary-danger {
+  margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--border-subtle, rgba(255,255,255,.08));
+}
+.btn-danger-quiet {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-red, #ef4444) 35%, transparent);
+  color: var(--color-red, #ef4444);
+}
+
+/* A finished workout should not dead-end on "Done". */
+.recap-next {
+  display: grid; gap: 8px;
+  padding: 4px 18px calc(28px + var(--safe-bottom));
+}
+.recap-next__link {
+  min-height: var(--touch-target);
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default, rgba(255,255,255,.07));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface-2, rgba(255,255,255,.03));
+  color: var(--text-primary, #f1f5f9);
+  font-size: .88rem; font-weight: 600; text-align: left;
+  cursor: pointer;
+}
+html[data-theme="light"] .recap-next__link {
+  background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.08);
+}

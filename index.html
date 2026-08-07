@@ -1772,6 +1772,13 @@
       <button class="subview-back-btn" data-action="close-session-recap">← Done</button>
     </div>
     <div id="sessionRecapContent"></div>
+    <!-- A finished workout used to dead-end on "Done". These are the two things
+         an athlete actually wants next: the exact record of what they just did,
+         and whether it moved anything. -->
+    <div class="recap-next">
+      <button class="recap-next__link" data-action="recap-open-history">View this workout in history</button>
+      <button class="recap-next__link" data-action="recap-open-progress">See your progress</button>
+    </div>
   </section>
 
   <!-- Activities — separate history rows and exact strength/run detail -->
@@ -1864,21 +1871,40 @@
         <span class="text-lg text-muted">Sets Completed:</span>
         <strong id="summarySets" class="text-inverse">0</strong>
       </div>
+      <!-- Notable progress. Hidden entirely when nothing was beaten — most good
+           sessions are not PR sessions, and praise on every one of them teaches
+           the athlete to ignore the line that matters. -->
+      <div id="summaryHighlights" class="summary-highlights" hidden></div>
       <div class="mt-5">
-        <label for="summaryDuration" class="text-xs-bold block mb-1 text-muted">Session Duration (min)</label>
-        <input type="text" id="summaryDuration" inputmode="numeric" placeholder="e.g. 45 or 45:00" class="mb-4">
-        <div id="summaryGymRpeBlock">
-          <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Confirm Gym RPE (1-10)</label>
-          <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-4">
-        </div>
-        <div id="summaryRunRpeBlock">
-          <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Confirm Run RPE (1-10)</label>
-          <input type="number" id="summaryRunRPE" min="1" max="10" placeholder="e.g. 6" class="mb-4">
-        </div>
+        <label for="summaryDuration" class="text-xs-bold block mb-1 text-muted">Session duration</label>
+        <input type="text" id="summaryDuration" inputmode="numeric" placeholder="e.g. 45 or 45:00" class="mb-2">
+        <!-- Effort and notes are OPTIONAL, so they are disclosed on request
+             rather than presented as fields to fill in. Auto-opens when the
+             session already has any of them, so an athlete who logged effort in
+             the cockpit sees it here instead of being asked twice. -->
+        <details id="summaryEffortDetails" class="summary-effort">
+          <summary class="summary-effort__toggle">Add effort and notes <span class="summary-effort__hint">optional</span></summary>
+          <div class="summary-effort__body">
+            <div id="summaryGymRpeBlock">
+              <label for="summaryGymRPE" class="text-xs-bold block mb-1 text-muted">Gym effort (RPE 1–10)</label>
+              <input type="number" id="summaryGymRPE" min="1" max="10" placeholder="e.g. 7" class="mb-4">
+            </div>
+            <div id="summaryRunRpeBlock">
+              <label for="summaryRunRPE" class="text-xs-bold block mb-1 text-muted">Run effort (RPE 1–10)</label>
+              <input type="number" id="summaryRunRPE" min="1" max="10" placeholder="e.g. 6" class="mb-4">
+            </div>
+            <label for="summaryNotes" class="text-xs-bold block mb-1 text-muted">Session notes</label>
+            <textarea id="summaryNotes" rows="2" placeholder="Anything worth remembering next time"></textarea>
+          </div>
+        </details>
       </div>
-      <button id="summarySaveAction" class="btn-action-block btn-blue" data-action="close-finish-modal">Finish Workout</button>
+      <button id="summarySaveAction" class="btn-action-block btn-blue mt-4" data-action="close-finish-modal">Finish Workout</button>
       <button class="btn-action-block btn-ghost mt-2" data-action="cancel-finish-modal">Keep Training</button>
-      <button id="summaryDiscardAction" class="btn-action-block btn-ghost mt-2" data-action="discard-finish-workout">Discard Workout</button>
+      <!-- Destructive action, separated from the two safe ones so it cannot be
+           hit while reaching for Keep Training. -->
+      <div class="summary-danger">
+        <button id="summaryDiscardAction" class="btn-action-block btn-danger-quiet" data-action="discard-finish-workout">Discard workout</button>
+      </div>
     </div>
   </div>
 

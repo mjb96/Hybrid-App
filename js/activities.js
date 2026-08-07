@@ -16,6 +16,7 @@ import { confirmModal } from './ui/confirm-modal.js';
 import { getProgramById, showToast } from './state.js';
 import { getWeekModifier } from './schema.js';
 import { prescribeSetsForLift } from './engine.js';
+import { showUndo as showUndoBar, runUndo } from './ui/undo-bar.js';
 
 let _getState = null;
 let _saveState = null;
@@ -25,7 +26,6 @@ let _activationFilter = null;
 let _activationLabel = null;
 let _selected = null;
 let _detailTab = 'summary';
-let _pendingUndo = null;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({
@@ -191,36 +191,20 @@ export function renderActivities() {
   if (_selected) paintDetail(); else renderList();
 }
 
+// The bar itself is owned by ./ui/undo-bar.js — Activities and the workout
+// cockpit share one DOM element, so they must share one pending-change owner or
+// they race for the same timer and strand each other's finalize().
+//
+// Each caller owns its own post-undo messaging and re-render. The shared handler
+// cannot: a discarded workout restored from the cockpit must not announce
+// "Activity restored" or try to repaint the Activities list.
 function showUndo(label, undoFn, finalizeFn) {
-  if (_pendingUndo) {
-    clearTimeout(_pendingUndo.timer);
-    Promise.resolve(_pendingUndo.finalize()).catch(() => {});
-  }
-  const bar = document.getElementById('activityUndoBar');
-  const message = document.getElementById('activityUndoMessage');
-  if (message) message.textContent = `${label} deleted`;
-  if (bar) { bar.hidden = false; bar.classList.add('show'); }
-  const pending = { undo: undoFn, finalize: finalizeFn, timer: null };
-  pending.timer = setTimeout(async () => {
-    if (_pendingUndo !== pending) return;
-    _pendingUndo = null;
-    if (bar) { bar.classList.remove('show'); bar.hidden = true; }
-    await Promise.resolve(finalizeFn());
-  }, 10000);
-  _pendingUndo = pending;
-}
-
-async function undoDelete() {
-  const pending = _pendingUndo;
-  if (!pending) return;
-  clearTimeout(pending.timer);
-  _pendingUndo = null;
-  const bar = document.getElementById('activityUndoBar');
-  if (bar) { bar.classList.remove('show'); bar.hidden = true; }
-  await Promise.resolve(pending.undo());
-  renderList();
-  document.dispatchEvent(new CustomEvent('session:deleted', { detail: { restored: true } }));
-  showToast('Activity restored');
+  showUndoBar(`${label} deleted`, async () => {
+    await Promise.resolve(undoFn());
+    renderList();
+    document.dispatchEvent(new CustomEvent('session:deleted', { detail: { restored: true } }));
+    showToast('Activity restored');
+  }, finalizeFn);
 }
 
 async function deleteSelectedActivity() {
@@ -316,6 +300,9 @@ export function handleActivityAction(action, element) {
     });
     return true;
   }
-  if (action === 'undo-activity-delete') { undoDelete().catch(() => showToast('Activity could not be restored', true)); return true; }
+  // Generic: the bar is shared with the workout cockpit's discard, so this only
+  // runs whatever change is pending — the caller that opened it owns the
+  // messaging.
+  if (action === 'undo-activity-delete') { runUndo().catch(() => showToast('That could not be restored', true)); return true; }
   return false;
 }

@@ -130,10 +130,21 @@ try {
     };
   });
   check(partialFinish.title === 'Finish workout?', `finish title was misleading: ${partialFinish.title}`);
-  check(/treated as skipped/.test(partialFinish.body || ''), 'finish body did not explain skipped planned work');
+  // Phase 2B: these two assertions used to pin the exact old strings
+  // ("treated as skipped", "Discard Workout"). Both were deliberately changed —
+  // the body is now adherence-aware, so a session that completed everything is
+  // no longer warned about work it did not skip, and the destructive action
+  // follows the shared vocabulary's verb + exact object. Assert the CONTRACT
+  // instead of the wording, so it still fails on vague copy: a partial finish
+  // must say both what is kept and what is not.
+  const partialBody = partialFinish.body || '';
+  check(/completed sets will be saved/i.test(partialBody), `finish body did not say what is kept: ${partialBody}`);
+  check(/did not finish|not done|skipped/i.test(partialBody), `finish body did not explain unfinished planned work: ${partialBody}`);
   check(partialFinish.action === 'Finish Workout', `finish action was unclear: ${partialFinish.action}`);
   check(partialFinish.keep?.trim() === 'Keep Training', `resume action was unclear: ${partialFinish.keep}`);
-  check(partialFinish.discard?.trim() === 'Discard Workout', `discard action was unclear: ${partialFinish.discard}`);
+  const discardLabel = partialFinish.discard?.trim() || '';
+  check(/^discard\b/i.test(discardLabel) && /workout/i.test(discardLabel),
+    `discard action must name the verb and the exact object: ${discardLabel}`);
   check(partialFinish.modal === 'true', 'finish dialog did not acquire modal semantics');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.getElementById('summaryModal')?.getAttribute('aria-hidden') === 'true');
