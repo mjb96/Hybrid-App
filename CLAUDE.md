@@ -129,9 +129,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)
   — the cockpit resolves each lift's target via `getWeekModifier`→`liftTarget`
   (`js/schema.js`/`engine.js`), so a custom program's lifts share the week modifier.
-  Program detail (`js/programs/detail.js`) has Overview | Structure | **Plan**
-  (week-by-week timeline, `timeline.js`) + commitment strip + week-stepped day
-  preview. The Structure sample + day-preview modal resolve each lift's sets×reps
+  Program detail (`js/programs/detail.js`) leads with **Who it's for**
+  (`detail-fit.js` → the SAME `programFit` the recommendations use, so the two
+  surfaces cannot disagree; it additionally shows the CAUTIONS, which the
+  recommendations row must never show), then commitment, then equipment FIT, then
+  the week-stepped preview, progression and the Overview | Structure | **Plan**
+  tabs (week-by-week timeline, `timeline.js`). Level and equipment tier are stated
+  ONCE each — re-adding a decorative difficulty/tier tag row is the duplication 4B
+  removed. The Structure sample + day-preview modal resolve each lift's sets×reps
   via `liftTarget` (the SAME call the cockpit uses), NOT the catalog's decorative
   `workoutPreview.exercises` — keep it that way so detail can't promise a
   per-lift prescription the engine doesn't deliver. Pure helpers: `timeline.js`, `compare.js` (`programStats`/`equipmentFit`),
