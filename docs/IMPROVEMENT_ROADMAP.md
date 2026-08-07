@@ -884,21 +884,27 @@ Use a small set of representative profiles:
 - signed-in multi-device user;
 - user returning after missed weeks.
 
-### Known open issue — running detail open time
+### Local browser-check timings are not authoritative — CI is
 
-`scripts/running-analytics-check.mjs` fails its own budget on a 23-month /
-1,000-activity history: **~15.2s to open the running detail against a 5s
-budget** (the range switch is fine at ~0.44s against 2s). Verified as
-**pre-existing, not caused by the Phase 2C work** — the parent commit
-(`e8daee1`) measures 15,235ms and the 2C commit 15,137ms.
+`scripts/running-analytics-check.mjs` budgets the open of a 23-month /
+1,000-activity running detail at 5s. In a Claude Code container it measures
+**~15.2s and fails**; on CI it **passes**. Both are true, and CI is the one that
+counts: `.github/workflows/verify.yml` runs `npm ci` + `npx playwright install`
+and then `npm run browser:verify` as a required step with no
+`continue-on-error`, and it has been green throughout (runs 31152008876 /
+31159641519). The container is simply ~3× slower than the budget assumes.
 
-It went unnoticed because `node_modules` was absent, so every browser check was
-exiting `SKIP: Playwright is not installed` with status 0 — the runner counted
-28 skips as 28 passes. Whether this is a genuine app regression or simply a
-container slower than the budget assumes is **not yet established**; the range
-switch passing comfortably suggests the open path specifically is heavy. Needs
-a profile of the detail-open path before deciding to optimise or re-baseline the
-budget. Do NOT relax the budget without that profile.
+Resolved, and recorded because it cost a false alarm: a timing failure seen
+only in a container is **not** evidence of an app regression. Confirm against CI
+(or a second commit) before acting. It is also not evidence the gate is broken —
+the same session wrongly suspected CI of running the browser suite vacuously,
+which the workflow file disproves.
+
+The genuinely useful finding underneath it: a Claude Code container starts with
+**no `node_modules`**, so every browser check exits `SKIP: Playwright is not
+installed` with status 0 and the runner counts 28 skips as 28 passes. Run
+`npm install` at the start of any session that intends to trust
+`npm run browser:verify` locally.
 
 ## 8. Definition of done for a product slice
 
@@ -1037,10 +1043,11 @@ testable on its own.
   - **Full browser suite: 27 of 28 pass.** `safe-area` and
     `program-preview-consistency` failed inside the 28-check serial run and both
     pass in isolation — contention flakes, not regressions.
-    `running-analytics-check` fails a real performance budget (~15.2s to open a
-    1,000-activity running detail against 5s); reproduced identically on the
-    parent commit, so it predates this work. Recorded under §7 "Known open
-    issue" — it is the first thing the restored browser suite has surfaced.
+    `running-analytics-check` misses a 5s budget at ~15.2s — but only in the
+    container: it reproduced identically on the parent commit AND passes on CI,
+    which runs the full browser suite as a required step. Not an app regression
+    and not a broken gate; the container is ~3× slower than the budget assumes.
+    Recorded under §7 so the next session does not re-raise it.
 
 - **2026-08-07 — Bug: a deleted set came back, and the review kept calling the
   session incomplete.** Reported from real use ("if I delete a set when I'm
