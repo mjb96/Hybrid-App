@@ -358,3 +358,119 @@ test('Fixture 16-18: missing or empty week data degrades to an all-zero week', (
   assert.equal(m.endDate, '2026-06-14');
   assert.equal(m.comparison.isComparable, false);
 });
+
+// =============================================================================
+// TWO SESSIONS ON ONE CALENDAR DAY
+//
+// Reported from real use: "the In Focus tiles do not handle 2 workouts in one
+// day properly". They did not. `collectCalendarWeek` merged a day's `lifts`
+// across stored slots but ASSIGNED `runs[day]` and `gymStats[day]`, so the last
+// slot won and the earlier session's distance/time was discarded. Sets and
+// volume were correct, which is what made it look like a display quirk instead
+// of lost data.
+//
+// The two sessions live in different week keys on purpose: that is how the app
+// stores a one-off session, or an imported run alongside a tracked one. Two runs
+// inside ONE slot already worked, so the fixture below covers the case that did
+// not.
+// =============================================================================
+const done = (w, r) => ({ c: true, w: String(w), r: String(r) });
+const TWO_SESSION_OPTS = { today: '2026-08-05', tz: 'UTC', weekOffset: 0 };
+
+const twoStrengthOneDay = {
+  currentWeek: '3',
+  weeks: {
+    '3': {
+      dates: { mon: '2026-08-03' },
+      lifts: { mon: { 'Bench Press': [done(80, 5), done(80, 5)] } },
+      gymStats: { mon: { time: '45:00', avgHR: '120', maxHR: '150', cals: '300' } },
+    },
+    'oneoff:s1': {
+      sessionId: 's1', sessionKind: 'empty', sessionDay: 'mon', sessionTitle: 'Evening Arms',
+      dates: { mon: '2026-08-03' },
+      lifts: { mon: { 'Dumbbell Curl': [done(20, 10), done(20, 10), done(20, 10)] } },
+      gymStats: { mon: { time: '20:00', avgHR: '110', maxHR: '160', cals: '150' } },
+    },
+  },
+};
+
+const twoRunsOneDay = {
+  currentWeek: '3',
+  weeks: {
+    '3': {
+      dates: { mon: '2026-08-03' },
+      runSessions: { mon: [{ id: 'r1', dist: '5', time: '25:00' }] },
+    },
+    'oneoff:r2': {
+      sessionId: 'r2', sessionDay: 'mon',
+      dates: { mon: '2026-08-03' },
+      runSessions: { mon: [{ id: 'r2', dist: '10', time: '50:00', source: 'fit' }] },
+    },
+  },
+};
+
+const monday = (state, type, metric) => {
+  const chart = buildWeekChart(state, { ...TWO_SESSION_OPTS, type, metric });
+  return { chart, day: chart.days.find((d) => d.dayKey === 'mon') };
+};
+
+test('two strength sessions on one day: sets and volume add', () => {
+  const sets = monday(twoStrengthOneDay, 'strength', 'sets');
+  assert.equal(sets.day.value, 5, '2 + 3 working sets');
+  assert.equal(sets.chart.total, 5);
+  const volume = monday(twoStrengthOneDay, 'strength', 'volume');
+  assert.equal(volume.day.value, 1400, '80×5×2 + 20×10×3');
+});
+
+test('two strength sessions on one day: their durations add, not overwrite', () => {
+  // Was 1200 (20:00) — the second slot's gymStats replaced the first's outright.
+  const { day, chart } = monday(twoStrengthOneDay, 'strength', 'duration');
+  assert.equal(day.value, 3900, '45:00 + 20:00 in seconds');
+  assert.equal(chart.total, 3900);
+});
+
+test('two runs on one day: distance and time add, not overwrite', () => {
+  // Was 10km / 50:00 — a morning run simply vanished behind the evening one.
+  const dist = monday(twoRunsOneDay, 'running', 'distance');
+  assert.equal(dist.day.value, 15, '5km + 10km');
+  assert.equal(dist.chart.total, 15);
+  const time = monday(twoRunsOneDay, 'running', 'duration');
+  assert.equal(time.day.value, 4500, '25:00 + 50:00 in seconds');
+});
+
+test('two sessions on one day are counted as two activities', () => {
+  // Was hardcoded to 1 per day, whatever the day actually held.
+  assert.equal(monday(twoStrengthOneDay, 'strength', 'sets').day.activityCount, 2);
+  assert.equal(monday(twoRunsOneDay, 'running', 'distance').day.activityCount, 2);
+  // A day with one session still reports one.
+  const single = buildWeekChart({
+    currentWeek: '3',
+    weeks: { '3': { dates: { mon: '2026-08-03' }, lifts: { mon: { 'Bench Press': [done(80, 5)] } } } },
+  }, { ...TWO_SESSION_OPTS, type: 'strength', metric: 'sets' });
+  assert.equal(single.days.find((d) => d.dayKey === 'mon').activityCount, 1);
+});
+
+test('merging two sessions keeps heart rate honest rather than additive', () => {
+  const { chart } = monday(twoStrengthOneDay, 'strength', 'duration');
+  const gs = chart.weekData.gymStats.mon;
+  assert.equal(gs.maxHR, '160', 'peak HR is the higher of the two, never a sum');
+  // Duration-weighted: (120×2700 + 110×1200) / 3900 = 116.9…
+  assert.equal(gs.avgHR, '117', 'average HR is weighted by session duration');
+  assert.equal(gs.cals, '450', 'calories add');
+  assert.equal(gs.time, '65:00', 'time stays in the storable M:SS shape');
+});
+
+test('a run logged twice in one slot is still not double counted across slots', () => {
+  // The control: two runs inside a single stored day already worked and must
+  // keep working — the fix must not start counting the same session twice.
+  const oneSlot = {
+    currentWeek: '3',
+    weeks: { '3': {
+      dates: { mon: '2026-08-03' },
+      runSessions: { mon: [{ id: 'r1', dist: '5', time: '25:00' }, { id: 'r2', dist: '10', time: '50:00' }] },
+    } },
+  };
+  const { day } = monday(oneSlot, 'running', 'distance');
+  assert.equal(day.value, 15);
+  assert.equal(day.activityCount, 2);
+});

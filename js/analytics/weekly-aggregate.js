@@ -23,7 +23,8 @@
 // =============================================================================
 import { isValidWorkingSet, setVolume } from '../set-utils.js';
 import { addDaysISO, localDayKey } from '../dates.js';
-import { runDaySummary } from '../state/run-sessions.js';
+import { runDaySummary, runSessionsForDay } from '../state/run-sessions.js';
+import { parseStrengthDurationSeconds } from '../strength/duration.js';
 
 // Compatibility re-export: calendar consumers historically imported these from
 // weekly-aggregate. The implementation now lives in the one canonical date API.
@@ -85,7 +86,9 @@ export function strengthDayStats(dayLifts) {
  * @property {string|null} programId program that prescribed this stored week
  * @property {string} dateISO      resolved local calendar date
  * @property {Record<string, any[]>|undefined} lifts
- * @property {object|undefined} run
+ * @property {object|undefined} run          this slot's own summary of its runs
+ * @property {any[]} runSessions             the records behind `run`, so a date
+ *   assembled from several slots can re-summarise the whole list
  * @property {object|undefined} gymStats
  * @property {string|null} sessionId
  * @property {string|null} sessionTitle
@@ -138,7 +141,10 @@ export function indexSlotsByDate(state, opts = {}) {
 
       const slot = {
         weekKey: w,
-        weekNum, day, lifts, run, gymStats, stats,
+        // `run` is this slot's own summary; `runSessions` are the records behind
+        // it, kept so a calendar day assembled from SEVERAL slots can re-summarise
+        // the full list rather than pick one slot's summary and drop the rest.
+        weekNum, day, lifts, run, runSessions: runSessionsForDay(wd, day), gymStats, stats,
         programId: wd.programId || state?.activeProgramId || null,
         sessionId: wd.sessionId || null,
         sessionTitle: wd.sessionTitle || null,
@@ -184,14 +190,23 @@ function _preferSlot(a, b) {
  * stored slot owns that real date. Shape matches `state.weeks[N]` so existing
  * per-day extraction (week-chart-model's dayCell) can consume it unchanged.
  *
+ * SEVERAL slots can own one date — a programmed workout plus a one-off later the
+ * same day, or a tracked run plus an imported one. Every field therefore MERGES
+ * rather than assigns; `sessionCounts` records how many sessions of each kind a
+ * day actually held, which no consumer can work out from the merged totals.
+ *
  * @param {object} state
  * @param {string} weekStartISO  Monday YYYY-MM-DD
  * @param {{ tz?: string, index?: {byDate: Map<string, DatedSlot>, allByDate?: Map<string, DatedSlot[]>} }} [opts]
- * @returns {{ lifts:object, runs:object, gymStats:object, dates:object, sourceSlots:Array }}
+ * @returns {{ lifts:object, runs:object, runSessions:object, gymStats:object,
+ *   dates:object, sessionCounts:Record<string,{strength:number,running:number}>,
+ *   sourceSlots:Array }}
  */
 export function collectCalendarWeek(state, weekStartISO, opts = {}) {
   const index = opts.index || indexSlotsByDate(state, { tz: opts.tz });
-  const lifts = {}, runs = {}, gymStats = {}, dates = {};
+  const lifts = {}, runs = {}, runSessions = {}, gymStats = {}, dates = {};
+  /** @type {Record<string, {strength:number, running:number}>} */
+  const sessionCounts = {};
   const sourceSlots = [];
 
   DAY_KEYS.forEach((day, i) => {
@@ -199,6 +214,7 @@ export function collectCalendarWeek(state, weekStartISO, opts = {}) {
     dates[day] = dateISO;
     const slots = index.allByDate?.get(dateISO) || (index.byDate.get(dateISO) ? [index.byDate.get(dateISO)] : []);
     if (!slots.length) return;
+    sessionCounts[day] = { strength: 0, running: 0 };
     for (const slot of slots) {
       if (slot.lifts) {
         if (!lifts[day]) lifts[day] = {};
@@ -207,8 +223,21 @@ export function collectCalendarWeek(state, weekStartISO, opts = {}) {
           lifts[day][name] = [...(lifts[day][name] || []), ...sets];
         }
       }
-      if (slot.run) runs[day] = slot.run;
-      if (slot.gymStats) gymStats[day] = slot.gymStats;
+      // TWO SESSIONS ON ONE CALENDAR DAY. `lifts` above has always merged, but
+      // runs and gymStats were assigned — `runs[day] = slot.run` — so the last
+      // slot won and everything the earlier one recorded was DISCARDED. A morning
+      // run plus an imported evening run showed one run's distance; a programmed
+      // workout plus a one-off later that day showed one workout's duration. The
+      // sets and volume were right, which is what made it look like a display
+      // quirk rather than lost data.
+      if (Array.isArray(slot.runSessions) && slot.runSessions.length) {
+        runSessions[day] = [...(runSessions[day] || []), ...slot.runSessions];
+        sessionCounts[day].running += slot.runSessions.length;
+      }
+      if (slot.gymStats) gymStats[day] = mergeGymStats(gymStats[day], slot.gymStats);
+      if (slot.stats?.workingSets > 0 || parseStrengthDurationSeconds(slot.gymStats?.time) > 0) {
+        sessionCounts[day].strength += 1;
+      }
     // `day` is the CALENDAR column where the session is displayed. `sourceDay`
     // is the PROGRAM slot the athlete actually selected. They differ when, for
     // example, Monday's Upper workout is completed on Tuesday.
@@ -223,9 +252,47 @@ export function collectCalendarWeek(state, weekStartISO, opts = {}) {
         ...(slot.sessionTitle ? { sessionTitle: slot.sessionTitle } : {}),
       });
     }
+    // Re-summarise the merged session list through the SAME canonical summariser
+    // a single stored day uses, so duration-weighted RPE/HR stay weighted instead
+    // of two summaries being naively added together.
+    if (runSessions[day]?.length) runs[day] = runDaySummary({ runSessions }, day);
   });
 
-  return { lifts, runs, gymStats, dates, sourceSlots };
+  return { lifts, runs, runSessions, gymStats, dates, sessionCounts, sourceSlots };
+}
+
+/**
+ * Combine two strength-session stat blocks that fall on the same calendar day.
+ *
+ * Each field merges by what it MEANS: durations and calories add, peak heart rate
+ * takes the maximum, and average heart rate is weighted by session duration (an
+ * unweighted mean would let a 10-minute session pull a 90-minute one). `time` is
+ * written back in the storable `M:SS` shape `parseStrengthDurationSeconds` reads,
+ * never a display string.
+ */
+function mergeGymStats(existing, incoming) {
+  if (!existing) return incoming;
+  if (!incoming) return existing;
+  const secsA = parseStrengthDurationSeconds(existing.time);
+  const secsB = parseStrengthDurationSeconds(incoming.time);
+  const totalSecs = secsA + secsB;
+  const hrA = parseFloat(existing.avgHR) || 0;
+  const hrB = parseFloat(incoming.avgHR) || 0;
+  const weighted = hrA * secsA + hrB * secsB;
+  const weightSecs = (hrA > 0 ? secsA : 0) + (hrB > 0 ? secsB : 0);
+  const avgHR = weightSecs > 0 ? Math.round(weighted / weightSecs)
+    : hrA && hrB ? Math.round((hrA + hrB) / 2)
+    : hrA || hrB || '';
+  const cals = (parseFloat(existing.cals) || 0) + (parseFloat(incoming.cals) || 0);
+  const maxHR = Math.max(parseFloat(existing.maxHR) || 0, parseFloat(incoming.maxHR) || 0);
+  return {
+    ...existing,
+    ...incoming,
+    time: totalSecs > 0 ? `${Math.floor(totalSecs / 60)}:${String(totalSecs % 60).padStart(2, '0')}` : '',
+    avgHR: avgHR === '' ? '' : String(avgHR),
+    maxHR: maxHR > 0 ? String(maxHR) : '',
+    cals: cals > 0 ? String(cals) : '',
+  };
 }
 
 // ---- canonical strength aggregate -------------------------------------------

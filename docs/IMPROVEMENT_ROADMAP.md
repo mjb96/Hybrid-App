@@ -1054,7 +1054,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,715 tests, typecheck, smoke, precache/workflow gates, 30 responsive/accessibility browser checks |
+| Quality | 1,721 tests, typecheck, smoke, precache/workflow gates, 30 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1113,6 +1113,44 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Bug from real use: "the In Focus tiles do not handle 2 workouts
+  in one day properly." They did not, and it was losing data, not just
+  mis-drawing.**
+  - `collectCalendarWeek` merged a calendar day's `lifts` across stored slots but
+    **assigned** `runs[day]` and `gymStats[day]`. Several slots can own one date —
+    a programmed workout plus a one-off later that day, or a tracked run plus an
+    imported one — so the last slot won and everything the earlier session
+    recorded was discarded. Measured before changing anything:
+
+    | Metric | Two sessions | Was | Now |
+    | --- | --- | --- | --- |
+    | Strength sets | 2 + 3 | 5 ✓ | 5 |
+    | Strength volume | 800 + 600 | 1400 ✓ | 1400 |
+    | Strength Time | 45:00 + 20:00 | **20:00** | 65:00 |
+    | Running distance | 5 + 10 km | **10 km** | 15 km |
+    | Running time | 25:00 + 50:00 | **50:00** | 75:00 |
+
+    Sets and volume being right is what made this look like a display quirk. A
+    morning run simply vanished behind an evening one, in the day bar and in the
+    week total.
+  - Two runs stored inside ONE slot always worked (`runDaySummary` sums them), so
+    the fix is scoped to assembly across slots, and a test keeps the
+    single-slot case honest so nothing is now counted twice.
+  - The merged run summary is recomputed by `runDaySummary` over the **combined**
+    session list rather than by adding two summaries, so duration-weighted RPE and
+    HR stay weighted. `mergeGymStats` merges each field by what it means:
+    durations and calories add, peak HR takes the max, average HR is weighted by
+    session duration, and `time` is written back in the storable `M:SS` shape
+    (never a display string, which would parse as zero).
+  - `activityCount` was hardcoded to `hasData ? 1 : 0`, so a day with two sessions
+    always reported one. `collectCalendarWeek` now counts them while assembling —
+    only it can see that two slots landed on one date — and the chart falls back
+    to the old behaviour for a caller passing a raw `state.weeks[N]`.
+  - `tests/week_chart_model.test.js` +6. Verified: 1,721 unit tests, typecheck,
+    smoke, precache, workflow gates, and the home-today / home-attribution /
+    strength-volume / progress-hub / gym-performance / run-performance browser
+    checks — every surface that reads this assembly.
 
 - **2026-08-07 — Phase 4A continued: Plans leads with the plan you are actually
   in, and a red `main` was diagnosed.**
