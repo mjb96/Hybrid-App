@@ -154,11 +154,20 @@ export function indexSlotsByDate(state, opts = {}) {
       if (!slot.dateISO) { undated.push(slot); return; }
 
       const dateSlots = allByDate.get(slot.dateISO) || [];
-      // Stable strength session IDs define independent records. Legacy/program
-      // slots have no strength session ID and remain one deduplicated family.
+      // Stable strength session IDs define independent records. For everything
+      // else the identity is the PROGRAM DAY, and that matters enormously:
+      // `!candidate.sessionId` alone treated every programmed slot on a date as
+      // one family, so completing Monday's Push AND Tuesday's Pull on the same
+      // day made the smaller of the two a "duplicate" of the larger and threw it
+      // away — 17 sets reported for a 33-set day, before any merging could run.
+      //
+      // Two different program days are different sessions and can never be
+      // duplicates of each other. A genuine duplicate — a cloud/local copy, or a
+      // re-activation that reused week numbers — is the SAME program day
+      // appearing under two week keys, which this still collapses.
       const sameIdentityIndex = dateSlots.findIndex((candidate) => slot.sessionId
         ? candidate.sessionId === slot.sessionId
-        : !candidate.sessionId);
+        : !candidate.sessionId && candidate.day === slot.day);
       if (sameIdentityIndex < 0) {
         dateSlots.push(slot);
       } else {
@@ -175,6 +184,28 @@ export function indexSlotsByDate(state, opts = {}) {
   }
 
   return { byDate, allByDate, undated, duplicates };
+}
+
+/**
+ * How many SESSIONS each calendar date holds, and which dates were trained.
+ *
+ * Sessions and training days are different numbers whenever two workouts land on
+ * one date, and a surface that compares against "N planned sessions" needs the
+ * session count — counting dates reported five completed workouts as four.
+ * Derived from the deduplicated index so a cloud/local copy of one session still
+ * counts once.
+ *
+ * @param {object} state
+ * @param {{ tz?: string, index?: ReturnType<typeof indexSlotsByDate> }} [opts]
+ * @returns {{ counts: Map<string, number>, dates: Set<string> }}
+ */
+export function loggedSessionsByDate(state, opts = {}) {
+  const index = opts.index || indexSlotsByDate(state, { tz: opts.tz });
+  const counts = new Map();
+  for (const [date, slots] of index.allByDate) {
+    if (slots.length) counts.set(date, slots.length);
+  }
+  return { counts, dates: new Set(counts.keys()) };
 }
 
 // Deterministic winner between two slots that claim the same calendar date.

@@ -43,16 +43,26 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   (`js/analytics/week-nav.js`) is also CALENDAR-based (`getCalendarWeekOffset()`, ephemeral
   offset, reset on view entry) — it never reads `state.currentWeek`. `explainWeeklyMetric`
   is a dev-only attribution trace (program week is metadata; the date decides the week).
-  SEVERAL stored slots can own ONE calendar date (a programmed workout plus a
-  one-off later that day; a tracked run plus an imported one), so
+  SEVERAL stored slots can own ONE calendar date (two programmed days completed
+  the same day; a one-off later that day; a tracked run plus an imported one).
+  `indexSlotsByDate`'s dedup identity is therefore the strength `sessionId` when
+  present and otherwise the PROGRAM DAY — matching on "no sessionId" alone made
+  every programmed slot on a date one duplicate family and silently discarded the
+  smaller session (17 sets shown for a 33-set day). Same program day under two
+  week keys IS a duplicate (cloud copy / re-activation reusing week numbers) and
+  still collapses to one. Downstream,
   `collectCalendarWeek` must MERGE every field, never assign: it merges `lifts`,
   concatenates `runSessions` and re-summarises them through `runDaySummary`
   (adding two summaries would break duration-weighted RPE/HR), merges `gymStats`
   via `mergeGymStats` (durations/calories add, peak HR maxes, average HR is
   duration-weighted, `time` stays storable `M:SS`), and records `sessionCounts`
   so `activityCount` is real. Assigning is the bug that showed a 5km + 10km day
-  as 10km. `tests/analytics_calendar_guard.test.js` keeps the calendar-core
-  modules program-week-free. Program adherence, "Week N" labels, deload detection and today's
+  as 10km. SESSIONS and TRAINING DAYS are different counts once two workouts
+  share a date: anything comparing against planned sessions (Progress →
+  Consistency) must use `loggedSessionsByDate`, not a set of dates — counting
+  dates reported five completed workouts as "4 of 5 planned".
+  `tests/analytics_calendar_guard.test.js` keeps the calendar-core modules
+  program-week-free. Program adherence, "Week N" labels, deload detection and today's
   planned session stay PROGRAM-week based; CTL/ATL/readiness stay rolling-window. The
   Strength overview's per-lift **estimated-1RM "this week" change + PR indicators** use
   `js/analytics/strength-calendar.js` (`calendarStrengthSummary`, `bestE1rmByLiftForWeek`,

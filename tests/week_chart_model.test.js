@@ -474,3 +474,74 @@ test('a run logged twice in one slot is still not double counted across slots', 
   assert.equal(day.value, 15);
   assert.equal(day.activityCount, 2);
 });
+
+// =============================================================================
+// TWO **PROGRAMMED** WORKOUTS ON ONE DAY
+//
+// The case the first fix MISSED, reported from real use: "I completed two
+// sessions yesterday and the in focus tile is showing only 17 sets when it should
+// be over 30".
+//
+// The earlier fixture gave its second session a `sessionId`, which only one-off
+// sessions carry. Two PROGRAMMED days have no session id, and `indexSlotsByDate`
+// treated every id-less slot on a date as one deduplicated family:
+//
+//   slot.sessionId ? candidate.sessionId === slot.sessionId : !candidate.sessionId
+//
+// so completing Monday's Push and Tuesday's Pull on the same day made the
+// smaller of the two a "duplicate" of the larger and discarded it — before any
+// merging could run. The identity now includes the program day.
+// =============================================================================
+const nSets = (n, w, r) => Array.from({ length: n }, () => ({ c: true, w: String(w), r: String(r) }));
+
+const twoProgrammedOneDay = {
+  currentWeek: '3',
+  activeProgramId: 'p',
+  weeks: {
+    '3': {
+      dates: { mon: '2026-08-03', tue: '2026-08-03' },
+      lifts: {
+        mon: { 'Bench Press': nSets(9, 80, 5), 'Overhead Press': nSets(8, 50, 8) },
+        tue: { 'Barbell Row': nSets(8, 70, 8), 'Lat Pulldown': nSets(8, 60, 10) },
+      },
+      gymStats: { mon: { time: '55:00' }, tue: { time: '50:00' } },
+    },
+  },
+};
+
+test('two programmed workouts on one day: every set counts', () => {
+  const chart = buildWeekChart(twoProgrammedOneDay, {
+    type: 'strength', metric: 'sets', today: '2026-08-05', tz: 'UTC',
+  });
+  const mon = chart.days.find((d) => d.dayKey === 'mon');
+  // 9 + 8 + 8 + 8. Was 17 — Monday's 17 kept, Tuesday's 16 thrown away.
+  assert.equal(mon.value, 33);
+  assert.equal(chart.total, 33);
+  assert.equal(mon.activityCount, 2);
+});
+
+test('two programmed workouts on one day: their durations both count', () => {
+  const chart = buildWeekChart(twoProgrammedOneDay, {
+    type: 'strength', metric: 'duration', today: '2026-08-05', tz: 'UTC',
+  });
+  assert.equal(chart.days.find((d) => d.dayKey === 'mon').value, 6300, '55:00 + 50:00');
+});
+
+test('the same program day stored twice is STILL one session', () => {
+  // The collision the dedup exists for: a re-activation reused week numbers, or a
+  // cloud copy, so one logical session appears under two week keys on one date.
+  // Same program day ⇒ same identity ⇒ counted once, never summed.
+  const duplicated = {
+    currentWeek: '3',
+    weeks: {
+      '3': { dates: { mon: '2026-08-03' }, lifts: { mon: { 'Bench Press': nSets(5, 80, 5) } } },
+      'arch:old:3': { dates: { mon: '2026-08-03' }, lifts: { mon: { 'Bench Press': nSets(5, 80, 5) } } },
+    },
+  };
+  const chart = buildWeekChart(duplicated, {
+    type: 'strength', metric: 'sets', today: '2026-08-05', tz: 'UTC',
+  });
+  const mon = chart.days.find((d) => d.dayKey === 'mon');
+  assert.equal(mon.value, 5, 'a duplicate must not double-count to 10');
+  assert.equal(mon.activityCount, 1);
+});

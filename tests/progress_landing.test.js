@@ -468,3 +468,75 @@ test('the period label describes the real calendar week being viewed', () => {
   assert.equal(past.isCurrentWeek, false);
   assert.match(past.periodLabel, /Week of 2026-07-13/);
 });
+
+// =============================================================================
+// CONSISTENCY COUNTS SESSIONS, NOT DATES
+//
+// Reported from real use: "the app is saying I've only completed 4 of 5 workouts
+// this week when in fact I've done 5". The headline compared against the
+// program's planned SESSIONS but counted distinct DATES, so two workouts
+// completed on one day were one. The numbers were days wearing the label of
+// sessions — the trend beside them still counts days, and says so.
+// =============================================================================
+const fiveDayProgram = program({
+  mon: { title: 'Push', lifts: ['Bench Press'], runs: 'Rest' },
+  tue: { title: 'Pull', lifts: ['Barbell Row'], runs: 'Rest' },
+  wed: { title: 'Legs', lifts: ['Back Squat'], runs: 'Rest' },
+  thu: { title: 'Upper', lifts: ['Incline Press'], runs: 'Rest' },
+  fri: { title: 'Lower', lifts: ['Deadlift'], runs: 'Rest' },
+});
+
+// Five sessions, but Monday and Tuesday's were both performed on Monday — so
+// only FOUR calendar dates carry training.
+const fiveSessionsFourDays = {
+  currentWeek: '1',
+  activeProgramId: 'p',
+  weeks: {
+    '1': {
+      dates: { mon: WK, tue: WK, wed: '2026-07-15', thu: '2026-07-16', fri: '2026-07-17' },
+      lifts: {
+        mon: { 'Bench Press': [work(80, 5)] },
+        tue: { 'Barbell Row': [work(70, 8)] },
+        wed: { 'Back Squat': [work(100, 5)] },
+        thu: { 'Incline Press': [work(60, 8)] },
+        fri: { 'Deadlift': [work(140, 5)] },
+      },
+    },
+  },
+};
+
+test('five sessions across four days read as five of five planned', () => {
+  const model = buildProgressLanding(fiveSessionsFourDays, {
+    days: DAYS, program: fiveDayProgram, today: '2026-07-19', tz: 'UTC',
+  });
+  const consistency = domainOf(model, 'consistency');
+  // Was "4 of 5 planned" — the second Monday session was invisible here.
+  assert.equal(consistency.headline.value, '5');
+  assert.equal(consistency.headline.unit, 'of 5 planned');
+  assert.match(consistency.interpretation, /hit all 5 planned sessions/);
+});
+
+test('the consistency trend still counts training days, and says so', () => {
+  const model = buildProgressLanding(fiveSessionsFourDays, {
+    days: DAYS, program: fiveDayProgram, today: '2026-07-19', tz: 'UTC',
+  });
+  const consistency = domainOf(model, 'consistency');
+  assert.match(consistency.trend.label, /Training days/);
+  // Four dates carried training that week, which is what the day series reports.
+  assert.equal(consistency.trend.values[consistency.trend.values.length - 1], 4);
+});
+
+test('one logical session stored twice is not counted twice', () => {
+  const duplicated = {
+    currentWeek: '1',
+    activeProgramId: 'p',
+    weeks: {
+      '1': { dates: { mon: WK }, lifts: { mon: { 'Bench Press': [work(80, 5)] } } },
+      'arch:old:1': { dates: { mon: WK }, lifts: { mon: { 'Bench Press': [work(80, 5)] } } },
+    },
+  };
+  const consistency = domainOf(buildProgressLanding(duplicated, {
+    days: DAYS, program: fiveDayProgram, today: '2026-07-19', tz: 'UTC',
+  }), 'consistency');
+  assert.equal(consistency.headline.value, '1', 'a duplicate must not read as two sessions');
+});
