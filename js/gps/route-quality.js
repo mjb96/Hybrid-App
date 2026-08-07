@@ -13,6 +13,14 @@ export const GPS_QUALITY_LIMITS = Object.freeze({
   maxContinuityGapMs: 30_000,
 });
 
+// Accuracy tiers, shared by the finished-run grade below and the LIVE signal
+// readout (`active-run-display.js`). One definition only: a run graded "high"
+// on save must not have been reading "weak" on the screen a second earlier.
+export const GPS_ACCURACY_TIERS = Object.freeze({
+  strongM: 20,
+  fairM: 35,
+});
+
 const REASONS = ['invalid', 'poorAccuracy', 'jitter', 'timestamp', 'teleport'];
 
 function finite(value) {
@@ -131,9 +139,10 @@ export function summarizeGpsQuality(state) {
 
   let confidence = 'insufficient';
   if (source.acceptedPointCount >= 2) {
-    const clean = signalRejects === 0 && source.segmentBreaks === 0 && avgAccuracyM <= 20;
+    const clean = signalRejects === 0 && source.segmentBreaks === 0 &&
+      avgAccuracyM <= GPS_ACCURACY_TIERS.strongM;
     const usable = source.acceptedPointCount >= 4 && signalRejectRatio <= 0.25 &&
-      avgAccuracyM <= 35 && source.segmentBreaks <= 2;
+      avgAccuracyM <= GPS_ACCURACY_TIERS.fairM && source.segmentBreaks <= 2;
     confidence = clean ? 'high' : (usable ? 'medium' : 'low');
   }
 

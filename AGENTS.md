@@ -81,6 +81,16 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   fsynced active-session journal; JS drains/replays native fixes and acknowledges the
   journal only after app-state persistence. Browser/PWA GPS still uses web geolocation
   and is foreground-only.
+- Live run surface: `js/gps-tracker.js` drives TWO surfaces from one state machine
+  (cockpit + Quick Activity) via the `UI` scope map — a named ID there must exist in
+  `index.html`. All live numbers go through `js/gps/active-run-display.js`: never write
+  raw km to the DOM, the athlete's `settings.distanceUnit` decides, and the live figure
+  must equal what `stopTracking` puts in the cockpit input. Live signal is graded from
+  the LAST ACCEPTED fix (`gpsSignalPresentation`), NOT `summarizeGpsQuality` — that one
+  grades a finished run; both share `GPS_ACCURACY_TIERS`. While a session is live the
+  cockpit run card is in focus mode (`run-session-active`) and `renderWorkout` must not
+  collapse or reparent it (`.run-collapsed` hides the whole body; moving the node
+  detaches the live Leaflet map).
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
 - Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)

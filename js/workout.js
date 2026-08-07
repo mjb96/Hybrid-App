@@ -28,6 +28,7 @@ import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 import { detectRunType } from './workout/run-type.js';
+import { hasActiveRunSession } from './gps-tracker.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
@@ -717,11 +718,18 @@ export function renderWorkout() {
     }
   }
 
+  // A live run owns the card. Collapsing it — which a re-render would do on any
+  // day with no scheduled run, i.e. exactly when an unscheduled run is being
+  // tracked — hides `.run-body-content` and takes the running session off the
+  // screen mid-run. Reordering is skipped for the same reason: moving the node
+  // detaches the live Leaflet map from under the athlete.
+  const runSessionLive = hasActiveRunSession();
+
   if (runPanel) {
-    runPanel.classList.toggle('run-collapsed', !isRunScheduled);
+    runPanel.classList.toggle('run-collapsed', !isRunScheduled && !runSessionLive);
   }
 
-  if (runPanel && exercisesContainer) {
+  if (runPanel && exercisesContainer && !runSessionLive) {
     if (!isRunScheduled) {
       exercisesContainer.after(runPanel);
     } else {

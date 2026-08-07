@@ -6715,12 +6715,16 @@ html[data-theme="light"] .sw-session-chip { background: rgba(0,0,0,0.03); border
   gap: 8px;
   margin-bottom: 14px;
 }
+/* Pause and Finish are the two controls a run is steered with, often at pace
+   and out of breath. They rendered at 38px — under the app's own touch target,
+   which the live-run browser check now holds them to. */
 .gps-btn-secondary {
   background: var(--overlay-lg);
   color: var(--text-inverse);
   border: 1px solid var(--border-medium);
   border-radius: 10px;
   padding: 10px;
+  min-height: var(--touch-target, 44px);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -6732,11 +6736,78 @@ html[data-theme="light"] .sw-session-chip { background: rgba(0,0,0,0.03); border
   border: none;
   border-radius: 10px;
   padding: 10px;
+  min-height: var(--touch-target, 44px);
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
 }
 .gps-btn-stop:active { opacity: 0.85; }
+
+/* Live GPS signal chip — shared by the cockpit run card and the Quick Activity
+   screen. Answers "is it tracking me right now?", which the whole-run quality
+   summary cannot: that one grades a finished run. */
+.gps-signal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: var(--overlay-md);
+  border: 1px solid var(--border-medium);
+  font-size: 0.7rem;
+}
+.gps-signal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.gps-signal-label {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-inverse);
+}
+.gps-signal-detail {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.gps-signal[data-level="strong"] .gps-signal-dot { background: #10b981; }
+.gps-signal[data-level="fair"]   .gps-signal-dot { background: #f59e0b; }
+.gps-signal[data-level="weak"]   .gps-signal-dot { background: #f97316; }
+.gps-signal[data-level="lost"]   .gps-signal-dot { background: #ef4444; }
+.gps-signal[data-level="paused"] .gps-signal-dot { background: var(--text-muted); }
+/* Searching is the only genuinely in-progress state, so it is the only one
+   that animates — a pulsing dot on a settled signal is just noise. */
+.gps-signal[data-level="searching"] .gps-signal-dot {
+  background: #60a5fa;
+  animation: gps-signal-pulse 1.4s ease-in-out infinite;
+}
+.gps-signal[data-level="lost"] { border-color: rgba(239,68,68,0.4); }
+@keyframes gps-signal-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  .gps-signal[data-level="searching"] .gps-signal-dot { animation: none; }
+}
+
+/* Focus mode: while a run session is live, the cockpit run card is the session.
+   Setup, manual entry and the watch import stand down rather than competing
+   with the live numbers; they return the moment the run is stopped, holding the
+   distance and time the tracker just filled in.
+   `#cockpitRunSpecs` deliberately STAYS: it is the session's prescription
+   ("Run: 4×1KM"), the running equivalent of the set targets the strength
+   cockpit keeps on screen throughout — not a setup control. `#runMapContainer`
+   goes, because it holds a PREVIOUS run's saved route and would sit directly
+   above the live map of the run in progress. */
+#cockpitRunPanel.run-session-active .run-grid-inputs,
+#cockpitRunPanel.run-session-active .run-pace-row,
+#cockpitRunPanel.run-session-active .run-notes-input,
+#cockpitRunPanel.run-session-active #runExtraStats,
+#cockpitRunPanel.run-session-active .fit-import-tile--run,
+#cockpitRunPanel.run-session-active #runMapContainer {
+  display: none !important;
+}
 
 /* Light mode */
 html[data-theme="light"] .gps-start-panel { background: rgba(244,63,94,0.06); border-color: rgba(244,63,94,0.2); }

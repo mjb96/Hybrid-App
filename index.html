@@ -688,6 +688,11 @@
 
         <!-- GPS: Live tracking -->
         <div id="gpsLivePanel" style="display:none;">
+          <div id="gpsSignal" class="gps-signal" role="status" data-level="searching">
+            <span class="gps-signal-dot" aria-hidden="true"></span>
+            <span class="gps-signal-label" id="gpsSignalLabel">Searching</span>
+            <span class="gps-signal-detail" id="gpsSignalDetail">Waiting for a GPS fix</span>
+          </div>
           <div id="gpsLiveMap" class="gps-live-map"></div>
           <div class="gps-stats-row">
             <div class="gps-stat">
@@ -695,11 +700,11 @@
               <span class="gps-stat-value" id="gpsStatTime">00:00</span>
             </div>
             <div class="gps-stat">
-              <span class="gps-stat-label">DIST (KM)</span>
+              <span class="gps-stat-label" id="gpsDistUnitLabel">KM</span>
               <span class="gps-stat-value" id="gpsStatDist">0.00</span>
             </div>
             <div class="gps-stat">
-              <span class="gps-stat-label">PACE</span>
+              <span class="gps-stat-label" id="gpsPaceUnitLabel">PACE /KM</span>
               <span class="gps-stat-value" id="gpsStatPace">—:——</span>
             </div>
           </div>
@@ -1811,6 +1816,11 @@
 
     <!-- Live tracking -->
     <div id="qsLivePanel" style="display:none;">
+      <div id="qsSignal" class="gps-signal" role="status" data-level="searching">
+        <span class="gps-signal-dot" aria-hidden="true"></span>
+        <span class="gps-signal-label" id="qsSignalLabel">Searching</span>
+        <span class="gps-signal-detail" id="qsSignalDetail">Waiting for a GPS fix</span>
+      </div>
       <div id="qsLiveMap" class="activity-live-map"></div>
       <div class="activity-stats">
         <div class="activity-stat">
@@ -1819,11 +1829,11 @@
         </div>
         <div class="activity-stat activity-stat--hero">
           <span class="activity-stat-value" id="qsStatDist">0.00</span>
-          <span class="activity-stat-label">KM</span>
+          <span class="activity-stat-label" id="qsDistUnitLabel">KM</span>
         </div>
         <div class="activity-stat">
           <span class="activity-stat-value" id="qsStatPace">—:——</span>
-          <span class="activity-stat-label">PACE /KM</span>
+          <span class="activity-stat-label" id="qsPaceUnitLabel">PACE /KM</span>
         </div>
       </div>
       <div class="activity-actions">
