@@ -38,7 +38,15 @@ const EQUIP_TIER_LABELS = {
   bodyweight: 'Bodyweight', minimal: 'Minimal',
 };
 
-export function renderProgramCard(program, size = 'small', showBadge = false) {
+/**
+ * @param {any} program
+ * @param {'small'|'large'} [size]
+ * @param {string} [reason] Why THIS athlete is being shown this programme, from
+ *   `programFit`. The third parameter used to be a `showBadge` boolean that the
+ *   body never read, so the recommendations row passed `true` and rendered
+ *   nothing — the reasons existed and were dropped on the floor.
+ */
+export function renderProgramCard(program, size = 'small', reason = '') {
   const diff = DIFFICULTY_LABELS[program.difficulty] || DIFFICULTY_LABELS.intermediate;
   const dots = '●'.repeat(diff.dots) + '○'.repeat(4 - diff.dots);
   const isActive    = appState?.activeProgramId === program.id;
@@ -113,6 +121,7 @@ export function renderProgramCard(program, size = 'small', showBadge = false) {
           ${equipTierLabel ? `<span class="prog-card-sep">·</span><span class="prog-card-equip">${equipTierLabel}</span>` : ''}
         </div>
         ${statsHTML}
+        ${reason ? `<div class="prog-card-reason">${escapeHtml(reason)}</div>` : ''}
         <div class="prog-card-diff" style="color: ${diff.color}" title="${diff.label}">${dots}</div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { PROGRAM_CATALOG, CATEGORIES, DIFFICULTY_LABELS, getCatalogEntry } from 
 import { getHomeCollections, filterByCategory, getCollectionDef } from './collections.js';
 import { searchPrograms, POPULAR_SEARCHES } from './search.js';
 import { getRecommendations } from './recommendations.js';
+import { athleteProfile, recommendationBasis } from './recommendation-fit.js';
 import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { renderProgramCard, isWod, coverGlyphFor } from './program-card.js';
 import { icon as svgIcon } from '../ui/icons.js';
@@ -398,7 +399,9 @@ function renderLibraryContent() {
 }
 
 function renderCollectionRows(container) {
-  const recommendations = getRecommendations(_appState, 8);
+  // Five, not eight: 4A asks for three to five, and a recommendation the athlete
+  // has to scroll sideways to reach is not leading with anything.
+  const recommendations = getRecommendations(_appState, 5);
   // Don't pass recommendedIds into getHomeCollections: we render the
   // personalised row ourselves below, and letting getHomeCollections inject its
   // own "recommended-for-you" collection too would duplicate the row.
@@ -443,17 +446,24 @@ function renderCollectionRows(container) {
 
   // Personalised recommendations row. hideSeeAll: recommendations aren't a
   // static collection, so there's no valid "see all" target for them.
+  //
+  // `getRecommendations` returns nothing when it has no true reason to offer, so
+  // this row simply does not appear rather than labelling a popularity ranking
+  // "Based on your training" — which is what it used to be for every athlete.
   if (recommendations.length > 0) {
-    const recPrograms = recommendations.map(r => r.program).filter(p => p && !shown.has(p.id));
-    if (recPrograms.length > 0) {
-      recPrograms.forEach(p => shown.add(p.id));
+    const eligible = recommendations.filter(r => r.program && !shown.has(r.program.id));
+    if (eligible.length > 0) {
+      eligible.forEach(r => shown.add(r.program.id));
+      const reasons = new Map(eligible.map(r => [r.program.id, r.reason]));
       html += renderCollectionRow({
         id: 'recommended',
         label: 'Recommended For You',
-        subtitle: 'Based on your training',
         icon: '✨',
         hideSeeAll: true,
-      }, recPrograms, true);
+        // The basis replaces the old "Based on your training" subtitle, which
+        // claimed more than it could back up for an athlete who never answered.
+        afterHeader: renderRecommendationBasis(recommendationBasis(athleteProfile(_appState))),
+      }, eligible.map(r => r.program), reasons);
     }
   }
 
@@ -600,8 +610,55 @@ function renderHeroBanner(programs) {
   `;
 }
 
-function renderCollectionRow(collection, programs, withReasonBadge = false) {
-  const cards = programs.map(p => renderProgramCard(p, 'small', withReasonBadge)).join('');
+/**
+ * State the basis of the recommendations, and let it be corrected in place.
+ *
+ * An athlete who upgraded never answered these — onboarding auto-completes for
+ * anyone with stored data, and settings ship with hybrid/intermediate/full-gym
+ * already filled in. Without this, the row tells them it was built on "your
+ * goal, level and kit" when in truth it was built on three assumptions. Kept
+ * collapsed so it costs nothing when the assumptions happen to be right.
+ *
+ * @param {ReturnType<typeof recommendationBasis>} basis
+ */
+function renderRecommendationBasis(basis) {
+  if (!basis.length) return '';
+  const summary = basis.map(b => b.currentLabel).join(' · ');
+  return `
+    <details class="prog-basis">
+      <summary class="prog-basis__summary">
+        <span class="prog-basis__values">${escapeHtml(summary)}</span>
+        <span class="prog-basis__change">Change</span>
+      </summary>
+      <div class="prog-basis__body">
+        ${basis.map(b => `
+          <div class="prog-basis__group">
+            <div class="prog-basis__question">${escapeHtml(b.question)}</div>
+            <div class="prog-basis__options">
+              ${b.options.map(o => `
+                <button class="prog-basis__btn ${o.value === b.current ? 'is-current' : ''}"
+                        data-action="set-profile-answer"
+                        data-field="${escapeHtml(b.id)}"
+                        data-value="${escapeHtml(o.value)}"
+                        aria-pressed="${o.value === b.current}">${escapeHtml(o.label)}</button>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </details>
+  `;
+}
+
+/**
+ * @param {any} collection
+ * @param {any[]} programs
+ * @param {Map<string,string>} [reasons] programme id → why it fits this athlete
+ */
+function renderCollectionRow(collection, programs, reasons = null) {
+  const cards = programs
+    .map(p => renderProgramCard(p, 'small', reasons?.get(p.id) || ''))
+    .join('');
 
   return `
     <div class="collection-row mb-5">
@@ -615,6 +672,7 @@ function renderCollectionRow(collection, programs, withReasonBadge = false) {
         </div>
         ${collection.hideSeeAll ? '' : `<button class="collection-see-all" data-action="prog-filter" data-filter="${collection.id}">See all</button>`}
       </div>
+      ${collection.afterHeader || ''}
       <div class="card-scroll-row">
         ${cards}
       </div>
@@ -825,6 +883,21 @@ export function handleLibraryAction(action, el, event) {
     case 'open-program-detail': {
       const id = el.closest('[data-program-id]')?.getAttribute('data-program-id');
       if (id) openProgramDetail(id);
+      break;
+    }
+    // Answering the inline profile question. Writes the SAME settings fields
+    // the Settings screen owns, so the two can never disagree.
+    case 'set-profile-answer': {
+      const field = el.getAttribute('data-field');
+      const value = el.getAttribute('data-value');
+      if (!_appState || !field || !value) break;
+      if (!_appState.settings) _appState.settings = {};
+      if (field === 'goal') _appState.settings.fitnessGoal = value;
+      else if (field === 'level') _appState.settings.fitnessLevel = value;
+      else if (field === 'equipment') _appState.settings.equipmentTier = value;
+      else break;
+      saveStateToLocalStorage(true);
+      renderLibraryContent();
       break;
     }
     case 'prog-filter': {

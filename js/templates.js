@@ -11,7 +11,9 @@ export function buildEmptyWorkoutCard() {
   return '<div class="card-dark text-xs-muted empty-state-card">No lifting scheduled today.</div>';
 }
 
-export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = 75, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData, roleTag = null) {
+// `bodyweight` is null when the athlete has never logged one. It used to
+// default to 75 kg and was shown in the weight field as if it were theirs.
+export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null, weightUnit = 'kg', exerciseName = safeLiftName, bodyweight = null, prescribedReps = null, prescribedRepGoal = null, previousSetData = historicalSetData, roleTag = null) {
   const ghostWeight = historicalSetData?.w || weightUnit;
   const ghostReps   = historicalSetData?.r || prescribedReps || 'reps';
   const type = sData.type || '';
@@ -26,8 +28,10 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
   const loadCls = loadState === '' ? 'weighted' : loadState === 'BW' ? 'bw' : loadState;
   const bodyweightCapable = isBodyweightExercise(exerciseName);
   const directMode = resolvedLoadMode(sData, exerciseName);
-  const effectiveValue = bodyweightCapable && directMode === 'bodyweight' && !sData.w
-    ? String(bodyweight)
+  const knownBodyweight = Number.isFinite(Number.parseFloat(bodyweight)) && Number.parseFloat(bodyweight) > 0
+    ? Number.parseFloat(bodyweight) : null;
+  const effectiveValue = bodyweightCapable && directMode === 'bodyweight' && !sData.w && knownBodyweight != null
+    ? String(knownBodyweight)
     : String(sData.w || '');
 
   // Full-word type label for the (now roomier) expander, vs the terse column badge.

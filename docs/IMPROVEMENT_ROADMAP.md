@@ -717,7 +717,7 @@ Every metric detail includes:
 
 ## Phase 4 — Plans, exercise discovery, and editing
 
-**Status: LATER**
+**Status: ACTIVE — 4A started 2026-08-07 with the recommendation engine.**
 
 **Outcome:** choosing and changing training feels guided rather than
 catalogue-driven.
@@ -725,9 +725,35 @@ catalogue-driven.
 ### 4A. Plans landing page
 
 - Lead with the active plan, current week, next session, and progress.
-- Show three to five recommendations with explicit “why it fits” reasons.
-- Ask only for missing information needed to improve recommendations.
-- Make Browse all secondary but complete.
+- **DONE 2026-08-07 — three to five recommendations with explicit "why it fits"
+  reasons.** They were neither personalised nor reasons. `scoreForUser` read
+  popularity, completionRate, rating, `featured` and `author.type` — catalogue
+  constants identical for every athlete — plus the active program id and a
+  beginner boost; it never read `fitnessGoal`, `fitnessLevel`, `equipmentTier`,
+  `equipment` or `weightGoal`, all of which onboarding collects. A dedicated
+  advanced runner with no kit and a beginner with a full gym received
+  byte-identical suggestions under the heading "Based on your training".
+  `js/programs/recommendation-fit.js` now scores goal, level, equipment, weight
+  goal and *actual recent training frequency*, and every card states a reason
+  that is true of that athlete. Editorial signal survives only as a tiebreaker
+  that can never promote an unfitting programme or appear as a reason. When
+  nothing personal matches, the row does not render — an empty row is honest,
+  an invented one is not.
+- **DONE 2026-08-07 — the recommendations state their basis, correctable in
+  place.** "Ask only for missing information" turned out to be unreachable as
+  written: `settings` ships with `fitnessGoal: 'hybrid'`, `fitnessLevel:
+  'intermediate'`, `equipmentTier: 'gym'` already seeded, and
+  `shouldShowOnboarding` auto-completes onboarding for anyone with stored data
+  (`_hadStoredState`) **without asking anything**. So nothing is ever "missing",
+  and an upgrading athlete has never answered these questions while the row
+  tells them it was built on *their* goal. Nothing in state distinguishes an
+  assumption from a choice. The row now names what it used
+  ("Hybrid · Intermediate · Full gym") in a collapsed disclosure, and one tap
+  corrects it — writing the SAME settings fields the Settings screen owns, so
+  the two can never disagree. A prompt for missing values was built first and
+  discarded when it proved to be dead code.
+- Make Browse all secondary but complete. *(Already complete: all 58 programmes
+  are reachable through the category chips — see the corrected note below.)*
 - Reduce category-chip and collection overload.
 - Let users compare no more than two or three programmes with consistent fields.
 
@@ -969,11 +995,11 @@ even while release work is parked.
 | Navigation | Four intent-led destinations — Home, Train, Progress, Plans — with stable legacy route IDs and origin-aware drilldown Back behaviour |
 | Home/coaching | One state-aware Today card followed by retained Strength/Running In Focus cards; repeated At-a-Glance tiles are removed |
 | Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion, focused live-run surface |
-| Plans | 57-program catalogue, recommendations, comparison, details, timeline, editable personal copies, builder |
+| Plans | 58-program catalogue, fit-based recommendations with stated reasons, comparison, details, timeline, editable personal copies, builder |
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,659 tests, typecheck, smoke, precache/workflow gates, 28 responsive/accessibility browser checks |
+| Quality | 1,703 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1016,9 +1042,16 @@ Work in this order unless user evidence changes it:
    replay and partial-route conditions became persistent notices instead of
    toasts — which uncovered and fixed a blank-screen dead end on a denied
    permission.
-8. **Rework Plans discovery around recommendations before Browse all.** Also
-   surfaces the fact that the Plans landing renders 25 of 58 programmes, so a
-   new programme is findable only by search.
+8. **ACTIVE — Rework Plans discovery around recommendations before Browse all.**
+   The recommendation engine landed 2026-08-07 (see 4A). Remaining: lead the
+   landing with the active plan, reduce chip/collection overload, and the
+   compare flow.
+   **Correction:** this entry claimed the landing "renders 25 of 58 programmes,
+   so a new programme is findable only by search". That was never true and was
+   repeated twice without being checked. Measured against the real catalogue,
+   the category chips reach **58 of 58** — every programme, including newly
+   added ones. Discovery needed better *leading*, not rescuing from
+   unreachability.
 9. **Continue exercise metadata and shared visual-system cleanup in bounded
    batches.**
 
@@ -1026,6 +1059,122 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Bug from real use: "if I'm doing tricep pushdowns with bands
+  why does bodyweight come into it".** Reported as a band-weight bug (light 10 /
+  medium 20 / heavy 30). Those values were already correct everywhere — defaults,
+  the v5 migration that force-canonicalises every account, and a validator that
+  throws otherwise — so nothing was changed there. The follow-up question found
+  the actual defect.
+  - **A band does two opposite jobs and only one was implemented.** On a pull-up
+    a band ASSISTS: load = bodyweight − band. On a pushdown the band IS the
+    load. Every banded set went through `applyBandAssistance`, so a
+    `Band Triceps Pushdown` with a Medium (20 kg) band on an 80 kg athlete
+    logged **60 kg and 720 volume credits** instead of 20 kg and 240 — body mass
+    leaking into an exercise that never lifts it, at roughly triple the volume.
+    Reachable with real catalogue exercises (`Band Triceps Pushdown`,
+    `Band Leg Curl` in JT Shed).
+  - `bandRole(exerciseName)` decides from the existing `isBodyweightExercise`
+    predicate, and `applyBandLoad` is now the single entry point the cockpit
+    uses — picking assistance vs resistance is a property of the exercise, not
+    something a caller should have to remember. New `loadMode: 'banded'`.
+  - **History is re-read, never rewritten.** Sets logged before the fix keep the
+    exact `w` they were logged with; `resolvedLoadMode` just stops calling a
+    banded pushdown "assisted". Retroactively rewriting logged loads would be a
+    data-loss change and is deliberately NOT done — past volume for band
+    accessories stays as recorded. A corrective migration would need its own
+    decision and a backup.
+  - **Both adjacent findings fixed in the follow-up commit.**
+    - **The band weights are visible again.** The settings block was
+      `display:none` ("retired as a power-user knob"), so an athlete could
+      neither verify L=10/M=20/H=30 nor correct them if their bands differ —
+      almost certainly why this was reported as a band-weight bug. Restored with
+      a hint explaining that the value is the load on band work and the
+      assistance on pull-ups. Settings number inputs also rendered at 36px and
+      now meet the 44px target.
+    - **Nothing invents a body weight any more.** `_currentBodyweight` returned
+      a hardcoded 75 kg, which then became the LOGGED load on every bodyweight
+      and band-assisted set and flowed into volume, PRs and the Hybrid Score as
+      if measured; `buildSetRow` printed it in the weight field as the
+      athlete's own. It now returns null, and the athlete is asked once at the
+      moment the number is needed (`numberPromptModal`, stored to
+      `defaultBodyWeight` + today's `bodyWeightLog` entry, exactly as the
+      profile does). A dismissed prompt cancels the change rather than logging a
+      zero, and a band RESISTANCE set never triggers it — it never needed body
+      mass.
+    - `core-ergonomics-check` had been passing *because of* the fabrication: its
+      fixture carried no body weight and relied on the 75 kg stand-in. It now
+      supplies a real one.
+  - `tests/workout_load_mode.test.js` +15 (23 total), including that changing
+    bodyweight cannot move a pushdown's load by a kilo, that every non-weight
+    body weight is treated as unknown, and that the set row never prints a body
+    weight the athlete never gave. `workout_logging` gained the banded-accessory
+    case and awaits the now-async load-mode entry points. Verified: 1703 unit
+    tests, typecheck, smoke, precache, workflow gates, and the core-ergonomics /
+    set-row / session-outline / finish-review / modal-accessibility browser
+    checks.
+
+- **2026-08-07 — Phase 4A opened: recommendations that are actually
+  recommendations.**
+  - **The row was a popularity chart wearing a personalisation label.**
+    `scoreForUser` scored on popularity, completionRate, rating, `featured` and
+    `author.type` — every one a catalogue constant, identical for all athletes —
+    plus the active program id and a beginner boost for new accounts. It never
+    read `fitnessGoal`, `fitnessLevel`, `equipmentTier`, `equipment` or
+    `weightGoal`, all of which onboarding collects and stores. Proven before
+    changing anything: a dedicated advanced runner with no equipment and a
+    beginner with a full gym got **byte-identical** suggestions, under the
+    heading "Recommended For You · Based on your training".
+  - **The reasons were badges.** "Staff Pick" and "Helyx Certified" describe the
+    programme, not the fit; the fallback was a spec ("4 days/week · 12 weeks").
+    Neither answers "why am I being shown this?".
+  - `js/programs/recommendation-fit.js` scores goal, experience level,
+    equipment (reusing `compare.js`'s `equipmentFit` rather than a second
+    matcher), weight goal, and **actual recent training frequency** — the part
+    that earns the words "based on your training". Editorial signal is kept as a
+    small tiebreaker held OUT of the personal score, so it can order two equal
+    fits but can never promote an unfitting programme, and it never appears as a
+    reason.
+  - **No reason, no recommendation.** `eligible` requires at least one true
+    personal reason; `getRecommendations` returns nothing for an athlete who has
+    told the app nothing, and the row simply does not render. An empty row is
+    honest; an invented one is not.
+  - **Mismatches are stated, not buried.** Missing equipment is named
+    ("Needs barbell, rack"), and the easier-than-you penalty SCALES with the
+    gap — one rung down is a legitimate lighter option, but Couch to 5K was
+    still ranking second for an advanced runner until it did.
+  - **`renderProgramCard`'s third parameter was dead.** It took `showBadge` and
+    never read it, so the recommendations row passed `true` and rendered
+    nothing — the reasons existed and were dropped on the floor. It now takes
+    the reason string and renders it.
+  - **The headline reason is chosen across the row, not per card**
+    (`distinguishingReasons`): taking `reasons[0]` gave all five cards the same
+    line. Where every programme genuinely matches on every known axis they still
+    share one — that is the honest answer, and the card's existing meta line
+    differentiates on duration and days/week.
+  - **Corrected a false premise this roadmap had repeated twice:** the Plans
+    landing was said to render "25 of 58 programmes, so a new programme is
+    findable only by search". Measured against the real catalogue, the category
+    chips reach **58 of 58**. Discovery needed better leading, not rescuing.
+  - **Second slice — the row states its basis.** "Ask only for missing
+    information" proved unreachable: `settings` seeds hybrid/intermediate/gym,
+    and `shouldShowOnboarding` auto-completes onboarding for anyone with stored
+    data without asking a single question. So nothing is ever missing, and an
+    upgrading athlete is told the row was built on *their* goal when it was
+    built on three assumptions — nothing in state tells the two apart. An inline
+    "what's missing?" prompt was built, proven dead by driving it, and replaced
+    with a collapsed basis strip that names the values used and corrects them in
+    one tap, writing the same settings fields the Settings screen owns.
+  - **Also confirmed already done:** "lead with the active plan, current week,
+    next session, and progress" — `renderActiveProgramBanner` renders above the
+    tabs with programme name, Week N of M, the next session and a progress ring.
+    No change needed.
+  - `tests/recommendation_fit.test.js` (28) and
+    `scripts/plan-recommendations-browser-check.mjs`, which drives the real
+    Discover surface for two different athletes and asserts they are shown
+    different programmes with visible, non-badge reasons. Verified: 1683 unit
+    tests, typecheck, smoke, precache, workflow gates, and the five existing
+    programme browser checks. Second slice verified at 1687 tests.
 
 - **2026-08-07 — Phase 2C finished, and with it Phase 2: the states that are
   not the run.** `js/gps/run-notices.js` is the copy model, built on one rule —
@@ -1333,9 +1482,10 @@ testable on its own.
   - Added one exercise the catalogue lacked, `Band Kneeling Crunch`. The other
     28 already resolved — `Dumbbell Farmer Carry` and `Dumbbell Reverse Lunge`
     via existing aliases/canonical names.
-  - **Observation, not a defect:** the Plans landing renders 25 of the now 58
-    programs, so a new entry is reachable via search but not by browsing. That is
-    the discovery problem Phase 4A already owns; no change made here.
+  - ~~**Observation, not a defect:** the Plans landing renders 25 of the now 58
+    programs, so a new entry is reachable via search but not by browsing.~~
+    **Wrong — corrected 2026-08-07.** Measured: the category chips reach 58 of
+    58. A new programme is reachable by browsing, not only by search.
   - `tests/shed_pplul_program.test.js` (20 tests) pins both progression tables
     week by week, the divergence between them in all 12 weeks, deload accessory
     scaling, per-day prescriptions for a lift appearing on two days (Pull-Up,

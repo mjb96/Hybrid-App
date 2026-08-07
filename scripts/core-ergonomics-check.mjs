@@ -70,7 +70,10 @@ const state = {
   activeProgramId: 'hybrid_engine',
   activeActivationId: 'act_ergonomics',
   onboardingComplete: true,
-  settings: { name: 'Ergonomics Athlete', weightUnit: 'kg', distanceUnit: 'km' },
+  // A real body weight, because bodyweight/assisted sets are logged against it.
+  // This check used to pass on a hardcoded 75 kg the app substituted whenever it
+  // had never been told one — the fabrication that fix removed.
+  settings: { name: 'Ergonomics Athlete', weightUnit: 'kg', distanceUnit: 'km', defaultBodyWeight: 82 },
   weeks: {
     '1': {
       activationId: 'act_ergonomics',

@@ -3,7 +3,9 @@ import test from 'node:test';
 
 import {
   applyBandAssistance,
+  applyBandLoad,
   applyLoadMode,
+  bandRole,
   isBodyweightExercise,
   resolvedLoadMode,
 } from '../js/workout/load-mode.js';
@@ -76,4 +78,149 @@ test('set rows display max reps as an explicit target', () => {
   const html = buildSetRow({}, 0, 'Push-Ups', null, 'kg', 'Push-Ups', 82, 'max reps', null);
   assert.match(html, /placeholder="max reps"/);
   assert.match(html, /data-target-reps=""/);
+});
+
+// =============================================================================
+// BAND ROLE — reported from real use: "if I'm doing tricep pushdowns with
+// bands why does bodyweight come into it".
+//
+// A band does two opposite jobs and only one was implemented. On a pull-up it
+// ASSISTS (load = bodyweight − band); on a pushdown it IS the load. Every
+// banded set went through the assistance path, so a Band Triceps Pushdown with
+// a Medium (20 kg) band on an 80 kg athlete logged 60 kg and roughly triple the
+// volume credits — body mass leaking into an exercise that never lifts it.
+// =============================================================================
+
+const BANDS = { L: 10, M: 20, H: 30 };
+
+test('a band assists only the exercises body mass actually loads', () => {
+  for (const name of ['Pull-Up', 'Chin-Ups', 'Dips', 'Push-Ups']) {
+    assert.equal(bandRole(name), 'assist', name);
+  }
+  for (const name of ['Band Triceps Pushdown', 'Band Leg Curl', 'Band Pull-Apart',
+    'Face Pull', 'Bench Press', 'Lat Pulldown']) {
+    assert.equal(bandRole(name), 'resist', name);
+  }
+});
+
+test('a banded pushdown logs the band, not the athlete', () => {
+  const set = applyBandLoad({ r: '12' }, 'M', {
+    exercise: 'Band Triceps Pushdown', bodyweight: 80, bandWeights: BANDS,
+  });
+  assert.equal(set.w, '20', 'the Medium band is the load');
+  assert.equal(set.loadMode, 'banded');
+  assert.equal(set.band, 'M');
+  assert.equal(set.bw, undefined);
+});
+
+test('a banded pull-up still subtracts the band from body mass', () => {
+  const set = applyBandLoad({ r: '5' }, 'M', {
+    exercise: 'Pull-Up', bodyweight: 80, bandWeights: BANDS,
+  });
+  assert.equal(set.w, '60');
+  assert.equal(set.loadMode, 'assisted');
+});
+
+test('bodyweight cannot reach a resistance exercise at all', () => {
+  // The whole point of the report: changing bodyweight must not move the load
+  // on a pushdown by so much as a kilo.
+  const at = (bodyweight) => applyBandLoad({}, 'H', {
+    exercise: 'Band Leg Curl', bodyweight, bandWeights: BANDS,
+  }).w;
+  assert.equal(at(60), at(120));
+  assert.equal(at(60), '30');
+});
+
+test('each band tier resists with its own weight', () => {
+  for (const [band, kg] of [['L', '10'], ['M', '20'], ['H', '30']]) {
+    const set = applyBandLoad({}, band, {
+      exercise: 'Band Pull-Apart', bandWeights: BANDS,
+    });
+    assert.equal(set.w, kg, band);
+  }
+});
+
+test('a custom band weight is respected, not the default', () => {
+  const set = applyBandLoad({}, 'L', {
+    exercise: 'Band Pull-Apart', bandWeights: { L: 7.5, M: 20, H: 30 },
+  });
+  assert.equal(set.w, '7.5');
+});
+
+test('an unknown band weight resists with zero rather than inventing a load', () => {
+  const set = applyBandLoad({}, 'M', { exercise: 'Band Pull-Apart', bandWeights: {} });
+  assert.equal(set.w, '0');
+});
+
+test('a legacy banded set is re-read by role, without its stored load changing', () => {
+  // Sets logged before this fix keep exactly the weight they were logged with —
+  // history is not rewritten — but they stop claiming to be "assisted".
+  const legacy = { band: 'M', w: '60', r: '12', c: true };
+  assert.equal(resolvedLoadMode(legacy, 'Band Triceps Pushdown'), 'banded');
+  assert.equal(resolvedLoadMode(legacy, 'Pull-Up'), 'assisted');
+  assert.equal(legacy.w, '60', 'the stored load must not be touched');
+});
+
+test('an explicit loadMode always wins over the role guess', () => {
+  assert.equal(resolvedLoadMode({ loadMode: 'banded', band: 'M' }, 'Pull-Up'), 'banded');
+  assert.equal(resolvedLoadMode({ loadMode: 'assisted', band: 'M' }, 'Band Leg Curl'), 'assisted');
+});
+
+// =============================================================================
+// UNKNOWN BODY WEIGHT — the app used to substitute a hardcoded 75 kg.
+//
+// That number then became the LOGGED load on every bodyweight and band-assisted
+// set, and flowed into volume, PRs and the Hybrid Score as though it had been
+// measured. An empty field the athlete fills in is worth more than a confident
+// wrong number.
+// =============================================================================
+
+test('an unknown body weight is left blank, never guessed at 75', () => {
+  const bw = applyLoadMode({}, 'bodyweight', {});
+  assert.equal(bw.w, '', 'must not invent a body weight');
+  assert.equal(bw.bw, true, 'it is still a bodyweight set');
+
+  const assisted = applyBandAssistance({}, 'M', { bandWeights: BANDS });
+  assert.equal(assisted.w, '', 'assistance off an unknown mass is unknowable');
+  assert.equal(assisted.loadMode, 'assisted');
+  assert.equal(assisted.band, 'M');
+});
+
+test('every non-weight body weight is treated as unknown', () => {
+  for (const value of [null, undefined, 0, -5, NaN, '', 'heavy']) {
+    assert.equal(applyLoadMode({}, 'bodyweight', { bodyweight: value }).w, '', String(value));
+    assert.equal(
+      applyBandAssistance({}, 'M', { bodyweight: value, bandWeights: BANDS }).w, '', String(value),
+    );
+  }
+});
+
+test('a known body weight is still used exactly', () => {
+  assert.equal(applyLoadMode({}, 'bodyweight', { bodyweight: 82.5 }).w, '82.5');
+  assert.equal(
+    applyBandAssistance({}, 'H', { bodyweight: 82.5, bandWeights: BANDS }).w, '52.5',
+  );
+});
+
+test('a band resistance set never needed body weight in the first place', () => {
+  // The one case that must be unaffected by any of this.
+  const set = applyBandLoad({}, 'M', { exercise: 'Band Triceps Pushdown', bandWeights: BANDS });
+  assert.equal(set.w, '20');
+});
+
+test('the set row does not print a body weight the athlete never gave', () => {
+  const row = buildSetRow({ type: '' }, 0, 'Pull-Ups', null, 'kg', 'Pull-Ups', null);
+  assert.doesNotMatch(row, /value="75"/);
+  const known = buildSetRow({ type: '' }, 0, 'Pull-Ups', null, 'kg', 'Pull-Ups', 82);
+  assert.match(known, /value="82"/);
+});
+
+test('the number prompt refuses to return a nonsense body weight', async () => {
+  // Guards the replacement for the hardcoded 75: a dismissed or empty prompt
+  // must yield null, never a zero that would then be logged as a load.
+  const { numberPromptModal } = await import('../js/ui/confirm-modal.js');
+  // No DOM in this suite: the modal short-circuits rather than throwing, which
+  // is the behaviour every non-browser caller depends on.
+  assert.equal(typeof numberPromptModal, 'function');
+  assert.equal(await numberPromptModal({ title: 'x' }), null);
 });

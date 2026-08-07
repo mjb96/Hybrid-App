@@ -520,6 +520,76 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   letter-spacing: 2px;
 }
 
+/* What the recommendations were actually built on. An upgrading athlete never
+   answered these — settings ship with hybrid/intermediate/full-gym and
+   onboarding auto-completes for anyone with stored data — so the row states its
+   assumptions and lets one tap correct them. Collapsed: costs nothing when the
+   assumptions are right. */
+.prog-basis { margin: 0 0 10px; }
+.prog-basis__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch-target, 44px);
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.prog-basis__summary::-webkit-details-marker { display: none; }
+.prog-basis__values { font-weight: 600; }
+.prog-basis__change {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--color-cyan, #22d3ee);
+}
+.prog-basis__body {
+  padding: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prog-basis__question {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-inverse);
+  margin-bottom: 6px;
+}
+.prog-basis__options { display: flex; flex-wrap: wrap; gap: 8px; }
+.prog-basis__btn {
+  flex: 1 1 auto;
+  min-width: 88px;
+  min-height: var(--touch-target, 44px);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-medium);
+  background: var(--overlay-lg);
+  color: var(--text-inverse);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.prog-basis__btn.is-current {
+  border-color: var(--color-cyan, #22d3ee);
+  color: var(--color-cyan, #22d3ee);
+}
+.prog-basis__btn:active { opacity: 0.75; }
+
+/* Why THIS athlete is seeing THIS programme. Only ever a true statement about
+   their own goal, level, kit or recent training — never a badge like "Staff
+   Pick", which says nothing about fit. */
+.prog-card-reason {
+  font-size: 0.6rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--color-cyan, #22d3ee);
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Large card — for grid views */
 .prog-card--large {
   width: 100%;

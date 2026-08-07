@@ -3,95 +3,59 @@
 // RECOMMENDATION ENGINE — Goal and context-aware program suggestions
 // =============================================================================
 import { PROGRAM_CATALOG } from './catalog.js';
+import {
+  athleteProfile, distinguishingReasons, programFit, recentWeeklySessions,
+} from './recommendation-fit.js';
+import { loggedDateSet } from '../analytics/logged-days.js';
+import { todayKey } from '../dates.js';
 
-// Recommendation rules: given user context, score programs
-// appState is passed in to read goals, history, active program, etc.
+// Local, as in `brain/hybrid-score/history.js`: importing DEFAULT_DAYS would
+// drag the whole state module (and its storage side effects) into the programs
+// layer for a seven-item constant.
+const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+/**
+ * Programmes that actually fit THIS athlete, most fitting first.
+ *
+ * Every entry carries the reasons it was chosen, and an entry with no true
+ * personal reason is not returned at all — so an athlete who has told the app
+ * nothing gets an empty list rather than a popularity chart labelled
+ * "Recommended For You". Callers must handle that empty case by not claiming a
+ * personalised row (see `renderCollectionRows`).
+ *
+ * @param {any} appState
+ * @param {number} [limit]
+ * @returns {{program:any, score:number, reason:string, reasons:string[],
+ *            cautions:string[]}[]}
+ */
 export function getRecommendations(appState, limit = 6) {
   const activeProgramId = appState?.activeProgramId;
+  const profile = athleteProfile(appState, {
+    weeklySessions: recentWeeklySessions(
+      loggedDateSet(appState, WEEK_DAYS), todayKey(),
+    ),
+  });
 
-  // Score each program
-  const scored = PROGRAM_CATALOG
+  const ranked = PROGRAM_CATALOG
     .filter(p => p.id !== activeProgramId) // Don't recommend current program
-    .map(p => ({
-      program: p,
-      score: scoreForUser(p, appState),
-      reason: getRecommendationReason(p, appState),
-    }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score);
+    .map((program) => ({ program, fit: programFit(program, profile) }))
+    .filter(({ fit }) => fit.eligible)
+    .sort((a, b) => b.fit.score - a.fit.score)
+    .slice(0, limit);
 
-  return scored.slice(0, limit);
-}
+  // The headline reason is chosen across the whole row, not per programme: five
+  // cards all reading "Matches your endurance goal" is true and useless.
+  const headlines = distinguishingReasons(ranked.map(({ fit }) => fit.reasons));
 
-function scoreForUser(program, appState) {
-  let score = 0;
-
-  // Base popularity score (everyone sees popular programs)
-  score += (program.popularity / 100) * 20;
-
-  // Completion rate bonus — completable programs are more valuable
-  score += (program.completionRate || 0) * 15;
-
-  // Rating bonus
-  score += (program.rating || 0) * 5;
-
-  // Featured bonus
-  if (program.featured) score += 10;
-
-  // Helyx official bonus (we trust our own programs)
-  if (program.author.type === 'official') score += 8;
-
-  // If no state, just return popularity-based score
-  if (!appState) return score;
-
-  // Context-aware scoring based on active program
-  const activeProg = appState.activeProgramId;
-  if (activeProg) {
-    // If user is running a strength program, suggest hybrid or running next
-    if (activeProg.includes('strength') || activeProg.includes('nsuns') || activeProg.includes('gzclp')) {
-      if (program.category === 'hybrid' || program.category === 'running') score += 20;
-    }
-    // If user is running a running program, suggest hybrid next
-    if (activeProg.includes('run') || activeProg.includes('marathon') || activeProg === 'couch_to_5k') {
-      if (program.category === 'hybrid' || program.category === 'strength') score += 20;
-    }
-    // If user is on Helyx program, recommend other official programs
-    if (activeProg === 'hybridhq_foundations') {
-      if (program.id === 'hybrid_engine' || program.id === 'hybrid_strength_5k') score += 25;
-    }
-    // If user is on Hyrox program, recommend another Hyrox
-    if (activeProg.includes('hyrox')) {
-      if (program.category === 'hyrox') score += 15;
-    }
-  }
-
-  // Beginner-friendly boost for new users
-  const weekCount = Object.keys(appState.weeks || {}).length;
-  if (weekCount <= 4 && program.difficulty === 'beginner') score += 15;
-
-  return score;
-}
-
-function getRecommendationReason(program, appState) {
-  const activeProg = appState?.activeProgramId;
-
-  // Editorial curation only — no fabricated rating/enrolled/completion numbers
-  // are surfaced as reasons (the catalog values drive ranking silently).
-  if (program.featured) return 'Staff Pick';
-  if (program.author?.type === 'official') return 'Helyx Certified';
-
-  if (activeProg) {
-    if ((activeProg.includes('strength') || activeProg.includes('nsuns')) &&
-        (program.category === 'hybrid' || program.category === 'running')) {
-      return 'Great next step after strength training';
-    }
-    if ((activeProg.includes('run') || activeProg.includes('marathon')) &&
-        (program.category === 'hybrid' || program.category === 'strength')) {
-      return 'Add strength to your running base';
-    }
-  }
-
-  return `${program.sessionsPerWeek} days/week · ${program.durationWeeks} weeks`;
+  return ranked.map(({ program, fit }, i) => ({
+    program,
+    score: fit.score,
+    // `reason` stays a single string for the existing card renderers; the full
+    // list is there for surfaces that can show more than one line.
+    reason: headlines[i],
+    reasons: fit.reasons,
+    cautions: fit.cautions,
+  }));
 }
 
 // Get a "Similar Programs" list for a given program

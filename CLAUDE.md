@@ -100,6 +100,13 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   surface; `showInfoNotice` must NOT call `showPanel` — a recovered run is still live.
   A mid-run `onPositionError` must never tear down the session.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
+- Recommendations: `js/programs/recommendation-fit.js` is the fit model — score from what
+  the ATHLETE told the app (`fitnessGoal`/`fitnessLevel`/`equipmentTier`/`equipment`/
+  `weightGoal` + real recent training frequency), never from catalogue constants.
+  Editorial signal (popularity/rating/featured/official) is a tiebreaker held OUT of the
+  personal score and must NEVER surface as a reason — "Staff Pick" describes the
+  programme, not the fit. No true personal reason ⇒ `eligible:false` ⇒ the row does not
+  render; an empty row is honest, an invented one is not.
 - Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)
   — the cockpit resolves each lift's target via `getWeekModifier`→`liftTarget`
@@ -129,6 +136,16 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
   between days (`neighborDay`). Coach: deterministic **ask-the-coach** Q&A
   (`js/brain/coach-qa.js`, chips on the briefing) + PR share card (`js/brain/pr-share.js`).
+- Bands do TWO opposite jobs (`js/workout/load-mode.js`): on a bodyweight movement a
+  band ASSISTS (`w = bodyweight − band`, `loadMode: 'assisted'`); on anything else the
+  band IS the load (`w = band`, `loadMode: 'banded'`). `bandRole()` decides from the
+  exercise name — never assume assistance. Always go through `applyBandLoad` and pass
+  the lift name; calling `applyBandAssistance` directly on an accessory is the bug that
+  logged a 20kg-band pushdown as 60kg with triple the volume. Band kg stay canonical
+  L=10/M=20/H=30 (v5 migration enforces it). Sets logged before the fix keep their
+  stored `w` — history is re-READ by role, never rewritten. Body weight has NO
+  default: `_currentBodyweight` returns null when unknown and the athlete is asked
+  (`numberPromptModal`) rather than logging a fabricated 75kg as their load.
 - Logger progression and history are deliberately separate: global dated exercise
   history (`exerciseLoggerHistory`) powers the read-only **Last performed** panel
   and analytics, while `computeDiagnosticForLift` only derives a next-load
