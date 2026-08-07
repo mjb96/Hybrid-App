@@ -28,6 +28,7 @@ import {
 } from './state/activation-identity.js';
 import { migrateLegacyRunSessions, runSessionsForDay } from './state/run-sessions.js';
 import { isCompletedSet } from './set-utils.js';
+import { sessionSetPlan, clearSessionSetPlan, clearDaySetPlans } from './workout/set-plan.js';
 import {
   beginRecoveryGate,
   reconcileRecoveryGate,
@@ -500,6 +501,18 @@ export function verifyWeekStorageSchema(wk) {
   DEFAULT_DAYS.forEach((day) => {
     const blueprint = activeProgram.days?.[day];
     for (const liftName of (blueprint?.lifts || [])) {
+      // A set the athlete DELETED must not be padded back. This pass runs on
+      // boot, week nav, run logging and GPS finish, so without this an ✕ in the
+      // cockpit undid itself moments later — and removing an exercise's last set
+      // (the only way to drop it from today) re-seeded the whole exercise.
+      const ownPlan = sessionSetPlan(week, day, liftName);
+      if (ownPlan === 0) {
+        if (week.lifts[day]) delete week.lifts[day][liftName];
+        const order = week.liftOrder?.[day];
+        if (Array.isArray(order)) week.liftOrder[day] = order.filter((n) => n !== liftName);
+        continue;
+      }
+      if (ownPlan != null) continue; // the athlete owns this lift's set count today
       const ctx = { program: activeProgram, week: wk, dayKey: day };
       const target = liftTarget(blueprint.desc, liftName, modifier, ctx);
       const existing = week.lifts?.[day]?.[liftName];
@@ -565,6 +578,9 @@ export function reconcileActiveProgramEdits(programId) {
       }
       week.lifts[day] = next;
       week.liftOrder[day] = [...liftNames];
+      // The day is being rebuilt wholesale from the edited blueprint, so any
+      // set count the athlete stamped on the old scaffolding is void.
+      clearDaySetPlans(week, day);
       updatedDays++;
     }
   }
@@ -627,6 +643,9 @@ export function reseedActiveProgramIntoWeek(wk) {
     blueprintLifts.forEach(liftName => {
       if (!existing[liftName] || !liftHasLoggedData(existing[liftName])) {
         existing[liftName] = prescribeSetsForLift(wk, d, liftName, program.days[d]?.desc, weekModifier, { program, week: wk, dayKey: d });
+        // Re-prescribed from this program+week's target — the athlete's own set
+        // count belonged to the scaffolding that was just replaced.
+        clearSessionSetPlan(week, d, liftName);
       }
     });
     // 3. Rebuild order: blueprint order, then retained logged lifts (history).
