@@ -6,6 +6,7 @@ import { isCompletedSet, isWarmupSet, isValidWorkingSet } from '../set-utils.js'
 import { runSessionsForDay } from '../state/run-sessions.js';
 import { explicitSessionStatus, SESSION_STATUS } from './session-status.js';
 import { activeSessionLiftNames } from '../workout-order.js';
+import { plannedSetsForLift } from './set-plan.js';
 
 function scheduledRun(blueprint) {
   const text = String(blueprint?.runs || '').trim().toLowerCase();
@@ -30,14 +31,28 @@ export function classifyPlannedSession(blueprint) {
   };
 }
 
-function plannedWorkingSets(program, week, blueprint, dayKey) {
-  if (!Array.isArray(blueprint?.lifts)) return 0;
+/**
+ * Two set counts, deliberately kept apart:
+ *   `prescribed` — what the program asks for. Decides whether the session was
+ *                  MODIFIED, so it must stay the pure plan.
+ *   `session`    — what today's session actually plans, after any set the
+ *                  athlete removed. Decides whether the session is COMPLETE:
+ *                  a set they deleted is not work left undone, and counting it
+ *                  told a finished workout it was unfinished.
+ */
+function plannedWorkingSets(program, week, blueprint, dayKey, weekData) {
+  if (!Array.isArray(blueprint?.lifts)) return { prescribed: 0, session: 0 };
   const modifier = getWeekModifier(program, week);
-  return blueprint.lifts.reduce((total, lift) => {
+  let prescribed = 0;
+  let session = 0;
+  for (const lift of blueprint.lifts) {
     const target = liftTarget(blueprint.desc, lift, modifier, { program, week, dayKey });
     const sets = Number(target?.sets);
-    return total + (Number.isFinite(sets) && sets > 0 ? Math.floor(sets) : 0);
-  }, 0);
+    const count = Number.isFinite(sets) && sets > 0 ? Math.floor(sets) : 0;
+    prescribed += count;
+    session += plannedSetsForLift(weekData, dayKey, lift, count);
+  }
+  return { prescribed, session };
 }
 
 function currentWorkingSets(dayLifts) {
@@ -67,7 +82,7 @@ function runWasLogged(weekData, day) {
  *  outcome:'rest'|'empty'|'partial'|'complete', complete:boolean, partial:boolean,
  *  componentOutcome:null|'strength-complete'|'run-complete',
  *  anyLogged:boolean, modified:boolean, finished:boolean, sessionStatus:'in_progress'|'finished', label:string,
- *  planned:{gym:boolean,run:boolean,sets:number,components:number},
+ *  planned:{gym:boolean,run:boolean,sets:number,prescribedSets:number,components:number},
  *  actual:{sets:number,materializedSets:number,run:boolean,components:number},
  *  progressLabel:string
  * }}
@@ -91,14 +106,17 @@ export function evaluateSessionCompletion(state, program, week, day) {
       modified: false, finished,
       sessionStatus: finished ? SESSION_STATUS.FINISHED : SESSION_STATUS.IN_PROGRESS,
       label: 'Strength Workout',
-      planned: { gym: true, run: false, sets: working.total, components: 1 },
+      planned: { gym: true, run: false, sets: working.total, prescribedSets: working.total, components: 1 },
       actual: { sets: working.complete, materializedSets: working.total, run: false, components: Number(complete) },
       progressLabel: working.total ? `${working.complete} of ${working.total} sets logged` : 'Add an exercise to begin',
     };
   }
   const blueprint = program?.days?.[day] || null;
   const plan = classifyPlannedSession(blueprint);
-  const expectedSets = plan.hasGym ? plannedWorkingSets(program, weekKey, blueprint, day) : 0;
+  const planSets = plan.hasGym
+    ? plannedWorkingSets(program, weekKey, blueprint, day, weekData)
+    : { prescribed: 0, session: 0 };
+  const expectedSets = planSets.session;
   const allDayLifts = weekData.lifts?.[day] || {};
   const activeNames = activeSessionLiftNames(weekData, day, blueprint);
   const activeDayLifts = Object.fromEntries(activeNames.map((name) => [name, allDayLifts[name]]));
@@ -123,8 +141,10 @@ export function evaluateSessionCompletion(state, program, week, day) {
   const loggedNames = Object.entries(activeDayLifts)
     .filter(([, sets]) => Array.isArray(sets) && sets.some(isValidWorkingSet))
     .map(([name]) => name);
+  // Modified is measured against the PLAN, not the session: removing a set is
+  // exactly the kind of deviation this flag exists to record.
   const modified = plan.hasGym && (
-    working.total !== expectedSets || loggedNames.some((name) => !blueprintNames.has(name))
+    working.total !== planSets.prescribed || loggedNames.some((name) => !blueprintNames.has(name))
   );
 
   const outcome = plan.isRest ? 'rest' : complete ? 'complete' : partial ? 'partial' : 'empty';
@@ -140,7 +160,10 @@ export function evaluateSessionCompletion(state, program, week, day) {
   return {
     outcome, complete, partial, componentOutcome, anyLogged, modified, finished, label: plan.label,
     sessionStatus: finished ? SESSION_STATUS.FINISHED : SESSION_STATUS.IN_PROGRESS,
-    planned: { gym: plan.hasGym, run: plan.hasRun, sets: expectedSets, components: plannedComponents },
+    planned: {
+      gym: plan.hasGym, run: plan.hasRun, sets: expectedSets,
+      prescribedSets: planSets.prescribed, components: plannedComponents,
+    },
     actual: { sets: working.complete, materializedSets: working.total, run, components: actualComponents },
     progressLabel: bits.join(' · ') || 'No planned training',
   };

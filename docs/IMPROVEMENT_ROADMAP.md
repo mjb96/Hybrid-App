@@ -946,6 +946,47 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-07 — Bug: a deleted set came back, and the review kept calling the
+  session incomplete.** Reported from real use ("if I delete a set when I'm
+  doing a workout, it keeps coming back saying it's not complete"). Both halves
+  reproduced against the real modules before any fix.
+  - **The row came back.** `verifyWeekStorageSchema` re-materialises the
+    prescribed row count into every day of the current week, and it runs
+    constantly — boot, week nav, run logging, GPS finish.
+    `reconcilePrescribedSets` never REMOVES a touched row but does PAD a short
+    array back up to the prescription, so deleting the 4th set of a 4×5 mid-
+    session put a blank row back moments later. Removing an exercise's last set
+    — the only way to drop an exercise from today — resurrected the whole
+    exercise the same way.
+  - **The missing fact was intent.** A short array can mean "not materialised
+    yet" (pad it) or "the athlete removed that set" (leave it), and nothing
+    recorded which. `js/workout/set-plan.js` is that record: deleting a row
+    stamps the athlete's own working-set count into
+    `liftMeta[day][lift].plannedSets`. Per week+day (as liftMeta is), working
+    sets only, and 0 is a real value meaning "removed from this session" — it
+    is what keeps the exercise gone.
+  - **The review counted the set anyway.** `evaluateSessionCompletion` took its
+    denominator straight from the plan, so even with the row gone it read
+    "3 of 4 planned sets" for a session finished exactly as intended.
+    `plannedWorkingSets` now returns `prescribed` AND `session`: completion is
+    judged against the session, `modified` still against the plan — removing a
+    set is precisely the deviation that flag exists to record. The cockpit's
+    "Target: N × R" label reads the same session plan, so it cannot promise a
+    set the session no longer has.
+  - **Deliberate rebuilds hand the count back**: `reseedActiveProgramIntoWeek`
+    clears the stamp for any lift it re-prescribes, and
+    `reconcileActiveProgramEdits` clears the day it rebuilds wholesale.
+  - **Undo restores the stamp too**, not just the row — otherwise undoing a
+    deletion would leave the session's set count frozen at the reduced number.
+    The removal/restore pair is pure (`applySetRemoval`/`restoreSetRemoval`) so
+    the cockpit's ✕ is a thin wrapper and the data contract is DOM-free
+    testable, matching `applyExerciseSwap`.
+  - `tests/workout_set_plan.test.js` (14), including the regression that an
+    untouched short day is STILL padded — the repair path this fix must not
+    disable. Verified: 1598 unit tests, typecheck, smoke, precache regenerated.
+    (`tests/route_db_migration.test.js` fails in this container for want of the
+    `fake-indexeddb` dev dependency — pre-existing, unrelated.)
+
 - **2026-08-06 — Phase 2B complete: finishing a workout is a review, not a form.**
   Finished the four remaining bullets after the notable-progress slice below.
   - **A form became a review.** Duration stays visible; gym effort, run effort

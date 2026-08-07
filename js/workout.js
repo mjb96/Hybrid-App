@@ -12,6 +12,7 @@ import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { buildSessionOutline, outlineSummaryLine } from './workout/session-outline.js';
+import { applySetRemoval, restoreSetRemoval, plannedSetsForLift } from './workout/set-plan.js';
 import { buildSessionReview } from './workout/session-review.js';
 import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
@@ -319,11 +320,15 @@ function _buildExerciseCardEl(liftName, loggedLiftsData, weekData, wk, selectedD
       target = liftTarget(homeBlueprint.desc, displayLiftName, weekModifier, jtCtx);
       diagnostic = computeDiagnosticForLift(wk, selectedDay, liftName, repGoalFromTarget(target.reps) || 0);
       // Label shows the SAME target we materialise (inline spec or week modifier),
-      // so "Target: 4 × 5" always matches the number of set rows populated. For the
-      // tiered J&T model, use its rich per-exercise label (10RM + 3×6 @ 70%, 15RM +
-      // 2 MRS, 3 × 6–10, …) instead of collapsing every tier to sets×reps.
+      // so "Target: 4 × 5" always matches the number of set rows populated —
+      // including after the athlete removes a set, which is why the count comes
+      // from the session's own plan rather than straight off the prescription.
+      // For the tiered J&T model, use its rich per-exercise label (10RM + 3×6 @
+      // 70%, 15RM + 2 MRS, 3 × 6–10, …) instead of collapsing every tier to
+      // sets×reps.
       const jtTarget = jtLiftTarget(activeProgram, wk, selectedDay, displayLiftName);
-      blueprintLabel = jtTarget ? `Target: ${jtTarget.label}` : `Target: ${target.sets} × ${target.reps}`;
+      const labelSets = plannedSetsForLift(weekData, selectedDay, liftName, target.sets);
+      blueprintLabel = jtTarget ? `Target: ${jtTarget.label}` : `Target: ${labelSets} × ${target.reps}`;
       if (jtTarget?.prescription?.setPlan?.length) jtRoleTags = jtSetRoleTags(jtTarget.prescription.setPlan);
     }
   } catch(e) { console.warn(e); }
@@ -1560,29 +1565,20 @@ export function removeCustomSetRow(liftName, setIndex) {
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const wk = activeWorkoutWeekKey(appState);
-  const dayLifts = appState.weeks[wk]?.lifts?.[selectedDay];
-  if (!dayLifts?.[liftName]) return;
+  const week = appState.weeks?.[wk];
+  if (!week) return;
 
-  // Snapshot BEFORE mutating so Undo can restore the exact prior state — both a
-  // single removed set and the case where removing the last set deletes the
-  // whole exercise (and its liftOrder entry). The ✕ sits ~40px from the ✓, so a
-  // fat-finger on a logged set must be recoverable, not silent data loss.
-  const priorSets  = dayLifts[liftName].map(s => ({ ...s }));
-  const priorOrder = Array.isArray(appState.weeks[wk].liftOrder?.[selectedDay])
-    ? [...appState.weeks[wk].liftOrder[selectedDay]] : null;
+  // The data operation (splice, drop an emptied exercise, and stamp the
+  // athlete's own set count so the scaffolding pass cannot pad the row back)
+  // lives in set-plan.js and is unit-tested; this is the UI around it. The
+  // snapshot it returns is what Undo restores — the ✕ sits ~40px from the ✓, so
+  // a fat-finger on a logged set must be recoverable, not silent data loss.
+  const result = applySetRemoval(week, selectedDay, liftName, setIndex);
+  if (!result.ok) return;
 
-  dayLifts[liftName].splice(setIndex, 1);
-  if (dayLifts[liftName].length === 0) {
-    delete dayLifts[liftName];
-    // Drop the now-empty exercise from the explicit display order too.
-    const order = appState.weeks[wk].liftOrder?.[selectedDay];
-    if (Array.isArray(order)) {
-      appState.weeks[wk].liftOrder[selectedDay] = order.filter(n => n !== liftName);
-    }
-  }
   _saveState(true);
   renderWorkout();
-  _offerSetUndo({ liftName, selectedDay, wk, priorSets, priorOrder });
+  _offerSetUndo({ liftName, selectedDay, wk, snapshot: result });
 }
 
 // Restore the pre-delete snapshot captured by removeCustomSetRow.
@@ -1590,13 +1586,7 @@ function _restoreRemovedSet(u) {
   const appState = _getState();
   const week = appState.weeks?.[u.wk];
   if (!week) return;
-  if (!week.lifts) week.lifts = {};
-  if (!week.lifts[u.selectedDay]) week.lifts[u.selectedDay] = {};
-  week.lifts[u.selectedDay][u.liftName] = u.priorSets.map(s => ({ ...s }));
-  if (u.priorOrder) {
-    if (!week.liftOrder) week.liftOrder = {};
-    week.liftOrder[u.selectedDay] = [...u.priorOrder];
-  }
+  if (!restoreSetRemoval(week, u.selectedDay, u.liftName, u.snapshot)) return;
   _saveState(true);
   renderWorkout();
   showToast('Set restored ✓');
