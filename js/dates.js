@@ -80,6 +80,16 @@ export function dateKey(date = new Date(), tz = DEFAULT_TZ) {
   return key;
 }
 
+// Which program day slot (`sun`…`sat`) the given instant falls on, in the given
+// timezone. The calendar key is resolved first and then parsed at UTC noon, so
+// the weekday is stable on a device whose process timezone differs from the one
+// it displays — three separate inline copies of this existed before, and only
+// the timezone-aware one is correct.
+const PROGRAM_DAY_SLOTS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+export function todayProgramDay(now = new Date(), tz = DEFAULT_TZ) {
+  return PROGRAM_DAY_SLOTS[new Date(`${dateKey(now, tz)}T12:00:00Z`).getUTCDay()];
+}
+
 // Add whole calendar days to a YYYY-MM-DD key. Noon-UTC arithmetic is immune to
 // local DST gaps/folds because the input/output are calendar keys, not instants.
 export function addDaysISO(dateISO, n) {

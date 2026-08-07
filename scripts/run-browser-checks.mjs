@@ -26,6 +26,7 @@ const checks = [
   'scripts/program-editor-browser-check.mjs',
   'scripts/active-program-edit-browser-check.mjs',
   'scripts/plan-recommendations-browser-check.mjs',
+  'scripts/plans-active-banner-browser-check.mjs',
   'scripts/program-preview-consistency-browser-check.mjs',
   'scripts/jt-shed-simplified-browser-check.mjs',
   'scripts/workout-history-browser-check.mjs',

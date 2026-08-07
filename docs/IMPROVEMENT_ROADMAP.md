@@ -717,14 +717,52 @@ Every metric detail includes:
 
 ## Phase 4 — Plans, exercise discovery, and editing
 
-**Status: ACTIVE — 4A started 2026-08-07 with the recommendation engine.**
+**Status: ACTIVE — 4A's recommendation engine and active-plan lead are done
+(2026-08-07). Remaining in 4A: chip/collection overload and the compare flow.**
 
 **Outcome:** choosing and changing training feels guided rather than
 catalogue-driven.
 
 ### 4A. Plans landing page
 
-- Lead with the active plan, current week, next session, and progress.
+- **DONE 2026-08-07 — leads with the active plan, and the plan it describes is
+  the one the athlete is actually in.** The banner was already first on the
+  screen, but it read the programme TEMPLATE and nothing else, so it announced
+  "Today: Push A" over a session that was already finished, in progress, or
+  performed on another day — Plans and Home disagreed about what to do next, and
+  Plans was the one that was wrong. `js/programs/active-plan-banner.js`
+  (`buildActivePlanBanner`, pure) reads the same canonical primitives Home's
+  Today card and the workout picker read — `evaluateSessionCompletion`,
+  `explicitSessionStatus`, `activeOneOffSession`, `buildProgramSessionChoices` —
+  in the same precedence order, so the two surfaces cannot drift:
+  - an unfinished **one-off** session outranks the plan, as on Home; offering a
+    programmed day first would have quietly dropped the one-off pointer;
+  - a **part-logged** day resumes on ITS day, not today;
+  - a **finished** day reads "Completed today" and names what is next;
+  - a **rest** day names the next real session by weekday — the old card said a
+    bare "Next", which told the athlete nothing about when;
+  - "still to come this week" stops at Sunday. The old forward scan wrapped, so
+    on a Saturday an unlogged Monday was presented as upcoming.
+- **DONE 2026-08-07 — "Continue" now carries the day it means.** It dispatched a
+  bare tab switch, so it opened the cockpit on whatever day was last selected
+  THERE. It now emits the same day-carrying actions Home does
+  (`select-program-workout` / `start-today-workout` /
+  `open-program-workout-picker`); the browser check parks the cockpit on Friday,
+  presses Resume on Plans, and asserts Monday opens. `continue-active-program`
+  and the `library:continue-training` event are gone with it.
+- **DONE 2026-08-07 — one progress number, and progress that actually moves.**
+  The plan percentage was printed three times (ring, bar, footer text) and only
+  changes when the program WEEK does, so the card looked identical after a
+  session as before it. It is now stated once, with its basis on the ring's
+  accessible label ("25% of the plan complete · 2 of 8 weeks finished" — the
+  ring had no label at all), beside this week's real count ("1 of 3 sessions done
+  this week").
+- **DONE 2026-08-07 — the leading card is reachable and hittable.** It was a
+  `div` with a `data-action` and no `role`/`tabindex`, so the first thing on the
+  Plans screen could not be operated by keyboard, and its only button rendered at
+  31px against the app's own 44px target.
+- `tests/active_plan_banner.test.js` (12 cases, including one asserting Home and
+  Plans agree state-for-state) + `scripts/plans-active-banner-browser-check.mjs`.
 - **DONE 2026-08-07 — three to five recommendations with explicit "why it fits"
   reasons.** They were neither personalised nor reasons. `scoreForUser` read
   popularity, completionRate, rating, `featured` and `author.type` — catalogue
@@ -958,6 +996,23 @@ installed` with status 0 and the runner counts 28 skips as 28 passes. Run
 `npm install` at the start of any session that intends to trust
 `npm run browser:verify` locally.
 
+### A check must not depend on the day of the week — FIXED 2026-08-07
+
+`finish-review-browser-check.mjs` derived its workout day from the wall clock in
+`Australia/Sydney` and required the active program to prescribe a lift there.
+`hybrid_engine` has **no lifts on Saturday or Sunday**, so the check threw
+`no prescribed lift for sat` and turned `main` red — in both *Deploy Pages* and
+*Release (AAB + APK)*, which share the `verify / Web verification` job — for a
+commit whose earlier run that same UTC day had been green. Nothing was wrong
+with the app; the check was only runnable Mon–Fri Sydney time.
+
+`pinClock` (`scripts/browser-runtime.mjs`) is now the shared way to fix a page's
+wall clock, and the finish-review fixture is pinned to Monday 2026-08-03. Also
+noted, not yet fixed: `jt-shed-simplified-browser-check.mjs` guards its cockpit
+assertion with `if (expectedByDay[todayKey])`, so on a Wednesday or Sunday it
+silently stops asserting instead of failing — the same fragility, wearing a
+skip instead of a crash.
+
 ## 8. Definition of done for a product slice
 
 A slice is complete only when:
@@ -995,11 +1050,11 @@ even while release work is parked.
 | Navigation | Four intent-led destinations — Home, Train, Progress, Plans — with stable legacy route IDs and origin-aware drilldown Back behaviour |
 | Home/coaching | One state-aware Today card followed by retained Strength/Running In Focus cards; repeated At-a-Glance tiles are removed |
 | Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion, focused live-run surface |
-| Plans | 58-program catalogue, fit-based recommendations with stated reasons, comparison, details, timeline, editable personal copies, builder |
+| Plans | 58-program catalogue, an active-plan lead that agrees with Home about the next session, fit-based recommendations with stated reasons, comparison, details, timeline, editable personal copies, builder |
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,703 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
+| Quality | 1,715 tests, typecheck, smoke, precache/workflow gates, 30 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1043,9 +1098,8 @@ Work in this order unless user evidence changes it:
    toasts — which uncovered and fixed a blank-screen dead end on a denied
    permission.
 8. **ACTIVE — Rework Plans discovery around recommendations before Browse all.**
-   The recommendation engine landed 2026-08-07 (see 4A). Remaining: lead the
-   landing with the active plan, reduce chip/collection overload, and the
-   compare flow.
+   The recommendation engine and the active-plan lead both landed 2026-08-07
+   (see 4A). Remaining: reduce chip/collection overload, and the compare flow.
    **Correction:** this entry claimed the landing "renders 25 of 58 programmes,
    so a new programme is findable only by search". That was never true and was
    repeated twice without being checked. Measured against the real catalogue,
@@ -1059,6 +1113,44 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 4A continued: Plans leads with the plan you are actually
+  in, and a red `main` was diagnosed.**
+  - **The leading card described a template, not a training week.** The Plans
+    banner read `program.days` and nothing else, so it advertised "Today: Push A"
+    over a finished session — verified by running the old helper against real
+    state rather than by reading it. Home's Today card had been carefully built
+    not to trust stale days; Plans then contradicted it on the same screen the
+    athlete uses to decide. `js/programs/active-plan-banner.js` reads the same
+    primitives in the same precedence order, so the disagreement is now
+    structurally impossible, and a test asserts the two states track each other.
+  - **Two defects the rewrite exposed.** "Continue" was a bare tab switch, so it
+    opened the cockpit on whatever day was last selected there — the exact
+    stale-day class Phase 1B fixed on Home. And the forward scan for "next
+    session" wrapped past Sunday, so on a Saturday an unlogged Monday from the
+    SAME program week was presented as upcoming. The wrap was caught by a test
+    failing, not by review.
+  - **One number, once.** The plan percentage appeared three times on one card
+    and moves only when the program week does. Stated once now, with its basis on
+    the ring's (previously absent) accessible label, beside the count that does
+    move — sessions done this week. The card also became keyboard-operable and its
+    action grew from 31px to the app's own 44px target.
+  - **`todayProgramDay` had three inline implementations**, only one of them
+    timezone-aware. It now lives with the other date primitives in `js/dates.js`;
+    `today-card.js` and `app.js` consume it. `js/workout.js` still has its own
+    copy — left alone deliberately, it belongs with the cockpit split.
+  - **`main` was red, and not because of the app.** Both *Deploy Pages* and
+    *Release (AAB + APK)* failed on the PR #192 merge. One root cause, in the
+    shared `verify / Web verification` job: `finish-review-browser-check.mjs`
+    derived its workout day from the wall clock and `hybrid_engine` prescribes no
+    lifts at the weekend, so at 16:33 UTC — already Saturday in the check's pinned
+    Sydney timezone — it threw `no prescribed lift for sat`. The same commit had
+    passed hours earlier. Fixed with a shared `pinClock` helper rather than by
+    making the fixture cleverer; `jt-shed-simplified` has the same fragility
+    hiding behind a silent skip and is recorded above, not fixed here.
+  - Verified: 1,715 unit tests (+12), typecheck, smoke, precache regenerated,
+    workflow gates, and the full 30-check browser suite including the new
+    `plans-active-banner-browser-check.mjs`.
 
 - **2026-08-07 — Bug from real use: "if I'm doing tricep pushdowns with bands
   why does bodyweight come into it".** Reported as a band-weight bug (light 10 /

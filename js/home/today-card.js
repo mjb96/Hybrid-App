@@ -2,23 +2,19 @@
 // HOME TODAY CARD
 // A pure, calendar-day-aware presentation model for Home's single primary
 // action. It deliberately does not trust the cockpit's last-selected day.
-import { dateKey } from '../dates.js';
+import { dateKey, todayProgramDay } from '../dates.js';
 import { evaluateSessionCompletion, classifyPlannedSession } from '../workout/completion-policy.js';
 import { activeOneOffSession } from '../workout/one-off-session.js';
 import { explicitSessionStatus, SESSION_STATUS } from '../workout/session-status.js';
 
-const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const DAY_NAMES = Object.freeze({
   mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
   fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 });
 
-export function todayProgramDay(now = new Date(), tz = undefined) {
-  const todayISO = dateKey(now, tz);
-  // Parse the intentional local date at UTC noon so the weekday is stable in
-  // tests and on devices whose process timezone differs from their display TZ.
-  return DAY_KEYS[new Date(`${todayISO}T12:00:00Z`).getUTCDay()];
-}
+// Re-exported for the callers that have always imported it from here; the
+// implementation now lives with the other date primitives in `js/dates.js`.
+export { todayProgramDay };
 
 function esc(value) {
   return String(value == null ? '' : value).replace(/[&<>"]/g, (char) => ({

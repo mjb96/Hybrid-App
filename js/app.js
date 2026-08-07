@@ -93,7 +93,7 @@ import { renderRunMap } from './workout-map.js';
 import { orderedLiftNames } from './workout-order.js';
 import { isCompletedSet } from './set-utils.js';
 import { strengthDayStats } from './analytics/weekly-aggregate.js';
-import { dateKey, todayKey } from './dates.js';
+import { dateKey, todayKey, todayProgramDay } from './dates.js';
 import { resolveDateToSlot, resolveSlotDate } from './analytics/logged-days.js';
 import { newRunSessionId, runDaySummary, upsertRunSession, findImportedRunSession } from './state/run-sessions.js';
 import { FASTING_ACTIONS, handleFastingClickAction } from './fasting/fasting-actions.js';
@@ -248,9 +248,10 @@ export function launchActiveWorkoutCockpit() {
   setCockpitActiveDay(selectedDay);
 }
 
-function _todayProgramDay() {
-  return ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
-}
+// Was a local, timezone-naive copy of the same lookup; `todayProgramDay`
+// (js/dates.js) resolves the calendar day first, which is what the rest of the
+// app does.
+const _todayProgramDay = () => todayProgramDay();
 
 export function openProgramWorkoutPicker() {
   const sheet = document.getElementById('programWorkoutPicker');
@@ -1147,7 +1148,7 @@ document.addEventListener('click', (e) => {
   else if (action === 'close-compare') closeCompareModal();
 
   // New Program Library actions
-  else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'continue-active-program', 'set-profile-answer'].includes(action)) {
+  else if (['open-program-detail', 'prog-filter', 'diff-filter', 'prog-quick-search', 'hero-dot', 'lib-tab', 'toggle-bookmark', 'set-profile-answer'].includes(action)) {
     handleLibraryAction(action, target, e);
   }
   else if (['close-program-detail', 'make-active-from-detail', 'view-active-program', 'open-day-preview', 'preview-week-step', 'close-day-preview', 'detail-toggle-bookmark', 'mark-program-complete', 'detail-week-step', 'detail-week-current'].includes(action)) {
@@ -1479,10 +1480,6 @@ document.addEventListener('library:make-active', (e) => {
 
 document.addEventListener('library:view-active', () => {
   showActivePlanView(true);
-});
-
-document.addEventListener('library:continue-training', () => {
-  switchGlobalAppTab('workout');
 });
 
 document.addEventListener('library:return', () => {
