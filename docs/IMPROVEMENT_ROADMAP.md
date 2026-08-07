@@ -739,7 +739,19 @@ catalogue-driven.
   that can never promote an unfitting programme or appear as a reason. When
   nothing personal matches, the row does not render — an empty row is honest,
   an invented one is not.
-- Ask only for missing information needed to improve recommendations.
+- **DONE 2026-08-07 — the recommendations state their basis, correctable in
+  place.** "Ask only for missing information" turned out to be unreachable as
+  written: `settings` ships with `fitnessGoal: 'hybrid'`, `fitnessLevel:
+  'intermediate'`, `equipmentTier: 'gym'` already seeded, and
+  `shouldShowOnboarding` auto-completes onboarding for anyone with stored data
+  (`_hadStoredState`) **without asking anything**. So nothing is ever "missing",
+  and an upgrading athlete has never answered these questions while the row
+  tells them it was built on *their* goal. Nothing in state distinguishes an
+  assumption from a choice. The row now names what it used
+  ("Hybrid · Intermediate · Full gym") in a collapsed disclosure, and one tap
+  corrects it — writing the SAME settings fields the Settings screen owns, so
+  the two can never disagree. A prompt for missing values was built first and
+  discarded when it proved to be dead code.
 - Make Browse all secondary but complete. *(Already complete: all 58 programmes
   are reachable through the category chips — see the corrected note below.)*
 - Reduce category-chip and collection overload.
@@ -987,7 +999,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,683 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
+| Quality | 1,687 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1090,12 +1102,25 @@ testable on its own.
     landing was said to render "25 of 58 programmes, so a new programme is
     findable only by search". Measured against the real catalogue, the category
     chips reach **58 of 58**. Discovery needed better leading, not rescuing.
-  - `tests/recommendation_fit.test.js` (24) and
+  - **Second slice — the row states its basis.** "Ask only for missing
+    information" proved unreachable: `settings` seeds hybrid/intermediate/gym,
+    and `shouldShowOnboarding` auto-completes onboarding for anyone with stored
+    data without asking a single question. So nothing is ever missing, and an
+    upgrading athlete is told the row was built on *their* goal when it was
+    built on three assumptions — nothing in state tells the two apart. An inline
+    "what's missing?" prompt was built, proven dead by driving it, and replaced
+    with a collapsed basis strip that names the values used and corrects them in
+    one tap, writing the same settings fields the Settings screen owns.
+  - **Also confirmed already done:** "lead with the active plan, current week,
+    next session, and progress" — `renderActiveProgramBanner` renders above the
+    tabs with programme name, Week N of M, the next session and a progress ring.
+    No change needed.
+  - `tests/recommendation_fit.test.js` (28) and
     `scripts/plan-recommendations-browser-check.mjs`, which drives the real
     Discover surface for two different athletes and asserts they are shown
     different programmes with visible, non-badge reasons. Verified: 1683 unit
     tests, typecheck, smoke, precache, workflow gates, and the five existing
-    programme browser checks.
+    programme browser checks. Second slice verified at 1687 tests.
 
 - **2026-08-07 — Phase 2C finished, and with it Phase 2: the states that are
   not the run.** `js/gps/run-notices.js` is the copy model, built on one rule —

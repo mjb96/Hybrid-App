@@ -222,6 +222,77 @@ export function programFit(program, profile) {
 }
 
 /**
+ * What is missing before this athlete can be given a real recommendation.
+ *
+ * The companion to `eligible`: refusing to invent a recommendation leaves a
+ * hole, and the honest thing to put in it is the specific question that would
+ * fill it — not a generic "complete your profile". Ordered by how much each
+ * answer unlocks, and only ever asks for what is actually absent.
+ *
+ * @param {ReturnType<typeof athleteProfile>} profile
+ * @returns {{id:string, question:string, why:string,
+ *            options:{value:string, label:string}[]}[]}
+ */
+const PROFILE_QUESTIONS = [
+  {
+    id: 'goal', field: 'goal', question: 'What are you training for?',
+    options: [
+      { value: 'strength', label: 'Strength' },
+      { value: 'hybrid', label: 'Hybrid' },
+      { value: 'endurance', label: 'Endurance' },
+    ],
+  },
+  {
+    id: 'level', field: 'level', question: 'How much training is behind you?',
+    options: [
+      { value: 'beginner', label: 'Beginner' },
+      { value: 'intermediate', label: 'Intermediate' },
+      { value: 'advanced', label: 'Advanced' },
+    ],
+  },
+  {
+    id: 'equipment', field: 'tier', question: 'What can you train with?',
+    options: [
+      { value: 'home', label: 'Home basics' },
+      { value: 'gym', label: 'Full gym' },
+    ],
+  },
+];
+
+/**
+ * The inputs the recommendations rest on, each with its current answer and the
+ * options to change it.
+ *
+ * Why this is not a "complete your profile" prompt: `settings` is SEEDED with
+ * `fitnessGoal: 'hybrid'`, `fitnessLevel: 'intermediate'`, `equipmentTier:
+ * 'gym'`, and `shouldShowOnboarding` auto-completes onboarding for anyone with
+ * stored data — so an upgrading athlete has never answered these questions and
+ * nothing in state distinguishes an assumption from a choice. A prompt for
+ * "missing" values would therefore never fire, while the row would still be
+ * telling that athlete it was built on *their* goal.
+ *
+ * Showing the basis and making it changeable in place is the honest version:
+ * it states exactly what the recommendations assumed, and one tap corrects it.
+ *
+ * @param {ReturnType<typeof athleteProfile>} profile
+ * @returns {{id:string, question:string, current:string|null,
+ *            currentLabel:string, options:{value:string, label:string}[]}[]}
+ */
+export function recommendationBasis(profile) {
+  return PROFILE_QUESTIONS.map((q) => {
+    const current = profile?.[q.field] ?? null;
+    const match = q.options.find((o) => o.value === current);
+    return {
+      id: q.id,
+      question: q.question,
+      current,
+      currentLabel: match ? match.label : 'Not set',
+      options: q.options,
+    };
+  });
+}
+
+/**
  * Choose the one reason to headline on each card.
  *
  * Taking `reasons[0]` gave every card in the row the same line — "Matches your

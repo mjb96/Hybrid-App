@@ -153,6 +153,57 @@ try {
     await context.close();
   }
 
+  // ── The row states its basis, and the basis is correctable in place ──────
+  {
+    // An upgrading athlete never answered these: settings ship with
+    // hybrid/intermediate/full-gym and onboarding auto-completes for anyone
+    // with stored data. The row must say what it assumed, not imply a choice.
+    const { context, page, errors } = await discover({
+      fitnessGoal: 'hybrid', fitnessLevel: 'intermediate', equipmentTier: 'gym', equipment: FULL_GYM,
+    });
+    const readBasis = () => {
+      const details = document.querySelector('.prog-basis');
+      const row = [...document.querySelectorAll('.collection-row')]
+        .find(r => /Recommended For You/i.test(r.querySelector('.collection-title')?.textContent || ''));
+      return {
+        present: !!details,
+        values: details?.querySelector('.prog-basis__values')?.textContent?.trim() || '',
+        groups: details?.querySelectorAll('.prog-basis__question').length || 0,
+        current: [...(details?.querySelectorAll('.prog-basis__btn.is-current') || [])].map(b => b.textContent.trim()),
+        smallButtons: [...(details?.querySelectorAll('.prog-basis__btn') || [])]
+          .filter(b => b.getBoundingClientRect().height && b.getBoundingClientRect().height < 43).length,
+        top: row ? [...row.querySelectorAll('.prog-card')].map(c => c.getAttribute('data-program-id')) : [],
+      };
+    };
+    const before = await page.evaluate(readBasis);
+    console.log('basis:', JSON.stringify(before));
+    if (!before.present) failures.push('the recommendations row must state what it was built on');
+    if (before.groups !== 3) failures.push(`expected goal/level/equipment, got ${before.groups} groups`);
+    if (!/Hybrid/i.test(before.values)) failures.push(`basis must name the values used, got "${before.values}"`);
+
+    await page.evaluate(() => document.querySelector('.prog-basis')?.setAttribute('open', ''));
+    await page.waitForTimeout(150);
+    const opened = await page.evaluate(readBasis);
+    if (opened.smallButtons) failures.push(`${opened.smallButtons} basis buttons below the 44px target`);
+    if (opened.current.length !== 3) failures.push(`each group must show its current answer, got ${opened.current.length}`);
+
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.prog-basis__btn')].find(b => b.textContent.trim() === 'Endurance');
+      if (btn) /** @type {any} */ (btn).click();
+    });
+    await page.waitForTimeout(600);
+    const after = await page.evaluate(readBasis);
+    const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).settings.fitnessGoal, STORAGE_KEY);
+    console.log('after changing the basis:', JSON.stringify({ values: after.values, stored, top: after.top.slice(0, 3) }));
+    if (stored !== 'endurance') failures.push(`the answer must persist to settings, got "${stored}"`);
+    if (!/Endurance/i.test(after.values)) failures.push('the basis must show the new answer');
+    if (JSON.stringify(after.top) === JSON.stringify(before.top)) {
+      failures.push('changing the basis must change the recommendations');
+    }
+    if (errors.length) failures.push(`basis browser errors: ${errors.join(' | ')}`);
+    await context.close();
+  }
+
   // ── The surface still holds together ──────────────────────────────────────
   for (const width of [320, 412]) {
     const { context, page, errors } = await discover(

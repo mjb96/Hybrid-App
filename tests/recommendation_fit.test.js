@@ -15,6 +15,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   athleteProfile, distinguishingReasons, programFit, recentWeeklySessions,
+  recommendationBasis,
 } from '../js/programs/recommendation-fit.js';
 import { getRecommendations } from '../js/programs/recommendations.js';
 
@@ -266,6 +267,49 @@ test('the real catalogue produces a distinguishing headline where one exists', (
   const unique = new Set(recs.map(r => r.reason));
   assert.ok(unique.size > 1,
     `an advanced runner should see more than one distinct reason, got ${[...unique]}`);
+});
+
+// ── The stated basis ────────────────────────────────────────────────────────
+
+test('the basis reports what the recommendations actually used', () => {
+  const basis = recommendationBasis(profileOf({
+    fitnessGoal: 'endurance', fitnessLevel: 'advanced', equipmentTier: 'home',
+  }));
+  assert.deepEqual(basis.map(b => b.id), ['goal', 'level', 'equipment']);
+  assert.deepEqual(basis.map(b => b.currentLabel), ['Endurance', 'Advanced', 'Home basics']);
+  for (const b of basis) {
+    assert.ok(b.options.some(o => o.value === b.current), `${b.id}: current is not an option`);
+  }
+});
+
+test('an unset input is shown as unset, not guessed', () => {
+  // settings ship with hybrid/intermediate/gym seeded, so this is the raw-state
+  // case; the basis must never present a blank as a choice.
+  const basis = recommendationBasis(profileOf({}));
+  assert.deepEqual(basis.map(b => b.currentLabel), ['Not set', 'Not set', 'Not set']);
+  for (const b of basis) assert.equal(b.current, null);
+});
+
+test('every basis option is a value the fit model actually understands', () => {
+  // A basis offering a value programFit ignores would silently do nothing.
+  const basis = recommendationBasis(profileOf({}));
+  const byId = Object.fromEntries(basis.map(b => [b.id, b.options.map(o => o.value)]));
+  for (const goal of byId.goal) {
+    assert.equal(profileOf({ fitnessGoal: goal }).goal, goal);
+  }
+  for (const level of byId.level) {
+    assert.equal(profileOf({ fitnessLevel: level }).level, level);
+  }
+  for (const tier of byId.equipment) {
+    assert.equal(profileOf({ equipmentTier: tier }).tier, tier);
+  }
+});
+
+test('changing the basis changes the recommendations', () => {
+  const withGoal = (goal) => getRecommendations(state({
+    fitnessGoal: goal, fitnessLevel: 'intermediate', equipmentTier: 'gym', equipment: FULL_GYM,
+  }), 5).map(r => r.program.id);
+  assert.notDeepEqual(withGoal('endurance'), withGoal('strength'));
 });
 
 // ── Honesty of the whole model ──────────────────────────────────────────────
