@@ -365,8 +365,13 @@ export function isActivityScreenOpen() {
   return !!screen && screen.style.display !== 'none';
 }
 
+// Remembered so the Activity screen's "Try again" retries the SAME activity —
+// a walk must not come back as a run.
+let _lastQuickActivityType = 'run';
+
 export function startQuickActivity(type) {
   const kind = type === 'walk' ? 'walk' : 'run';
+  _lastQuickActivityType = kind;
   const localDate = todayKey();
   const slot = resolveDateToSlot(appState, localDate);
   if (slot) {
@@ -376,11 +381,20 @@ export function startQuickActivity(type) {
     determineDefaultCalendarDay();
   }
   openActivityScreen(kind);
-  startTracking(kind, /* quickStart */ true, {
+  // The result is not ignored any more: a refused start (permission off, no GPS
+  // in this browser, Android protecting a recovered run) used to leave this
+  // full-screen view holding nothing but "← Cancel". The tracker renders the
+  // reason into #qsNotice, which is why this screen stays open to show it.
+  return startTracking(kind, /* quickStart */ true, {
     week: slot ? String(slot.weekNum) : appState.currentWeek,
     day: slot?.day || selectedDay,
     localDate,
   });
+}
+
+/** Retry from the Activity screen's blocked-start notice. */
+export function retryQuickActivity() {
+  return startQuickActivity(_lastQuickActivityType);
 }
 
 // Cancel a Quick Start: discard the in-progress track (nothing is saved) and
@@ -1216,6 +1230,7 @@ document.addEventListener('click', (e) => {
   // GPS Tracker
   else if (action === 'quick-activity') { startQuickActivity(target.getAttribute('data-type')); }
   else if (action === 'cancel-quick-activity') { cancelQuickActivity(); }
+  else if (action === 'qs-retry') { retryQuickActivity(); }
   else if (action === 'close-session-recap') { closeSessionRecap(); }
   // The recap is a full-screen section, so navigating away from it must close it
   // first — otherwise the destination renders underneath and the athlete is

@@ -91,6 +91,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   cockpit run card is in focus mode (`run-session-active`) and `renderWorkout` must not
   collapse or reparent it (`.run-collapsed` hides the whole body; moving the node
   detaches the live Leaflet map).
+- Run states that are NOT the run (`js/gps/run-notices.js`): a toast is only for
+  something that happened and is over — permission denial, no-fix, background-tracking
+  limits, recovery and partial saves are CONDITIONS and render as persistent notices.
+  `startTracking` returns `{ ok, reason }`, never a bare boolean: the Quick Activity
+  scope has NO start panel, so a refused start that falls back to `showPanel('start')`
+  leaves a blank full-screen view (this was a real bug). `showRunNotice` takes over the
+  surface; `showInfoNotice` must NOT call `showPanel` — a recovered run is still live.
+  A mid-run `onPositionError` must never tear down the session.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
 - Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)

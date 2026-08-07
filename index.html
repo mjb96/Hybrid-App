@@ -670,12 +670,22 @@
 
         <div id="runMapContainer" style="height: 180px; width: 100%; border-radius: 8px; display: none; margin-bottom: 12px; z-index: 1;"></div>
 
+        <!-- GPS: a condition the athlete must act on (permission off, no fix,
+             saved without its map). A toast fades; these are still true after. -->
+        <div id="gpsNotice" class="gps-notice" role="status" hidden>
+          <div class="gps-notice-title" id="gpsNoticeTitle"></div>
+          <div class="gps-notice-body" id="gpsNoticeBody"></div>
+          <button type="button" class="gps-notice-retry" id="gpsNoticeRetry"
+                  data-action="gps-start" hidden>Try again</button>
+        </div>
+
         <!-- GPS: Idle — invite to track -->
         <div id="gpsStartPanel" class="gps-start-panel">
           <span class="gps-start-icon">📍</span>
           <div class="gps-start-body">
             <div class="gps-start-title">Track This Run</div>
             <div class="gps-start-sub">Live map · Auto-fills distance &amp; time</div>
+            <div class="gps-background-note" id="gpsBackgroundNote"></div>
           </div>
           <button class="gps-start-btn" data-action="gps-start">Start →</button>
         </div>
@@ -1808,6 +1818,15 @@
       <span class="activity-title" id="activityTitle">Activity</span>
     </div>
 
+    <!-- A blocked start. This screen has no start panel, so without this a
+         denied permission left it holding nothing but "← Cancel". -->
+    <div id="qsNotice" class="gps-notice gps-notice--screen" role="status" hidden>
+      <div class="gps-notice-title" id="qsNoticeTitle"></div>
+      <div class="gps-notice-body" id="qsNoticeBody"></div>
+      <button type="button" class="gps-notice-retry" id="qsNoticeRetry"
+              data-action="qs-retry" hidden>Try again</button>
+    </div>
+
     <!-- Waiting for first GPS fix -->
     <div id="qsWaitPanel" class="gps-wait-panel" style="display:none;">
       <div class="gps-wait-spinner"></div>
@@ -1841,6 +1860,11 @@
         <button class="gps-btn-stop" data-action="gps-stop">■ Finish</button>
       </div>
     </div>
+
+    <!-- Whether tracking survives a screen lock is a property of the build, and
+         the athlete needs it BEFORE they pocket the phone, not after. Sits
+         outside the panels so it is there while waiting and while running. -->
+    <p class="gps-background-note" id="qsBackgroundNote"></p>
   </section>
 
   <nav class="bottom-nav" aria-label="Main Navigation">

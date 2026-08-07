@@ -6,7 +6,7 @@
 // Public API:
 //   initGpsTracker()         — call once on app start
 //   onWorkoutTabActivated()  — call when workout tab becomes visible
-//   startTracking()          — Promise<boolean>
+//   startTracking()          — Promise<{ ok, reason }>; reason feeds run-notices
 //   pauseTracking()
 //   resumeTracking()
 //   stopTracking(week, day)  — Promise<{ distKm, timeStr } | null>
@@ -31,6 +31,10 @@ import {
   activeRunStats, formatRunClock, gpsSignalPresentation, isActiveRunSession,
   runDistanceUnit,
 } from './gps/active-run-display.js';
+import {
+  backgroundTrackingNotice, locationErrorNotice, runRecoveryNotice, runSaveNotice,
+  startBlockedNotice,
+} from './gps/run-notices.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
 const TICK_MS          = 1000; // stats update interval
@@ -45,7 +49,9 @@ const UI = {
               pace: 'gpsStatPace', pauseBtn: 'gpsPauseBtn',
               distLabel: 'gpsDistUnitLabel', paceLabel: 'gpsPaceUnitLabel',
               signal: 'gpsSignal', signalLabel: 'gpsSignalLabel',
-              signalDetail: 'gpsSignalDetail' },
+              signalDetail: 'gpsSignalDetail', notice: 'gpsNotice',
+              noticeTitle: 'gpsNoticeTitle', noticeBody: 'gpsNoticeBody',
+              noticeRetry: 'gpsNoticeRetry', background: 'gpsBackgroundNote' },
   // The Quick Activity screen has no start panel — the run is already started
   // by the time it opens (Home Quick Start), so `showPanel('start')` there only
   // has to take the live panel down. It named a `qsStartPanel` that has never
@@ -55,7 +61,9 @@ const UI = {
               pace: 'qsStatPace', pauseBtn: 'qsPauseBtn',
               distLabel: 'qsDistUnitLabel', paceLabel: 'qsPaceUnitLabel',
               signal: 'qsSignal', signalLabel: 'qsSignalLabel',
-              signalDetail: 'qsSignalDetail' },
+              signalDetail: 'qsSignalDetail', notice: 'qsNotice',
+              noticeTitle: 'qsNoticeTitle', noticeBody: 'qsNoticeBody',
+              noticeRetry: 'qsNoticeRetry', background: 'qsBackgroundNote' },
 };
 let _scope = 'cockpit';
 function ui() { return UI[_scope] || UI.cockpit; }
@@ -263,12 +271,78 @@ function showPanel(which) {
   const start = u.start ? document.getElementById(u.start) : null;
   const wait  = document.getElementById(u.wait);
   const live  = document.getElementById(u.live);
+  const notice = document.getElementById(u.notice);
   if (start) start.style.display = which === 'start' ? 'flex' : 'none';
   if (wait)  wait.style.display  = which === 'wait'  ? 'flex' : 'none';
   if (live)  live.style.display  = which === 'live'  ? 'block' : 'none';
+  if (notice && which !== 'notice') notice.hidden = true;
   applyUnitLabels();
   tickSignal();
   applyRunFocusMode();
+  applyBackgroundNotice();
+}
+
+/**
+ * Show a blocking condition where the run would have been.
+ *
+ * This is the fix for a genuine dead end: the web error path returned to
+ * `showPanel('start')`, and the Quick Activity scope has no start panel — so a
+ * denied permission left a full-screen view holding nothing but "← Cancel".
+ * The notice IS that screen's content now. On the cockpit the start panel stays
+ * available beneath it, because "Start →" is the retry.
+ *
+ * @param {import('./gps/run-notices.js').RunNotice|null} notice
+ */
+function showRunNotice(notice) {
+  const host = document.getElementById(ui().notice);
+  if (!notice) { if (host) host.hidden = true; return; }
+  showPanel(_scope === 'cockpit' ? 'start' : 'notice');
+  renderNotice(notice);
+}
+
+/**
+ * A notice that explains the run currently ON the screen, rather than replacing
+ * it — a recovered session is still live, so it must not be sent back to the
+ * start panel. Left standing until the next `showPanel`, which is the run
+ * ending: pause and resume do not change panels.
+ *
+ * @param {import('./gps/run-notices.js').RunNotice|null} notice
+ */
+function showInfoNotice(notice) {
+  if (!notice) return;
+  renderNotice(notice);
+}
+
+/** @param {import('./gps/run-notices.js').RunNotice} notice */
+function renderNotice(notice) {
+  const u = ui();
+  const host = document.getElementById(u.notice);
+  if (!host) {
+    // No notice element on this surface: a toast is a poor substitute, but
+    // silence here would be a blank screen.
+    showToast(`${notice.title} — ${notice.body}`, true);
+    return;
+  }
+  host.hidden = false;
+  host.dataset.kind = notice.kind;
+  const titleEl = document.getElementById(u.noticeTitle);
+  const bodyEl = document.getElementById(u.noticeBody);
+  const retryEl = document.getElementById(u.noticeRetry);
+  if (titleEl) titleEl.textContent = notice.title;
+  if (bodyEl) bodyEl.textContent = notice.body;
+  // The cockpit's own "Start →" is the retry; a second one would be two
+  // buttons doing the same thing.
+  if (retryEl) retryEl.hidden = _scope === 'cockpit' || !notice.retry;
+}
+
+/** The standing platform truth, shown wherever a run is started or running. */
+function applyBackgroundNotice() {
+  const u = ui();
+  const el = document.getElementById(u.background);
+  if (!el) return;
+  const notice = backgroundTrackingNotice({ nativeAvailable: isNativeGpsAvailable() });
+  el.textContent = notice.text;
+  el.dataset.kind = notice.kind;
 }
 
 // ── Geolocation callbacks ─────────────────────────────────────────────────
@@ -376,14 +450,19 @@ document.addEventListener('visibilitychange', () => {
 
 function onPositionError(err) {
   if (_status !== 'waiting' && _status !== 'tracking') return;
-  const msg = err.code === 1 ? 'location permission denied' : err.message;
-  console.warn('GPS error:', msg);
-  if (_status === 'waiting') {
-    _status = 'idle';
-    clearSessionIdentity();
-    showPanel('start');
-    showToast('GPS unavailable — ' + msg);
-  }
+  console.warn('GPS error:', err?.code, err?.message);
+
+  // Mid-run errors are NOT fatal: the run holds the distance already recorded,
+  // and the live signal chip ages into "No signal" on its own. Tearing the
+  // session down here would throw away work over a transient dropout.
+  if (_status === 'tracking') { tickSignal(); return; }
+
+  _status = 'idle';
+  clearSessionIdentity();
+  // A permission denial is a condition, not an event — it is still true after a
+  // toast fades, and on the Quick Activity screen `showPanel('start')` had
+  // nothing to show, leaving a blank full-screen view.
+  showRunNotice(locationErrorNotice(err?.code));
 }
 
 // ── Public API ────────────────────────────────────────────────────────────
@@ -446,11 +525,12 @@ function recoverNativeRun() {
   document.dispatchEvent(new CustomEvent('gps:recovered', {
     detail: { quickActivity: _quickActivity, activityType: _activityType, status: p.status },
   }));
-  showToast(p.restored
-    ? (p.status === 'FINALIZING'
-      ? 'Run recovered to the last saved GPS point — finish saving below'
-      : 'Run recovered to the last saved GPS point — resume or finish')
-    : 'Run restored — GPS kept tracking ✓');
+  // Whether a stretch of the run is MISSING is not something to learn from a
+  // toast that has already faded by the time the athlete picks the phone up —
+  // it is the fact they need when this run disagrees with their watch. The
+  // notice explains the session that is on screen, so it does not send a
+  // recovered live run back to the start panel.
+  showInfoNotice(runRecoveryNotice({ restored: p.restored, status: p.status }));
 }
 
 async function resolveNativeRecoveryError() {
@@ -478,8 +558,18 @@ export function onWorkoutTabActivated() {
   if (_liveMap) setTimeout(() => _liveMap.invalidateSize(), 100);
 }
 
+/**
+ * Begin a run.
+ *
+ * Returns `{ ok, reason }` rather than a bare boolean: every caller previously
+ * ignored the boolean, so a refused start left the athlete on whatever screen
+ * had already been opened for it — on Quick Start, a blank one. The reason is
+ * what `startBlockedNotice` turns into something readable.
+ *
+ * @returns {Promise<{ok:boolean, reason:string|null}>}
+ */
 export async function startTracking(activityType = 'run', quickStart = false, ctx = {}) {
-  if (_status !== 'idle') return false;
+  if (_status !== 'idle') return { ok: false, reason: 'busy' };
 
   // 'walk' or 'run' — tags the logged activity (Quick Start from Home passes
   // this; the in-program run tracker defaults to 'run').
@@ -511,8 +601,8 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
   if (isNativeGpsAvailable()) {
     const granted = await ensureLocationPermission();
     if (!granted) {
-      showToast('Location permission is needed to track runs');
-      return false;
+      showRunNotice(startBlockedNotice('permission'));
+      return { ok: false, reason: 'permission' };
     }
     if (nativeStartRun()) {
       beginSessionIdentity(_activityType, _quickActivity, ctx);
@@ -520,19 +610,20 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
       _status     = 'waiting';
       showPanel('wait');
       _drainTimer = setInterval(drainNative, TICK_MS);
-      return true;
+      return { ok: true, reason: null };
     }
     // Do not silently fall back: native may be protecting a recovered journal or
     // reporting that durable storage is unavailable.
-    showToast('Could not start safely — finish or discard the recovered run first', true);
-    return false;
+    showRunNotice(startBlockedNotice('native-busy'));
+    return { ok: false, reason: 'native-busy' };
   }
 
   // Web fallback (browser/PWA): watchPosition + screen wake lock. Honest
-  // limitation: tracking stops if the app leaves the foreground.
+  // limitation: tracking stops if the app leaves the foreground — stated on the
+  // start panel by `applyBackgroundNotice`, not left to be discovered.
   if (!navigator.geolocation) {
-    showToast('GPS not supported on this device');
-    return false;
+    showRunNotice(startBlockedNotice('unsupported'));
+    return { ok: false, reason: 'unsupported' };
   }
 
   _status = 'waiting';
@@ -547,7 +638,7 @@ export async function startTracking(activityType = 'run', quickStart = false, ct
     { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 },
   );
 
-  return true;
+  return { ok: true, reason: null };
 }
 
 // Abort the current activity WITHOUT saving anything (Quick Start "Cancel").
@@ -748,16 +839,23 @@ export async function stopTracking(week, day) {
     })
   );
 
+  // What went wrong at save time is a CONDITION the athlete has to act on
+  // (free space, restart, this run has no map) — so on the cockpit it becomes a
+  // notice that stays put. A Quick Start closes straight into its recap with no
+  // run card to hold a notice, so there it remains a toast.
+  const saveNotice = runSaveNotice({
+    stateSaved: stateSaved && !(wasNative && !savedSession),
+    routeSaved: !routeSaveFailed,
+    journalCleared: nativeJournalCleared,
+    hadRoute: finalCoords.length >= 2 && !!finalWeek && !!finalDay,
+    nativeProtected: wasNative,
+  });
+
   // A Home Quick Start is a standalone activity with no cockpit to review, so
   // surface the recap for this exact session immediately.
-  if (!stateSaved || (wasNative && !savedSession)) {
-    showToast(wasNative
-      ? `${typeLabel} could not be saved on this device — Android recovery remains protected`
-      : `${typeLabel} could not be saved — check available device storage`, true);
-  } else if (routeSaveFailed) {
-    showToast(`${typeLabel} data saved, but the route needs recovery — restart to retry`, true);
-  } else if (!nativeJournalCleared) {
-    showToast(`${typeLabel} saved, but Android could not close its recovery journal — restart to retry`, true);
+  if (saveNotice) {
+    if (wasQuick) showToast(`${saveNotice.title} — ${saveNotice.body}`, true);
+    else showRunNotice(saveNotice);
   } else if (wasQuick && finalWeek && finalDay) {
     showToast(`${typeLabel} saved ✓`);
     try { document.dispatchEvent(new CustomEvent('session:finished', { detail: { week: finalWeek, day: finalDay, sessionId } })); } catch (_) {}

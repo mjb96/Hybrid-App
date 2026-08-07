@@ -398,7 +398,10 @@ The visible information architecture can change without a risky route rewrite:
 
 ## Phase 2 — Natural workout and run logging
 
-**Status: ACTIVE — 2A and 2B complete; 2C (running) is the remaining sub-phase.**
+**Status: COMPLETE 2026-08-07 — 2A, 2B and 2C all delivered.** One 2A item was
+consciously left: making superset, reorder and plate-math contextual rather than
+equally prominent (only `+ Warmup` was done). It is a prominence tweak, not a
+gap in the journey, and is folded into the Phase 6 visual-system work.
 
 **Outcome:** logging feels faster than remembering the workout later.
 
@@ -505,8 +508,7 @@ The visible information architecture can change without a risky route rewrite:
 
 ### 2C. Running
 
-**Status: ACTIVE — the live session surface is done; the acquisition/permission
-state copy is the remaining slice.**
+**Status: DONE 2026-08-07.**
 
 - **DONE 2026-08-07 — the live run has its own focused surface.** The cockpit
   run card enters a focus mode while a session is live (`run-session-active`):
@@ -530,12 +532,36 @@ state copy is the remaining slice.**
   applied it on any day with no scheduled run — precisely when an unscheduled
   run is being tracked. Reordering is skipped for the same reason: moving the
   node detaches the live Leaflet map from under the athlete.
-- Clarify GPS acquisition, permission denial, background tracking, replay, and
-  partial-route states. *(Acquisition and pause now read honestly — searching /
-  strong / fair / weak / no-signal / paused, graded from the LAST accepted fix
-  rather than the whole-run summary, and a paused run is never dressed up as
-  signal loss. Permission denial, background-tracking and partial-route copy are
-  still the toast-level messages they were.)*
+- **DONE 2026-08-07 — acquisition, permission denial, background tracking,
+  replay and partial-route states all read honestly.**
+  `js/gps/run-notices.js` is the copy model; the rule it enforces is that a
+  toast is for something that HAPPENED and is over, while every state here is a
+  CONDITION still true after the message fades.
+  - **Acquisition + signal**: searching / strong / fair / weak / no-signal /
+    paused, graded from the LAST accepted fix, never the whole-run summary.
+  - **Permission denial**: the three `GeolocationPositionError` codes were
+    collapsed into one "GPS unavailable" message. They are now distinct, and a
+    denial points at the setting only the athlete can change.
+  - **Background tracking**: the web build states plainly that it stops when the
+    app leaves the foreground; Android states that it keeps recording. Shown
+    before the phone goes in a pocket, not discovered by losing a run. An
+    unknown platform defaults to the weaker claim.
+  - **Replay**: a recovered run says whether anything is MISSING — the one fact
+    the athlete cannot work out themselves when the run disagrees with their
+    watch. Rendered without sending the still-live session back to the start
+    panel.
+  - **Partial route**: "saved without its map" names what survived (distance,
+    time, splits) instead of a vanished toast; a run that never had a route is
+    not reported as having lost one.
+- **DONE 2026-08-07 — fixed a dead end this work uncovered.** With location
+  denied, Home Quick Start opened a full-screen Activity view holding nothing
+  but "← Cancel": the web error path called `showPanel('start')` and that scope
+  has no start panel. `startTracking` now returns `{ ok, reason }` instead of a
+  bare boolean every caller ignored, and the notice is that screen's content.
+  Retry repeats the same activity — a blocked walk must not return as a run.
+- **DONE 2026-08-07 — a mid-run dropout no longer risks the session.**
+  `onPositionError` while tracking returns after refreshing the signal, so
+  recorded distance is never discarded over a transient loss.
 - Use the user's distance unit consistently at every boundary. *(Live tracker
   done. The other two write boundaries already land on the canonical km store:
   the manual logger converts its input by the setting, and a FIT session's
@@ -884,21 +910,27 @@ Use a small set of representative profiles:
 - signed-in multi-device user;
 - user returning after missed weeks.
 
-### Known open issue — running detail open time
+### Local browser-check timings are not authoritative — CI is
 
-`scripts/running-analytics-check.mjs` fails its own budget on a 23-month /
-1,000-activity history: **~15.2s to open the running detail against a 5s
-budget** (the range switch is fine at ~0.44s against 2s). Verified as
-**pre-existing, not caused by the Phase 2C work** — the parent commit
-(`e8daee1`) measures 15,235ms and the 2C commit 15,137ms.
+`scripts/running-analytics-check.mjs` budgets the open of a 23-month /
+1,000-activity running detail at 5s. In a Claude Code container it measures
+**~15.2s and fails**; on CI it **passes**. Both are true, and CI is the one that
+counts: `.github/workflows/verify.yml` runs `npm ci` + `npx playwright install`
+and then `npm run browser:verify` as a required step with no
+`continue-on-error`, and it has been green throughout (runs 31152008876 /
+31159641519). The container is simply ~3× slower than the budget assumes.
 
-It went unnoticed because `node_modules` was absent, so every browser check was
-exiting `SKIP: Playwright is not installed` with status 0 — the runner counted
-28 skips as 28 passes. Whether this is a genuine app regression or simply a
-container slower than the budget assumes is **not yet established**; the range
-switch passing comfortably suggests the open path specifically is heavy. Needs
-a profile of the detail-open path before deciding to optimise or re-baseline the
-budget. Do NOT relax the budget without that profile.
+Resolved, and recorded because it cost a false alarm: a timing failure seen
+only in a container is **not** evidence of an app regression. Confirm against CI
+(or a second commit) before acting. It is also not evidence the gate is broken —
+the same session wrongly suspected CI of running the browser suite vacuously,
+which the workflow file disproves.
+
+The genuinely useful finding underneath it: a Claude Code container starts with
+**no `node_modules`**, so every browser check exits `SKIP: Playwright is not
+installed` with status 0 and the runner counts 28 skips as 28 passes. Run
+`npm install` at the start of any session that intends to trust
+`npm run browser:verify` locally.
 
 ## 8. Definition of done for a product slice
 
@@ -941,7 +973,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,632 tests, typecheck, smoke, precache/workflow gates, 28 responsive/accessibility browser checks |
+| Quality | 1,659 tests, typecheck, smoke, precache/workflow gates, 28 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -977,11 +1009,13 @@ Work in this order unless user evidence changes it:
    notable progress, optional effort/notes on the cockpit's own store,
    adherence-aware explanation, a discard that names its exact scope and can be
    undone, and a completed state that links onward.
-7. **ACTIVE — Phase 2C running.** The focused live-run surface shipped
-   2026-08-07: the athlete's own distance unit, a live GPS signal state, focus
-   mode over setup/import/manual entry, and a live run that a re-render cannot
-   collapse. Remaining slice: the permission-denial, background-tracking,
-   replay and partial-route states are still toast-level copy.
+7. **DONE 2026-08-07 — Phase 2C running, and with it all of Phase 2.** The
+   focused live-run surface (athlete's own distance unit, live GPS signal state,
+   focus mode over setup/import/manual entry, a live run a re-render cannot
+   collapse), then the state copy: permission denial, background tracking,
+   replay and partial-route conditions became persistent notices instead of
+   toasts — which uncovered and fixed a blank-screen dead end on a denied
+   permission.
 8. **Rework Plans discovery around recommendations before Browse all.** Also
    surfaces the fact that the Plans landing renders 25 of 58 programmes, so a
    new programme is findable only by search.
@@ -992,6 +1026,47 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 2C finished, and with it Phase 2: the states that are
+  not the run.** `js/gps/run-notices.js` is the copy model, built on one rule —
+  a toast is for something that HAPPENED and is over; every state here is a
+  CONDITION still true after the message fades. A denied permission does not
+  un-deny itself, and an athlete who looks down mid-warm-up has already missed
+  the toast.
+  - **A blank screen on a denied permission.** Reproduced before fixing: Home
+    Quick Start → Run with location denied opened a full-screen Activity view
+    containing nothing but "← CANCEL / Run". The web error path called
+    `showPanel('start')` and the Quick Activity scope has no start panel, so
+    there was literally nothing to show. `startTracking` now returns
+    `{ ok, reason }` — it returned a bare boolean that BOTH callers ignored —
+    and the notice is that screen's content, with a Try again that repeats the
+    same activity (a blocked walk must not come back as a run).
+  - **Three failures had become one message.** `locationErrorNotice` separates
+    the `GeolocationPositionError` codes again: only the athlete can lift a
+    denied permission (so it names settings), and only the sky fixes a lost fix
+    (so it offers manual entry instead).
+  - **Background tracking is stated, not discovered.** The web build genuinely
+    stops when the app leaves the foreground; it now says so before the phone
+    goes in a pocket. Android says it keeps recording. An unknown platform
+    defaults to the weaker claim rather than promising background recording it
+    may not have.
+  - **A recovered run says whether anything is MISSING** — native's `restored`
+    flag means it fell back to the last durably-journalled point, and that is
+    the fact an athlete needs when the run disagrees with their watch. Rendered
+    through `showInfoNotice`, which deliberately does NOT call `showPanel`: a
+    recovered session is still live and must not be sent back to the start panel.
+  - **A mid-run dropout no longer risks the run.** `onPositionError` while
+    tracking now returns after refreshing the signal chip. The recorded distance
+    is real work; the chip already reports the dropout on its own.
+  - **Partial saves name what survived.** "Saved without its map" instead of a
+    vanished toast, and a run that never had a route is not reported as having
+    lost one. An unsaved run on Android says the run is *not lost* — the journal
+    still holds it, which is the only distinction that matters there.
+  - `tests/run_notices.test.js` (20) + 6 more surface-wiring tests, and the
+    browser check gained the denied-permission and mid-run-dropout scenarios —
+    the blank screen is now one assertion ("the screen must say more than its
+    chrome"). Verified: 1659 unit tests, typecheck, smoke, precache, workflow
+    gates, active-run browser check.
 
 - **2026-08-07 — Phase 2C: the live run becomes its own session surface.**
   - **The tracker was the one surface still showing raw kilometres.** Everything
@@ -1037,10 +1112,11 @@ testable on its own.
   - **Full browser suite: 27 of 28 pass.** `safe-area` and
     `program-preview-consistency` failed inside the 28-check serial run and both
     pass in isolation — contention flakes, not regressions.
-    `running-analytics-check` fails a real performance budget (~15.2s to open a
-    1,000-activity running detail against 5s); reproduced identically on the
-    parent commit, so it predates this work. Recorded under §7 "Known open
-    issue" — it is the first thing the restored browser suite has surfaced.
+    `running-analytics-check` misses a 5s budget at ~15.2s — but only in the
+    container: it reproduced identically on the parent commit AND passes on CI,
+    which runs the full browser suite as a required step. Not an app regression
+    and not a broken gate; the container is ~3× slower than the budget assumes.
+    Recorded under §7 so the next session does not re-raise it.
 
 - **2026-08-07 — Bug: a deleted set came back, and the review kept calling the
   session incomplete.** Reported from real use ("if I delete a set when I'm

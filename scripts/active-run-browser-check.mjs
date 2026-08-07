@@ -71,13 +71,15 @@ const STEP_LAT = 0.0009;
 const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
 const failures = [];
 
-async function session(distanceUnit, width = 390, theme = 'dark') {
+async function session(distanceUnit, width = 390, theme = 'dark', { deny = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
   await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(fixture(distanceUnit))]);
-  await context.addInitScript(() => {
+  await context.addInitScript((denyPermission) => {
     // Deterministic fix injection: the app's own watchPosition contract, with
-    // this test choosing every coordinate, accuracy and timestamp.
+    // this test choosing every coordinate, accuracy and timestamp — and, when
+    // asked, the exact GeolocationPositionError the browser would raise.
     let cb = null;
+    let errCb = null;
     const base = { lat: -33.865, lng: 151.2095, t: Date.now() };
     /** @type {any} */ (window).__gpsFeed = (index, accuracyM) => {
       if (!cb) return false;
@@ -87,9 +89,14 @@ async function session(distanceUnit, width = 390, theme = 'dark') {
       });
       return true;
     };
-    navigator.geolocation.watchPosition = (success) => { cb = success; return 1; };
-    navigator.geolocation.clearWatch = () => { cb = null; };
-  });
+    /** @type {any} */ (window).__gpsFail = (err) => { if (errCb) errCb(err); };
+    navigator.geolocation.watchPosition = (success, failure) => {
+      cb = success; errCb = failure;
+      if (denyPermission) setTimeout(() => failure({ code: 1, message: 'User denied Geolocation' }), 40);
+      return 1;
+    };
+    navigator.geolocation.clearWatch = () => { cb = null; errCb = null; };
+  }, deny);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -258,6 +265,72 @@ try {
     if (seen.collapsed) failures.push('a re-render must not collapse a live run out of view');
     if (!seen.live) failures.push('the live run panel must survive a re-render');
     if (errors.length) failures.push(`re-render browser errors: ${errors.join(' | ')}`);
+    await context.close();
+  }
+
+  // ── A denied permission is a state, not a vanishing toast ────────────────
+  {
+    // This is the regression that made the notice necessary: Quick Start opened
+    // a full-screen Activity view, the web error path called showPanel('start'),
+    // and that scope has no start panel — leaving "← Cancel" and nothing else.
+    const { context, page, errors } = await session('km', 390, 'dark', { deny: true });
+    await page.evaluate(() => {
+      const start = document.querySelector('[data-action="qs-run"]')
+        || document.querySelector('[data-action="quick-activity"][data-type="run"]');
+      if (start) /** @type {any} */ (start).click();
+    });
+    await page.waitForTimeout(1200);
+    const seen = await page.evaluate(() => {
+      const screen = document.getElementById('activityScreen');
+      const notice = document.getElementById('qsNotice');
+      const vis = (el) => !!el && !!(/** @type {any} */ (el).offsetParent);
+      return {
+        screenOpen: !!screen && screen.style.display !== 'none',
+        noticeShown: vis(notice),
+        kind: notice?.dataset.kind,
+        title: document.getElementById('qsNoticeTitle')?.textContent?.trim(),
+        body: document.getElementById('qsNoticeBody')?.textContent?.trim() || '',
+        retryShown: vis(document.getElementById('qsNoticeRetry')),
+        retryHeight: document.getElementById('qsNoticeRetry')?.getBoundingClientRect().height || 0,
+        background: document.getElementById('qsBackgroundNote')?.textContent?.trim() || '',
+        bodyText: (screen?.innerText || '').replace(/\s+/g, ' ').trim(),
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      };
+    });
+    console.log('permission denied:', JSON.stringify(seen));
+    if (!seen.screenOpen) failures.push('the Activity screen must stay open to explain the refusal');
+    if (!seen.noticeShown) failures.push('a denied permission must leave a visible explanation');
+    if (seen.kind !== 'permission') failures.push(`notice kind must be permission, got "${seen.kind}"`);
+    if (!/settings/i.test(seen.body)) failures.push('the notice must point at the setting only the athlete can change');
+    if (!seen.retryShown) failures.push('the blocked screen must offer a way forward');
+    if (seen.retryHeight < 43) failures.push(`retry must meet the 44px target, got ${seen.retryHeight}`);
+    if (!/lock the screen/i.test(seen.background)) failures.push('the web build must admit it stops in the background');
+    // The bug in one assertion: the screen must say more than its chrome.
+    if (seen.bodyText.replace(/[^a-z]/gi, '').length < 60) {
+      failures.push(`the blocked screen is effectively blank: "${seen.bodyText}"`);
+    }
+    if (seen.overflow) failures.push('horizontal overflow on the blocked Activity screen');
+    if (errors.length) failures.push(`denied-permission browser errors: ${errors.join(' | ')}`);
+    await context.close();
+  }
+
+  // ── A dropout mid-run does not throw the run away ─────────────────────────
+  {
+    const { context, page } = await session('km');
+    await openRunCard(page);
+    await runFixes(page);
+    const before = await page.evaluate(() => document.getElementById('gpsStatDist')?.textContent?.trim());
+    await page.evaluate(() => /** @type {any} */ (window).__gpsFail({ code: 2, message: 'position unavailable' }));
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => ({
+      dist: document.getElementById('gpsStatDist')?.textContent?.trim(),
+      live: !!(/** @type {any} */ (document.getElementById('gpsLivePanel'))?.offsetParent),
+      notice: !!(/** @type {any} */ (document.getElementById('gpsNotice'))?.offsetParent),
+    }));
+    console.log('mid-run dropout:', JSON.stringify({ before, ...after }));
+    if (!after.live) failures.push('a mid-run dropout must not end the session');
+    if (after.dist !== before) failures.push(`a dropout must not discard recorded distance: ${before} → ${after.dist}`);
+    if (after.notice) failures.push('a transient dropout must not raise a blocking notice over a live run');
     await context.close();
   }
 
