@@ -100,6 +100,13 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   surface; `showInfoNotice` must NOT call `showPanel` — a recovered run is still live.
   A mid-run `onPositionError` must never tear down the session.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
+- Recommendations: `js/programs/recommendation-fit.js` is the fit model — score from what
+  the ATHLETE told the app (`fitnessGoal`/`fitnessLevel`/`equipmentTier`/`equipment`/
+  `weightGoal` + real recent training frequency), never from catalogue constants.
+  Editorial signal (popularity/rating/featured/official) is a tiebreaker held OUT of the
+  personal score and must NEVER surface as a reason — "Staff Pick" describes the
+  programme, not the fit. No true personal reason ⇒ `eligible:false` ⇒ the row does not
+  render; an empty row is honest, an invented one is not.
 - Programs: catalog in `js/programs/catalog/*.js`; a program = a single-week `days{}`
   template + `weeklyVolModifiers` (per-week sets/reps/`intensityLabel`, incl. deloads)
   — the cockpit resolves each lift's target via `getWeekModifier`→`liftTarget`

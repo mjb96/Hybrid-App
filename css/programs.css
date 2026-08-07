@@ -520,6 +520,21 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   letter-spacing: 2px;
 }
 
+/* Why THIS athlete is seeing THIS programme. Only ever a true statement about
+   their own goal, level, kit or recent training — never a badge like "Staff
+   Pick", which says nothing about fit. */
+.prog-card-reason {
+  font-size: 0.6rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--color-cyan, #22d3ee);
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Large card — for grid views */
 .prog-card--large {
   width: 100%;

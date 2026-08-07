@@ -398,7 +398,9 @@ function renderLibraryContent() {
 }
 
 function renderCollectionRows(container) {
-  const recommendations = getRecommendations(_appState, 8);
+  // Five, not eight: 4A asks for three to five, and a recommendation the athlete
+  // has to scroll sideways to reach is not leading with anything.
+  const recommendations = getRecommendations(_appState, 5);
   // Don't pass recommendedIds into getHomeCollections: we render the
   // personalised row ourselves below, and letting getHomeCollections inject its
   // own "recommended-for-you" collection too would duplicate the row.
@@ -443,17 +445,22 @@ function renderCollectionRows(container) {
 
   // Personalised recommendations row. hideSeeAll: recommendations aren't a
   // static collection, so there's no valid "see all" target for them.
+  //
+  // `getRecommendations` returns nothing when it has no true reason to offer, so
+  // this row simply does not appear rather than labelling a popularity ranking
+  // "Based on your training" — which is what it used to be for every athlete.
   if (recommendations.length > 0) {
-    const recPrograms = recommendations.map(r => r.program).filter(p => p && !shown.has(p.id));
-    if (recPrograms.length > 0) {
-      recPrograms.forEach(p => shown.add(p.id));
+    const eligible = recommendations.filter(r => r.program && !shown.has(r.program.id));
+    if (eligible.length > 0) {
+      eligible.forEach(r => shown.add(r.program.id));
+      const reasons = new Map(eligible.map(r => [r.program.id, r.reason]));
       html += renderCollectionRow({
         id: 'recommended',
         label: 'Recommended For You',
-        subtitle: 'Based on your training',
+        subtitle: 'Based on your goal, level and kit',
         icon: '✨',
         hideSeeAll: true,
-      }, recPrograms, true);
+      }, eligible.map(r => r.program), reasons);
     }
   }
 
@@ -600,8 +607,15 @@ function renderHeroBanner(programs) {
   `;
 }
 
-function renderCollectionRow(collection, programs, withReasonBadge = false) {
-  const cards = programs.map(p => renderProgramCard(p, 'small', withReasonBadge)).join('');
+/**
+ * @param {any} collection
+ * @param {any[]} programs
+ * @param {Map<string,string>} [reasons] programme id → why it fits this athlete
+ */
+function renderCollectionRow(collection, programs, reasons = null) {
+  const cards = programs
+    .map(p => renderProgramCard(p, 'small', reasons?.get(p.id) || ''))
+    .join('');
 
   return `
     <div class="collection-row mb-5">
