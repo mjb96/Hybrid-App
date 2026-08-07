@@ -78,9 +78,22 @@ function renderComparison(aId, bId) {
     </div>
   `).join('');
 
-  const bar = (v, color) => `<div style="height:6px;border-radius:99px;background:var(--overlay-sm);overflow:hidden;"><div style="height:100%;width:${Math.max(0, Math.min(100, v))}%;background:${color};"></div></div>`;
+  // Training-focus bars used to be two bare coloured strips: no number, no scale,
+  // and no accessible name — so the one part of the comparison that is a CHART
+  // could not be read at all by a screen reader, and a sighted user could see
+  // "longer" without seeing by how much. Every stat row beside them states its
+  // value, so these must too.
+  const pct = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+  const bar = (v, color) => `
+    <div style="display:flex;align-items:center;gap:6px;">
+      <div style="flex:1;height:6px;border-radius:99px;background:var(--overlay-sm);overflow:hidden;">
+        <div style="height:100%;width:${pct(v)}%;background:${color};"></div>
+      </div>
+      <span style="min-width:2.4em;text-align:right;font-size:0.7rem;font-weight:700;color:var(--text-sub);">${pct(v)}%</span>
+    </div>`;
   const metricRows = cmp.metrics.map(m => `
-    <div style="padding:8px 4px;border-bottom:1px solid var(--overlay-sm);">
+    <div style="padding:8px 4px;border-bottom:1px solid var(--overlay-sm);"
+         role="group" aria-label="${escapeHtml(`${m.label}: ${cmp.a.name} ${pct(m.a)}%, ${cmp.b.name} ${pct(m.b)}%`)}">
       <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-bottom:5px;">${m.label}</div>
       <div style="display:flex;gap:10px;align-items:center;">
         <div style="flex:1;">${bar(m.a, '#8b5cf6')}</div>

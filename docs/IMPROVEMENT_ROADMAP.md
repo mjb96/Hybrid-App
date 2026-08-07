@@ -717,8 +717,9 @@ Every metric detail includes:
 
 ## Phase 4 — Plans, exercise discovery, and editing
 
-**Status: ACTIVE — 4A's recommendation engine and active-plan lead are done
-(2026-08-07). Remaining in 4A: chip/collection overload and the compare flow.**
+**Status: 4A COMPLETE 2026-08-07** — recommendation engine, active-plan lead,
+chip/collection overload and the compare flow. 4B (programme detail order), 4C
+(Simple/Advanced builder) and 4D (exercise metadata) are NEXT.
 
 **Outcome:** choosing and changing training feels guided rather than
 catalogue-driven.
@@ -792,8 +793,30 @@ catalogue-driven.
   discarded when it proved to be dead code.
 - Make Browse all secondary but complete. *(Already complete: all 58 programmes
   are reachable through the category chips — see the corrected note below.)*
-- Reduce category-chip and collection overload.
-- Let users compare no more than two or three programmes with consistent fields.
+- **DONE 2026-08-07 — chip and collection overload cut, and recommendations now
+  actually lead.** Measured before changing anything, the default Discover surface
+  carried **36 chip controls** — 16 categories and 5 levels at the top, plus the
+  same 15 categories AGAIN in the Browse-all grid — above a 220px `featured`
+  carousel, with the personal recommendation row starting 651px down.
+  - The filters are the tool for browsing, so they now render only while browsing
+    (`isBrowsing()`); picking a category from the Browse-all grid enters that
+    mode, and "All" leaves it. Default-mode chips: **36 → 15**, drawn once.
+  - The editorial carousel moved BELOW everything personal. It is `featured` —
+    identical for every athlete — and the recommendation rules already keep
+    editorial out of the personal score and out of the stated reasons; letting it
+    own the top of the screen contradicted them just as plainly. Hero: y415 → y1465.
+  - The recommendation row is now the first row on the surface, after the active
+    plan itself: **y651 → y327**, inside the first viewport.
+  - Deliberately unchanged: the last-used filter still persists across reloads, so
+    an athlete who left mid-browse returns to it. That is existing intended
+    behaviour and reversing it is a separate decision.
+- **DONE 2026-08-07 — compare states its numbers.** The two-programme,
+  seven-consistent-field comparison already met this bullet, so nothing was
+  rebuilt. But its "training focus" bars were bare coloured strips with no value,
+  no scale and no accessible name, while every stat row beside them stated its
+  value — the one part of the comparison that is a CHART could not be read at all
+  by a screen reader. Both values are now printed and each row carries an
+  accessible summary. The compare modal had no browser coverage at all; it does now.
 
 ### 4B. Programme detail
 
@@ -1097,9 +1120,11 @@ Work in this order unless user evidence changes it:
    replay and partial-route conditions became persistent notices instead of
    toasts — which uncovered and fixed a blank-screen dead end on a denied
    permission.
-8. **ACTIVE — Rework Plans discovery around recommendations before Browse all.**
-   The recommendation engine and the active-plan lead both landed 2026-08-07
-   (see 4A). Remaining: reduce chip/collection overload, and the compare flow.
+8. **DONE 2026-08-07 — Plans discovery reworked around recommendations before
+   Browse all.** All of 4A: the recommendation engine, the active-plan lead, the
+   chip/collection reduction (36 default chip controls → 15, recommendations from
+   y651 → y327, the editorial carousel moved below everything personal) and
+   compare stating its numbers. **Next: 4B programme-detail ordering.**
    **Correction:** this entry claimed the landing "renders 25 of 58 programmes,
    so a new programme is findable only by search". That was never true and was
    repeated twice without being checked. Measured against the real catalogue,
@@ -1113,6 +1138,55 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 4A finished: Discover recommends before it asks you to
+  browse.** Measured the surface first rather than trusting the description of it:
+  36 chip controls (the 15 categories drawn twice, once at the top and once in the
+  Browse-all grid), a 220px editorial carousel at y415, and the personal
+  recommendation row not starting until y651. Filters now render only while
+  browsing, the carousel sits below everything personal, and recommendations lead
+  at y327 — 15 default chips, each category drawn once. The last-used filter still
+  persists across reloads: existing intended behaviour, and reversing it is its own
+  decision. Compare already met its bullet (two programmes, seven consistent
+  fields) so nothing was rebuilt there, but its training-focus bars stated no
+  values and carried no accessible name — the only chart in the comparison, and
+  unreadable. Both values now printed, each row summarised, and the compare modal
+  has browser coverage for the first time.
+
+- **2026-08-07 — The two-workouts-in-one-day fix was INCOMPLETE, and a second
+  defect was hiding behind it.** Reported back from real use: "I completed two
+  sessions yesterday and the In Focus tile is showing only 17 sets when it should
+  be over 30 … the app is saying I've only completed 4 of 5 workouts this week
+  when in fact I've done 5." Both true. Two separate causes.
+  - **A — the dedup discarded a whole session before any merging could run.**
+    `indexSlotsByDate`'s identity was
+    `slot.sessionId ? candidate.sessionId === slot.sessionId : !candidate.sessionId`.
+    Only ONE-OFF sessions carry a session id, so every PROGRAMMED slot on a date
+    formed one "duplicate family": completing Monday's Push (17 sets) and
+    Tuesday's Pull (16) on the same day made the smaller a duplicate of the
+    larger and threw it away. Reproduced exactly — **17 sets for a 33-set day.**
+    The identity now includes the program day: two different program days are
+    different sessions and can never be duplicates, while the collision the
+    dedup actually exists for — the SAME program day under two week keys, from a
+    cloud copy or a re-activation that reused week numbers — still collapses to
+    one. A test asserts that duplicate does not become 10 sets.
+  - **Why the first fix missed it, plainly:** the earlier fixture gave its second
+    session a `sessionId`, which took the other branch of that very condition. It
+    passed while the reported case failed. The merge work was real and necessary,
+    but the test was not representative of two programmed workouts.
+  - **B — Consistency counted dates and labelled them sessions.** Separate bug,
+    separate file. `consistencyDomain` compared `trainedDaysIn` (distinct
+    calendar dates) against `plannedTrainingDays` under the unit "of N planned",
+    so five sessions across four days read **"4 of 5 planned"**. It now counts
+    SESSIONS via `loggedSessionsByDate` (dedup-aware, one source shared with In
+    Focus), and the trend beside it still counts training days and says so on its
+    own label. Five sessions across four days now read "5 of 5 planned" with the
+    trend point still 4 — both true, each labelled.
+  - `tests/week_chart_model.test.js` +3, `tests/progress_landing.test.js` +3.
+    Verified: 1,727 unit tests, typecheck, smoke, precache, workflow gates, and
+    the plan-recommendations / progress-hub / home-attribution / home-today /
+    strength-volume / gym-performance / run-performance / volume-guide /
+    core-ergonomics browser checks.
 
 - **2026-08-07 — Bug from real use: "the In Focus tiles do not handle 2 workouts
   in one day properly." They did not, and it was losing data, not just
