@@ -505,12 +505,41 @@ The visible information architecture can change without a risky route rewrite:
 
 ### 2C. Running
 
-- Give active GPS/manual running its own focused session surface.
-- Prioritise elapsed time, distance, pace, GPS quality, pause/resume, and Finish.
-- Move imports and setup controls out of the active-session hierarchy.
+**Status: ACTIVE — the live session surface is done; the acquisition/permission
+state copy is the remaining slice.**
+
+- **DONE 2026-08-07 — the live run has its own focused surface.** The cockpit
+  run card enters a focus mode while a session is live (`run-session-active`):
+  setup, manual distance/time/RPE entry, notes and the watch-import tile step
+  aside so the session and its controls are what is on screen. Nothing is
+  removed — `stopTracking` fills those same inputs, so they return holding the
+  run the moment it ends.
+- **DONE 2026-08-07 — elapsed time, distance, pace, GPS quality, pause/resume
+  and Finish are the priority.** A live signal chip was added to both surfaces
+  (cockpit + Quick Activity), and Pause/Finish were rendering at 38px, under the
+  app's own 44px touch target — found by driving the surface, not by reading it.
+- **DONE 2026-08-07 — the live run speaks the athlete's distance unit.** The
+  tracker was the ONE surface in the app that did not convert: a miles athlete
+  watched kilometres climb under a hardcoded "DIST (KM)" label, then saw the
+  number change on Stop, because `stopTracking` fills the cockpit input in the
+  display unit. `js/gps/active-run-display.js` is the shared model for both
+  surfaces, and the browser check asserts the live figure and the saved figure
+  are the same number.
+- **DONE 2026-08-07 — a live run cannot be collapsed or reparented out of
+  view.** `.run-collapsed` hides `.run-body-content` wholesale and a re-render
+  applied it on any day with no scheduled run — precisely when an unscheduled
+  run is being tracked. Reordering is skipped for the same reason: moving the
+  node detaches the live Leaflet map from under the athlete.
 - Clarify GPS acquisition, permission denial, background tracking, replay, and
-  partial-route states.
-- Use the user’s distance unit consistently at every boundary.
+  partial-route states. *(Acquisition and pause now read honestly — searching /
+  strong / fair / weak / no-signal / paused, graded from the LAST accepted fix
+  rather than the whole-run summary, and a paused run is never dressed up as
+  signal loss. Permission denial, background-tracking and partial-route copy are
+  still the toast-level messages they were.)*
+- Use the user's distance unit consistently at every boundary. *(Live tracker
+  done. The other two write boundaries already land on the canonical km store:
+  the manual logger converts its input by the setting, and a FIT session's
+  `total_distance` is parsed as kilometres to begin with.)*
 
 ### Acceptance
 
@@ -891,12 +920,12 @@ even while release work is parked.
 | --- | --- |
 | Navigation | Four intent-led destinations — Home, Train, Progress, Plans — with stable legacy route IDs and origin-aware drilldown Back behaviour |
 | Home/coaching | One state-aware Today card followed by retained Strength/Running In Focus cards; repeated At-a-Glance tiles are removed |
-| Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion |
+| Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion, focused live-run surface |
 | Plans | 57-program catalogue, recommendations, comparison, details, timeline, editable personal copies, builder |
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,312 tests, typecheck, smoke, precache/workflow gates, responsive/accessibility browser checks |
+| Quality | 1,632 tests, typecheck, smoke, precache/workflow gates, 28 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -932,9 +961,11 @@ Work in this order unless user evidence changes it:
    notable progress, optional effort/notes on the cockpit's own store,
    adherence-aware explanation, a discard that names its exact scope and can be
    undone, and a completed state that links onward.
-7. **ACTIVE — Phase 2C running:** give the active run its own focused session
-   surface, with elapsed time, distance, pace, GPS quality, pause/resume and
-   Finish prioritised, and imports moved out of the active-session hierarchy.
+7. **ACTIVE — Phase 2C running.** The focused live-run surface shipped
+   2026-08-07: the athlete's own distance unit, a live GPS signal state, focus
+   mode over setup/import/manual entry, and a live run that a re-render cannot
+   collapse. Remaining slice: the permission-denial, background-tracking,
+   replay and partial-route states are still toast-level copy.
 8. **Rework Plans discovery around recommendations before Browse all.** Also
    surfaces the fact that the Plans landing renders 25 of 58 programmes, so a
    new programme is findable only by search.
@@ -945,6 +976,48 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 2C: the live run becomes its own session surface.**
+  - **The tracker was the one surface still showing raw kilometres.** Everything
+    else in the app converts km to the configured unit at the display boundary;
+    `tickStats` wrote `_distKm.toFixed(2)` under a hardcoded `DIST (KM)` label.
+    Worse, `stopTracking` DOES convert when it fills the cockpit input — so a
+    miles athlete watched one number for the whole run and saw a different one
+    the instant they finished. `js/gps/active-run-display.js` is now the shared
+    model for both surfaces (cockpit + Quick Activity), and the browser check
+    asserts the live figure and the value Stop writes are the same string.
+  - **"Is it tracking me right now?" had no answer on screen.**
+    `summarizeGpsQuality` grades a FINISHED run; mid-run the athlete needs the
+    current state. `gpsSignalPresentation` grades the LAST ACCEPTED fix, so a
+    run that was clean for twenty minutes and has had no fix for two reads as
+    "No signal", not "strong". Accuracy tiers moved to an exported
+    `GPS_ACCURACY_TIERS` in `route-quality.js` so the live grade and the saved
+    grade cannot drift apart. A paused run reports **paused**, never signal
+    loss — fixes are deliberately not ingested while paused, so the growing
+    staleness there is the app working correctly.
+  - **Focus mode.** While a session is live the cockpit run card hides setup,
+    manual entry, notes and the watch import (`run-session-active`). CSS, not
+    removal: `stopTracking` fills those inputs, so they come back holding the
+    run for review.
+  - **A live run could be collapsed out of view by an unrelated re-render.**
+    `.run-collapsed` hides `.run-body-content` wholesale, and `renderWorkout`
+    applies it on any day with no scheduled run — exactly the case when an
+    unscheduled run is being tracked. The reorder is skipped while live for the
+    same reason: moving the node detaches the live Leaflet map.
+  - **Found by driving it, not reading it:** Pause and Finish rendered at 38px,
+    under the app's own 44px touch target — the two controls a run is steered
+    with, out of breath. Also removed a `qsStartPanel` scope entry pointing at
+    an element that has never existed in the markup.
+  - `scripts/active-run-browser-check.mjs` (registered in the runner) drives a
+    real GPS session with injected fixes — exact accuracy and spacing, because
+    the tiers being asserted are accuracy thresholds. Plus
+    `tests/active_run_display.test.js` (17) and `tests/active_run_surface.test.js`
+    (7). Verified: 1632 unit tests, typecheck, smoke, workflow gates, precache
+    regenerated, and the active-run browser check green.
+  - **Container note:** `node_modules` was absent, which is why
+    `tests/route_db_migration.test.js` was recorded as a "pre-existing failure"
+    yesterday and why all 27 browser checks were silently skipping. `npm
+    install` fixed both — the suite is 1632/1632 with no exclusions.
 
 - **2026-08-07 — Bug: a deleted set came back, and the review kept calling the
   session incomplete.** Reported from real use ("if I delete a set when I'm

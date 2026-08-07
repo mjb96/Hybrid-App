@@ -27,6 +27,10 @@ import { newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import {
   createGpsQualityState, ingestGpsQualityFix, summarizeGpsQuality,
 } from './gps/route-quality.js';
+import {
+  activeRunStats, formatRunClock, gpsSignalPresentation, isActiveRunSession,
+  runDistanceUnit,
+} from './gps/active-run-display.js';
 
 // ── Tuning constants ──────────────────────────────────────────────────────
 const TICK_MS          = 1000; // stats update interval
@@ -38,10 +42,20 @@ const TICK_MS          = 1000; // stats update interval
 const UI = {
   cockpit:  { start: 'gpsStartPanel', wait: 'gpsWaitPanel', live: 'gpsLivePanel',
               map: 'gpsLiveMap', time: 'gpsStatTime', dist: 'gpsStatDist',
-              pace: 'gpsStatPace', pauseBtn: 'gpsPauseBtn' },
-  activity: { start: 'qsStartPanel', wait: 'qsWaitPanel', live: 'qsLivePanel',
+              pace: 'gpsStatPace', pauseBtn: 'gpsPauseBtn',
+              distLabel: 'gpsDistUnitLabel', paceLabel: 'gpsPaceUnitLabel',
+              signal: 'gpsSignal', signalLabel: 'gpsSignalLabel',
+              signalDetail: 'gpsSignalDetail' },
+  // The Quick Activity screen has no start panel — the run is already started
+  // by the time it opens (Home Quick Start), so `showPanel('start')` there only
+  // has to take the live panel down. It named a `qsStartPanel` that has never
+  // existed in the markup; `null` says that, a phantom ID does not.
+  activity: { start: null, wait: 'qsWaitPanel', live: 'qsLivePanel',
               map: 'qsLiveMap', time: 'qsStatTime', dist: 'qsStatDist',
-              pace: 'qsStatPace', pauseBtn: 'qsPauseBtn' },
+              pace: 'qsStatPace', pauseBtn: 'qsPauseBtn',
+              distLabel: 'qsDistUnitLabel', paceLabel: 'qsPaceUnitLabel',
+              signal: 'qsSignal', signalLabel: 'qsSignalLabel',
+              signalDetail: 'qsSignalDetail' },
 };
 let _scope = 'cockpit';
 function ui() { return UI[_scope] || UI.cockpit; }
@@ -124,24 +138,9 @@ function elapsedMs() {
   return _pausedMs + (Date.now() - _startTime);
 }
 
-function fmtTime(ms) {
-  const totalSec = Math.floor(ms / 1000);
-  const h  = Math.floor(totalSec / 3600);
-  const m  = Math.floor((totalSec % 3600) / 60);
-  const s  = totalSec % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-function fmtPace(distKm, ms) {
-  if (distKm < 0.05) return '—:——';
-  const sPerKm = ms / 1000 / distKm;
-  const m = Math.floor(sPerKm / 60);
-  const s = Math.round(sPerKm % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
+// The saved `time` string and the on-screen clock are the same format by
+// construction — they were two implementations of it before.
+const fmtTime = formatRunClock;
 
 // ── Wake Lock ─────────────────────────────────────────────────────────────
 
@@ -202,26 +201,74 @@ function destroyLiveMap() {
 // ── Stats UI ──────────────────────────────────────────────────────────────
 
 function tickStats() {
-  const ms = elapsedMs();
   const u = ui();
+  const stats = activeRunStats({
+    distKm: _distKm,
+    elapsedMs: elapsedMs(),
+    unit: runDistanceUnit(appState),
+  });
   const timeEl = document.getElementById(u.time);
   const distEl = document.getElementById(u.dist);
   const paceEl = document.getElementById(u.pace);
-  if (timeEl) timeEl.textContent = fmtTime(ms);
-  if (distEl) distEl.textContent = _distKm.toFixed(2);
-  if (paceEl) paceEl.textContent = fmtPace(_distKm, ms);
+  if (timeEl) timeEl.textContent = stats.time;
+  if (distEl) distEl.textContent = stats.distance;
+  if (paceEl) paceEl.textContent = stats.pace;
+  tickSignal();
+}
+
+// The unit is a setting, not a per-tick value: written when a panel opens.
+function applyUnitLabels() {
+  const u = ui();
+  const stats = activeRunStats({ unit: runDistanceUnit(appState) });
+  const distLabel = document.getElementById(u.distLabel);
+  const paceLabel = document.getElementById(u.paceLabel);
+  if (distLabel) distLabel.textContent = stats.distanceLabel;
+  if (paceLabel) paceLabel.textContent = stats.paceLabel;
+}
+
+function tickSignal() {
+  const u = ui();
+  const host = document.getElementById(u.signal);
+  if (!host) return;
+  const signal = gpsSignalPresentation({
+    status: _status,
+    lastAcceptedPoint: _qualityState?.lastAcceptedPoint,
+    acceptedPointCount: _qualityState?.acceptedPointCount || 0,
+  });
+  host.dataset.level = signal.level;
+  const labelEl = document.getElementById(u.signalLabel);
+  const detailEl = document.getElementById(u.signalDetail);
+  if (labelEl) labelEl.textContent = signal.label;
+  if (detailEl) detailEl.textContent = signal.detail;
+  host.setAttribute('aria-label', `${signal.label} — ${signal.detail}`);
+}
+
+// Focus mode: while a run session owns the screen, the cockpit's run card shows
+// the session and nothing competing with it. Setup, manual entry and the watch
+// import are hidden by CSS, not removed — `stopTracking` fills those same
+// inputs for review the moment the run ends.
+function applyRunFocusMode() {
+  const panel = document.getElementById('cockpitRunPanel');
+  if (!panel) return;
+  panel.classList.toggle(
+    'run-session-active',
+    _scope === 'cockpit' && isActiveRunSession(_status),
+  );
 }
 
 // ── Panel visibility ──────────────────────────────────────────────────────
 
 function showPanel(which) {
   const u = ui();
-  const start = document.getElementById(u.start);
+  const start = u.start ? document.getElementById(u.start) : null;
   const wait  = document.getElementById(u.wait);
   const live  = document.getElementById(u.live);
   if (start) start.style.display = which === 'start' ? 'flex' : 'none';
   if (wait)  wait.style.display  = which === 'wait'  ? 'flex' : 'none';
   if (live)  live.style.display  = which === 'live'  ? 'block' : 'none';
+  applyUnitLabels();
+  tickSignal();
+  applyRunFocusMode();
 }
 
 // ── Geolocation callbacks ─────────────────────────────────────────────────
@@ -343,6 +390,15 @@ function onPositionError(err) {
 
 export function isTracking() {
   return _status === 'tracking' || _status === 'paused';
+}
+
+/**
+ * Is a run session on screen right now — including `waiting`, before the first
+ * fix lands? `isTracking()` deliberately excludes that state (nothing is being
+ * recorded yet), but the UI must already be treating the card as the session.
+ */
+export function hasActiveRunSession() {
+  return isActiveRunSession(_status);
 }
 
 export function initGpsTracker() {
@@ -540,6 +596,10 @@ export function pauseTracking() {
 
   const btn = document.getElementById(ui().pauseBtn);
   if (btn) { btn.style.display = ''; btn.textContent = '▶ Resume'; btn.setAttribute('data-action', 'gps-resume'); }
+  // The stats tick is stopped while paused, so the signal chip has to be told
+  // once — otherwise it sits on the last live grade and then ages into
+  // "No signal" for a run that is merely paused.
+  tickSignal();
 }
 
 export function resumeTracking() {
@@ -555,6 +615,7 @@ export function resumeTracking() {
 
   const btn = document.getElementById(ui().pauseBtn);
   if (btn) { btn.style.display = ''; btn.textContent = '⏸ Pause'; btn.setAttribute('data-action', 'gps-pause'); }
+  tickSignal();
 }
 
 export async function stopTracking(week, day) {
