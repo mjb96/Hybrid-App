@@ -25,8 +25,7 @@
 // program-week counter that only advances on an explicit step).
 // =============================================================================
 
-import { weekStartOf, localDayKey, addDaysISO, DAY_KEYS } from './weekly-aggregate.js';
-import { loggedDateSet } from './logged-days.js';
+import { weekStartOf, localDayKey, addDaysISO, DAY_KEYS, loggedSessionsByDate } from './weekly-aggregate.js';
 import { comparePeriodValues } from './period-comparison.js';
 import { calendarStrengthSummary, calendarWeekE1rmSeriesForLift } from './strength-calendar.js';
 import { weightUnitOf } from './utils.js';
@@ -52,6 +51,26 @@ function trainedDaysIn(dates, weekStartISO, limitDays = 7) {
   let n = 0;
   for (let i = 0; i < Math.min(7, Math.max(0, limitDays)); i++) {
     if (dates.has(/** @type {string} */ (addDaysISO(weekStartISO, i)))) n++;
+  }
+  return n;
+}
+
+/**
+ * Count the logged SESSIONS inside one calendar week, over the same optional
+ * elapsed window.
+ *
+ * Deliberately separate from `trainedDaysIn`: the headline compares against the
+ * program's planned SESSIONS, and two workouts completed on one day are two
+ * sessions. Counting dates there reported five completed workouts as "4 of 5
+ * planned" — the numbers were days wearing the label of sessions.
+ * @param {Map<string, number>} counts
+ * @param {string} weekStartISO
+ * @param {number} [limitDays]
+ */
+function trainedSessionsIn(counts, weekStartISO, limitDays = 7) {
+  let n = 0;
+  for (let i = 0; i < Math.min(7, Math.max(0, limitDays)); i++) {
+    n += counts.get(/** @type {string} */ (addDaysISO(weekStartISO, i))) || 0;
   }
   return n;
 }
@@ -123,17 +142,22 @@ function toneFor(direction, inverse = false) {
 
 /**
  * Consistency — the roadmap's first domain and the one the hub was missing
- * entirely. Built from real stamped dates via loggedDateSet, so an archived
- * activation's sessions still count and nothing is attributed to a guessed date.
+ * entirely. Built from real stamped dates, so an archived activation's sessions
+ * still count and nothing is attributed to a guessed date. The headline counts
+ * SESSIONS (what "of N planned" is about); the trend counts training days and
+ * says so on its own label.
  */
 function consistencyDomain(state, { days, program, todayISO, weekStart }) {
-  const dates = loggedDateSet(state, days);
+  // One source for both numbers, and the same deduplicated index In Focus reads,
+  // so the headline (sessions) and the trend (training days) can never disagree
+  // about whether a week was trained.
+  const { counts, dates } = loggedSessionsByDate(state);
   const prevWeekStart = /** @type {string} */ (addDaysISO(weekStart, -7));
   const isCurrentWeek = weekStart === weekStartOf(todayISO);
   const elapsed = isCurrentWeek ? elapsedDayCount(weekStart, todayISO) : 7;
 
-  const trained = trainedDaysIn(dates, weekStart, elapsed);
-  const previous = trainedDaysIn(dates, prevWeekStart, elapsed);
+  const trained = trainedSessionsIn(counts, weekStart, elapsed);
+  const previous = trainedSessionsIn(counts, prevWeekStart, elapsed);
   const planned = plannedTrainingDays(program);
 
   const comparison = comparePeriodValues({
@@ -155,7 +179,7 @@ function consistencyDomain(state, { days, program, todayISO, weekStart }) {
 
   const remaining = planned != null ? Math.max(0, planned - trained) : null;
   const interpretation = planned == null
-    ? `${trained} training day${trained === 1 ? '' : 's'} logged this week.`
+    ? `${trained} session${trained === 1 ? '' : 's'} logged this week.`
     : remaining === 0
       ? `You have hit all ${planned} planned session${planned === 1 ? '' : 's'} this week.`
       : isCurrentWeek

@@ -204,6 +204,115 @@ try {
     await context.close();
   }
 
+  // ── Recommend before browse: the filters are disclosed, not default ───────
+  // Measured before this landed: the default Discover surface carried 36 chip
+  // controls (16 categories + 5 levels at the top, plus the SAME 15 categories
+  // again in the Browse-all grid) and put a 220px editorial `featured` carousel
+  // above a personal recommendation row that began 651px down.
+  {
+    const { context, page, errors } = await discover({
+      fitnessGoal: 'hybrid', fitnessLevel: 'intermediate', equipmentTier: 'gym', equipment: FULL_GYM,
+    });
+    const layout = () => {
+      const top = (el) => (el ? Math.round(el.getBoundingClientRect().top + window.scrollY) : null);
+      const rowTop = (re) => top([...document.querySelectorAll('.collection-row')]
+        .find((r) => re.test(r.querySelector('.collection-title')?.textContent || '')));
+      return {
+        categoryChips: document.querySelectorAll('#progFilterChips .filter-chip').length,
+        difficultyChips: document.querySelectorAll('#progDifficultyChips .filter-chip').length,
+        browseGridChips: document.querySelectorAll('.prog-browse-grid .filter-chip').length,
+        recommendationsTop: rowTop(/Recommended For You/i),
+        browseAllTop: rowTop(/Browse all categories/i),
+        heroTop: top(document.querySelector('.hero-banner')),
+        viewport: window.innerHeight,
+        grid: document.querySelectorAll('#progLibraryContent .program-grid .prog-card').length,
+      };
+    };
+    const before = await page.evaluate(layout);
+    console.log('default Discover:', JSON.stringify(before));
+    if (before.categoryChips || before.difficultyChips) {
+      failures.push(`filters must be disclosed, not default: ${before.categoryChips} category + ${before.difficultyChips} level chips on the landing`);
+    }
+    if (before.browseGridChips < 15) failures.push(`Browse-all must still reach every category, got ${before.browseGridChips}`);
+    if (before.recommendationsTop == null) failures.push('no recommendations row on the default surface');
+    else if (before.recommendationsTop > before.viewport) {
+      failures.push(`recommendations start at ${before.recommendationsTop}px, below the first viewport`);
+    }
+    if (before.heroTop != null && before.recommendationsTop != null && before.heroTop < before.recommendationsTop) {
+      failures.push('the editorial featured carousel is above the personal recommendations');
+    }
+
+    // Entering browse mode reveals the filters and the grid...
+    await page.evaluate(() => {
+      const chip = [...document.querySelectorAll('.prog-browse-grid .filter-chip')]
+        .find((c) => /Strength/i.test(c.textContent || ''));
+      if (chip) /** @type {any} */ (chip).click();
+    });
+    await page.waitForTimeout(500);
+    const browsing = await page.evaluate(layout);
+    console.log('browsing a category:', JSON.stringify(browsing));
+    if (!browsing.categoryChips) failures.push('browsing must expose the category filters');
+    if (!browsing.difficultyChips) failures.push('browsing must expose the level filters');
+    if (!browsing.grid) failures.push('browsing a category must render its programmes');
+
+    // ...and "All" returns to the recommended surface, filters away again.
+    await page.evaluate(() => {
+      const all = [...document.querySelectorAll('#progFilterChips .filter-chip')]
+        .find((c) => (c.textContent || '').trim() === 'All');
+      if (all) /** @type {any} */ (all).click();
+    });
+    await page.waitForTimeout(500);
+    const back = await page.evaluate(layout);
+    console.log('back to recommended:', JSON.stringify(back));
+    if (back.categoryChips || back.difficultyChips) failures.push('leaving browse must put the filters away again');
+    if (back.recommendationsTop == null) failures.push('leaving browse must restore the recommendations');
+    if (errors.length) failures.push(`hierarchy: browser errors: ${errors.join(' | ')}`);
+    await context.close();
+  }
+
+  // ── Compare states its numbers, and says them out loud ────────────────────
+  // The two "training focus" bars were bare coloured strips: no value, no scale
+  // and no accessible name, while every stat row beside them stated its value.
+  {
+    const { context, page, errors } = await discover({
+      fitnessGoal: 'strength', fitnessLevel: 'intermediate', equipmentTier: 'gym', equipment: FULL_GYM,
+    });
+    await page.evaluate(() => {
+      const card = document.querySelector('#progLibraryContent .prog-card[data-program-id]');
+      if (card) /** @type {any} */ (card).click();
+    });
+    await page.waitForTimeout(700);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('[data-action="open-compare"]'))?.click());
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const pick = document.querySelector('[data-action="compare-pick"]');
+      if (pick) /** @type {any} */ (pick).click();
+    });
+    await page.waitForTimeout(500);
+    const cmp = await page.evaluate(() => {
+      const body = document.getElementById('compareBody');
+      const groups = [...(body?.querySelectorAll('[role="group"]') || [])];
+      return {
+        open: !!document.getElementById('programCompareModal')?.classList.contains('active'),
+        statRows: (body?.textContent?.match(/LENGTH|FREQUENCY|EQUIPMENT/gi) || []).length,
+        focusGroups: groups.length,
+        labelled: groups.filter((g) => /%/.test(g.getAttribute('aria-label') || '')).length,
+        percentLabels: (body?.textContent?.match(/\d+%/g) || []).length,
+      };
+    });
+    console.log('compare:', JSON.stringify(cmp));
+    if (!cmp.open) failures.push('compare modal did not open');
+    if (!cmp.statRows) failures.push('compare lost its consistent stat fields');
+    if (cmp.focusGroups && cmp.labelled !== cmp.focusGroups) {
+      failures.push(`${cmp.focusGroups - cmp.labelled} training-focus rows have no accessible value`);
+    }
+    if (cmp.focusGroups && cmp.percentLabels < cmp.focusGroups * 2) {
+      failures.push(`training-focus bars must state both values, got ${cmp.percentLabels} for ${cmp.focusGroups} rows`);
+    }
+    if (errors.length) failures.push(`compare: browser errors: ${errors.join(' | ')}`);
+    await context.close();
+  }
+
   // ── The surface still holds together ──────────────────────────────────────
   for (const width of [320, 412]) {
     const { context, page, errors } = await discover(

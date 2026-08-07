@@ -326,11 +326,26 @@ const DIFFICULTY_CHIPS = [
   { key: 'elite',        label: 'Elite',      color: '#dc2626' },
 ];
 
+/**
+ * Are we BROWSING the catalogue, rather than being recommended a plan?
+ *
+ * 4A asks Plans to recommend before asking anyone to browse, and the filters are
+ * classified as "disclose on demand". Measured before this change, the default
+ * Discover surface carried **36 chip controls** — 16 categories and 5 levels at
+ * the top, plus the same 15 categories again in the Browse-all grid at the
+ * bottom — above a personal recommendation row that began 651px down. The chips
+ * are the browse tool, so they belong to browse mode; picking a category (from
+ * the Browse-all grid or a collection's "See all") is what enters it.
+ */
+function isBrowsing() {
+  return _activeFilter !== 'all';
+}
+
 function renderFilterChips() {
   const container = document.getElementById('progFilterChips');
   if (!container) return;
 
-  if (_activeTab !== 'discover') {
+  if (_activeTab !== 'discover' || !isBrowsing()) {
     container.innerHTML = '';
     return;
   }
@@ -348,7 +363,7 @@ function renderDifficultyChips() {
   const container = document.getElementById('progDifficultyChips');
   if (!container) return;
 
-  if (_activeTab !== 'discover') {
+  if (_activeTab !== 'discover' || !isBrowsing()) {
     container.innerHTML = '';
     return;
   }
@@ -398,14 +413,45 @@ function renderCollectionRows(container) {
   // own "recommended-for-you" collection too would duplicate the row.
   const collections = getHomeCollections();
 
-  // Featured hero (first 3 featured programs)
+  // Featured hero (first 3 featured programs). Rendered LATER, not here: it is a
+  // 220px carousel of `featured` programmes — editorial signal, identical for
+  // every athlete — and it used to sit directly above the personalised row, so
+  // the surface led with what the catalogue promotes rather than what fits. The
+  // recommendation rules already keep editorial out of the personal score and out
+  // of the stated reasons; letting it own the top of the screen contradicted them
+  // just as plainly.
   const featuredPrograms = PROGRAM_CATALOG.filter(p => p.featured).slice(0, 3);
 
   let html = '';
 
-  // Hero banner
-  if (featuredPrograms.length > 0) {
-    html += renderHeroBanner(featuredPrograms);
+  // De-dupe across the discovery rails: a program appears in at most one of
+  // Recommended / the curated rails per render, so the same card can't fill
+  // three rows on one Discover screen. (Recently-Viewed and your custom programs
+  // are a different, clearly-labelled context and stay outside this.)
+  const shown = new Set(_appState?.activeProgramId ? [_appState.activeProgramId] : []);
+
+  // ── FIRST: the personalised recommendations ───────────────────────────────
+  // 4A's primary for this surface, after the active plan itself. hideSeeAll:
+  // recommendations aren't a static collection, so there's no valid "see all".
+  //
+  // `getRecommendations` returns nothing when it has no true reason to offer, so
+  // this row simply does not appear rather than labelling a popularity ranking
+  // "Based on your training" — which is what it used to be for every athlete.
+  if (recommendations.length > 0) {
+    const eligible = recommendations.filter(r => r.program && !shown.has(r.program.id));
+    if (eligible.length > 0) {
+      eligible.forEach(r => shown.add(r.program.id));
+      const reasons = new Map(eligible.map(r => [r.program.id, r.reason]));
+      html += renderCollectionRow({
+        id: 'recommended',
+        label: 'Recommended For You',
+        icon: '✨',
+        hideSeeAll: true,
+        // The basis replaces the old "Based on your training" subtitle, which
+        // claimed more than it could back up for an athlete who never answered.
+        afterHeader: renderRecommendationBasis(recommendationBasis(athleteProfile(_appState))),
+      }, eligible.map(r => r.program), reasons);
+    }
   }
 
   // Recently viewed — surfaces the (previously write-only) recentlyViewed log
@@ -429,38 +475,9 @@ function renderCollectionRows(container) {
     html += renderCustomProgramsSection(customPrograms);
   }
 
-  // De-dupe across the discovery rails: a program appears in at most one of
-  // Recommended / the curated rails per render, so the same card can't fill
-  // three rows on one Discover screen. (Recently-Viewed and your custom programs
-  // are a different, clearly-labelled context and stay outside this.)
-  const shown = new Set(_appState?.activeProgramId ? [_appState.activeProgramId] : []);
-
-  // Personalised recommendations row. hideSeeAll: recommendations aren't a
-  // static collection, so there's no valid "see all" target for them.
-  //
-  // `getRecommendations` returns nothing when it has no true reason to offer, so
-  // this row simply does not appear rather than labelling a popularity ranking
-  // "Based on your training" — which is what it used to be for every athlete.
-  if (recommendations.length > 0) {
-    const eligible = recommendations.filter(r => r.program && !shown.has(r.program.id));
-    if (eligible.length > 0) {
-      eligible.forEach(r => shown.add(r.program.id));
-      const reasons = new Map(eligible.map(r => [r.program.id, r.reason]));
-      html += renderCollectionRow({
-        id: 'recommended',
-        label: 'Recommended For You',
-        icon: '✨',
-        hideSeeAll: true,
-        // The basis replaces the old "Based on your training" subtitle, which
-        // claimed more than it could back up for an athlete who never answered.
-        afterHeader: renderRecommendationBasis(recommendationBasis(athleteProfile(_appState))),
-      }, eligible.map(r => r.program), reasons);
-    }
-  }
-
   // V2-6 — a curated few rails, not the whole catalogue. The old surface stacked
   // ~25 collection rows into an endless wall; the full library is one tap away via
-  // the category chips (and the Browse-all grid below), so Discover stays lean.
+  // the Browse-all grid below, so Discover stays lean.
   const byId = new Map(collections.map(c => [c.id, c]));
   for (const id of CURATED_HOME_COLLECTIONS) {
     const collection = byId.get(id);
@@ -471,8 +488,14 @@ function renderCollectionRows(container) {
     html += renderCollectionRow(collection, fresh);
   }
 
-  // Browse-all: every category is reachable here (and via the chips up top), so
-  // no program is buried — it's just not on the surface by default.
+  // The editorial carousel, now BELOW everything personal.
+  if (featuredPrograms.length > 0) {
+    html += renderHeroBanner(featuredPrograms);
+  }
+
+  // Browse-all: every category is reachable here, and this is now the ONLY place
+  // the category set is drawn by default — the top chip rows render solely while
+  // browsing, so the same 15 categories are no longer on screen twice.
   html += `
     <div class="collection-row mb-5">
       <div class="collection-header mb-2">
