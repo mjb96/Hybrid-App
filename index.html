@@ -1616,13 +1616,16 @@
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="ezBar"><span>EZ bar</span></label>
           <label class="hc-data-toggle"><input type="checkbox" data-equipment="treadmill"><span>Treadmill</span></label>
 
-          <!-- V2 (S5): band-weight tuning retired as a power-user knob (kept hidden so
-               settings.js reads stay safe; bands count toward volume with defaults). -->
-          <div style="display:none;">
+          <!-- These were hidden as a "power-user knob", which left the athlete
+               with no way to see or verify the weights their band sets are
+               logged with — and no way to correct them if their bands differ. -->
+          <div class="settings-band-weights">
+            <div class="settings-section-label settings-section-label--sub">Band weights</div>
+            <div class="settings-hint">What each band is worth. Used as the load on band exercises, and as assistance on pull-ups and dips.</div>
             <div class="run-grid-inputs" style="grid-template-columns: repeat(3, 1fr);">
-              <label><span class="set-num-lbl block mb-1 text-accent-green">🟢 Light</span><input type="number" id="settingsBandLight" min="0" step="0.5" placeholder="10" style="text-align:center;"></label>
-              <label><span class="set-num-lbl block mb-1 text-accent-amber">🟡 Medium</span><input type="number" id="settingsBandMed" min="0" step="0.5" placeholder="20" style="text-align:center;"></label>
-              <label><span class="set-num-lbl block mb-1 text-accent-red">🔴 Heavy</span><input type="number" id="settingsBandHeavy" min="0" step="0.5" placeholder="30" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-green">🟢 Light</span><input type="number" id="settingsBandLight" min="0" step="0.5" placeholder="10" aria-label="Light band weight" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-amber">🟡 Medium</span><input type="number" id="settingsBandMed" min="0" step="0.5" placeholder="20" aria-label="Medium band weight" style="text-align:center;"></label>
+              <label><span class="set-num-lbl block mb-1 text-accent-red">🔴 Heavy</span><input type="number" id="settingsBandHeavy" min="0" step="0.5" placeholder="30" aria-label="Heavy band weight" style="text-align:center;"></label>
             </div>
           </div>
         </div>

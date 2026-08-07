@@ -165,3 +165,62 @@ test('an explicit loadMode always wins over the role guess', () => {
   assert.equal(resolvedLoadMode({ loadMode: 'banded', band: 'M' }, 'Pull-Up'), 'banded');
   assert.equal(resolvedLoadMode({ loadMode: 'assisted', band: 'M' }, 'Band Leg Curl'), 'assisted');
 });
+
+// =============================================================================
+// UNKNOWN BODY WEIGHT — the app used to substitute a hardcoded 75 kg.
+//
+// That number then became the LOGGED load on every bodyweight and band-assisted
+// set, and flowed into volume, PRs and the Hybrid Score as though it had been
+// measured. An empty field the athlete fills in is worth more than a confident
+// wrong number.
+// =============================================================================
+
+test('an unknown body weight is left blank, never guessed at 75', () => {
+  const bw = applyLoadMode({}, 'bodyweight', {});
+  assert.equal(bw.w, '', 'must not invent a body weight');
+  assert.equal(bw.bw, true, 'it is still a bodyweight set');
+
+  const assisted = applyBandAssistance({}, 'M', { bandWeights: BANDS });
+  assert.equal(assisted.w, '', 'assistance off an unknown mass is unknowable');
+  assert.equal(assisted.loadMode, 'assisted');
+  assert.equal(assisted.band, 'M');
+});
+
+test('every non-weight body weight is treated as unknown', () => {
+  for (const value of [null, undefined, 0, -5, NaN, '', 'heavy']) {
+    assert.equal(applyLoadMode({}, 'bodyweight', { bodyweight: value }).w, '', String(value));
+    assert.equal(
+      applyBandAssistance({}, 'M', { bodyweight: value, bandWeights: BANDS }).w, '', String(value),
+    );
+  }
+});
+
+test('a known body weight is still used exactly', () => {
+  assert.equal(applyLoadMode({}, 'bodyweight', { bodyweight: 82.5 }).w, '82.5');
+  assert.equal(
+    applyBandAssistance({}, 'H', { bodyweight: 82.5, bandWeights: BANDS }).w, '52.5',
+  );
+});
+
+test('a band resistance set never needed body weight in the first place', () => {
+  // The one case that must be unaffected by any of this.
+  const set = applyBandLoad({}, 'M', { exercise: 'Band Triceps Pushdown', bandWeights: BANDS });
+  assert.equal(set.w, '20');
+});
+
+test('the set row does not print a body weight the athlete never gave', () => {
+  const row = buildSetRow({ type: '' }, 0, 'Pull-Ups', null, 'kg', 'Pull-Ups', null);
+  assert.doesNotMatch(row, /value="75"/);
+  const known = buildSetRow({ type: '' }, 0, 'Pull-Ups', null, 'kg', 'Pull-Ups', 82);
+  assert.match(known, /value="82"/);
+});
+
+test('the number prompt refuses to return a nonsense body weight', async () => {
+  // Guards the replacement for the hardcoded 75: a dismissed or empty prompt
+  // must yield null, never a zero that would then be logged as a load.
+  const { numberPromptModal } = await import('../js/ui/confirm-modal.js');
+  // No DOM in this suite: the modal short-circuits rather than throwing, which
+  // is the behaviour every non-browser caller depends on.
+  assert.equal(typeof numberPromptModal, 'function');
+  assert.equal(await numberPromptModal({ title: 'x' }), null);
+});

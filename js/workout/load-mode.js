@@ -49,20 +49,35 @@ function positive(value, fallback = 0) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-export function applyLoadMode(set, mode, { bodyweight = 75, bandWeights = {} } = {}) {
+/**
+ * The athlete's mass, or null when it is genuinely unknown.
+ *
+ * There is no default. A hardcoded 75 kg used to stand in whenever no body
+ * weight had been logged, which silently recorded a stranger's mass as the
+ * athlete's load on every bodyweight and band-assisted set — and then fed it
+ * into volume, PRs and the Hybrid Score as if it were measured. An empty
+ * weight the athlete fills in is worth more than a confident wrong number.
+ */
+function knownMass(bodyweight) {
+  const n = Number.parseFloat(bodyweight);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function applyLoadMode(set, mode, { bodyweight = null, bandWeights = {} } = {}) {
   const next = { ...(set || {}) };
   delete next.bw;
   delete next.band;
   next.loadMode = mode;
 
-  const mass = positive(bodyweight, 75);
+  const mass = knownMass(bodyweight);
   if (mode === 'bodyweight') {
     next.bw = true;
-    next.w = String(mass);
+    // Still a bodyweight set; we just decline to guess what it weighed.
+    next.w = mass == null ? '' : String(mass);
   } else if (mode === 'assisted') {
     next.band = set?.band || 'M';
     const assistance = positive(bandWeights[next.band], 0);
-    next.w = String(Math.max(0, mass - assistance));
+    next.w = mass == null ? '' : String(Math.max(0, mass - assistance));
   } else {
     next.loadMode = 'weighted';
     next.w = '';
@@ -70,14 +85,14 @@ export function applyLoadMode(set, mode, { bodyweight = 75, bandWeights = {} } =
   return next;
 }
 
-export function applyBandAssistance(set, band, { bodyweight = 75, bandWeights = {} } = {}) {
-  const mass = positive(bodyweight, 75);
+export function applyBandAssistance(set, band, { bodyweight = null, bandWeights = {} } = {}) {
+  const mass = knownMass(bodyweight);
   const assistance = positive(bandWeights?.[band], 0);
   const next = {
     ...(set || {}),
     loadMode: 'assisted',
     band,
-    w: String(Math.max(0, mass - assistance)),
+    w: mass == null ? '' : String(Math.max(0, mass - assistance)),
   };
   delete next.bw;
   return next;
@@ -108,7 +123,7 @@ export function applyBandResistance(set, band, { bandWeights = {} } = {}) {
  * @param {string} band 'L' | 'M' | 'H'
  * @param {{exercise?:string, bodyweight?:number, bandWeights?:Record<string,number>}} ctx
  */
-export function applyBandLoad(set, band, { exercise = '', bodyweight = 75, bandWeights = {} } = {}) {
+export function applyBandLoad(set, band, { exercise = '', bodyweight = null, bandWeights = {} } = {}) {
   return bandRole(exercise) === 'assist'
     ? applyBandAssistance(set, band, { bodyweight, bandWeights })
     : applyBandResistance(set, band, { bandWeights });

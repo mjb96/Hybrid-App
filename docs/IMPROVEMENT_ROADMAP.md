@@ -999,7 +999,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,696 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
+| Quality | 1,703 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1084,15 +1084,35 @@ testable on its own.
     data-loss change and is deliberately NOT done — past volume for band
     accessories stays as recorded. A corrective migration would need its own
     decision and a backup.
-  - **Two adjacent findings, not fixed here:** the band-weight settings block is
-    `display:none` (`index.html`, "retired as a power-user knob"), so an athlete
-    cannot see or verify L=10/M=20/H=30 anywhere; and assisted work falls back
-    to a hardcoded **75 kg** when `settings.defaultBodyWeight` is unset, so a
-    band-assisted pull-up is logged against a stranger's body mass.
-  - `tests/workout_load_mode.test.js` +9 (17 total), including that changing
-    bodyweight cannot move a pushdown's load by a kilo. Verified: 1696 unit
-    tests, typecheck, smoke, precache, and the set-row / session-outline /
-    finish-review browser checks.
+  - **Both adjacent findings fixed in the follow-up commit.**
+    - **The band weights are visible again.** The settings block was
+      `display:none` ("retired as a power-user knob"), so an athlete could
+      neither verify L=10/M=20/H=30 nor correct them if their bands differ —
+      almost certainly why this was reported as a band-weight bug. Restored with
+      a hint explaining that the value is the load on band work and the
+      assistance on pull-ups. Settings number inputs also rendered at 36px and
+      now meet the 44px target.
+    - **Nothing invents a body weight any more.** `_currentBodyweight` returned
+      a hardcoded 75 kg, which then became the LOGGED load on every bodyweight
+      and band-assisted set and flowed into volume, PRs and the Hybrid Score as
+      if measured; `buildSetRow` printed it in the weight field as the
+      athlete's own. It now returns null, and the athlete is asked once at the
+      moment the number is needed (`numberPromptModal`, stored to
+      `defaultBodyWeight` + today's `bodyWeightLog` entry, exactly as the
+      profile does). A dismissed prompt cancels the change rather than logging a
+      zero, and a band RESISTANCE set never triggers it — it never needed body
+      mass.
+    - `core-ergonomics-check` had been passing *because of* the fabrication: its
+      fixture carried no body weight and relied on the 75 kg stand-in. It now
+      supplies a real one.
+  - `tests/workout_load_mode.test.js` +15 (23 total), including that changing
+    bodyweight cannot move a pushdown's load by a kilo, that every non-weight
+    body weight is treated as unknown, and that the set row never prints a body
+    weight the athlete never gave. `workout_logging` gained the banded-accessory
+    case and awaits the now-async load-mode entry points. Verified: 1703 unit
+    tests, typecheck, smoke, precache, workflow gates, and the core-ergonomics /
+    set-row / session-outline / finish-review / modal-accessibility browser
+    checks.
 
 - **2026-08-07 — Phase 4A opened: recommendations that are actually
   recommendations.**

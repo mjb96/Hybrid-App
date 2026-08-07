@@ -2875,6 +2875,14 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   padding: 0 0 8px;
   line-height: 1.4;
 }
+/* Band weights, restored to view: they decide the logged load on band work, so
+   hiding them left the athlete unable to check or correct their own numbers. */
+.settings-band-weights { margin-top: 14px; }
+.settings-section-label--sub {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
 .hc-note {
   font-size: 0.7rem;
   color: var(--text-faint);
@@ -2970,6 +2978,10 @@ html[data-theme="light"] input[type="time"].settings-input { color-scheme: light
   font-size: 0.9rem;
   font-weight: 700;
   padding: 9px 6px;
+  /* These render at 36px on their own — under the tap target the rest of the
+     app holds to, and now that the band weights are visible they are real
+     controls an athlete has to hit. */
+  min-height: var(--touch-target, 44px);
   outline: none;
   transition: border-color 0.15s ease;
 }

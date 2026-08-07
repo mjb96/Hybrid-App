@@ -143,7 +143,9 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   the lift name; calling `applyBandAssistance` directly on an accessory is the bug that
   logged a 20kg-band pushdown as 60kg with triple the volume. Band kg stay canonical
   L=10/M=20/H=30 (v5 migration enforces it). Sets logged before the fix keep their
-  stored `w` — history is re-READ by role, never rewritten.
+  stored `w` — history is re-READ by role, never rewritten. Body weight has NO
+  default: `_currentBodyweight` returns null when unknown and the athlete is asked
+  (`numberPromptModal`) rather than logging a fabricated 75kg as their load.
 - Logger progression and history are deliberately separate: global dated exercise
   history (`exerciseLoggerHistory`) powers the read-only **Last performed** panel
   and analytics, while `computeDiagnosticForLift` only derives a next-load

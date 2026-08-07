@@ -110,36 +110,50 @@ test('cycleSetType walks ""→W→D→F→"" ', () => {
   assert.deepEqual(seq, ['W', 'D', 'F', '']);
 });
 
-test('cycleSetLoad stamps bodyweight, subtracts band assistance, then clears', () => {
+// Async since a bodyweight/assisted state may have to ask for a body weight the
+// app was never given — it used to substitute a hardcoded 75 kg. This fixture
+// has one logged (80), so nothing is asked and the awaits just sequence.
+test('cycleSetLoad stamps bodyweight, subtracts band assistance, then clears', async () => {
   initWith(freshState());
   workout.appendCustomSetRow(null, 'Pull-up');
   // '' -> BW (stamps latest logged bodyweight 80)
-  workout.cycleSetLoad('Pull-up', 0);
+  await workout.cycleSetLoad('Pull-up', 0);
   assert.equal(sets('Pull-up')[0].bw, true);
   assert.equal(sets('Pull-up')[0].w, '80');
-  // BW -> L (band light = 10)
-  workout.cycleSetLoad('Pull-up', 0);
+  // BW -> L (band light = 10) — a pull-up, so the band ASSISTS
+  await workout.cycleSetLoad('Pull-up', 0);
   assert.equal(sets('Pull-up')[0].band, 'L');
   assert.equal(sets('Pull-up')[0].w, '70');
   // L -> M -> H -> '' (weighted, cleared)
-  workout.cycleSetLoad('Pull-up', 0); // M
-  workout.cycleSetLoad('Pull-up', 0); // H
-  workout.cycleSetLoad('Pull-up', 0); // ''
+  await workout.cycleSetLoad('Pull-up', 0); // M
+  await workout.cycleSetLoad('Pull-up', 0); // H
+  await workout.cycleSetLoad('Pull-up', 0); // ''
   assert.equal(sets('Pull-up')[0].w, '');
   assert.equal(sets('Pull-up')[0].bw, undefined);
   assert.equal(sets('Pull-up')[0].band, undefined);
 });
 
-test('setSetLoadMode exposes direct Bodyweight, Weighted, and Assisted choices', () => {
+test('cycleSetLoad on an accessory logs the band itself, never bodyweight', async () => {
+  // The reported bug: a banded pushdown was logged at bodyweight-minus-band.
+  initWith(freshState());
+  workout.appendCustomSetRow(null, 'Band Triceps Pushdown');
+  await workout.cycleSetLoad('Band Triceps Pushdown', 0); // '' -> BW
+  await workout.cycleSetLoad('Band Triceps Pushdown', 0); // BW -> L
+  assert.equal(sets('Band Triceps Pushdown')[0].band, 'L');
+  assert.equal(sets('Band Triceps Pushdown')[0].w, '10', 'the Light band is the load');
+  assert.equal(sets('Band Triceps Pushdown')[0].loadMode, 'banded');
+});
+
+test('setSetLoadMode exposes direct Bodyweight, Weighted, and Assisted choices', async () => {
   initWith(freshState());
   workout.appendCustomSetRow(null, 'Dips');
-  workout.setSetLoadMode('Dips', 0, 'bodyweight');
+  await workout.setSetLoadMode('Dips', 0, 'bodyweight');
   assert.equal(sets('Dips')[0].bw, true);
   assert.equal(sets('Dips')[0].w, '80');
-  workout.setSetLoadMode('Dips', 0, 'assisted');
+  await workout.setSetLoadMode('Dips', 0, 'assisted');
   assert.equal(sets('Dips')[0].band, 'M');
   assert.equal(sets('Dips')[0].w, '60');
-  workout.setSetLoadMode('Dips', 0, 'weighted');
+  await workout.setSetLoadMode('Dips', 0, 'weighted');
   assert.equal(sets('Dips')[0].loadMode, 'weighted');
   assert.equal(sets('Dips')[0].w, '');
 });

@@ -30,10 +30,11 @@ import { completionPresentation, evaluateSessionCompletion } from './workout/com
 import { detectRunType } from './workout/run-type.js';
 import { hasActiveRunSession } from './gps-tracker.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
-import { applyBandLoad, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { applyBandLoad, applyLoadMode, bandRole, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft, snapshotDayWorkoutData, restoreDayWorkoutData } from './workout/delete-day.js';
 import { showUndo } from './ui/undo-bar.js';
+import { numberPromptModal } from './ui/confirm-modal.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
 import {
   browseExercises, equipmentLabel, exerciseStatForName, EXERCISE_CATEGORY_LABELS,
@@ -1659,6 +1660,12 @@ export function cycleSetType(liftName, sIdx) {
 
 // Best-available bodyweight for stamping bodyweight sets: latest logged weight,
 // else the settings default, else a neutral fallback.
+/**
+ * The athlete's most recent body weight, or null when they have never given
+ * one. Deliberately has no fallback: this used to return a hardcoded 75 kg,
+ * which then became the LOGGED load on every bodyweight and band-assisted set
+ * and flowed on into volume, PRs and the Hybrid Score as though measured.
+ */
 function _currentBodyweight(appState) {
   const log = appState.bodyWeightLog || [];
   for (let i = log.length - 1; i >= 0; i--) {
@@ -1667,7 +1674,7 @@ function _currentBodyweight(appState) {
   }
   const dbw = parseFloat(appState.settings?.defaultBodyWeight);
   if (Number.isFinite(dbw) && dbw > 0) return dbw;
-  return 75;
+  return null;
 }
 
 function _replaceSet(setArr, index, next) {
@@ -1691,9 +1698,51 @@ function _syncLoadModeRow(liftName, sIdx, set) {
   if (wInput) wInput.value = set.w || '';
 }
 
-export function setSetLoadMode(liftName, sIdx, mode) {
+/**
+ * Body weight, asking for it once if we have never been told.
+ *
+ * The app used to substitute a hardcoded 75 kg here. Refusing to invent it is
+ * right; refusing and then silently logging a zero is not. So the athlete is
+ * asked at the exact moment the number is needed, and the answer is stored the
+ * same way the profile stores it — `defaultBodyWeight` plus today's entry in
+ * `bodyWeightLog` — so it is never asked twice.
+ *
+ * @returns {Promise<number|null>} null if they dismissed it
+ */
+async function _ensureBodyweight(appState) {
+  const known = _currentBodyweight(appState);
+  if (known != null) return known;
+
+  const unit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
+  const entered = await numberPromptModal({
+    title: 'What do you weigh?',
+    message: 'Bodyweight and band-assisted sets are logged against your body weight, so this is the load for those sets.',
+    label: 'Body weight',
+    unit,
+    confirmLabel: 'Save',
+    max: unit === 'lbs' ? 1000 : 450,
+  });
+  if (entered == null) return null;
+
+  if (!appState.settings) appState.settings = {};
+  appState.settings.defaultBodyWeight = entered;
+  if (!Array.isArray(appState.bodyWeightLog)) appState.bodyWeightLog = [];
+  const today = dateKey();
+  const existing = appState.bodyWeightLog.findIndex(l => l?.date === today);
+  if (existing >= 0) appState.bodyWeightLog[existing].weight = entered;
+  else appState.bodyWeightLog.push({ date: today, weight: entered });
+  _saveState(true);
+  return entered;
+}
+
+export async function setSetLoadMode(liftName, sIdx, mode) {
   if (!['bodyweight', 'weighted', 'assisted'].includes(mode)) return;
   const appState = _getState();
+  // Both of these record body mass as the load, so they cannot proceed on a
+  // number nobody has ever supplied.
+  if (mode === 'bodyweight' || mode === 'assisted') {
+    if (await _ensureBodyweight(appState) == null) return;
+  }
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const wk = activeWorkoutWeekKey(appState);
   const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
@@ -1710,7 +1759,7 @@ export function setSetLoadMode(liftName, sIdx, mode) {
 // The overflow load chip remains the fine-grained band selector. What a band
 // MEANS depends on the exercise: assistance subtracted from body mass on a
 // pull-up, the entire resistance on a pushdown. `applyBandLoad` picks.
-export function cycleSetLoad(liftName, sIdx) {
+export async function cycleSetLoad(liftName, sIdx) {
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const wk = activeWorkoutWeekKey(appState);
@@ -1722,6 +1771,12 @@ export function cycleSetLoad(liftName, sIdx) {
   const order = ['', 'BW', 'L', 'M', 'H'];
   const cur = set.bw ? 'BW' : (set.band || '');
   const next = order[(order.indexOf(cur) + 1) % order.length];
+
+  // Only the states that actually load body mass need it — a band on a
+  // pushdown resists with its own weight and must never trigger this.
+  const needsBodyweight = next === 'BW'
+    || (next && bandRole(liftName) === 'assist');
+  if (needsBodyweight && await _ensureBodyweight(appState) == null) return;
 
   let nextSet;
   if (next === 'BW') {
