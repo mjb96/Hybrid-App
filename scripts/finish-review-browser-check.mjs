@@ -21,7 +21,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -45,10 +45,16 @@ const BASE = `http://127.0.0.1:${/** @type {any} */ (server.address()).port}`;
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 const TZ = 'Australia/Sydney';
 
-const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
-const prior = new Date(Date.parse(`${today}T12:00:00Z`) - 7 * 86400000).toISOString().slice(0, 10);
-// The cockpit opens on the real weekday, so the fixture must live there.
-const DAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date(`${today}T12:00:00Z`).getUTCDay()];
+// The cockpit opens on the day the app thinks it is, so the fixture must live
+// there — and the day is therefore PINNED rather than read from the clock. This
+// used to derive the day from the wall clock, which made the check unrunnable at
+// the weekend: `hybrid_engine` prescribes no lifts on Saturday or Sunday, so it
+// threw "no prescribed lift for sat" and went red on `main` for a commit it had
+// passed hours earlier in the same UTC day.
+const today = '2026-08-03';       // a Monday in Australia/Sydney
+const prior = '2026-07-27';       // the Monday before it
+const DAY = 'mon';
+const CLOCK = Date.parse(`${today}T09:00:00+10:00`);
 const set = (w, r, extra = {}) => ({ c: true, w: String(w), r: String(r), ...extra });
 
 /** The first lift the active program actually prescribes on that day. */
@@ -95,6 +101,7 @@ const failures = [];
 async function session(state, width = 390, theme = 'dark') {
   const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
   await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(state)]);
+  await context.addInitScript(pinClock, CLOCK);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -106,6 +113,8 @@ async function session(state, width = 390, theme = 'dark') {
 }
 
 try {
+  // With the clock pinned this can only fail if the program itself changes, and
+  // then it is a real signal rather than a calendar accident.
   if (!LIFT) throw new Error(`no prescribed lift for ${DAY} — fixture cannot drive the cockpit`);
 
   // ── The sheet reads as a review ───────────────────────────────────────────

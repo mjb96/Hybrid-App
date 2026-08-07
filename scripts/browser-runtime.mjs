@@ -21,6 +21,31 @@ function managedChromiumCandidates() {
   return candidates;
 }
 
+/**
+ * Pin the page's wall clock to a fixed instant.
+ *
+ * A check whose fixture has to live on "the real weekday" is only green on some
+ * days of the week: `finish-review-browser-check` derived its workout day from
+ * the clock and threw outright on a Saturday, because the default program
+ * prescribes no lifts at the weekend. It went red on `main` for exactly that
+ * reason, having passed the same commit hours earlier. Pin the clock instead,
+ * and the day the fixture needs is the day the app opens on.
+ *
+ * Install with `context.addInitScript(pinClock, epochMs)` BEFORE the first
+ * navigation. Time does not advance, which no check here depends on.
+ *
+ * @param {number} epochMs
+ */
+export function pinClock(epochMs) {
+  const RealDate = Date;
+  class PinnedDate extends RealDate {
+    constructor(...args) { super(...(args.length ? args : [epochMs])); }
+    static now() { return epochMs; }
+  }
+  // @ts-ignore — deliberate test double
+  globalThis.Date = PinnedDate;
+}
+
 /** Resolve the declared Playwright dependency and an installed Chromium. */
 export async function resolveChromium(options = {}) {
   const required = options.required ?? browserIsRequired();

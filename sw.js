@@ -16,7 +16,7 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v122-h68637207911c';
+const CACHE_NAME = 'helyx-v122-had2bc772a7ec';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
@@ -162,6 +162,7 @@ const REQUIRED_ASSETS = [
   "./js/profile-stats.js",
   "./js/program_builder.js",
   "./js/programs/activation.js",
+  "./js/programs/active-plan-banner.js",
   "./js/programs/attribution.js",
   "./js/programs/catalog.js",
   "./js/programs/catalog/fitness.js",

@@ -134,11 +134,12 @@
   border-radius: 14px;
   border: 1.5px solid rgba(37,99,235,0.2);
   background: #0d0f1a;
-  cursor: pointer;
   transition: border-color 0.2s, transform 0.15s;
 }
 
-.active-prog-card:active { transform: scale(0.99); }
+/* The card holds two targets (open the plan / act on the session), so the press
+   response belongs to the row being pressed, not to the whole card. */
+.active-prog-open:active { transform: scale(0.99); }
 
 .active-prog-glow {
   position: absolute;
@@ -222,47 +223,68 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 
 .active-prog-meta-sep {
   color: var(--text-ghost);
-  margin: 0 4px;
+  margin: 0 5px;
 }
 
-.active-prog-next-label {
-  color: var(--text-sub);
+/* The plan row opens the plan; the session row below owns the training action,
+   so the two must be separately hittable rather than one nested-button card. */
+.active-prog-open { cursor: pointer; }
+.active-prog-open:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: -2px;
 }
 
-/* Progress bar — full width below the inner row */
-.active-prog-progress-bar {
-  height: 3px;
-  background: var(--overlay-md);
-  margin: 0 16px;
-}
-
-.active-prog-progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-/* Footer row — percentage + Continue CTA */
-.active-prog-footer {
+/* Next-session row — what to do now, and the one action that does it. The old
+   footer held a third copy of the plan percentage instead. */
+.active-prog-next {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px 14px;
+  gap: 12px;
+  padding: 11px 16px 13px;
+  border-top: 1px solid var(--overlay-sm);
 }
 
-.active-prog-complete-text {
-  font-size: 0.65rem;
-  font-weight: 700;
+.active-prog-next-text { min-width: 0; }
+
+.active-prog-next-lead {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-faint);
-  letter-spacing: 0.02em;
+}
+
+.active-prog-next-title {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-prog-next-status {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .active-prog-continue-btn {
-  font-size: 0.72rem;
+  flex-shrink: 0;
+  font-size: 0.75rem;
   font-weight: 800;
   font-family: inherit;
   letter-spacing: 0.01em;
-  padding: 7px 14px;
+  /* 44px, not the 31px this used to render at — it is the primary action of the
+     Plans surface. */
+  min-height: var(--touch-target);
+  padding: 8px 14px;
   border-radius: 8px;
   border: 1.5px solid rgba(37,99,235,0.5);
   background: rgba(37,99,235,0.12);
@@ -274,6 +296,13 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
 .active-prog-continue-btn:active {
   transform: scale(0.96);
   background: rgba(37,99,235,0.22);
+}
+
+/* Nothing to start right now: the action stays available but stops competing. */
+.active-prog-continue-btn--quiet {
+  border-color: var(--overlay-md);
+  background: transparent;
+  color: var(--text-sub);
 }
 
 /* Program card equipment label */

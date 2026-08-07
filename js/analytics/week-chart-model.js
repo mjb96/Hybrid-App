@@ -31,6 +31,7 @@ import { comparePeriodValues } from './period-comparison.js';
 import { collectCalendarWeek, indexSlotsByDate, weekStartOf, addDaysISO, localDayKey } from './weekly-aggregate.js';
 import { todayKey } from '../dates.js';
 import { parseStrengthDurationSeconds } from '../strength/duration.js';
+import { runSessionsForDay } from '../state/run-sessions.js';
 
 export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_SHORT = { mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S' };
@@ -94,6 +95,21 @@ function dayTonnage(dayLifts) {
 
 // ---- per-day extraction -----------------------------------------------------
 
+/**
+ * How many separate sessions of `type` a day holds.
+ *
+ * `collectCalendarWeek` counts them while assembling the calendar week, because
+ * only it can see that two stored slots landed on one date. This used to be
+ * hardcoded to 1, so a day with a morning and an evening run reported one
+ * activity. Falls back to the old behaviour for a caller passing a raw
+ * `state.weeks[N]`, which has no such count and holds a single session per day.
+ */
+function sessionCount(weekData, dayKey, type, hasData) {
+  const counted = weekData?.sessionCounts?.[dayKey]?.[type === 'strength' ? 'strength' : 'running'];
+  if (Number.isFinite(counted)) return Math.max(Number(counted), hasData ? 1 : 0);
+  return hasData ? 1 : 0;
+}
+
 // Returns { value, activityCount, hasData } for one day + metric.
 function dayCell(weekData, dayKey, type, metric) {
   if (type === 'strength') {
@@ -109,17 +125,22 @@ function dayCell(weekData, dayKey, type, metric) {
     if (metric === 'sets')          value = sets;
     else if (metric === 'volume')   value = dayTonnage(lifts);
     else if (metric === 'duration') value = gymDurationSecs;
-    return { value, activityCount: hasData ? 1 : 0, hasData };
+    return { value, activityCount: sessionCount(weekData, dayKey, type, hasData), hasData };
   }
-  // running
-  const run  = weekData?.runs?.[dayKey];
-  const dist = parseFloat(run?.dist) || 0;
-  const secs = parseDurationSecs(run?.time);
-  const hasData = !!run && (dist > 0 || secs > 0);
+  // Running. Read every session stored against the day, not one summary object:
+  // a calendar day can hold several runs (tracked, imported, morning + evening).
+  const sessions = runSessionsForDay(weekData, dayKey);
+  let dist = 0;
+  let secs = 0;
+  for (const session of sessions) {
+    dist += parseFloat(session?.dist) || 0;
+    secs += parseDurationSecs(session?.time);
+  }
+  const hasData = dist > 0 || secs > 0;
   let value = 0;
   if (metric === 'distance')      value = dist;      // km (canonical)
   else if (metric === 'duration') value = secs;      // seconds
-  return { value, activityCount: hasData ? 1 : 0, hasData };
+  return { value, activityCount: sessionCount(weekData, dayKey, type, hasData), hasData };
 }
 
 // ---- main builder -----------------------------------------------------------

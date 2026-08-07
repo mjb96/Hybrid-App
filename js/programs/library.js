@@ -10,7 +10,8 @@ import { renderProgramDetail, closeProgramDetail } from './detail.js';
 import { renderProgramCard, isWod, coverGlyphFor } from './program-card.js';
 import { icon as svgIcon } from '../ui/icons.js';
 import { toggleBookmark, recordRecentlyViewed, getProgramById, getActiveProgramIssue, saveStateToLocalStorage } from '../state.js';
-import { escapeHtml, programProgressPct, safeCssColor } from '../util.js';
+import { escapeHtml, safeCssColor } from '../util.js';
+import { buildActivePlanBanner } from './active-plan-banner.js';
 
 // V2-6 — the curated home rails (in order) shown on the lean Discover surface.
 // Everything else stays reachable via the category chips + Browse-all grid.
@@ -85,32 +86,6 @@ export function renderLibrary() {
 
 // ── Active program banner ─────────────────────────────────────────────────────
 
-function getNextWorkoutInfo(programId) {
-  // The resolved program (custom → PROGRAMS → normalized catalog) is
-  // authoritative for training content; the raw catalog is only a last resort.
-  // This keeps an edited personal program from showing its pre-edit catalog day.
-  const programData = getProgramById(programId);
-  const days = programData?.days || getCatalogEntry(programId)?.days;
-  if (!days) return null;
-
-  const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-  const todayIdx = new Date().getDay();
-
-  for (let i = 0; i < 7; i++) {
-    const dayKey = DAY_KEYS[(todayIdx + i) % 7];
-    const day = days[dayKey];
-    if (!day) continue;
-    const isRest = !day.lifts?.length && (!day.runs || day.runs === 'Rest');
-    if (!isRest) {
-      return {
-        label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : 'Next',
-        title: day.title || day.badge || dayKey,
-      };
-    }
-  }
-  return null;
-}
-
 export function renderActiveProgramBanner() {
   const banner = document.getElementById('activeProgBanner');
   if (!banner || !_appState) return;
@@ -140,32 +115,45 @@ export function renderActiveProgramBanner() {
   }
 
   const catalog = getCatalogEntry(activeId);
-  const programName = catalog?.name || _appState.customPrograms?.find(p => p.id === activeId)?.name || 'My Program';
-  const currentWeek = parseInt(_appState.currentWeek || '1', 10);
-  // Fall back to the resolved program's totalWeeks so custom/system programs
-  // without a catalog duration don't all collapse to a hard-coded "of 12".
-  const totalWeeks = catalog?.durationWeeks || getProgramById(activeId)?.totalWeeks || 12;
-  const pct = programProgressPct(currentWeek, totalWeeks);
-  const accent = safeCssColor(catalog?.accentColor, '#8b5cf6');
+  // The resolved program (custom → PROGRAMS → normalized catalog) is
+  // authoritative for training content, so an edited personal program shows its
+  // edited day and not the pre-edit catalog one.
+  const model = buildActivePlanBanner({
+    state: _appState,
+    program: getProgramById(activeId),
+    catalog,
+  });
+  if (!model) {
+    banner.innerHTML = '';
+    banner.style.display = 'none';
+    return;
+  }
+
+  // The plan's accent identifies it through the card glow and ring. The action
+  // button keeps the app's contrast-checked action blue rather than an arbitrary
+  // catalogue colour, so it cannot fail the semantic-contrast gate.
+  const accent = safeCssColor(model.accent, '#8b5cf6');
   const circumference = 113;
-  const dashArray = Math.round((pct / 100) * circumference);
-  const nextWorkout = getNextWorkoutInfo(activeId);
+  const dashArray = Math.round((model.week.pct / 100) * circumference);
+  const dayAttr = model.action.day ? ` data-day="${escapeHtml(model.action.day)}"` : '';
 
   banner.style.display = 'block';
   banner.innerHTML = `
-    <div class="active-prog-card" data-action="open-program-detail" data-program-id="${escapeHtml(activeId)}">
+    <div class="active-prog-card" data-plan-state="${escapeHtml(model.session.state)}">
       <div class="active-prog-glow" style="background: ${accent}22"></div>
-      <div class="active-prog-inner">
+      <div class="active-prog-inner active-prog-open" role="button" tabindex="0"
+           data-action="open-program-detail" data-program-id="${escapeHtml(activeId)}"
+           aria-label="${escapeHtml(`${model.name}. ${model.week.label}. Open plan`)}">
         <div class="active-prog-left">
           <span class="active-prog-badge">NOW TRAINING</span>
-          <div class="active-prog-name">${escapeHtml(programName)}</div>
-          <div class="active-prog-meta">Week ${currentWeek} of ${totalWeeks}
-            ${nextWorkout ? `<span class="active-prog-meta-sep">·</span> <span class="active-prog-next-label">${escapeHtml(nextWorkout.label)}: ${escapeHtml(nextWorkout.title)}</span>` : ''}
-          </div>
+          <div class="active-prog-name">${escapeHtml(model.name)}</div>
+          <div class="active-prog-meta">${escapeHtml(model.week.label)}${
+            model.thisWeek ? `<span class="active-prog-meta-sep">·</span>${escapeHtml(model.thisWeek.label)}` : ''
+          }</div>
         </div>
         <div class="active-prog-right">
-          <div class="active-prog-progress-ring">
-            <svg width="44" height="44" viewBox="0 0 44 44">
+          <div class="active-prog-progress-ring" role="img" aria-label="${escapeHtml(model.week.pctLabel)}">
+            <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
               <circle cx="22" cy="22" r="18" fill="none" class="active-prog-ring-track" stroke-width="3"/>
               <circle cx="22" cy="22" r="18" fill="none"
                 stroke="${accent}" stroke-width="3"
@@ -173,16 +161,19 @@ export function renderActiveProgramBanner() {
                 stroke-linecap="round"
                 transform="rotate(-90 22 22)"/>
             </svg>
-            <span class="active-prog-pct">${pct}%</span>
+            <span class="active-prog-pct">${model.week.pct}%</span>
           </div>
+          <span class="active-prog-arrow" aria-hidden="true">›</span>
         </div>
       </div>
-      <div class="active-prog-progress-bar">
-        <div class="active-prog-progress-fill" style="width: ${pct}%; background: ${accent}"></div>
-      </div>
-      <div class="active-prog-footer">
-        <span class="active-prog-complete-text">${pct}% Complete</span>
-        <button class="active-prog-continue-btn" data-action="continue-active-program" style="--accent: ${accent}">Continue →</button>
+      <div class="active-prog-next">
+        <div class="active-prog-next-text">
+          <span class="active-prog-next-lead">${escapeHtml(model.session.lead)}</span>
+          <span class="active-prog-next-title">${escapeHtml(model.session.title)}</span>
+          <span class="active-prog-next-status">${escapeHtml(model.session.status)}</span>
+        </div>
+        <button class="active-prog-continue-btn${model.action.tone === 'quiet' ? ' active-prog-continue-btn--quiet' : ''}"
+                data-action="${escapeHtml(model.action.action)}"${dayAttr}>${escapeHtml(model.action.label)}</button>
       </div>
     </div>
   `;
@@ -910,10 +901,12 @@ export function handleLibraryAction(action, el, event) {
       setActiveDifficulty(diff || null);
       break;
     }
-    case 'continue-active-program': {
-      document.dispatchEvent(new CustomEvent('library:continue-training'));
-      break;
-    }
+    // `continue-active-program` was removed with the banner rewrite: it
+    // dispatched a bare tab switch, so "Continue" opened the cockpit on whatever
+    // day it happened to have selected last. The banner now emits the same
+    // day-carrying actions Home does (`select-program-workout` /
+    // `start-today-workout` / `open-program-workout-picker`), all of which are
+    // handled globally in app.js.
     case 'hero-dot': {
       const slide = parseInt(el.getAttribute('data-slide'), 10);
       if (!isNaN(slide)) jumpHeroSlide(slide);
