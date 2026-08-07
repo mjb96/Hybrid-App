@@ -999,7 +999,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,687 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
+| Quality | 1,696 tests, typecheck, smoke, precache/workflow gates, 29 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1059,6 +1059,40 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Bug from real use: "if I'm doing tricep pushdowns with bands
+  why does bodyweight come into it".** Reported as a band-weight bug (light 10 /
+  medium 20 / heavy 30). Those values were already correct everywhere — defaults,
+  the v5 migration that force-canonicalises every account, and a validator that
+  throws otherwise — so nothing was changed there. The follow-up question found
+  the actual defect.
+  - **A band does two opposite jobs and only one was implemented.** On a pull-up
+    a band ASSISTS: load = bodyweight − band. On a pushdown the band IS the
+    load. Every banded set went through `applyBandAssistance`, so a
+    `Band Triceps Pushdown` with a Medium (20 kg) band on an 80 kg athlete
+    logged **60 kg and 720 volume credits** instead of 20 kg and 240 — body mass
+    leaking into an exercise that never lifts it, at roughly triple the volume.
+    Reachable with real catalogue exercises (`Band Triceps Pushdown`,
+    `Band Leg Curl` in JT Shed).
+  - `bandRole(exerciseName)` decides from the existing `isBodyweightExercise`
+    predicate, and `applyBandLoad` is now the single entry point the cockpit
+    uses — picking assistance vs resistance is a property of the exercise, not
+    something a caller should have to remember. New `loadMode: 'banded'`.
+  - **History is re-read, never rewritten.** Sets logged before the fix keep the
+    exact `w` they were logged with; `resolvedLoadMode` just stops calling a
+    banded pushdown "assisted". Retroactively rewriting logged loads would be a
+    data-loss change and is deliberately NOT done — past volume for band
+    accessories stays as recorded. A corrective migration would need its own
+    decision and a backup.
+  - **Two adjacent findings, not fixed here:** the band-weight settings block is
+    `display:none` (`index.html`, "retired as a power-user knob"), so an athlete
+    cannot see or verify L=10/M=20/H=30 anywhere; and assisted work falls back
+    to a hardcoded **75 kg** when `settings.defaultBodyWeight` is unset, so a
+    band-assisted pull-up is logged against a stranger's body mass.
+  - `tests/workout_load_mode.test.js` +9 (17 total), including that changing
+    bodyweight cannot move a pushdown's load by a kilo. Verified: 1696 unit
+    tests, typecheck, smoke, precache, and the set-row / session-outline /
+    finish-review browser checks.
 
 - **2026-08-07 — Phase 4A opened: recommendations that are actually
   recommendations.**

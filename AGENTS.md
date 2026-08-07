@@ -136,6 +136,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
   between days (`neighborDay`). Coach: deterministic **ask-the-coach** Q&A
   (`js/brain/coach-qa.js`, chips on the briefing) + PR share card (`js/brain/pr-share.js`).
+- Bands do TWO opposite jobs (`js/workout/load-mode.js`): on a bodyweight movement a
+  band ASSISTS (`w = bodyweight − band`, `loadMode: 'assisted'`); on anything else the
+  band IS the load (`w = band`, `loadMode: 'banded'`). `bandRole()` decides from the
+  exercise name — never assume assistance. Always go through `applyBandLoad` and pass
+  the lift name; calling `applyBandAssistance` directly on an accessory is the bug that
+  logged a 20kg-band pushdown as 60kg with triple the volume. Band kg stay canonical
+  L=10/M=20/H=30 (v5 migration enforces it). Sets logged before the fix keep their
+  stored `w` — history is re-READ by role, never rewritten.
 - Logger progression and history are deliberately separate: global dated exercise
   history (`exerciseLoggerHistory`) powers the read-only **Last performed** panel
   and analytics, while `computeDiagnosticForLift` only derives a next-load

@@ -30,7 +30,7 @@ import { completionPresentation, evaluateSessionCompletion } from './workout/com
 import { detectRunType } from './workout/run-type.js';
 import { hasActiveRunSession } from './gps-tracker.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
-import { applyBandAssistance, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { applyBandLoad, applyLoadMode, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft, snapshotDayWorkoutData, restoreDayWorkoutData } from './workout/delete-day.js';
 import { showUndo } from './ui/undo-bar.js';
@@ -1707,9 +1707,9 @@ export function setSetLoadMode(liftName, sIdx, mode) {
   _saveState(true);
 }
 
-// The overflow load chip remains the fine-grained band selector. Unlike the
-// legacy behavior, band kg is assistance subtracted from body mass, never a
-// positive lifted load.
+// The overflow load chip remains the fine-grained band selector. What a band
+// MEANS depends on the exercise: assistance subtracted from body mass on a
+// pull-up, the entire resistance on a pushdown. `applyBandLoad` picks.
 export function cycleSetLoad(liftName, sIdx) {
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
@@ -1727,7 +1727,15 @@ export function cycleSetLoad(liftName, sIdx) {
   if (next === 'BW') {
     nextSet = applyLoadMode(set, 'bodyweight', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
   } else if (next) {
-    nextSet = applyBandAssistance(set, next, { bodyweight: _currentBodyweight(appState), bandWeights: bands });
+    // The exercise decides whether the band assists or IS the load — a band on
+    // a pull-up subtracts from body mass, a band on a pushdown is the whole
+    // resistance. Passing the lift name is what stops bodyweight leaking into
+    // accessories that never lift it.
+    nextSet = applyBandLoad(set, next, {
+      exercise: liftName,
+      bodyweight: _currentBodyweight(appState),
+      bandWeights: bands,
+    });
   } else {
     nextSet = applyLoadMode(set, 'weighted', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
   }
