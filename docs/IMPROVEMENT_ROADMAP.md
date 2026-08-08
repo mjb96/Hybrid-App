@@ -717,10 +717,11 @@ Every metric detail includes:
 
 ## Phase 4 — Plans, exercise discovery, and editing
 
-**Status: 4A and 4B COMPLETE 2026-08-07** — recommendation engine, active-plan
-lead, chip/collection overload, compare, and the programme-detail decision order
-with a real "Who it's for". 4C (Simple/Advanced builder) and 4D (exercise
-metadata) are NEXT.
+**Status: 4A and 4B COMPLETE, 4C SUBSTANTIALLY DONE (2026-08-07)** —
+recommendation engine, active-plan lead, chip/collection overload, compare, the
+programme-detail decision order with a real "Who it's for", and Simple |
+Advanced progression editing. Remaining: a shared undo for the builder's
+destructive day edits (4C), and 4D (exercise metadata).
 
 **Outcome:** choosing and changing training feels guided rather than
 catalogue-driven.
@@ -889,6 +890,39 @@ ordering was for. Recorded as a decision rather than left as a silent gap.
   feel direct and reversible.
 - Do not introduce normalised per-lift prescriptions until an ADR covers
   migration, old workout history, exports, sync, and rollback.
+
+**DONE 2026-08-07 — Simple | Advanced progression, and the ADR gate untouched.**
+Name, days and exercises were already Simple editing; the gap was "broad
+progression". The only way to say *make this get harder* was the per-week grid —
+three inputs times every week, so **36 fields on a 12-week plan before the
+programme exists**.
+
+- The Progression tab now opens on **Simple**: three shapes (`steady`, `volume`,
+  `intensity`) plus a deload cadence (none / every 4th / every 6th).
+  `js/programs/progression.js` gained `planProgressionShape` /
+  `applyProgressionShape` / `restoreProgression` / `describeProgressionPlan`, all
+  pure.
+- **Nothing is written until Apply.** Choosing a shape only re-plans, and the
+  block is described in one sentence first — "3 sets · 8-10 reps across 3 training
+  weeks · 1 deload week (4)". Rewriting every week at once is not something to do
+  to someone silently.
+- **Apply hands back a real Undo** (a deep snapshot, not a live reference), which
+  is 4C's "direct and reversible" for the one edit that touches the whole block.
+- The shapes ramp from the athlete's OWN week-1 values, not fixed constants, and
+  a deload never consumes a step of the ramp it exists to recover from.
+- **Advanced is unchanged** and still owns per-week sets/reps/phase/deload.
+- **No new stored field.** Shapes write the same `weeklyVolModifiers` the grid
+  writes, so the ADR gate on normalised per-lift prescription DATA is not
+  approached, let alone opened.
+- **Pre-existing defect found by driving it:** the Advanced week rows had
+  sub-target buttons — `Copy W-1` at 36px and the deload toggle at 40px, against
+  the app's 44px standard. They were never measured because the editor check only
+  ever looked at the Schedule tab. Both now use `--touch-target`, and the check
+  visits Advanced.
+
+Remaining in 4C: day selection / reorder / replace / copy / rest-day conversion
+are direct but **not yet undoable** — only progression is. A shared undo for
+destructive editor actions is the next slice.
 
 ### 4D. Exercises
 
@@ -1187,6 +1221,36 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 4C: the builder can be asked one question instead of 36.**
+  Name, days and exercises were already Simple editing; "broad progression" was
+  the gap, and the only way to say *make this get harder* was a per-week grid of
+  three inputs times every week — 36 fields on a 12-week plan, before the
+  programme exists. Progression now opens on **Simple**: three shapes plus a
+  deload cadence, writing the same `weeklyVolModifiers` the grid writes, so no new
+  stored field exists and the 4C ADR gate on normalised per-lift prescription
+  DATA is not approached.
+  - Choosing a shape only PLANS. The block is described in a sentence first
+    ("3 sets · 8-10 reps across 3 training weeks · 1 deload week (4)") and nothing
+    is written until Apply — rewriting every week at once is not something to do
+    to someone silently. Apply returns a deep snapshot, so Undo restores exactly
+    what was there, including hand-tuned weeks.
+  - Shapes ramp from the athlete's own week-1 values rather than fixed constants,
+    and a deload never consumes a step of the ramp it exists to recover from.
+  - **Found by driving it, not by reading:** the Advanced week rows had a 36px
+    "Copy W-1" and a 40px deload toggle against the app's 44px standard. They had
+    never been measured because the editor check only ever looked at the Schedule
+    tab; it now visits Advanced, and both use `--touch-target`.
+  - `tests/builder_progression_shapes.test.js` (13 cases, including that planning
+    is pure, that undo is a snapshot rather than a live reference, and that a
+    stored rep RANGE like "8-10" survives a steady block intact).
+    `program-editor-browser-check` gained a 4C section driving
+    choose → preview → apply → undo → Advanced. Verified: 1,747 unit tests,
+    typecheck, smoke, precache, workflow gates, and the program-editor /
+    active-program-edit / program-detail-viewport / core-ergonomics browser checks.
+  - **Left undone and stated:** day reorder/replace/copy/rest-day conversion are
+    direct but not undoable. Only progression is. A shared editor undo is the next
+    slice, not something this change quietly claims.
 
 - **2026-08-07 — Phase 4B: programme detail answers "who is this for".** It could
   not answer it at all before — a tagline and an achievements list, neither aware

@@ -14,6 +14,8 @@ import {
 import { openExerciseDetail } from './exercises/detail.js';
 import {
   ensureWeeklyMods, setWeekField, markWeekDeload, isDeloadWeek, weekKeys,
+  PROGRESSION_SHAPES, DELOAD_CADENCES, planProgressionShape, applyProgressionShape,
+  restoreProgression, describeProgressionPlan,
 } from './programs/progression.js';
 import {
   EDITOR_DAYS, EDITOR_DAY_LABELS, copyProgramDay, dayTrainingSummary,
@@ -37,6 +39,16 @@ let previewWeek = '1';
 let pickerTarget = null;
 let pickerViewportTeardown = null;
 let reconciliation = { updatedDays: 0, preservedDays: 0 };
+// Simple vs Advanced progression editing (Phase 4C). Simple asks the one
+// question — how should this get harder — and writes the whole block; Advanced
+// is the existing per-week grid, kept intact for weekly targets and deloads.
+let progressionMode = 'simple';
+/** @type {import('./programs/progression.js').ProgressionShapeId} */
+let shapeChoice = 'steady';
+let deloadEvery = 0;
+// Set by an apply so the athlete can put the previous block back. Rewriting
+// every week at once is exactly the edit that needs a real undo.
+let progressionUndo = null;
 
 function getProgram() { return getProgramById(activeBuilderId); }
 
@@ -89,6 +101,12 @@ export function openBuilder(programId) {
   activeSection = 'schedule';
   previewWeek = '1';
   reconciliation = { updatedDays: 0, preservedDays: 0 };
+  // Per-programme state: an Undo from the last programme must never be offered
+  // against this one, and Simple is the default entry point for every plan.
+  progressionMode = 'simple';
+  shapeChoice = 'steady';
+  deloadEvery = 0;
+  progressionUndo = null;
 
   const container = document.getElementById('builderViewContainer');
   if (container) container.style.display = 'block';
@@ -219,13 +237,76 @@ function renderExerciseRow(day, name, index, count) {
 }
 
 function renderProgression(program) {
+  const simple = progressionMode === 'simple';
   return `
     <section aria-labelledby="builderProgressionTitle">
-      <div class="program-editor__section-heading"><div><div class="program-editor__eyebrow">WEEK BY WEEK</div><h2 id="builderProgressionTitle">Progression</h2><p>These targets apply to every lift in that week. Per-exercise targets are coming in the structured-programming upgrade.</p></div></div>
-      <div class="program-editor__week-list">
-        ${weekKeys(program).map((week) => renderWeekRow(program, week)).join('')}
+      <div class="program-editor__section-heading">
+        <div>
+          <div class="program-editor__eyebrow">WEEK BY WEEK</div>
+          <h2 id="builderProgressionTitle">Progression</h2>
+          <p>These targets apply to every lift in that week. Per-exercise targets are coming in the structured-programming upgrade.</p>
+        </div>
       </div>
+      <div class="program-editor__mode" role="tablist" aria-label="Progression editing mode">
+        <button class="program-editor__mode-btn${simple ? ' is-active' : ''}" role="tab" aria-selected="${simple}"
+                data-action="b-prog-mode" data-mode="simple">Simple</button>
+        <button class="program-editor__mode-btn${simple ? '' : ' is-active'}" role="tab" aria-selected="${!simple}"
+                data-action="b-prog-mode" data-mode="advanced">Advanced</button>
+      </div>
+      ${simple ? renderSimpleProgression(program) : `
+        <p class="program-editor__mode-note">Every week, edited directly. ${escapeHtml(String(weekKeys(program).length))} weeks.</p>
+        <div class="program-editor__week-list">
+          ${weekKeys(program).map((week) => renderWeekRow(program, week)).join('')}
+        </div>`}
     </section>
+  `;
+}
+
+/**
+ * Simple progression — 4C's "broad progression" for the Simple editor.
+ *
+ * One question ("how should this get harder?") instead of a grid that asks for
+ * 3 numbers × every week before the programme exists. It writes the same
+ * `weeklyVolModifiers` the Advanced grid writes, so nothing new is stored and the
+ * ADR gate on per-lift prescription DATA is untouched.
+ *
+ * The resulting block is described BEFORE it is applied, and applying it offers
+ * an Undo, because this is the one edit that rewrites every week at once.
+ */
+function renderSimpleProgression(program) {
+  const plan = planProgressionShape(program, shapeChoice, { deloadEvery });
+  const preview = describeProgressionPlan(plan);
+  return `
+    <div class="program-editor__simple">
+      <div class="program-editor__shape-list" role="radiogroup" aria-label="How this program gets harder">
+        ${PROGRESSION_SHAPES.map((shape) => `
+          <button class="program-editor__shape${shape.id === shapeChoice ? ' is-active' : ''}"
+                  role="radio" aria-checked="${shape.id === shapeChoice}"
+                  data-action="b-prog-shape" data-shape="${escapeHtml(shape.id)}">
+            <strong>${escapeHtml(shape.label)}</strong>
+            <span>${escapeHtml(shape.blurb)}</span>
+          </button>`).join('')}
+      </div>
+
+      <label class="program-editor__field program-editor__deload-field">
+        <span>Recovery weeks</span>
+        <select data-action="b-prog-deload" aria-label="Deload cadence">
+          ${DELOAD_CADENCES.map((cadence) => `
+            <option value="${cadence.value}" ${cadence.value === deloadEvery ? 'selected' : ''}>${escapeHtml(cadence.label)}</option>`).join('')}
+        </select>
+      </label>
+
+      <div class="program-editor__shape-preview" role="status">
+        <div class="program-editor__eyebrow">THIS WOULD GIVE YOU</div>
+        <p>${escapeHtml(preview)}</p>
+      </div>
+
+      <div class="program-editor__shape-actions">
+        <button class="program-editor__apply" data-action="b-prog-apply">Apply to all ${escapeHtml(String(plan.length))} weeks</button>
+        ${progressionUndo ? '<button class="program-editor__undo" data-action="b-prog-undo">Undo</button>' : ''}
+      </div>
+      <p class="program-editor__mode-note">Applying overwrites every week. Switch to Advanced to fine-tune one week at a time.</p>
+    </div>
   `;
 }
 
@@ -512,6 +593,35 @@ document.addEventListener('click', async (event) => {
     const program = getProgram();
     if (program) { markWeekDeload(program, target.dataset.wk); persistProgram(); renderBuilderUI(); }
   }
+  else if (action === 'b-prog-mode') {
+    progressionMode = target.dataset.mode === 'advanced' ? 'advanced' : 'simple';
+    renderBuilderUI();
+  }
+  else if (action === 'b-prog-shape') {
+    const picked = PROGRESSION_SHAPES.find((shape) => shape.id === target.dataset.shape);
+    shapeChoice = /** @type {any} */ (picked?.id || 'steady');
+    renderBuilderUI(); // preview only — nothing is written until Apply
+  }
+  else if (action === 'b-prog-apply') {
+    const program = getProgram();
+    if (program) {
+      const { previous } = applyProgressionShape(program, shapeChoice, { deloadEvery });
+      progressionUndo = previous;
+      persistProgram();
+      renderBuilderUI();
+      setSaveStatus('Progression applied — Undo is available');
+    }
+  }
+  else if (action === 'b-prog-undo') {
+    const program = getProgram();
+    if (program && progressionUndo) {
+      restoreProgression(program, progressionUndo);
+      progressionUndo = null;
+      persistProgram();
+      renderBuilderUI();
+      setSaveStatus('Progression restored');
+    }
+  }
   else if (action === 'b-open-issue') {
     if (day) { selectedDay = day; activeSection = 'schedule'; renderBuilderUI(); }
     else if (target.dataset.field === 'name') document.getElementById('programEditorTitle')?.focus();
@@ -558,6 +668,10 @@ document.addEventListener('change', (event) => {
     renderBuilderUI();
   } else if (target.dataset.action === 'b-preview-week') {
     previewWeek = target.value;
+    renderBuilderUI();
+  } else if (target.dataset.action === 'b-prog-deload') {
+    // Preview only, like the shape buttons — the block is not written until Apply.
+    deloadEvery = Math.max(0, Math.round(Number(target.value) || 0));
     renderBuilderUI();
   }
 });
