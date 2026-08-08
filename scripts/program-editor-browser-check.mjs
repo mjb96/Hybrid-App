@@ -120,6 +120,80 @@ for (const width of WIDTHS) {
   await context.close();
 }
 
+// Phase 4C — Simple progression: one question instead of a grid, previewed
+// before it is written, and reversible after.
+{
+  const { context, page } = await openEditor(390);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.click('[data-action="b-section"][data-section="progression"]');
+  await page.waitForTimeout(200);
+
+  const read = () => page.evaluate(async () => {
+    const state = await import('./js/state.js');
+    const mods = state.getProgramById('prog_browser_editor').weeklyVolModifiers;
+    return {
+      simpleActive: !!document.querySelector('.program-editor__mode-btn.is-active')?.textContent?.includes('Simple'),
+      shapes: document.querySelectorAll('.program-editor__shape').length,
+      weekRows: document.querySelectorAll('.program-editor__week').length,
+      preview: document.querySelector('.program-editor__shape-preview p')?.textContent?.trim() || '',
+      undoShown: !!document.querySelector('[data-action="b-prog-undo"]'),
+      mods: JSON.parse(JSON.stringify(mods)),
+    };
+  });
+
+  const initial = await read();
+  console.log(`  4C simple  shapes=${initial.shapes} weekRows=${initial.weekRows} preview="${initial.preview}"`);
+  check(initial.simpleActive, 'the progression tab must open on Simple');
+  check(initial.shapes === 3, `expected three progression shapes, got ${initial.shapes}`);
+  check(initial.weekRows === 0, 'the per-week grid belongs to Advanced, not Simple');
+  check(/sets/.test(initial.preview), `the shape must describe the block it would produce, got "${initial.preview}"`);
+  check(!initial.undoShown, 'nothing has been applied yet, so there is nothing to undo');
+
+  // Choosing a shape and a deload cadence PREVIEWS; it must not write.
+  await page.click('[data-action="b-prog-shape"][data-shape="volume"]');
+  await page.selectOption('[data-action="b-prog-deload"]', '4');
+  await page.waitForTimeout(200);
+  const previewed = await read();
+  console.log(`  4C preview "${previewed.preview}"`);
+  check(/deload week/i.test(previewed.preview), `the deload cadence must show in the preview, got "${previewed.preview}"`);
+  check(JSON.stringify(previewed.mods) === JSON.stringify(initial.mods),
+    'choosing a shape must not write anything until Apply');
+
+  // Apply writes every week and offers a real Undo.
+  await page.click('[data-action="b-prog-apply"]');
+  await page.waitForTimeout(300);
+  const applied = await read();
+  console.log(`  4C applied w1=${JSON.stringify(applied.mods['1'])} w4=${JSON.stringify(applied.mods['4'])} undo=${applied.undoShown}`);
+  check(JSON.stringify(applied.mods) !== JSON.stringify(initial.mods), 'Apply did not change the progression');
+  check(/deload/i.test(String(applied.mods['4']?.intensityLabel)), 'week 4 should be the deload the preview promised');
+  check(applied.undoShown, 'applying a whole block must offer an Undo');
+
+  await page.click('[data-action="b-prog-undo"]');
+  await page.waitForTimeout(300);
+  const undone = await read();
+  console.log(`  4C undone  w1=${JSON.stringify(undone.mods['1'])} w3=${JSON.stringify(undone.mods['3'])}`);
+  check(JSON.stringify(undone.mods) === JSON.stringify(initial.mods),
+    'Undo must restore the exact progression that was there before');
+  check(!undone.undoShown, 'Undo should not remain offered once it has been used');
+
+  // Advanced still owns the per-week grid.
+  await page.click('[data-action="b-prog-mode"][data-mode="advanced"]');
+  await page.waitForTimeout(200);
+  const advanced = await page.evaluate(() => ({
+    weekRows: document.querySelectorAll('.program-editor__week').length,
+    shapes: document.querySelectorAll('.program-editor__shape').length,
+    lowControls: [...document.querySelectorAll('#builderViewContainer button, #builderViewContainer select')]
+      .filter((el) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.height < 43; }).length,
+  }));
+  console.log(`  4C advanced weekRows=${advanced.weekRows} shapes=${advanced.shapes}`);
+  check(advanced.weekRows === 4, `Advanced must keep the per-week grid, got ${advanced.weekRows} rows`);
+  check(advanced.shapes === 0, 'the shape picker belongs to Simple');
+  check(advanced.lowControls === 0, `${advanced.lowControls} progression controls below the 44px target`);
+  check(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
+  await context.close();
+}
+
 // Large text remains usable and does not clip the selected day or preview.
 {
   const { context, page } = await openEditor(360, 'html{font-size:24px!important;}');

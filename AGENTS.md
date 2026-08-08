@@ -140,7 +140,11 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   via `liftTarget` (the SAME call the cockpit uses), NOT the catalog's decorative
   `workoutPreview.exercises` — keep it that way so detail can't promise a
   per-lift prescription the engine doesn't deliver. Pure helpers: `timeline.js`, `compare.js` (`programStats`/`equipmentFit`),
-  `progression.js` (builder's per-week editor), `onboarding/starter-programs.js`.
+  `progression.js` (builder's per-week editor PLUS the Simple broad-progression
+  shapes — `planProgressionShape` is pure and writes nothing; only
+  `applyProgressionShape` writes, and it returns a snapshot for Undo. Shapes emit
+  the SAME `weeklyVolModifiers` the grid does, so no per-lift prescription data is
+  introduced and the 4C ADR gate stays shut), `onboarding/starter-programs.js`.
   "Customize" forks ANY program via `duplicateCustomProgram` (a copy — never edits
   shared catalog data). `day.lifts` are bare strings across 150+ sites — do NOT
   migrate to objects casually.
