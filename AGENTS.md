@@ -145,6 +145,10 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   `applyProgressionShape` writes, and it returns a snapshot for Undo. Shapes emit
   the SAME `weeklyVolModifiers` the grid does, so no per-lift prescription data is
   introduced and the 4C ADR gate stays shut), `onboarding/starter-programs.js`.
+  Every plan-changing builder edit snapshots via `captureProgramDraft` and is
+  undoable from one strip (`markUndoable` → `b-undo`); the snapshot is the PLAN
+  only (`days` + `weeklyVolModifiers`), never `state.weeks`, so an undo can never
+  rewrite logged training. Prefer that over adding confirmation dialogs.
   "Customize" forks ANY program via `duplicateCustomProgram` (a copy — never edits
   shared catalog data). `day.lifts` are bare strings across 150+ sites — do NOT
   migrate to objects casually.

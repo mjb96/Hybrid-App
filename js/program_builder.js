@@ -15,15 +15,15 @@ import { openExerciseDetail } from './exercises/detail.js';
 import {
   ensureWeeklyMods, setWeekField, markWeekDeload, isDeloadWeek, weekKeys,
   PROGRESSION_SHAPES, DELOAD_CADENCES, planProgressionShape, applyProgressionShape,
-  restoreProgression, describeProgressionPlan,
+  describeProgressionPlan,
 } from './programs/progression.js';
 import {
   EDITOR_DAYS, EDITOR_DAY_LABELS, copyProgramDay, dayTrainingSummary,
   previewProgramWeek, programEditorSummary, validateProgramDraft,
   replaceProgramExercise, addProgramExercise, removeProgramExercise,
   moveProgramExercise, makeProgramDayRest,
+  captureProgramDraft, restoreProgramDraft,
 } from './programs/editor-model.js';
-import { confirmModal } from './ui/confirm-modal.js';
 import { closeManagedModal, openManagedModal } from './ui/modal-stack.js';
 import { trackVisibleViewport } from './ui/visible-viewport.js';
 import {
@@ -46,9 +46,12 @@ let progressionMode = 'simple';
 /** @type {import('./programs/progression.js').ProgressionShapeId} */
 let shapeChoice = 'steady';
 let deloadEvery = 0;
-// Set by an apply so the athlete can put the previous block back. Rewriting
-// every week at once is exactly the edit that needs a real undo.
-let progressionUndo = null;
+// One undo for every plan-changing edit in the editor — remove, replace, add,
+// reorder, rest-day, copy-day and progression. Interaction principle 5 prefers
+// Undo over repeated confirmation dialogs, and the builder previously had the
+// dialogs without the Undo. Single level, in memory, cleared when a different
+// programme is opened.
+let editorUndo = null;
 
 function getProgram() { return getProgramById(activeBuilderId); }
 
@@ -91,6 +94,43 @@ function persistProgram({ reconcile = true } = {}) {
   return true;
 }
 
+/**
+ * Snapshot the plan before an edit that changes it. Call BEFORE mutating —
+ * the snapshot is what "Undo" restores.
+ */
+function markUndoable(label) {
+  const program = getProgram();
+  if (program) editorUndo = captureProgramDraft(program, label);
+}
+
+function undoLastEdit() {
+  const program = getProgram();
+  if (!program || !editorUndo) return;
+  const label = editorUndo.label;
+  restoreProgramDraft(program, editorUndo);
+  editorUndo = null;
+  // The restored plan is authoritative again; re-run the same guards openBuilder
+  // uses so a restore can never leave a malformed day or week table behind.
+  ensureDays(program);
+  ensureWeeklyMods(program);
+  persistProgram();
+  renderBuilderUI();
+  setSaveStatus(`Undone · ${label}`);
+}
+
+/**
+ * The undo strip. Rendered above the section body so it is visible from any tab
+ * — the edit that needs taking back is often not on the tab you ended up on.
+ */
+function renderUndoBar() {
+  if (!editorUndo) return '';
+  return `
+    <div class="program-editor__undobar" role="status">
+      <span>${escapeHtml(editorUndo.label)}</span>
+      <button class="program-editor__undobar-btn" data-action="b-undo">Undo</button>
+    </div>`;
+}
+
 export function openBuilder(programId) {
   activeBuilderId = programId;
   const program = getProgram();
@@ -106,7 +146,7 @@ export function openBuilder(programId) {
   progressionMode = 'simple';
   shapeChoice = 'steady';
   deloadEvery = 0;
-  progressionUndo = null;
+  editorUndo = null;
 
   const container = document.getElementById('builderViewContainer');
   if (container) container.style.display = 'block';
@@ -168,6 +208,8 @@ function renderBuilderUI() {
         ${renderTab('preview', 'Preview')}
       </nav>
 
+      ${renderUndoBar()}
+
       <div class="program-editor__body">
         ${body}
       </div>
@@ -180,6 +222,10 @@ function renderTab(id, label) {
   return `<button class="program-editor__tab${selected ? ' is-active' : ''}" data-action="b-section" data-section="${id}" role="tab" aria-selected="${selected}">${label}</button>`;
 }
 
+// NOTE: the rest/training toggle below MUST carry data-day. Both its handlers
+// are guarded by `&& day`, so without it the button silently did nothing at all
+// — it was dead from the day it was written, and only driving the editor in a
+// browser surfaced it.
 function renderSchedule(program) {
   const day = program.days[selectedDay];
   const summary = dayTrainingSummary(day);
@@ -201,7 +247,7 @@ function renderSchedule(program) {
       <article class="program-editor__day-card">
         <div class="program-editor__day-heading">
           <div><span>${EDITOR_DAY_LABELS[selectedDay]}</span><strong>${escapeHtml(summary.label)}</strong></div>
-          <button class="program-editor__rest-toggle${summary.training ? '' : ' is-rest'}" data-action="${summary.training ? 'b-mark-rest' : 'b-mark-training'}">${summary.training ? 'Make rest day' : 'Add training'}</button>
+          <button class="program-editor__rest-toggle${summary.training ? '' : ' is-rest'}" data-day="${selectedDay}" data-action="${summary.training ? 'b-mark-rest' : 'b-mark-training'}">${summary.training ? 'Make rest day' : 'Add training'}</button>
         </div>
 
         <label class="program-editor__field"><span>Session name</span><input type="text" maxlength="70" value="${escapeHtml(day.title || '')}" data-action="b-day-title" data-day="${selectedDay}" placeholder="e.g. Upper strength"></label>
@@ -303,7 +349,6 @@ function renderSimpleProgression(program) {
 
       <div class="program-editor__shape-actions">
         <button class="program-editor__apply" data-action="b-prog-apply">Apply to all ${escapeHtml(String(plan.length))} weeks</button>
-        ${progressionUndo ? '<button class="program-editor__undo" data-action="b-prog-undo">Undo</button>' : ''}
       </div>
       <p class="program-editor__mode-note">Applying overwrites every week. Switch to Advanced to fine-tune one week at a time.</p>
     </div>
@@ -487,6 +532,9 @@ function chooseExercise(name) {
   // replaced exercise can't linger in a preview and a replacement inherits the
   // old slot's prescription where the description carried one.
   const day = program.days[pickerTarget.day];
+  markUndoable(pickerTarget.index == null
+    ? `Added ${name}`
+    : `Replaced ${day.lifts[pickerTarget.index]} with ${name}`);
   if (pickerTarget.index == null) addProgramExercise(day, name);
   else replaceProgramExercise(day, pickerTarget.index, name);
   persistProgram();
@@ -504,45 +552,50 @@ function setDayField(day, field, value) {
 function moveLift(day, index, direction) {
   const program = getProgram();
   const target = program?.days?.[day];
+  const name = target?.lifts?.[index];
+  const snapshot = captureProgramDraft(program, `Moved ${name}`);
   if (!moveProgramExercise(target, index, index + direction)) return;
+  editorUndo = snapshot; // only after the move actually happened
   persistProgram();
   renderBuilderUI();
 }
 
-async function removeLift(day, index) {
+// These three used to open a confirmation modal each. They now snapshot and let
+// the athlete take the edit back, per interaction principle 5 — a dialog asks a
+// question before the fact and still leaves a mistake permanent, while Undo
+// answers the case a confirmation was actually protecting against. All three
+// change the PLAN only; logged workouts live in `state.weeks` and are untouched
+// either way.
+function removeLift(day, index) {
   const program = getProgram();
   const lifts = program?.days?.[day]?.lifts;
   if (!Array.isArray(lifts) || !lifts[index]) return;
-  const ok = await confirmModal({ title: `Remove ${lifts[index]}?`, message: 'Logged workout history will remain safe.', confirmLabel: 'Remove', danger: true });
-  if (!ok) return;
+  markUndoable(`Removed ${lifts[index]}`);
   removeProgramExercise(program.days[day], index);
   persistProgram();
   renderBuilderUI();
 }
 
-async function makeRestDay(day) {
+function makeRestDay(day) {
   const program = getProgram();
   if (!program) return;
-  const ok = await confirmModal({ title: `Make ${EDITOR_DAY_LABELS[day]} a rest day?`, message: 'This removes the exercises and run from the plan. Logged workouts remain safe.', confirmLabel: 'Make rest day', danger: true });
-  if (!ok) return;
+  markUndoable(`${EDITOR_DAY_LABELS[day]} is now a rest day`);
   makeProgramDayRest(program.days[day]);
   persistProgram();
   renderBuilderUI();
 }
 
-async function copyDay(targetDay) {
+function copyDay(targetDay) {
   const program = getProgram();
   const select = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderCopySource'));
   const sourceDay = select?.value;
   if (!program || !sourceDay) return;
-  const targetSummary = dayTrainingSummary(program.days[targetDay]);
-  if (targetSummary.training) {
-    const ok = await confirmModal({ title: `Replace ${EDITOR_DAY_LABELS[targetDay]}?`, message: `Copying ${EDITOR_DAY_LABELS[sourceDay]} replaces this planned day. Logged workout history remains safe.`, confirmLabel: 'Replace day', danger: true });
-    if (!ok) return;
-  }
+  markUndoable(`Copied ${EDITOR_DAY_LABELS[sourceDay]} over ${EDITOR_DAY_LABELS[targetDay]}`);
   if (copyProgramDay(program, sourceDay, targetDay)) {
     persistProgram();
     renderBuilderUI();
+  } else {
+    editorUndo = null; // nothing changed, so there is nothing to offer back
   }
 }
 
@@ -581,13 +634,13 @@ document.addEventListener('click', async (event) => {
   else if (action === 'b-open-picker' && day) openExercisePicker(day, Number.isNaN(index) ? null : index);
   else if (action === 'b-move-up' && day) moveLift(day, index, -1);
   else if (action === 'b-move-down' && day) moveLift(day, index, 1);
-  else if (action === 'b-remove-lift' && day) await removeLift(day, index);
-  else if (action === 'b-mark-rest' && day) await makeRestDay(day);
+  else if (action === 'b-remove-lift' && day) removeLift(day, index);
+  else if (action === 'b-mark-rest' && day) makeRestDay(day);
   else if (action === 'b-mark-training' && day) {
     const program = getProgram();
     if (program) { program.days[day].title = 'Training'; persistProgram(); renderBuilderUI(); openExercisePicker(day); }
   }
-  else if (action === 'b-copy-day' && day) await copyDay(day);
+  else if (action === 'b-copy-day' && day) copyDay(day);
   else if (action === 'b-copy-week') copyPreviousWeek(target.dataset.wk || '');
   else if (action === 'b-week-deload') {
     const program = getProgram();
@@ -605,23 +658,13 @@ document.addEventListener('click', async (event) => {
   else if (action === 'b-prog-apply') {
     const program = getProgram();
     if (program) {
-      const { previous } = applyProgressionShape(program, shapeChoice, { deloadEvery });
-      progressionUndo = previous;
+      markUndoable('Progression applied to every week');
+      applyProgressionShape(program, shapeChoice, { deloadEvery });
       persistProgram();
       renderBuilderUI();
-      setSaveStatus('Progression applied — Undo is available');
     }
   }
-  else if (action === 'b-prog-undo') {
-    const program = getProgram();
-    if (program && progressionUndo) {
-      restoreProgression(program, progressionUndo);
-      progressionUndo = null;
-      persistProgram();
-      renderBuilderUI();
-      setSaveStatus('Progression restored');
-    }
-  }
+  else if (action === 'b-undo') undoLastEdit();
   else if (action === 'b-open-issue') {
     if (day) { selectedDay = day; activeSection = 'schedule'; renderBuilderUI(); }
     else if (target.dataset.field === 'name') document.getElementById('programEditorTitle')?.focus();

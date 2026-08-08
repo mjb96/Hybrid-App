@@ -2429,12 +2429,27 @@ html[data-theme="light"] .create-cta-inner {
   background: color-mix(in srgb, var(--accent-blue) 18%, var(--bg-elevated));
   color: var(--text-primary);
 }
-/* Undo stays quieter than Apply but is a real, full-size target — it exists
-   because applying rewrites every week at once. */
-.program-editor__undo {
-  min-height: var(--touch-target); padding: 0 16px; border-radius: 11px; font-family: inherit;
-  font-size: .8rem; font-weight: 800; cursor: pointer;
-  border: 1px solid var(--border-light); background: transparent; color: var(--text-secondary);
+/* Undo strip — one place for every plan-changing edit, above the section body so
+   it is visible whichever tab you ended up on. Sticky for the same reason: the
+   editor scrolls, and an undo you have scrolled past is not an undo. */
+.program-editor__undobar {
+  position: sticky; top: calc(var(--safe-top, 0px) + 56px); z-index: 4;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 14px; padding: 8px 8px 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 30%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-blue) 12%, var(--bg-elevated));
+  backdrop-filter: blur(14px);
+}
+.program-editor__undobar span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary); font-size: .76rem; font-weight: 700;
+}
+.program-editor__undobar-btn {
+  flex-shrink: 0; min-height: var(--touch-target); padding: 0 16px; border-radius: 10px;
+  font-family: inherit; font-size: .78rem; font-weight: 800; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 45%, transparent);
+  background: var(--bg-card); color: var(--text-primary);
 }
 
 .program-editor__section-heading { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; }

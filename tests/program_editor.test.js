@@ -98,3 +98,82 @@ test('editing an inactive program never touches the active workout', () => {
   setAppState({ activeProgramId: 'other', customPrograms: [program], weeks: {}, settings: {} });
   assert.deepEqual(reconcileActiveProgramEdits(program.id), { updatedDays: 0, preservedDays: 0 });
 });
+
+// =============================================================================
+// EDITOR UNDO (roadmap Phase 4C, interaction principle 5)
+//
+// The builder had three confirmation dialogs and no undo, so removing an
+// exercise, wiping a day to rest or copying over a planned day each cost a modal
+// and still left the mistake permanent. Principle 5 prefers Undo over repeated
+// confirmation; these are the pure halves of it.
+//
+// The snapshot is the whole editable PLAN (`days` + `weeklyVolModifiers`) and
+// nothing else: logged workouts live in `state.weeks`, so an undo can never
+// rewrite training history.
+// =============================================================================
+import { captureProgramDraft, restoreProgramDraft } from '../js/programs/editor-model.js';
+
+const draftProgram = () => ({
+  id: 'p1',
+  name: 'Draft',
+  totalWeeks: 4,
+  days: {
+    mon: { title: 'Push', runs: 'Rest', lifts: ['Bench Press', 'Overhead Press'] },
+    tue: { title: 'Rest', runs: 'Rest', lifts: [] },
+  },
+  weeklyVolModifiers: { 1: { sets: 3, reps: 10, intensityLabel: 'Working Sets' } },
+});
+
+test('a captured draft restores the plan exactly', () => {
+  const program = draftProgram();
+  const snapshot = captureProgramDraft(program, 'Removed Bench Press');
+  program.days.mon.lifts.splice(0, 1);
+  program.days.mon.title = 'Changed';
+  program.weeklyVolModifiers['1'].sets = 9;
+
+  assert.equal(restoreProgramDraft(program, snapshot), true);
+  assert.deepEqual(program.days.mon.lifts, ['Bench Press', 'Overhead Press']);
+  assert.equal(program.days.mon.title, 'Push');
+  assert.equal(program.weeklyVolModifiers['1'].sets, 3);
+});
+
+test('the snapshot is a deep clone in BOTH directions', () => {
+  const program = draftProgram();
+  const snapshot = captureProgramDraft(program, 'x');
+  // Mutating the program must not reach into the snapshot…
+  program.days.mon.lifts.push('Dip');
+  assert.deepEqual(snapshot.days.mon.lifts, ['Bench Press', 'Overhead Press']);
+  // …and restoring must not hand the snapshot's own objects to the program,
+  // or the next edit would corrupt the thing meant to undo it.
+  restoreProgramDraft(program, snapshot);
+  program.days.mon.lifts.push('Dip');
+  assert.deepEqual(snapshot.days.mon.lifts, ['Bench Press', 'Overhead Press']);
+});
+
+test('the label is carried so the strip can name what it will undo', () => {
+  const snapshot = captureProgramDraft(draftProgram(), 'Monday is now a rest day');
+  assert.equal(snapshot.label, 'Monday is now a rest day');
+  assert.equal(captureProgramDraft(draftProgram(), '').label, 'Last change');
+});
+
+test('a snapshot captures the plan only — never logged training', () => {
+  const snapshot = captureProgramDraft(draftProgram(), 'x');
+  assert.deepEqual(Object.keys(snapshot).sort(), ['days', 'label', 'weeklyVolModifiers']);
+});
+
+test('restoring refuses malformed input rather than wiping the plan', () => {
+  const program = draftProgram();
+  assert.equal(restoreProgramDraft(program, null), false);
+  assert.equal(restoreProgramDraft(program, {}), false);
+  assert.equal(restoreProgramDraft(null, captureProgramDraft(draftProgram(), 'x')), false);
+  assert.deepEqual(program.days.mon.lifts, ['Bench Press', 'Overhead Press'], 'plan untouched');
+});
+
+test('a programme with no week table still snapshots and restores', () => {
+  const program = { id: 'p', days: { mon: { title: 'A', runs: 'Rest', lifts: ['Squat'] } } };
+  const snapshot = captureProgramDraft(program, 'x');
+  program.days.mon.lifts = [];
+  assert.equal(restoreProgramDraft(program, snapshot), true);
+  assert.deepEqual(program.days.mon.lifts, ['Squat']);
+  assert.deepEqual(program.weeklyVolModifiers, {});
+});

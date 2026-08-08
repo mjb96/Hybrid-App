@@ -13,6 +13,48 @@ export const EDITOR_DAY_LABELS = Object.freeze({
   fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 });
 
+// ── Editor undo (Phase 4C "direct and reversible") ───────────────────────────
+//
+// Interaction principle 5 prefers Undo over repeated confirmation dialogs, and
+// the builder had the dialogs but no Undo — so removing an exercise, wiping a day
+// to rest, or copying over a planned day each cost a modal and still could not be
+// taken back.
+//
+// The captured draft is deliberately the WHOLE editable plan (`days` +
+// `weeklyVolModifiers`) rather than the one field an action touches: a single
+// shape is impossible to get subtly wrong per action, and the plan is seven days
+// and a week table — cloning it is nothing next to a re-render.
+//
+// It captures the PLAN ONLY. Logged workouts live in `state.weeks` and are never
+// part of a snapshot, so an undo can restore a template without ever rewriting
+// training history.
+
+/**
+ * @param {any} program
+ * @param {string} label  what was done, in the athlete's language
+ * @returns {null | { label:string, days:any, weeklyVolModifiers:any }}
+ */
+export function captureProgramDraft(program, label) {
+  if (!program) return null;
+  return {
+    label: String(label || 'Last change'),
+    days: JSON.parse(JSON.stringify(program.days || {})),
+    weeklyVolModifiers: JSON.parse(JSON.stringify(program.weeklyVolModifiers || {})),
+  };
+}
+
+/**
+ * Put a captured draft back. Clones again on the way in, so the snapshot stays
+ * usable and later edits cannot reach back into it.
+ * @returns {boolean} whether anything was restored
+ */
+export function restoreProgramDraft(program, snapshot) {
+  if (!program || !snapshot?.days) return false;
+  program.days = JSON.parse(JSON.stringify(snapshot.days));
+  program.weeklyVolModifiers = JSON.parse(JSON.stringify(snapshot.weeklyVolModifiers || {}));
+  return true;
+}
+
 export function isRunPlanned(value) {
   const text = String(value || '').trim();
   return !!text && !/^rest$/i.test(text) && !/^none$/i.test(text);
