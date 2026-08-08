@@ -118,6 +118,12 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   surface; `showInfoNotice` must NOT call `showPanel` — a recovered run is still live.
   A mid-run `onPositionError` must never tear down the session.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
+- Exercise browsing: `MUSCLES` has 19 anatomical keys and is for volume analytics,
+  NOT for pickers. Browsing uses `MUSCLE_GROUPS` (six training words, every
+  anatomical key in exactly one) and `primaryMuscleGroups`, which claims a group
+  only on FULL credit — any-involvement returns 21 glute exercises against the 8
+  that train them. The picker's other select filters MOVEMENT (push/pull/legs/
+  core/conditioning); it spent a long time mislabelled "muscle group".
 - Recommendations: `js/programs/recommendation-fit.js` is the fit model — score from what
   the ATHLETE told the app (`fitnessGoal`/`fitnessLevel`/`equipmentTier`/`equipment`/
   `weightGoal` + real recent training frequency), never from catalogue constants.

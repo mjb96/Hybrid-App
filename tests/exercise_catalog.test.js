@@ -293,3 +293,85 @@ test('derived PR stats exclude high-rep, bodyweight and nominal-band loads', () 
   } };
   assert.deepEqual(computeExercisePRs(state, {}), {});
 });
+
+// =============================================================================
+// PRIMARY-MUSCLE BROWSING (roadmap Phase 4D)
+//
+// 4D asks for muscle and equipment browsing "without exposing anatomical
+// clutter". `MUSCLES` holds 19 anatomical keys — a picker with nineteen chips is
+// worse than no muscle filter at all — so browsing uses six training words, and
+// filters on PRIMARY involvement only.
+// =============================================================================
+import { MUSCLE_GROUPS, primaryMuscleGroups } from '../js/exercises/catalog.js';
+
+test('every anatomical muscle belongs to exactly one browsing group', () => {
+  const seen = new Map();
+  for (const [id, group] of Object.entries(MUSCLE_GROUPS)) {
+    assert.ok(group.label, `${id} needs a training-language label`);
+    for (const muscle of group.muscles) {
+      assert.ok(MUSCLES.includes(muscle), `${muscle} is not a catalogue muscle`);
+      assert.equal(seen.has(muscle), false, `${muscle} is in two groups (${seen.get(muscle)} and ${id})`);
+      seen.set(muscle, id);
+    }
+  }
+  assert.equal(seen.size, MUSCLES.length, 'every muscle must be reachable by browsing');
+});
+
+test('browsing stays six groups — the point is to avoid nineteen', () => {
+  assert.equal(Object.keys(MUSCLE_GROUPS).length, 6);
+  assert.deepEqual(
+    Object.values(MUSCLE_GROUPS).map((g) => g.label),
+    ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'],
+  );
+});
+
+test('a group is claimed only on FULL credit, not any involvement', () => {
+  // Half credit is support work. Listing it as a primary target is how "what can
+  // I do for glutes" ends up answering with Bench Press.
+  assert.deepEqual(primaryMuscleGroups({ muscles: { chest: 1, triceps: 0.5 } }), ['chest']);
+  assert.deepEqual(primaryMuscleGroups({ muscles: { glutes: 0.5 } }), []);
+  assert.deepEqual(primaryMuscleGroups({ muscles: {} }), []);
+  assert.deepEqual(primaryMuscleGroups(null), []);
+});
+
+test('an exercise training two groups is listed under both, once each', () => {
+  const groups = primaryMuscleGroups({ muscles: { quads: 1, glutes: 1, core: 1 } });
+  assert.deepEqual(groups.sort(), ['core', 'legs']);
+});
+
+test('browsing by muscle returns only exercises that primarily train it', () => {
+  for (const id of Object.keys(MUSCLE_GROUPS)) {
+    const list = browseExercises({ muscleGroup: id }, 500);
+    assert.ok(list.length > 0, `${id} must return exercises`);
+    for (const item of list) {
+      assert.ok(primaryMuscleGroups(item).includes(id), `${item.name} is not a primary ${id} exercise`);
+    }
+  }
+});
+
+test('muscle browsing composes with equipment and search', () => {
+  const barbellLegs = browseExercises({ muscleGroup: 'legs', equipment: 'barbell' }, 500);
+  assert.ok(barbellLegs.length > 0);
+  for (const item of barbellLegs) {
+    assert.ok(item.equipment.includes('barbell'), `${item.name} is not a barbell exercise`);
+    assert.ok(primaryMuscleGroups(item).includes('legs'), `${item.name} is not a primary legs exercise`);
+  }
+  const searched = browseExercises({ query: 'press', muscleGroup: 'chest' }, 500);
+  for (const item of searched) {
+    assert.ok(primaryMuscleGroups(item).includes('chest'), `${item.name} is not a primary chest exercise`);
+  }
+});
+
+test('an unknown muscle group returns nothing rather than everything', () => {
+  assert.equal(browseExercises({ muscleGroup: 'not_a_group' }, 500).length, 0);
+});
+
+test('conditioning movements with no single primary muscle stay reachable', () => {
+  // Burpees and kettlebell swings honestly have no one primary group; they must
+  // not be forced into one, and must still appear when no muscle filter is set.
+  const all = browseExercises({}, 500);
+  const ungrouped = all.filter((item) => primaryMuscleGroups(item).length === 0);
+  assert.ok(ungrouped.length > 0, 'fixture sanity: some movements have no primary group');
+  const names = ungrouped.map((item) => item.name);
+  assert.ok(names.some((n) => /Kettlebell Swing|Burpee|Rowing|SkiErg/i.test(n)), names.join(', '));
+});

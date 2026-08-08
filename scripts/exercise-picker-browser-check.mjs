@@ -207,6 +207,59 @@ try {
   await page.waitForTimeout(100);
   ok(await page.isVisible('#addExerciseModal.active'), 'closing details returns to the workout picker');
 
+  // ── Phase 4D: primary-muscle browsing, in training words ─────────────────
+  // The control beside this one was LABELLED "muscle group" while filtering
+  // push/pull/legs/core/conditioning — movements, not muscles. There is now a
+  // real muscle filter, and it narrows on PRIMARY involvement only.
+  await page.fill('#elSearchInput', '');
+  await page.selectOption('#elEquipmentFilter', '');
+  await page.selectOption('#elMuscleFilter', 'chest');
+  await page.waitForTimeout(150);
+  const chestNames = await page.$$eval(
+    '#elList [data-action="el-pick"]',
+    (buttons) => buttons.map((b) => b.getAttribute('data-exname')),
+  );
+  ok(chestNames.length > 0, 'muscle filter returns chest exercises');
+  ok(chestNames.some((n) => /Bench Press/i.test(n || '')), `chest list should include a bench press (${chestNames.slice(0, 4).join(', ')})`);
+  ok(!chestNames.some((n) => /Back Squat|Deadlift/i.test(n || '')), 'a chest filter must not return squats or deadlifts');
+
+  // Muscle and equipment compose, and the labels say what they do.
+  await page.selectOption('#elEquipmentFilter', 'barbell');
+  await page.waitForTimeout(150);
+  const barbellChest = await page.$$eval(
+    '#elList [data-action="el-pick"]',
+    (buttons) => buttons.map((b) => b.getAttribute('data-exname')),
+  );
+  ok(barbellChest.length > 0 && barbellChest.length <= chestNames.length, 'muscle + equipment compose to a narrower list');
+  const labels = await page.evaluate(() => ({
+    muscle: document.querySelector('#elMuscleFilter option')?.textContent?.trim(),
+    movement: document.querySelector('#elCategoryFilter option')?.textContent?.trim(),
+    muscleOptions: document.querySelectorAll('#elMuscleFilter option').length,
+  }));
+  ok(labels.muscle === 'All muscles', `muscle filter default reads "${labels.muscle}"`);
+  ok(labels.movement === 'All movements', `movement filter must stop claiming to be muscles, reads "${labels.movement}"`);
+  ok(labels.muscleOptions === 7, `expected six groups plus "all", got ${labels.muscleOptions}`);
+
+  // Three selects in one row must still fit the narrowest phone.
+  for (const width of [320, 412]) {
+    await page.setViewportSize({ width, height: 780 });
+    await page.waitForTimeout(150);
+    const layout = await page.evaluate(() => {
+      const row = document.querySelector('.el-filter-row');
+      const selects = [...(row?.querySelectorAll('select') || [])];
+      return {
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        rowOverflow: !!row && row.scrollWidth > row.clientWidth + 1,
+        small: selects.filter((s) => s.getBoundingClientRect().height < 43).length,
+        count: selects.length,
+      };
+    });
+    ok(layout.count === 3, `${width}px: expected three filters, got ${layout.count}`);
+    ok(!layout.overflow, `${width}px: filter row causes horizontal overflow`);
+    ok(layout.small === 0, `${width}px: ${layout.small} filter(s) below the 44px target`);
+  }
+  await page.setViewportSize({ width: 390, height: 780 });
+
   if (errors.length) fail(`browser errors: ${errors.join(' | ')}`);
   await ctx.close();
 } finally {
