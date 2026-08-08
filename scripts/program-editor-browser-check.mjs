@@ -120,6 +120,66 @@ for (const width of WIDTHS) {
   await context.close();
 }
 
+// Phase 4C — destructive day edits are reversible, and no longer gated behind a
+// confirmation dialog (interaction principle 5).
+{
+  const { context, page } = await openEditor(390);
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+
+  const lifts = () => page.evaluate(async () => {
+    const state = await import('./js/state.js');
+    const program = state.getProgramById('prog_browser_editor');
+    return {
+      mon: [...(program.days.mon.lifts || [])],
+      monTitle: program.days.mon.title,
+      undoLabel: document.querySelector('.program-editor__undobar span')?.textContent?.trim() || null,
+      undoHeight: Math.round(document.querySelector('.program-editor__undobar-btn')?.getBoundingClientRect().height || 0),
+      dialogOpen: !!document.querySelector('.confirm-modal, [data-confirm-modal], #confirmModal.active'),
+    };
+  });
+
+  const start = await lifts();
+  check(start.undoLabel === null, 'nothing has been edited yet, so no undo strip');
+
+  // Remove an exercise: no dialog, and the strip names what it will put back.
+  await page.click('[data-action="b-remove-lift"][data-day="mon"][data-i="0"]');
+  await page.waitForTimeout(300);
+  const removed = await lifts();
+  console.log(`  4C undo    removed=${JSON.stringify(removed.mon)} label="${removed.undoLabel}" btn=${removed.undoHeight}px dialog=${removed.dialogOpen}`);
+  check(!removed.dialogOpen, 'removing an exercise must not open a confirmation dialog now Undo exists');
+  check(removed.mon.length === start.mon.length - 1, 'the exercise was not removed');
+  check(/Removed /.test(removed.undoLabel || ''), `the undo strip must name the edit, got "${removed.undoLabel}"`);
+  check(removed.undoHeight >= 44, `undo button is ${removed.undoHeight}px, under the 44px target`);
+
+  await page.click('[data-action="b-undo"]');
+  await page.waitForTimeout(300);
+  const undone = await lifts();
+  console.log(`  4C undo    restored=${JSON.stringify(undone.mon)} label=${undone.undoLabel}`);
+  check(JSON.stringify(undone.mon) === JSON.stringify(start.mon), 'Undo did not restore the removed exercise');
+  check(undone.undoLabel === null, 'the strip must clear once the undo is used');
+
+  // Wiping a day to rest is the biggest destructive edit — also undoable.
+  await page.click('[data-action="b-mark-rest"]');
+  await page.waitForTimeout(300);
+  const rested = await lifts();
+  console.log(`  4C undo    rest=${JSON.stringify(rested.mon)} label="${rested.undoLabel}"`);
+  check(!rested.dialogOpen, 'making a rest day must not open a confirmation dialog');
+  check(rested.mon.length === 0, 'the day was not cleared');
+  check(/rest day/i.test(rested.undoLabel || ''), `expected a rest-day undo label, got "${rested.undoLabel}"`);
+
+  await page.click('[data-action="b-undo"]');
+  await page.waitForTimeout(300);
+  const restored = await lifts();
+  console.log(`  4C undo    afterRestUndo=${JSON.stringify(restored.mon)} title="${restored.monTitle}"`);
+  check(JSON.stringify(restored.mon) === JSON.stringify(start.mon), 'Undo did not restore the wiped day');
+  check(restored.monTitle === start.monTitle, 'Undo did not restore the day title');
+
+  // The undo is single level and must not survive into an unrelated programme.
+  check(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
+  await context.close();
+}
+
 // Phase 4C — Simple progression: one question instead of a grid, previewed
 // before it is written, and reversible after.
 {
@@ -137,7 +197,7 @@ for (const width of WIDTHS) {
       shapes: document.querySelectorAll('.program-editor__shape').length,
       weekRows: document.querySelectorAll('.program-editor__week').length,
       preview: document.querySelector('.program-editor__shape-preview p')?.textContent?.trim() || '',
-      undoShown: !!document.querySelector('[data-action="b-prog-undo"]'),
+      undoShown: !!document.querySelector('[data-action="b-undo"]'),
       mods: JSON.parse(JSON.stringify(mods)),
     };
   });
@@ -169,7 +229,7 @@ for (const width of WIDTHS) {
   check(/deload/i.test(String(applied.mods['4']?.intensityLabel)), 'week 4 should be the deload the preview promised');
   check(applied.undoShown, 'applying a whole block must offer an Undo');
 
-  await page.click('[data-action="b-prog-undo"]');
+  await page.click('[data-action="b-undo"]');
   await page.waitForTimeout(300);
   const undone = await read();
   console.log(`  4C undone  w1=${JSON.stringify(undone.mods['1'])} w3=${JSON.stringify(undone.mods['3'])}`);

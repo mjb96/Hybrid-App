@@ -717,11 +717,11 @@ Every metric detail includes:
 
 ## Phase 4 — Plans, exercise discovery, and editing
 
-**Status: 4A and 4B COMPLETE, 4C SUBSTANTIALLY DONE (2026-08-07)** —
-recommendation engine, active-plan lead, chip/collection overload, compare, the
-programme-detail decision order with a real "Who it's for", and Simple |
-Advanced progression editing. Remaining: a shared undo for the builder's
-destructive day edits (4C), and 4D (exercise metadata).
+**Status: 4A, 4B and 4C COMPLETE (2026-08-07)** — recommendation engine,
+active-plan lead, chip/collection overload, compare, the programme-detail
+decision order with a real "Who it's for", Simple | Advanced progression editing,
+and one undo across every plan-changing editor action. **4D (exercise metadata)
+is the only Phase 4 item left.**
 
 **Outcome:** choosing and changing training feels guided rather than
 catalogue-driven.
@@ -920,9 +920,29 @@ programme exists**.
   ever looked at the Schedule tab. Both now use `--touch-target`, and the check
   visits Advanced.
 
-Remaining in 4C: day selection / reorder / replace / copy / rest-day conversion
-are direct but **not yet undoable** — only progression is. A shared undo for
-destructive editor actions is the next slice.
+**DONE 2026-08-07 — one undo for every plan-changing edit, and three
+confirmation dialogs removed.** Interaction principle 5 prefers Undo over
+repeated confirmation, and the builder had the dialogs *without* the Undo: remove
+an exercise, wipe a day to rest, or copy over a planned day each cost a modal and
+still left the mistake permanent.
+
+- `captureProgramDraft` / `restoreProgramDraft` (`editor-model.js`, pure) snapshot
+  the whole editable plan — `days` + `weeklyVolModifiers` — rather than the one
+  field an action touches. A single shape is impossible to get subtly wrong per
+  action, and the plan is seven days and a week table. **The snapshot is the PLAN
+  ONLY**: logged workouts live in `state.weeks` and are never captured, so an undo
+  can restore a template without ever rewriting training history.
+- One strip, above the section body so it is visible from any tab, naming the
+  edit ("Removed Bench Press", "Monday is now a rest day"). Covers remove, add,
+  replace, reorder, rest-day, copy-day and the progression apply — the
+  progression-only undo added earlier in the day was folded into it.
+- The confirmations on remove / rest-day / copy-day are **gone**. A dialog asks
+  before the fact and still leaves the mistake permanent; Undo answers the case
+  the dialog was actually protecting against.
+- **A dead control, found by driving it:** the day card's "Make rest day" /
+  "Add training" toggle carried no `data-day`, and both handlers are guarded by
+  `&& day` — so that button had **never done anything**, on any day, since it was
+  written. It works now, and the check clicks it.
 
 ### 4D. Exercises
 
@@ -1207,20 +1227,51 @@ Work in this order unless user evidence changes it:
    Browse all.** All of 4A: the recommendation engine, the active-plan lead, the
    chip/collection reduction (36 default chip controls → 15, recommendations from
    y651 → y327, the editorial carousel moved below everything personal) and
-   compare stating its numbers. **Next: 4B programme-detail ordering.**
+   compare stating its numbers. 4B (detail decision order + "Who it's for") and
+   4C (Simple | Advanced progression, one editor undo) followed the same day.
+   **Next: 4D — exercise metadata in reviewed batches.**
    **Correction:** this entry claimed the landing "renders 25 of 58 programmes,
    so a new programme is findable only by search". That was never true and was
    repeated twice without being checked. Measured against the real catalogue,
    the category chips reach **58 of 58** — every programme, including newly
    added ones. Discovery needed better *leading*, not rescuing from
    unreachability.
-9. **Continue exercise metadata and shared visual-system cleanup in bounded
-   batches.**
+9. **NEXT — 4D: exercise metadata and shared visual-system cleanup in bounded
+   batches.** 154 canonical exercises, 16 fully reviewed. Also add primary-muscle
+   and equipment browsing without anatomical clutter.
 
 Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 4C finished: one undo, three dialogs gone, and a button
+  that had never worked.** Interaction principle 5 prefers Undo over repeated
+  confirmation; the builder had the dialogs *without* the Undo, so removing an
+  exercise or wiping a day to rest cost a modal and was still permanent.
+  - `captureProgramDraft` / `restoreProgramDraft` snapshot the whole editable plan
+    rather than the one field an action touches — one shape that cannot be got
+    subtly wrong per action. **Plan only:** logged workouts live in `state.weeks`
+    and are never captured, so an undo cannot rewrite training history. A test
+    asserts the snapshot's keys are exactly `days` / `weeklyVolModifiers` / `label`.
+  - One strip above the section body, naming the edit, covering remove / add /
+    replace / reorder / rest-day / copy-day / progression. The progression-only
+    undo shipped earlier the same day was folded into it rather than left as a
+    second mechanism.
+  - **A dead control, found only by driving it:** the day card's "Make rest day" /
+    "Add training" toggle carried no `data-day`, and both handlers are guarded by
+    `&& day`. That button had never done anything since it was written. The browser
+    check now clicks it, and the reason is a comment above `renderSchedule` so it
+    cannot quietly regress.
+  - **Repeated my own mistake:** a backtick inside an HTML comment terminated a JS
+    template literal again — the same defect from earlier in this session. Caught
+    by the browser check (`days=0 focusedCards=0`), not by review. The note now
+    lives in a JS comment outside the template. Prose containing code punctuation
+    does not belong inside a template literal.
+  - `tests/program_editor.test.js` +6. `program-editor-browser-check` gained an
+    undo section driving remove → undo → rest-day → undo. Verified: 1,753 unit
+    tests, typecheck, smoke, precache, workflow gates, and the program-editor /
+    active-program-edit / modal-accessibility / core-ergonomics browser checks.
 
 - **2026-08-07 — Phase 4C: the builder can be asked one question instead of 36.**
   Name, days and exercises were already Simple editing; "broad progression" was
