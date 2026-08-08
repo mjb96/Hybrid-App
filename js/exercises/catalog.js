@@ -123,7 +123,10 @@ const X = (id, name, aliases, extra = {}) => exercise(id, name, {
   aliases, muscles: {}, category: 'conditioning', movement: 'conditioning',
   equipment: ['other'], volumeEligible: false, compound: true, ...extra,
 });
-const EZ = (instructions, difficulty, safetyNotes) => ({
+// The reviewed-metadata block. Named for what it is, not for the batch that
+// happened to come first: instructions, difficulty and safety notes are authored
+// per exercise and reviewed before shipping, a batch at a time (Phase 4D).
+const REVIEWED = (instructions, difficulty, safetyNotes) => ({
   instructions, difficulty, safetyNotes,
 });
 
@@ -131,10 +134,22 @@ const EZ = (instructions, difficulty, safetyNotes) => ({
 // 0.5 meaningful secondary, 0.25 minor contribution, stabilisers omitted.
 export const EXERCISES = Object.freeze([
   // Chest and pressing
-  P('barbell_bench_press', 'Barbell Bench Press', ['Bench Press'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true }),
+  P('barbell_bench_press', 'Barbell Bench Press', ['Bench Press'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true,
+    ...REVIEWED(
+      ['Set your eyes under the bar, plant both feet, and grip a little wider than shoulder width.', 'Lower to the lower chest with the elbows tucked, then press back over the shoulders.'],
+      'intermediate',
+      ['Use a spotter or safety pins — a failed rep traps the bar across your chest.', 'Keep the wrists stacked over the elbows, and never bounce the bar off the ribs.'],
+    ),
+  }),
   P('incline_barbell_bench_press', 'Incline Barbell Bench Press', ['Incline Barbell Press', 'Incline Bench Press'], { upper_chest: 1, front_delts: .5, triceps: .5 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true }),
   P('dumbbell_bench_press', 'Dumbbell Bench Press', ['DB Bench Press', 'Dumbbell Bench', 'DB Bench'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'], compound: true }),
-  P('incline_dumbbell_press', 'Incline Dumbbell Press', ['Incline DB Press', 'Incline Dumbbell Bench Press'], { upper_chest: 1, front_delts: .5, triceps: .5 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'], compound: true }),
+  P('incline_dumbbell_press', 'Incline Dumbbell Press', ['Incline DB Press', 'Incline Dumbbell Bench Press'], { upper_chest: 1, front_delts: .5, triceps: .5 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'], compound: true,
+    ...REVIEWED(
+      ['Set the bench to about 30 degrees and start with the dumbbells at your shoulders.', 'Press up and slightly together, then lower until the upper chest stretches.'],
+      'intermediate',
+      ['Use your knees to kick the dumbbells into position rather than pressing them from the floor.', 'Keep the shoulder blades set back — a steeper bench shifts the work to the front delts.'],
+    ),
+  }),
   P('dumbbell_floor_press', 'Dumbbell Floor Press', ['DB Floor Press'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['dumbbells'], compound: true }),
   P('barbell_floor_press', 'Barbell Floor Press', ['Barbell Floor Presses'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell'], compound: true }),
   P('dumbbell_fly', 'Dumbbell Fly', ['DB Fly', 'Dumbbell Flye'], { chest: 1 }, { movement: 'horizontal_push', equipment: ['dumbbells', 'bench'] }),
@@ -149,7 +164,7 @@ export const EXERCISES = Object.freeze([
   P('close_grip_bench_press', 'Close-Grip Bench Press', ['Close-Grip Bench'], { triceps: 1, chest: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true }),
   P('ez_bar_close_grip_bench_press', 'EZ-Bar Close-Grip Bench Press', ['Close-Grip EZ-Bar Bench Press', 'Close Grip EZ Bar Press', 'EZ-Bar Close-Grip Press', 'EZ Curl Bar Close-Grip Bench Press'], { triceps: 1, chest: .5, front_delts: .25 }, {
     movement: 'horizontal_push', equipment: ['ezBar', 'bench'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Lie on a flat bench and hold the inner angled grips above your chest.', 'Lower the bar with elbows close to your sides, then press to full control without snapping the elbows.'],
       'intermediate',
       ['Use a load you can lift safely into position; many EZ bars do not fit a standard rack.', 'Keep wrists stacked over elbows and stop if the grip angle causes wrist or elbow pain.'],
@@ -157,7 +172,7 @@ export const EXERCISES = Object.freeze([
   }),
   P('ez_bar_floor_press', 'EZ-Bar Floor Press', ['EZ Bar Floor Press', 'EZ Curl Bar Floor Press'], { chest: 1, triceps: .5, front_delts: .25 }, {
     movement: 'horizontal_push', equipment: ['ezBar'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Sit with the bar across your hips, roll back carefully, and position it over your chest with arms straight.', 'Lower until the upper arms gently touch the floor, pause, and press without bouncing the elbows.'],
       'intermediate',
       ['Keep the load light enough to move into and out of position without a rack.', 'Use a clear floor area and do not let the elbows crash into the ground.'],
@@ -165,18 +180,30 @@ export const EXERCISES = Object.freeze([
   }),
 
   // Shoulders and triceps
-  P('barbell_overhead_press', 'Barbell Overhead Press', ['Standing Barbell OHP', 'Standing OHP', 'Standing Barbell Overhead Press', 'Standing Overhead Press', 'Press'], { front_delts: 1, triceps: .5, upper_chest: .25 }, { movement: 'vertical_push', equipment: ['barbell'], compound: true }),
+  P('barbell_overhead_press', 'Barbell Overhead Press', ['Standing Barbell OHP', 'Standing OHP', 'Standing Barbell Overhead Press', 'Standing Overhead Press', 'Press'], { front_delts: 1, triceps: .5, upper_chest: .25 }, { movement: 'vertical_push', equipment: ['barbell'], compound: true,
+    ...REVIEWED(
+      ['Hold the bar at the front of the shoulders with the elbows just ahead of it.', 'Press overhead, moving your head back out of the path, and finish with the bar over mid-foot.'],
+      'intermediate',
+      ['Squeeze the glutes and brace so the press does not become a standing back extension.', 'Stop the set if the shoulder pinches at the top.'],
+    ),
+  }),
   P('dumbbell_shoulder_press', 'Dumbbell Shoulder Press', ['DB Shoulder Press', 'Seated DB Shoulder Press', 'Seated Dumbbell Shoulder Press'], { front_delts: 1, triceps: .5, side_delts: .25 }, { movement: 'vertical_push', equipment: ['dumbbells'], compound: true }),
   P('arnold_press', 'Arnold Press', [], { front_delts: 1, side_delts: .5, triceps: .25 }, { movement: 'vertical_push', equipment: ['dumbbells'], compound: true }),
   P('kettlebell_press', 'Kettlebell Press', ['KB Press'], { front_delts: 1, triceps: .5 }, { movement: 'vertical_push', equipment: ['kettlebells'], compound: true, unilateral: true }),
   P('push_press', 'Push Press', [], { front_delts: 1, triceps: .5, quads: .25 }, { movement: 'vertical_push', equipment: ['barbell'], compound: true }),
   P('pike_push_up', 'Pike Push-Up', ['Pike Push-Ups'], { front_delts: 1, triceps: .5 }, { movement: 'vertical_push', equipment: ['bodyweight'], compound: true, bodyweight: true }),
-  P('dumbbell_lateral_raise', 'Dumbbell Lateral Raise', ['DB Lateral Raise', 'Lateral Raise'], { side_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['dumbbells'] }),
+  P('dumbbell_lateral_raise', 'Dumbbell Lateral Raise', ['DB Lateral Raise', 'Lateral Raise'], { side_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['dumbbells'],
+    ...REVIEWED(
+      ['Stand tall with a slight bend in the elbows and the dumbbells at your sides.', 'Raise out to about shoulder height with the palms down, then lower slowly.'],
+      'beginner',
+      ['Lead with the elbows rather than the hands, and stay below shoulder height if it pinches.', 'These are small muscles — swinging a heavier weight just moves the work to the traps.'],
+    ),
+  }),
   P('band_lateral_raise', 'Band Lateral Raise', [], { side_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['bands'] }),
   P('front_raise', 'Front Raise', [], { front_delts: 1 }, { movement: 'shoulder_isolation', equipment: ['dumbbells'] }),
   P('ez_bar_front_raise', 'EZ-Bar Front Raise', ['EZ Bar Front Raise', 'EZ Curl Bar Front Raise'], { front_delts: 1 }, {
     movement: 'shoulder_isolation', equipment: ['ezBar'],
-    ...EZ(
+    ...REVIEWED(
       ['Stand tall with the bar at your thighs and a comfortable angled grip.', 'Raise the bar to about shoulder height with soft elbows, then lower slowly without swinging.'],
       'beginner',
       ['Use a light load and keep the ribs down; momentum shifts stress away from the shoulders.', 'Stop below shoulder height if raising higher causes pinching.'],
@@ -185,13 +212,19 @@ export const EXERCISES = Object.freeze([
   P('upright_row', 'Upright Row', [], { side_delts: 1, traps: .5 }, { movement: 'shoulder_isolation', equipment: ['barbell'], compound: true }),
   P('ez_bar_upright_row', 'EZ-Bar Upright Row', ['EZ Bar Upright Row', 'EZ-Bar Upright Rows', 'EZ Curl Bar Upright Row', 'Ezy Bar Upright Row'], { side_delts: 1, traps: .5 }, {
     movement: 'shoulder_isolation', equipment: ['ezBar'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Hold the angled grips in front of your thighs and stand tall.', 'Lead with the elbows and pull only as high as is comfortable, then lower under control.'],
       'intermediate',
       ['Do not force a high pull; stop if the movement causes shoulder pinching.', 'Keep the bar close and avoid shrugging or swinging the torso.'],
     ),
   }),
-  P('band_triceps_pushdown', 'Band Triceps Pushdown', ['Band Tricep Pushdown', 'Tricep Band Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'] }),
+  P('band_triceps_pushdown', 'Band Triceps Pushdown', ['Band Tricep Pushdown', 'Tricep Band Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'],
+    ...REVIEWED(
+      ['Anchor the band above head height and hold it with the elbows at your sides.', 'Straighten the elbows against the band, then return slowly without letting them drift forward.'],
+      'beginner',
+      ['Check the anchor before every set — a band that slips releases at speed.', 'The band is the load here; your body weight is not part of it.'],
+    ),
+  }),
   P('band_overhead_triceps_extension', 'Band Overhead Triceps Extension', ['Band Overhead Tricep Extension', 'Banded Overhead Triceps Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['bands'] }),
   P('cable_triceps_pushdown', 'Cable Triceps Pushdown', ['Tricep Pushdown', 'Triceps Pushdown'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['cables'] }),
   P('skull_crusher', 'Skull Crusher', ['Skull Crushers', 'Dumbbell Skull Crusher', 'Lying DB Tricep Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells', 'bench'] }),
@@ -199,7 +232,7 @@ export const EXERCISES = Object.freeze([
   // its "Lying EZ-Bar Triceps Extension" aliases stay OFF the dumbbell skull_crusher.
   P('ez_bar_skull_crusher', 'EZ-Bar Skull Crusher', ['EZ Bar Skull Crusher', 'EZ Bar Skull Crushers', 'EZ-Bar Skull Crushers', 'E-Z Bar Skull Crusher', 'E-Z Bar Skull Crushers', 'Ezy Bar Skull Crusher', 'Ezy Bar Skull Crushers', 'EZ Curl Bar Skull Crusher', 'Lying EZ-Bar Triceps Extension', 'Lying EZ Bar Triceps Extension', 'EZ-Bar Lying Triceps Extension', 'EZ Bar Lying Tricep Extension', 'Lying EZ Curl Bar Triceps Extension'], { triceps: 1 }, {
     movement: 'elbow_extension', equipment: ['ezBar', 'bench'],
-    ...EZ(
+    ...REVIEWED(
       ['Lie on a bench with the bar above your shoulders and elbows pointing forward.', 'Bend only the elbows to lower behind the forehead or toward the top of the head, then extend smoothly.'],
       'intermediate',
       ['Choose a load you can control away from your face and use a spotter when appropriate.', 'Keep the upper arms steady and stop if the elbows become painful.'],
@@ -208,7 +241,7 @@ export const EXERCISES = Object.freeze([
   P('overhead_triceps_extension', 'Overhead Triceps Extension', ['Overhead Tricep Extension', 'Dumbbell Overhead Triceps Extension', 'Tricep Extension'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells'] }),
   P('ez_bar_overhead_triceps_extension', 'EZ-Bar Overhead Triceps Extension', ['EZ Bar Overhead Triceps Extension', 'EZ-Bar Overhead Tricep Extension', 'Overhead EZ-Bar Triceps Extension', 'EZ Curl Bar Overhead Extension', 'Ezy Bar Overhead Triceps Extension'], { triceps: 1 }, {
     movement: 'elbow_extension', equipment: ['ezBar'],
-    ...EZ(
+    ...REVIEWED(
       ['Hold the inner angled grips overhead with the ribs stacked over the pelvis.', 'Bend the elbows to lower the bar behind your head, then extend without flaring the elbows wide.'],
       'intermediate',
       ['Start light and lift the bar into position carefully, especially when training alone.', 'Keep the neck neutral and stop if shoulder or elbow range feels restricted.'],
@@ -217,10 +250,16 @@ export const EXERCISES = Object.freeze([
   P('dumbbell_triceps_kickback', 'Dumbbell Triceps Kickback', ['Tricep Kickback'], { triceps: 1 }, { movement: 'elbow_extension', equipment: ['dumbbells'] }),
 
   // Back and pulling
-  L('barbell_row', 'Barbell Row', ['Barbell Bent-Over Row', 'Bent-Over Barbell Row'], { upper_back: 1, lats: .5, rear_delts: .5, biceps: .25, erectors: .25 }, { movement: 'horizontal_pull', equipment: ['barbell'], compound: true }),
+  L('barbell_row', 'Barbell Row', ['Barbell Bent-Over Row', 'Bent-Over Barbell Row'], { upper_back: 1, lats: .5, rear_delts: .5, biceps: .25, erectors: .25 }, { movement: 'horizontal_pull', equipment: ['barbell'], compound: true,
+    ...REVIEWED(
+      ['Hinge to roughly 45 degrees with a braced torso and let the bar hang at arm\'s length.', 'Row to the lower ribs, then lower under control until the arms are long.'],
+      'intermediate',
+      ['Keep the spine neutral; if the torso rises to move the bar, the load is too heavy.', 'Brace before every rep — this position loads the lower back even when done well.'],
+    ),
+  }),
   L('ez_bar_bent_over_row', 'EZ-Bar Bent-Over Row', ['EZ Bar Bent-Over Row', 'EZ Bar Row', 'EZ Curl Bar Row'], { upper_back: 1, lats: .5, rear_delts: .5, biceps: .25, erectors: .25 }, {
     movement: 'horizontal_pull', equipment: ['ezBar'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Hinge at the hips with a braced torso and let the bar hang below the shoulders.', 'Row toward the lower ribs, pause without jerking, and lower until the arms are long.'],
       'intermediate',
       ['Keep the spine neutral and reduce the load if the torso cannot stay still.', 'Check that the shorter bar clears your knees throughout the pull.'],
@@ -233,14 +272,26 @@ export const EXERCISES = Object.freeze([
   L('inverted_row', 'Inverted Row', ['Inverted Rows'], { upper_back: 1, lats: .5, biceps: .25 }, { movement: 'horizontal_pull', equipment: ['bodyweight'], compound: true, bodyweight: true }),
   L('renegade_row', 'Renegade Row', [], { lats: 1, upper_back: .5, core: .5, biceps: .25 }, { movement: 'horizontal_pull', equipment: ['dumbbells'], compound: true, unilateral: true }),
   L('kettlebell_row', 'Kettlebell Row', ['KB Row'], { lats: 1, upper_back: .5, biceps: .25 }, { movement: 'horizontal_pull', equipment: ['kettlebells'], compound: true, unilateral: true }),
-  L('pull_up', 'Pull-Up', ['Pull-Ups'], { lats: 1, upper_back: .5, biceps: .5 }, { movement: 'vertical_pull', equipment: ['pullupBar'], compound: true, bodyweight: true }),
-  L('chin_up', 'Chin-Up', ['Chin-Ups'], { lats: 1, biceps: .5, upper_back: .25 }, { movement: 'vertical_pull', equipment: ['pullupBar'], compound: true, bodyweight: true }),
+  L('pull_up', 'Pull-Up', ['Pull-Ups'], { lats: 1, upper_back: .5, biceps: .5 }, { movement: 'vertical_pull', equipment: ['pullupBar'], compound: true, bodyweight: true,
+    ...REVIEWED(
+      ['Hang from the bar with an overhand grip a little wider than your shoulders.', 'Pull the elbows down until the chin clears the bar, then lower until the arms are long.'],
+      'advanced',
+      ['Start from a controlled dead hang rather than kipping the first rep up.', 'Use a band or the assisted machine instead of swinging to finish reps.'],
+    ),
+  }),
+  L('chin_up', 'Chin-Up', ['Chin-Ups'], { lats: 1, biceps: .5, upper_back: .25 }, { movement: 'vertical_pull', equipment: ['pullupBar'], compound: true, bodyweight: true,
+    ...REVIEWED(
+      ['Hang from the bar with an underhand grip about shoulder width.', 'Pull until the chin clears the bar, then lower until the arms are long.'],
+      'intermediate',
+      ['Start from a controlled dead hang rather than kipping the first rep up.', 'Use a band or the assisted machine instead of dropping out of the bottom.'],
+    ),
+  }),
   L('lat_pulldown', 'Lat Pulldown', [], { lats: 1, biceps: .5, upper_back: .25 }, { movement: 'vertical_pull', equipment: ['cables'], compound: true }),
   L('band_lat_pulldown', 'Band Lat Pulldown', ['Band Pulldown'], { lats: 1, biceps: .5, upper_back: .25 }, { movement: 'vertical_pull', equipment: ['bands'], compound: true }),
   L('dumbbell_pullover', 'Dumbbell Pullover', ['DB Pullover'], { lats: 1, chest: .25 }, { movement: 'vertical_pull', equipment: ['dumbbells', 'bench'] }),
   L('ez_bar_pullover', 'EZ-Bar Pullover', ['EZ Bar Pullover', 'EZ Curl Bar Pullover'], { lats: 1, chest: .25 }, {
     movement: 'vertical_pull', equipment: ['ezBar', 'bench'],
-    ...EZ(
+    ...REVIEWED(
       ['Lie lengthwise on a bench and hold the angled grips above the chest with soft elbows.', 'Lower the bar in an arc behind the head only as far as the shoulders allow, then pull it back over the chest.'],
       'intermediate',
       ['Use a conservative range and load; do not chase a deep stretch through the shoulders.', 'Keep the ribs down and secure the bar before lying back or sitting up.'],
@@ -254,7 +305,7 @@ export const EXERCISES = Object.freeze([
   L('barbell_shrug', 'Barbell Shrug', ['Barbell Shrugs'], { traps: 1 }, { movement: 'shoulder_isolation', equipment: ['barbell'] }),
   L('ez_bar_shrug', 'EZ-Bar Shrug', ['EZ Bar Shrug', 'EZ Bar Shrugs', 'EZ Curl Bar Shrug'], { traps: 1 }, {
     movement: 'shoulder_isolation', equipment: ['ezBar'],
-    ...EZ(
+    ...REVIEWED(
       ['Stand with the bar at arm’s length and shoulders relaxed.', 'Lift the shoulders straight toward the ears, pause briefly, and lower without rolling them.'],
       'beginner',
       ['Keep the neck neutral and avoid circling the shoulders.', 'Use straps only if you already understand how to release the bar safely.'],
@@ -267,16 +318,28 @@ export const EXERCISES = Object.freeze([
   L('dead_hang', 'Dead Hang', [], { forearms: 1 }, { movement: 'vertical_pull', equipment: ['pullupBar'], bodyweight: true }),
 
   // Biceps and forearms
-  L('barbell_curl', 'Barbell Curl', ['Barbell Curl (Heavy)', 'Barbell Biceps Curl (Light)', 'Bicep Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['barbell'] }),
+  L('barbell_curl', 'Barbell Curl', ['Barbell Curl (Heavy)', 'Barbell Biceps Curl (Light)', 'Bicep Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['barbell'],
+    ...REVIEWED(
+      ['Stand with the bar at arm\'s length, hands about shoulder width, elbows at your sides.', 'Curl to the front of the shoulders, then lower until the arms are long.'],
+      'beginner',
+      ['Keep the elbows still — leaning back to finish a rep loads the lower back.', 'Switch to an EZ bar if the straight bar bothers your wrists.'],
+    ),
+  }),
   L('dumbbell_curl', 'Dumbbell Curl', ['DB Curl', 'Alternating Dumbbell Curl'], { biceps: 1, brachialis: .25 }, { movement: 'elbow_flexion', equipment: ['dumbbells'] }),
-  L('hammer_curl', 'Hammer Curl', ['Dumbbell Hammer Curl'], { brachialis: 1, biceps: .5, forearms: .25 }, { movement: 'elbow_flexion', equipment: ['dumbbells'] }),
+  L('hammer_curl', 'Hammer Curl', ['Dumbbell Hammer Curl'], { brachialis: 1, biceps: .5, forearms: .25 }, { movement: 'elbow_flexion', equipment: ['dumbbells'],
+    ...REVIEWED(
+      ['Stand with the dumbbells at your sides and the palms facing in.', 'Curl without rotating the wrists, then lower under control.'],
+      'beginner',
+      ['Keep the elbows still — swinging turns this into a shoulder movement.', 'Stop if the elbow aches; the neutral grip is meant to be the kinder option.'],
+    ),
+  }),
   L('incline_dumbbell_curl', 'Incline Dumbbell Curl', ['Incline DB Curl'], { biceps: 1 }, { movement: 'elbow_flexion', equipment: ['dumbbells', 'bench'] }),
   // EZ-bar work is a distinct equipment identity from the straight barbell — the
   // stable id is kept so historical data still resolves, but equipment is now
   // ezBar (not barbell). "Barbell Curl" stays a separate straight-bar exercise.
   L('ez_bar_curl', 'EZ-Bar Curl', ['EZ Bar Curl', 'EZ Bar Curls', 'EZ-Bar Curls', 'E-Z Bar Curl', 'E-Z Bar Curls', 'EZ Curl Bar Curl', 'EZ Curl Bar Curls', 'Ezy Bar Curl', 'Ezy Bar Curls', 'EZ-Bar Biceps Curl'], { biceps: 1, brachialis: .25 }, {
     movement: 'elbow_flexion', equipment: ['ezBar'],
-    ...EZ(
+    ...REVIEWED(
       ['Stand tall with the angled underhand grip and the bar at your thighs.', 'Curl without moving the upper arms, squeeze briefly, and lower to full control.'],
       'beginner',
       ['Keep wrists aligned with the angled grip and avoid leaning back to move the load.', 'Reduce the load if the elbows drift forward or the lower back extends.'],
@@ -284,7 +347,7 @@ export const EXERCISES = Object.freeze([
   }),
   L('ez_bar_drag_curl', 'EZ-Bar Drag Curl', ['EZ Bar Drag Curl', 'EZ Bar Drag Curls', 'EZ Curl Bar Drag Curl'], { biceps: 1, brachialis: .25 }, {
     movement: 'elbow_flexion', equipment: ['ezBar'],
-    ...EZ(
+    ...REVIEWED(
       ['Stand with the bar at your thighs and shoulders set down.', 'Pull the elbows behind you while dragging the bar close to the torso, then lower along the same path.'],
       'intermediate',
       ['Use less load than a regular curl and keep the shoulders from rolling forward.', 'Do not force the elbows far behind the body if it causes shoulder discomfort.'],
@@ -292,7 +355,7 @@ export const EXERCISES = Object.freeze([
   }),
   L('ez_bar_reverse_curl', 'EZ-Bar Reverse Curl', ['EZ Bar Reverse Curl', 'EZ Bar Reverse Curls', 'EZ-Bar Reverse Curls', 'E-Z Bar Reverse Curl', 'Ezy Bar Reverse Curl', 'Reverse EZ-Bar Curl', 'EZ Curl Bar Reverse Curl'], { brachialis: 1, forearms: .5, biceps: .25 }, {
     movement: 'elbow_flexion', equipment: ['ezBar'],
-    ...EZ(
+    ...REVIEWED(
       ['Hold the outer angled grips with palms facing down and elbows by your sides.', 'Curl while keeping the wrists neutral, then lower slowly until the elbows are straight.'],
       'beginner',
       ['Use a lighter load than an underhand curl to avoid wrist or elbow strain.', 'Do not let the wrists fold forward as the bar rises.'],
@@ -300,7 +363,7 @@ export const EXERCISES = Object.freeze([
   }),
   L('ez_bar_spider_curl', 'EZ-Bar Spider Curl', ['EZ Bar Spider Curl', 'EZ-Bar Spider Curls', 'Incline Bench EZ-Bar Spider Curl', 'EZ Curl Bar Spider Curl'], { biceps: 1, brachialis: .25 }, {
     movement: 'elbow_flexion', equipment: ['ezBar', 'bench'],
-    ...EZ(
+    ...REVIEWED(
       ['Set an incline bench and lie chest-down with the arms hanging toward the floor.', 'Curl the bar without lifting the upper arms, pause, and lower to a controlled stretch.'],
       'intermediate',
       ['Make sure the bench is stable and the bar clears its frame.', 'Start light because the hanging-arm position removes momentum and can stress the elbows.'],
@@ -312,13 +375,19 @@ export const EXERCISES = Object.freeze([
   L('reverse_curl', 'Reverse Curl', [], { brachialis: 1, forearms: .5, biceps: .25 }, { movement: 'elbow_flexion', equipment: ['barbell'] }),
 
   // Squat, lunge and knee-dominant work
-  G('back_squat', 'Back Squat', ['Squat'], { quads: 1, glutes: .5, adductors: .25, erectors: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
+  G('back_squat', 'Back Squat', ['Squat'], { quads: 1, glutes: .5, adductors: .25, erectors: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true,
+    ...REVIEWED(
+      ['Set the bar across your upper back, brace, and unrack with the feet about shoulder width.', 'Sit down between your hips to at least parallel, then drive up without letting the chest drop.'],
+      'intermediate',
+      ['Squat inside a rack with the safety pins set at the bottom of your range.', 'Let the knees track over the toes, and end the set if the lower back starts to round.'],
+    ),
+  }),
   G('front_squat', 'Front Squat', [], { quads: 1, glutes: .5, core: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
   G('dumbbell_front_squat', 'Dumbbell Front Squat', ['DB Front Squat', 'Dumbbell Front Squats'], { quads: 1, glutes: .5, core: .25 }, { movement: 'squat', equipment: ['dumbbells'], compound: true }),
   G('zercher_squat', 'Zercher Squat', ['Zercher Squats'], { quads: 1, glutes: .5, core: .25 }, { movement: 'squat', equipment: ['barbell', 'rack'], compound: true }),
   G('ez_bar_zercher_squat', 'EZ-Bar Zercher Squat', ['EZ Bar Zercher Squat', 'EZ Curl Bar Zercher Squat'], { quads: 1, glutes: .5, core: .25 }, {
     movement: 'squat', equipment: ['ezBar'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Hold the centre of the bar securely in the crooks of your elbows and brace your trunk.', 'Sit between the hips to a controlled depth, keep the bar close, and stand by driving through the whole foot.'],
       'intermediate',
       ['Use padding if needed and start from a safe raised surface when available; do not attempt loads you cannot pick up safely.', 'Keep the knees tracking with the toes and stop if elbow pressure or back position cannot be controlled.'],
@@ -330,27 +399,51 @@ export const EXERCISES = Object.freeze([
   G('goblet_squat', 'Goblet Squat', ['DB Goblet Squat'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'squat', equipment: ['dumbbells'], compound: true }),
   G('dumbbell_sumo_squat', 'Dumbbell Sumo Squat', ['DB Sumo Squat'], { quads: 1, glutes: .5, adductors: .5 }, { movement: 'squat', equipment: ['dumbbells'], compound: true }),
   G('bodyweight_squat', 'Bodyweight Squat', [], { quads: 1, glutes: .5 }, { movement: 'squat', equipment: ['bodyweight'], compound: true, bodyweight: true }),
-  G('bulgarian_split_squat', 'Bulgarian Split Squat', ['Dumbbell Bulgarian Split Squat'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['dumbbells', 'bench'], compound: true, unilateral: true }),
+  G('bulgarian_split_squat', 'Bulgarian Split Squat', ['Dumbbell Bulgarian Split Squat'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['dumbbells', 'bench'], compound: true, unilateral: true,
+    ...REVIEWED(
+      ['Rest the rear foot on a bench and stand about a stride\'s length in front of it.', 'Lower straight down until the front thigh is near parallel, then drive through the front foot.'],
+      'intermediate',
+      ['Find your stance with body weight first — too short a stance loads the front knee.', 'Hold a rack or wall for balance while you are learning the position.'],
+    ),
+  }),
   G('barbell_bulgarian_split_squat', 'Barbell Bulgarian Split Squat', ['Barbell Bulgarian Split Squats'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['barbell', 'bench'], compound: true, unilateral: true }),
   G('reverse_lunge', 'Reverse Lunge', ['DB Lunge', 'Dumbbell Lunge'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['dumbbells'], compound: true, unilateral: true }),
   G('barbell_reverse_lunge', 'Barbell Reverse Lunge', ['Barbell Reverse Lunges'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['barbell'], compound: true, unilateral: true }),
   G('walking_lunge', 'Walking Lunge', ['Walking Lunges'], { quads: 1, glutes: .5, adductors: .25 }, { movement: 'lunge', equipment: ['bodyweight'], compound: true, unilateral: true, bodyweight: true }),
   G('step_up', 'Step-Up', ['DB Step-Up', 'Dumbbell Step-Up'], { quads: 1, glutes: .5 }, { movement: 'lunge', equipment: ['dumbbells', 'bench'], compound: true, unilateral: true }),
   G('barbell_step_up', 'Barbell Step-Up', ['Barbell Step-Ups'], { quads: 1, glutes: .5 }, { movement: 'lunge', equipment: ['barbell', 'bench'], compound: true, unilateral: true }),
-  G('leg_press', 'Leg Press', [], { quads: 1, glutes: .5 }, { movement: 'squat', equipment: ['machine'], compound: true }),
+  G('leg_press', 'Leg Press', [], { quads: 1, glutes: .5 }, { movement: 'squat', equipment: ['machine'], compound: true,
+    ...REVIEWED(
+      ['Sit with your back flat against the pad and the feet about shoulder width on the platform.', 'Lower until the knees reach roughly 90 degrees, then press back without locking out hard.'],
+      'beginner',
+      ['Your depth limit is where the lower back lifts off the pad — do not go past it.', 'Never snap the knees straight under a loaded sled.'],
+    ),
+  }),
   G('leg_extension', 'Leg Extension', [], { quads: 1 }, { movement: 'knee_extension', equipment: ['machine'] }),
   G('band_hip_abduction', 'Band Hip Abduction', [], { glutes: 1 }, { movement: 'lunge', equipment: ['bands'] }),
 
   // Hinge and posterior chain
-  G('conventional_deadlift', 'Conventional Deadlift', ['Deadlift'], { glutes: 1, hamstrings: .5, erectors: .5, traps: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
+  G('conventional_deadlift', 'Conventional Deadlift', ['Deadlift'], { glutes: 1, hamstrings: .5, erectors: .5, traps: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true,
+    ...REVIEWED(
+      ['Set mid-foot under the bar, grip outside the knees, and pull the slack out with the chest up.', 'Push the floor away to stand tall, then return the bar down the same path.'],
+      'advanced',
+      ['Keep the bar against your body; letting it drift forward loads the lower back sharply.', 'End the set the moment the back rounds — the last rep is where most injuries happen.'],
+    ),
+  }),
   G('sumo_deadlift', 'Sumo Deadlift', [], { glutes: 1, quads: .5, adductors: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('deficit_deadlift', 'Deficit Deadlift', [], { glutes: 1, hamstrings: .5, quads: .5, erectors: .5 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('rack_pull', 'Rack Pull', ['Rack Pulls', 'Block Pull'], { erectors: 1, traps: .5, glutes: .5, hamstrings: .25 }, { movement: 'hinge', equipment: ['barbell', 'rack'], compound: true }),
-  G('romanian_deadlift', 'Romanian Deadlift', ['RDL'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
+  G('romanian_deadlift', 'Romanian Deadlift', ['RDL'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true,
+    ...REVIEWED(
+      ['Start standing with the bar at the hips and a soft bend in the knees.', 'Push the hips back with the bar grazing your legs until the hamstrings load, then stand.'],
+      'intermediate',
+      ['This is a hip hinge, not a squat: the knees stay soft and the shins stay near vertical.', 'Stop at the end of your hamstring range rather than forcing the bar to the floor.'],
+    ),
+  }),
   G('dumbbell_romanian_deadlift', 'Dumbbell Romanian Deadlift', ['DB Romanian Deadlift'], { hamstrings: 1, glutes: .5, erectors: .25 }, { movement: 'hinge', equipment: ['dumbbells'], compound: true }),
   G('ez_bar_romanian_deadlift', 'EZ-Bar Romanian Deadlift', ['EZ Bar Romanian Deadlift', 'EZ Bar RDL', 'EZ Curl Bar Romanian Deadlift'], { hamstrings: 1, glutes: .5, erectors: .25 }, {
     movement: 'hinge', equipment: ['ezBar'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Stand with the bar close to the thighs, soften the knees, and brace the trunk.', 'Push the hips back while keeping the bar close, stop when hamstring tension limits the hinge, then stand tall.'],
       'intermediate',
       ['Keep a neutral spine and do not reach for the floor at the expense of position.', 'Make sure plates and collars are secure before each set.'],
@@ -369,7 +462,7 @@ export const EXERCISES = Object.freeze([
   G('barbell_glute_bridge', 'Barbell Glute Bridge', ['Barbell Glute Bridges'], { glutes: 1, hamstrings: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
   G('ez_bar_glute_bridge', 'EZ-Bar Glute Bridge', ['EZ Bar Glute Bridge', 'EZ Bar Glute Bridges', 'EZ Curl Bar Glute Bridge'], { glutes: 1, hamstrings: .25 }, {
     movement: 'hinge', equipment: ['ezBar'], compound: true,
-    ...EZ(
+    ...REVIEWED(
       ['Sit with the bar over the hips, lie back, and plant the feet about hip-width apart.', 'Brace the bar, drive through the feet to extend the hips, pause, and lower without over-arching the back.'],
       'beginner',
       ['Use a pad or folded towel over the pelvis and hold the bar so it cannot roll.', 'Finish with the glutes rather than the lower back and keep the ribs down.'],
@@ -384,7 +477,13 @@ export const EXERCISES = Object.freeze([
   // dumbbell/loaded-standing variation) so historical workout data keeps a
   // single deterministic identity. The barbell variation below is a distinct
   // exercise (different equipment + loading), NOT an alias of this one.
-  G('standing_calf_raise', 'Standing Calf Raise', ['Calf Raise', 'Calf Raises', 'Standing Calf Raises', 'Dumbbell Calf Raise', 'Dumbbell Calf Raises', 'Standing Dumbbell Calf Raise', 'Standing Dumbbell Calf Raises'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells'] }),
+  G('standing_calf_raise', 'Standing Calf Raise', ['Calf Raise', 'Calf Raises', 'Standing Calf Raises', 'Dumbbell Calf Raise', 'Dumbbell Calf Raises', 'Standing Dumbbell Calf Raise', 'Standing Dumbbell Calf Raises'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells'],
+    ...REVIEWED(
+      ['Stand with the balls of your feet on a step or the floor and the knees straight.', 'Rise as high as you can, pause, then lower until you feel a stretch.'],
+      'beginner',
+      ['Hold something for balance and move slowly rather than bouncing out of the bottom.', 'Ease into the full stretch if the Achilles feels tight.'],
+    ),
+  }),
   G('barbell_standing_calf_raise', 'Barbell Standing Calf Raise', ['Barbell Calf Raise', 'Barbell Calf Raises', 'Standing Barbell Calf Raise', 'Standing Barbell Calf Raises', 'Rack Barbell Calf Raise'], { calves: 1 }, { movement: 'calf_raise', equipment: ['barbell', 'rack'] }),
   G('single_leg_calf_raise', 'Single-Leg Calf Raise', [], { calves: 1 }, { movement: 'calf_raise', equipment: ['bodyweight'], unilateral: true, bodyweight: true }),
   G('single_leg_dumbbell_calf_raise', 'Single-Leg Dumbbell Calf Raise', ['Single Leg Dumbbell Calf Raise', 'Single-Leg Standing Calf Raise', 'Dumbbell Single-Leg Calf Raise'], { calves: 1 }, { movement: 'calf_raise', equipment: ['dumbbells'], unilateral: true }),

@@ -375,3 +375,50 @@ test('conditioning movements with no single primary muscle stay reachable', () =
   const names = ungrouped.map((item) => item.name);
   assert.ok(names.some((n) => /Kettlebell Swing|Burpee|Rowing|SkiErg/i.test(n)), names.join(', '));
 });
+
+// =============================================================================
+// REVIEWED-METADATA CONTRACT (roadmap Phase 4D)
+//
+// Instructions, difficulty and safety notes are authored per exercise and land a
+// batch at a time. These guard the SHAPE, so a future batch cannot ship a
+// half-filled entry — a single instruction, a made-up difficulty, or an exercise
+// that explains how to do it without saying what to watch out for.
+// =============================================================================
+test('a reviewed exercise is reviewed completely, or not at all', () => {
+  const all = browseExercises({}, 500);
+  const reviewed = all.filter((e) => e.instructions.length || e.difficulty || e.safetyNotes.length);
+  assert.ok(reviewed.length >= 32, `expected the shipped batches, got ${reviewed.length}`);
+  for (const e of reviewed) {
+    assert.ok(e.instructions.length >= 2, `${e.id}: needs instructions`);
+    assert.ok(e.difficulty, `${e.id}: has instructions but no difficulty`);
+    assert.ok(e.safetyNotes.length >= 1, `${e.id}: explains how but not what to watch for`);
+  }
+});
+
+test('difficulty is one of the declared levels', () => {
+  for (const e of browseExercises({}, 500)) {
+    if (!e.difficulty) continue;
+    assert.ok(EXERCISE_DIFFICULTIES.includes(e.difficulty), `${e.id}: "${e.difficulty}" is not a declared level`);
+  }
+});
+
+test('reviewed copy is a sentence, not a fragment or an essay', () => {
+  for (const e of browseExercises({}, 500)) {
+    for (const line of [...e.instructions, ...e.safetyNotes]) {
+      assert.ok(line.length >= 20 && line.length <= 160, `${e.id}: "${line}" (${line.length} chars)`);
+      assert.match(line, /[.!?]$/, `${e.id}: "${line}" should end as a sentence`);
+      assert.match(line, /^[A-Z]/, `${e.id}: "${line}" should start capitalised`);
+    }
+  }
+});
+
+test('the most-used programme lifts are reviewed first', () => {
+  // The batch was picked by real usage across the programme catalogue, not
+  // alphabetically — the lifts an athlete actually meets in the cockpit.
+  const byId = new Map(browseExercises({}, 500).map((e) => [e.id, e]));
+  for (const id of ['back_squat', 'barbell_bench_press', 'conventional_deadlift', 'pull_up']) {
+    const e = byId.get(id);
+    assert.ok(e, `${id} missing from the catalogue`);
+    assert.ok(e.instructions.length, `${id} is among the most-programmed lifts and must be reviewed`);
+  }
+});

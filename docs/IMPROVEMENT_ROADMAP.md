@@ -948,13 +948,26 @@ still left the mistake permanent.
 
 - Complete instructions, difficulty, safety notes, muscles, movement, and
   equipment for the remaining catalogue in reviewed batches.
-  **Measured 2026-08-07:** all 80 catalogue entries carry the FIELDS, but
-  `instructions`, `difficulty` and `safetyNotes` are empty on most — 13 of 80 have
-  real instructions. `muscles` / `movement` / `equipment` are complete on all 80,
-  which is what made the muscle-browsing work above possible. The remaining ~67
-  entries need authored content; safety notes in particular are a claim shown to
-  athletes and want human review, so they are batched deliberately rather than
-  bulk-generated.
+  **Batch 2 shipped 2026-08-07 — the 16 most-programmed lifts, now 32 of 155.**
+  `muscles` / `movement` / `equipment` are complete across the catalogue (which is
+  what made muscle browsing possible); `instructions`, `difficulty` and
+  `safetyNotes` are the authored half and stood at 16 of 155.
+  - The batch was chosen by **real usage across the programme catalogue**, not
+    alphabetically: Back Squat (41 programme references), Barbell Bench Press
+    (31), Barbell Row, Lateral Raise, Conventional Deadlift, Romanian Deadlift
+    (26 each), and down through Pull-Up, Chin-Up, Leg Press and Barbell Curl.
+    These are the lifts an athlete actually meets in the cockpit.
+  - `tests/exercise_catalog.test.js` now guards the SHAPE, so a later batch cannot
+    ship half-filled: an entry with instructions must have a difficulty from
+    `EXERCISE_DIFFICULTIES` and at least one safety note, and every line must read
+    as a sentence (20–160 chars, capitalised, terminated). An exercise that
+    explains how to do it without saying what to watch for now fails the suite.
+  - The `EZ()` helper was renamed `REVIEWED()` — it was never EZ-bar-specific,
+    only first used there.
+  - **123 entries remain.** Safety notes are a claim shown to someone loading a
+    barbell, so batches stay small enough to read in a PR rather than being
+    bulk-generated. The content in batch 2 is conservative, standard gym guidance
+    and is offered FOR REVIEW, not as expert instruction.
 - **DONE 2026-08-07 — primary-muscle browsing, in six training words.**
   `MUSCLES` holds 19 anatomical keys, which is exactly the clutter this bullet
   warns against — a picker with nineteen chips is worse than no muscle filter.
@@ -1281,6 +1294,27 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — 4D batch 2: the 16 most-programmed lifts got their instructions,
+  difficulty and safety notes.** 16 of 155 reviewed → 32 of 155.
+  - Batch chosen by **measured usage across the programme catalogue**, not
+    alphabetically: Back Squat appears in 41 programme days, Barbell Bench Press
+    31, then Row / Lateral Raise / Conventional Deadlift / Romanian Deadlift at 26
+    each. Reviewing the lifts an athlete actually meets beats reviewing the
+    lifts that sort first.
+  - A **shape guard** now backs the content: an entry with instructions must carry
+    a difficulty from `EXERCISE_DIFFICULTIES` and at least one safety note, and
+    every line must read as a sentence. An exercise that says how to do it and not
+    what to watch for fails the suite — which is the failure mode that matters
+    here, and the one a later batch is most likely to reintroduce.
+  - `EZ()` renamed `REVIEWED()`: it was never EZ-bar-specific, only first used
+    there, and the name would have misled the next batch.
+  - **Said plainly: this content is offered for review, not as expert
+    instruction.** It is conservative, standard gym guidance; safety notes are a
+    claim shown to someone loading a barbell, so batches stay small enough to
+    actually read in a PR. 123 entries remain.
+  - Verified: 1,765 unit tests (+4), typecheck, smoke, precache, workflow gates,
+    exercise-picker and program-editor browser checks.
 
 - **2026-08-07 — 4D opened with muscle browsing, and the oldest deferred item
   finally done.**
