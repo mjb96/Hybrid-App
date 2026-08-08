@@ -1187,12 +1187,23 @@ class:
   the check is pinned. It stops the class growing while the backlog is worked off;
   it does not bless it.
 
-Backlog still to pin: `active-program-edit`, `gym-performance`,
-`home-attribution`, `home-today`, `jt-shed`, `progress-hub`, `run-performance`,
-`running-analytics`, `strength-volume`, `volume-guide`. All ten pass on a Sunday
-(CI's own Sunday run failed exactly two of thirty), so each is a latent red
-`main` on whatever weekday its fixture programme happens to rest — not an active
-failure.
+Backlog, classified 2026-08-08 — the ten are NOT equally risky, and the guard's
+regex is deliberately broader than the real hazard:
+
+- **Genuinely fragile (3)** — these use the weekday as a PROGRAM DAY KEY, so they
+  assume the programme has a session today: `home-today`,
+  `active-program-edit`, `jt-shed` (which already branches on
+  `isJtTrainingDay`, so it may be safe by construction — check before pinning).
+  These are the ones that can turn `main` red on the wrong weekday.
+- **Arithmetic only (7)** — `gym-performance`, `home-attribution`,
+  `progress-hub`, `run-performance`, `running-analytics`, `strength-volume`,
+  `volume-guide` read a weekday purely to compute the Monday of the current week.
+  Pinning them is harmless but not urgent, and blanket-pinning risks breaking
+  fixtures that legitimately want dates relative to today.
+
+All ten pass on a Sunday (CI's own Sunday run failed exactly two of thirty), so
+none is an active failure. **Next slice: pin the three fragile ones**, verifying
+each individually rather than sweeping.
 
 ### A silent skip is not a pass — FIXED 2026-08-07
 
