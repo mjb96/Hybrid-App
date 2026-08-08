@@ -24,7 +24,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -48,8 +48,13 @@ const BASE = `http://127.0.0.1:${/** @type {any} */ (server.address()).port}`;
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 const TZ = 'Australia/Sydney';
 
-const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
-const DAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date(`${today}T12:00:00Z`).getUTCDay()];
+// PINNED, not read from the clock. The workout picker lists only non-rest program
+// days, and `hybrid_engine` rests on Sunday — so on a Sunday `DAY` was absent from
+// the choices, the check fell through to another day, and every DAY-keyed
+// assertion after it failed. Monday is a training day in this programme.
+const today = '2026-08-03';
+const DAY = 'mon';
+const CLOCK = Date.parse(`${today}T09:00:00+10:00`);
 
 function fixture(distanceUnit) {
   return {
@@ -74,6 +79,7 @@ const failures = [];
 async function session(distanceUnit, width = 390, theme = 'dark', { deny = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
   await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(fixture(distanceUnit))]);
+  await context.addInitScript(pinClock, CLOCK);
   await context.addInitScript((denyPermission) => {
     // Deterministic fix injection: the app's own watchPosition contract, with
     // this test choosing every coordinate, accuracy and timestamp — and, when

@@ -84,7 +84,10 @@ try {
 
   // Open the builder for the active personal program.
   await page.click('.nav-item[data-target="program"]');
-  await page.waitForTimeout(300);
+  // Wait for the card, don't guess at a delay: a fixed 300ms raced the Plans
+  // render on a slow machine and failed this check once with a timeout that
+  // looked exactly like a regression.
+  await page.waitForSelector('[data-action="open-program-detail"][data-program-id="prog_pick"]', { timeout: 8000 });
   await page.click('[data-action="open-program-detail"][data-program-id="prog_pick"]');
   await page.waitForSelector('#programDetailScreen .detail-cta-secondary [data-program-id="prog_pick"]', { timeout: 8000 });
   await page.click('#programDetailScreen [data-action="open-builder"][data-program-id="prog_pick"]');
