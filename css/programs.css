@@ -1415,6 +1415,88 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   padding: 5px 11px;
 }
 
+/* Kit the athlete does not have. Amber, not red: a missing item is a cost to
+   plan around, not an error — and colour is never the only signal, the section
+   heading states the count in words. */
+.detail-equipment-chip--missing {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* ── "Who it's for" (Phase 4B, first section) ──────────────────────────────── */
+
+.detail-fit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detail-fit-verdict {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 20px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+}
+
+.detail-fit-verdict--fits {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.detail-fit-verdict--stretch {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.detail-fit-verdict--mismatch {
+  color: var(--text-muted);
+  border-color: var(--border-default);
+  background: var(--overlay-md);
+}
+
+.detail-fit-audience {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+.detail-fit-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-fit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-sub);
+}
+
+.detail-fit-mark {
+  flex-shrink: 0;
+  width: 1.1em;
+  font-weight: 800;
+}
+
+.detail-fit-item--reason .detail-fit-mark { color: #10b981; }
+.detail-fit-item--caution .detail-fit-mark { color: #f59e0b; }
+.detail-fit-item--caution { color: var(--text-muted); }
+
 /* Day Split */
 .day-split-list {
   display: flex;

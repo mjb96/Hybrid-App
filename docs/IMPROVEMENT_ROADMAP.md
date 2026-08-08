@@ -717,9 +717,10 @@ Every metric detail includes:
 
 ## Phase 4 — Plans, exercise discovery, and editing
 
-**Status: 4A COMPLETE 2026-08-07** — recommendation engine, active-plan lead,
-chip/collection overload and the compare flow. 4B (programme detail order), 4C
-(Simple/Advanced builder) and 4D (exercise metadata) are NEXT.
+**Status: 4A and 4B COMPLETE 2026-08-07** — recommendation engine, active-plan
+lead, chip/collection overload, compare, and the programme-detail decision order
+with a real "Who it's for". 4C (Simple/Advanced builder) and 4D (exercise
+metadata) are NEXT.
 
 **Outcome:** choosing and changing training feels guided rather than
 catalogue-driven.
@@ -820,6 +821,8 @@ catalogue-driven.
 
 ### 4B. Programme detail
 
+**Status: DONE 2026-08-07** (with one bullet consciously adapted — see below).
+
 - Present in this order:
   1. who it is for;
   2. weekly commitment;
@@ -830,6 +833,52 @@ catalogue-driven.
   7. Start or Customise.
 - Remove repeated stats and decorative labels that do not affect a decision.
 - Keep preview/logger prescription parity.
+
+**DONE 2026-08-07 — the page answers "who is this for", which it previously could
+not answer at all.** The closest it came was a marketing tagline and a "What
+you'll achieve" list, neither of which knows anything about the athlete reading
+them. `js/programs/detail-fit.js` (`buildWhoItsFor`, pure) leads the page with:
+
+- an **audience line** about the PROGRAMME, from its authored level ("Written for
+  new lifters and anyone rebuilding a base") — true whoever is reading it;
+- a **verdict** and reasons for THIS athlete, from the same `programFit` scoring
+  the Plans recommendations use, so a programme cannot be called fitting on one
+  surface and unfitting on the other. The verdict follows the personal SCORE, not
+  the count of reasons — three weak matches beside one disqualifying caution is
+  not a fit;
+- the **cautions**, which the recommendations row deliberately never shows. The
+  row drops an unfitting programme rather than caption it; someone who opened
+  this page needs to know what it will cost them. Real output for an intermediate
+  athlete on StrongLifts: *Fits, with caveats · ✓ Matches your strength goal ·
+  ✓ Uses only equipment you have · ! Easier than your intermediate level.*
+- An athlete who has answered nothing gets the audience line alone. No verdict,
+  no invented match — the same rule 4A applied to the recommendations row.
+
+**DONE 2026-08-07 — order and duplication.** Measured before and after at 390px:
+
+| Section | Before | After |
+| --- | --- | --- |
+| Who it's for | *absent* | y369 |
+| Weekly commitment | y369 | y516 |
+| Equipment fit | inside the Overview tab | y582 |
+| Sample week | y707 | y900 |
+| Full plan (tabs) | y1664 | y1857 |
+
+- Equipment was promoted out of the Overview tab and now states **fit**, not just
+  a kit list: missing items are marked, and the heading says "You have the kit" or
+  "N items missing" so colour is never the only signal.
+- The decorative tag row lost its **difficulty tag** (the stats row already has a
+  Level column, and the fit verdict now leads with it) and its **equipment-tier
+  tag** (the equipment section directly above names the actual kit and whether you
+  own it). Goals remain. Verified in the browser: zero of each.
+
+**ADAPTED, not skipped — Start/Customise is not last.** 4B lists it seventh, but
+the page measures 2,547px; putting the primary action at the bottom would trade
+one hierarchy problem for a worse one, and "one obvious primary action" outranks
+strict list order. It now sits immediately after the three fit answers (who it's
+for, commitment, equipment) and before the deep material (sample week,
+progression, full plan) — the decision information comes first, which is what the
+ordering was for. Recorded as a decision rather than left as a silent gap.
 
 ### 4C. Builder
 
@@ -1138,6 +1187,33 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — Phase 4B: programme detail answers "who is this for".** It could
+  not answer it at all before — a tagline and an achievements list, neither aware
+  of the athlete. `detail-fit.js` reuses the recommendation engine's own
+  `programFit`, so the two surfaces cannot describe the same programme
+  differently, and adds the one thing the recommendations row must never show:
+  the **cautions**. The row drops an unfitting programme rather than caption it;
+  someone who opened the detail page has already chosen to look and needs the
+  cost. An intermediate athlete on StrongLifts now reads "Fits, with caveats …
+  ! Easier than your intermediate level" instead of a page that implied it was
+  simply a good idea. An athlete who answered nothing still gets no verdict.
+  - Equipment moved out of the Overview tab and became a FIT statement: missing
+    items marked, count stated in words so colour is not the only signal.
+  - The decorative tag row lost the difficulty tag and the equipment-tier tag —
+    both restated a neighbour. Measured to zero in the browser.
+  - **Start/Customise deliberately not moved last**, though 4B lists it seventh:
+    the page is 2,547px and burying the primary action would be a worse trade. It
+    sits after the three fit answers and before the deep material. Stated as a
+    decision, not left as a silent gap.
+  - `tests/detail_fit.test.js` (7 cases, incl. one asserting detail and the
+    recommendations row cannot disagree). `program-detail-viewport-check` gained a
+    4B section asserting the section ORDER and zero repeated tags. Verified: 1,734
+    unit tests, typecheck, smoke, precache, workflow gates, and the
+    program-detail-viewport / preview-viewport / program-preview-consistency /
+    copy-program / plan-recommendations / active-program-edit / core-ergonomics
+    browser checks — the preview-parity ones because 4B must not change what the
+    page promises the cockpit will deliver.
 
 - **2026-08-07 — Phase 4A finished: Discover recommends before it asks you to
   browse.** Measured the surface first rather than trusting the description of it:

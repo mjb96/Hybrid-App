@@ -126,6 +126,95 @@ for (const w of WIDTHS) {
   await ctx.close();
 }
 
+// ── Phase 4B: the decision order, and no repeated labels ────────────────────
+// The page has to answer "who is this for" before anything else, then the
+// commitment, then whether the athlete owns the kit — and it must not restate
+// level and equipment tier in a decorative tag row directly under the stats row
+// that already carries them.
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  // A strength athlete with a full-ish gym: the fixture must carry real answers,
+  // otherwise "Who it's for" correctly declines to claim a match and there is
+  // nothing to assert.
+  await page.addInitScript(() => {
+    localStorage.setItem('hybrid_engine_v2_state', JSON.stringify({
+      schemaVersion: 5, currentWeek: '1', activeActivationId: 'a1',
+      settings: {
+        name: 'A', onboardingComplete: true, weightUnit: 'kg', distanceUnit: 'km',
+        fitnessGoal: 'strength', fitnessLevel: 'intermediate', equipmentTier: 'gym',
+        equipment: {
+          barbell: true, rack: true, dumbbells: true, pullupBar: true,
+          cables: false, bands: false, kettlebells: false, ezBar: false, treadmill: false,
+        },
+      },
+      weeks: {},
+    }));
+  });
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.addStyleTag({ content: '*{transition:none!important;animation:none!important;}' });
+  await page.waitForTimeout(500);
+  await page.click('.nav-item[data-target="program"]');
+  await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    const card = [...document.querySelectorAll('[data-action="open-program-detail"][data-program-id]')]
+      .find((c) => c.getAttribute('data-program-id') === 'stronglifts_5x5')
+      || document.querySelector('[data-action="open-program-detail"]');
+    if (card) /** @type {any} */ (card).click();
+  });
+  await page.waitForTimeout(500);
+
+  const r = await page.evaluate(() => {
+    const c = document.getElementById('programDetailContent');
+    const top = (sel) => {
+      const el = c.querySelector(sel);
+      return el ? Math.round(el.getBoundingClientRect().top + window.scrollY) : null;
+    };
+    const equipSection = c.querySelector('.detail-equipment')?.closest('.detail-section');
+    return {
+      whoItsFor: top('.detail-fit'),
+      commitment: top('.detail-commitment-strip'),
+      equipment: equipSection ? Math.round(equipSection.getBoundingClientRect().top + window.scrollY) : null,
+      sampleWeek: top('[class*="wag"]'),
+      progression: top('.detail-progression, [class*="progression"]'),
+      tabbar: top('.detail-tabbar'),
+      verdict: c.querySelector('.detail-fit-verdict')?.textContent?.trim() || '',
+      audience: c.querySelector('.detail-fit-audience')?.textContent?.trim() || '',
+      reasons: c.querySelectorAll('.detail-fit-item--reason').length,
+      cautions: c.querySelectorAll('.detail-fit-item--caution').length,
+      difficultyTags: c.querySelectorAll('.detail-tag--difficulty').length,
+      equipTierTags: c.querySelectorAll('.detail-tag--equipment').length,
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    };
+  });
+  console.log(`  4B order   ${JSON.stringify(r)}`);
+
+  check(r.whoItsFor != null, '"Who it\'s for" is missing — 4B\'s first section');
+  check(r.audience.length > 0, 'the audience line is empty');
+  check(r.verdict.length > 0, 'no fit verdict for an athlete who answered goal/level/equipment');
+  check(r.reasons > 0, 'a matching programme states no reasons');
+  check(r.equipment != null, 'equipment fit is missing from the main page');
+  if (r.whoItsFor != null && r.commitment != null) {
+    check(r.whoItsFor < r.commitment, 'commitment must come after "Who it\'s for"');
+  }
+  if (r.commitment != null && r.equipment != null) {
+    check(r.commitment < r.equipment, 'equipment must come after the commitment');
+  }
+  if (r.equipment != null && r.sampleWeek != null) {
+    check(r.equipment < r.sampleWeek, 'the sample week must come after equipment fit');
+  }
+  if (r.sampleWeek != null && r.tabbar != null) {
+    check(r.sampleWeek < r.tabbar, 'the full plan (tabs) must come after the sample week');
+  }
+  check(r.difficultyTags === 0, 'the difficulty tag repeats the stats row and the fit verdict');
+  check(r.equipTierTags === 0, 'the equipment-tier tag repeats the equipment section below it');
+  check(!r.overflow, 'horizontal overflow on the reordered detail page');
+  check(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 
@@ -133,4 +222,4 @@ if (failures.length) {
   console.error('\nFAIL — program-detail layout regressions:\n  - ' + failures.join('\n  - '));
   process.exit(1);
 }
-console.log('\nPASS — week-at-a-glance, progression and CTA fit the phone viewport; week preview is non-mutating.');
+console.log('\nPASS — 4B decision order with no repeated labels; week-at-a-glance, progression and CTA fit the phone viewport; week preview is non-mutating.');

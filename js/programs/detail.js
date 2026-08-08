@@ -7,6 +7,7 @@ import { buildProgramTimeline } from './timeline.js';
 import { buildWeekSchedule, summarizeProgression, diffWeekPrescription } from './schedule.js';
 import { programStats, equipmentFit, programHasLifts } from './compare.js';
 import { getSimilarPrograms } from './recommendations.js';
+import { buildWhoItsFor } from './detail-fit.js';
 import { renderProgramCard, coverGlyphFor } from './program-card.js';
 import { programAttribution } from './attribution.js';
 import { icon as svgIcon } from '../ui/icons.js';
@@ -120,13 +121,11 @@ export function renderProgramDetail(programId, appState) {
         <div class="detail-section-title">Training focus</div>
         ${renderFocusBars(program.metrics)}
       </div>` : ''}
-    ${program.equipment?.length ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Equipment</div>
-        <div class="detail-equipment">${program.equipment.map(e => `<span class="detail-equipment-chip">${formatEquipment(e)}</span>`).join('')}</div>
-      </div>` : ''}
     ${renderJtProgramNotes(program)}
   `;
+  // Equipment is no longer in this tab: 4B puts equipment FIT third, beside the
+  // commitment, so the kit question is answered before the sample week rather
+  // than a tab-click later.
 
   const structureHTML = `
     ${!wod && (program.days || programData?.days) ? `
@@ -232,16 +231,25 @@ export function renderProgramDetail(programId, appState) {
       `}
     </div>
 
+    <!-- 1. Who it's for — the question the page could not previously answer -->
+    ${renderWhoItsFor(program, appState)}
+
+    <!-- 2. Weekly commitment -->
     ${wod ? '' : renderCommitmentStrip(program, appState?.settings)}
 
-    <!-- Program Tags (Difficulty + Goals) -->
-    <div class="detail-tags-row">
-      <span class="detail-tag detail-tag--difficulty" style="color: ${diff.color}; border-color: ${diff.color}40">
-        ${'●'.repeat(diff.dots)}${'○'.repeat(4 - diff.dots)} ${diff.label}
-      </span>
-      ${program.equipmentTier ? `<span class="detail-tag detail-tag--equipment">${escapeHtml({ gym: '🏢 Full Gym', home: '🏠 Home Gym', garage_gym: '🔩 Garage Gym', bodyweight: '🤸 Bodyweight', minimal: '⚡ Minimal' }[program.equipmentTier] || program.equipmentTier)}</span>` : ''}
-      ${(program.goals || []).slice(0, 3).map(g => `<span class="detail-tag detail-tag--goal">${escapeHtml(String(g).replace(/-/g, ' '))}</span>`).join('')}
-    </div>
+    <!-- 3. Equipment fit -->
+    ${wod ? '' : renderEquipmentFit(program, appState?.settings)}
+
+    <!-- Goals only. The difficulty tag and the equipment-tier tag were both
+         removed: level is already the stats row's own column and now opens the
+         "Who it's for" verdict, and the coarse tier said less than the equipment
+         section directly above, which names the actual kit and whether you have
+         it. Decorative dots that restate a neighbouring value are exactly the
+         repeated labels 4B asks to remove. -->
+    ${(program.goals || []).length ? `
+      <div class="detail-tags-row">
+        ${(program.goals || []).slice(0, 3).map(g => `<span class="detail-tag detail-tag--goal">${escapeHtml(String(g).replace(/-/g, ' '))}</span>`).join('')}
+      </div>` : ''}
 
     <!-- CTA -->
     <div class="detail-cta-wrap">
@@ -474,6 +482,67 @@ const PLAN_KIND_LABEL = {
 // A2 — the commitment strip: the numbers that actually decide "can/should I do
 // this?" — total time cost, weekly working volume, and whether the athlete owns
 // the kit. Reuses the pure programStats + equipmentFit helpers.
+/**
+ * "Who it's for" — Phase 4B's first section, and the question the page could not
+ * previously answer at all.
+ *
+ * The audience line is about the programme. The verdict, reasons and cautions are
+ * about the athlete, and come from the same `programFit` scoring the Plans
+ * recommendations use. Cautions appear HERE but never in the recommendations row:
+ * the row drops an unfitting programme rather than caption it, while someone who
+ * opened this page needs to know what it will cost them.
+ */
+function renderWhoItsFor(program, appState) {
+  const model = buildWhoItsFor(program, appState);
+  const verdict = model.verdict
+    ? `<span class="detail-fit-verdict detail-fit-verdict--${model.verdict.tone}">${escapeHtml(model.verdict.label)}</span>`
+    : '';
+  const list = (items, kind) => items.map((item) => `
+    <li class="detail-fit-item detail-fit-item--${kind}">
+      <span class="detail-fit-mark" aria-hidden="true">${kind === 'reason' ? '✓' : '!'}</span>
+      ${escapeHtml(item)}
+    </li>`).join('');
+
+  return `
+    <div class="detail-section detail-fit">
+      <div class="detail-section-title detail-fit-head">
+        <span>Who it's for</span>${verdict}
+      </div>
+      <p class="detail-fit-audience">${escapeHtml(model.audience)}</p>
+      ${model.reasons.length || model.cautions.length ? `
+        <ul class="detail-fit-list">
+          ${list(model.reasons, 'reason')}
+          ${list(model.cautions, 'caution')}
+        </ul>` : ''}
+    </div>`;
+}
+
+/**
+ * Equipment fit — 4B's third section, promoted out of the Overview tab so it sits
+ * with the commitment it belongs to. States what the programme needs AND whether
+ * the athlete has it, rather than listing kit and leaving them to check.
+ */
+function renderEquipmentFit(program, settings) {
+  const needed = program.equipment || [];
+  if (!needed.length) return '';
+  const fit = equipmentFit(needed, settings?.equipment);
+  const missing = new Set(fit.missing);
+  const status = fit.missing.length
+    ? `<span class="detail-fit-verdict detail-fit-verdict--stretch">${fit.missing.length} item${fit.missing.length === 1 ? '' : 's'} missing</span>`
+    : fit.owned.length
+      ? '<span class="detail-fit-verdict detail-fit-verdict--fits">You have the kit</span>'
+      : '';
+  return `
+    <div class="detail-section">
+      <div class="detail-section-title detail-fit-head">
+        <span>Equipment</span>${status}
+      </div>
+      <div class="detail-equipment">
+        ${needed.map((e) => `<span class="detail-equipment-chip${missing.has(e) ? ' detail-equipment-chip--missing' : ''}">${formatEquipment(e)}</span>`).join('')}
+      </div>
+    </div>`;
+}
+
 function renderCommitmentStrip(program, settings) {
   const s = programStats(program);
   const fit = equipmentFit(s.equipment, settings?.equipment);
