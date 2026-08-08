@@ -948,7 +948,32 @@ still left the mistake permanent.
 
 - Complete instructions, difficulty, safety notes, muscles, movement, and
   equipment for the remaining catalogue in reviewed batches.
-- Add primary-muscle and equipment browsing without exposing anatomical clutter.
+  **Measured 2026-08-07:** all 80 catalogue entries carry the FIELDS, but
+  `instructions`, `difficulty` and `safetyNotes` are empty on most — 13 of 80 have
+  real instructions. `muscles` / `movement` / `equipment` are complete on all 80,
+  which is what made the muscle-browsing work above possible. The remaining ~67
+  entries need authored content; safety notes in particular are a claim shown to
+  athletes and want human review, so they are batched deliberately rather than
+  bulk-generated.
+- **DONE 2026-08-07 — primary-muscle browsing, in six training words.**
+  `MUSCLES` holds 19 anatomical keys, which is exactly the clutter this bullet
+  warns against — a picker with nineteen chips is worse than no muscle filter.
+  `MUSCLE_GROUPS` (Chest / Back / Shoulders / Arms / Legs / Core) covers every
+  anatomical key exactly once, and `primaryMuscleGroups` claims a group only on
+  FULL credit: filtering on any involvement returns 21 exercises for glutes
+  against the 8 that actually train them, and a list answering "what can I do for
+  glutes" with Bench Press is not a filter. Live in both pickers (workout library
+  and builder), composing with search and equipment.
+  - **A mislabelled control, found on the way:** the filter beside it was labelled
+    "Filter by muscle group" / "All muscle groups" while filtering
+    push/pull/legs/core/conditioning — movements, not muscles. It now says
+    "All movements".
+  - Conditioning movements with no single primary muscle (Burpee, Kettlebell
+    Swing, Rowing, SkiErg) are NOT forced into a group; they stay reachable with
+    no muscle filter set, and a test asserts it.
+  - Custom exercises carry no catalogue muscle data, so they are withheld while a
+    muscle filter is active — the same rule the category and equipment filters
+    already followed — and stay first-class otherwise.
 - Preserve distinct identities for materially different equipment variations.
 - Consider favourites and recent exercises only if they reduce repeat search.
 - Keep custom exercises first-class and clearly identified.
@@ -1122,6 +1147,18 @@ installed` with status 0 and the runner counts 28 skips as 28 passes. Run
 `npm install` at the start of any session that intends to trust
 `npm run browser:verify` locally.
 
+### A silent skip is not a pass — FIXED 2026-08-07
+
+`jt-shed-simplified-browser-check.mjs` keyed its cockpit assertion by weekday and
+guarded it with `if (expectedByDay[todayKey])`. J&T rests on Wednesday and Sunday,
+so **two days in seven the check ran, printed nothing, and passed** without
+asserting the thing it exists to assert. Same fragility as the finish-review
+failure below, wearing a skip instead of a crash — which is worse, because a
+crash gets fixed.
+
+Now pinned to a Monday with `pinClock`, and the guard is an assertion: a missing
+expectation means the programme changed, which is a real signal.
+
 ### A check must not depend on the day of the week — FIXED 2026-08-07
 
 `finish-review-browser-check.mjs` derived its workout day from the wall clock in
@@ -1244,6 +1281,41 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — 4D opened with muscle browsing, and the oldest deferred item
+  finally done.**
+  - **`jt-shed-simplified` stopped lying by omission.** Its cockpit assertion was
+    keyed by weekday behind `if (expectedByDay[todayKey])`, and J&T rests on
+    Wednesday and Sunday — so two days in seven it ran, printed nothing, and
+    passed without asserting anything. Pinned to a Monday with the `pinClock`
+    helper built for the finish-review fix, and the guard is now an assertion.
+    This had been deferred four sessions running; it went first this time.
+  - **Primary-muscle browsing.** `MUSCLES` has 19 anatomical keys — exactly the
+    "anatomical clutter" 4D says not to expose. Six training words instead
+    (Chest / Back / Shoulders / Arms / Legs / Core), covering every anatomical key
+    exactly once, filtering on FULL credit only: any-involvement returns 21
+    exercises for glutes against the 8 that actually train them, and a glutes list
+    containing Bench Press is not a filter. Both pickers, composing with search
+    and equipment.
+  - **A control that lied about itself:** the filter beside it read "Filter by
+    muscle group" / "All muscle groups" while filtering
+    push/pull/legs/core/conditioning. It says "All movements" now — the muscle
+    filter it claimed to be is the one that just got built.
+  - **Honest edges:** conditioning movements with no single primary muscle
+    (Burpee, Kettlebell Swing, Rowing, SkiErg) are not forced into a group, and
+    custom exercises — which carry no catalogue muscle data — are withheld while a
+    muscle filter is active, exactly as the existing filters already behave.
+  - **Measured for the metadata half of 4D:** all 80 entries carry the fields, but
+    only 13 of 80 have real `instructions`; `safetyNotes` and `difficulty` are
+    empty on most. `muscles` / `movement` / `equipment` are complete on all 80,
+    which is what made this browsing work possible at all. The remaining ~67 need
+    authored content, and safety notes are a claim shown to athletes — batched
+    with review rather than bulk-generated.
+  - `tests/exercise_catalog.test.js` +8. `exercise-picker-browser-check` gained a
+    4D section, including that three selects fit one row at 320px and none falls
+    under 44px. Verified: 1,761 unit tests, typecheck, smoke, precache, workflow
+    gates, and the exercise-picker / program-editor / jt-shed-simplified /
+    core-ergonomics browser checks.
 
 - **2026-08-07 — Phase 4C finished: one undo, three dialogs gone, and a button
   that had never worked.** Interaction principle 5 prefers Undo over repeated

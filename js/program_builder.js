@@ -9,7 +9,7 @@ import {
 import { escapeHtml } from './util.js';
 import {
   browseExercises, canonicalExerciseId, EQUIPMENT, EXERCISE_CATEGORIES,
-  EXERCISE_CATEGORY_LABELS, equipmentLabel, normaliseExerciseName,
+  EXERCISE_CATEGORY_LABELS, MUSCLE_GROUPS, equipmentLabel, normaliseExerciseName,
 } from './exercises/catalog.js';
 import { openExerciseDetail } from './exercises/detail.js';
 import {
@@ -441,11 +441,13 @@ function ensurePicker() {
   root.setAttribute('aria-hidden', 'true');
   const categoryOptions = EXERCISE_CATEGORIES.map((key) => `<option value="${key}">${EXERCISE_CATEGORY_LABELS[key]}</option>`).join('');
   const equipmentOptions = EQUIPMENT.map((key) => `<option value="${key}">${escapeHtml(equipmentLabel(key))}</option>`).join('');
+  const muscleOptions = Object.entries(MUSCLE_GROUPS).map(([key, group]) => `<option value="${key}">${escapeHtml(group.label)}</option>`).join('');
   root.innerHTML = `<div class="modal-content program-editor__picker">
     <div class="program-editor__picker-head"><div><div class="program-editor__eyebrow">EXERCISE LIBRARY</div><h2 id="builderExercisePickerTitle">Add exercise</h2></div><button data-action="b-close-picker" aria-label="Close exercise picker">×</button></div>
     <label class="program-editor__picker-search"><span class="sr-only">Search exercises</span><input id="builderExerciseSearch" type="search" autocomplete="off" placeholder="Search bench, squat, row…"></label>
     <div class="program-editor__picker-filters">
-      <label><span class="sr-only">Filter by muscle group</span><select id="builderExerciseCategory"><option value="">All muscle groups</option>${categoryOptions}</select></label>
+      <label><span class="sr-only">Filter by muscle</span><select id="builderExerciseMuscle"><option value="">All muscles</option>${muscleOptions}</select></label>
+      <label><span class="sr-only">Filter by movement</span><select id="builderExerciseCategory"><option value="">All movements</option>${categoryOptions}</select></label>
       <label><span class="sr-only">Filter by equipment</span><select id="builderExerciseEquipment"><option value="">All equipment</option>${equipmentOptions}</select></label>
     </div>
     <p id="builderExerciseSummary" class="program-editor__picker-summary" role="status" aria-live="polite"></p>
@@ -463,9 +465,11 @@ function openExercisePicker(day, index = null) {
   const search = /** @type {HTMLInputElement|null} */ (root.querySelector('#builderExerciseSearch'));
   const category = /** @type {HTMLSelectElement|null} */ (root.querySelector('#builderExerciseCategory'));
   const equipment = /** @type {HTMLSelectElement|null} */ (root.querySelector('#builderExerciseEquipment'));
+  const muscle = /** @type {HTMLSelectElement|null} */ (root.querySelector('#builderExerciseMuscle'));
   if (search) search.value = '';
   if (category) category.value = '';
   if (equipment) equipment.value = '';
+  if (muscle) muscle.value = '';
   // Initial/recent choices are shown immediately; the results list starts at the
   // top so the first match sits directly below the search field.
   renderPickerResults('');
@@ -495,9 +499,13 @@ function renderPickerResults(query) {
   if (!target) return;
   const category = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderExerciseCategory'))?.value || '';
   const equipment = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderExerciseEquipment'))?.value || '';
-  const allMatches = browseExercises({ query, category, equipment }, 500);
+  const muscleGroup = /** @type {HTMLSelectElement|null} */ (document.getElementById('builderExerciseMuscle'))?.value || '';
+  const allMatches = browseExercises({ query, category, equipment, muscleGroup }, 500);
   const matches = allMatches.slice(0, 80);
-  const custom = String(query || '').trim() && !category && !equipment
+  // A typed custom name has no catalogue muscle data, so it cannot honestly be
+  // offered while a muscle filter is narrowing the list — same rule the existing
+  // category/equipment filters already follow.
+  const custom = String(query || '').trim() && !category && !equipment && !muscleGroup
     ? `<button class="program-editor__custom-exercise" data-action="b-pick-custom" data-name="${escapeHtml(String(query).trim().slice(0, 80))}"><span><strong>Use “${escapeHtml(String(query).trim().slice(0, 80))}”</strong><small>Create a custom exercise name</small></span><b>+</b></button>`
     : '';
   target.innerHTML = `${matches.map((item) => `<div class="program-editor__picker-result">
@@ -507,7 +515,8 @@ function renderPickerResults(query) {
   const summary = document.getElementById('builderExerciseSummary');
   if (summary) {
     const visible = allMatches.length > matches.length ? `Showing ${matches.length} of ${allMatches.length}` : `${allMatches.length}`;
-    summary.textContent = `${visible} exercise${allMatches.length === 1 ? '' : 's'}${equipment ? ` · ${equipmentLabel(equipment)}` : ''}`;
+    const muscleLabel = muscleGroup ? MUSCLE_GROUPS[muscleGroup]?.label : '';
+    summary.textContent = `${visible} exercise${allMatches.length === 1 ? '' : 's'}${muscleLabel ? ` · ${muscleLabel}` : ''}${equipment ? ` · ${equipmentLabel(equipment)}` : ''}`;
   }
 }
 
@@ -695,7 +704,7 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
   const target = /** @type {HTMLInputElement|HTMLSelectElement|null} */ (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement ? event.target : null);
-  if (target?.id === 'builderExerciseCategory' || target?.id === 'builderExerciseEquipment') {
+  if (target?.id === 'builderExerciseCategory' || target?.id === 'builderExerciseEquipment' || target?.id === 'builderExerciseMuscle') {
     const search = /** @type {HTMLInputElement|null} */ (document.getElementById('builderExerciseSearch'));
     renderPickerResults(search?.value || '');
     return;

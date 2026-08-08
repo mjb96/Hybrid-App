@@ -2008,15 +2008,19 @@ function _renderExerciseLibraryList(query = '') {
   const q = String(query || '').trim();
   const category = document.getElementById('elCategoryFilter')?.value || '';
   const equipment = document.getElementById('elEquipmentFilter')?.value || '';
-  const matches = browseExercises({ query: q, category, equipment }, 500);
-  const customMatches = !category && !equipment
+  const muscleGroup = document.getElementById('elMuscleFilter')?.value || '';
+  const matches = browseExercises({ query: q, category, equipment, muscleGroup }, 500);
+  // Custom exercises carry no catalogue muscle data, so a muscle filter cannot
+  // honestly include them — same reasoning as the existing category/equipment
+  // filters. They stay first-class whenever no such filter is applied.
+  const customMatches = !category && !equipment && !muscleGroup
     ? (appState.customExercises || []).filter((name) => !q || name.toLowerCase().includes(q.toLowerCase()))
     : [];
   let html = '';
 
   if (!matches.length && !customMatches.length) {
     html = '<div class="el-empty">No matches. Try another search or clear a filter.</div>';
-  } else if (q || category || equipment) {
+  } else if (q || category || equipment || muscleGroup) {
     html = matches.map((item) => _exChip(item, appState)).join('');
     if (customMatches.length) {
       html += '<div class="el-cat-label">⭐ Custom</div>';
@@ -2156,10 +2160,12 @@ export function openAddExerciseModal() {
   const customInput = document.getElementById('customExerciseTextInput');
   const categoryFilter = document.getElementById('elCategoryFilter');
   const equipmentFilter = document.getElementById('elEquipmentFilter');
+  const muscleFilter = document.getElementById('elMuscleFilter');
   if (searchInput) searchInput.value = '';
   if (customInput) customInput.value = '';
   if (categoryFilter) categoryFilter.value = '';
   if (equipmentFilter) equipmentFilter.value = '';
+  if (muscleFilter) muscleFilter.value = '';
   _renderExerciseLibraryList('');
   modal.classList.add('active');
   setTimeout(() => searchInput?.focus(), 80);
@@ -2608,7 +2614,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('change', (e) => {
   const target = e.target;
-  if (target.id === 'elCategoryFilter' || target.id === 'elEquipmentFilter') {
+  if (target.id === 'elCategoryFilter' || target.id === 'elEquipmentFilter' || target.id === 'elMuscleFilter') {
     _renderExerciseLibraryList(document.getElementById('elSearchInput')?.value || '');
   } else if (target.classList.contains('input-weight-node') || target.classList.contains('input-reps-node')) {
     updateInputState(target);

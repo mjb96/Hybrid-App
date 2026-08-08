@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -105,6 +105,12 @@ const context = await browser.newContext({
 await context.addInitScript(([key, value]) => {
   if (!localStorage.getItem(key)) localStorage.setItem(key, value);
 }, [STORAGE_KEY, JSON.stringify(fixture())]);
+// Pin the clock to a Monday — a J&T training day. The cockpit opens on the day
+// the app thinks it is, and the day-materialisation assertion below is keyed by
+// weekday, so on a Wednesday or Sunday (both rest days in this programme) it used
+// to find no expected list and SILENTLY SKIP. A check that stops asserting two
+// days in seven is not a check; it just never says so.
+await context.addInitScript(pinClock, Date.parse('2026-08-03T09:00:00+10:00'));
 const page = await context.newPage();
 const browserErrors = [];
 page.on('pageerror', (error) => browserErrors.push(error.message));
@@ -203,17 +209,19 @@ try {
     fri: ['Conventional Deadlift', 'Front Squat', 'Reverse Lunge', 'Band Leg Curl', 'Seated Dumbbell Calf Raise', 'EZ-Bar Curl'],
     sat: ['Chest-Supported Dumbbell Row', 'Band Lat Pulldown', 'EZ-Bar Curl', 'Band Triceps Pushdown', 'Dumbbell Lateral Raise', 'Band Face Pull', 'Ab Wheel Rollout'],
   };
-  if (expectedByDay[todayKey]) {
-    await page.click('.nav-item[data-target="home"]');
-    await page.waitForTimeout(150);
-    await page.click('#homePrimaryCta');
-    await page.waitForSelector('#cockpitExercisesContainer .cockpit-ex-name', { timeout: 8000 });
-    eq(
-      await page.$$eval('#cockpitExercisesContainer .cockpit-ex-name', (elements) => elements.map((element) => element.textContent.trim())),
-      expectedByDay[todayKey],
-      `current ${todayKey} workout materialises in order`,
-    );
-  }
+  // No `if (expectedByDay[todayKey])` guard any more. The clock is pinned to a
+  // Monday, so a missing expectation means the PROGRAMME changed — a real signal
+  // worth failing on, not a reason to fall quiet.
+  ok(!!expectedByDay[todayKey], `pinned day ${todayKey} is a training day with an expected session`);
+  await page.click('.nav-item[data-target="home"]');
+  await page.waitForTimeout(150);
+  await page.click('#homePrimaryCta');
+  await page.waitForSelector('#cockpitExercisesContainer .cockpit-ex-name', { timeout: 8000 });
+  eq(
+    await page.$$eval('#cockpitExercisesContainer .cockpit-ex-name', (elements) => elements.map((element) => element.textContent.trim())),
+    expectedByDay[todayKey],
+    `current ${todayKey} workout materialises in order`,
+  );
 
   await page.reload({ waitUntil: 'networkidle' });
   state = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), STORAGE_KEY);

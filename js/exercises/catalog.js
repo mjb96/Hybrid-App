@@ -30,6 +30,48 @@ export const EXERCISE_CATEGORY_LABELS = Object.freeze({
   push: 'Push', pull: 'Pull', legs: 'Legs', core: 'Core', conditioning: 'Conditioning',
 });
 
+// ── Muscle groups (Phase 4D browsing) ────────────────────────────────────────
+//
+// `MUSCLES` holds 19 anatomical keys, which is exactly the "anatomical clutter"
+// 4D asks browsing NOT to expose — a picker with nineteen chips is worse than no
+// muscle filter at all. These six are the training words an athlete would
+// actually use, and every anatomical key belongs to exactly one of them.
+//
+// This is a browsing vocabulary only. The per-muscle credits that volume
+// analytics depends on are untouched.
+export const MUSCLE_GROUPS = Object.freeze({
+  chest: { label: 'Chest', muscles: ['chest', 'upper_chest'] },
+  back: { label: 'Back', muscles: ['lats', 'upper_back', 'traps', 'erectors'] },
+  shoulders: { label: 'Shoulders', muscles: ['front_delts', 'side_delts', 'rear_delts'] },
+  arms: { label: 'Arms', muscles: ['biceps', 'triceps', 'brachialis', 'forearms'] },
+  legs: { label: 'Legs', muscles: ['quads', 'hamstrings', 'glutes', 'adductors', 'calves'] },
+  core: { label: 'Core', muscles: ['core'] },
+});
+
+/** Anatomical muscle key → its browsing group id. */
+const MUSCLE_TO_GROUP = Object.freeze(Object.fromEntries(
+  Object.entries(MUSCLE_GROUPS).flatMap(([id, group]) => group.muscles.map((m) => [m, id])),
+));
+
+/**
+ * The groups an exercise TRAINS DIRECTLY.
+ *
+ * Full credit (>= 1) only, which is what makes this "primary-muscle" browsing
+ * rather than "anything that involves". Filtering on any involvement returns 21
+ * exercises for glutes against 8 that actually train them, and a list that
+ * answers "what can I do for glutes" with Bench Press is not a filter.
+ *
+ * @param {{ muscles?: Record<string, number> }} exercise
+ * @returns {string[]} group ids
+ */
+export function primaryMuscleGroups(exercise) {
+  const found = new Set();
+  for (const [muscle, credit] of Object.entries(exercise?.muscles || {})) {
+    if (Number(credit) >= 1 && MUSCLE_TO_GROUP[muscle]) found.add(MUSCLE_TO_GROUP[muscle]);
+  }
+  return [...found];
+}
+
 // Human-readable labels for the canonical exercise-equipment keys. Used by the
 // exercise picker and anywhere an equipment token is shown to the athlete, so a
 // camelCase key like `ezBar` never leaks to the UI as "ezBar".
@@ -459,13 +501,15 @@ export function searchExercises(query, limit = 40) {
  * Filterable catalogue browse used by workout and program-building pickers.
  * Query ranking is retained, while blank-query browsing stays alphabetical.
  */
-export function browseExercises({ query = '', category = '', equipment = '' } = {}, limit = 80) {
+export function browseExercises({ query = '', category = '', equipment = '', muscleGroup = '' } = {}, limit = 80) {
   const source = String(query || '').trim()
     ? searchExercises(query, EXERCISES.length)
     : [...EXERCISES].sort((a, b) => a.name.localeCompare(b.name));
   return source
     .filter((item) => !category || item.category === category)
     .filter((item) => !equipment || item.equipment.includes(equipment))
+    // Primary muscles only — see `primaryMuscleGroups`.
+    .filter((item) => !muscleGroup || primaryMuscleGroups(item).includes(muscleGroup))
     .slice(0, limit);
 }
 

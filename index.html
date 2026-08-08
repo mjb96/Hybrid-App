@@ -1955,8 +1955,19 @@
         <input type="search" id="elSearchInput" class="el-search" placeholder="Search exercises&#x2026;" autocomplete="off">
       </div>
       <div class="el-filter-row">
-        <label><span class="sr-only">Filter by muscle group</span><select id="elCategoryFilter">
-          <option value="">All muscle groups</option>
+        <label><span class="sr-only">Filter by muscle</span><select id="elMuscleFilter">
+          <option value="">All muscles</option>
+          <option value="chest">Chest</option>
+          <option value="back">Back</option>
+          <option value="shoulders">Shoulders</option>
+          <option value="arms">Arms</option>
+          <option value="legs">Legs</option>
+          <option value="core">Core</option>
+        </select></label>
+        <!-- Movement, not muscle: this control was labelled "muscle group" while
+             filtering push/pull/legs/core/conditioning. -->
+        <label><span class="sr-only">Filter by movement</span><select id="elCategoryFilter">
+          <option value="">All movements</option>
           <option value="push">Push</option>
           <option value="pull">Pull</option>
           <option value="legs">Legs</option>
