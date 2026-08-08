@@ -1167,6 +1167,33 @@ installed` with status 0 and the runner counts 28 skips as 28 passes. Run
 `npm install` at the start of any session that intends to trust
 `npm run browser:verify` locally.
 
+### The weekday-dependence class — GUARDED 2026-08-08 (was fixed one at a time, three times)
+
+`main` went red a third time, on a **Sunday**: `train-landing-browser-check` and
+`active-run-browser-check` both failed because `hybrid_engine` rests on Sunday, so
+the Train landing offers "Log wellness check-in" instead of a workout and the
+workout picker lists no Sunday session. Nothing was wrong with the app.
+
+That is the same defect that produced `no prescribed lift for sat` and the
+jt-shed silent skip. **Fixing instances did not stop it — I fixed two and never
+swept for the rest.** `tests/browser_check_clock_guard.test.js` now guards the
+class:
+
+- a check that reads a weekday (`getDay`/`getUTCDay`) from the **wall clock**
+  must also `pinClock`;
+- no check may gate its main assertion on today's weekday (the silent-skip shape);
+- an `UNPINNED_BACKLOG` list records the **ten** checks that still read the clock
+  and may only ever SHRINK — a companion test fails if a name stays on it after
+  the check is pinned. It stops the class growing while the backlog is worked off;
+  it does not bless it.
+
+Backlog still to pin: `active-program-edit`, `gym-performance`,
+`home-attribution`, `home-today`, `jt-shed`, `progress-hub`, `run-performance`,
+`running-analytics`, `strength-volume`, `volume-guide`. All ten pass on a Sunday
+(CI's own Sunday run failed exactly two of thirty), so each is a latent red
+`main` on whatever weekday its fixture programme happens to rest — not an active
+failure.
+
 ### A silent skip is not a pass — FIXED 2026-08-07
 
 `jt-shed-simplified-browser-check.mjs` keyed its cockpit assertion by weekday and
@@ -1301,6 +1328,29 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-08 — `main` red on a Sunday, and the fix is a guard rather than a
+  third patch.** `train-landing` and `active-run` both failed because
+  `hybrid_engine` rests on Sunday: the landing offers a wellness check-in instead
+  of a workout, and the picker lists no Sunday session. Nothing wrong with the app
+  — the same weekday dependence as the Saturday `no prescribed lift` failure and
+  the jt-shed silent skip.
+  - **The real finding is about me, not the checks.** I had already fixed this
+    twice and had the evidence in hand — a grep listing a dozen clock-reading
+    scripts — and fixed only the two that were failing at the time. Fixing
+    instances of a class you have already named twice is how it comes back a
+    third time.
+  - Both checks pinned. `tests/browser_check_clock_guard.test.js` now enforces the
+    class: read a weekday from the wall clock ⇒ pin the clock; never gate the main
+    assertion on today's weekday; and an `UNPINNED_BACKLOG` of the remaining ten
+    that may only shrink, with a companion test that fails if a name lingers after
+    its check is pinned.
+  - Those ten all pass on a Sunday (CI's Sunday run failed exactly 2 of 30), so
+    they are latent rather than broken — each waiting for the weekday its own
+    fixture programme rests.
+  - Verified: 1,769 unit tests (+4), typecheck, smoke, precache, workflow gates,
+    and train-landing / active-run / jt-shed-simplified re-run on the Sunday that
+    broke them.
 
 - **2026-08-07 — 4D batch 3: 32 → 48 of 155, and a flake diagnosed rather than
   blamed.** Next 16 by programme usage — Plank, Rear-Delt Fly, Face Pull, DB

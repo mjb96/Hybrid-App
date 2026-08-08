@@ -12,7 +12,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -36,7 +36,11 @@ const port = /** @type {import('node:net').AddressInfo} */ (server.address()).po
 const BASE = `http://127.0.0.1:${port}`;
 
 const TZ = 'Australia/Sydney';
-const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
+// PINNED, not read from the clock. `hybrid_engine` rests on Sunday, so on a
+// Sunday the landing's primary action is "Log wellness check-in" rather than a
+// workout — and every step below that clicks through to the cockpit failed.
+const today = '2026-08-03';   // a Monday in Australia/Sydney
+const CLOCK = Date.parse(`${today}T09:00:00+10:00`);
 const addDays = (key, n) => { const d = new Date(`${key}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const set = (w, r) => ({ c: true, w: String(w), r: String(r) });
 
@@ -61,6 +65,7 @@ try {
   for (const [width, theme] of [[320, 'dark'], [390, 'light'], [412, 'dark']]) {
     const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
     await context.addInitScript(([k, v]) => localStorage.setItem(k, v), ['hybrid_engine_v2_state', JSON.stringify(fixture(theme))]);
+    await context.addInitScript(pinClock, CLOCK);
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -155,6 +160,7 @@ try {
         lifts: { mon: { 'Barbell Bench Press': [set(100, 5), { c: false, w: '100', r: '5' }] } },
       } },
     }))]);
+    await context.addInitScript(pinClock, CLOCK);
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
