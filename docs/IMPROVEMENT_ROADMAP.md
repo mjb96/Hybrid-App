@@ -964,10 +964,17 @@ still left the mistake permanent.
     explains how to do it without saying what to watch for now fails the suite.
   - The `EZ()` helper was renamed `REVIEWED()` — it was never EZ-bar-specific,
     only first used there.
-  - **123 entries remain.** Safety notes are a claim shown to someone loading a
+  - **Batch 3 shipped 2026-08-07 — 48 of 155.** Same selection method (next 16 by
+    programme usage): Plank, Rear-Delt Fly, Face Pull, DB Shoulder Press, Lat
+    Pulldown, Front Squat, Band Face Pull, Push-Up, Dip, Incline DB Curl, Hanging
+    Leg Raise, Close-Grip Bench, One-Arm DB Row, DB Lying Leg Curl, Leg Curl,
+    SkiErg.
+  - **107 entries remain.** Safety notes are a claim shown to someone loading a
     barbell, so batches stay small enough to read in a PR rather than being
-    bulk-generated. The content in batch 2 is conservative, standard gym guidance
-    and is offered FOR REVIEW, not as expert instruction.
+    bulk-generated. This content is conservative, standard gym guidance offered
+    FOR REVIEW, not as expert instruction. Coverage past roughly the top 30 lifts
+    has sharply diminishing value — stopping is a legitimate outcome, and the
+    remaining entries degrade gracefully (the detail sheet simply shows less).
 - **DONE 2026-08-07 — primary-muscle browsing, in six training words.**
   `MUSCLES` holds 19 anatomical keys, which is exactly the clutter this bullet
   warns against — a picker with nineteen chips is worse than no muscle filter.
@@ -1294,6 +1301,24 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-07 — 4D batch 3: 32 → 48 of 155, and a flake diagnosed rather than
+  blamed.** Next 16 by programme usage — Plank, Rear-Delt Fly, Face Pull, DB
+  Shoulder Press, Lat Pulldown, Front Squat, Band Face Pull, Push-Up, Dip,
+  Incline DB Curl, Hanging Leg Raise, Close-Grip Bench, One-Arm DB Row, DB Lying
+  Leg Curl, Leg Curl, SkiErg. The shape guard from batch 2 caught nothing, which
+  is what it is for.
+  - **`exercise-picker-browser-check` failed once, and it was NOT the change.**
+    First reaction was to treat a red check on my own diff as my regression;
+    running the same code again passed, and clean `main` passed too. The real
+    cause was a fixed `waitForTimeout(300)` before a click, racing the Plans
+    render in a container ~3× slower than CI. Replaced with a `waitForSelector`,
+    then run twice more to confirm. Recorded because a timing flake that looks
+    exactly like a regression costs more than the second it saves — and because
+    "verify before concluding" applies to blaming yourself as much as to blaming
+    the code.
+  - Verified: 1,765 unit tests, typecheck, smoke, precache, workflow gates, and
+    exercise-picker (×3).
 
 - **2026-08-07 — 4D batch 2: the 16 most-programmed lifts got their instructions,
   difficulty and safety notes.** 16 of 155 reviewed → 32 of 155.
