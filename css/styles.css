@@ -9043,6 +9043,17 @@ html[data-theme="light"] .activity-filter--active { color: #07566b; }
    flex header with room to spare. */
 .collection-see-all { min-width: var(--touch-target); }
 
+/* Leaflet ships its zoom buttons at 30×30. They are injected into the live-run
+   map at runtime, so they never appear in this repo's markup and the static a11y
+   test cannot see them — but they are real controls, on the one surface an
+   athlete uses while moving. Third-party defaults do not get an exemption. */
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+  width: var(--touch-target) !important;
+  height: var(--touch-target) !important;
+  line-height: var(--touch-target) !important;
+}
+
 .settings-toggle-btn { min-width: var(--touch-target); }
 
 .drag-handle-grip,

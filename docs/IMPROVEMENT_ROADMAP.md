@@ -1115,8 +1115,22 @@ shipped controls underneath the Android status bar for months.
   - Each modal must actually OPEN before it is measured — the opener is asserted,
     so a selector that stops matching FAILS rather than silently contributing
     nothing. Verified by introducing a typo in one opener.
-- [ ] Remaining: the run cockpit's live-tracking surface (`run-session-active`)
-  and the onboarding flow are not yet walked.
+- **DONE 2026-08-09 — the live-run surface and onboarding are walked too.**
+  Coverage is now **875 controls across 12 surfaces**.
+  - The live-run map's zoom buttons ship from **Leaflet at 30×30** and are
+    injected at runtime, so they appear in no markup in this repo and nothing
+    static could ever have seen them. They are real controls on the one surface
+    operated while the athlete is moving. Third-party defaults do not get an
+    exemption; they are now 44×44.
+  - Leaflet's required credit link IS exempt (49.5×14) with the arithmetic: it is
+    not an operable control, and a 44px-tall credit bar would cover a fifth of a
+    220px map. The zoom buttons in the same map are not exempt.
+  - New rule in the walk: a COVERED control is not that surface's control. While
+    onboarding is up, Home is still `.view-container.active` underneath it, so
+    its week arrows were measured and — correctly — found unreachable through the
+    overlay. That is not a defect in the arrows. The same rule stopped every
+    modal from double-counting the cockpit behind it (add-exercise 383 → 359
+    controls), so the totals are now honest rather than merely large.
 - Maintain 44px targets and zoom support.
 - Test TalkBack, keyboard, Switch Access, focus return, Android Back/Escape,
   reduced motion, light/dark contrast, landscape, and 200% text.
@@ -1401,6 +1415,24 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 (fourth) — live-run and onboarding walked; 875 controls across 12
+  surfaces.** This closes the touch-target sweep.
+  - **The only real defect was third-party.** Leaflet ships its map zoom buttons
+    at 30×30 and injects them at runtime, so they exist in no markup in this repo
+    — invisible to every static test by construction, on the one surface an
+    athlete operates while moving. Now 44×44. Leaflet's credit link is exempt
+    with arithmetic; the zoom buttons in the same map are not.
+  - **A COVERED control is not that surface's control.** Onboarding exposed this:
+    Home stays `.view-container.active` underneath the overlay, so its week
+    arrows were measured and correctly found unreachable — a true measurement of
+    a non-problem. The fix (skip anything whose own centre resolves to a
+    different element) also stopped every modal double-counting the cockpit
+    behind it, dropping add-exercise from 383 to 359 controls. The totals got
+    smaller and more honest at the same time, which is the right direction.
+  - Verified: 1,774 unit tests, typecheck, smoke, precache regenerated, workflow
+    gates, active-run and safe-area checks, and the check verified to FAIL on a
+    Leaflet-control regression.
 
 - **2026-08-09 (third) — the touch-target walk extended to the cockpit and its
   modals: 145 controls measured → 895.** The four nav destinations are where the

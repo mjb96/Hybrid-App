@@ -82,10 +82,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   non-zero inset; without it this defect class is invisible to a desktop-Chromium suite.
   Backdrops that render no content are deliberately NOT padded.
 - Touch targets: 44px (`--touch-target`) is MEASURED in the running app by
-  `scripts/touch-target-browser-check.mjs`, which walks the four nav destinations PLUS
-  the in-session cockpit and its modals (895 controls) and sizes the EFFECTIVE hit area.
-  Every modal opener is asserted, so a selector that stops matching fails instead of
-  silently measuring nothing. `tests/accessibility.test.js` greps `index.html` and so
+  `scripts/touch-target-browser-check.mjs`, which walks 12 surfaces — the four nav
+  destinations, the in-session cockpit and its modals, the LIVE run panel and
+  onboarding (875 controls) — and sizes the EFFECTIVE hit area. Every opener is
+  asserted, so a selector that stops matching fails instead of silently measuring
+  nothing. A COVERED control (its own centre resolves to a different element) is
+  skipped: views stay `.active` under a modal, so measuring them there reports true
+  unreachability for a non-problem. Runtime-injected third-party controls count —
+  Leaflet's 30×30 map zoom buttons were a real defect no static test could see. `tests/accessibility.test.js` greps `index.html` and so
   can only ever see the static shell — most controls are rendered from JS template
   literals, which is where every offender lived (a 5×5 carousel dot, a 19px metric tab).
   Two mechanisms: `min-height: var(--touch-target)` where the box can grow, and
