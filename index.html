@@ -50,9 +50,23 @@
        immediately as the fallback. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Loaded as a normal stylesheet (no inline onload handler) so the strict
-       CSP above can forbid inline script. display=swap keeps first paint fast. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <!-- NON-BLOCKING. This was a plain <link rel="stylesheet"> and the comment
+       above it claimed display=swap kept first paint fast. It does not:
+       display=swap governs how the font FILE swaps in, while the CSS link
+       itself is render-blocking until it loads OR fails. Measured on a network
+       that cannot reach fonts.googleapis.com — which is every offline start of
+       this PWA — first contentful paint was 12,656ms, of which this one request
+       was 12,530ms. The app was fully cached and still showed nothing.
+       media="print" makes it non-render-blocking; js/font-css.js flips it to
+       "all" once loaded. The flip lives in a classic external script because
+       the CSP above forbids inline script, including onload attributes. -->
+  <link rel="stylesheet" media="print" data-async-font
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <noscript>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  </noscript>
+  <script src="./js/font-css.js"></script>
 
   <!-- Supabase client — VENDORED (js/vendor/supabase-js-2.45.4.umd.js), served
        from 'self' so no CDN sits in the privileged origin. The bytes are the

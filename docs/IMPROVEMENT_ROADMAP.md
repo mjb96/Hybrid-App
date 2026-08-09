@@ -1140,14 +1140,64 @@ shipped controls underneath the Android status bar for months.
 
 ### Performance
 
-- Establish baselines on representative hardware for:
-  - cold and warm startup;
-  - Home and Train first meaningful render;
-  - opening a workout;
-  - filtering 154 exercises and 57 programmes;
-  - analytics over five years of history;
-  - service-worker upgrade/offline startup.
-- Set budgets from measured baselines.
+**BASELINES ESTABLISHED 2026-08-09** — `scripts/performance-baseline.mjs`
+(`npm run perf:baseline`), in the browser suite.
+
+- **The measurement found a real defect on its first run.** `index.html` loaded
+  the Google Fonts stylesheet as a plain render-blocking `<link>`, under a
+  comment claiming `display=swap` kept first paint fast. It does not:
+  `display=swap` governs how the font FILE swaps in, while the stylesheet itself
+  blocks rendering until it loads **or fails**. On any start where
+  `fonts.googleapis.com` is unreachable — which is EVERY offline start of this
+  PWA — first contentful paint measured **12,656ms, of which that one request was
+  12,530ms**. Fully cached, and the app painted nothing for twelve seconds
+  waiting on a font it did not need. Now **280ms**. The assumption was written
+  down, it was plausible, and it was wrong; that is the entire argument for
+  measuring rather than reasoning.
+- Fix is CSP-safe: `media="print"` makes the link non-blocking and
+  `js/font-css.js` (classic, external — the CSP forbids inline script, including
+  `onload`) flips it to `all` on load. A `<noscript>` keeps the blocking link for
+  script-less clients. Verified the font still APPLIES when reachable, not just
+  that paint got faster.
+- **A second bug, introduced by that fix and caught before merge:**
+  `js/font-css.js` was not precached, because the generator walked the module
+  graph from `js/app.js` and nothing *imports* a classic `<script>`. It would
+  have 404'd offline, leaving the stylesheet at `media="print"` forever and the
+  brand font permanently unapplied — on exactly the start the precache exists to
+  serve. `computeRequiredAssets` now takes every script root, and
+  `tests/precache_manifest.test.js` derives the roots FROM `index.html` rather
+  than a second hand-written list.
+
+Measured baseline (this container; ~3× slower than CI, and neither is a phone):
+
+| scenario | new athlete | 5 years | 5 years, offline |
+|---|---|---|---|
+| first contentful paint | 204ms | 152ms | 140ms |
+| cold start | 863ms | 1,000ms | 1,086ms |
+| warm start | 854ms | 1,087ms | 1,183ms |
+| Train / Progress / Plans | 117/101/124ms | 373/247/107ms | 343/298/115ms |
+| open workout | 109ms | 430ms | 407ms |
+| filter 155 exercises | 25ms | 31ms | 23ms |
+| active-view DOM nodes | 218 | 224 | 224 |
+| JS heap | 11.5MB | 16.1MB | 16.1MB |
+
+**Budgets are asserted only where the number does not move with the machine:**
+
+- first contentful paint under 3s (measured ~0.2s; the defect signature was
+  12.6s) — a guard on render-blocking, not a speed target;
+- the active view renders no more than 1.35× the nodes with five years of
+  history than with one week (measured **1.03×** — the DOM is genuinely bounded,
+  so nothing renders per-record);
+- the app renders with every external host blocked.
+
+Wall-clock is REPORTED, never asserted: this container is ~3× slower than CI and
+neither is representative hardware, so a millisecond budget would be flaky or
+useless. The table is for same-machine comparison, which is the only comparison
+it supports.
+
+- [ ] Remaining: no measurement yet on a real device, which is the only place
+  "representative hardware" is true. `[You]` — the harness prints the same table
+  against a deployed build.
 - Optimise only demonstrated bottlenecks.
 - Prefer bounded DOM, keyed updates, deferred optional work, and smaller modules
   without weakening offline behaviour.
@@ -1415,6 +1465,37 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 (fifth) — performance baselines, and the first run found a
+  12-second first paint.** `scripts/performance-baseline.mjs`.
+  - `index.html` loaded the Google Fonts stylesheet as a plain render-blocking
+    `<link>`, under a comment asserting `display=swap` kept first paint fast.
+    That comment was wrong: `display=swap` governs the font FILE, not the
+    stylesheet, which blocks rendering until it loads or fails. On a network that
+    cannot reach `fonts.googleapis.com` — every offline start of this PWA —
+    **FCP was 12,656ms, and 12,530ms of it was that one request**. Now 280ms.
+  - **I introduced a second bug fixing the first, and the gates caught it.**
+    `js/font-css.js` is a classic `<script>`, so nothing imports it, so the
+    precache generator's walk from `js/app.js` never saw it. Offline it would
+    404, the stylesheet would stay `media="print"`, and the brand font would
+    never apply — on precisely the start the precache exists for. Fixed at the
+    generator; the test now derives script roots from `index.html` instead of
+    keeping a second hand-written list that could drift the same way.
+  - **Twice this session a "60-second hang" was my own fixture** — first week 1
+    dated five years ago, then every day marked `finished` so Home offered
+    "Review workout" and the cockpit never opened. Both are written into the
+    generator as comments. Neither was an app defect and both would have been
+    embarrassing to report as one.
+  - Deliberate restraint on budgets: only three things are asserted, all
+    structural. Wall-clock is reported, never asserted — this container is ~3×
+    slower than CI and neither is a phone, so a millisecond budget would be
+    flaky or vacuous. Every asserted budget was verified to FAIL by restoring
+    the defect it guards.
+  - Verified: 1,776 unit tests (+2), typecheck, smoke, precache regenerated,
+    workflow gates.
+  - Next: run the harness against a deployed build on a real device (`[You]`);
+    Phase 6 maintainability (splitting `js/workout.js` and `js/app.js`).
+
 
 - **2026-08-09 (fourth) — live-run and onboarding walked; 875 controls across 12
   surfaces.** This closes the touch-target sweep.

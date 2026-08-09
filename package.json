@@ -13,6 +13,7 @@
     "precache:gen": "node scripts/gen-precache.mjs",
     "precache:check": "node scripts/gen-precache.mjs --check",
     "browser:verify": "node scripts/run-browser-checks.mjs",
+    "perf:baseline": "node scripts/performance-baseline.mjs",
     "workflow:check": "node scripts/verify-workflow-gates.mjs",
     "vendor:fit": "node scripts/vendor-fit.mjs",
     "verify": "npm run typecheck && npm run precache:check && npm run workflow:check && npm test && npm run smoke"

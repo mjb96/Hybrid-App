@@ -46,7 +46,14 @@ const CORE = [
 ];
 
 export function computeRequiredAssets() {
-  const js = reachableModules(['js/app.js', 'js/sw-reload.js']).map((m) => './' + m);
+  // Every ROOT of the script graph, not just the module app. The classic
+  // <script> tags in index.html are entry points too and nothing imports them,
+  // so a graph walk from js/app.js alone cannot see them. Missing one is silent
+  // and only shows up offline: js/font-css.js flips the webfont stylesheet from
+  // its non-blocking media="print" to "all", so a 404 here would leave the
+  // brand font permanently unapplied on exactly the offline start the precache
+  // exists to serve.
+  const js = reachableModules(['js/app.js', 'js/sw-reload.js', 'js/font-css.js']).map((m) => './' + m);
   return [...new Set([...CORE, ...js])].sort();
 }
 
