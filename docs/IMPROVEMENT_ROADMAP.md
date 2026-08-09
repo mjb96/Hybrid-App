@@ -1067,6 +1067,38 @@ shipped controls underneath the Android status bar for months.
 
 ### Accessibility
 
+- **DONE 2026-08-09 — 44px targets are now MEASURED, not asserted in markup.**
+  `tests/accessibility.test.js` greps `index.html`, which only ever sees the
+  static shell. This app renders most controls from JS template literals, and
+  every offender found lived there — invisible to the static test:
+  - `.hero-dot-btn` **5×5px** (a 25px² target, the smallest control in the app)
+    and with no accessible name at all;
+  - `.wfg-tab` 19px tall, `.collection-see-all` 11px, `.wfg-arrow` 28×28,
+    `.create-cta-btn` 32px, `.lib-tab` 33px, `.wfg-detail-link` 30px,
+    `#progSearchInput` 42px.
+  - `scripts/touch-target-browser-check.mjs` drives all four destinations and
+    measures the EFFECTIVE hit area: **23 controls under 44px → 2**, and
+    **3 unnamed → 0**, out of 145 visible controls.
+  - It measures REACHABILITY, not CSS. Each control is scrolled into view and
+    probed with `elementFromPoint` at the edges of its claimed hit area, so a
+    hit area cropped by an `overflow: hidden` ancestor or stolen by a later
+    sibling is caught. Two traps found while building it: a point outside the
+    viewport is UNKNOWN, not unreachable (one pair of In Focus week arrows lives
+    at x≈615 in a horizontal scroller and every probe against it returns null);
+    and without `scrollIntoView` almost everything is below the fold, so every
+    probe returns null and the check silently degrades to trusting the CSS.
+  - Two mechanisms, deliberately distinct: `min-height: var(--touch-target)`
+    where the box can grow, and a new `.hit-target` utility (`css/styles.css`)
+    where the visual size is deliberate — it grows a centred `::after` that
+    takes the taps while the component looks byte-identical.
+  - The remaining 2 carry a documented geometric floor: a carousel dot whose
+    pitch is 10px (a 44px-wide hit area would overlap its neighbours and make
+    the first two dots UNREACHABLE — worse than a small target), and one of
+    seven day columns in a 390px chart. `tests/touch_target_exemptions.test.js`
+    keeps that list to at most three, requires each entry to state arithmetic
+    rather than a preference, and fails if the 44px minimum itself is lowered.
+- [ ] Remaining: modal/sheet surfaces and the workout cockpit's in-session
+  controls are not yet walked — the check covers the four nav destinations.
 - Maintain 44px targets and zoom support.
 - Test TalkBack, keyboard, Switch Access, focus return, Android Back/Escape,
   reduced motion, light/dark contrast, landscape, and 200% text.
@@ -1351,6 +1383,45 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 (later) — Phase 6 accessibility: touch targets measured in the
+  real app.** Phase 6 is `CONTINUOUS`, not queued behind Phase 4, so it needed no
+  wait. Started with touch targets because the evidence was already in hand from
+  driving the app in earlier sessions.
+  - **The static a11y test could not have found any of this.** It greps
+    `index.html`; every offender was rendered from a JS template literal. The
+    worst was a **5×5px** carousel dot with no accessible name — 1/77th of the
+    required area, in the app for as long as the Plans hero has existed.
+  - Measuring honestly took three iterations, and the first two would have
+    shipped false results. Naive `querySelectorAll` reported 373 controls and 83
+    failures — but every view stays in the DOM, so the Settings panel's inputs
+    were counted on all four destinations; 235 of those controls were not on
+    screen. Then "unnamed" flagged every correctly-labelled checkbox, because it
+    checked `aria-label` and ignored `<label for>`. Real numbers: 145 visible
+    controls, 23 under 44px, 3 unnamed.
+  - Fixed to 2 and 0. The 2 are geometric floors with the arithmetic recorded,
+    not preferences — notably the carousel dots, where a nominal 44×44 would
+    have made two of the three dots unreachable behind their neighbour's hit
+    area. A reachable 10×44 beats an unreachable 44×44.
+  - `.hit-target` (`css/styles.css`) is the new mechanism for controls whose
+    small visual size is deliberate: the paint is unchanged, only the hit area
+    grows. Written down with it: never expand past half the gap to the next
+    control, or overlapping targets make the earlier one unhittable.
+  - The check was verified to FAIL twice, by reverting a fix and by breaking
+    `.hit-target`'s positioning context — a check that cannot fail is a file,
+    not a guard.
+  - **One hypothesis I recorded was wrong, and measuring is what caught it.** I
+    reasoned that `.hero-banner`'s `overflow: hidden` must crop the dots' 44px
+    hit area to ~34px and was about to move the dots up to "fix" it. Probing
+    outward from the dot centre returned a reachable 44px tall × 10px wide,
+    exactly as designed. The clipping never happened. Worth remembering: the
+    reachability probe exists precisely so this class of reasoning gets checked
+    instead of acted on.
+  - Verified: 1,774 unit tests (+5), typecheck, smoke, precache regenerated via
+    `npm run precache:gen` (CSS changed, so `CACHE_NAME` had to move or installed
+    PWA clients would never receive the fix), workflow gates, full browser suite.
+  - Next: extend the walk to modal/sheet surfaces and the in-session cockpit,
+    which the four-destination walk does not reach.
 
 - **2026-08-09 — the three fragile clock-dependent checks pinned; one of them was
   not asserting what its name claims.** `home-today`, `active-program-edit` and

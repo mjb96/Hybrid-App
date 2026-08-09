@@ -1,0 +1,265 @@
+// =============================================================================
+// TOUCH TARGETS AND ACCESSIBLE NAMES — measured in the REAL app, not in markup.
+//
+// `tests/accessibility.test.js` greps index.html. That only ever sees the static
+// shell: this app renders most of its controls from JS template literals, and
+// every offender this check was written against lived there — a 5×5 carousel
+// dot, a 19px metric tab, a 28px week arrow, an 11px "See all" link. None of
+// them appear in index.html at all.
+//
+// So: drive the app, walk the ACTIVE view on each destination, and measure what
+// a finger actually hits.
+//
+// Two measurement details matter, and both produced false results before they
+// were handled:
+//
+//   • VISIBILITY. Every view stays in the DOM, so a naive querySelectorAll
+//     counts the Settings panel's inputs on all four destinations. The first
+//     run reported 373 controls and 83 failures; 235 of those controls were not
+//     on screen. Filtering to `checkVisibility()` plus the active view leaves
+//     138 real ones.
+//
+//   • HIT AREA ≠ PAINTED BOX. A `.hit-target` control keeps its small visual
+//     size and grows a centred ::after that takes the taps. Measuring
+//     getBoundingClientRect alone reports those as failures forever.
+//
+// Accessible name resolution follows what a screen reader would do — aria-label,
+// aria-labelledby, title, a `for=` label, a wrapping label, then text — because
+// checking aria-label alone flagged every correctly-labelled checkbox in
+// Settings.
+// =============================================================================
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const required = process.argv.includes('--required');
+const runtime = await resolveChromium();
+if (!runtime) process.exit(required ? 1 : 0);
+const { chromium, executablePath } = runtime;
+
+const MIME = {
+  '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
+  '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml',
+};
+const server = createServer(async (req, res) => {
+  try {
+    if ((req.url || '').split('?')[0] === '/favicon.ico') { res.writeHead(204); res.end(); return; }
+    const rel = (req.url || '/') === '/' ? 'index.html' : decodeURIComponent((req.url || '').split('?')[0]).replace(/^\//, '');
+    const file = path.resolve(ROOT, rel);
+    if (!file.startsWith(`${ROOT}${path.sep}`) && file !== path.join(ROOT, 'index.html')) throw new Error('unsafe path');
+    res.writeHead(200, { 'content-type': MIME[path.extname(rel)] || 'application/octet-stream' });
+    res.end(await readFile(file));
+  } catch { res.writeHead(404); res.end('not found'); }
+});
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+const BASE = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`;
+
+const TZ = 'Australia/Sydney';
+// PINNED — the Home surface routes by calendar day, so an unpinned clock would
+// measure a different set of controls depending on the weekday CI ran.
+const TODAY = '2026-08-03';   // a Monday in Australia/Sydney
+const CLOCK = Date.parse(`${TODAY}T09:00:00+10:00`);
+const MIN = 44;
+
+const STORAGE_KEY = 'hybrid_engine_v2_state';
+const fixture = {
+  schemaVersion: 5, currentWeek: '1', activeProgramId: 'hybrid_engine', activeActivationId: 'act1',
+  settings: {
+    name: 'A11y', theme: 'dark', weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon',
+    onboardingComplete: true, fitnessGoal: 'hybrid', fitnessLevel: 'intermediate', equipmentTier: 'gym',
+  },
+  activations: [{ id: 'act1', programId: 'hybrid_engine', startWeek: 1, status: 'active', startedAt: new Date(CLOCK).toISOString() }],
+  weeks: {
+    '1': {
+      activationId: 'act1', dates: { mon: TODAY }, gymStats: { mon: { time: '01:02' } },
+      lifts: { mon: { 'Barbell Bench Press': [{ w: '100', r: '5', c: true }] } },
+      sessionStatus: {}, liftOrder: {}, runs: {}, runSessions: {}, notes: {}, gymRpe: {}, bodyWeight: {}, liftMeta: {},
+    },
+  },
+  programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
+  loadMetrics: { atl: 0, ctl: 0 }, wellnessLog: [], bodyWeightLog: [],
+  healthConnect: { connected: false, hrv: [], restingHR: [], sleep: [], steps: [], vo2max: [] },
+  hybridScore: { history: [], xp: 0, lastRecordedDate: null },
+};
+
+// Controls whose 44px shortfall is GEOMETRIC, not an oversight. Each needs the
+// arithmetic that makes 44px impossible, not a preference. This list may only
+// shrink; `tests/touch_target_exemptions.test.js` fails if an entry stops being
+// reachable from this check.
+const EXEMPT = [
+  {
+    match: (c) => c.cls.includes('hero-dot-btn'),
+    // Three carousel dots, 5px wide with a 5px gap: a 10px pitch. A 44px-wide
+    // hit area would overlap both neighbours, and the last dot painted would
+    // swallow the taps meant for the other two — strictly worse than a small
+    // target. Expanded to the full 44px HEIGHT and its own pitch in width.
+    why: 'carousel dot pitch is 10px; a 44px width would make neighbours unreachable',
+    minW: 10, minH: 44,
+  },
+  {
+    match: (c) => c.cls.includes('wfg-bb'),
+    // Seven day bars share the chart's inner width: at 390px that is ~34px per
+    // bar and no layout change makes seven 44px columns fit. Each bar is the
+    // full 120px height of the plot, so the column is a comfortable target.
+    why: 'one of 7 day columns in a 390px chart; full plot height is the target',
+    minW: 30, minH: 44,
+  },
+];
+
+const MEASURE = () => {
+  const SEL = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="switch"], [data-action], [tabindex]:not([tabindex="-1"])';
+  const out = [];
+  for (const el of document.querySelectorAll(SEL)) {
+    if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+    const view = el.closest('.view-container');
+    if (view && !view.classList.contains('active')) continue;
+    // Bring it on screen BEFORE probing. elementFromPoint only answers for the
+    // viewport, and most of these controls start below the fold — without this
+    // every probe returns null, the check silently falls back to the CSS box,
+    // and it is measuring declarations again instead of reachability. (The
+    // carousel dots sit at y≈1737 on a 390px×844px screen.)
+    el.scrollIntoView({ block: 'center', inline: 'center' });
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+
+    const after = getComputedStyle(el, '::after');
+    const grown = after.content !== 'none';
+    const cssW = grown ? Math.max(r.width, parseFloat(after.width) || 0) : r.width;
+    const cssH = grown ? Math.max(r.height, parseFloat(after.height) || 0) : r.height;
+
+    // What the CSS DECLARES is not what the finger reaches. A hit area inside an
+    // `overflow: hidden` ancestor is cropped, and one that runs under a later
+    // sibling is stolen — in both cases the computed ::after box still reports
+    // its full size. (The carousel dots sit in a clipped 220px hero: the CSS
+    // said 44px tall, elementFromPoint said 34.5.)
+    // So probe: shrink the claimed box until every edge midpoint actually
+    // resolves to this control.
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    // A point outside the viewport is UNKNOWN, not unreachable: the In Focus
+    // charts sit in a horizontal scroller, so one pair of week arrows lives at
+    // x≈615 on a 390px screen and every probe against it returns null. Treating
+    // that as a failure condemned a control the user reaches by scrolling.
+    // Only points that are actually on screen can testify.
+    const reaches = (w, h) => {
+      const pts = [
+        [cx, cy - h / 2 + 1], [cx, cy + h / 2 - 1],
+        [cx - w / 2 + 1, cy], [cx + w / 2 - 1, cy],
+      ];
+      const onScreen = pts.filter(([x, y]) => x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight);
+      if (!onScreen.length) return true;
+      return onScreen.every(([x, y]) => {
+        const hit = document.elementFromPoint(x, y);
+        return !!hit && (hit === el || el.contains(hit));
+      });
+    };
+    let hitW = cssW;
+    let hitH = cssH;
+    while ((hitW > r.width || hitH > r.height) && !reaches(hitW, hitH)) {
+      hitW = Math.max(r.width, hitW - 2);
+      hitH = Math.max(r.height, hitH - 2);
+    }
+
+    const labelled = el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
+    const wrapping = el.closest('label');
+    const described = el.getAttribute('aria-labelledby');
+    const name = el.getAttribute('aria-label')
+      || (described && (document.getElementById(described)?.textContent || '').trim())
+      || el.getAttribute('title')
+      || (labelled?.textContent || '').replace(/\s+/g, ' ').trim()
+      || (wrapping && wrapping !== el ? (wrapping.textContent || '').replace(/\s+/g, ' ').trim() : '')
+      || (el.textContent || '').replace(/\s+/g, ' ').trim();
+
+    out.push({
+      tag: el.tagName.toLowerCase(),
+      id: el.id || '',
+      cls: typeof el.className === 'string' ? el.className : '',
+      action: el.getAttribute('data-action') || el.getAttribute('data-wfg-action') || '',
+      w: Math.round(hitW * 10) / 10,
+      h: Math.round(hitH * 10) / 10,
+      name: name.slice(0, 40),
+    });
+  }
+  return out;
+};
+
+const failures = [];
+const fail = (m) => { failures.push(m); console.error(`FAIL: ${m}`); };
+const describe = (c) => `[${c.surface}] ${c.tag}${c.id ? '#' + c.id : ''}${c.cls ? '.' + c.cls.split(/\s+/)[0] : ''}${c.action ? ' {' + c.action + '}' : ''}`;
+
+const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
+try {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+  await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(fixture)]);
+  await context.addInitScript(pinClock, CLOCK);
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+
+  const surfaces = [
+    ['home', null],
+    ['train', '.nav-item[data-target="workout"]'],
+    ['progress', '.nav-item[data-target="analytics"]'],
+    ['plans', '.nav-item[data-target="program"]'],
+  ];
+
+  const all = [];
+  for (const [surface, sel] of surfaces) {
+    if (sel) {
+      await page.click(sel);
+      await page.waitForSelector('.view-container.active', { timeout: 8000 });
+      await page.waitForTimeout(600);
+    }
+    const rows = await page.evaluate(MEASURE);
+    if (!rows.length) fail(`${surface} rendered no interactive controls — the walk is measuring nothing`);
+    for (const r of rows) all.push({ surface, ...r });
+    console.log(`  ${surface}: ${rows.length} controls`);
+  }
+
+  // Sanity: if the fixture stops reaching the real surfaces this check would
+  // pass by measuring an empty app.
+  if (all.length < 100) fail(`expected the full control surface, measured only ${all.length}`);
+
+  const seen = new Set();
+  let exempted = 0;
+  for (const c of all) {
+    const exempt = EXEMPT.find((e) => e.match(c));
+    const minW = exempt ? exempt.minW : MIN;
+    const minH = exempt ? exempt.minH : MIN;
+    if (exempt) exempted++;
+
+    if (c.w < minW || c.h < minH) {
+      const key = `size|${describe(c)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fail(`${describe(c)} is ${c.w}×${c.h}, below ${minW}×${minH} — "${c.name}"`
+        + (exempt ? ` (exempt floor: ${exempt.why})` : ''));
+    }
+    if (!c.name) {
+      const key = `name|${describe(c)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fail(`${describe(c)} has no accessible name`);
+    }
+  }
+
+  console.log(`\n  measured ${all.length} visible controls · ${exempted} on a documented geometric floor`);
+  if (errors.length) fail(`browser errors: ${errors.join(' | ')}`);
+  await context.close();
+} finally {
+  await browser.close();
+  server.close();
+}
+
+if (failures.length) {
+  console.error(`\nTouch-target check failed (${failures.length}).`);
+  console.error('Give the control `min-height: var(--touch-target)`, or `.hit-target` when its');
+  console.error('visual size is deliberate (see the block in css/styles.css). Add to EXEMPT only');
+  console.error('with the arithmetic showing 44px is geometrically impossible.');
+  process.exit(1);
+}
+console.log('\nTouch-target and accessible-name check passed.');

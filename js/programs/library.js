@@ -612,8 +612,9 @@ function renderHeroBanner(programs) {
     </div>
   `; }).join('');
 
-  const dots = programs.map((_, i) => `
-    <button class="hero-dot-btn ${i === 0 ? 'active' : ''}" data-action="hero-dot" data-slide="${i}"></button>
+  const dots = programs.map((p, i) => `
+    <button class="hero-dot-btn hit-target ${i === 0 ? 'active' : ''}" data-action="hero-dot" data-slide="${i}"
+      aria-label="Show ${escapeHtml(p.name)} (${i + 1} of ${programs.length})"></button>
   `).join('');
 
   return `

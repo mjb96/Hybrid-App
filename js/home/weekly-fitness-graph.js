@@ -228,10 +228,10 @@ class WeeklyFitnessGraph {
     this._container.innerHTML = `
 <div class="wfg">
   <div class="wfg-nav">
-    <button class="wfg-arrow" data-wfg-action="nav-prev" ${canBack ? '' : 'disabled'}
+    <button class="wfg-arrow hit-target" data-wfg-action="nav-prev" ${canBack ? '' : 'disabled'}
             aria-label="Previous week">‹</button>
     <span class="wfg-range">${rangeStr}</span>
-    <button class="wfg-arrow" data-wfg-action="nav-next" ${canFwd ? '' : 'disabled'}
+    <button class="wfg-arrow hit-target" data-wfg-action="nav-next" ${canFwd ? '' : 'disabled'}
             aria-label="Next week">›</button>
   </div>
   ${tabsHTML}
