@@ -1219,6 +1219,33 @@ it supports.
 
 ### Maintainability
 
+- **STARTED 2026-08-09 — the injected context is extracted, which is what the
+  split was blocked on.** `js/workout.js` held its six app accessors
+  (`_getState`, `_getSelectedDay`, `_getDays`, `_saveState`, `_switchTab`,
+  `_scheduleSave`) as module-local `let`s set once by `initWorkout`. Any module
+  carved out of the file still needs them, and its only route was to import
+  `workout.js` — which would import the new module back. ES modules tolerate that
+  cycle, but it makes initialisation order load-bearing, which is a poor
+  foundation for a refactor whose purpose is to make the file safer to change.
+  `js/workout/context.js` now owns them and both sides depend on it, so the graph
+  stays a tree.
+  - **A "pure move" nearly shipped a behaviour change.** Two guards read
+    `if (!_getState || !_getSelectedDay) return;` as a readiness test. Once the
+    accessors became wrapper functions they were permanently truthy, so
+    `renderWorkout` and `refreshSessionOutline` would have run before the app
+    wired anything instead of bailing. `workoutContextReady()` exists for exactly
+    that and both guards now use it. Worth remembering that "move, don't change"
+    is not automatically true once the shape of the thing being moved changes.
+  - The precache guard added earlier the same day caught the new module before it
+    could 404 offline — the ratchet paying for itself within hours.
+  - Verified: 1,780 unit tests, typecheck, smoke, precache regenerated, and all
+    seven workout-surface browser checks (set-row, session-outline, rest-timer,
+    finish-review, exercise-picker, workout-history, train-landing).
+- [ ] Next seam, already scoped: exercise selection — `handleExerciseSearch`,
+  `addExerciseToDayFromLibrary`, the swap modal and the add-exercise modal
+  (js/workout.js ~2009–2190). It shares private helpers (`_bestKnownE1rm`,
+  `_unitOf`, `equipmentLabel`, the chip builders) with the rest of the file, so
+  the cut is wider than the export list suggests and wants its own slice.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
   logging, and completion.
 - Split `js/app.js` routing/event ownership.
@@ -1480,6 +1507,24 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 (eighth) — workout.js split unblocked: the injected context is its
+  own module.** `js/workout.js` is 2,670 lines with 44 exports and exactly one
+  consumer (`js/app.js`), which makes it safe to carve up — except that every
+  candidate module needed the six app accessors the file held as module locals,
+  and could only reach them by importing the file back.
+  - `js/workout/context.js` now owns them. Pure move, no behaviour change, and
+    the enabling step rather than the improvement.
+  - **It nearly was not a pure move.** Two readiness guards tested whether the
+    accessor FUNCTIONS existed. Wrapping them made those tests permanently true,
+    so two render paths would have run before the app wired anything. Caught by
+    reading the call sites rather than trusting the description of the change.
+  - The precache root guard shipped earlier today caught the new module
+    immediately — the first thing it protected was a file added hours later.
+  - Next seam scoped and recorded rather than half-started: exercise selection
+    shares several private helpers with the rest of the file, so it is a wider
+    cut than its export list implies and deserves its own verified slice.
+
 
 - **2026-08-09 (seventh) — Progress detail screens audited; NO change warranted,
   and the audit exists so this is not re-litigated.**

@@ -218,6 +218,13 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   it). `liftTarget` therefore inherits the model from `sourceProgramId` at READ time
   (`withInheritedProgressionModel`, `js/engine.js`) — nothing stored is rewritten, and
   an unauthored swapped-in lift still falls through.
+- Workout modules: `js/workout.js` (2,670 lines, 44 exports) is imported ONLY by
+  `js/app.js`. Its six app accessors live in `js/workout/context.js`
+  (`setWorkoutContext` + `getState`/`getSelectedDay`/`getDays`/`saveState`/
+  `switchTab`/`scheduleSave`), so a module split out of workout.js reads them
+  without importing workout.js back and creating a cycle. They are FUNCTIONS, not
+  live bindings — so `if (!getState)` is always true and a readiness check must
+  use `workoutContextReady()`.
 - Workout cockpit: in-session **exercise swap** (`js/workout/substitutions.js` +
   pure `applyExerciseSwap` in `workout-order.js`; re-keys the sets array to preserve
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe
