@@ -37,6 +37,9 @@ const checks = [
   // Last: walks all four destinations, so it is the slowest of the a11y checks
   // and the most useful to read after the feature checks have had their say.
   'scripts/touch-target-browser-check.mjs',
+  // Slowest in the suite (~90s: three full app boots, one with five years of
+  // history). Last so it never delays a faster check's failure.
+  'scripts/performance-baseline.mjs',
 ];
 
 // Run EVERY check, then fail at the end.

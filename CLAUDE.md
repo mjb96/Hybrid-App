@@ -106,11 +106,24 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   null and the check quietly degrades to trusting the declaration. A point
   outside the viewport is UNKNOWN, not unreachable (one pair of In Focus week
   arrows sits at x≈615 inside a horizontal scroller).
+- Performance: `scripts/performance-baseline.mjs` (`npm run perf:baseline`) is the
+  baseline harness — three full boots, one with five years of history (260 weeks,
+  ~20,800 sets). It asserts ONLY machine-independent facts: first paint is not
+  render-blocked (<3s), the active-view DOM stays within 1.35× as history grows
+  (measured 1.03×), and the app renders with every external host blocked.
+  Wall-clock is REPORTED, never asserted — this container is ~3x slower than CI and
+  neither is a phone. Webfont CSS is loaded NON-BLOCKING (`media="print"` +
+  `js/font-css.js` flipping it to `all`); a plain `<link>` there blocks first paint
+  until it loads OR FAILS, which measured 12.6s on every offline start.
+  `display=swap` does NOT prevent this — it governs the font file, not the
+  stylesheet.
 - Service-worker cache: `CACHE_NAME` carries a generated content hash
   (`scripts/gen-precache.mjs`), so editing any precached asset changes `sw.js` and the
   upgrade fires. Non-JS assets are cache-first and a browser only reinstalls a worker
   whose bytes changed, so before this a CSS-only commit never reached installed PWA
-  clients. Never hand-edit `CACHE_NAME` or the `REQUIRED_ASSETS` block — run
+  clients. Classic `<script>` tags in `index.html` are precache ROOTS: nothing imports them, so a
+  graph walk from `js/app.js` cannot see them and a miss only breaks offline.
+  Never hand-edit `CACHE_NAME` or the `REQUIRED_ASSETS` block — run
   `npm run precache:gen`.
 - Imported activities: FIT files are dated from the activity's own start
   (`sessionStartTs`, `js/garmin.js`) — a session `timestamp` is the END of the activity,

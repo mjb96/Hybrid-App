@@ -16,7 +16,7 @@
 // (a node --test), so a newly-added, offline-reachable module can never again
 // be silently omitted from the cache.
 // ==========================================
-const CACHE_NAME = 'helyx-v122-hfe53f84b05b7';
+const CACHE_NAME = 'helyx-v122-hc6e3448cd488';
 
 // GENERATED — do not hand-edit. Run: node scripts/gen-precache.mjs
 const REQUIRED_ASSETS = [
@@ -129,6 +129,7 @@ const REQUIRED_ASSETS = [
   "./js/fasting/fasting-insights.js",
   "./js/fasting/fasting-nudge.js",
   "./js/fasting/fasting-ring.js",
+  "./js/font-css.js",
   "./js/garmin.js",
   "./js/gps-tracker.js",
   "./js/gps/active-run-display.js",
