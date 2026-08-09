@@ -239,3 +239,79 @@ test('weekly volume modifiers exist for all twelve weeks', () => {
     assert.ok(String(mod.intensityLabel || '').length > 10, `week ${w} needs a descriptive label`);
   }
 });
+
+// ── A personal copy inherits the progression model ───────────────────────────
+//
+// `duplicateCustomProgram` deep-clones the catalog entry into `customPrograms`,
+// so a copy made BEFORE its source gained `progressionModel` has no hook. Every
+// lift on every day then collapses to the one shared week modifier: a real Shed
+// PPLUL copy showed "4 × 8" for the entire programme — six accessories that
+// should each have their own prescription, and a deadlift that should be 3 × 6.
+//
+// The copy lives in the athlete's own state, so shipping a corrected catalog
+// never reaches it. `liftTarget` therefore resolves the model from
+// `sourceProgramId` at READ time. Nothing stored is rewritten, so there is no
+// migration, sync or export surface.
+
+/** A copy exactly as duplicateCustomProgram makes one, minus the newer field. */
+function legacyCopy() {
+  const copy = JSON.parse(JSON.stringify(program));
+  copy.id = 'prog_legacy_copy';
+  copy.sourceProgramId = 'shed_pplul';
+  copy.isPrimaryCustomization = true;
+  delete copy.progressionModel;
+  return copy;
+}
+
+const copyTarget = (prog, week, dayKey, lift) => {
+  const t = liftTarget(prog.days[dayKey].desc, lift, getWeekModifier(prog, week), { program: prog, week, dayKey });
+  return `${t.sets}x${t.reps}`;
+};
+
+test('a copy made before progressionModel existed still resolves accessories', () => {
+  const copy = legacyCopy();
+  assert.equal(copy.progressionModel, undefined, 'fixture must lack the hook');
+
+  // The exact reported symptom: every Monday lift reading 4x8.
+  assert.equal(copyTarget(copy, 1, 'mon', 'Incline Dumbbell Press'), '3x8–12');
+  assert.equal(copyTarget(copy, 1, 'mon', 'Seated Dumbbell Shoulder Press'), '2x8–12');
+  assert.equal(copyTarget(copy, 1, 'mon', 'Band Face Pull'), '2x15–20');
+});
+
+test('a copy keeps the deadlift on its own wave, not the primary one', () => {
+  // The sharpest tell: week 1 primary is 4x8, the deadlift is 3x6. A copy that
+  // lost the model showed the deadlift as 4x8 — a different exercise entirely.
+  const copy = legacyCopy();
+  assert.equal(copyTarget(copy, 1, 'sat', DEADLIFT), '3x6');
+  assert.equal(copyTarget(copy, 1, 'mon', MAIN_BY_DAY.mon), '4x8');
+  assert.equal(copyTarget(copy, 9, 'sat', DEADLIFT), '4x3');
+});
+
+test('a copy still halves accessory volume on a deload', () => {
+  const copy = legacyCopy();
+  assert.equal(copyTarget(copy, 4, 'mon', 'Dumbbell Lateral Raise'), '2x12–20');
+  assert.equal(copyTarget(copy, 4, 'mon', MAIN_BY_DAY.mon), '2x8');
+});
+
+test('inheritance needs a real source — it never guesses a model', () => {
+  // A personal program the athlete built themselves has no sourceProgramId, and
+  // a copy of something that carries no model must not acquire one.
+  const own = legacyCopy();
+  delete own.sourceProgramId;
+  assert.equal(copyTarget(own, 1, 'mon', 'Incline Dumbbell Press'),
+    `${getWeekModifier(own, 1).sets}x${getWeekModifier(own, 1).reps}`,
+    'a program with no source must fall through to its week modifier');
+
+  const unknownSource = legacyCopy();
+  unknownSource.sourceProgramId = 'no_such_program';
+  assert.equal(copyTarget(unknownSource, 1, 'mon', 'Incline Dumbbell Press'),
+    `${getWeekModifier(unknownSource, 1).sets}x${getWeekModifier(unknownSource, 1).reps}`);
+});
+
+test('an exercise the athlete swapped in is not given a programmed prescription', () => {
+  // Edits must survive inheritance: an unauthored lift falls through exactly as
+  // it does for the catalog program itself.
+  const copy = legacyCopy();
+  const mod = getWeekModifier(copy, 1);
+  assert.equal(copyTarget(copy, 1, 'mon', 'Cable Crossover'), `${mod.sets}x${mod.reps}`);
+});

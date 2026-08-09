@@ -211,7 +211,13 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   NOT shared — their week tables differ. Both are read-time only: nothing per-set is
   persisted, so there is no migration/sync/export surface, and the Phase 4C ADR gate on
   normalised per-lift prescription DATA is untouched. Resolvers return null for
-  unauthored lifts so an exercise added mid-session falls through.
+  unauthored lifts so an exercise added mid-session falls through. A CUSTOMIZATION IS
+  A FROZEN DEEP COPY, so a fork made before its source gained `progressionModel` has
+  no hook and every lift collapses to the shared week modifier (a real Shed PPLUL fork
+  showed 4x8 for the whole programme, deadlift included, and no app update could reach
+  it). `liftTarget` therefore inherits the model from `sourceProgramId` at READ time
+  (`withInheritedProgressionModel`, `js/engine.js`) — nothing stored is rewritten, and
+  an unauthored swapped-in lift still falls through.
 - Workout cockpit: in-session **exercise swap** (`js/workout/substitutions.js` +
   pure `applyExerciseSwap` in `workout-order.js`; re-keys the sets array to preserve
   target+logged data), per-side **plate math** (`js/workout/plates.js`), swipe

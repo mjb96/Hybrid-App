@@ -1466,6 +1466,37 @@ testable on its own.
 
 ## 12. Session log
 
+- **2026-08-09 (sixth) — a personal copy silently lost its programme's
+  progression, reported from real use.** Shed PPLUL showed **4 × 8 for every
+  lift on every day**, deadlift included, where the spec has six distinct
+  accessory prescriptions and a separate deadlift wave.
+  - **The catalog programme was fine.** Driving every training day across weeks
+    1, 4, 5, 9 and 12 reproduced nothing — all correct. The bug was in the
+    athlete's COPY: `duplicateCustomProgram` deep-clones, so a copy made before
+    its source gained `progressionModel` has no hook, `isShedPplulProgram`
+    returns false, and every lift collapses to the single shared week modifier.
+    Because the copy lives in the athlete's own state, shipping a corrected
+    catalog never reaches it.
+  - Fix is READ-TIME: `liftTarget` resolves the model from `sourceProgramId`
+    when the programme itself has none (`withInheritedProgressionModel`,
+    `js/engine.js`, WeakMap-cached per programme object). Nothing stored is
+    rewritten — no migration, sync or export surface, and the Phase 4C ADR gate
+    is untouched. Copies repair themselves on the next render.
+  - **Edits survive.** A swapped-in exercise is simply unauthored by the model,
+    so the resolver returns null and the normal fallback applies — the same
+    boundary that already protects an exercise added mid-session. Guarded by a
+    test, along with "no source ⇒ no inheritance" so a self-built programme can
+    never acquire a progression it was not given.
+  - Already-materialised weeks self-correct: unlogged accessories reconcile to
+    the right set counts and a logged set keeps its row. Verified in the browser
+    against a week materialised under the broken prescription.
+  - This is a CLASS, not one programme — any copy of any programme whose
+    progression model landed later had the same silent failure.
+  - Verified: 1,780 unit tests (+4, each verified to fail without the fix),
+    typecheck, smoke, precache regenerated, workflow gates, and the J&T,
+    preview-consistency and copy-program browser checks.
+
+
 - **2026-08-09 (fifth) — performance baselines, and the first run found a
   12-second first paint.** `scripts/performance-baseline.mjs`.
   - `index.html` loaded the Google Fonts stylesheet as a plain render-blocking
