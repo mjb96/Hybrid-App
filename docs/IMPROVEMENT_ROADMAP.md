@@ -1097,8 +1097,26 @@ shipped controls underneath the Android status bar for months.
     seven day columns in a 390px chart. `tests/touch_target_exemptions.test.js`
     keeps that list to at most three, requires each entry to state arithmetic
     rather than a preference, and fails if the 44px minimum itself is lowered.
-- [ ] Remaining: modal/sheet surfaces and the workout cockpit's in-session
-  controls are not yet walked — the check covers the four nav destinations.
+- **DONE 2026-08-09 — the walk now covers the in-session cockpit and its
+  modals**, which is where an athlete actually spends a session and where the
+  densest controls live. Coverage went from **145 controls to 895**.
+  - Both accessible-name defects were in the SET ROW, the app's core logging
+    interaction: the reps input was unnamed while the weight input beside it
+    carried `aria-label="Effective load for set N"` — one was labelled and the
+    other missed — and the completion checkbox's only name was a `✓` glyph
+    inherited from its wrapping label. A screen-reader user logging a set could
+    not tell weight from reps.
+  - Six undersized cockpit controls fixed: `.run-pace-input` (21px),
+    `.gps-start-btn` (29px), `.wk-clear-link` (35px), `.subview-back-btn` (37px)
+    and the three run inputs (41px). These are reached mid-workout, one-handed,
+    which is the worst case a 44px target exists for.
+  - Three unnamed text inputs in the pickers (`elSearchInput`,
+    `customExerciseTextInput`, `swapCustomInput`) had placeholders only.
+  - Each modal must actually OPEN before it is measured — the opener is asserted,
+    so a selector that stops matching FAILS rather than silently contributing
+    nothing. Verified by introducing a typo in one opener.
+- [ ] Remaining: the run cockpit's live-tracking surface (`run-session-active`)
+  and the onboarding flow are not yet walked.
 - Maintain 44px targets and zoom support.
 - Test TalkBack, keyboard, Switch Access, focus return, Android Back/Escape,
   reduced motion, light/dark contrast, landscape, and 200% text.
@@ -1383,6 +1401,26 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 (third) — the touch-target walk extended to the cockpit and its
+  modals: 145 controls measured → 895.** The four nav destinations are where the
+  app STARTS; the cockpit is where a session is actually spent.
+  - **Both naming defects were in the set row** — the single most-used control in
+    the app. The weight input carried `aria-label="Effective load for set N"`;
+    the reps input beside it carried nothing. Someone labelled one and missed the
+    other, and nothing was watching. The completion checkbox's only name was a
+    `✓` glyph from its wrapping label, which is a name a resolver accepts and a
+    human cannot use.
+  - Six undersized cockpit controls, the worst a 21px pace input. All are reached
+    mid-workout and one-handed.
+  - Every modal opener is ASSERTED, not best-effort: a selector that stops
+    matching fails the check instead of quietly measuring nothing. Verified by
+    introducing a typo. This is the same silent-skip failure the `jt-shed` check
+    shipped for months, and it would have been very easy to reproduce here.
+  - Verified: 1,774 unit tests, typecheck, smoke, precache regenerated, workflow
+    gates, the five cockpit browser checks re-run individually, and the extended
+    check verified to FAIL on both a naming regression and an unopenable modal.
+  - Next: the live-run surface (`run-session-active`) and onboarding.
 
 - **2026-08-09 (later) — Phase 6 accessibility: touch targets measured in the
   real app.** Phase 6 is `CONTINUOUS`, not queued behind Phase 4, so it needed no

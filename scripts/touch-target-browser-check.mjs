@@ -208,21 +208,71 @@ try {
   ];
 
   const all = [];
+  const snap = async (surface) => {
+    const rows = await page.evaluate(MEASURE);
+    if (!rows.length) fail(`${surface} rendered no interactive controls — the walk is measuring nothing`);
+    for (const r of rows) all.push({ surface, ...r });
+    console.log(`  ${surface}: ${rows.length} controls`);
+    return rows.length;
+  };
+
   for (const [surface, sel] of surfaces) {
     if (sel) {
       await page.click(sel);
       await page.waitForSelector('.view-container.active', { timeout: 8000 });
       await page.waitForTimeout(600);
     }
-    const rows = await page.evaluate(MEASURE);
-    if (!rows.length) fail(`${surface} rendered no interactive controls — the walk is measuring nothing`);
-    for (const r of rows) all.push({ surface, ...r });
-    console.log(`  ${surface}: ${rows.length} controls`);
+    await snap(surface);
   }
+
+  // ---- In-session cockpit and the modal surfaces above it -------------------
+  // The four nav destinations are where the app STARTS. The cockpit is where an
+  // athlete actually spends a session, and it holds the densest controls in the
+  // app — the set rows, the run card, the swap and add-exercise pickers. None of
+  // it is reachable from the walk above, and both accessible-name defects found
+  // here lived in it: the reps input in every set row was unnamed while the
+  // weight input beside it was labelled, and the completion checkbox's only
+  // "name" was a ✓ glyph from its wrapping label.
+  await page.click('.nav-item[data-target="home"]').catch(() => {});
+  await page.waitForTimeout(300);
+  await page.click('#homePrimaryCta');
+  await page.waitForSelector('#view-workout .cockpit-ex-name', { timeout: 10000 });
+  await page.waitForTimeout(600);
+  await snap('cockpit');
+
+  // Expand collapsed cards so their set rows are measured, not just the headers.
+  for (const toggle of (await page.$$('#cockpitExercisesContainer [data-action="toggle-accordion"]')).slice(0, 4)) {
+    await toggle.click().catch(() => {});
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(400);
+  await snap('cockpit-expanded');
+
+  // Each modal must actually OPEN before it is measured — a selector that never
+  // matches would silently contribute nothing and still let the check pass, so
+  // every one of these is asserted rather than best-effort.
+  const openModal = async (surface, opener, ready) => {
+    await page.evaluate((sel) => document.querySelector(sel)?.click(), opener);
+    try {
+      await page.waitForSelector(ready, { timeout: 6000 });
+    } catch {
+      fail(`${surface} did not open via ${opener} — the check is not measuring it`);
+      return;
+    }
+    await page.waitForTimeout(400);
+    await snap(surface);
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(300);
+  };
+
+  await openModal('swap-exercise', '[data-action="swap-exercise"]', '#swapExerciseModal.active');
+  await openModal('add-exercise', '[data-action="open-add-exercise"]', '#addExerciseModal.active');
+  await openModal('exercise-detail', '[data-action="el-info"]', '#exerciseDetailModal.active');
+  await openModal('clear-log', '[data-action="open-reset-modal"]', '#confirmResetModal.active');
 
   // Sanity: if the fixture stops reaching the real surfaces this check would
   // pass by measuring an empty app.
-  if (all.length < 100) fail(`expected the full control surface, measured only ${all.length}`);
+  if (all.length < 600) fail(`expected the full control surface, measured only ${all.length}`);
 
   const seen = new Set();
   let exempted = 0;

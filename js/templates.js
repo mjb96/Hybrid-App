@@ -91,11 +91,11 @@ export function buildSetRow(sData, sIdx, safeLiftName, historicalSetData = null,
       ${boSrc ? `<small class="set-backoff-hint">${escapeHtml(backoffHint)}</small>` : ''}
     </div>
     <div class="set-entry">
-      <input type="number" inputmode="numeric" class="input-reps-node" data-target-reps="${escapeHtml(String(prescribedRepGoal || ''))}" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
+      <input type="number" inputmode="numeric" class="input-reps-node" aria-label="Reps for set ${sIdx + 1}" data-target-reps="${escapeHtml(String(prescribedRepGoal || ''))}" placeholder="${escapeHtml(String(ghostReps))}" value="${escapeHtml(String(sData.r || ''))}">
     </div>
     <div class="gym-check-container">
       <label class="gym-check-wrap">
-        <input type="checkbox" class="gym-check" ${sData.c ? 'checked' : ''}>
+        <input type="checkbox" class="gym-check" aria-label="Mark set ${sIdx + 1} complete" ${sData.c ? 'checked' : ''}>
         <span class="gym-check-icon">✓</span>
       </label>
     </div>

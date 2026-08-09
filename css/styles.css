@@ -9025,7 +9025,17 @@ html[data-theme="light"] .activity-filter--active { color: #07566b; }
 .collection-see-all,
 .create-cta-btn,
 .lib-tab,
-#progSearchInput {
+#progSearchInput,
+/* In-session cockpit — the run card and the session-level actions. These are
+   reached mid-workout, often one-handed and sweaty, which is the worst case a
+   44px target exists for. */
+.gps-start-btn,
+.run-pace-input,
+.subview-back-btn,
+.wk-clear-link,
+#runInputDist,
+#runInputTime,
+#runInputRpeCockpit {
   min-height: var(--touch-target);
 }
 
