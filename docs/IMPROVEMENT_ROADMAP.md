@@ -580,6 +580,13 @@ gap in the journey, and is folded into the Phase 6 visual-system work.
 **Status: COMPLETE except readiness-component details, which need a persisted
 readiness history (see 3D) and are deferred to a data-model change.**
 
+**Detail screens re-audited 2026-08-09 — no change warranted.** Every analytics
+context renders lean (22–108 nodes, 406–900px) with no placeholder `--` tiles,
+and the dense load-model dashboard already sits behind an opt-in Stats tab as 3B
+requires. A proposed reorder of the Strength detail was withdrawn: it rested on a
+measurement taken from the wrong element. Render the context by name and count
+before reopening this.
+
 **Outcome:** Progress turns training history into understandable decisions.
 
 ### 3A. Progress landing page
@@ -1473,6 +1480,42 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 (seventh) — Progress detail screens audited; NO change warranted,
+  and the audit exists so this is not re-litigated.**
+  - I proposed a redesign of the Strength detail on the basis that it renders
+    ~867 nodes, opens on ten metrics and shows four `--` tiles above the per-lift
+    progression. **That measurement was wrong.** It came from clicking the first
+    `[data-action="open-analytics"]` in document order — a hidden control in an
+    unrelated section — rather than the hub's Strength card, and from a fixture
+    with no RPE logged, which is why load metrics read `--`.
+  - Rendering every context deliberately gives the real picture. All eight are
+    lean and none shows a single `--`:
+
+    | context | nodes | height |
+    |---|---:|---:|
+    | strength | 37 | 601px |
+    | strength-volume | 92 | 900px |
+    | muscle | 76 | 842px |
+    | weekly-review | 22 | 406px |
+    | running | 25 | 469px |
+    | recovery | 38 | 842px |
+    | hybrid-score | 108 | 565px |
+    | projections | 43 | 570px |
+
+  - The dense load-model dashboard is real but lives behind an **Overview | Stats**
+    tab the athlete opts into — which is exactly what 3B asks for ("keep CTL/ATL/
+    TSB and formula-level values behind explanations"). It was already right.
+  - **Phase 3 needs no presentation work.** The remaining item is still readiness
+    COMPONENTS, still blocked on a persisted readiness series, still deliberately
+    deferred. Do not re-open the detail screens on the strength of a screenshot;
+    render the context and count.
+  - Method note worth keeping: two of my measurements this session were wrong in
+    the same way — a selector that matched something other than what I believed
+    it matched, reported with confidence. The touch-target and performance checks
+    both survived because I verified them by making them FAIL. This audit did not
+    have that property until I rendered each context by name.
+
 
 - **2026-08-09 (sixth) — a personal copy silently lost its programme's
   progression, reported from real use.** Shed PPLUL showed **4 × 8 for every
