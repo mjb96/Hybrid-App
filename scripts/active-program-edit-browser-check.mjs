@@ -15,7 +15,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -39,10 +39,15 @@ const BASE = `http://127.0.0.1:${port}`;
 const TZ = 'Australia/Sydney';
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 
-const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
+// PINNED, not read from the clock. Scenario C activates the real
+// `stronglifts_5x5`, whose rest days depend on the weekday, and the two earlier
+// scenarios reach the cockpit through Home — which routes by calendar day.
+const todayISO = '2026-08-03';   // a Monday in Australia/Sydney
+const CLOCK = Date.parse(`${todayISO}T09:00:00+10:00`);
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 // Weekday of "today" in the fixed timezone — the cockpit defaults to this day.
-const todayKey = DAY_KEYS[new Date(`${todayISO}T12:00:00`).getUTCDay()];
+// Noon UTC, so the weekday cannot shift with the host's timezone.
+const todayKey = DAY_KEYS[new Date(`${todayISO}T12:00:00Z`).getUTCDay()];
 const emptySet = () => ({ w: '', r: '', c: false });
 const restDay = () => ({ title: 'Rest', badge: 'Rest', color: 'var(--text-muted)', desc: '', runs: 'Rest', lifts: [] });
 
@@ -84,7 +89,7 @@ function builtInFixture() {
   return {
     schemaVersion: 5, currentWeek: '2', activeProgramId: 'stronglifts_5x5', activeActivationId: 'act_bi',
     settings: { name: 'T', theme: 'dark', weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', onboardingComplete: true },
-    activations: [{ id: 'act_bi', programId: 'stronglifts_5x5', startWeek: 1, status: 'active', startedAt: new Date().toISOString() }],
+    activations: [{ id: 'act_bi', programId: 'stronglifts_5x5', startWeek: 1, status: 'active', startedAt: new Date(CLOCK).toISOString() }],
     customPrograms: [],
     weeks: { '2': { activationId: 'act_bi', dates: {}, sessionStatus: {}, lifts: {}, liftOrder: {}, runs: {}, runSessions: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} } },
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
@@ -96,6 +101,7 @@ async function newPage(browser, fixture = baseFixture()) {
   // Seed ONLY on first load — the init script re-runs on reload, and clobbering
   // localStorage there would hide whether the edit actually persisted.
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture)]);
+  await ctx.addInitScript(pinClock, CLOCK);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

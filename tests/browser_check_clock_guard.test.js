@@ -47,11 +47,8 @@ function checkScripts() {
 // backlog is worked off, not to bless it. Each of these is a latent red `main`
 // on whichever weekday its fixture programme happens to rest.
 const UNPINNED_BACKLOG = [
-  'active-program-edit-browser-check.mjs',
   'gym-performance-browser-check.mjs',
   'home-attribution-check.mjs',
-  'home-today-browser-check.mjs',
-  'jt-shed-browser-check.mjs',
   'progress-hub-browser-check.mjs',
   'run-performance-browser-check.mjs',
   'running-analytics-check.mjs',
