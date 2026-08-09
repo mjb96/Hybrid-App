@@ -1182,28 +1182,40 @@ class:
 - a check that reads a weekday (`getDay`/`getUTCDay`) from the **wall clock**
   must also `pinClock`;
 - no check may gate its main assertion on today's weekday (the silent-skip shape);
-- an `UNPINNED_BACKLOG` list records the **ten** checks that still read the clock
-  and may only ever SHRINK — a companion test fails if a name stays on it after
-  the check is pinned. It stops the class growing while the backlog is worked off;
-  it does not bless it.
+- an `UNPINNED_BACKLOG` list records the checks that still read the clock and may
+  only ever SHRINK — a companion test fails if a name stays on it after the check
+  is pinned. It stops the class growing while the backlog is worked off; it does
+  not bless it.
 
-Backlog, classified 2026-08-08 — the ten are NOT equally risky, and the guard's
+Backlog, classified 2026-08-08 — the ten were NOT equally risky, and the guard's
 regex is deliberately broader than the real hazard:
 
-- **Genuinely fragile (3)** — these use the weekday as a PROGRAM DAY KEY, so they
-  assume the programme has a session today: `home-today`,
-  `active-program-edit`, `jt-shed` (which already branches on
-  `isJtTrainingDay`, so it may be safe by construction — check before pinning).
-  These are the ones that can turn `main` red on the wrong weekday.
+- **Genuinely fragile (3) — PINNED 2026-08-09.** These used the weekday as a
+  PROGRAM DAY KEY, so they assumed the programme had a session today. All three
+  now pin to Monday 2026-08-03 in `Australia/Sydney` and were each run
+  individually to a pass:
+  - `home-today` — also declared **no** `timezoneId`, so node and the page could
+    disagree about the calendar day, and a run crossing midnight built the
+    fixture for one day and asserted against another.
+  - `active-program-edit` — Scenario C activates the real `stronglifts_5x5`,
+    whose rest days move with the weekday.
+  - `jt-shed` — the worst of the three, and **not** safe by construction as the
+    2026-08-08 classification guessed. Its `isJtTrainingDay` / `isMainLiftDay`
+    branches SKIPPED scenarios B, C and D on the days that did not suit them, so
+    on Wednesday and Sunday it asserted almost nothing and still reported a pass
+    — the same silent-skip shape as `jt-shed-simplified`, which the guard's regex
+    did not match because it wore a different spelling. The branches are gone;
+    the pinned date is asserted to be a main-lift day at load, so a future edit to
+    the date fails loudly instead of quietly reducing coverage.
+  - Also fixed in all three: `new Date(\`${iso}T12:00:00\`)` parses as LOCAL time,
+    so `.getUTCDay()` could return the previous day on a host east of UTC. Now
+    `T12:00:00Z`, matching `js/dates.js`.
 - **Arithmetic only (7)** — `gym-performance`, `home-attribution`,
   `progress-hub`, `run-performance`, `running-analytics`, `strength-volume`,
   `volume-guide` read a weekday purely to compute the Monday of the current week.
   Pinning them is harmless but not urgent, and blanket-pinning risks breaking
-  fixtures that legitimately want dates relative to today.
-
-All ten pass on a Sunday (CI's own Sunday run failed exactly two of thirty), so
-none is an active failure. **Next slice: pin the three fragile ones**, verifying
-each individually rather than sweeping.
+  fixtures that legitimately want dates relative to today. `UNPINNED_BACKLOG` is
+  now these seven.
 
 ### A silent skip is not a pass — FIXED 2026-08-07
 
@@ -1339,6 +1351,33 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-09 — the three fragile clock-dependent checks pinned; one of them was
+  not asserting what its name claims.** `home-today`, `active-program-edit` and
+  `jt-shed` now pin to Monday 2026-08-03 in `Australia/Sydney`. Each was run
+  individually to a pass rather than swept.
+  - **`jt-shed` was worse than the 2026-08-08 classification guessed.** That entry
+    reasoned it "already branches on `isJtTrainingDay`, so it may be safe by
+    construction". The branching WAS the defect: scenarios B, C and D were skipped
+    whole on the weekdays that did not suit them, so on Wednesday and Sunday the
+    check ran, printed a handful of `ok` lines and passed without exercising the
+    cockpit, the switch-away-and-back guarantee, or the Block-2 back-off model at
+    all. Guarding against a red `main` had quietly become a hole in coverage.
+    Removing the branches restored 25 assertions that only ran four days in seven.
+  - The guard test's silent-skip regex matches `if (expectedByDay[todayKey])` and
+    did not see `if (isJtTrainingDay)`. A regex over shapes catches the shape it
+    was written for; it is a ratchet against regression, not a search for
+    instances. The remaining seven were re-read rather than trusted to it.
+  - Also fixed in all three: `new Date(\`${iso}T12:00:00\`)` parses as LOCAL time,
+    so `.getUTCDay()` could name the previous day on a host east of UTC. CI runs
+    in UTC, so this was invisible there. Now `T12:00:00Z`.
+  - `UNPINNED_BACKLOG` is down from ten to seven — all arithmetic-only
+    (week-start maths), none of which uses the weekday as a program day key.
+  - Verified: 1,769 unit tests, typecheck, smoke, precache manifest, and all three
+    edited checks re-run individually.
+  - Next: the Phase 6 accessibility sweep (44px targets, keyboard reachability,
+    labels on icon controls and charts) — Phase 6 is `CONTINUOUS`, not queued
+    behind Phase 4, and this session's browser work surfaced concrete offenders.
 
 - **2026-08-08 — `main` red on a Sunday, and the fix is a guard rather than a
   third patch.** `train-landing` and `active-run` both failed because

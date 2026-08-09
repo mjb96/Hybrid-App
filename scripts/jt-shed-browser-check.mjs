@@ -23,7 +23,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -48,17 +48,25 @@ const TZ = 'Australia/Sydney';
 const STORAGE_KEY = 'hybrid_engine_v2_state';
 const JT_ID = 'jt_shed_edition';
 
-const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
+// PINNED, not read from the clock.
+//
+// J&T rests on Wednesday and Sunday, and Saturday is the bodybuilding session —
+// its lead exercise is tier 'Specialization' with no T1 and no T2a, so the
+// tier-specific expectations (rep-max target, 4 × 10, and the Block-2
+// top-set/back-off/plus roles) only hold on the four main-lift days.
+//
+// This check used to branch on today's weekday and SKIP scenarios B, C and D on
+// the days that did not suit them, still reporting a pass. On Wednesday and
+// Sunday that meant it asserted almost nothing. Pinning to a Monday lets every
+// scenario run unconditionally, every day.
+const todayISO = '2026-08-03';   // a Monday in Australia/Sydney
+const CLOCK = Date.parse(`${todayISO}T09:00:00+10:00`);
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-const todayKey = DAY_KEYS[new Date(`${todayISO}T12:00:00`).getUTCDay()];
-const isJtTrainingDay = ['mon', 'tue', 'thu', 'fri', 'sat'].includes(todayKey);
-// Saturday IS a training day, but it is the bodybuilding session ("Back, Arms,
-// Delts & Core" — explicitly "without turning this into another main-lift day").
-// Its lead exercise is tier 'Specialization' and its second is 'T2b'; there is no
-// T1 and no T2a. So tier-specific expectations (rep-max target, 4 × 10, and the
-// Block-2 top-set/back-off/plus roles) only hold on the four main-lift days.
-// Asserting them on Saturday made this check pass Mon/Tue/Thu/Fri and fail Sat.
-const isMainLiftDay = ['mon', 'tue', 'thu', 'fri'].includes(todayKey);
+// Noon UTC, so the weekday cannot shift with the host's timezone.
+const todayKey = DAY_KEYS[new Date(`${todayISO}T12:00:00Z`).getUTCDay()];
+if (!['mon', 'tue', 'thu', 'fri'].includes(todayKey)) {
+  throw new Error(`The pinned date must be a J&T main-lift day; ${todayISO} is a ${todayKey}.`);
+}
 
 const failures = [];
 const fail = (m) => { failures.push(m); console.error(`FAIL: ${m}`); };
@@ -74,7 +82,7 @@ function otherActiveFixture() {
   return {
     schemaVersion: 5, currentWeek: '1', activeProgramId: 'stronglifts_5x5', activeActivationId: 'act_sl',
     settings: { name: 'T', theme: 'dark', weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', onboardingComplete: true },
-    activations: [{ id: 'act_sl', programId: 'stronglifts_5x5', startWeek: 1, status: 'active', startedAt: new Date().toISOString() }],
+    activations: [{ id: 'act_sl', programId: 'stronglifts_5x5', startWeek: 1, status: 'active', startedAt: new Date(CLOCK).toISOString() }],
     customPrograms: [],
     weeks: { '1': { activationId: 'act_sl', dates: {}, sessionStatus: {}, lifts: {}, liftOrder: {}, runs: {}, runSessions: {}, notes: {}, gymRpe: {}, bodyWeight: {}, gymStats: {}, liftMeta: {} } },
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
@@ -88,7 +96,7 @@ function jtWeek7Fixture() {
   return {
     schemaVersion: 5, currentWeek: '7', activeProgramId: JT_ID, activeActivationId: 'act_jt',
     settings: { name: 'T', theme: 'dark', weightUnit: 'kg', distanceUnit: 'km', weekStartDay: 'mon', onboardingComplete: true },
-    activations: [{ id: 'act_jt', programId: JT_ID, startWeek: 1, status: 'active', startedAt: new Date().toISOString() }],
+    activations: [{ id: 'act_jt', programId: JT_ID, startWeek: 1, status: 'active', startedAt: new Date(CLOCK).toISOString() }],
     customPrograms: [],
     weeks: {},
     programLibrary: { bookmarks: [], completions: [], recentlyViewed: [], personalRatings: {}, activeFilters: {} },
@@ -98,6 +106,7 @@ function jtWeek7Fixture() {
 async function newPage(browser, fixture) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture)]);
+  await ctx.addInitScript(pinClock, CLOCK);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -220,10 +229,9 @@ try {
     eq(s.currentWeek, '1', 'B2 activation starts at program Week 1');
     eq((s.customPrograms || []).length, 0, 'B3 activation created no duplicate library/custom copy');
 
-    // Session note through the cockpit (only when today is a J&T training day —
-    // on a rest day the cockpit correctly has no session, which also proves rest
-    // days are not generated as empty workouts).
-    if (isJtTrainingDay) {
+    // Session note through the cockpit. The pinned day is a main-lift day, so
+    // this runs on every CI run rather than only on the weekdays that suited it.
+    {
       await page.click('.nav-item[data-target="home"]').catch(() => {});
       await page.waitForTimeout(200);
       await page.click('#homePrimaryCta');
@@ -250,13 +258,9 @@ try {
       })));
       const t1Card = cards.find(c => c.name === order[0]);
       const t2aCard = cards.find(c => c.name === order[1]);
-      if (isMainLiftDay) {
-        ok(t1Card && /RM/.test(t1Card.target) && !/4 × 10/.test(t1Card.target),
-          `B4d T1 label shows a rep-max target, not 4 × 10 (got "${t1Card && t1Card.target}")`);
-        ok(t2aCard && /4 × 10/.test(t2aCard.target), `B4e T2a label shows 4 × 10 (got "${t2aCard && t2aCard.target}")`);
-      } else {
-        console.log(`  ok · B4d–B4e skipped — today (${todayKey}) is the bodybuilding day (lead tier is Specialization, no T1/T2a)`);
-      }
+      ok(t1Card && /RM/.test(t1Card.target) && !/4 × 10/.test(t1Card.target),
+        `B4d T1 label shows a rep-max target, not 4 × 10 (got "${t1Card && t1Card.target}")`);
+      ok(t2aCard && /4 × 10/.test(t2aCard.target), `B4e T2a label shows 4 × 10 (got "${t2aCard && t2aCard.target}")`);
       ok(cards.some(c => /MRS/.test(c.target)), 'B4f at least one exercise labels its max-rep sets (MRS)');
       // The default-expanded T1 card renders its real 4 set rows in the DOM.
       if (t1Card && t1Card.rows > 0) eq(t1Card.rows, 4, 'B4g expanded T1 card renders 4 real set rows');
@@ -264,8 +268,9 @@ try {
       // B4h — the T1 set rows carry tier ROLES (top set + back-off + a plus set on
       // the FINAL back-off), derived from the structured prescription rather than
       // guessed from raw position. This is the logger fix under test.
-      if (isMainLiftDay && t1Card && t1Card.rows > 0) {
-        const t1RowSel = `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] .cockpit-set-row`;
+      ok(t1Card && t1Card.rows > 0, 'B4h-pre T1 card renders real set rows for the role assertions');
+      {
+        const t1RowSel =`#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] .cockpit-set-row`;
         const t1Roles = await page.$$eval(t1RowSel, els => els.map(e => e.getAttribute('data-set-role')));
         eq(t1Roles, ['repmax', 'backoff', 'backoff', 'plus'], 'B4h T1 rows = top set · back-off · back-off · plus');
         const plusLabel = await page.$eval(
@@ -276,8 +281,6 @@ try {
           `#cockpitExercisesContainer .cockpit-exercise[data-liftname="${order[0]}"] [data-set-role="repmax"].set-role-tag`,
           el => el.textContent.trim()).catch(() => '');
         ok(/Top set/i.test(topLabel) && /RM/.test(topLabel), `B4j top set labels its rep-max (got "${topLabel}")`);
-      } else if (!isMainLiftDay) {
-        console.log(`  ok · B4h–B4j skipped — today (${todayKey}) has no T1, so no top-set/back-off/plus roles apply`);
       }
 
       // B4k — a target/MRS accessory (expand its collapsed card) shows the
@@ -301,9 +304,6 @@ try {
       await page.reload({ waitUntil: 'networkidle' });
       const afterReload = await readState(page);
       eq(afterReload.weeks['1'].notes[todayKey], NOTE, 'B6 session note survives reload');
-    } else {
-      console.log(`  ok · B4–B6 skipped — today (${todayKey}) is a J&T rest day (no empty workout generated)`);
-      ok(!(await page.$('#homePrimaryCta[data-x-nonexistent]')), 'B4b rest day handled without a phantom session');
     }
 
     if (errors.length) fail(`B browser errors: ${errors.join(' | ')}`);
@@ -311,7 +311,7 @@ try {
   }
 
   // ---- Scenario C: switch away and back — no mutation, no stale completion ----
-  if (isJtTrainingDay) {
+  {
     const { ctx, page, errors } = await newPage(browser, otherActiveFixture());
 
     // Activate J&T, log a completed first set + a note on today's session.
@@ -372,14 +372,12 @@ try {
 
     if (errors.length) fail(`C browser errors: ${errors.join(' | ')}`);
     await ctx.close();
-  } else {
-    console.log(`  ok · Scenario C skipped — today (${todayKey}) is a J&T rest day`);
   }
 
   // ---- Scenario D: Block-2 dynamic back-off + role stability + history -------
-  // Only main-lift days (mon/tue/thu/fri) carry a T1 exercise; other days skip.
-  // (isMainLiftDay is defined next to isJtTrainingDay — Scenario B needs it too.)
-  if (isMainLiftDay) {
+  // Only main-lift days (mon/tue/thu/fri) carry a T1 exercise, which is why the
+  // pinned date is a Monday and asserted as one above.
+  {
     const { ctx, page, errors } = await newPage(browser, jtWeek7Fixture());
     await page.click('.nav-item[data-target="home"]').catch(() => {});
     await page.waitForTimeout(200);
@@ -481,8 +479,6 @@ try {
 
     if (errors.length) fail(`D browser errors: ${errors.join(' | ')}`);
     await ctx.close();
-  } else {
-    console.log(`  ok · Scenario D skipped — today (${todayKey}) has no J&T T1 (Block-2) exercise`);
   }
 
   if (failures.length) { console.error(`\n${failures.length} failure(s).`); process.exit(1); }

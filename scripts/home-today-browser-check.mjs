@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -47,13 +47,18 @@ const ok = (condition, label) => {
   else { failures.push(label); console.error(`FAIL: ${label}`); }
 };
 
-const now = new Date();
-const todayISO = new Intl.DateTimeFormat('en-CA').format(now);
-const todayDay = DAY_KEYS[now.getDay()];
-const otherDay = DAY_KEYS[(now.getDay() + 6) % 7];
-const yesterday = new Date(now);
-yesterday.setDate(yesterday.getDate() - 1);
-const yesterdayISO = new Intl.DateTimeFormat('en-CA').format(yesterday);
+// PINNED, not read from the clock. Two things went wrong while these dates came
+// from `new Date()`: the browser context declared no timezone, so node and the
+// page could disagree about which calendar day it was, and a run that crossed
+// midnight computed the fixture for one day and asserted against another.
+const TZ = 'Australia/Sydney';
+const todayISO = '2026-08-03';   // a Monday in Australia/Sydney
+const CLOCK = Date.parse(`${todayISO}T09:00:00+10:00`);
+const now = new Date(CLOCK);
+// Noon UTC so the weekday cannot shift with the host's timezone.
+const todayDay = DAY_KEYS[new Date(`${todayISO}T12:00:00Z`).getUTCDay()];
+const otherDay = DAY_KEYS[(DAY_KEYS.indexOf(todayDay) + 6) % 7];
+const yesterdayISO = new Date(Date.parse(`${todayISO}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
 
 function program(restToday = false) {
   return {
@@ -120,9 +125,10 @@ function fixture({ state = 'ready', theme = 'dark' } = {}) {
 }
 
 async function openState({ state, theme = 'dark', width = 390, height = 844 }) {
-  const context = await browser.newContext({ viewport: { width, height } });
+  const context = await browser.newContext({ viewport: { width, height }, timezoneId: TZ });
   const seed = fixture({ state, theme });
   await context.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORAGE_KEY, JSON.stringify(seed)]);
+  await context.addInitScript(pinClock, CLOCK);
   const page = await context.newPage();
   await page.goto(BASE, { waitUntil: 'networkidle' });
   if (state === 'no_plan') await page.locator('#view-program.active').waitFor();
