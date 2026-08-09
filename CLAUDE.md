@@ -81,6 +81,25 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   a fallback. `scripts/safe-area-browser-check.mjs` is the only check that publishes a
   non-zero inset; without it this defect class is invisible to a desktop-Chromium suite.
   Backdrops that render no content are deliberately NOT padded.
+- Touch targets: 44px (`--touch-target`) is MEASURED in the running app by
+  `scripts/touch-target-browser-check.mjs`, which walks the four nav destinations and
+  sizes the EFFECTIVE hit area. `tests/accessibility.test.js` greps `index.html` and so
+  can only ever see the static shell — most controls are rendered from JS template
+  literals, which is where every offender lived (a 5×5 carousel dot, a 19px metric tab).
+  Two mechanisms: `min-height: var(--touch-target)` where the box can grow, and
+  `.hit-target` (`css/styles.css`) where the visual size is deliberate — it grows a
+  centred `::after` that takes the taps while the paint is unchanged. NEVER expand a hit
+  area past half the gap to the next control: overlapping targets do not merge, the
+  later element wins the overlap and the earlier one becomes UNREACHABLE (this is why
+  the carousel dots stop at their 10px pitch instead of taking a nominal 44px). The
+  check's `EXEMPT` list is for geometric impossibility only and is ratcheted by
+  `tests/touch_target_exemptions.test.js`: at most three entries, each stating
+  arithmetic rather than a preference. The check probes REACHABILITY with
+  `elementFromPoint` rather than reading CSS, so it must `scrollIntoView` each
+  control first — without that everything is below the fold, every probe returns
+  null and the check quietly degrades to trusting the declaration. A point
+  outside the viewport is UNKNOWN, not unreachable (one pair of In Focus week
+  arrows sits at x≈615 inside a horizontal scroller).
 - Service-worker cache: `CACHE_NAME` carries a generated content hash
   (`scripts/gen-precache.mjs`), so editing any precached asset changes `sw.js` and the
   upgrade fires. Non-JS assets are cache-first and a browser only reinstalls a worker

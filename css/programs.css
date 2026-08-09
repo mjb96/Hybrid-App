@@ -410,9 +410,17 @@ html[data-theme="light"] .active-prog-ring-track { stroke: rgba(0,0,0,0.10); }
   z-index: 2;
 }
 
+/* A 5×5 dot was a 25px² target — the smallest control in the app by an order of
+   magnitude. The dot stays 5px; `.hit-target` (css/styles.css) grows what the
+   finger hits to the full 44px height.
+   Horizontally it expands only to its own pitch (5px dot + 5px gap): three dots
+   sit 10px apart, so a 44px-wide hit area would overlap its neighbours and the
+   last dot would swallow the taps meant for the first two. A reachable 10×44 is
+   worth more than a nominal 44×44 that makes two of the three unhittable. */
 .hero-dot-btn {
   width: 5px;
   height: 5px;
+  --hit-w: 10px;
   border-radius: 50%;
   background: rgba(255,255,255,0.3);
   border: none;

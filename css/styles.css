@@ -7362,7 +7362,10 @@ html[data-theme="light"] .fasting-history-row.fhr--editing { background: rgba(24
   gap: 8px;
   margin-bottom: 8px;
 }
+/* 28px circle, 44px hit area — see .hit-target. The two arrows sit at opposite
+   ends of the week label, so there is no neighbour to overlap. */
 .wfg-arrow {
+  position: relative;
   width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(59,130,246,0.12);
@@ -8981,6 +8984,54 @@ html[data-theme="light"] .activity-filter--active { color: #07566b; }
   width: var(--touch-target);
   height: var(--touch-target);
 }
+
+/* --------------------------------------------------------------------------
+   HIT AREA vs VISUAL SIZE
+   --------------------------------------------------------------------------
+   Most controls just take `min-height: var(--touch-target)`. A few cannot:
+   a 19px segmented tab, a 28px circular arrow and a 5px carousel dot are
+   deliberate visual sizes, and growing the BOX would redesign the component.
+
+   For those, `.hit-target` grows only what the finger hits. The ::after is a
+   child of the control, so a tap on it dispatches to the control itself; it
+   carries no paint, so the component looks byte-identical.
+
+   Two rules when applying it:
+     • The parent needs a stacking context that does not clip — a hit area
+       inside `overflow: hidden` is cropped back to nothing.
+     • NEVER expand past half the gap to the next control. Overlapping hit
+       areas do not make two small targets one big one; the later element
+       wins the overlap and the earlier one becomes UNREACHABLE. That is why
+       the carousel dots below expand vertically to 44px but horizontally
+       only to their own pitch.
+   -------------------------------------------------------------------------- */
+.hit-target { position: relative; }
+.hit-target::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100%, var(--hit-w, var(--touch-target)));
+  height: max(100%, var(--hit-h, var(--touch-target)));
+}
+
+/* Grow the box where there is room for it. The two segmented controls
+   (.wfg-tab at 19px, .lib-tab at 33px) and the 11px "See all" link were also
+   below the roadmap's legibility bar, so growing them is the right fix rather
+   than hiding a small control behind a large hit area. */
+.wfg-detail-link,
+.wfg-tab,
+.collection-see-all,
+.create-cta-btn,
+.lib-tab,
+#progSearchInput {
+  min-height: var(--touch-target);
+}
+
+/* "See all" is only as wide as its text (~34px), and it sits at the end of a
+   flex header with room to spare. */
+.collection-see-all { min-width: var(--touch-target); }
 
 .settings-toggle-btn { min-width: var(--touch-target); }
 

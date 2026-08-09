@@ -34,6 +34,9 @@ const checks = [
   'scripts/copy-program-browser-check.mjs',
   'scripts/modal-accessibility-check.mjs',
   'scripts/core-ergonomics-check.mjs',
+  // Last: walks all four destinations, so it is the slowest of the a11y checks
+  // and the most useful to read after the feature checks have had their say.
+  'scripts/touch-target-browser-check.mjs',
 ];
 
 // Run EVERY check, then fail at the end.
