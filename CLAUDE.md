@@ -157,7 +157,7 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   A mid-run `onPositionError` must never tear down the session.
 - No iOS project exists. iOS is OUT OF SCOPE for the current launch push.
 - Exercise metadata: `instructions`/`difficulty`/`safetyNotes` are AUTHORED per
-  exercise via `REVIEWED()` and land a batch at a time (48/155 done, picked by
+  exercise via `REVIEWED()` and land a batch at a time (64/155 done, picked by
   real programme usage). `tests/exercise_catalog.test.js` guards the shape — an
   entry with instructions must have a valid difficulty and a safety note, and
   every line must read as a sentence. Safety notes are a claim shown to someone
