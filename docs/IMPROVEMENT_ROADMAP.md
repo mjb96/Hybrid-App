@@ -969,7 +969,15 @@ still left the mistake permanent.
     Pulldown, Front Squat, Band Face Pull, Push-Up, Dip, Incline DB Curl, Hanging
     Leg Raise, Close-Grip Bench, One-Arm DB Row, DB Lying Leg Curl, Leg Curl,
     SkiErg.
-  - **107 entries remain.** Safety notes are a claim shown to someone loading a
+  - **Batch 4 shipped 2026-08-09 — 64 of 155.** Same selection method: Chest-
+    Supported DB Row, Ab Wheel Rollout, Farmer Carry, Skull Crusher, DB Curl,
+    Reverse Lunge, Incline Barbell Bench, Overhead Triceps Extension, Cable Row,
+    DB Romanian Deadlift, Band Leg Curl, Barbell Standing Calf Raise, Seated Calf
+    Raise, Burpee Broad Jump, Sled Push, Wall Ball. **This clears every exercise
+    referenced more than once by the programme catalogue** — the remaining 91 are
+    each used 0–1 times, so batch 5 onward is long-tail coverage rather than
+    lifts an athlete is likely to meet in the cockpit.
+  - **91 entries remain.** Safety notes are a claim shown to someone loading a
     barbell, so batches stay small enough to read in a PR rather than being
     bulk-generated. This content is conservative, standard gym guidance offered
     FOR REVIEW, not as expert instruction. Coverage past roughly the top 30 lifts
