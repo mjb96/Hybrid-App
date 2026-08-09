@@ -738,7 +738,7 @@
           <span class="run-pace-unit" id="runPaceUnit">/km</span>
         </div>
 
-        <textarea id="runInputNotes" class="run-notes-input" placeholder="How did it feel? Route, conditions, notes…"></textarea>
+        <textarea id="runInputNotes" class="run-notes-input" aria-label="Run notes" placeholder="How did it feel? Route, conditions, notes…"></textarea>
 
         <div id="runExtraStats" style="display: none; padding-top: 8px; border-top: 1px dashed rgba(34,211,238,0.2);">
           <div class="run-grid-inputs mb-2">
@@ -1952,7 +1952,7 @@
         <button class="settings-close-btn" data-action="close-add-exercise" aria-label="Close">&#x2715;</button>
       </div>
       <div class="el-search-wrap">
-        <input type="search" id="elSearchInput" class="el-search" placeholder="Search exercises&#x2026;" autocomplete="off">
+        <input type="search" id="elSearchInput" class="el-search" aria-label="Search exercises" placeholder="Search exercises&#x2026;" autocomplete="off">
       </div>
       <div class="el-filter-row">
         <label><span class="sr-only">Filter by muscle</span><select id="elMuscleFilter">
@@ -1996,7 +1996,7 @@
       <p id="elResultSummary" class="el-result-summary" role="status" aria-live="polite"></p>
       <div class="el-list" id="elList"></div>
       <div class="el-custom-row">
-        <input type="text" id="customExerciseTextInput" class="el-custom-input" placeholder="Or type a custom exercise name&#x2026;" autocomplete="off">
+        <input type="text" id="customExerciseTextInput" class="el-custom-input" aria-label="Custom exercise name" placeholder="Or type a custom exercise name&#x2026;" autocomplete="off">
         <button class="el-custom-add-btn" data-action="confirm-add-exercise">Add</button>
       </div>
     </div>
@@ -2031,7 +2031,7 @@
       <p class="text-xs text-muted" id="swapSubtitle" style="padding:0 16px 8px;">Same movement, kit you have. Your target and any logged sets carry over.</p>
       <div class="el-list" id="swapList"></div>
       <div class="el-custom-row">
-        <input type="text" id="swapCustomInput" class="el-custom-input" placeholder="Or type any exercise to swap in&#x2026;" autocomplete="off">
+        <input type="text" id="swapCustomInput" class="el-custom-input" aria-label="Exercise to swap in" placeholder="Or type any exercise to swap in&#x2026;" autocomplete="off">
         <button class="el-custom-add-btn" data-action="swap-confirm-custom">Swap</button>
       </div>
     </div>

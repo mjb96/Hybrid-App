@@ -107,6 +107,15 @@ const EXEMPT = [
     why: 'one of 7 day columns in a 390px chart; full plot height is the target',
     minW: 30, minH: 44,
   },
+  {
+    match: (c) => c.mapCredit,
+    // Leaflet's required attribution link, injected into the live-run map. It is
+    // a 14px credit line, not a control the athlete is meant to operate, and the
+    // map is 220px tall — a 44px-tall credit bar would cover a fifth of it. The
+    // zoom buttons in the same map are NOT exempt and were resized to 44×44.
+    why: 'third-party map credit link, 14px line over a 220px map; not an operable control',
+    minW: 44, minH: 14,
+  },
 ];
 
 const MEASURE = () => {
@@ -124,6 +133,20 @@ const MEASURE = () => {
     el.scrollIntoView({ block: 'center', inline: 'center' });
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
+
+    // COVERED controls are not this surface's controls. While onboarding is up,
+    // Home is still `.view-container.active` underneath it, so its week arrows
+    // were being measured and — correctly — found unreachable through the
+    // overlay. That is not a defect in the arrows; they are simply not on offer
+    // right now. If the control's own centre resolves to an element that is
+    // neither it, its descendant, nor its ancestor, something is on top of it.
+    {
+      const midX = r.left + r.width / 2;
+      const midY = r.top + r.height / 2;
+      const onScreen = midX >= 0 && midY >= 0 && midX <= innerWidth && midY <= innerHeight;
+      const atCentre = onScreen ? document.elementFromPoint(midX, midY) : null;
+      if (atCentre && !el.contains(atCentre) && !atCentre.contains(el)) continue;
+    }
 
     const after = getComputedStyle(el, '::after');
     const grown = after.content !== 'none';
@@ -181,6 +204,9 @@ const MEASURE = () => {
       w: Math.round(hitW * 10) / 10,
       h: Math.round(hitH * 10) / 10,
       name: name.slice(0, 40),
+      // Leaflet injects its own credit link into the map; it has no class of its
+      // own, so the exemption below needs the container to identify it.
+      mapCredit: !!el.closest('.leaflet-control-attribution'),
     });
   }
   return out;
@@ -192,13 +218,37 @@ const describe = (c) => `[${c.surface}] ${c.tag}${c.id ? '#' + c.id : ''}${c.cls
 
 const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
 try {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
-  await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(fixture)]);
-  await context.addInitScript(pinClock, CLOCK);
-  const page = await context.newPage();
+  // Geolocation is stubbed rather than mocked through Playwright's own API, so
+  // the live run starts from a fix this check chose. Same shape as
+  // active-run-browser-check.mjs.
+  const GPS_STUB = () => {
+    let cb = null;
+    const base = { lat: -33.865, lng: 151.2095, t: Date.now() };
+    /** @type {any} */ (window).__gpsFeed = (i, acc) => {
+      if (!cb) return false;
+      cb({ coords: { latitude: base.lat + i * 0.0009, longitude: base.lng, accuracy: acc }, timestamp: base.t + i * 20000 });
+      return true;
+    };
+    navigator.geolocation.watchPosition = (success) => { cb = success; return 1; };
+    navigator.geolocation.clearWatch = () => { cb = null; };
+  };
+
   const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(BASE, { waitUntil: 'networkidle' });
+  const newContext = async (state) => {
+    const ctx = await browser.newContext({
+      viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark',
+      permissions: ['geolocation'], geolocation: { latitude: -33.865, longitude: 151.2095 },
+    });
+    if (state) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, state]);
+    await ctx.addInitScript(pinClock, CLOCK);
+    await ctx.addInitScript(GPS_STUB);
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(e.message));
+    await p.goto(BASE, { waitUntil: 'networkidle' });
+    return { ctx, page: p };
+  };
+
+  const { ctx: context, page } = await newContext(JSON.stringify(fixture));
 
   const surfaces = [
     ['home', null],
@@ -208,21 +258,113 @@ try {
   ];
 
   const all = [];
+  const snapOn = async (target, surface) => {
+    const rows = await target.evaluate(MEASURE);
+    if (!rows.length) fail(`${surface} rendered no interactive controls — the walk is measuring nothing`);
+    for (const r of rows) all.push({ surface, ...r });
+    console.log(`  ${surface}: ${rows.length} controls`);
+    return rows.length;
+  };
+  const snap = (surface) => snapOn(page, surface);
+
   for (const [surface, sel] of surfaces) {
     if (sel) {
       await page.click(sel);
       await page.waitForSelector('.view-container.active', { timeout: 8000 });
       await page.waitForTimeout(600);
     }
-    const rows = await page.evaluate(MEASURE);
-    if (!rows.length) fail(`${surface} rendered no interactive controls — the walk is measuring nothing`);
-    for (const r of rows) all.push({ surface, ...r });
-    console.log(`  ${surface}: ${rows.length} controls`);
+    await snap(surface);
+  }
+
+  // ---- In-session cockpit and the modal surfaces above it -------------------
+  // The four nav destinations are where the app STARTS. The cockpit is where an
+  // athlete actually spends a session, and it holds the densest controls in the
+  // app — the set rows, the run card, the swap and add-exercise pickers. None of
+  // it is reachable from the walk above, and both accessible-name defects found
+  // here lived in it: the reps input in every set row was unnamed while the
+  // weight input beside it was labelled, and the completion checkbox's only
+  // "name" was a ✓ glyph from its wrapping label.
+  await page.click('.nav-item[data-target="home"]').catch(() => {});
+  await page.waitForTimeout(300);
+  await page.click('#homePrimaryCta');
+  await page.waitForSelector('#view-workout .cockpit-ex-name', { timeout: 10000 });
+  await page.waitForTimeout(600);
+  await snap('cockpit');
+
+  // Expand collapsed cards so their set rows are measured, not just the headers.
+  for (const toggle of (await page.$$('#cockpitExercisesContainer [data-action="toggle-accordion"]')).slice(0, 4)) {
+    await toggle.click().catch(() => {});
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(400);
+  await snap('cockpit-expanded');
+
+  // Each modal must actually OPEN before it is measured — a selector that never
+  // matches would silently contribute nothing and still let the check pass, so
+  // every one of these is asserted rather than best-effort.
+  const openModal = async (surface, opener, ready) => {
+    await page.evaluate((sel) => document.querySelector(sel)?.click(), opener);
+    try {
+      await page.waitForSelector(ready, { timeout: 6000 });
+    } catch {
+      fail(`${surface} did not open via ${opener} — the check is not measuring it`);
+      return;
+    }
+    await page.waitForTimeout(400);
+    await snap(surface);
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(300);
+  };
+
+  await openModal('swap-exercise', '[data-action="swap-exercise"]', '#swapExerciseModal.active');
+  await openModal('add-exercise', '[data-action="open-add-exercise"]', '#addExerciseModal.active');
+  await openModal('exercise-detail', '[data-action="el-info"]', '#exerciseDetailModal.active');
+  await openModal('clear-log', '[data-action="open-reset-modal"]', '#confirmResetModal.active');
+
+  // ---- The LIVE run --------------------------------------------------------
+  // The one surface operated while the athlete is moving, and the only one whose
+  // controls are injected by a third party: Leaflet ships its zoom buttons at
+  // 30×30 and they never appear in this repo's markup, so nothing static could
+  // have caught them.
+  {
+    const started = await page.evaluate(() => {
+      const b = /** @type {any} */ (document.querySelector('[data-action="gps-start"]'));
+      if (!b) return false;
+      b.click();
+      return true;
+    });
+    if (!started) fail('live run: no [data-action="gps-start"] on the cockpit run card');
+    await page.waitForTimeout(500);
+    await page.evaluate(() => /** @type {any} */ (window).__gpsFeed?.(0, 8));
+    await page.waitForTimeout(300);
+    await page.evaluate(() => /** @type {any} */ (window).__gpsFeed?.(1, 8));
+    await page.waitForTimeout(600);
+    const live = await page.evaluate(() => {
+      const p = document.getElementById('gpsLivePanel');
+      return !!p && getComputedStyle(p).display !== 'none';
+    });
+    if (!live) fail('live run: the live panel never appeared, so its controls are unmeasured');
+    await snap('live-run');
+  }
+  await context.close();
+
+  // ---- Onboarding ----------------------------------------------------------
+  // Needs its own context: it only renders with no saved state, which is exactly
+  // why it sat outside every other walk.
+  {
+    const { ctx, page: obPage } = await newContext(null);
+    await obPage.waitForTimeout(1200);
+    const showing = await obPage.evaluate(() => !!document.querySelector('.ob-step, .ob-cta'));
+    if (!showing) fail('onboarding did not render on a fresh profile — its controls are unmeasured');
+    const before = all.length;
+    await snapOn(obPage, 'onboarding');
+    if (all.length === before) fail('onboarding measured no controls');
+    await ctx.close();
   }
 
   // Sanity: if the fixture stops reaching the real surfaces this check would
-  // pass by measuring an empty app.
-  if (all.length < 100) fail(`expected the full control surface, measured only ${all.length}`);
+  // pass by measuring an empty app. ~875 today; the floor only catches collapse.
+  if (all.length < 800) fail(`expected the full control surface, measured only ${all.length}`);
 
   const seen = new Set();
   let exempted = 0;
