@@ -15,6 +15,7 @@ import { estimatedE1rm, estimatedE1rmForSet, isE1rmExercise } from './strength/e
 import { daysBetween } from './dates.js';
 import { isJtShedProgram, jtLiftTarget, jtStoredRolesFor } from './programs/jt-shed-model.js';
 import { isShedPplulProgram, shedPplulLiftTarget } from './programs/shed-pplul-model.js';
+import { getCatalogEntry } from './programs/catalog.js';
 
 // Re-exported for backwards-compatible import sites (and the engine test suite).
 export { isCompletedSet };
@@ -375,6 +376,32 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
 // Owns the per-lift prescription decision: inline-spec vs weekly modifier,
 // taper override, and stall/fatigue set reduction. Returns the sets array.
 // ==========================================
+// A personal copy inherits its source's progression model.
+//
+// Read-time only, and deliberately so: it rewrites NO stored data, so there is
+// no migration, sync or export surface, and it repairs existing copies the next
+// time they render rather than needing the athlete to re-fork. An edited copy
+// keeps its edits — a lift the athlete swapped in is simply not authored by the
+// model, so the resolver returns null for it and the normal fallback applies,
+// exactly as for any unauthored exercise.
+//
+// Keyed by object identity so the patched copy is made once per program object
+// rather than once per lift per render.
+const _inheritedModel = new WeakMap();
+
+function withInheritedProgressionModel(program) {
+  if (!program || typeof program !== 'object') return program;
+  if (program.progressionModel || !program.sourceProgramId) return program;
+  if (_inheritedModel.has(program)) return _inheritedModel.get(program);
+
+  const source = getCatalogEntry(program.sourceProgramId);
+  const patched = source?.progressionModel
+    ? { ...program, progressionModel: source.progressionModel }
+    : program;
+  _inheritedModel.set(program, patched);
+  return patched;
+}
+
 // The prescribed set/rep target for a lift: the inline spec in the day
 // description when present (e.g. "Back Squat (4×5)"), otherwise the week's
 // volume modifier. Used for BOTH what we materialise and what the cockpit label
@@ -382,6 +409,14 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
 /**
  * @param {any} desc
  * @param {any} liftName
+ * A CUSTOMIZATION IS A FROZEN COPY, and that is why this needs the helper above.
+ * `duplicateCustomProgram` deep-clones the catalog entry into `customPrograms`,
+ * so a fork made before its source gained a `progressionModel` has no hook and
+ * every lift on every day collapses to the one shared week modifier — a Shed
+ * PPLUL fork showed "4 × 8" for the whole programme, deadlift included, when the
+ * spec calls for six different accessory prescriptions and a separate deadlift
+ * wave. The fork lives in the athlete's own state, so no app update reaches it.
+ *
  * @param {any} [weekModifier]
  * @param {{ program?:any, week?:(number|string), dayKey?:string, opts?:any }} [ctx]
  *   When the active program carries the tiered J&T progression model, the
@@ -391,8 +426,9 @@ export function suggestProgression(lastWorkingSets, repTarget, opts = {}) {
  *   4 × 10" bug). Non-J&T programs are entirely unaffected.
  */
 export function liftTarget(desc, liftName, weekModifier = {}, ctx) {
-  if (isJtShedProgram(ctx?.program)) {
-    const jt = jtLiftTarget(ctx.program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
+  const program = withInheritedProgressionModel(ctx?.program);
+  if (isJtShedProgram(program)) {
+    const jt = jtLiftTarget(program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
     if (jt) return { sets: jt.sets, reps: jt.reps };
   }
   // Shed PPLUL runs bench/squat/press and the deadlift on two different weekly
@@ -400,8 +436,8 @@ export function liftTarget(desc, liftName, weekModifier = {}, ctx) {
   // program's own progressionModel, so every other program is unaffected, and
   // null-returning for unauthored lifts so an exercise added mid-session falls
   // through rather than inheriting a main-lift prescription.
-  if (isShedPplulProgram(ctx?.program)) {
-    const pp = shedPplulLiftTarget(ctx.program, ctx.week, ctx.dayKey, liftName);
+  if (isShedPplulProgram(program)) {
+    const pp = shedPplulLiftTarget(program, ctx.week, ctx.dayKey, liftName);
     if (pp) return { sets: pp.sets, reps: pp.reps };
   }
   const parsed = parseTargetFromDescription(desc, liftName);
