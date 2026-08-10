@@ -1394,12 +1394,27 @@ regex is deliberately broader than the real hazard:
   - Also fixed in all three: `new Date(\`${iso}T12:00:00\`)` parses as LOCAL time,
     so `.getUTCDay()` could return the previous day on a host east of UTC. Now
     `T12:00:00Z`, matching `js/dates.js`.
-- **Arithmetic only (7)** — `gym-performance`, `home-attribution`,
-  `progress-hub`, `run-performance`, `running-analytics`, `strength-volume`,
-  `volume-guide` read a weekday purely to compute the Monday of the current week.
-  Pinning them is harmless but not urgent, and blanket-pinning risks breaking
-  fixtures that legitimately want dates relative to today. `UNPINNED_BACKLOG` is
-  now these seven.
+- **Arithmetic only (7 → 6) — and one of the seven was MISCLASSIFIED.**
+  `home-attribution-check` failed on **Monday 2026-08-10** having passed all
+  week, and it was in this bucket because I read its `getUTCDay()` as week-start
+  arithmetic. It is not: it derives a comparison WINDOW and an "alternate day"
+  from the weekday. On a Monday "this calendar week" is one day long, so
+  Scenario 2 — which dates its this-week session as `curMon` — had no elapsed
+  span to compare against last week and the named same-exercise delta it exists
+  to assert simply was not there. **PINNED 2026-08-10** to Thursday 2026-08-06.
+  - Pinning to Wednesday first made it WORSE (three failures instead of one),
+    because the check picks an "alternate day" of wed-or-fri and Wednesday
+    collided with it. The node-side `new Date().getDay()` at that selection also
+    had to move to the pinned date, or node and the page disagree about the day.
+  - The remaining six were then RUN on that same Monday rather than reasoned
+    about: `gym-performance`, `progress-hub`, `run-performance`,
+    `strength-volume` and `volume-guide` all passed, so for them the
+    classification holds. `running-analytics-check` failed on its own
+    environment-sensitive performance threshold (26.5s in this container against
+    ~2s in CI), which is the documented flake above, not a weekday issue.
+  - Lesson for the classification itself: "reads a weekday" is not one defect.
+    Computing a week START from it is harmless; deriving a comparison WINDOW or a
+    day CHOICE from it is not. `UNPINNED_BACKLOG` is now six.
 
 ### A silent skip is not a pass — FIXED 2026-08-07
 
@@ -1535,6 +1550,27 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-10 — `main` red on a Monday, and the cause was a check I had
+  classified as safe.** `home-attribution-check` failed in CI on PR #210.
+  - **First: it was not the refactor.** The same check fails on clean
+    `origin/main`, verified by checking main out and running it. Worth doing
+    deliberately — earlier in this work I blamed my own diff for a flake that was
+    not mine, and the reflex is easy to repeat.
+  - The real cause is the weekday-dependence class again, from the "arithmetic
+    only (7)" bucket I had judged harmless. It was not: this check derives a
+    comparison WINDOW and a wed/fri "alternate day" from the weekday, not just a
+    week start. On a Monday "this calendar week" is one day long and the
+    same-exercise delta it asserts cannot exist.
+  - Pinned to Thursday. Wednesday was the obvious pin and was WRONG — it collided
+    with the check's own alternate-day choice and turned one failure into three.
+  - **The other six were then run, not reasoned about.** Five pass on that
+    Monday; the sixth fails on the documented container-speed threshold. So the
+    classification held for them, and was wrong only where a weekday read meant
+    more than week-start arithmetic — which is the distinction the roadmap now
+    records.
+  - `UNPINNED_BACKLOG`: 10 → 7 → 6 across the two sessions.
+
 
 - **2026-08-09 (ninth) — first real cut of workout.js: exercise selection
   extracted. 2,670 → 2,492 lines.**

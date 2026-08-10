@@ -48,7 +48,6 @@ function checkScripts() {
 // on whichever weekday its fixture programme happens to rest.
 const UNPINNED_BACKLOG = [
   'gym-performance-browser-check.mjs',
-  'home-attribution-check.mjs',
   'progress-hub-browser-check.mjs',
   'run-performance-browser-check.mjs',
   'running-analytics-check.mjs',
