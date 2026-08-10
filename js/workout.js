@@ -2,6 +2,16 @@
 // WORKOUT VIEW
 // ==========================================
 import { getProgramById } from './state.js';
+import {
+  setWorkoutContext,
+  workoutContextReady,
+  getState as _getState,
+  getSelectedDay as _getSelectedDay,
+  getDays as _getDays,
+  saveState as _saveState,
+  switchTab as _switchTab,
+  scheduleSave as _scheduleSave,
+} from './workout/context.js';
 import { computeDiagnosticForLift, parseTargetFromDescription, prescribeSetsForLift, computeExercisePRs, liftTarget, repGoalFromTarget } from './engine.js';
 import { getWeekModifier } from './schema.js';
 import { jtLiftTarget, jtSetRoleTags, jtStoredRoleTag, jtBackoffFromTopSet } from './programs/jt-shed-model.js';
@@ -49,8 +59,6 @@ import {
 import { workoutSessionKey } from './workout/session-identity.js';
 import { replaceManagedModal } from './ui/modal-stack.js';
 
-let _getState;
-let _getSelectedDay;
 
 // E5 — a set-row input's placeholder carries the prescribed ghost target (the
 // coach's suggestion); the default "kg"/"reps" placeholders are non-numeric.
@@ -135,20 +143,11 @@ function _timeFromPaceDist(paceStr, distKm) {
   return `${m}:${s}`;
 }
 
-let _getDays;
-let _saveState;
-let _switchTab;
-let _scheduleSave;
-
 export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn) {
-  _getState = getStateFn;
-  _getSelectedDay = getSelectedDayFn;
-  _getDays = getDaysFn;
-  _saveState = saveStateFn;
-  _switchTab = switchTabFn;
-  // Debounced local persist for rapid keystrokes; falls back to the immediate
-  // save if a caller didn't wire it (keeps behaviour safe by default).
-  _scheduleSave = scheduleSaveFn || (() => saveStateFn(true));
+  // The accessors live in js/workout/context.js so modules split out of this
+  // file can read them without importing this file back. See that module for
+  // why the cycle matters.
+  setWorkoutContext(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn);
 }
 
 export function activeWorkoutTimerKey() {
@@ -481,7 +480,10 @@ function renderSessionOutline(loggedLiftsData, orderedNames, activeLift) {
 }
 
 export function renderWorkout() {
-  if (!_getState || !_getSelectedDay) return;
+  // Bail before the app has wired the context. Once the accessors moved behind
+  // wrapper functions they became permanently truthy, so this must ask whether
+  // the context is READY rather than whether the functions exist.
+  if (!workoutContextReady()) return;
   
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
@@ -1472,7 +1474,10 @@ function _achievedSummaryFromCard(card, unit) {
  * the moment anyone logged anything — a stale index is worse than no index.
  */
 export function refreshSessionOutline() {
-  if (!_getState || !_getSelectedDay) return;
+  // Bail before the app has wired the context. Once the accessors moved behind
+  // wrapper functions they became permanently truthy, so this must ask whether
+  // the context is READY rather than whether the functions exist.
+  if (!workoutContextReady()) return;
   const appState = _getState();
   const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
   const weekData = appState.weeks?.[activeWorkoutWeekKey(appState)];
