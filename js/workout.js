@@ -4,6 +4,7 @@
 import { getProgramById } from './state.js';
 import {
   setWorkoutContext,
+  setWorkoutRenderer,
   workoutContextReady,
   getState as _getState,
   getSelectedDay as _getSelectedDay,
@@ -57,6 +58,34 @@ import {
   clearActiveOneOffSession, discardActiveOneOffSession, oneOffBlueprint,
 } from './workout/one-off-session.js';
 import { workoutSessionKey } from './workout/session-identity.js';
+import { weightUnitLabel } from './workout/units.js';
+import {
+  renderExerciseLibraryList,
+  handleExerciseSearch,
+  addExerciseToDayFromLibrary,
+  openSwapModal,
+  closeSwapModal,
+  executeSwapExercise,
+  confirmCustomSwap,
+  openAddExerciseModal,
+  closeAddExerciseModal,
+  confirmAddExercise,
+} from './workout/exercise-picker.js';
+
+// Re-exported so js/app.js (the only importer of this file) keeps its existing
+// import list. Moving the implementation is the change; moving the public
+// surface too would make the diff span both files for no benefit.
+export {
+  handleExerciseSearch,
+  addExerciseToDayFromLibrary,
+  openSwapModal,
+  closeSwapModal,
+  executeSwapExercise,
+  confirmCustomSwap,
+  openAddExerciseModal,
+  closeAddExerciseModal,
+  confirmAddExercise,
+};
 import { replaceManagedModal } from './ui/modal-stack.js';
 
 
@@ -148,6 +177,9 @@ export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn
   // file can read them without importing this file back. See that module for
   // why the cycle matters.
   setWorkoutContext(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn);
+  // Modules split out of this file ask the context for a redraw rather than
+  // importing renderWorkout back and recreating the cycle.
+  setWorkoutRenderer(renderWorkout);
 }
 
 export function activeWorkoutTimerKey() {
@@ -671,7 +703,7 @@ export function renderWorkout() {
               html += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
                           <span>Set ${s.set}</span>
                           <span>${s.reps} reps</span>
-                          <span>${s.weight} ${escapeHtml(_unitOf(_getState?.() || {}))}</span>
+                          <span>${s.weight} ${escapeHtml(weightUnitLabel(_getState?.() || {}))}</span>
                           <span style="color:var(--accent-blue);">${s.category || ''}</span>
                        </div>`;
           });
@@ -1974,221 +2006,6 @@ export function toggleAccordionManual(elementNode) {
 }
 
 /** Weights are stored in the configured unit and never converted — label, don't assume. */
-function _unitOf(appState) {
-  return appState?.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
-}
-
-/**
- * Best estimated 1RM on record for a lift. `allTimeMax` is derived from the
- * stored sets (so edits and deletions propagate); `legacyMax` is rescued
- * pre-catalogue history whose source sets are not in state.weeks.
- */
-function _bestKnownE1rm(appState, name) {
-  const stat = exerciseStatForName(appState?.exerciseStats, name);
-  return Math.max(Number(stat?.allTimeMax) || 0, Number(stat?.legacyMax) || 0);
-}
-
-function _exChip(item, appState) {
-  const pr = isE1rmExercise(item.name) ? _bestKnownE1rm(appState, item.name) : 0;
-  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}${_unitOf(appState)} PR</span>` : '';
-  const meta = `${item.movement.replaceAll('_', ' ')} · ${item.equipment.map(equipmentLabel).join(', ')}`;
-  return `<div class="el-exercise-row">
-    <button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(item.name)}">
-      <span class="el-chip-copy"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(meta)}</small></span>${prStr}
-    </button>
-    <button class="el-info-btn" data-action="el-info" data-exname="${escapeHtml(item.name)}" aria-label="View details for ${escapeHtml(item.name)}">i</button>
-  </div>`;
-}
-
-function _customExChip(name, appState) {
-  const pr = isE1rmExercise(name) ? _bestKnownE1rm(appState, name) : 0;
-  const prStr = pr ? `<span class="el-pr">${Math.round(pr)}${_unitOf(appState)} PR</span>` : '';
-  return `<div class="el-exercise-row el-exercise-row--custom"><button class="el-chip tactile-scale" data-action="el-pick" data-exname="${escapeHtml(name)}"><span class="el-chip-copy"><strong>${escapeHtml(name)}</strong><small>Custom exercise</small></span>${prStr}</button></div>`;
-}
-
-function _renderExerciseLibraryList(query = '') {
-  const container = document.getElementById('elList');
-  if (!container) return;
-  const appState = _getState();
-  const q = String(query || '').trim();
-  const category = document.getElementById('elCategoryFilter')?.value || '';
-  const equipment = document.getElementById('elEquipmentFilter')?.value || '';
-  const muscleGroup = document.getElementById('elMuscleFilter')?.value || '';
-  const matches = browseExercises({ query: q, category, equipment, muscleGroup }, 500);
-  // Custom exercises carry no catalogue muscle data, so a muscle filter cannot
-  // honestly include them — same reasoning as the existing category/equipment
-  // filters. They stay first-class whenever no such filter is applied.
-  const customMatches = !category && !equipment && !muscleGroup
-    ? (appState.customExercises || []).filter((name) => !q || name.toLowerCase().includes(q.toLowerCase()))
-    : [];
-  let html = '';
-
-  if (!matches.length && !customMatches.length) {
-    html = '<div class="el-empty">No matches. Try another search or clear a filter.</div>';
-  } else if (q || category || equipment || muscleGroup) {
-    html = matches.map((item) => _exChip(item, appState)).join('');
-    if (customMatches.length) {
-      html += '<div class="el-cat-label">⭐ Custom</div>';
-      html += [...customMatches].sort().map((name) => _customExChip(name, appState)).join('');
-    }
-  } else {
-    for (const categoryKey of Object.keys(EXERCISE_CATEGORY_LABELS)) {
-      const items = matches.filter((item) => item.category === categoryKey);
-      if (!items.length) continue;
-      html += `<div class="el-cat-label">${EXERCISE_CATEGORY_LABELS[categoryKey]}</div>`;
-      html += items.map((item) => _exChip(item, appState)).join('');
-    }
-    if (appState.customExercises?.length) {
-      html += `<div class="el-cat-label">⭐ Custom</div>`;
-      html += [...appState.customExercises].sort().map((name) => _customExChip(name, appState)).join('');
-    }
-  }
-  container.innerHTML = html;
-  const summary = document.getElementById('elResultSummary');
-  if (summary) {
-    const total = matches.length + customMatches.length;
-    summary.textContent = `${total} exercise${total === 1 ? '' : 's'}${equipment ? ` · ${equipmentLabel(equipment)}` : ''}`;
-  }
-}
-
-export function handleExerciseSearch(query) {
-  _renderExerciseLibraryList(query);
-}
-
-export function addExerciseToDayFromLibrary(name) {
-  if (!name) return;
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
-  if (!appState.weeks[wk].lifts[selectedDay][name]) {
-    appState.weeks[wk].lifts[selectedDay][name] = [{ w: '', r: '10', c: false }];
-  }
-  if (!appState.weeks[wk].liftMeta) appState.weeks[wk].liftMeta = {};
-  if (!appState.weeks[wk].liftMeta[selectedDay]) appState.weeks[wk].liftMeta[selectedDay] = {};
-  appState.weeks[wk].liftMeta[selectedDay][name] = {
-    ...(appState.weeks[wk].liftMeta[selectedDay][name] || {}),
-    origin: 'added',
-  };
-  // Append to the explicit display order so the new exercise lands at the bottom.
-  if (!appState.weeks[wk].liftOrder) appState.weeks[wk].liftOrder = {};
-  if (!Array.isArray(appState.weeks[wk].liftOrder[selectedDay])) appState.weeks[wk].liftOrder[selectedDay] = [];
-  if (!appState.weeks[wk].liftOrder[selectedDay].includes(name)) {
-    appState.weeks[wk].liftOrder[selectedDay].push(name);
-  }
-  _saveState(true);
-  closeAddExerciseModal();
-  renderWorkout();
-  showToast(`Added: ${name}`);
-}
-
-// ── Exercise swap (B3) ────────────────────────────────────────────────────────
-// Re-keys the day's logged entry from the old exercise to the new one, so the
-// prescribed target and any sets already logged carry across intact, and keeps
-// the exercise in its original position in the day.
-let _swapSourceLift = null;
-
-export function openSwapModal(liftName) {
-  if (!liftName) return;
-  _swapSourceLift = liftName;
-  const modal = document.getElementById('swapExerciseModal');
-  if (!modal) return;
-  const subtitle = document.getElementById('swapSubtitle');
-  if (subtitle) subtitle.textContent = `Swapping "${liftName}" — same movement, kit you have. Your target and logged sets carry over.`;
-  _renderSwapList(liftName);
-  modal.classList.add('active');
-}
-
-export function closeSwapModal() {
-  _swapSourceLift = null;
-  document.getElementById('swapExerciseModal')?.classList.remove('active');
-}
-
-function _renderSwapList(liftName) {
-  const list = document.getElementById('swapList');
-  if (!list) return;
-  const appState = _getState();
-  const equipment = appState?.settings?.equipment || {};
-  const subs = getSubstitutions(liftName, equipment, 8);
-
-  if (subs.length === 0) {
-    list.innerHTML = `<div class="text-sm text-muted" style="padding:16px;">No direct swaps for this movement with your equipment. Use the full list below to pick any exercise.</div>`;
-    return;
-  }
-  list.innerHTML = subs.map(s => `
-    <button class="el-chip tactile-scale" data-action="swap-pick" data-exname="${escapeHtml(s.name)}">
-      ${escapeHtml(s.name)}<span class="el-pr">${s.bodyweight ? 'Bodyweight' : escapeHtml(s.equip.map(labelEquip).join(' · '))}</span>
-    </button>
-  `).join('');
-}
-
-function labelEquip(k) {
-  return ({ barbell: 'Barbell', ezBar: 'EZ bar', rack: 'Rack', dumbbells: 'Dumbbells', cables: 'Cables', pullupBar: 'Pull-up bar', bands: 'Bands', kettlebells: 'Kettlebell' })[k] || k;
-}
-
-// Perform the swap: old → new, preserving the sets array (target + logged data)
-// and the exercise's position in the day. Thin wrapper over the pure
-// applyExerciseSwap so the state logic stays unit-testable.
-export function executeSwapExercise(newName) {
-  const oldName = _swapSourceLift;
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const blueprint = oneOffBlueprint(appState,
-    getProgramById(appState.activeProgramId)?.days?.[selectedDay] || {});
-
-  const res = applyExerciseSwap(appState.weeks?.[wk], selectedDay, oldName, newName, blueprint);
-  if (!res.ok) {
-    if (res.reason === 'duplicate') showToast(`${newName} is already in today's session`, true);
-    else closeSwapModal();
-    return;
-  }
-  _saveState(true);
-  closeSwapModal();
-  renderWorkout();
-  showToast(`Swapped to ${newName}`);
-}
-
-export function confirmCustomSwap() {
-  const input = document.getElementById('swapCustomInput');
-  const name = input?.value?.trim();
-  if (!name) { showToast('Type an exercise name to swap in'); return; }
-  saveNewCustomExerciseToLibrary(name);
-  if (input) input.value = '';
-  executeSwapExercise(name);
-}
-
-export function openAddExerciseModal() {
-  const modal = document.getElementById('addExerciseModal');
-  if (!modal) return;
-  const searchInput = document.getElementById('elSearchInput');
-  const customInput = document.getElementById('customExerciseTextInput');
-  const categoryFilter = document.getElementById('elCategoryFilter');
-  const equipmentFilter = document.getElementById('elEquipmentFilter');
-  const muscleFilter = document.getElementById('elMuscleFilter');
-  if (searchInput) searchInput.value = '';
-  if (customInput) customInput.value = '';
-  if (categoryFilter) categoryFilter.value = '';
-  if (equipmentFilter) equipmentFilter.value = '';
-  if (muscleFilter) muscleFilter.value = '';
-  _renderExerciseLibraryList('');
-  modal.classList.add('active');
-  setTimeout(() => searchInput?.focus(), 80);
-}
-
-export function closeAddExerciseModal() {
-  const modal = document.getElementById('addExerciseModal');
-  if (modal) modal.classList.remove('active');
-}
-
-export function confirmAddExercise() {
-  const customInput = document.getElementById('customExerciseTextInput');
-  const name = customInput?.value?.trim();
-  if (!name) { showToast('Type a custom exercise name first'); return; }
-  saveNewCustomExerciseToLibrary(name);
-  addExerciseToDayFromLibrary(name);
-}
-
 const DAY_NAMES = {
   mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
   fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
@@ -2345,7 +2162,7 @@ function renderSessionHighlights(appState, weekKey, day, liftNames) {
     host.textContent = '';
     return;
   }
-  const unit = _unitOf(appState || {});
+  const unit = weightUnitLabel(appState || {});
   const round = (value) => (Math.round(value * 10) / 10).toString().replace(/\.0$/, '');
   host.hidden = false;
   host.innerHTML = `
@@ -2403,7 +2220,7 @@ export function openFinishSessionModal() {
   }
   if (discardEl) discardEl.hidden = false;
 
-  if (sumVolEl) sumVolEl.textContent = `${vol} ${_unitOf(_getState?.() || {})}`;
+  if (sumVolEl) sumVolEl.textContent = `${vol} ${weightUnitLabel(_getState?.() || {})}`;
   if (sumSetsEl) sumSetsEl.textContent = setsDone;
 
   // Notable progress, computed from the SAME canonical primitives the Strength
@@ -2620,7 +2437,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('change', (e) => {
   const target = e.target;
   if (target.id === 'elCategoryFilter' || target.id === 'elEquipmentFilter' || target.id === 'elMuscleFilter') {
-    _renderExerciseLibraryList(document.getElementById('elSearchInput')?.value || '');
+    renderExerciseLibraryList(document.getElementById('elSearchInput')?.value || '');
   } else if (target.classList.contains('input-weight-node') || target.classList.contains('input-reps-node')) {
     updateInputState(target);
   } else if (target.classList.contains('gym-check')) {

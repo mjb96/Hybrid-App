@@ -218,8 +218,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   it). `liftTarget` therefore inherits the model from `sourceProgramId` at READ time
   (`withInheritedProgressionModel`, `js/engine.js`) — nothing stored is rewritten, and
   an unauthored swapped-in lift still falls through.
-- Workout modules: `js/workout.js` (2,670 lines, 44 exports) is imported ONLY by
-  `js/app.js`. Its six app accessors live in `js/workout/context.js`
+- Workout modules: `js/workout.js` (2,492 lines) is imported ONLY by `js/app.js`,
+  which uses 21 of its 44 exports. Exercise selection lives in
+  `js/workout/exercise-picker.js`; the weight-unit label in `js/workout/units.js`.
+  `tests/workout_split_guard.test.js` enforces the shape: NO `js/workout/*` module
+  may import `../workout.js`, `context.js` stays dependency-free, and workout.js
+  must keep re-exporting every name app.js imports. A module needing to redraw
+  calls `rerenderWorkout()` (registered by workout.js via `setWorkoutRenderer`)
+  rather than importing `renderWorkout` back. Its six app accessors live in `js/workout/context.js`
   (`setWorkoutContext` + `getState`/`getSelectedDay`/`getDays`/`saveState`/
   `switchTab`/`scheduleSave`), so a module split out of workout.js reads them
   without importing workout.js back and creating a cycle. They are FUNCTIONS, not

@@ -53,3 +53,26 @@ export const scheduleSave = () => _scheduleSave?.();
 
 /** True once the app has wired the context — for guards and tests. */
 export const workoutContextReady = () => typeof _getState === 'function';
+
+// ── Re-render hook ───────────────────────────────────────────────────────────
+//
+// A module split out of workout.js usually has to redraw the cockpit after it
+// mutates the day — a swap, an added exercise. `renderWorkout` lives in
+// workout.js, so calling it directly is the one dependency that would still
+// point backwards and reintroduce the cycle this module exists to prevent.
+//
+// workout.js registers it instead. The indirection buys the tree, and it is
+// honest about the direction of the dependency: the extracted modules ask for a
+// redraw, they do not own how it happens.
+
+/** @type {undefined | (() => void)} */ let _rerender;
+
+/** Called once by workout.js with its own renderWorkout. */
+export function setWorkoutRenderer(renderFn) {
+  _rerender = renderFn;
+}
+
+/** Redraw the cockpit. A no-op before the renderer is registered. */
+export function rerenderWorkout() {
+  _rerender?.();
+}
