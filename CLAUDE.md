@@ -220,7 +220,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   an unauthored swapped-in lift still falls through.
 - Workout modules: `js/workout.js` (2,492 lines) is imported ONLY by `js/app.js`,
   which uses 21 of its 44 exports. Exercise selection lives in
-  `js/workout/exercise-picker.js`; the weight-unit label in `js/workout/units.js`.
+  `js/workout/exercise-picker.js`, the confirm-reset flow in
+  `js/workout/clear-log.js`, the weight-unit label in `js/workout/units.js`.
+  The four event ROUTERS stay in workout.js and must move LAST: they are 81 lines
+  dispatching to 27 local functions, so extracting them first would need 27
+  back-imports (a cycle). Move handlers out while the router stays and imports
+  them. Context wrappers forward `...args` — a one-parameter `switchTab` wrapper
+  silently dropped `{ skipWorkoutCommit: true }` and made discard commit the
+  workout it had just discarded.
   `tests/workout_split_guard.test.js` enforces the shape: NO `js/workout/*` module
   may import `../workout.js`, `context.js` stays dependency-free, and workout.js
   must keep re-exporting every name app.js imports. A module needing to redraw

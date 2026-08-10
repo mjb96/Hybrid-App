@@ -1271,9 +1271,37 @@ it supports.
   - Noted while wiring the guard: **app.js imports 21 of workout.js's 44
     exports.** Roughly half the public surface is either internal-only or dead.
     Worth auditing before the next seam — a smaller surface is a cheaper split.
-- [ ] Next seams, in order of independence: the `change`/`click` event routers
-  (they are the last thing reaching into picker privates), then run logging, then
-  completion, then set mutations.
+- **EXPORT AUDIT 2026-08-10 — nothing to remove, and it corrected the plan.**
+  I recorded that "app.js imports 21 of 44 exports, so half the surface is
+  internal-only or dead". Measured: **zero are dead.** The other 23 are each
+  called from the event ROUTERS, most with exactly one reference. Un-exporting
+  them — the audit's obvious action — would have been precisely wrong, because
+  the next step needs them exported.
+- **The routers must go LAST, not next.** They are only **81 lines** but dispatch
+  to **27 functions defined in workout.js**. Extracting them means importing all
+  27 back, which is the cycle `tests/workout_split_guard.test.js` forbids and
+  should forbid. The correct order is the reverse of what I proposed: move
+  HANDLERS out while the router stays and imports them, and move the routers only
+  once there is nothing left in workout.js for them to reach into.
+- **SECOND SEAM CUT 2026-08-10 — `js/workout/clear-log.js`** (156 lines): the
+  confirm-reset flow, the destructive corner of the cockpit. **workout.js
+  2,492 → 2,379 lines.**
+  - **This cut found a live bug I had shipped in #209.** The context wrapper was
+    `switchTab = (tab) => _switchTab?.(tab)`, and `clear-log.js` calls
+    `switchTab('home', { skipWorkoutCommit: true })` when a workout is discarded.
+    The wrapper silently dropped the options object, so discarding a workout
+    committed UI state for the workout it had just thrown away. Nothing failed —
+    no types, the call still returned, and the only symptom was a stale commit
+    nobody was watching for. Every wrapper now takes `...args`, and
+    `tests/workout_split_guard.test.js` asserts it, verified against the original
+    one-parameter form.
+  - The type-checker again found what a grep did not: my dependency scan covered
+    lines 2009–2100 while the block ran to 2126, so `renderWorkout`, `showUndo`,
+    `restoreDayWorkoutData`, `snapshotDayWorkoutData` and `deleteDayWorkoutData`
+    were all missing from the new module's imports. `@ts-check` on every extracted
+    file is what makes these cuts safe at this pace.
+- [ ] Next seams: run logging, then set mutations, then supersets — each moving
+  handlers out while the router stays. Routers last.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
   logging, and completion.
 - Split `js/app.js` routing/event ownership.
@@ -1550,6 +1578,25 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-10 (later) — export audit said "do nothing", and the next cut found a
+  bug I had shipped the day before.**
+  - The audit disproved my own note. **Zero of workout.js's 44 exports are dead**;
+    the 23 that app.js does not import are the event routers' call surface.
+    Un-exporting them would have broken the very next step.
+  - It also reversed the plan: the routers are 81 lines dispatching to 27 local
+    functions, so they must move LAST, after the handlers they call. I had
+    proposed them next. Recorded so the order is not re-derived wrongly.
+  - `js/workout/clear-log.js` extracted instead (2,492 → 2,379 lines) — and doing
+    it surfaced that my `switchTab` context wrapper **dropped its second
+    argument**, so discarding a workout committed UI state for the discarded
+    workout. Shipped in #209, invisible: no types, no error, no failing test.
+    Fixed with `...args` on every wrapper plus a regression test verified against
+    the broken form.
+  - Both of this session's real defects came from the type-checker or from
+    extraction forcing me to read call sites — not from reasoning about the code.
+    That is now twice that `@ts-check` on a newly extracted file paid for itself.
+
 
 - **2026-08-10 — `main` red on a Monday, and the cause was a check I had
   classified as safe.** `home-attribution-check` failed in CI on PR #210.

@@ -88,3 +88,37 @@ test('workout.js still re-exports what app.js imports from it', () => {
   assert.deepEqual(missing, [],
     `js/app.js imports these from js/workout.js but it no longer exports them:\n  ${missing.join('\n  ')}`);
 });
+
+// ── The context must not eat arguments ───────────────────────────────────────
+//
+// This shipped as a bug. The first `switchTab` wrapper was `(tab) =>
+// _switchTab?.(tab)`, which silently dropped everything after the first
+// argument — and `clear-log.js` calls
+// `switchTab('home', { skipWorkoutCommit: true })` when a workout is discarded.
+// Losing that option makes the app commit UI state for the workout it has just
+// thrown away.
+//
+// Nothing failed. Types were absent, the call still returned, and the only
+// symptom was a stale commit nobody was looking for. Naming one parameter per
+// wrapper reads as tidier and quietly caps the signature at whatever the author
+// happened to remember, so it is worth asserting rather than trusting.
+import { setWorkoutContext, switchTab, saveState, getState } from '../js/workout/context.js';
+
+test('context wrappers forward every argument, not just the first', () => {
+  /** @type {any[][]} */ const calls = [];
+  const record = (name) => (...args) => { calls.push([name, ...args]); return args.length; };
+
+  setWorkoutContext(
+    record('getState'), record('getSelectedDay'), record('getDays'),
+    record('saveState'), record('switchTab'), record('scheduleSave'),
+  );
+
+  switchTab('home', { skipWorkoutCommit: true });
+  const sw = calls.find((c) => c[0] === 'switchTab');
+  assert.deepEqual(sw, ['switchTab', 'home', { skipWorkoutCommit: true }],
+    'switchTab dropped an argument — the discard flow depends on its options object');
+
+  // Same shape for the rest, so the next wrapper added does not reintroduce it.
+  assert.equal(saveState(true), 1, 'saveState must forward its argument');
+  assert.equal(getState('a', 'b'), 2, 'getState must forward every argument');
+});
