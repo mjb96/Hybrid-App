@@ -18,12 +18,12 @@
 // step, not the improvement.
 // =============================================================================
 
-/** @type {undefined | (() => any)} */              let _getState;
-/** @type {undefined | (() => string)} */           let _getSelectedDay;
-/** @type {undefined | (() => any)} */              let _getDays;
-/** @type {undefined | ((immediate?: boolean) => any)} */ let _saveState;
-/** @type {undefined | ((tab: string) => any)} */   let _switchTab;
-/** @type {undefined | (() => any)} */              let _scheduleSave;
+/** @type {undefined | ((...args: any[]) => any)} */ let _getState;
+/** @type {undefined | ((...args: any[]) => any)} */ let _getSelectedDay;
+/** @type {undefined | ((...args: any[]) => any)} */ let _getDays;
+/** @type {undefined | ((...args: any[]) => any)} */ let _saveState;
+/** @type {undefined | ((...args: any[]) => any)} */ let _switchTab;
+/** @type {undefined | ((...args: any[]) => any)} */ let _scheduleSave;
 
 /**
  * Wire the workout modules to the app. Called once from `initWorkout`.
@@ -44,12 +44,20 @@ export function setWorkoutContext(getStateFn, getSelectedDayFn, getDaysFn, saveS
 // Read through functions rather than exporting the bindings: a live binding
 // would be `undefined` for any module that reads it before initWorkout runs,
 // and the failure would be a silent no-op rather than an obvious one.
-export const getState = () => _getState?.();
-export const getSelectedDay = () => _getSelectedDay?.();
-export const getDays = () => _getDays?.();
-export const saveState = (immediate) => _saveState?.(immediate);
-export const switchTab = (tab) => _switchTab?.(tab);
-export const scheduleSave = () => _scheduleSave?.();
+//
+// EVERY WRAPPER FORWARDS ALL ARGUMENTS. The first version of `switchTab` was
+// `(tab) => _switchTab?.(tab)`, which silently dropped the second argument —
+// and `clear-log.js` calls `switchTab('home', { skipWorkoutCommit: true })` when
+// a workout is discarded. Losing that option makes the app commit UI state for
+// the workout it has just thrown away. Naming one parameter per wrapper looks
+// tidier and quietly caps the signature at whatever the author happened to
+// remember, so these take `...args` on purpose.
+export const getState = (...args) => _getState?.(...args);
+export const getSelectedDay = (...args) => _getSelectedDay?.(...args);
+export const getDays = (...args) => _getDays?.(...args);
+export const saveState = (...args) => _saveState?.(...args);
+export const switchTab = (...args) => _switchTab?.(...args);
+export const scheduleSave = (...args) => _scheduleSave?.(...args);
 
 /** True once the app has wired the context — for guards and tests. */
 export const workoutContextReady = () => typeof _getState === 'function';

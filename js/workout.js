@@ -60,6 +60,11 @@ import {
 import { workoutSessionKey } from './workout/session-identity.js';
 import { weightUnitLabel } from './workout/units.js';
 import {
+  openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
+} from './workout/clear-log.js';
+// Re-exported for js/app.js, which imports these from here.
+export { openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics };
+import {
   renderExerciseLibraryList,
   handleExerciseSearch,
   addExerciseToDayFromLibrary,
@@ -2006,124 +2011,6 @@ export function toggleAccordionManual(elementNode) {
 }
 
 /** Weights are stored in the configured unit and never converted — label, don't assume. */
-const DAY_NAMES = {
-  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday',
-  fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
-};
-
-/**
- * Name the workout a discard would remove — "Wednesday's Upper workout", or
- * "Wednesday's workout" when the day has no title. Used in the confirmation so
- * the scope is unmistakable regardless of which day is selected.
- */
-function _discardTargetLabel() {
-  const appState = _getState?.() || {};
-  const day = activeWorkoutDay(appState, _getSelectedDay());
-  const dayName = DAY_NAMES[day] || 'this day';
-  const program = getProgramById(appState.activeProgramId);
-  const title = String(program?.days?.[day]?.title || '').trim();
-  return title ? `${dayName}’s ${title} workout` : `${dayName}’s workout`;
-}
-
-export function openConfirmResetModal(options = {}) {
-  const modal = document.getElementById('confirmResetModal');
-  if (!modal) return;
-  const oneOff = activeOneOffSession(_getState?.());
-  const title = document.getElementById('resetModalTitle');
-  const copy = document.getElementById('resetModalCopy');
-  const action = document.getElementById('resetModalAction');
-  if (oneOff) {
-    if (title) title.textContent = 'Discard this workout?';
-    if (copy) copy.textContent = 'This removes this unfinished one-off workout. Your programmed sessions and workout history stay unchanged.';
-    if (action) action.textContent = 'Discard workout';
-  } else {
-    // Name the EXACT workout. The old copy said "today's log", which was simply
-    // wrong whenever the athlete had another day selected — the one moment a
-    // destructive confirmation must not be vague. Shared vocabulary (roadmap
-    // §Shared product vocabulary) reserves "Clear" precisely because it does
-    // not state its scope.
-    const label = _discardTargetLabel();
-    if (title) title.textContent = `Discard ${label}?`;
-    if (copy) {
-      copy.textContent = `This deletes the logged sets, run and notes for ${label}. `
-        + 'Your other days and your workout history are not affected. You can undo this straight afterwards.';
-    }
-    if (action) action.textContent = 'Discard workout';
-  }
-  if (options.replaceFrom) replaceManagedModal(options.replaceFrom, modal);
-  else modal.classList.add('active');
-}
-
-export function closeConfirmResetModal() {
-  const modal = document.getElementById('confirmResetModal');
-  if (modal) modal.classList.remove('active');
-}
-
-export function executeResetActiveDayMetrics() {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-
-  const activeProgram = getProgramById(appState.activeProgramId);
-  const oneOff = activeOneOffSession(appState);
-  const blueprint = oneOffBlueprint(appState, activeProgram?.days?.[selectedDay]);
-
-  if (oneOff) {
-    const discarded = discardActiveOneOffSession(appState);
-    try {
-      stopAndResetWorkoutTimer(workoutSessionKey(appState, wk, selectedDay));
-      dismissRestTimer();
-    } catch(e) { console.warn(e); }
-    _saveState(true);
-    closeConfirmResetModal();
-    showToast('Workout discarded');
-    if (_switchTab) _switchTab('home', { skipWorkoutCommit: true });
-    if (discarded) {
-      deleteMapFromDB(discarded.key, discarded.day, { sessionId: discarded.sessionId }).catch(() => {});
-    }
-    return;
-  }
-
-  /** @type {Record<string, any[]>} */
-  const lifts = {};
-  const liftOrder = [];
-
-  if (blueprint && blueprint.lifts) {
-    blueprint.lifts.forEach(liftName => {
-      try {
-        const weekModifier = activeProgram.weeklyVolModifiers?.[wk] || { sets: 4, reps: 5, intensityLabel: "Working Sets" };
-        lifts[liftName] = prescribeSetsForLift(wk, selectedDay, liftName, blueprint.desc, weekModifier, { program: activeProgram, week: wk, dayKey: selectedDay });
-        liftOrder.push(liftName);
-      } catch(e) { console.warn(e); }
-    });
-  }
-  // Snapshot BEFORE the clear so the discard is reversible. Taken from the same
-  // module that owns the clear, so a field can never be cleared without also
-  // being captured.
-  const snapshot = snapshotDayWorkoutData(appState.weeks[wk], selectedDay);
-
-  // Reset restores the prescribed program order and clears every workout-only
-  // field through the same path used by historical-session deletion.
-  deleteDayWorkoutData(appState.weeks[wk], selectedDay, { lifts, liftOrder });
-  try {
-    stopAndResetWorkoutTimer(workoutSessionKey(appState, wk, selectedDay));
-    dismissRestTimer();
-  } catch(e) { console.warn(e); }
-
-  _saveState(true);
-  renderWorkout();
-  closeConfirmResetModal();
-
-  // The stored GPS route is the one part that cannot be reversed, so it is
-  // deferred to finalize() rather than deleted now — otherwise Undo would
-  // restore a run whose route had already been destroyed.
-  showUndo('Workout discarded', () => {
-    restoreDayWorkoutData(appState.weeks[wk], snapshot);
-    _saveState(true);
-    renderWorkout();
-    showToast('Workout restored');
-  }, () => deleteMapFromDB(wk, selectedDay, { activationId: appState.activeActivationId }).catch(() => {}));
-}
 
 // Normalise a duration entry to canonical "M:SS" (matching .FIT imports). A
 // bare number is treated as minutes ("45" → "45:00"); "" stays "".
