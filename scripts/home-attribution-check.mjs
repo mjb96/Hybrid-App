@@ -19,7 +19,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -45,8 +45,23 @@ const BASE = `http://127.0.0.1:${port}`;
 // ---- build the seeded state relative to real "today" -----------------------
 const iso = (d) => d.toISOString().slice(0, 10);
 const addDays = (d, n) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; };
-const now = new Date();
-const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12));
+// PINNED, not read from the clock.
+//
+// This check builds its fixture relative to "today" and then asserts on THIS
+// CALENDAR WEEK. On a Monday that window is one day long, and Scenario 2 — which
+// dates its this-week session as `curMon` — had no elapsed span to compare
+// against last week, so the named same-exercise delta it exists to assert simply
+// was not there. It failed on Monday 2026-08-10 having passed all week.
+//
+// Thursday is the one that satisfies every scenario: a part-finished week with
+// days either side, and NOT one of the wed/fri "alternate day" this check picks
+// between below — pinning to Wednesday collided with that and broke three
+// assertions instead of one.
+const TZ = 'Australia/Sydney';
+const TODAY = '2026-08-06';                       // a Thursday
+const CLOCK = Date.parse(`${TODAY}T09:00:00+10:00`);
+const now = new Date(CLOCK);
+const todayUTC = new Date(`${TODAY}T12:00:00Z`);
 const back = (todayUTC.getUTCDay() + 6) % 7;              // days since Monday
 const curMon = addDays(todayUTC, -back);                  // this week's Monday
 const prevMon = addDays(curMon, -7);                      // last week's Monday
@@ -79,6 +94,7 @@ const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbo
 let failed = false;
 try {
   const ctx = await browser.newContext({
+    timezoneId: TZ,
     viewport: { width: 390, height: 844 },
     // This check owns a long, stateful UI flow. Service-worker activation and
     // controller reloads are covered separately and make the interaction
@@ -87,6 +103,7 @@ try {
   });
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} },
     [STORAGE_KEY, JSON.stringify(seeded)]);
+  await ctx.addInitScript(pinClock, CLOCK);
   const page = await ctx.newPage();
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.waitForSelector('#strengthBarChart .wfg-total-v', { timeout: 15000 });
@@ -233,7 +250,9 @@ try {
   const ctx2 = await browser.newContext({
     viewport: { width: 390, height: 844 },
     serviceWorkers: 'block',
+    timezoneId: TZ,
   });
+  await ctx2.addInitScript(pinClock, CLOCK);
   await ctx2.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (_) {} }, [STORAGE_KEY, JSON.stringify(s2)]);
   const page2 = await ctx2.newPage();
   await page2.goto(BASE, { waitUntil: 'networkidle' });
@@ -317,7 +336,7 @@ try {
   await page2.click('#resetModalAction');
   await page2.waitForSelector('#view-home.active', { timeout: 10000 });
   await page2.click('#homeChooseWorkout');
-  const alternateDay = DAY[(new Date().getDay() + 6) % 7] === 'wed' ? 'fri' : 'wed';
+  const alternateDay = DAY[(todayUTC.getUTCDay() + 6) % 7] === 'wed' ? 'fri' : 'wed';
   const alternateTitle = alternateDay === 'wed' ? 'Legs Power' : 'Pull B + Easy Run';
   await page2.click(`#programWorkoutPicker [data-action="select-program-workout"][data-day="${alternateDay}"]`);
   await page2.waitForSelector('#view-workout.active', { timeout: 10000 });

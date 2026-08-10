@@ -1241,11 +1241,39 @@ it supports.
   - Verified: 1,780 unit tests, typecheck, smoke, precache regenerated, and all
     seven workout-surface browser checks (set-row, session-outline, rest-timer,
     finish-review, exercise-picker, workout-history, train-landing).
-- [ ] Next seam, already scoped: exercise selection — `handleExerciseSearch`,
-  `addExerciseToDayFromLibrary`, the swap modal and the add-exercise modal
-  (js/workout.js ~2009–2190). It shares private helpers (`_bestKnownE1rm`,
-  `_unitOf`, `equipmentLabel`, the chip builders) with the rest of the file, so
-  the cut is wider than the export list suggests and wants its own slice.
+- **FIRST SEAM CUT 2026-08-09 — exercise selection is its own module.**
+  `js/workout/exercise-picker.js` (252 lines) owns the add-exercise library and
+  the in-session swap. `js/workout.js` is **2,670 → 2,492 lines**.
+  - Two dependencies pointed backwards and both are now resolved forward.
+    `_unitOf` was read on both sides, so it moved to `js/workout/units.js`
+    (`weightUnitLabel`) rather than being duplicated or owned by either.
+    `renderWorkout` is registered with the context (`setWorkoutRenderer` /
+    `rerenderWorkout`), so the picker asks for a redraw without importing
+    workout.js back — the honest shape, since it does not own how one happens.
+  - `renderExerciseLibraryList` is EXPORTED because workout.js's `change` router
+    re-renders the list when a filter changes. That router is the next thing worth
+    moving; naming the seam beats reaching into a private across a file boundary.
+  - The public surface is re-exported from workout.js, so `js/app.js` — its only
+    importer — is untouched. Moving an implementation is the change; moving the
+    public surface too would spread the diff for no benefit.
+  - **`tests/workout_split_guard.test.js` holds the shape the approach depends on:**
+    no `js/workout/*` module may import `../workout.js`; `context.js` must stay
+    dependency-free (it is the root of the extracted subtree); the split modules
+    must actually be wired in rather than orphaned; and workout.js must still
+    export every name app.js imports. All four verified to FAIL when violated. A
+    cycle would not fail loudly — ES modules resolve them, and the bug surfaces
+    later as an `undefined` binding under an unrelated refactor.
+  - **Verified by DRIVING it, not by unit tests** — this code is DOM-heavy and
+    almost untestable in isolation. A scripted swap and a scripted add both
+    redraw the cockpit, close their modal and persist: `Bench Press` →
+    `Machine Chest Press` appears in the cockpit, `Face Pull` appends, 7 lifts
+    stored. That is the `rerenderWorkout` indirection proven end to end.
+  - Noted while wiring the guard: **app.js imports 21 of workout.js's 44
+    exports.** Roughly half the public surface is either internal-only or dead.
+    Worth auditing before the next seam — a smaller surface is a cheaper split.
+- [ ] Next seams, in order of independence: the `change`/`click` event routers
+  (they are the last thing reaching into picker privates), then run logging, then
+  completion, then set mutations.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
   logging, and completion.
 - Split `js/app.js` routing/event ownership.
@@ -1366,12 +1394,27 @@ regex is deliberately broader than the real hazard:
   - Also fixed in all three: `new Date(\`${iso}T12:00:00\`)` parses as LOCAL time,
     so `.getUTCDay()` could return the previous day on a host east of UTC. Now
     `T12:00:00Z`, matching `js/dates.js`.
-- **Arithmetic only (7)** — `gym-performance`, `home-attribution`,
-  `progress-hub`, `run-performance`, `running-analytics`, `strength-volume`,
-  `volume-guide` read a weekday purely to compute the Monday of the current week.
-  Pinning them is harmless but not urgent, and blanket-pinning risks breaking
-  fixtures that legitimately want dates relative to today. `UNPINNED_BACKLOG` is
-  now these seven.
+- **Arithmetic only (7 → 6) — and one of the seven was MISCLASSIFIED.**
+  `home-attribution-check` failed on **Monday 2026-08-10** having passed all
+  week, and it was in this bucket because I read its `getUTCDay()` as week-start
+  arithmetic. It is not: it derives a comparison WINDOW and an "alternate day"
+  from the weekday. On a Monday "this calendar week" is one day long, so
+  Scenario 2 — which dates its this-week session as `curMon` — had no elapsed
+  span to compare against last week and the named same-exercise delta it exists
+  to assert simply was not there. **PINNED 2026-08-10** to Thursday 2026-08-06.
+  - Pinning to Wednesday first made it WORSE (three failures instead of one),
+    because the check picks an "alternate day" of wed-or-fri and Wednesday
+    collided with it. The node-side `new Date().getDay()` at that selection also
+    had to move to the pinned date, or node and the page disagree about the day.
+  - The remaining six were then RUN on that same Monday rather than reasoned
+    about: `gym-performance`, `progress-hub`, `run-performance`,
+    `strength-volume` and `volume-guide` all passed, so for them the
+    classification holds. `running-analytics-check` failed on its own
+    environment-sensitive performance threshold (26.5s in this container against
+    ~2s in CI), which is the documented flake above, not a weekday issue.
+  - Lesson for the classification itself: "reads a weekday" is not one defect.
+    Computing a week START from it is harmless; deriving a comparison WINDOW or a
+    day CHOICE from it is not. `UNPINNED_BACKLOG` is now six.
 
 ### A silent skip is not a pass — FIXED 2026-08-07
 
@@ -1507,6 +1550,53 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-10 — `main` red on a Monday, and the cause was a check I had
+  classified as safe.** `home-attribution-check` failed in CI on PR #210.
+  - **First: it was not the refactor.** The same check fails on clean
+    `origin/main`, verified by checking main out and running it. Worth doing
+    deliberately — earlier in this work I blamed my own diff for a flake that was
+    not mine, and the reflex is easy to repeat.
+  - The real cause is the weekday-dependence class again, from the "arithmetic
+    only (7)" bucket I had judged harmless. It was not: this check derives a
+    comparison WINDOW and a wed/fri "alternate day" from the weekday, not just a
+    week start. On a Monday "this calendar week" is one day long and the
+    same-exercise delta it asserts cannot exist.
+  - Pinned to Thursday. Wednesday was the obvious pin and was WRONG — it collided
+    with the check's own alternate-day choice and turned one failure into three.
+  - **The other six were then run, not reasoned about.** Five pass on that
+    Monday; the sixth fails on the documented container-speed threshold. So the
+    classification held for them, and was wrong only where a weekday read meant
+    more than week-start arithmetic — which is the distinction the roadmap now
+    records.
+  - `UNPINNED_BACKLOG`: 10 → 7 → 6 across the two sessions.
+
+
+- **2026-08-09 (ninth) — first real cut of workout.js: exercise selection
+  extracted. 2,670 → 2,492 lines.**
+  - Two dependencies pointed backwards. `_unitOf` was read on both sides, so it
+    became `js/workout/units.js`; `renderWorkout` is now registered with the
+    context, so the picker requests a redraw instead of importing workout.js.
+    Both resolutions keep the graph a tree, which is the property everything else
+    depends on.
+  - **The type-checker found two things a grep would not.** The extracted block
+    referenced `browseExercises`, `equipmentLabel` and `EXERCISE_CATEGORY_LABELS`
+    that I had not carried over, and `workout-order.js` is at `js/`, not
+    `js/workout/`. Adding `@ts-check` to the new file — which the original never
+    had — is what surfaced them.
+  - **Verified by driving it.** This code is DOM-heavy and near-untestable in
+    isolation, so a scripted swap and add proved the new redraw hook end to end:
+    the cockpit redrew, the modal closed, state persisted.
+  - `tests/workout_split_guard.test.js` guards the shape (no back-imports,
+    dependency-free context, no orphans, public surface intact). Each of the four
+    was verified to fail when violated — and the guard's own first run reported
+    `devWarn } from './debug.js'` as a missing export, because a lazy regex
+    spanned several import statements. A guard that has never failed has not been
+    tested either.
+  - Found in passing: **app.js imports 21 of workout.js's 44 exports.** Half the
+    public surface is internal-only or dead. Recorded for audit before the next
+    seam rather than acted on here.
+
 
 - **2026-08-09 (eighth) — workout.js split unblocked: the injected context is its
   own module.** `js/workout.js` is 2,670 lines with 44 exports and exactly one
