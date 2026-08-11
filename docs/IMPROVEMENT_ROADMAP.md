@@ -1300,7 +1300,21 @@ it supports.
     `restoreDayWorkoutData`, `snapshotDayWorkoutData` and `deleteDayWorkoutData`
     were all missing from the new module's imports. `@ts-check` on every extracted
     file is what makes these cuts safe at this pace.
-- [ ] Next seams: run logging, then set mutations, then supersets — each moving
+- **THIRD SEAM CUT 2026-08-11 — `js/workout/run-logging.js`** (290 lines):
+  cockpit run rendering, display-unit conversion, manual persistence, imported
+  evidence, map refresh and live-input pace/time derivation now have one owner.
+  **workout.js 2,379 → 2,130 lines.** The event routers stay in workout.js and
+  call the extracted input handler; the finish-review run-RPE write stays with
+  completion, where that lifecycle choice belongs.
+  - Canonical kilometres remain the storage boundary. New integration coverage
+    proves a miles edit round-trips to km, keeps its existing session identity,
+    and preserves imported cadence evidence rather than replacing the run blob.
+  - Live-run safety assertions moved with the code: a rerender still cannot
+    collapse or reparent an active card and detach its Leaflet map.
+  - `tests/workout_split_guard.test.js` now ratchets both `clear-log.js` and
+    `run-logging.js` as wired, forward-only modules. Verified: 1,787 unit tests,
+    typecheck, smoke, regenerated precache, and all 32 browser checks.
+- [ ] Next seams: set mutations, then supersets — each moving
   handlers out while the router stays. Routers last.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
   logging, and completion.
@@ -1578,6 +1592,19 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-11 — third workout seam: cockpit run logging extracted.**
+  - `js/workout/run-logging.js` now owns the run card's render/persist boundary,
+    unit conversion, imported detail/map rendering, safe live-card positioning,
+    and manual pace/time derivation. `js/workout.js` fell from 2,379 to 2,130
+    lines without moving the event routers or changing its public surface.
+  - Added regression coverage for manual pace/time derivation and a miles edit
+    updating one canonical-km run session without dropping FIT cadence data.
+    The live-run source assertions now follow the implementation into the new
+    module, and the split guard refuses to let that module become orphaned.
+  - Verified 1,787 unit tests, typecheck, smoke, regenerated precache, and all
+    32 required browser checks. Next: extract set mutations; supersets follow,
+    and the routers still move last.
 
 - **2026-08-10 (later) — export audit said "do nothing", and the next cut found a
   bug I had shipped the day before.**

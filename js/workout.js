@@ -29,7 +29,6 @@ import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSe
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
 import { deleteMapFromDB } from './db.js';
-import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
 import { dateKey } from './dates.js';
 import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './state/lift-id.js';
@@ -38,8 +37,6 @@ import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
-import { detectRunType } from './workout/run-type.js';
-import { hasActiveRunSession } from './gps-tracker.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
 import { applyBandLoad, applyLoadMode, bandRole, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
@@ -62,6 +59,10 @@ import { weightUnitLabel } from './workout/units.js';
 import {
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
 } from './workout/clear-log.js';
+import {
+  renderRunInputs, renderImportedRunDetails, renderCockpitRunMap, positionRunPanel,
+  commitRunLogging, handleRunLoggingInput,
+} from './workout/run-logging.js';
 // Re-exported for js/app.js, which imports these from here.
 export { openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics };
 import {
@@ -125,56 +126,6 @@ function _inheritedSetFromSession(exCard, parentRow) {
     done: !!row.querySelector('.gym-check')?.checked,
   }));
   return pickInheritedSet(sets, idx);
-}
-
-// ── Distance-unit helpers ──────────────────────────────────────────────────────
-// Distance is stored canonically in km everywhere. The cockpit run panel accepts
-// and displays the user's configured unit (km|mi) and converts on the boundary.
-const KM_TO_MI = 0.621371;
-function _runDistUnit(appState) {
-  return appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
-}
-function _kmToDisplayDist(km, unit) {
-  const n = parseFloat(km);
-  if (!isFinite(n)) return '';
-  const v = unit === 'mi' ? n * KM_TO_MI : n;
-  return String(Math.round(v * 100) / 100);
-}
-function _displayDistToKm(val, unit) {
-  const n = parseFloat(val);
-  if (!isFinite(n)) return '';
-  const km = unit === 'mi' ? n / KM_TO_MI : n;
-  return String(Math.round(km * 1000) / 1000);
-}
-
-// ── Pace helpers ──────────────────────────────────────────────────────────────
-// Note: _paceFromDistTime divides time by whatever distance number it is given,
-// so passing a display-unit distance yields a per-display-unit pace.
-function _paceFromDistTime(distKm, timeStr) {
-  const dist = parseFloat(distKm);
-  if (!dist || dist <= 0 || !timeStr) return '';
-  const parts = String(timeStr).trim().split(':');
-  let secs = 0;
-  if (parts.length === 3) secs = +parts[0] * 3600 + +parts[1] * 60 + parseFloat(parts[2]);
-  else if (parts.length === 2) secs = +parts[0] * 60 + parseFloat(parts[1]);
-  if (!secs) return '';
-  const secPerKm = secs / dist;
-  const m = Math.floor(secPerKm / 60);
-  const s = Math.round(secPerKm % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
-
-function _timeFromPaceDist(paceStr, distKm) {
-  const dist = parseFloat(distKm);
-  if (!dist || dist <= 0 || !paceStr) return '';
-  const parts = String(paceStr).trim().replace(/\/km.*/i, '').trim().split(':');
-  if (parts.length !== 2) return '';
-  const secPerKm = +parts[0] * 60 + parseFloat(parts[1]);
-  if (!secPerKm) return '';
-  const totalSecs = secPerKm * dist;
-  const m = Math.floor(totalSecs / 60);
-  const s = Math.round(totalSecs % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
 }
 
 export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn) {
@@ -558,75 +509,7 @@ export function renderWorkout() {
       : '';
   }
 
-  // --- RUN METRICS ---
-  const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '', pace: '', notes: '' };
-
-  const distEl       = document.getElementById('runInputDist');
-  const timeEl       = document.getElementById('runInputTime');
-  const rpeCockpitEl = document.getElementById('runInputRpeCockpit');
-  const paceEl       = document.getElementById('runInputPace');
-  const notesRunEl   = document.getElementById('runInputNotes');
-  const avgHREl      = document.getElementById('runInputAvgHR');
-  const maxHREl      = document.getElementById('runInputMaxHR');
-  const elevEl       = document.getElementById('runInputElev');
-  const calsEl       = document.getElementById('runInputCals');
-  const runExtraStatsRow = document.getElementById('runExtraStats');
-
-  const distUnit = _runDistUnit(appState);
-  if (distEl)       distEl.value       = (runContext.dist === '' || runContext.dist == null)
-                                           ? '' : _kmToDisplayDist(runContext.dist, distUnit);
-  if (timeEl)       timeEl.value       = runContext.time        || '';
-  if (rpeCockpitEl) rpeCockpitEl.value = runContext.rpe         || '';
-  if (notesRunEl)   notesRunEl.value   = runContext.notes       || '';
-  if (avgHREl)      avgHREl.value      = runContext.avgHR       || '';
-  if (maxHREl)      maxHREl.value      = runContext.maxHR       || '';
-  if (elevEl)       elevEl.value       = runContext.elev        || '';
-  if (calsEl)       calsEl.value       = runContext.cals        || '';
-
-  // Restore or compute pace (per the user's display unit)
-  if (paceEl) {
-    const dispDist = _kmToDisplayDist(runContext.dist, distUnit);
-    const computedPace = _paceFromDistTime(dispDist, runContext.time);
-    paceEl.value = computedPace || runContext.pace || '';
-    paceEl.placeholder = `—:—— /${distUnit}`;
-  }
-  // Distance + pace unit labels track the configured unit.
-  const distLabelEl = document.getElementById('runDistUnitLabel');
-  if (distLabelEl) distLabelEl.textContent = distUnit === 'mi' ? 'Dist MI' : 'Dist KM';
-  const paceUnitEl = document.getElementById('runPaceUnit');
-  if (paceUnitEl) paceUnitEl.textContent = `/${distUnit}`;
-
-  const hasRunExtra = runContext.avgHR || runContext.maxHR || runContext.elev || runContext.cals ||
-                      runContext.avgCadence || runContext.descent || runContext.trainingEffect ||
-                      weekData.runs[selectedDay]?.splits?.length > 0;
-  if (runExtraStatsRow) runExtraStatsRow.style.display = hasRunExtra ? 'block' : 'none';
-
-  // HR Zones strip
-  const hrZonesContainer = document.getElementById('runHrZonesContainer');
-  const hrZonesBar       = document.getElementById('runHrZonesBar');
-  const hrZonesLabels    = document.getElementById('runHrZonesLabels');
-  if (hrZonesContainer && hrZonesBar && hrZonesLabels) {
-    const zones = runContext.hrZones;
-    if (zones && Array.isArray(zones) && zones.some(z => z > 0)) {
-      hrZonesContainer.style.display = 'block';
-      const zoneColors  = ['#22d3ee', '#10b981', '#f59e0b', '#f97316', '#ef4444'];
-      const zoneLabels  = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
-      const total       = zones.reduce((s, z) => s + z, 0) || 1;
-      hrZonesBar.innerHTML = zones.map((z, i) => {
-        const pct = Math.round((z / total) * 100);
-        return pct > 0
-          ? `<div style="width:${pct}%;background:${zoneColors[i]};height:100%;transition:width 0.4s;"></div>`
-          : '';
-      }).join('');
-      hrZonesLabels.innerHTML = zones.map((z, i) => {
-        const m = Math.floor(z / 60);
-        const s = Math.round(z % 60).toString().padStart(2, '0');
-        return `<span style="color:${zoneColors[i]};">${zoneLabels[i]} ${m}:${s}</span>`;
-      }).join('');
-    } else {
-      hrZonesContainer.style.display = 'none';
-    }
-  }
+  renderRunInputs({ appState, weekData, selectedDay });
 
   // --- GYM METRICS ---
   const gymContext = weekData.gymStats[selectedDay] || { time: '', avgHR: '', maxHR: '', cals: '' };
@@ -652,51 +535,7 @@ export function renderWorkout() {
                       gymContext.trainingEffect;
   if (gymStatsRow) gymStatsRow.style.display = hasGymStats ? 'block' : 'none';
 
-  // --- MAP GARMIN DATA TO INPUTS ---
-  const rStats = appState.weeks[wk].runs?.[selectedDay] || {};
-
-  const cadenceEl = document.getElementById('runInputCadence');
-  if (cadenceEl) cadenceEl.value = rStats.avgCadence || '--';
-
-  const descentEl = document.getElementById('runInputDescent');
-  if (descentEl) descentEl.value = rStats.descent || '--';
-
-  const teEl = document.getElementById('runInputTE');
-  if (teEl) teEl.value = rStats.trainingEffect || '--';
-
-  const splitsContainer = document.getElementById('runSplitsContainer');
-  const splitsTable = document.getElementById('runSplitsTable');
-  if (splitsContainer && splitsTable) {
-      if (rStats.splits && rStats.splits.length > 0) {
-          const threshold = appState.thresholdPaceSeconds;
-          const zoneColour = (secPerKm) => {
-            if (!threshold) return '#f43f5e';
-            const d = secPerKm - threshold;
-            if (d >  90) return '#22d3ee';
-            if (d >  30) return '#10b981';
-            if (d > -30) return '#f59e0b';
-            if (d > -60) return '#f97316';
-            return '#ef4444';
-          };
-          let html = '<div style="font-size: 0.75rem; color: #fff;">';
-          rStats.splits.forEach(s => {
-              const min = Math.floor(s.time / 60);
-              const sec = Math.floor(s.time % 60).toString().padStart(2, '0');
-              const colour = zoneColour(s.time / (s.dist || 1));
-              html += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
-                          <span>Lap ${s.lap}</span>
-                          <span>${s.dist.toFixed(2)} km</span>
-                          <span style="color:${colour};">${min}:${sec}/km</span>
-                          <span style="color:var(--accent-pink);">❤️ ${s.avgHR || '--'}</span>
-                       </div>`;
-          });
-          html += '</div>';
-          splitsTable.innerHTML = html;
-          splitsContainer.style.display = 'block';
-      } else {
-          splitsContainer.style.display = 'none';
-      }
-  }
+  renderImportedRunDetails({ appState, weekData, selectedDay });
 
   const gStats = appState.weeks[wk].gymStats?.[selectedDay] || {};
   const gymSetsContainer = document.getElementById('gymSetsBreakdown');
@@ -722,13 +561,7 @@ export function renderWorkout() {
       }
   }
 
-  // === RENDER MAP FROM IndexedDB ===
-  renderRunMap(wk, selectedDay, runContext.dist, {
-    splits: rStats.splits,
-    thresholdSec: appState.thresholdPaceSeconds,
-    activationId: appState.activeActivationId,
-    sessionId: runContext.sessionId,
-  });
+  renderCockpitRunMap({ appState, weekData, weekKey: wk, selectedDay });
 
   const notesEl = document.getElementById('sessionNotesInput');
   const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
@@ -736,46 +569,8 @@ export function renderWorkout() {
   if (notesEl) notesEl.value = weekData.notes[selectedDay] || '';
   if (gymRpeEl) gymRpeEl.value = weekData.gymRpe?.[selectedDay] || '';
 
-  // --- REORDER AEROBIC TILE DYNAMICALLY ---
-  const runPanel = document.getElementById('cockpitRunPanel');
-  const runSpecsEl = document.getElementById('cockpitRunSpecs');
   const exercisesContainer = document.getElementById('cockpitExercisesContainer');
-
-  const blueprintRun = homeBlueprint.runs || '';
-  const isRunScheduled = blueprintRun && !blueprintRun.toLowerCase().includes('no structured') && blueprintRun.toLowerCase() !== 'rest';
-
-  if (runSpecsEl) runSpecsEl.textContent = blueprintRun || 'Rest';
-
-  const runTypeBadgeEl = document.getElementById('runTypeBadge');
-  if (runTypeBadgeEl) {
-    const runType = isRunScheduled ? detectRunType(blueprintRun) : null;
-    if (runType) {
-      runTypeBadgeEl.textContent = runType.label;
-      runTypeBadgeEl.style.setProperty('--badge-color', runType.color);
-      runTypeBadgeEl.style.display = '';
-    } else {
-      runTypeBadgeEl.style.display = 'none';
-    }
-  }
-
-  // A live run owns the card. Collapsing it — which a re-render would do on any
-  // day with no scheduled run, i.e. exactly when an unscheduled run is being
-  // tracked — hides `.run-body-content` and takes the running session off the
-  // screen mid-run. Reordering is skipped for the same reason: moving the node
-  // detaches the live Leaflet map from under the athlete.
-  const runSessionLive = hasActiveRunSession();
-
-  if (runPanel) {
-    runPanel.classList.toggle('run-collapsed', !isRunScheduled && !runSessionLive);
-  }
-
-  if (runPanel && exercisesContainer && !runSessionLive) {
-    if (!isRunScheduled) {
-      exercisesContainer.after(runPanel);
-    } else {
-      exercisesContainer.before(runPanel);
-    }
-  }
+  positionRunPanel({ homeBlueprint, exercisesContainer });
 
   const daySelectorBar = document.getElementById('cockpitDaySelectorBar');
   if (daySelectorBar) {
@@ -1228,41 +1023,7 @@ export function commitWorkoutUIState() {
   const wk = activeWorkoutWeekKey(appState);
   const weekData = appState.weeks[wk];
 
-  const distEl     = document.getElementById('runInputDist');
-  const timeEl     = document.getElementById('runInputTime');
-  const rpeRunEl   = document.getElementById('runInputRpeCockpit');
-  const paceEl     = document.getElementById('runInputPace');
-  const notesRunEl = document.getElementById('runInputNotes');
-  const avgHREl    = document.getElementById('runInputAvgHR');
-  const maxHREl    = document.getElementById('runInputMaxHR');
-  const elevEl     = document.getElementById('runInputElev');
-  const calsEl     = document.getElementById('runInputCals');
-
-  if (distEl && distEl.offsetParent !== null) {
-    const existing = weekData.runs[selectedDay] || {};
-    const distUnit = _runDistUnit(appState);
-    const update = {
-      ...existing,
-      // Convert the entered display-unit distance back to canonical km.
-      dist:  distEl.value === '' ? '' : _displayDistToKm(distEl.value, distUnit),
-      time:  timeEl.value,
-      rpe:   rpeRunEl.value,
-      pace:  paceEl   ? paceEl.value   : '',
-      notes: notesRunEl ? notesRunEl.value : '',
-      avgHR: avgHREl ? avgHREl.value : '',
-      maxHR: maxHREl ? maxHREl.value : '',
-      elev:  elevEl  ? elevEl.value  : '',
-      cals:  calsEl  ? calsEl.value  : '',
-    };
-    if (hasRunData(update) || existing.sessionId) {
-      upsertRunSession(weekData, selectedDay, update, {
-        sessionId: existing.sessionId || newRunSessionId(),
-        source: existing.source || 'cockpit',
-        localDate: existing.localDate || weekData.dates?.[selectedDay] || null,
-        startTs: existing.startTs,
-      });
-    }
-  }
+  commitRunLogging({ appState, weekData, selectedDay });
 
   if (!weekData.gymStats) weekData.gymStats = {};
   const gTimeEl = document.getElementById('gymInputTime');
@@ -2360,20 +2121,10 @@ document.addEventListener('input', (e) => {
   if (target.matches('#runInputDist, #runInputTime, #runInputRpeCockpit, #runInputPace, #runInputNotes')) {
     const state = _getState();
     const day = activeWorkoutDay(state, _getSelectedDay());
-    markSessionInProgress(state.weeks?.[activeWorkoutWeekKey(state)], day);
-  }
-  const distEl  = document.getElementById('runInputDist');
-  const timeEl  = document.getElementById('runInputTime');
-  const paceEl  = document.getElementById('runInputPace');
-  if (!distEl || !timeEl || !paceEl) return;
-
-  if (target.id === 'runInputDist' || target.id === 'runInputTime') {
-    // dist + time → derive pace
-    const computed = _paceFromDistTime(distEl.value, timeEl.value);
-    if (computed) paceEl.value = computed;
-  } else if (target.id === 'runInputPace') {
-    // pace + dist → derive time
-    const derived = _timeFromPaceDist(paceEl.value, distEl.value);
-    if (derived) timeEl.value = derived;
+    handleRunLoggingInput(target, {
+      appState: state,
+      weekKey: activeWorkoutWeekKey(state),
+      selectedDay: day,
+    });
   }
 });

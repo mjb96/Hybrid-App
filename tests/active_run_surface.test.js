@@ -17,6 +17,7 @@ const tracker = read('js/gps-tracker.js');
 const html = read('index.html');
 const css = read('css/styles.css');
 const workout = read('js/workout.js');
+const runLogging = read('js/workout/run-logging.js');
 const app = read('js/app.js');
 
 test('the live stats are rendered through the shared display model', () => {
@@ -156,7 +157,8 @@ test('a re-render cannot collapse or reparent a live run', () => {
   // it on any day with no scheduled run — which is exactly when an unscheduled
   // run is being tracked.
   assert.match(css, /\.run-collapsed \.run-body-content \{ display: none; \}/);
-  assert.match(workout, /run-collapsed', !isRunScheduled && !runSessionLive/);
-  assert.match(workout, /exercisesContainer && !runSessionLive/);
-  assert.match(workout, /const runSessionLive = hasActiveRunSession\(\)/);
+  assert.match(workout, /positionRunPanel\(\{ homeBlueprint, exercisesContainer \}\)/);
+  assert.match(runLogging, /run-collapsed', !isRunScheduled && !runSessionLive/);
+  assert.match(runLogging, /exercisesContainer && !runSessionLive/);
+  assert.match(runLogging, /const runSessionLive = hasActiveRunSession\(\)/);
 });
