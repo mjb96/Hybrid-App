@@ -23,7 +23,7 @@ import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { buildSessionOutline, outlineSummaryLine } from './workout/session-outline.js';
-import { applySetRemoval, restoreSetRemoval, plannedSetsForLift } from './workout/set-plan.js';
+import { plannedSetsForLift } from './workout/set-plan.js';
 import { buildSessionReview } from './workout/session-review.js';
 import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
@@ -38,11 +38,9 @@ import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
-import { applyBandLoad, applyLoadMode, bandRole, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { applyLoadMode, isBodyweightExercise } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft, snapshotDayWorkoutData, restoreDayWorkoutData } from './workout/delete-day.js';
-import { showUndo } from './ui/undo-bar.js';
-import { numberPromptModal } from './ui/confirm-modal.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
 import {
   browseExercises, equipmentLabel, exerciseStatForName, EXERCISE_CATEGORY_LABELS,
@@ -63,8 +61,16 @@ import {
   renderRunInputs, renderImportedRunDetails, renderCockpitRunMap, positionRunPanel,
   commitRunLogging, handleRunLoggingInput,
 } from './workout/run-logging.js';
+import {
+  appendCustomSetRow, appendWarmupSetRow, removeCustomSetRow, cycleSetType,
+  setSetLoadMode, cycleSetLoad, setPerSetRir, currentBodyweight as _currentBodyweight,
+} from './workout/set-mutations.js';
 // Re-exported for js/app.js, which imports these from here.
 export { openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics };
+export {
+  appendCustomSetRow, appendWarmupSetRow, removeCustomSetRow, cycleSetType,
+  setSetLoadMode, cycleSetLoad, setPerSetRir,
+};
 import {
   renderExerciseLibraryList,
   handleExerciseSearch,
@@ -1339,284 +1345,6 @@ export function evaluateAccordionAutoFlowTransitions() {
   }
 }
 
-export function appendCustomSetRow(btnNode, liftName) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  
-  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
-  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName] = [];
-  }
-  appState.weeks[wk].lifts[selectedDay][liftName].push({ w: '', r: '', c: false });
-  _saveState(true);
-  renderWorkout();
-}
-
-export function appendWarmupSetRow(btnNode, liftName) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-
-  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
-  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName] = [];
-  }
-  const sets = appState.weeks[wk].lifts[selectedDay][liftName];
-  // Insert warmup before first working set, or at index 0
-  const firstWorkingIdx = sets.findIndex(s => !s.type || s.type !== 'W');
-  const newSet = { w: '', r: '', c: false, type: 'W' };
-  if (firstWorkingIdx === -1) sets.push(newSet);
-  else sets.splice(firstWorkingIdx, 0, newSet);
-
-  _saveState(true);
-  renderWorkout();
-}
-
-export function removeCustomSetRow(liftName, setIndex) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const week = appState.weeks?.[wk];
-  if (!week) return;
-
-  // The data operation (splice, drop an emptied exercise, and stamp the
-  // athlete's own set count so the scaffolding pass cannot pad the row back)
-  // lives in set-plan.js and is unit-tested; this is the UI around it. The
-  // snapshot it returns is what Undo restores — the ✕ sits ~40px from the ✓, so
-  // a fat-finger on a logged set must be recoverable, not silent data loss.
-  const result = applySetRemoval(week, selectedDay, liftName, setIndex);
-  if (!result.ok) return;
-
-  _saveState(true);
-  renderWorkout();
-  _offerSetUndo({ liftName, selectedDay, wk, snapshot: result });
-}
-
-// Restore the pre-delete snapshot captured by removeCustomSetRow.
-function _restoreRemovedSet(u) {
-  const appState = _getState();
-  const week = appState.weeks?.[u.wk];
-  if (!week) return;
-  if (!restoreSetRemoval(week, u.selectedDay, u.liftName, u.snapshot)) return;
-  _saveState(true);
-  renderWorkout();
-  showToast('Set restored ✓');
-}
-
-// A tappable Undo snackbar (the plain showToast has no action). Sits above the
-// bottom nav, auto-dismisses after 6s.
-let _undoSnackTimer = null;
-function _offerSetUndo(u) {
-  if (typeof document === 'undefined') return;
-  document.getElementById('setUndoSnack')?.remove();
-  if (_undoSnackTimer) { clearTimeout(_undoSnackTimer); _undoSnackTimer = null; }
-
-  const snack = document.createElement('div');
-  snack.id = 'setUndoSnack';
-  snack.setAttribute('role', 'status');
-  snack.style.cssText =
-    'position:fixed;left:50%;transform:translateX(-50%);' +
-    'bottom:calc(88px + env(safe-area-inset-bottom, 0px));z-index:9998;' +
-    'display:flex;align-items:center;gap:14px;max-width:calc(100% - 32px);' +
-    'background:#1e293b;color:#f8fafc;border:1px solid rgba(255,255,255,0.14);' +
-    'border-radius:12px;padding:11px 16px;box-shadow:0 8px 28px rgba(0,0,0,0.4);font-size:0.85rem;';
-  snack.innerHTML =
-    '<span style="flex:1;">Set removed</span>' +
-    '<button type="button" id="setUndoBtn" style="min-height:44px;background:none;border:none;' +
-    'color:#60a5fa;font-weight:800;font-size:0.85rem;cursor:pointer;padding:4px 8px;">UNDO</button>';
-  document.body.appendChild(snack);
-
-  const dismiss = () => { snack.remove(); if (_undoSnackTimer) clearTimeout(_undoSnackTimer); _undoSnackTimer = null; };
-  snack.querySelector('#setUndoBtn')?.addEventListener('click', () => { _restoreRemovedSet(u); dismiss(); });
-  _undoSnackTimer = setTimeout(dismiss, 6000);
-}
-
-export function cycleSetType(liftName, sIdx) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx >= setArr.length) return;
-
-  const cycle = { '': 'W', 'W': 'D', 'D': 'F', 'F': '' };
-  const newType = cycle[setArr[sIdx].type || ''];
-  setArr[sIdx].type = newType;
-
-  // Update DOM without full re-render
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (row) {
-    row.classList.remove('type-warmup', 'type-dropset', 'type-amrap');
-    if (newType === 'W') row.classList.add('type-warmup');
-    else if (newType === 'D') row.classList.add('type-dropset');
-    else if (newType === 'F') row.classList.add('type-amrap');
-    const lbl  = row.querySelector('.set-num-lbl');
-    const pill = row.querySelector('.type-pill');
-    const numLabels  = { '': `S${sIdx + 1}`, 'W': 'W', 'D': 'D', 'F': 'F' };
-    const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
-    if (lbl)  lbl.textContent  = numLabels[newType];
-    if (pill) pill.textContent = pillLabels[newType];
-  }
-  _saveState(true);
-}
-
-// Best-available bodyweight for stamping bodyweight sets: latest logged weight,
-// else the settings default, else a neutral fallback.
-/**
- * The athlete's most recent body weight, or null when they have never given
- * one. Deliberately has no fallback: this used to return a hardcoded 75 kg,
- * which then became the LOGGED load on every bodyweight and band-assisted set
- * and flowed on into volume, PRs and the Hybrid Score as though measured.
- */
-function _currentBodyweight(appState) {
-  const log = appState.bodyWeightLog || [];
-  for (let i = log.length - 1; i >= 0; i--) {
-    const w = parseFloat(log[i]?.weight);
-    if (Number.isFinite(w) && w > 0) return w;
-  }
-  const dbw = parseFloat(appState.settings?.defaultBodyWeight);
-  if (Number.isFinite(dbw) && dbw > 0) return dbw;
-  return null;
-}
-
-function _replaceSet(setArr, index, next) {
-  // Preserve array identity because other workout consumers can hold the live
-  // set list, while still applying the pure load-mode result atomically.
-  setArr[index] = next;
-}
-
-function _syncLoadModeRow(liftName, sIdx, set) {
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (!row) return;
-  const mode = resolvedLoadMode(set, liftName);
-  row.dataset.loadMode = mode;
-  row.querySelectorAll('.set-load-choice__btn').forEach((button) => {
-    const active = button.getAttribute('data-mode') === mode;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
-  });
-  const wInput = row.querySelector('.input-weight-node');
-  if (wInput) wInput.value = set.w || '';
-}
-
-/**
- * Body weight, asking for it once if we have never been told.
- *
- * The app used to substitute a hardcoded 75 kg here. Refusing to invent it is
- * right; refusing and then silently logging a zero is not. So the athlete is
- * asked at the exact moment the number is needed, and the answer is stored the
- * same way the profile stores it — `defaultBodyWeight` plus today's entry in
- * `bodyWeightLog` — so it is never asked twice.
- *
- * @returns {Promise<number|null>} null if they dismissed it
- */
-async function _ensureBodyweight(appState) {
-  const known = _currentBodyweight(appState);
-  if (known != null) return known;
-
-  const unit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
-  const entered = await numberPromptModal({
-    title: 'What do you weigh?',
-    message: 'Bodyweight and band-assisted sets are logged against your body weight, so this is the load for those sets.',
-    label: 'Body weight',
-    unit,
-    confirmLabel: 'Save',
-    max: unit === 'lbs' ? 1000 : 450,
-  });
-  if (entered == null) return null;
-
-  if (!appState.settings) appState.settings = {};
-  appState.settings.defaultBodyWeight = entered;
-  if (!Array.isArray(appState.bodyWeightLog)) appState.bodyWeightLog = [];
-  const today = dateKey();
-  const existing = appState.bodyWeightLog.findIndex(l => l?.date === today);
-  if (existing >= 0) appState.bodyWeightLog[existing].weight = entered;
-  else appState.bodyWeightLog.push({ date: today, weight: entered });
-  _saveState(true);
-  return entered;
-}
-
-export async function setSetLoadMode(liftName, sIdx, mode) {
-  if (!['bodyweight', 'weighted', 'assisted'].includes(mode)) return;
-  const appState = _getState();
-  // Both of these record body mass as the load, so they cannot proceed on a
-  // number nobody has ever supplied.
-  if (mode === 'bodyweight' || mode === 'assisted') {
-    if (await _ensureBodyweight(appState) == null) return;
-  }
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
-  const next = applyLoadMode(setArr[sIdx], mode, {
-    bodyweight: _currentBodyweight(appState),
-    bandWeights: appState.settings?.bandWeights,
-  });
-  _replaceSet(setArr, sIdx, next);
-  _syncLoadModeRow(liftName, sIdx, next);
-  _saveState(true);
-}
-
-// The overflow load chip remains the fine-grained band selector. What a band
-// MEANS depends on the exercise: assistance subtracted from body mass on a
-// pull-up, the entire resistance on a pushdown. `applyBandLoad` picks.
-export async function cycleSetLoad(liftName, sIdx) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
-  const set = setArr[sIdx];
-  const bands = appState.settings?.bandWeights || { L: 10, M: 20, H: 30 };
-
-  const order = ['', 'BW', 'L', 'M', 'H'];
-  const cur = set.bw ? 'BW' : (set.band || '');
-  const next = order[(order.indexOf(cur) + 1) % order.length];
-
-  // Only the states that actually load body mass need it — a band on a
-  // pushdown resists with its own weight and must never trigger this.
-  const needsBodyweight = next === 'BW'
-    || (next && bandRole(liftName) === 'assist');
-  if (needsBodyweight && await _ensureBodyweight(appState) == null) return;
-
-  let nextSet;
-  if (next === 'BW') {
-    nextSet = applyLoadMode(set, 'bodyweight', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
-  } else if (next) {
-    // The exercise decides whether the band assists or IS the load — a band on
-    // a pull-up subtracts from body mass, a band on a pushdown is the whole
-    // resistance. Passing the lift name is what stops bodyweight leaking into
-    // accessories that never lift it.
-    nextSet = applyBandLoad(set, next, {
-      exercise: liftName,
-      bodyweight: _currentBodyweight(appState),
-      bandWeights: bands,
-    });
-  } else {
-    nextSet = applyLoadMode(set, 'weighted', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
-  }
-  _replaceSet(setArr, sIdx, nextSet);
-
-  // Targeted DOM update (keep the card expanded / scroll position).
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (row) {
-    const chip = row.querySelector('.btn-load');
-    const labels = { '': 'Weighted', BW: 'Bodyweight', L: '🟢 Light band', M: '🟡 Med band', H: '🔴 Heavy band' };
-    const cls = next === '' ? 'weighted' : next === 'BW' ? 'bw' : next;
-    if (chip) {
-      chip.textContent = labels[next];
-      chip.className = 'btn-load tactile-scale load-' + cls;
-    }
-    const wInput = row.querySelector('.input-weight-node');
-    if (wInput) wInput.value = nextSet.w;
-  }
-  _syncLoadModeRow(liftName, sIdx, nextSet);
-  _saveState(true);
-}
-
 export function showSupersetLinkPanel(exCard) {
   if (!exCard) return;
   const appState   = _getState();
@@ -1701,27 +1429,6 @@ export function unpairSuperset(liftName) {
   Object.keys(dayMeta).forEach(n => { if (dayMeta[n]?.groupId === groupId) delete dayMeta[n].groupId; });
   _saveState(true);
   renderWorkout();
-}
-
-export function setPerSetRir(liftName, sIdx, rir) {
-  const appState = _getState();
-  const day = _getSelectedDay();
-  const wk = activeWorkoutWeekKey(appState);
-  const sets = appState.weeks[wk].lifts?.[day]?.[liftName];
-  if (!sets || !sets[sIdx]) return;
-  const cleared = sets[sIdx].rir === rir; // tap the active chip to clear
-  sets[sIdx].rir = cleared ? null : rir;
-  // Keep a derived RPE (= 10 − RIR) so the progression/fatigue engine, which
-  // reasons over per-set RPE, needs no changes. The 4+ bucket maps to RPE 6.
-  sets[sIdx].rpe = cleared ? null : 10 - rir;
-  _saveState(true);
-  // DOM-only update: toggle active class without full re-render
-  const rowEl = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"] .cockpit-set-row[data-set-index="${sIdx}"]`);
-  if (rowEl) {
-    rowEl.querySelectorAll('.btn-rpe').forEach(btn => {
-      btn.classList.toggle('rpe-selected', parseInt(btn.getAttribute('data-rir'), 10) === sets[sIdx].rir);
-    });
-  }
 }
 
 // Next unfinished exercise after `fromCard` (wrapping to the top), or null when

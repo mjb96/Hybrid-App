@@ -1314,8 +1314,24 @@ it supports.
   - `tests/workout_split_guard.test.js` now ratchets both `clear-log.js` and
     `run-logging.js` as wired, forward-only modules. Verified: 1,787 unit tests,
     typecheck, smoke, regenerated precache, and all 32 browser checks.
-- [ ] Next seams: set mutations, then supersets — each moving
-  handlers out while the router stays. Routers last.
+- **FOURTH SEAM CUT 2026-08-11 — `js/workout/set-mutations.js`** (297 lines):
+  row addition/removal and removal Undo, warm-up/type/RIR changes, bodyweight
+  prompting, and direct/band load choices now have one owner. **workout.js
+  2,130 → 1,837 lines.** The facade still re-exports every existing handler and
+  the event routers still dispatch to those names, so app.js and the DOM action
+  surface did not move.
+  - The latest-bodyweight reader is an explicit shared export because workout
+    rendering needs the same value as load mutation. The first focused run
+    caught that dependency as a runtime `ReferenceError`; wiring it explicitly
+    kept one source of truth rather than cloning the lookup back into the facade.
+  - Quick-log, checkbox completion and finish review stay in workout.js: they
+    coordinate PRs, timers, accordion flow and session lifecycle rather than
+    being simple row mutations. The split guard now ratchets
+    `set-mutations.js` as wired and forward-only.
+  - Verified: 1,787 unit tests, typecheck, smoke, regenerated precache, set-row
+    and rest-timer browser contracts, plus all other required browser contracts.
+- [ ] Next seam: supersets — move its handlers out while the router stays.
+  Routers still move last.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
   logging, and completion.
 - Split `js/app.js` routing/event ownership.
@@ -1528,7 +1544,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,721 tests, typecheck, smoke, precache/workflow gates, 30 responsive/accessibility browser checks |
+| Quality | 1,787 tests, typecheck, smoke, precache/workflow gates, 32 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1592,6 +1608,21 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-11 — fourth workout seam: set mutations extracted.**
+  - `js/workout/set-mutations.js` now owns adding and removing set rows,
+    removal Undo, warm-up/type/RIR edits, bodyweight prompting, and direct/band
+    load selection. `js/workout.js` fell from 2,130 to 1,837 lines while keeping
+    its public handler surface and all four event routers stable.
+  - A focused browser/unit run exposed the renderer's shared bodyweight lookup;
+    it is now an explicit import from the new module rather than duplicated.
+    The split guard also refuses to let the new module become orphaned or import
+    workout.js back.
+  - Verified 1,787 unit tests, typecheck, smoke, precache, and the relevant
+    browser contracts. The initial all-browser run had five otherwise-passing
+    checks marked by transient anonymous 404 console entries; each affected
+    check passed unchanged on immediate rerun. Next: extract supersets; routers
+    remain last.
 
 - **2026-08-11 — third workout seam: cockpit run logging extracted.**
   - `js/workout/run-logging.js` now owns the run card's render/persist boundary,
