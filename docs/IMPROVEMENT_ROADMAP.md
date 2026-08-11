@@ -1300,8 +1300,27 @@ it supports.
     `restoreDayWorkoutData`, `snapshotDayWorkoutData` and `deleteDayWorkoutData`
     were all missing from the new module's imports. `@ts-check` on every extracted
     file is what makes these cuts safe at this pace.
-- [ ] Next seams: run logging, then set mutations, then supersets — each moving
-  handlers out while the router stays. Routers last.
+- **THIRD SEAM CUT 2026-08-10 — `js/workout/run-units.js`** (65 lines): distance
+  and pace conversion at the UI boundary. **workout.js 2,379 → 2,334 lines.**
+  - The easiest seam in the file and worth taking early: pure functions, no DOM,
+    no module state — the athlete's unit setting arrives as an argument.
+  - **The real gain is coverage, not line count.** These were private helpers, so
+    nothing could import them and the suite had NO test of them at all —
+    including the entire MILE path, which is every athlete on `distanceUnit:'mi'`.
+    `tests/run_units.test.js` is their first test: 10 cases covering unit
+    defaulting, conversion both ways, pace/time inversion, zero-padded seconds,
+    and the refusal to invent a pace from a distance with no time.
+  - Documented invariant: distance is STORED canonically in km and the display
+    value is ROUNDED, so a round trip is lossy BY DESIGN. A test asserting exact
+    round-tripping would assert something false; one case pins the lossy-but-close
+    behaviour instead, so removing the rounding fails loudly.
+  - Two of my own errors, both caught by running things: the first test asserted a
+    NUMBER where these return strings (they feed input values), and my
+    verification fixture used `distance:` where the state field is `dist:`, which
+    silently produced an empty input and would have "verified" nothing. Fixed,
+    then proven: 10 km stored renders as `10 @ 5:00/km` and `6.21 @ 8:03/mi`.
+- [ ] Next seams: set mutations, then supersets, then session completion — each
+  moving handlers out while the router stays. Routers last.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
   logging, and completion.
 - Split `js/app.js` routing/event ownership.
@@ -1578,6 +1597,25 @@ Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-10 (third) — run-unit conversion extracted, and tested for the first
+  time.** `js/workout/run-units.js`; workout.js 2,379 → 2,334.
+  - Line count is the least interesting part. These were PRIVATE helpers, so the
+    mile conversion path — every athlete using `distanceUnit:'mi'` — had never
+    been tested by anything. Extraction made them reachable and they now have 10
+    cases, including that a pace is never invented from a distance with no time.
+  - Two of my own mistakes, both caught by running rather than reading: I asserted
+    a number where the functions return strings, and my browser verification used
+    `distance:` where the state field is `dist:` — which produced an empty input
+    and would have passed as "verified" while proving nothing. The second is the
+    more dangerous kind, and it is the third time this session a fixture field
+    name has quietly falsified a check.
+  - Proven end to end afterwards: 10 km stored renders `10 @ 5:00/km` and
+    `6.21 @ 8:03/mi`.
+  - Not run: `running-analytics-check`, whose container threshold (26s vs ~2s in
+    CI) exceeds a sane local timeout. It is analytics, not the cockpit run panel,
+    and CI covers it.
+
 
 - **2026-08-10 (later) — export audit said "do nothing", and the next cut found a
   bug I had shipped the day before.**

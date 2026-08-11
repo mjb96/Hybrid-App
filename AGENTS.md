@@ -221,7 +221,10 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
 - Workout modules: `js/workout.js` (2,492 lines) is imported ONLY by `js/app.js`,
   which uses 21 of its 44 exports. Exercise selection lives in
   `js/workout/exercise-picker.js`, the confirm-reset flow in
-  `js/workout/clear-log.js`, the weight-unit label in `js/workout/units.js`.
+  `js/workout/clear-log.js`, the weight-unit label in `js/workout/units.js`, and
+  run distance/pace conversion in `js/workout/run-units.js` (pure; distance is
+  STORED in km and the display value is rounded, so a UI round trip is lossy by
+  design — never round-trip a stored value to "normalise" it).
   The four event ROUTERS stay in workout.js and must move LAST: they are 81 lines
   dispatching to 27 local functions, so extracting them first would need 27
   back-imports (a cycle). Move handlers out while the router stays and imports

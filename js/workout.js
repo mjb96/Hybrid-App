@@ -60,6 +60,10 @@ import {
 import { workoutSessionKey } from './workout/session-identity.js';
 import { weightUnitLabel } from './workout/units.js';
 import {
+  KM_TO_MI, _runDistUnit, _kmToDisplayDist, _displayDistToKm,
+  _paceFromDistTime, _timeFromPaceDist,
+} from './workout/run-units.js';
+import {
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
 } from './workout/clear-log.js';
 // Re-exported for js/app.js, which imports these from here.
@@ -127,55 +131,6 @@ function _inheritedSetFromSession(exCard, parentRow) {
   return pickInheritedSet(sets, idx);
 }
 
-// ── Distance-unit helpers ──────────────────────────────────────────────────────
-// Distance is stored canonically in km everywhere. The cockpit run panel accepts
-// and displays the user's configured unit (km|mi) and converts on the boundary.
-const KM_TO_MI = 0.621371;
-function _runDistUnit(appState) {
-  return appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
-}
-function _kmToDisplayDist(km, unit) {
-  const n = parseFloat(km);
-  if (!isFinite(n)) return '';
-  const v = unit === 'mi' ? n * KM_TO_MI : n;
-  return String(Math.round(v * 100) / 100);
-}
-function _displayDistToKm(val, unit) {
-  const n = parseFloat(val);
-  if (!isFinite(n)) return '';
-  const km = unit === 'mi' ? n / KM_TO_MI : n;
-  return String(Math.round(km * 1000) / 1000);
-}
-
-// ── Pace helpers ──────────────────────────────────────────────────────────────
-// Note: _paceFromDistTime divides time by whatever distance number it is given,
-// so passing a display-unit distance yields a per-display-unit pace.
-function _paceFromDistTime(distKm, timeStr) {
-  const dist = parseFloat(distKm);
-  if (!dist || dist <= 0 || !timeStr) return '';
-  const parts = String(timeStr).trim().split(':');
-  let secs = 0;
-  if (parts.length === 3) secs = +parts[0] * 3600 + +parts[1] * 60 + parseFloat(parts[2]);
-  else if (parts.length === 2) secs = +parts[0] * 60 + parseFloat(parts[1]);
-  if (!secs) return '';
-  const secPerKm = secs / dist;
-  const m = Math.floor(secPerKm / 60);
-  const s = Math.round(secPerKm % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
-
-function _timeFromPaceDist(paceStr, distKm) {
-  const dist = parseFloat(distKm);
-  if (!dist || dist <= 0 || !paceStr) return '';
-  const parts = String(paceStr).trim().replace(/\/km.*/i, '').trim().split(':');
-  if (parts.length !== 2) return '';
-  const secPerKm = +parts[0] * 60 + parseFloat(parts[1]);
-  if (!secPerKm) return '';
-  const totalSecs = secPerKm * dist;
-  const m = Math.floor(totalSecs / 60);
-  const s = Math.round(totalSecs % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
 
 export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn) {
   // The accessors live in js/workout/context.js so modules split out of this
