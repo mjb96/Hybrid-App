@@ -11,6 +11,8 @@
 //     Customize/Compare clip);
 //   • stepping the schedule week updates the view and shows a "Changes from
 //     Week 1" summary WITHOUT mutating the active program's week.
+//   • Shed PPLUL exposes its performance-based guidance and exact paused-lift
+//     variations rather than retaining the retired fixed-wave copy.
 //
 // Standalone and optional locally. `--required` makes missing browser tooling a
 // hard failure, and is always used by the publication verification workflow.
@@ -106,6 +108,61 @@ for (const w of WIDTHS) {
   check(r.mineOverflow === 0, `360px @1.5x font: ${r.mineOverflow} progression/CTA element(s) overflow`);
   check(!r.ctaClipped, '360px @1.5x font: a CTA button is clipped');
   console.log(`  360px@1.5x  mineOverflow=${r.mineOverflow} ctaClipped=${r.ctaClipped}`);
+  await ctx.close();
+}
+
+// Shed PPLUL's authored guidance must reach the real detail page. The catalogue
+// tests pin its data; this pins the user-visible rendering path.
+{
+  const ctx = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.setItem('hybrid_engine_v2_state', JSON.stringify({
+      schemaVersion: 5,
+      settings: { name: 'A', onboardingComplete: true, fitnessGoal: 'strength', fitnessLevel: 'intermediate' },
+      weeks: {},
+    }));
+  });
+  await page.goto(BASE, { waitUntil: 'load' });
+  await page.waitForTimeout(500);
+  await page.click('.nav-item[data-target="program"]');
+  await page.waitForTimeout(350);
+  await page.evaluate(() => {
+    const button = document.createElement('button');
+    button.setAttribute('data-action', 'open-program-detail');
+    button.setAttribute('data-program-id', 'shed_pplul');
+    button.hidden = true;
+    document.body.appendChild(button);
+    button.click();
+    button.remove();
+  });
+  await page.waitForSelector('#programDetailScreen .detail-cta-secondary [data-program-id="shed_pplul"]', { timeout: 8000 });
+  await page.waitForTimeout(400);
+
+  const r = await page.evaluate(() => {
+    const content = document.getElementById('programDetailContent');
+    const text = (content?.textContent || '').replace(/\s+/g, ' ');
+    return {
+      weekBrief: document.querySelector('#programDetailScreen .jt-week-brief')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+      programNotes: text.includes('Do not deload automatically'),
+      pausedBench: text.includes('Paused Barbell Bench Press'),
+      pausedDeadlift: text.includes('Paused Conventional Deadlift'),
+      activeRecovery: text.includes('Active Recovery'),
+      oldWave: /4×8 in weeks 1–3|Deloads in weeks 4 and 8|rep-PR assessment in week 12/i.test(text),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    };
+  });
+  console.log(`  Shed PPLUL ${JSON.stringify(r)}`);
+  check(/Performance-based/.test(r.weekBrief), 'Shed PPLUL week brief omits performance-based progression');
+  check(r.programNotes, 'Shed PPLUL evidence-triggered deload guidance is not visible');
+  check(r.pausedBench, 'Shed PPLUL paused bench is not visible');
+  check(r.pausedDeadlift, 'Shed PPLUL paused deadlift is not visible');
+  check(r.activeRecovery, 'Shed PPLUL active-recovery day is not visible');
+  check(!r.oldWave, 'retired fixed-wave Shed PPLUL copy is still visible');
+  check(!r.overflow, 'Shed PPLUL detail page overflows horizontally');
+  check(errors.length === 0, `Shed PPLUL browser errors: ${errors.join(' | ')}`);
   await ctx.close();
 }
 
@@ -222,4 +279,4 @@ if (failures.length) {
   console.error('\nFAIL — program-detail layout regressions:\n  - ' + failures.join('\n  - '));
   process.exit(1);
 }
-console.log('\nPASS — 4B decision order with no repeated labels; week-at-a-glance, progression and CTA fit the phone viewport; week preview is non-mutating.');
+console.log('\nPASS — 4B decision order with no repeated labels; week-at-a-glance, progression and CTA fit the phone viewport; week preview is non-mutating; Shed PPLUL guidance is visible.');

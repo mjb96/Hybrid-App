@@ -1558,7 +1558,7 @@ even while release work is parked.
 | Home/coaching | One state-aware Today card followed by retained Strength/Running In Focus cards; repeated At-a-Glance tiles are removed |
 | Training | Planned/one-off strength, running, set logging, timers, swaps, supersets, bodyweight modes, session completion, focused live-run surface |
 | Plans | 58-program catalogue, an active-plan lead that agrees with Home about the next session, fit-based recommendations with stated reasons, comparison, details, timeline, editable personal copies, builder |
-| Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
+| Exercises | 157 canonical exercises, 66 with reviewed instructions/difficulty/safety notes, aliases, equipment/muscle data, filters and details |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
 | Quality | 1,800 tests, typecheck, smoke, precache/workflow gates, 32 responsive/accessibility browser checks |
@@ -1618,13 +1618,43 @@ Work in this order unless user evidence changes it:
    added ones. Discovery needed better *leading*, not rescuing from
    unreachability.
 9. **NEXT — 4D: exercise metadata and shared visual-system cleanup in bounded
-   batches.** 154 canonical exercises, 16 fully reviewed. Also add primary-muscle
+   batches.** 157 canonical exercises, 66 fully reviewed. Also add primary-muscle
    and equipment browsing without anatomical clutter.
 
 Avoid parallel redesign of every screen. Each step should be usable and
 testable on its own.
 
 ## 12. Session log
+
+- **2026-08-13 (later) — Shed PPLUL replaced its fixed wave with the owner’s
+  performance-based ongoing block.**
+  - The five lifting days now match the supplied plan exercise-for-exercise and
+    set-for-set: reduced low-fatigue back/rear-delt/single-leg volume, Friday
+    paused bench instead of close-grip bench, Saturday paused conventional
+    deadlift, and the optional farmer carry reduced to two sets. Thursday is
+    explicitly 45–60 minutes of conversational-pace walking; it remains an
+    optional recovery day rather than becoming a mandatory Run Day.
+  - Removed the 8/6/4 calendar, automatic Weeks 4/8 deloads and Week 12 rep-PR
+    assessment. Every week now keeps the authored rep ranges; repetitions, load,
+    RIR and execution determine progression. Weeks 4, 8 and 12 are review
+    checkpoints only, with a 30–50% volume reduction suggested only when fatigue
+    evidence supports it.
+  - Retained a renewable 12-week app window instead of shortening the catalogue
+    entry to four weeks, so an active run already past Week 4 is not invalidated.
+    `ongoing:true` and `reviewEveryWeeks:4` state the real intent. No workout or
+    history data is migrated or rewritten.
+  - Added `Paused Barbell Bench Press` and `Paused Conventional Deadlift` as
+    distinct reviewed exercise identities, so their history and PRs never merge
+    with the standard variations. The supplied performance baselines remain
+    reference metadata, never auto-filled prescriptions.
+  - Shed’s authored programme/week/exercise guidance now renders on the real
+    detail page rather than sitting unused in catalogue metadata. A Chromium
+    guard proves the new brief, paused lifts and active-recovery day are visible,
+    the retired wave is absent, and the page has no 320–412px overflow.
+  - Verified 1,800 unit tests after merging the browser-network guard from main,
+    plus typecheck, smoke, regenerated precache, and the
+    programme-detail browser check. Next: extract supersets from `workout.js`;
+    event routers remain last.
 
 - **2026-08-13 (later) — post-merge release/deploy browser flake removed at the
   network boundary.**

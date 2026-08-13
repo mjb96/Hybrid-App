@@ -121,7 +121,7 @@ export function renderProgramDetail(programId, appState) {
         <div class="detail-section-title">Training focus</div>
         ${renderFocusBars(program.metrics)}
       </div>` : ''}
-    ${renderJtProgramNotes(program)}
+    ${renderAuthoredProgramNotes(program)}
   `;
   // Equipment is no longer in this tab: 4B puts equipment FIT third, beside the
   // commitment, so the kit question is answered before the sample week rather
@@ -655,7 +655,7 @@ function renderWeekAtAGlance(program, isActive, appState, totalWeeks, week) {
     <div class="detail-section">
       <div class="detail-section-title">This week at a glance</div>
       ${stepper}
-      ${renderJtWeekBrief(program, week)}
+      ${renderAuthoredWeekBrief(program, week)}
       ${showChanges ? `<div class="wag-changes"><span class="wag-changes-label">Changes from Week 1</span>${changes.map(c => `<span class="wag-change">${escapeHtml(c)}</span>`).join('')}</div>` : ''}
       <div class="wag-list">${rowsHTML}</div>
     </div>`;
@@ -673,7 +673,17 @@ function _isJtShed(program) {
 // The selected week's phase label + week instructions + this week's tier
 // prescriptions — makes the week-at-a-glance preview reflect the chosen week
 // (deload/pivot/assessment weeks read correctly).
-function renderJtWeekBrief(program, week) {
+function renderAuthoredWeekBrief(program, week) {
+  if (program?.progressionModel === 'shed-pplul') {
+    const authored = program?.weekNotes?.[String(week)];
+    if (!authored) return '';
+    const notes = Array.isArray(authored.notes) ? authored.notes : [];
+    return `
+      <div class="jt-week-brief" style="margin:0 0 12px;padding:12px;background:var(--overlay-sm);border-radius:12px;">
+        <div style="font-weight:700;font-size:0.9rem;color:var(--text-inverse);">Week ${week} · ${escapeHtml(authored.label || 'Performance-based progression')}</div>
+        ${notes.length ? `<ul style="margin:8px 0 0;padding-left:18px;color:var(--text-secondary);font-size:0.78rem;line-height:1.5;">${notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : ''}
+      </div>`;
+  }
   if (!_isJtShed(program)) return '';
   const wn = jtWeekNote(program, week);
   if (program?.progressionModel === 'jt-shed-simplified') {
@@ -741,13 +751,19 @@ function renderJtWeekBrief(program, week) {
 // Program-level coaching notes + a per-day tier legend with expandable exercise
 // coaching notes. Program notes render in the Overview tab; exercise notes are
 // accessible via <details> so they don't clutter the primary surface.
-function renderJtProgramNotes(program) {
-  if (!_isJtShed(program)) return '';
-  const notes = jtProgramNotes(program);
+function renderAuthoredProgramNotes(program) {
+  const shedPplul = program?.progressionModel === 'shed-pplul';
+  if (!_isJtShed(program) && !shedPplul) return '';
+  const notes = shedPplul
+    ? (Array.isArray(program?.programNotes) ? program.programNotes : [])
+    : jtProgramNotes(program);
   const simplified = program?.progressionModel === 'jt-shed-simplified';
-  const dayNames = { mon: 'Monday', tue: 'Tuesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
-  const dayBlocks = ['mon', 'tue', 'thu', 'fri', 'sat'].map((dk) => {
-    const exs = jtDayExercises(program, dk);
+  const dayNames = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+  const dayKeys = shedPplul ? ['mon', 'tue', 'wed', 'fri', 'sat'] : ['mon', 'tue', 'thu', 'fri', 'sat'];
+  const dayBlocks = dayKeys.map((dk) => {
+    const exs = shedPplul
+      ? (Array.isArray(program?.dayExercises?.[dk]) ? program.dayExercises[dk] : [])
+      : jtDayExercises(program, dk);
     if (!exs.length) return '';
     const rows = exs.map((ex) => `
       <details class="jt-ex-note" style="border-top:1px solid var(--overlay-sm);padding:6px 0;">
@@ -773,10 +789,12 @@ function renderJtProgramNotes(program) {
       </ul>
     </div>
     <div class="detail-section">
-      <div class="detail-section-title">${simplified ? 'Exercise progression &amp; notes' : 'Tiers &amp; exercise notes'}</div>
-      <p class="text-xs text-muted" style="margin:-6px 0 4px;">${simplified
-        ? 'Primary lifts use the selected week’s fixed-rep block. Repetition ranges use double progression. Tap an exercise for coaching notes.'
-        : 'T1 = main lift · T2a = percentage work · T2b/T2c = target-rep + max-rep sets · T3 = isolation. Tap an exercise for its coaching notes.'}</p>
+      <div class="detail-section-title">${simplified || shedPplul ? 'Exercise progression &amp; notes' : 'Tiers &amp; exercise notes'}</div>
+      <p class="text-xs text-muted" style="margin:-6px 0 4px;">${shedPplul
+        ? 'Every lift keeps its authored repetition range and progresses from actual performance. Tap an exercise for coaching notes.'
+        : simplified
+          ? 'Primary lifts use the selected week’s fixed-rep block. Repetition ranges use double progression. Tap an exercise for coaching notes.'
+          : 'T1 = main lift · T2a = percentage work · T2b/T2c = target-rep + max-rep sets · T3 = isolation. Tap an exercise for its coaching notes.'}</p>
       ${dayBlocks}
     </div>`;
 }
@@ -840,7 +858,7 @@ function renderPlanTimeline(program) {
   return `
     <div class="detail-section">
       <div class="detail-section-title">Week-by-week plan</div>
-      <p class="text-xs text-muted" style="margin:-6px 0 10px;">How volume and intensity move across the ${rows.length}-week block — including deloads. Bars show relative weekly working volume.</p>
+      <p class="text-xs text-muted" style="margin:-6px 0 10px;">How the plan is organised across the ${rows.length}-week window. Bars show relative weekly working volume.</p>
       <div class="plan-timeline">${items}</div>
     </div>`;
 }
