@@ -19,7 +19,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -93,7 +93,7 @@ const STORAGE_KEY = 'hybrid_engine_v2_state';
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
 let failed = false;
 try {
-  const ctx = await browser.newContext({
+  const ctx = await createBrowserContext(browser, {
     timezoneId: TZ,
     viewport: { width: 390, height: 844 },
     // This check owns a long, stateful UI flow. Service-worker activation and
@@ -247,7 +247,7 @@ try {
       runs: {}, gymStats: {}, notes: {}, gymRpe: {}, bodyWeight: {}, liftMeta: {}, liftOrder: {},
     } },
   };
-  const ctx2 = await browser.newContext({
+  const ctx2 = await createBrowserContext(browser, {
     viewport: { width: 390, height: 844 },
     serviceWorkers: 'block',
     timezoneId: TZ,

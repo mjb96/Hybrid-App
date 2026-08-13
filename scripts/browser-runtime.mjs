@@ -46,6 +46,32 @@ export function pinClock(epochMs) {
   globalThis.Date = PinnedDate;
 }
 
+/**
+ * Create a browser-check context that can only load from its local fixture
+ * server. Product checks must not turn red because Google Fonts, Sentry, map
+ * tiles, or another third-party host is unavailable; equally, a missing local
+ * asset must still reach the page as a real 404 and fail the check.
+ *
+ * The performance baseline deliberately creates its own contexts because it
+ * measures online and externally-blocked starts as separate scenarios.
+ */
+export async function createBrowserContext(browser, options = {}) {
+  const context = await browser.newContext(options);
+  await context.route('**/*', async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const isLocalHttp = (requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:')
+      && (requestUrl.hostname === '127.0.0.1' || requestUrl.hostname === 'localhost' || requestUrl.hostname === '::1');
+
+    if (isLocalHttp || (requestUrl.protocol !== 'http:' && requestUrl.protocol !== 'https:')) {
+      await route.continue();
+      return;
+    }
+
+    await route.abort('blockedbyclient');
+  });
+  return context;
+}
+
 /** Resolve the declared Playwright dependency and an installed Chromium. */
 export async function resolveChromium(options = {}) {
   const required = options.required ?? browserIsRequired();

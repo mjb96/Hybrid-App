@@ -24,7 +24,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -77,7 +77,7 @@ const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] }
 const failures = [];
 
 async function session(distanceUnit, width = 390, theme = 'dark', { deny = false } = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
+  const context = await createBrowserContext(browser, { viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
   await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(fixture(distanceUnit))]);
   await context.addInitScript(pinClock, CLOCK);
   await context.addInitScript((denyPermission) => {

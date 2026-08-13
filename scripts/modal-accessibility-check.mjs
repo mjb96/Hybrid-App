@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const runtime = await resolveChromium();
@@ -26,7 +26,7 @@ const failures = [];
 const check = (condition, message) => { if (!condition) failures.push(message); };
 
 try {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const context = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   await context.addInitScript(() => {
     localStorage.setItem('hybrid_engine_v2_state', JSON.stringify({
       schemaVersion: 4,
@@ -194,7 +194,7 @@ try {
 
   // Fresh-install finish state: the browser journey proves the onboarding
   // controls persist their canonical goal/level/equipment choices.
-  const fresh = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const fresh = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const onboarding = await fresh.newPage();
   await onboarding.goto(base, { waitUntil: 'networkidle' });
   await onboarding.waitForSelector('#onboardingOverlay.active');
@@ -250,7 +250,7 @@ try {
 
   // A returning offline user can restore a validated JSON backup directly
   // from the welcome screen and lands in the app without replaying onboarding.
-  const restoreContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
+  const restoreContext = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const restorePage = await restoreContext.newPage();
   await restorePage.goto(base, { waitUntil: 'networkidle' });
   await restorePage.waitForSelector('#onboardingOverlay.active');

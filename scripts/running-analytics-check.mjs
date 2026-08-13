@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -150,7 +150,7 @@ const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] }
 const failures = [];
 try {
   for (const [width, theme] of [[360, 'dark'], [390, 'light'], [412, 'dark']]) {
-    const context = await browser.newContext({
+    const context = await createBrowserContext(browser, {
       viewport: { width, height: 844 },
       colorScheme: theme === 'light' ? 'light' : 'dark',
       reducedMotion: width === 360 ? 'reduce' : 'no-preference',
@@ -239,7 +239,7 @@ try {
     await context.close();
   }
 
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await createBrowserContext(browser, { viewport: { width: 390, height: 844 } });
   await context.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORAGE_KEY, JSON.stringify(seededState('dark', false))]);
   const page = await context.newPage();
   const errors = [];
@@ -254,7 +254,7 @@ try {
   if (errors.length) failures.push(`empty-state browser errors: ${errors.join(' | ')}`);
   await context.close();
 
-  const powerContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const powerContext = await createBrowserContext(browser, { viewport: { width: 390, height: 844 } });
   await powerContext.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORAGE_KEY, JSON.stringify(powerUserState())]);
   const powerPage = await powerContext.newPage();
   const powerErrors = [];
