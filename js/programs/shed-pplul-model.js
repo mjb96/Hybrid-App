@@ -1,201 +1,131 @@
 // @ts-check
 // =============================================================================
-// SHED PPLUL — Push / Pull / Legs / Upper / Lower progression model.
+// SHED PPLUL — performance-based Push / Pull / Legs / Upper / Lower model.
 //
-// WHY THIS MODULE EXISTS
-// A catalog program is a single-week `days{}` template plus `weeklyVolModifiers`,
-// and `getWeekModifier` (js/schema.js) returns ONE modifier per week, shared by
-// every day. Shed PPLUL runs two main-lift progressions at the same time:
-//
-//   bench / squat / overhead press   4×8  →  4×6  →  5×4
-//   conventional deadlift            3×6  →  3×5  →  4×3
-//
-// One shared modifier cannot express both, so this module resolves each lift's
-// target from (week, day, lift) instead. `liftTarget` in js/engine.js consults it
-// for programs declaring `progressionModel: 'shed-pplul'` — the same declarative
-// hook Jacked & Tan already uses. Every other program is untouched.
-//
-// WHAT IT DELIBERATELY IS NOT
-// Stored `day.lifts` remain BARE STRINGS and no per-set metadata is persisted, so
-// this adds no migration, sync or export surface. It is a pure read-time
-// resolver: the roadmap's ADR gate on *normalised per-lift prescriptions*
-// (Phase 4C) concerns the stored data shape, which is unchanged here.
-//
-// NOT SHARED WITH JACKED & TAN. The J&T "Simplified" table is close but wrong
-// for this program — its deadlift runs 2×6 in week 4 and 3×4 in weeks 5–7 where
-// this spec calls for 2×5 and 3×5, its week 12 is a single set rather than an
-// assessment plus two back-off sets, and it anchors main lifts on mon/tue/thu/fri
-// rather than mon/wed/fri/sat. Sharing one table would also mean a future edit to
-// either program silently changed the other.
+// The program repeats stable set/rep ranges while the athlete progresses reps,
+// load and execution from actual performance. The catalog's one shared weekly
+// modifier cannot express the different prescriptions used on the same day, so
+// `liftTarget` resolves each authored lift here at read time. Stored day.lifts
+// remain bare strings; no per-set prescription data is persisted.
 // =============================================================================
 
-/** Weeks in the block. */
+/** A renewable app window containing three four-week review cycles. */
 export const SHED_PPLUL_WEEKS = 12;
 
-/** Declarative hook — mirrors isJtShedProgram. */
+/** Declarative hook used by the workout engine. */
 export function isShedPplulProgram(program) {
   return program?.progressionModel === 'shed-pplul';
 }
 
-/**
- * The lift each training day is built around. Bench, squat and overhead press
- * share the primary progression; the deadlift has its own.
- */
+/** The priority lift for each main strength day. */
 export const MAIN_BY_DAY = Object.freeze({
   mon: 'Barbell Bench Press',
   wed: 'Back Squat',
   fri: 'Standing Barbell Overhead Press',
-  sat: 'Conventional Deadlift',
+  sat: 'Paused Conventional Deadlift',
 });
 
-/** The lift that follows the deadlift-specific progression. */
-export const DEADLIFT = 'Conventional Deadlift';
+/** The deliberately paused deadlift variation used by this program. */
+export const DEADLIFT = 'Paused Conventional Deadlift';
 
 /**
- * Per-week main-lift prescription.
- *
- * Week 12 is an assessment: ONE controlled set stopping at ~1 RIR, then two
- * back-off sets at ~90% of that load — three sets in total, not one. The goal is
- * a controlled rep PR, never a true 1RM attempt.
- * @type {Record<number, any>}
- */
-const WEEK_TABLE = {
-  1:  { phase: 'Volume & technique',   rir: '3',   main: { sets: 4, reps: 8 }, deadlift: { sets: 3, reps: 6 } },
-  2:  { phase: 'Volume & technique',   rir: '2',   main: { sets: 4, reps: 8 }, deadlift: { sets: 3, reps: 6 } },
-  3:  { phase: 'Volume & technique',   rir: '1–2', main: { sets: 4, reps: 8 }, deadlift: { sets: 3, reps: 6 } },
-  4:  { phase: 'Deload',               rir: '4+',  deload: true, main: { sets: 2, reps: 8 }, deadlift: { sets: 2, reps: 5 } },
-  5:  { phase: 'Strength & hypertrophy', rir: '3', main: { sets: 4, reps: 6 }, deadlift: { sets: 3, reps: 5 } },
-  6:  { phase: 'Strength & hypertrophy', rir: '2', main: { sets: 4, reps: 6 }, deadlift: { sets: 3, reps: 5 } },
-  7:  { phase: 'Strength & hypertrophy', rir: '1', main: { sets: 4, reps: 6 }, deadlift: { sets: 3, reps: 5 } },
-  8:  { phase: 'Deload',               rir: '4+',  deload: true, main: { sets: 2, reps: 6 }, deadlift: { sets: 2, reps: 4 } },
-  9:  { phase: 'Intensification',      rir: '3',   main: { sets: 5, reps: 4 }, deadlift: { sets: 4, reps: 3 } },
-  10: { phase: 'Intensification',      rir: '2',   main: { sets: 5, reps: 4 }, deadlift: { sets: 4, reps: 3 } },
-  11: { phase: 'Intensification',      rir: '1',   main: { sets: 5, reps: 4 }, deadlift: { sets: 4, reps: 3 } },
-  12: { phase: 'Controlled rep-PR assessment', rir: '1', assessment: true, main: { sets: 3, reps: 4 }, deadlift: { sets: 3, reps: 3 } },
-};
-
-/**
- * The authored session plan — the single source of truth for this program.
- *
- * The catalog entry builds both `days[*].lifts` and the detail view's
- * `dayExercises` from this, so the Structure preview, the day-preview sheet and
- * the workout cockpit cannot drift apart.
- *
- * `sets`/`min`/`max` are the accessory base prescription. Main lifts carry
- * `main: true` and take their sets and reps from WEEK_TABLE instead.
+ * Authored session plan. `sets` plus `min`/`max` (or `reps`) are the exact
+ * working-set prescriptions shown by preview and materialised by the cockpit.
  */
 export const DAY_PLAN = Object.freeze({
   mon: {
     title: 'Push', badge: 'Push', color: 'var(--accent-blue)',
-    desc: 'Bench-press strength followed by chest, shoulder and triceps hypertrophy. The seated dumbbell press here is a moderate accessory — Friday’s standing barbell overhead press is the main overhead strength movement.',
-    minutes: [60, 75],
+    desc: 'Bench press is the priority lift. Keep most bench work around 1–3 RIR. Incline and seated dumbbell pressing add chest, shoulder and triceps volume without turning Monday into another maximal overhead-press session.',
+    minutes: [60, 80],
     exercises: [
-      { name: 'Barbell Bench Press', main: true, rest: '2½–4 min', notes: ['Priority movement for the session.', 'Use a consistent setup, controlled descent and a stable touch point.'] },
-      { name: 'Incline Dumbbell Press', sets: 3, min: 8, max: 12, rest: '90–120 s', notes: ['Use a moderate incline so the movement stays primarily chest-focused.', 'Target 1–3 RIR.'] },
-      { name: 'Seated Dumbbell Shoulder Press', sets: 2, min: 8, max: 12, rest: '90–120 s', notes: ['Set the adjustable bench to approximately 75–80 degrees.', 'Moderate shoulder accessory, not a maximal press. Target 2–3 RIR.'] },
-      { name: 'Dumbbell Lateral Raise', sets: 3, min: 12, max: 20, rest: '60–90 s', notes: ['Controlled repetitions — do not swing the dumbbells.'] },
-      { name: 'Band Triceps Pushdown', sets: 3, min: 10, max: 15, rest: '60–90 s', notes: ['Keep the upper arms relatively fixed.'] },
-      { name: 'Band Face Pull', sets: 2, min: 15, max: 20, rest: '60 s', notes: ['Light rear-delt and upper-back work to balance the pressing.'] },
+      { name: 'Barbell Bench Press', main: true, sets: 4, min: 6, max: 8, rest: '2½–4 min', notes: ['Priority lift. Keep most work around 1–3 RIR.', 'Add load only after all four sets reach eight clean repetitions with approximately 1–2 RIR on the final set.'] },
+      { name: 'Incline Dumbbell Press', sets: 3, min: 8, max: 12, rest: '90–120 s', notes: ['Use double progression and keep most productive sets around 1–2 RIR.'] },
+      { name: 'Seated Dumbbell Shoulder Press', sets: 2, min: 8, max: 12, rest: '90–120 s', notes: ['Additional shoulder and triceps volume, not a maximal press.'] },
+      { name: 'Dumbbell Lateral Raise', sets: 3, min: 12, max: 20, rest: '60–90 s', notes: ['Controlled repetitions; occasional 0–1 RIR is acceptable when technique stays sound.'] },
+      { name: 'Band Triceps Pushdown', sets: 3, min: 10, max: 20, rest: '60–90 s', notes: ['Add repetitions before increasing band resistance.'] },
+      { name: 'Band Face Pull', sets: 2, min: 15, max: 20, rest: '60 s', notes: ['Keep the movement controlled and shoulder-friendly.'] },
     ],
-    supersets: ['Dumbbell lateral raise with band triceps pushdown', 'Band face pull between accessory sets'],
   },
   tue: {
     title: 'Pull', badge: 'Pull', color: 'var(--accent-green)',
-    desc: 'Vertical and horizontal pulling for the lats and upper back, followed by rear delts and direct biceps work. This is the week’s main pull-up session.',
+    desc: 'The main vertical- and horizontal-pulling session. Keep barbell-row technique strict enough that lower-back fatigue does not compromise Wednesday squats and Romanian deadlifts. Chest-supported rows add back volume at a lower fatigue cost.',
     minutes: [60, 75],
     exercises: [
-      { name: 'Pull-Up', sets: 4, min: 5, max: 8, rest: '2–3 min', loadMode: 'bodyweight', notes: ['Use band assistance when required.', 'Once all four sets reach eight clean repetitions, begin adding weight.'] },
-      { name: 'Barbell Row', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Maintain a consistent torso position.', 'Do not let the final repetitions become upright rows. Target 2 RIR.'] },
-      { name: 'Chest-Supported Dumbbell Row', sets: 3, min: 8, max: 12, rest: '90–120 s', notes: ['Keep the chest against the bench to reduce lower-back fatigue.'] },
-      { name: 'Dumbbell Rear-Delt Raise', sets: 3, min: 12, max: 20, rest: '60–90 s', notes: [] },
-      { name: 'Band Face Pull', sets: 2, min: 15, max: 20, rest: '60 s', notes: [] },
+      { name: 'Pull-Up', sets: 4, min: 5, max: 8, rest: '2–3 min', loadMode: 'bodyweight', notes: ['Use band assistance when needed; add load after four clean sets of eight.'] },
+      { name: 'Barbell Row', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Keep technique strict enough to protect Wednesday lower-body performance.'] },
+      { name: 'Chest-Supported Dumbbell Row', sets: 2, min: 8, max: 12, rest: '90–120 s', notes: ['Keep the chest supported to limit lower-back fatigue.'] },
+      { name: 'Dumbbell Rear-Delt Raise', sets: 2, min: 12, max: 20, rest: '60–90 s', notes: [] },
       { name: 'EZ-Bar Curl', sets: 3, min: 8, max: 12, rest: '60–90 s', notes: [] },
       { name: 'Dumbbell Hammer Curl', sets: 2, min: 10, max: 15, rest: '60–90 s', notes: [] },
     ],
-    supersets: ['Rear-delt raise with EZ-bar curl', 'Band face pull with hammer curl'],
   },
   wed: {
     title: 'Legs', badge: 'Legs', color: 'var(--accent-green)',
-    desc: 'Back-squat strength followed by balanced lower-body hypertrophy across hamstrings, glutes, quads and calves, finishing with direct core work.',
-    minutes: [70, 85],
+    desc: 'Back squat is the priority. Romanian deadlifts provide the main hip-hinge and hamstring stimulus. Two hard Bulgarian split-squat sets are the starting dose because another lower-body session follows later in the week.',
+    minutes: [65, 85],
     exercises: [
-      { name: 'Back Squat', main: true, rest: '3–5 min', notes: ['Priority movement for the session.', 'Maintain consistent depth and stop sets before technique deteriorates significantly.'] },
-      { name: 'Romanian Deadlift', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Controlled lowering phase; maintain hamstring tension. Target 2–3 RIR.'] },
-      { name: 'Dumbbell Bulgarian Split Squat', sets: 3, min: 8, max: 12, rest: '90–150 s', notes: ['Repetitions are per leg.'] },
+      { name: 'Back Squat', main: true, sets: 4, min: 6, max: 8, rest: '3–5 min', notes: ['Priority lift. Keep approximately 1–3 RIR and avoid unnecessary grinding.', 'Add load only after all four sets reach eight clean repetitions with approximately 1–2 RIR on the final set.'] },
+      { name: 'Romanian Deadlift', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Use a controlled hinge and maintain hamstring tension.'] },
+      { name: 'Dumbbell Bulgarian Split Squat', sets: 2, min: 8, max: 12, rest: '90–150 s', notes: ['Repetitions are per leg. Add volume only when progression and recovery support it.'] },
       { name: 'Dumbbell Lying Leg Curl', sets: 3, min: 10, max: 15, rest: '60–90 s', notes: [] },
-      { name: 'Barbell Standing Calf Raise', sets: 4, min: 8, max: 15, rest: '60–90 s', notes: ['Pause briefly at the top and in the stretched position.'] },
+      { name: 'Barbell Standing Calf Raise', sets: 3, min: 8, max: 15, rest: '60–90 s', notes: [] },
       { name: 'Hanging Leg Raise', sets: 3, min: 8, max: 15, rest: '60–90 s', loadMode: 'bodyweight', notes: [] },
     ],
-    supersets: ['Standing calf raise with hanging leg raise'],
   },
   fri: {
     title: 'Upper', badge: 'Upper', color: 'var(--accent-amber)',
-    desc: 'The main overhead-strength session, with a second weekly chest and back exposure plus direct arm work.',
-    minutes: [65, 80],
+    desc: 'Standing overhead press is the main overhead-strength movement. Paused bench supplies a second weekly bench exposure for technique and hypertrophy; keep it controlled rather than turning it into another maximal bench session.',
+    minutes: [65, 85],
     exercises: [
-      { name: 'Standing Barbell Overhead Press', main: true, rest: '2½–4 min', notes: ['The primary overhead strength movement in the program.', 'Avoid excessive torso lean or turning it into an incline press.'] },
-      { name: 'Close-Grip Bench Press', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Narrower than your normal bench grip, but comfortable for wrists and shoulders. Target 2 RIR.'] },
-      { name: 'Pull-Up', sets: 3, min: 6, max: 10, rest: '90–150 s', loadMode: 'bodyweight', notes: ['Use pull-ups when recovery and performance are good.', 'Substitute band lat pulldowns at 10–15 repetitions when a lower-fatigue vertical pull is preferable.', 'Keep this below Tuesday’s pull-up volume.'] },
+      { name: 'Standing Barbell Overhead Press', main: true, sets: 3, min: 6, max: 8, rest: '2½–4 min', notes: ['Main overhead-strength movement. Progress after three clean sets of eight with appropriate RIR.'] },
+      { name: 'Paused Barbell Bench Press', sets: 3, min: 6, max: 8, rest: '2–3 min', notes: ['Pause under control on the chest and keep this below maximal effort.'] },
+      { name: 'Pull-Up', sets: 3, min: 6, max: 10, rest: '90–150 s', loadMode: 'bodyweight', notes: ['Keep this lower in volume than Tuesday’s pull-up work.'] },
       { name: 'One-Arm Dumbbell Row', sets: 3, min: 8, max: 12, rest: '60–90 s', notes: ['Repetitions are per side.'] },
       { name: 'Dumbbell Lateral Raise', sets: 3, min: 12, max: 20, rest: '60–90 s', notes: [] },
-      { name: 'EZ-Bar Skull Crusher', sets: 2, min: 8, max: 12, rest: '60–90 s', notes: ['Use a controlled range and stop if the movement causes elbow discomfort.'] },
+      { name: 'EZ-Bar Skull Crusher', sets: 3, min: 8, max: 12, rest: '60–90 s', notes: ['Use a controlled range and stop if the movement irritates the elbows.'] },
       { name: 'EZ-Bar Curl', sets: 2, min: 8, max: 12, rest: '60–90 s', notes: [] },
     ],
-    supersets: ['One-arm dumbbell row with dumbbell lateral raise', 'EZ-bar skull crusher with EZ-bar curl'],
   },
   sat: {
     title: 'Lower', badge: 'Lower', color: 'var(--accent-green)',
-    desc: 'Deadlift strength on its own progression, followed by a second quad, hamstring and glute exposure. The optional farmer carry should only be performed when it will not compromise recovery.',
-    minutes: [65, 80],
+    desc: 'Paused conventional deadlifts make moderate available loads challenging while retaining deadlift specificity. Pause for one to two seconds just off the floor or around lower-shin height. Farmer carries are optional and should be removed if they interfere with recovery.',
+    minutes: [65, 85],
     exercises: [
-      { name: 'Conventional Deadlift', main: true, rest: '3–5 min', notes: ['Follows the deadlift-specific progression, not the bench/squat/press progression.', 'Reset between repetitions when necessary.', 'The objective is repeatable strength and technique, not conditioning.'] },
-      { name: 'Front Squat', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Keep these challenging but avoid grinding after deadlifts. Target 2–3 RIR.'] },
-      { name: 'Reverse Lunge', sets: 2, min: 8, max: 12, rest: '90–120 s', notes: ['Dumbbell reverse lunge — repetitions are per leg.'] },
-      { name: 'Dumbbell Lying Leg Curl', sets: 3, min: 10, max: 15, rest: '60–90 s', notes: [] },
-      { name: 'Seated Dumbbell Calf Raise', sets: 4, min: 12, max: 20, rest: '60–90 s', notes: [] },
+      { name: 'Paused Conventional Deadlift', main: true, sets: 3, min: 5, max: 8, rest: '3–5 min', notes: ['Pause for one to two seconds just off the floor or around lower-shin height.', 'Progress through cleaner pauses, bar speed, repetitions, lower RPE and load when available; do not use excessively high-repetition deadlift sets.'] },
+      { name: 'Front Squat', sets: 3, min: 6, max: 10, rest: '2–3 min', notes: ['Keep repetitions controlled after deadlifts.'] },
+      { name: 'Reverse Lunge', sets: 2, min: 8, max: 12, rest: '90–120 s', notes: ['Use dumbbells; repetitions are per leg.'] },
+      { name: 'Dumbbell Lying Leg Curl', sets: 2, min: 10, max: 15, rest: '60–90 s', notes: [] },
+      { name: 'Seated Dumbbell Calf Raise', sets: 3, min: 12, max: 20, rest: '60–90 s', notes: [] },
       { name: 'Band Kneeling Crunch', sets: 3, min: 10, max: 15, rest: '60–90 s', notes: [] },
-      { name: 'Dumbbell Farmer Carry', sets: 3, reps: '30–45s', rest: '45–75 s', optional: true, notes: ['Optional. Perform only when it will not compromise recovery.', '30–45 seconds per set.'] },
+      { name: 'Dumbbell Farmer Carry', sets: 2, reps: '30–45s', rest: '45–75 s', optional: true, notes: ['Optional. Remove it if it meaningfully interferes with recovery.'] },
     ],
-    supersets: ['Dumbbell lying leg curl with seated dumbbell calf raise', 'Band kneeling crunch may be performed between calf-raise sets'],
   },
 });
 
-/** Day keys that carry training (the rest days are authored in the catalog). */
+/** Day keys that carry lifting. */
 export const TRAINING_DAYS = Object.freeze(['mon', 'tue', 'wed', 'fri', 'sat']);
-
-// -----------------------------------------------------------------------------
 
 function _wk(week) {
   const w = Math.floor(Number(week));
   return Number.isFinite(w) && w >= 1 && w <= SHED_PPLUL_WEEKS ? w : null;
 }
 
-/** Accessory sets after any deload reduction. */
-function _accessorySets(sets, scale) {
-  const scaled = Math.round((Number(sets) || 0) * scale);
-  return Math.max(1, scaled);
-}
-
-/**
- * Public per-week description for the detail view, the Plan timeline and tests.
- * `main` applies to bench/squat/overhead press; `deadlift` is separate.
- */
+/** Stable prescriptions plus a non-prescriptive four-week review checkpoint. */
 export function shedPplulWeekPlan(week) {
   const w = _wk(week);
   if (!w) return null;
-  const row = WEEK_TABLE[w];
+  const review = w % 4 === 0;
   return {
     week: w,
-    phase: row.phase,
-    rir: row.rir,
-    deload: !!row.deload,
-    assessment: !!row.assessment,
-    main: { ...row.main },
-    deadlift: { ...row.deadlift },
-    // Only weeks 4 and 8 halve accessory volume. Week 12's assessment reduces
-    // main-lift work but the spec keeps accessories at full volume, so this
-    // deliberately differs from the Jacked & Tan table, which scales both.
-    accessoryScale: row.deload ? 0.5 : 1,
+    phase: review ? 'Review performance and recovery' : 'Performance-based progression',
+    rir: '1–3',
+    review,
+    deload: false,
+    assessment: false,
+    benchSquat: { sets: 4, reps: '6–8' },
+    press: { sets: 3, reps: '6–8' },
+    deadlift: { sets: 3, reps: '5–8' },
+    accessoryScale: 1,
   };
 }
 
@@ -207,74 +137,39 @@ export function shedPplulExercise(dayKey, name) {
 }
 
 /**
- * Resolve one lift's set/rep target for a given week and day.
- *
- * Returns null for anything this program does not author, so `liftTarget` falls
- * through to its normal description/week-modifier handling — an exercise the
- * athlete adds mid-session must not be silently given a main-lift prescription.
- *
- * @param {any} program
- * @param {number|string} week
- * @param {string} dayKey
- * @param {string} name
- * @returns {{sets:number, reps:number|string, deload:boolean, assessment:boolean, main:boolean}|null}
+ * Resolve one authored lift's stable set/rep target. An exercise added or
+ * swapped mid-session returns null and follows the engine's normal fallback.
  */
 export function shedPplulLiftTarget(program, week, dayKey, name) {
-  if (!isShedPplulProgram(program)) return null;
-  const plan = shedPplulWeekPlan(week);
-  if (!plan) return null;
+  if (!isShedPplulProgram(program) || !shedPplulWeekPlan(week)) return null;
   const entry = shedPplulExercise(dayKey, name);
   if (!entry) return null;
-
-  if (entry.main) {
-    const target = name === DEADLIFT ? plan.deadlift : plan.main;
-    return {
-      sets: target.sets,
-      reps: target.reps,
-      deload: plan.deload,
-      assessment: plan.assessment,
-      main: true,
-    };
-  }
-
-  // Accessories hold their authored rep range across the whole block — double
-  // progression adds reps within the range, then load. Only the set count moves,
-  // and only on a deload.
   const reps = entry.reps != null ? entry.reps : `${entry.min}–${entry.max}`;
   return {
-    sets: _accessorySets(entry.sets, plan.accessoryScale),
+    sets: entry.sets,
     reps,
-    deload: plan.deload,
+    deload: false,
     assessment: false,
-    main: false,
+    main: !!entry.main,
   };
 }
 
-/**
- * Week label for `weeklyVolModifiers`, so the cockpit header, Plan timeline and
- * deload detection (`/deload/i` on the label) all read correctly.
- */
+/** Label used by the cockpit header and Plan timeline. */
 export function shedPplulWeekLabel(week) {
   const plan = shedPplulWeekPlan(week);
-  if (!plan) return 'Working Sets';
-  const main = `${plan.main.sets}×${plan.main.reps}`;
-  const dl = `${plan.deadlift.sets}×${plan.deadlift.reps}`;
-  if (plan.assessment) {
-    return `Assessment — bench/squat/press ${main} (1 rep-PR set + 2 back-offs @90%) · deadlift ${dl}`;
-  }
-  const base = `${plan.phase} — bench/squat/press ${main} · deadlift ${dl} · ${plan.rir} RIR`;
-  return plan.deload ? `Deload — ${base}` : base;
+  if (!plan) return 'Performance-based progression';
+  const base = 'Performance-based · bench/squat 4×6–8 · press 3×6–8 · paused deadlift 3×5–8';
+  return plan.review ? `Review checkpoint · ${base}` : base;
 }
 
-/** weeklyVolModifiers for the catalog entry — main-lift shape, per week. */
+/** Shared modifiers remain populated for schema consumers; per-lift targets win. */
 export function shedPplulWeeklyVolModifiers() {
   /** @type {Record<string, any>} */
   const mods = {};
   for (let w = 1; w <= SHED_PPLUL_WEEKS; w++) {
-    const plan = shedPplulWeekPlan(w);
     mods[String(w)] = {
-      sets: plan.main.sets,
-      reps: plan.main.reps,
+      sets: 4,
+      reps: '6–8',
       intensityLabel: shedPplulWeekLabel(w),
     };
   }

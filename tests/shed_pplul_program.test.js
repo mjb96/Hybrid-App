@@ -1,14 +1,5 @@
 // =============================================================================
-// SHED PPLUL — program + progression contract.
-//
-// The reason this program needed its own model is the thing most worth pinning:
-// bench/squat/press and the deadlift run DIFFERENT weekly progressions, and the
-// app's shared per-week modifier cannot express both. If someone later "tidies"
-// the model away onto weeklyVolModifiers, the deadlift silently inherits the
-// primary wave (4×8 deadlifts in week 1) and nothing else would catch it.
-//
-// Also guards the boundary in the other direction: an exercise this program does
-// not author must NOT receive a main-lift prescription.
+// SHED PPLUL — authored plan + performance-based progression contract.
 // =============================================================================
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,243 +8,282 @@ import { CATALOG_MAP, PROGRAM_CATALOG } from '../js/programs/catalog.js';
 import { liftTarget } from '../js/engine.js';
 import { getWeekModifier } from '../js/schema.js';
 import { isDeloadWeek } from '../js/programs/progression.js';
-import { resolveExercise } from '../js/exercises/catalog.js';
+import { canonicalExerciseId, resolveExercise } from '../js/exercises/catalog.js';
 import {
   DAY_PLAN, TRAINING_DAYS, MAIN_BY_DAY, DEADLIFT, SHED_PPLUL_WEEKS,
   isShedPplulProgram, shedPplulWeekPlan, shedPplulLiftTarget,
 } from '../js/programs/shed-pplul-model.js';
 
-const program = CATALOG_MAP['shed_pplul'];
+const program = CATALOG_MAP.shed_pplul;
 
-/** Resolve exactly the way the cockpit does. */
 function target(week, dayKey, lift) {
   const day = program.days[dayKey];
   return liftTarget(day.desc, lift, getWeekModifier(program, week), {
     program, week, dayKey,
   });
 }
+
 const spec = (week, dayKey, lift) => {
-  const t = target(week, dayKey, lift);
-  return `${t.sets}x${t.reps}`;
+  const resolved = target(week, dayKey, lift);
+  return `${resolved.sets}x${resolved.reps}`;
 };
 
-// ── Registration ─────────────────────────────────────────────────────────────
-
-test('the program is registered and discoverable', () => {
-  assert.ok(program, 'shed_pplul must resolve from the catalog');
+test('the ongoing program is registered as a renewable twelve-week window', () => {
+  assert.ok(program);
   assert.equal(program.name, 'Shed PPLUL');
   assert.equal(program.durationWeeks, SHED_PPLUL_WEEKS);
+  assert.equal(program.durationWeeks, 12, 'retain active runs that may already be beyond week four');
+  assert.equal(program.ongoing, true);
+  assert.equal(program.reviewEveryWeeks, 4);
   assert.equal(program.sessionsPerWeek, 5);
-  assert.ok(PROGRAM_CATALOG.some((p) => p.id === 'shed_pplul'), 'must appear in the discoverable catalog');
-  const ids = PROGRAM_CATALOG.map((p) => p.id);
-  assert.equal(new Set(ids).size, ids.length, 'program ids must stay unique');
+  assert.ok(program.equipment.includes('treadmill'));
+  assert.ok(PROGRAM_CATALOG.some((candidate) => candidate.id === 'shed_pplul'));
+  const ids = PROGRAM_CATALOG.map((candidate) => candidate.id);
+  assert.equal(new Set(ids).size, ids.length);
 });
 
-test('five training days plus two rest days, on the authored schedule', () => {
-  const training = Object.entries(program.days).filter(([, d]) => d.lifts.length > 0).map(([k]) => k);
+test('the weekly schedule has five lifting days, active recovery Thursday and rest Sunday', () => {
+  const training = Object.entries(program.days)
+    .filter(([, day]) => day.lifts.length > 0)
+    .map(([key]) => key);
   assert.deepEqual(training, ['mon', 'tue', 'wed', 'fri', 'sat']);
-  assert.equal(program.days.thu.lifts.length, 0, 'Thursday is a rest day');
-  assert.equal(program.days.sun.lifts.length, 0, 'Sunday is a rest day');
+  assert.equal(program.days.thu.title, 'Active Recovery');
+  assert.equal(program.days.thu.runs, 'Rest', 'the optional walk must not become a mandatory Run Day');
+  assert.match(program.days.thu.desc, /45–60 minutes/);
+  assert.match(program.days.thu.desc, /conversational pace/);
+  assert.equal(program.days.sun.title, 'Rest');
 });
 
-test('day.lifts stay bare strings', () => {
-  for (const day of Object.values(program.days)) {
-    for (const lift of day.lifts) {
-      assert.equal(typeof lift, 'string', 'lifts must remain bare strings — do not migrate to objects');
-      assert.ok(lift.trim().length > 0);
-    }
-  }
+test('every training day exactly matches the requested exercise order', () => {
+  assert.deepEqual(program.days.mon.lifts, [
+    'Barbell Bench Press', 'Incline Dumbbell Press', 'Seated Dumbbell Shoulder Press',
+    'Dumbbell Lateral Raise', 'Band Triceps Pushdown', 'Band Face Pull',
+  ]);
+  assert.deepEqual(program.days.tue.lifts, [
+    'Pull-Up', 'Barbell Row', 'Chest-Supported Dumbbell Row',
+    'Dumbbell Rear-Delt Raise', 'EZ-Bar Curl', 'Dumbbell Hammer Curl',
+  ]);
+  assert.deepEqual(program.days.wed.lifts, [
+    'Back Squat', 'Romanian Deadlift', 'Dumbbell Bulgarian Split Squat',
+    'Dumbbell Lying Leg Curl', 'Barbell Standing Calf Raise', 'Hanging Leg Raise',
+  ]);
+  assert.deepEqual(program.days.fri.lifts, [
+    'Standing Barbell Overhead Press', 'Paused Barbell Bench Press', 'Pull-Up',
+    'One-Arm Dumbbell Row', 'Dumbbell Lateral Raise', 'EZ-Bar Skull Crusher', 'EZ-Bar Curl',
+  ]);
+  assert.deepEqual(program.days.sat.lifts, [
+    'Paused Conventional Deadlift', 'Front Squat', 'Reverse Lunge',
+    'Dumbbell Lying Leg Curl', 'Seated Dumbbell Calf Raise', 'Band Kneeling Crunch',
+    'Dumbbell Farmer Carry',
+  ]);
 });
 
-test('every programmed exercise resolves in the exercise catalog', () => {
+test('day.lifts stay bare strings and every exercise resolves', () => {
   const missing = [];
   for (const [key, day] of Object.entries(program.days)) {
-    for (const lift of day.lifts) if (!resolveExercise(lift)) missing.push(`${key}:${lift}`);
+    for (const lift of day.lifts) {
+      assert.equal(typeof lift, 'string');
+      if (!resolveExercise(lift)) missing.push(`${key}:${lift}`);
+    }
   }
-  assert.deepEqual(missing, [], 'unresolved exercises lose muscle/equipment metadata in analytics');
+  assert.deepEqual(missing, []);
 });
 
-// ── The two main-lift progressions ───────────────────────────────────────────
-
-test('bench, squat and overhead press share the primary progression', () => {
-  const expected = {
-    1: '4x8', 2: '4x8', 3: '4x8',
-    4: '2x8',                       // deload
-    5: '4x6', 6: '4x6', 7: '4x6',
-    8: '2x6',                       // deload
-    9: '5x4', 10: '5x4', 11: '5x4',
-    12: '3x4',                      // 1 assessment set + 2 back-offs
-  };
-  for (let w = 1; w <= 12; w++) {
-    assert.equal(spec(w, 'mon', 'Barbell Bench Press'), expected[w], `bench week ${w}`);
-    assert.equal(spec(w, 'wed', 'Back Squat'), expected[w], `squat week ${w}`);
-    assert.equal(spec(w, 'fri', 'Standing Barbell Overhead Press'), expected[w], `press week ${w}`);
-  }
+test('paused bench and paused deadlift remain distinct exercise histories', () => {
+  assert.notEqual(canonicalExerciseId('Paused Barbell Bench Press'), canonicalExerciseId('Barbell Bench Press'));
+  assert.notEqual(canonicalExerciseId('Paused Conventional Deadlift'), canonicalExerciseId('Conventional Deadlift'));
 });
 
-test('the deadlift runs its OWN progression, not the primary wave', () => {
-  const expected = {
-    1: '3x6', 2: '3x6', 3: '3x6',
-    4: '2x5',                       // deload — 5s, NOT the primary's 8s
-    5: '3x5', 6: '3x5', 7: '3x5',
-    8: '2x4',                       // deload
-    9: '4x3', 10: '4x3', 11: '4x3',
-    12: '3x3',                      // 1 assessment set + 2 back-offs
-  };
-  for (let w = 1; w <= 12; w++) {
-    assert.equal(spec(w, 'sat', DEADLIFT), expected[w], `deadlift week ${w}`);
+test('main-lift prescriptions stay performance-based in every week', () => {
+  for (let week = 1; week <= SHED_PPLUL_WEEKS; week++) {
+    assert.equal(spec(week, 'mon', 'Barbell Bench Press'), '4x6–8', `bench week ${week}`);
+    assert.equal(spec(week, 'wed', 'Back Squat'), '4x6–8', `squat week ${week}`);
+    assert.equal(spec(week, 'fri', 'Standing Barbell Overhead Press'), '3x6–8', `press week ${week}`);
+    assert.equal(spec(week, 'sat', DEADLIFT), '3x5–8', `deadlift week ${week}`);
   }
 });
 
-test('the deadlift and the primary lifts genuinely diverge', () => {
-  // The single assertion that would fail if the model were collapsed back onto
-  // one shared week modifier.
-  let diverged = 0;
-  for (let w = 1; w <= 12; w++) {
-    if (spec(w, 'sat', DEADLIFT) !== spec(w, 'mon', 'Barbell Bench Press')) diverged++;
-  }
-  assert.equal(diverged, 12, 'the deadlift must differ from the primary lifts in every week');
-});
-
-test('week 12 is an assessment set plus two back-off sets, not a single', () => {
-  const plan = shedPplulWeekPlan(12);
-  assert.equal(plan.assessment, true);
-  assert.equal(plan.main.sets, 3, 'one controlled rep-PR set + two back-offs at ~90%');
-  assert.equal(plan.deadlift.sets, 3);
-  assert.equal(plan.deload, false, 'the assessment week is not a deload');
-});
-
-test('deload weeks are labelled so the timeline and cockpit detect them', () => {
-  for (const w of [4, 8]) {
-    assert.ok(isDeloadWeek(getWeekModifier(program, w)), `week ${w} must read as a deload`);
-    assert.equal(shedPplulWeekPlan(w).deload, true);
-  }
-  for (const w of [1, 5, 9, 11, 12]) {
-    assert.ok(!isDeloadWeek(getWeekModifier(program, w)), `week ${w} must not read as a deload`);
-  }
-});
-
-// ── Accessories ──────────────────────────────────────────────────────────────
-
-test('accessories hold their rep range across the whole block', () => {
-  // Double progression adds reps inside the range then load; the prescription
-  // itself must not wave with the main lifts.
-  for (const w of [1, 3, 5, 7, 9, 11, 12]) {
-    assert.equal(spec(w, 'mon', 'Incline Dumbbell Press'), '3x8–12', `week ${w}`);
-    assert.equal(spec(w, 'wed', 'Barbell Standing Calf Raise'), '4x8–15', `week ${w}`);
-    assert.equal(spec(w, 'sat', 'Front Squat'), '3x6–10', `week ${w}`);
+test('accessory prescriptions exactly match the requested plan', () => {
+  const expected = [
+    ['mon', 'Incline Dumbbell Press', '3x8–12'],
+    ['mon', 'Seated Dumbbell Shoulder Press', '2x8–12'],
+    ['mon', 'Dumbbell Lateral Raise', '3x12–20'],
+    ['mon', 'Band Triceps Pushdown', '3x10–20'],
+    ['mon', 'Band Face Pull', '2x15–20'],
+    ['tue', 'Pull-Up', '4x5–8'],
+    ['tue', 'Barbell Row', '3x6–10'],
+    ['tue', 'Chest-Supported Dumbbell Row', '2x8–12'],
+    ['tue', 'Dumbbell Rear-Delt Raise', '2x12–20'],
+    ['tue', 'EZ-Bar Curl', '3x8–12'],
+    ['tue', 'Dumbbell Hammer Curl', '2x10–15'],
+    ['wed', 'Romanian Deadlift', '3x6–10'],
+    ['wed', 'Dumbbell Bulgarian Split Squat', '2x8–12'],
+    ['wed', 'Dumbbell Lying Leg Curl', '3x10–15'],
+    ['wed', 'Barbell Standing Calf Raise', '3x8–15'],
+    ['wed', 'Hanging Leg Raise', '3x8–15'],
+    ['fri', 'Paused Barbell Bench Press', '3x6–8'],
+    ['fri', 'Pull-Up', '3x6–10'],
+    ['fri', 'One-Arm Dumbbell Row', '3x8–12'],
+    ['fri', 'Dumbbell Lateral Raise', '3x12–20'],
+    ['fri', 'EZ-Bar Skull Crusher', '3x8–12'],
+    ['fri', 'EZ-Bar Curl', '2x8–12'],
+    ['sat', 'Front Squat', '3x6–10'],
+    ['sat', 'Reverse Lunge', '2x8–12'],
+    ['sat', 'Dumbbell Lying Leg Curl', '2x10–15'],
+    ['sat', 'Seated Dumbbell Calf Raise', '3x12–20'],
+    ['sat', 'Band Kneeling Crunch', '3x10–15'],
+    ['sat', 'Dumbbell Farmer Carry', '2x30–45s'],
+  ];
+  for (const [day, lift, prescription] of expected) {
+    assert.equal(spec(1, day, lift), prescription, `${day}:${lift}`);
+    assert.equal(spec(12, day, lift), prescription, `${day}:${lift} must not wave by calendar`);
   }
 });
 
-test('deload weeks halve accessory sets, and only weeks 4 and 8 do', () => {
-  assert.equal(spec(4, 'mon', 'Incline Dumbbell Press'), '2x8–12', '3 sets halve to 2');
-  assert.equal(spec(8, 'wed', 'Barbell Standing Calf Raise'), '2x8–15', '4 sets halve to 2');
-  assert.equal(spec(4, 'mon', 'Band Face Pull'), '1x15–20', '2 sets halve to 1, never 0');
-  // Week 12 reduces main-lift work but the spec keeps accessories at full volume.
-  assert.equal(spec(12, 'mon', 'Incline Dumbbell Press'), '3x8–12');
-  assert.equal(shedPplulWeekPlan(12).accessoryScale, 1);
-});
-
-test('the same lift on different days keeps different prescriptions', () => {
-  // Tuesday owns the main pull-up work; Friday's vertical pull stays lower.
+test('repeated exercises retain their day-specific volume', () => {
   assert.equal(spec(1, 'tue', 'Pull-Up'), '4x5–8');
   assert.equal(spec(1, 'fri', 'Pull-Up'), '3x6–10');
   assert.equal(spec(1, 'tue', 'EZ-Bar Curl'), '3x8–12');
   assert.equal(spec(1, 'fri', 'EZ-Bar Curl'), '2x8–12');
+  assert.equal(spec(1, 'wed', 'Dumbbell Lying Leg Curl'), '3x10–15');
+  assert.equal(spec(1, 'sat', 'Dumbbell Lying Leg Curl'), '2x10–15');
 });
 
-// ── Boundaries ───────────────────────────────────────────────────────────────
-
-test('an unauthored lift does not inherit a main-lift prescription', () => {
-  // Adding an exercise mid-session must fall through to normal handling rather
-  // than being handed the day's main-lift sets and reps.
-  assert.equal(shedPplulLiftTarget(program, 1, 'mon', 'Barbell Shrug'), null);
-  const t = target(1, 'mon', 'Barbell Shrug');
-  assert.equal(t.sets, getWeekModifier(program, 1).sets, 'falls back to the week modifier');
+test('each day materialises the requested total number of working sets', () => {
+  const total = (dayKey) => program.days[dayKey].lifts
+    .reduce((sum, lift) => sum + target(1, dayKey, lift).sets, 0);
+  assert.equal(total('mon'), 17);
+  assert.equal(total('tue'), 16);
+  assert.equal(total('wed'), 18);
+  assert.equal(total('fri'), 20);
+  assert.equal(total('sat'), 18, 'includes the optional two-set farmer carry');
 });
 
-test('the model refuses weeks outside the block and foreign programs', () => {
-  for (const bad of [0, 13, -1, NaN, null, undefined, 'x']) {
-    assert.equal(shedPplulWeekPlan(bad), null, `week ${String(bad)} must not resolve`);
-    assert.equal(shedPplulLiftTarget(program, bad, 'mon', 'Barbell Bench Press'), null);
+test('the removed exercises and retired fixed-wave language are absent', () => {
+  const lifts = TRAINING_DAYS.flatMap((dayKey) => program.days[dayKey].lifts);
+  assert.equal(lifts.includes('Close-Grip Bench Press'), false);
+  assert.equal(lifts.includes('Conventional Deadlift'), false);
+  assert.equal(program.days.tue.lifts.includes('Band Face Pull'), false);
+  const copy = [program.description, ...program.highlights, ...program.programNotes].join(' ');
+  assert.doesNotMatch(copy, /4×8 in weeks 1–3|deloads in weeks 4 and 8|rep-PR assessment/i);
+});
+
+test('the available-equipment declaration covers the supplied shed setup', () => {
+  assert.deepEqual(program.equipment, [
+    'barbell', 'ez-bar', 'rack', 'bench', 'dumbbells', 'bands', 'pullup-bar', 'treadmill',
+  ]);
+  assert.equal(program.equipmentTier, 'home-gym');
+});
+
+test('performance baselines are retained as reference points, not prescriptions', () => {
+  assert.deepEqual(program.performanceBaselines.benchPress, ['90 kg × 6 × 4', '85 kg × 8, 8, 8, 6']);
+  assert.deepEqual(program.performanceBaselines.backSquat, ['100 kg × 6 × 4']);
+  assert.deepEqual(program.performanceBaselines.deadlift, [
+    'Historical 1RM: 200 kg', 'Current heavy loading limited by available plates',
+  ]);
+  assert.match(program.programNotes.join(' '), /Current reference points/);
+});
+
+test('the progression guidance names rep-first loading and proximity to failure', () => {
+  const notes = program.programNotes.join(' ');
+  assert.match(notes, /same load while total repetitions/i);
+  assert.match(notes, /smallest practical increment/i);
+  assert.match(notes, /Main compound lifts generally stay at 1–3 RIR/i);
+  assert.match(notes, /Isolation work may occasionally reach 0–1 RIR/i);
+});
+
+test('deload guidance is evidence-triggered and starts with volume reduction', () => {
+  const notes = program.programNotes.join(' ');
+  assert.match(notes, /Do not deload automatically/i);
+  assert.match(notes, /reduce volume by approximately 30–50%/i);
+  assert.match(notes, /repeated performance decline/i);
+});
+
+test('conditioning guidance keeps walking easy and hard running out', () => {
+  const notes = program.programNotes.join(' ');
+  assert.match(notes, /45–60 minutes of conversational-pace walking/i);
+  assert.match(notes, /avoid hard running or intervals/i);
+  assert.match(program.days.sun.desc, /Easy walking/i);
+});
+
+test('paused deadlift progression includes non-load performance signals', () => {
+  const deadlift = DAY_PLAN.sat.exercises.find((exercise) => exercise.name === DEADLIFT);
+  const notes = deadlift.notes.join(' ');
+  assert.match(notes, /one to two seconds/i);
+  assert.match(notes, /bar speed/i);
+  assert.match(notes, /lower RPE/i);
+  assert.match(notes, /do not use excessively high-repetition deadlift sets/i);
+});
+
+test('detail metadata marks only the farmer carry as optional', () => {
+  const optional = Object.values(program.dayExercises)
+    .flat()
+    .filter((exercise) => exercise.optional)
+    .map((exercise) => exercise.name);
+  assert.deepEqual(optional, ['Dumbbell Farmer Carry']);
+  assert.equal(program.dayExercises.fri.find((exercise) => exercise.name === 'Paused Barbell Bench Press').tier, 'Accessory');
+});
+
+test('review checkpoints never become automatic deloads', () => {
+  for (let week = 1; week <= SHED_PPLUL_WEEKS; week++) {
+    const plan = shedPplulWeekPlan(week);
+    assert.equal(plan.review, week % 4 === 0, `week ${week} review state`);
+    assert.equal(plan.deload, false);
+    assert.equal(plan.accessoryScale, 1);
+    assert.equal(isDeloadWeek(getWeekModifier(program, week)), false);
   }
-  assert.equal(isShedPplulProgram({ progressionModel: 'jt-shed' }), false);
-  assert.equal(isShedPplulProgram(null), false);
-  assert.equal(shedPplulLiftTarget({ id: 'other' }, 1, 'mon', 'Barbell Bench Press'), null);
 });
 
-test('the engine change does not touch any other program', () => {
-  // Every other catalog program must resolve exactly as it did before, i.e.
-  // through description parsing or the week modifier.
-  for (const other of PROGRAM_CATALOG.filter((p) => p.id !== 'shed_pplul')) {
-    assert.equal(shedPplulLiftTarget(other, 1, 'mon', 'Barbell Bench Press'), null,
-      `${other.id} must not be resolved by the Shed PPLUL model`);
+test('week labels describe performance progression and four-week reviews', () => {
+  for (let week = 1; week <= SHED_PPLUL_WEEKS; week++) {
+    const mod = getWeekModifier(program, week);
+    assert.equal(mod.sets, 4);
+    assert.equal(mod.reps, '6–8');
+    assert.match(mod.intensityLabel, /Performance-based/i);
+    assert.equal(/Review checkpoint/i.test(mod.intensityLabel), week % 4 === 0);
   }
 });
 
-test('Shed PPLUL does not share the Jacked & Tan table', () => {
-  // J&T Simplified is close but wrong here: its deadlift is 2×6 in week 4 and
-  // 3×4 in weeks 5–7. Sharing one table would also couple future edits.
-  assert.equal(program.progressionModel, 'shed-pplul');
-  assert.equal(spec(4, 'sat', DEADLIFT), '2x5', 'not J&T’s 2×6');
-  assert.equal(spec(6, 'sat', DEADLIFT), '3x5', 'not J&T’s 3×4');
-});
-
-// ── Authoring integrity ──────────────────────────────────────────────────────
-
-test('days, dayExercises and the model plan stay in sync', () => {
+test('days, detail metadata and the model plan stay in sync', () => {
   for (const key of TRAINING_DAYS) {
-    const planned = DAY_PLAN[key].exercises.map((e) => e.name);
-    assert.deepEqual(program.days[key].lifts, planned, `${key}: days.lifts must mirror DAY_PLAN`);
-    assert.deepEqual(program.dayExercises[key].map((e) => e.name), planned,
-      `${key}: dayExercises must mirror DAY_PLAN order`);
+    const planned = DAY_PLAN[key].exercises.map((exercise) => exercise.name);
+    assert.deepEqual(program.days[key].lifts, planned);
+    assert.deepEqual(program.dayExercises[key].map((exercise) => exercise.name), planned);
   }
 });
 
-test('each training day is anchored on exactly one main lift', () => {
+test('each strength day has exactly one priority lift', () => {
   for (const [dayKey, mainLift] of Object.entries(MAIN_BY_DAY)) {
-    const mains = DAY_PLAN[dayKey].exercises.filter((e) => e.main);
-    assert.equal(mains.length, 1, `${dayKey} must have exactly one main lift`);
+    const mains = DAY_PLAN[dayKey].exercises.filter((exercise) => exercise.main);
+    assert.equal(mains.length, 1);
     assert.equal(mains[0].name, mainLift);
   }
-  // Tuesday (Pull) is deliberately accessory-only — no fifth main lift.
-  assert.equal(DAY_PLAN.tue.exercises.filter((e) => e.main).length, 0);
+  assert.equal(DAY_PLAN.tue.exercises.filter((exercise) => exercise.main).length, 0);
 });
 
-test('every accessory carries a usable rep prescription', () => {
+test('every authored exercise carries a usable prescription', () => {
   for (const key of TRAINING_DAYS) {
-    for (const e of DAY_PLAN[key].exercises) {
-      if (e.main) continue;
-      assert.ok(e.sets > 0, `${key}:${e.name} needs a set count`);
-      const hasRange = Number.isFinite(e.min) && Number.isFinite(e.max) && e.max >= e.min;
-      assert.ok(hasRange || typeof e.reps === 'string',
-        `${key}:${e.name} needs either a min/max range or an explicit reps string`);
+    for (const exercise of DAY_PLAN[key].exercises) {
+      assert.ok(exercise.sets > 0, `${key}:${exercise.name}`);
+      const range = Number.isFinite(exercise.min) && Number.isFinite(exercise.max)
+        && exercise.max >= exercise.min;
+      assert.ok(range || typeof exercise.reps === 'string', `${key}:${exercise.name}`);
     }
   }
 });
 
-test('weekly volume modifiers exist for all twelve weeks', () => {
-  for (let w = 1; w <= 12; w++) {
-    const mod = getWeekModifier(program, w);
-    assert.ok(mod.sets > 0 && mod.reps > 0, `week ${w} modifier must be populated`);
-    assert.ok(String(mod.intensityLabel || '').length > 10, `week ${w} needs a descriptive label`);
+test('the model rejects out-of-window weeks, unauthored lifts and foreign programs', () => {
+  for (const bad of [0, 13, -1, NaN, null, undefined, 'x']) {
+    assert.equal(shedPplulWeekPlan(bad), null);
+    assert.equal(shedPplulLiftTarget(program, bad, 'mon', 'Barbell Bench Press'), null);
+  }
+  assert.equal(shedPplulLiftTarget(program, 1, 'mon', 'Barbell Shrug'), null);
+  assert.equal(isShedPplulProgram({ progressionModel: 'jt-shed' }), false);
+  for (const other of PROGRAM_CATALOG.filter((candidate) => candidate.id !== 'shed_pplul')) {
+    assert.equal(shedPplulLiftTarget(other, 1, 'mon', 'Barbell Bench Press'), null);
   }
 });
 
-// ── A personal copy inherits the progression model ───────────────────────────
-//
-// `duplicateCustomProgram` deep-clones the catalog entry into `customPrograms`,
-// so a copy made BEFORE its source gained `progressionModel` has no hook. Every
-// lift on every day then collapses to the one shared week modifier: a real Shed
-// PPLUL copy showed "4 × 8" for the entire programme — six accessories that
-// should each have their own prescription, and a deadlift that should be 3 × 6.
-//
-// The copy lives in the athlete's own state, so shipping a corrected catalog
-// never reaches it. `liftTarget` therefore resolves the model from
-// `sourceProgramId` at READ time. Nothing stored is rewritten, so there is no
-// migration, sync or export surface.
-
-/** A copy exactly as duplicateCustomProgram makes one, minus the newer field. */
 function legacyCopy() {
   const copy = JSON.parse(JSON.stringify(program));
   copy.id = 'prog_legacy_copy';
@@ -263,55 +293,30 @@ function legacyCopy() {
   return copy;
 }
 
-const copyTarget = (prog, week, dayKey, lift) => {
-  const t = liftTarget(prog.days[dayKey].desc, lift, getWeekModifier(prog, week), { program: prog, week, dayKey });
-  return `${t.sets}x${t.reps}`;
-};
+function copySpec(copy, week, dayKey, lift) {
+  const resolved = liftTarget(copy.days[dayKey].desc, lift, getWeekModifier(copy, week), {
+    program: copy, week, dayKey,
+  });
+  return `${resolved.sets}x${resolved.reps}`;
+}
 
-test('a copy made before progressionModel existed still resolves accessories', () => {
+test('a legacy copy still inherits the per-lift performance model at read time', () => {
   const copy = legacyCopy();
-  assert.equal(copy.progressionModel, undefined, 'fixture must lack the hook');
-
-  // The exact reported symptom: every Monday lift reading 4x8.
-  assert.equal(copyTarget(copy, 1, 'mon', 'Incline Dumbbell Press'), '3x8–12');
-  assert.equal(copyTarget(copy, 1, 'mon', 'Seated Dumbbell Shoulder Press'), '2x8–12');
-  assert.equal(copyTarget(copy, 1, 'mon', 'Band Face Pull'), '2x15–20');
+  assert.equal(copy.progressionModel, undefined);
+  assert.equal(copySpec(copy, 1, 'mon', 'Barbell Bench Press'), '4x6–8');
+  assert.equal(copySpec(copy, 12, 'sat', DEADLIFT), '3x5–8');
+  assert.equal(copySpec(copy, 4, 'mon', 'Band Face Pull'), '2x15–20');
 });
 
-test('a copy keeps the deadlift on its own wave, not the primary one', () => {
-  // The sharpest tell: week 1 primary is 4x8, the deadlift is 3x6. A copy that
-  // lost the model showed the deadlift as 4x8 — a different exercise entirely.
-  const copy = legacyCopy();
-  assert.equal(copyTarget(copy, 1, 'sat', DEADLIFT), '3x6');
-  assert.equal(copyTarget(copy, 1, 'mon', MAIN_BY_DAY.mon), '4x8');
-  assert.equal(copyTarget(copy, 9, 'sat', DEADLIFT), '4x3');
-});
-
-test('a copy still halves accessory volume on a deload', () => {
-  const copy = legacyCopy();
-  assert.equal(copyTarget(copy, 4, 'mon', 'Dumbbell Lateral Raise'), '2x12–20');
-  assert.equal(copyTarget(copy, 4, 'mon', MAIN_BY_DAY.mon), '2x8');
-});
-
-test('inheritance needs a real source — it never guesses a model', () => {
-  // A personal program the athlete built themselves has no sourceProgramId, and
-  // a copy of something that carries no model must not acquire one.
+test('model inheritance requires a real source and preserves unauthored edits', () => {
   const own = legacyCopy();
   delete own.sourceProgramId;
-  assert.equal(copyTarget(own, 1, 'mon', 'Incline Dumbbell Press'),
-    `${getWeekModifier(own, 1).sets}x${getWeekModifier(own, 1).reps}`,
-    'a program with no source must fall through to its week modifier');
+  assert.equal(copySpec(own, 1, 'mon', 'Incline Dumbbell Press'), '4x6–8');
 
-  const unknownSource = legacyCopy();
-  unknownSource.sourceProgramId = 'no_such_program';
-  assert.equal(copyTarget(unknownSource, 1, 'mon', 'Incline Dumbbell Press'),
-    `${getWeekModifier(unknownSource, 1).sets}x${getWeekModifier(unknownSource, 1).reps}`);
-});
+  const unknown = legacyCopy();
+  unknown.sourceProgramId = 'no_such_program';
+  assert.equal(copySpec(unknown, 1, 'mon', 'Incline Dumbbell Press'), '4x6–8');
 
-test('an exercise the athlete swapped in is not given a programmed prescription', () => {
-  // Edits must survive inheritance: an unauthored lift falls through exactly as
-  // it does for the catalog program itself.
   const copy = legacyCopy();
-  const mod = getWeekModifier(copy, 1);
-  assert.equal(copyTarget(copy, 1, 'mon', 'Cable Crossover'), `${mod.sets}x${mod.reps}`);
+  assert.equal(copySpec(copy, 1, 'mon', 'Cable Crossover'), '4x6–8');
 });

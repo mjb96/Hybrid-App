@@ -414,8 +414,8 @@ function withInheritedProgressionModel(program) {
  * so a fork made before its source gained a `progressionModel` has no hook and
  * every lift on every day collapses to the one shared week modifier — a Shed
  * PPLUL fork showed "4 × 8" for the whole programme, deadlift included, when the
- * spec calls for six different accessory prescriptions and a separate deadlift
- * wave. The fork lives in the athlete's own state, so no app update reaches it.
+ * spec calls for distinct per-lift prescriptions. The fork lives in the
+ * athlete's own state, so no app update reaches it.
  *
  * @param {any} [weekModifier]
  * @param {{ program?:any, week?:(number|string), dayKey?:string, opts?:any }} [ctx]
@@ -431,11 +431,10 @@ export function liftTarget(desc, liftName, weekModifier = {}, ctx) {
     const jt = jtLiftTarget(program, ctx.week, ctx.dayKey, liftName, ctx.opts || {});
     if (jt) return { sets: jt.sets, reps: jt.reps };
   }
-  // Shed PPLUL runs bench/squat/press and the deadlift on two different weekly
-  // progressions, which one shared week modifier cannot express. Gated on the
-  // program's own progressionModel, so every other program is unaffected, and
-  // null-returning for unauthored lifts so an exercise added mid-session falls
-  // through rather than inheriting a main-lift prescription.
+  // Shed PPLUL gives individual lifts stable performance-based set/rep ranges,
+  // which one shared week modifier cannot express. Gated on the program's own
+  // progressionModel, so every other program is unaffected, and null-returning
+  // for unauthored lifts so an exercise added mid-session falls through.
   if (isShedPplulProgram(program)) {
     const pp = shedPplulLiftTarget(program, ctx.week, ctx.dayKey, liftName);
     if (pp) return { sets: pp.sets, reps: pp.reps };

@@ -141,6 +141,13 @@ export const EXERCISES = Object.freeze([
       ['Use a spotter or safety pins — a failed rep traps the bar across your chest.', 'Keep the wrists stacked over the elbows, and never bounce the bar off the ribs.'],
     ),
   }),
+  P('paused_barbell_bench_press', 'Paused Barbell Bench Press', ['Paused Bench Press', 'Paused Bench'], { chest: 1, triceps: .5, front_delts: .25 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true,
+    ...REVIEWED(
+      ['Use your normal bench setup and lower the bar under control to a consistent touch point.', 'Hold the bar motionless on the chest, then press while keeping the upper back and feet firmly set.'],
+      'intermediate',
+      ['Use a spotter or correctly positioned safety pins because the pause removes momentum from the hardest part of the lift.', 'Keep the pause controlled without relaxing the torso or letting the bar sink into the chest.'],
+    ),
+  }),
   P('incline_barbell_bench_press', 'Incline Barbell Bench Press', ['Incline Barbell Press', 'Incline Bench Press'], { upper_chest: 1, front_delts: .5, triceps: .5 }, { movement: 'horizontal_push', equipment: ['barbell', 'bench'], compound: true,
     ...REVIEWED(
       ['Set the bench to about 30 degrees, plant both feet, and grip a little wider than shoulder width.', 'Lower to the upper chest with the elbows tucked, then press back over the shoulders.'],
@@ -536,6 +543,13 @@ export const EXERCISES = Object.freeze([
       ['Set mid-foot under the bar, grip outside the knees, and pull the slack out with the chest up.', 'Push the floor away to stand tall, then return the bar down the same path.'],
       'advanced',
       ['Keep the bar against your body; letting it drift forward loads the lower back sharply.', 'End the set the moment the back rounds — the last rep is where most injuries happen.'],
+    ),
+  }),
+  G('paused_conventional_deadlift', 'Paused Conventional Deadlift', ['Paused Deadlift'], { glutes: 1, hamstrings: .5, erectors: .5, traps: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true,
+    ...REVIEWED(
+      ['Set up as for a conventional deadlift, pull the slack from the bar, and begin the lift without jerking.', 'Pause motionless for one to two seconds just off the floor or around lower-shin height, then finish the lift while keeping the bar close.'],
+      'advanced',
+      ['Use a load you can hold in position without the back rounding or the bar drifting away from the legs.', 'Do not relax during the pause; end the set if you cannot maintain the same braced position.'],
     ),
   }),
   G('sumo_deadlift', 'Sumo Deadlift', [], { glutes: 1, quads: .5, adductors: .5, erectors: .25 }, { movement: 'hinge', equipment: ['barbell'], compound: true }),
