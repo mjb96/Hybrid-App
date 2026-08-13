@@ -218,11 +218,14 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   it). `liftTarget` therefore inherits the model from `sourceProgramId` at READ time
   (`withInheritedProgressionModel`, `js/engine.js`) — nothing stored is rewritten, and
   an unauthored swapped-in lift still falls through.
-- Workout modules: `js/workout.js` (2,492 lines) is imported ONLY by `js/app.js`,
+- Workout modules: `js/workout.js` (1,837 lines) is imported ONLY by `js/app.js`,
   which uses 21 of its 44 exports. Exercise selection lives in
   `js/workout/exercise-picker.js`, the confirm-reset flow in
-  `js/workout/clear-log.js`, the weight-unit label in `js/workout/units.js`, and
-  run distance/pace conversion in `js/workout/run-units.js` (pure; distance is
+  `js/workout/clear-log.js`, and cockpit run rendering/manual persistence in
+  `js/workout/run-logging.js`; row addition/removal, removal Undo, set type/RIR,
+  and bodyweight/band load choices live in `js/workout/set-mutations.js`; the
+  weight-unit label lives in `js/workout/units.js`, and run distance/pace
+  conversion lives in `js/workout/run-units.js` (pure; distance is
   STORED in km and the display value is rounded, so a UI round trip is lossy by
   design — never round-trip a stored value to "normalise" it).
   The four event ROUTERS stay in workout.js and must move LAST: they are 81 lines

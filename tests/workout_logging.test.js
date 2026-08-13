@@ -35,6 +35,7 @@ function makeEl(id = '') {
 }
 
 let workout;
+let runLogging;
 let state;
 let saveCount;
 
@@ -64,6 +65,7 @@ before(async () => {
     circleMarker: () => ({ addTo: () => ({}) }) };
 
   workout = await import('../js/workout.js');
+  runLogging = await import('../js/workout/run-logging.js');
 });
 
 function freshState() {
@@ -437,4 +439,52 @@ test('pairAsSuperset / unpairSuperset tag and clear a shared groupId', () => {
   workout.unpairSuperset('Bench');
   assert.equal(meta.Bench.groupId, undefined);
   assert.equal(meta.Row.groupId, undefined);
+});
+
+test('manual run input derives pace and time in the visible distance unit', () => {
+  initWith(freshState());
+  const distance = document.getElementById('runInputDist');
+  const time = document.getElementById('runInputTime');
+  const pace = document.getElementById('runInputPace');
+  distance.value = '3.1';
+  time.value = '30:00';
+  pace.value = '';
+
+  runLogging.handleRunLoggingInput(
+    { id: 'runInputDist', matches: () => true },
+    { appState: state, weekKey: '1', selectedDay: 'mon' },
+  );
+  assert.equal(pace.value, '9:41');
+  assert.equal(state.weeks['1'].sessionStatus.mon, 'in_progress');
+
+  pace.value = '8:00';
+  runLogging.handleRunLoggingInput(
+    { id: 'runInputPace', matches: () => true },
+    { appState: state, weekKey: '1', selectedDay: 'mon' },
+  );
+  assert.equal(time.value, '24:48');
+});
+
+test('manual miles persist as canonical km without dropping imported run evidence', () => {
+  const next = freshState();
+  next.settings.distanceUnit = 'mi';
+  next.weeks['1'].dates = { mon: '2026-08-11' };
+  next.weeks['1'].runs = {
+    mon: { sessionId: 'fit-run-1', source: 'fit', avgCadence: 172, dist: '8', time: '50:00' },
+  };
+  initWith(next);
+
+  document.getElementById('runInputDist').value = '6.21';
+  document.getElementById('runInputTime').value = '1:00:00';
+  document.getElementById('runInputRpeCockpit').value = '7';
+  document.getElementById('runInputPace').value = '9:40';
+  workout.commitWorkoutUIState();
+
+  const stored = state.weeks['1'].runs.mon;
+  assert.ok(Math.abs(Number(stored.dist) - 10) < 0.01, `expected ~10 km, got ${stored.dist}`);
+  assert.equal(stored.time, '1:00:00');
+  assert.equal(stored.rpe, '7');
+  assert.equal(stored.avgCadence, 172, 'fields with no manual input survive the edit');
+  assert.equal(stored.sessionId, 'fit-run-1');
+  assert.equal(state.weeks['1'].runSessions.mon.length, 1, 'the existing session is updated, not duplicated');
 });

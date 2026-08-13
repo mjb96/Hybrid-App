@@ -23,13 +23,12 @@ import { showToast, saveNewCustomExerciseToLibrary } from './state.js';
 import { escapeHtml } from './util.js';
 import { buildEmptyWorkoutCard, buildSetRow, buildExerciseCard } from './templates.js';
 import { buildSessionOutline, outlineSummaryLine } from './workout/session-outline.js';
-import { applySetRemoval, restoreSetRemoval, plannedSetsForLift } from './workout/set-plan.js';
+import { plannedSetsForLift } from './workout/set-plan.js';
 import { buildSessionReview } from './workout/session-review.js';
 import { activeSessionLiftNames, applyExerciseSwap, neighborDay, pickInheritedSet } from './workout-order.js';
 import { getSubstitutions } from './workout/substitutions.js';
 import { plateHint } from './workout/plates.js';
 import { deleteMapFromDB } from './db.js';
-import { renderRunMap } from './workout-map.js';
 import { hapticTick, hapticSuccess } from './haptics.js';
 import { dateKey } from './dates.js';
 import { isInternalLiftId, UNKNOWN_LIFT_NAME } from './state/lift-id.js';
@@ -38,14 +37,10 @@ import { generateRecommendation } from './brain/recommendations.js';
 import { projectScore, projectionLine } from './brain/hybrid-score/project.js';
 import { hasRunData, newRunSessionId, upsertRunSession } from './state/run-sessions.js';
 import { completionPresentation, evaluateSessionCompletion } from './workout/completion-policy.js';
-import { detectRunType } from './workout/run-type.js';
-import { hasActiveRunSession } from './gps-tracker.js';
 import { rescheduledWorkoutContext } from './workout/program-session-picker.js';
-import { applyBandLoad, applyLoadMode, bandRole, isBodyweightExercise, resolvedLoadMode } from './workout/load-mode.js';
+import { applyLoadMode, isBodyweightExercise } from './workout/load-mode.js';
 import { validateSetEntry, primarySetEntryMessage } from './workout/set-entry.js';
 import { deleteDayWorkoutData, hasDayWorkoutDraft, snapshotDayWorkoutData, restoreDayWorkoutData } from './workout/delete-day.js';
-import { showUndo } from './ui/undo-bar.js';
-import { numberPromptModal } from './ui/confirm-modal.js';
 import { finishSession, markSessionInProgress } from './workout/session-status.js';
 import {
   browseExercises, equipmentLabel, exerciseStatForName, EXERCISE_CATEGORY_LABELS,
@@ -60,14 +55,22 @@ import {
 import { workoutSessionKey } from './workout/session-identity.js';
 import { weightUnitLabel } from './workout/units.js';
 import {
-  KM_TO_MI, _runDistUnit, _kmToDisplayDist, _displayDistToKm,
-  _paceFromDistTime, _timeFromPaceDist,
-} from './workout/run-units.js';
-import {
   openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics,
 } from './workout/clear-log.js';
+import {
+  renderRunInputs, renderImportedRunDetails, renderCockpitRunMap, positionRunPanel,
+  commitRunLogging, handleRunLoggingInput,
+} from './workout/run-logging.js';
+import {
+  appendCustomSetRow, appendWarmupSetRow, removeCustomSetRow, cycleSetType,
+  setSetLoadMode, cycleSetLoad, setPerSetRir, currentBodyweight as _currentBodyweight,
+} from './workout/set-mutations.js';
 // Re-exported for js/app.js, which imports these from here.
 export { openConfirmResetModal, closeConfirmResetModal, executeResetActiveDayMetrics };
+export {
+  appendCustomSetRow, appendWarmupSetRow, removeCustomSetRow, cycleSetType,
+  setSetLoadMode, cycleSetLoad, setPerSetRir,
+};
 import {
   renderExerciseLibraryList,
   handleExerciseSearch,
@@ -130,7 +133,6 @@ function _inheritedSetFromSession(exCard, parentRow) {
   }));
   return pickInheritedSet(sets, idx);
 }
-
 
 export function initWorkout(getStateFn, getSelectedDayFn, getDaysFn, saveStateFn, switchTabFn, scheduleSaveFn) {
   // The accessors live in js/workout/context.js so modules split out of this
@@ -513,75 +515,7 @@ export function renderWorkout() {
       : '';
   }
 
-  // --- RUN METRICS ---
-  const runContext = weekData.runs[selectedDay] || { dist: '', time: '', rpe: '', avgHR: '', maxHR: '', elev: '', cals: '', pace: '', notes: '' };
-
-  const distEl       = document.getElementById('runInputDist');
-  const timeEl       = document.getElementById('runInputTime');
-  const rpeCockpitEl = document.getElementById('runInputRpeCockpit');
-  const paceEl       = document.getElementById('runInputPace');
-  const notesRunEl   = document.getElementById('runInputNotes');
-  const avgHREl      = document.getElementById('runInputAvgHR');
-  const maxHREl      = document.getElementById('runInputMaxHR');
-  const elevEl       = document.getElementById('runInputElev');
-  const calsEl       = document.getElementById('runInputCals');
-  const runExtraStatsRow = document.getElementById('runExtraStats');
-
-  const distUnit = _runDistUnit(appState);
-  if (distEl)       distEl.value       = (runContext.dist === '' || runContext.dist == null)
-                                           ? '' : _kmToDisplayDist(runContext.dist, distUnit);
-  if (timeEl)       timeEl.value       = runContext.time        || '';
-  if (rpeCockpitEl) rpeCockpitEl.value = runContext.rpe         || '';
-  if (notesRunEl)   notesRunEl.value   = runContext.notes       || '';
-  if (avgHREl)      avgHREl.value      = runContext.avgHR       || '';
-  if (maxHREl)      maxHREl.value      = runContext.maxHR       || '';
-  if (elevEl)       elevEl.value       = runContext.elev        || '';
-  if (calsEl)       calsEl.value       = runContext.cals        || '';
-
-  // Restore or compute pace (per the user's display unit)
-  if (paceEl) {
-    const dispDist = _kmToDisplayDist(runContext.dist, distUnit);
-    const computedPace = _paceFromDistTime(dispDist, runContext.time);
-    paceEl.value = computedPace || runContext.pace || '';
-    paceEl.placeholder = `—:—— /${distUnit}`;
-  }
-  // Distance + pace unit labels track the configured unit.
-  const distLabelEl = document.getElementById('runDistUnitLabel');
-  if (distLabelEl) distLabelEl.textContent = distUnit === 'mi' ? 'Dist MI' : 'Dist KM';
-  const paceUnitEl = document.getElementById('runPaceUnit');
-  if (paceUnitEl) paceUnitEl.textContent = `/${distUnit}`;
-
-  const hasRunExtra = runContext.avgHR || runContext.maxHR || runContext.elev || runContext.cals ||
-                      runContext.avgCadence || runContext.descent || runContext.trainingEffect ||
-                      weekData.runs[selectedDay]?.splits?.length > 0;
-  if (runExtraStatsRow) runExtraStatsRow.style.display = hasRunExtra ? 'block' : 'none';
-
-  // HR Zones strip
-  const hrZonesContainer = document.getElementById('runHrZonesContainer');
-  const hrZonesBar       = document.getElementById('runHrZonesBar');
-  const hrZonesLabels    = document.getElementById('runHrZonesLabels');
-  if (hrZonesContainer && hrZonesBar && hrZonesLabels) {
-    const zones = runContext.hrZones;
-    if (zones && Array.isArray(zones) && zones.some(z => z > 0)) {
-      hrZonesContainer.style.display = 'block';
-      const zoneColors  = ['#22d3ee', '#10b981', '#f59e0b', '#f97316', '#ef4444'];
-      const zoneLabels  = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
-      const total       = zones.reduce((s, z) => s + z, 0) || 1;
-      hrZonesBar.innerHTML = zones.map((z, i) => {
-        const pct = Math.round((z / total) * 100);
-        return pct > 0
-          ? `<div style="width:${pct}%;background:${zoneColors[i]};height:100%;transition:width 0.4s;"></div>`
-          : '';
-      }).join('');
-      hrZonesLabels.innerHTML = zones.map((z, i) => {
-        const m = Math.floor(z / 60);
-        const s = Math.round(z % 60).toString().padStart(2, '0');
-        return `<span style="color:${zoneColors[i]};">${zoneLabels[i]} ${m}:${s}</span>`;
-      }).join('');
-    } else {
-      hrZonesContainer.style.display = 'none';
-    }
-  }
+  renderRunInputs({ appState, weekData, selectedDay });
 
   // --- GYM METRICS ---
   const gymContext = weekData.gymStats[selectedDay] || { time: '', avgHR: '', maxHR: '', cals: '' };
@@ -607,51 +541,7 @@ export function renderWorkout() {
                       gymContext.trainingEffect;
   if (gymStatsRow) gymStatsRow.style.display = hasGymStats ? 'block' : 'none';
 
-  // --- MAP GARMIN DATA TO INPUTS ---
-  const rStats = appState.weeks[wk].runs?.[selectedDay] || {};
-
-  const cadenceEl = document.getElementById('runInputCadence');
-  if (cadenceEl) cadenceEl.value = rStats.avgCadence || '--';
-
-  const descentEl = document.getElementById('runInputDescent');
-  if (descentEl) descentEl.value = rStats.descent || '--';
-
-  const teEl = document.getElementById('runInputTE');
-  if (teEl) teEl.value = rStats.trainingEffect || '--';
-
-  const splitsContainer = document.getElementById('runSplitsContainer');
-  const splitsTable = document.getElementById('runSplitsTable');
-  if (splitsContainer && splitsTable) {
-      if (rStats.splits && rStats.splits.length > 0) {
-          const threshold = appState.thresholdPaceSeconds;
-          const zoneColour = (secPerKm) => {
-            if (!threshold) return '#f43f5e';
-            const d = secPerKm - threshold;
-            if (d >  90) return '#22d3ee';
-            if (d >  30) return '#10b981';
-            if (d > -30) return '#f59e0b';
-            if (d > -60) return '#f97316';
-            return '#ef4444';
-          };
-          let html = '<div style="font-size: 0.75rem; color: #fff;">';
-          rStats.splits.forEach(s => {
-              const min = Math.floor(s.time / 60);
-              const sec = Math.floor(s.time % 60).toString().padStart(2, '0');
-              const colour = zoneColour(s.time / (s.dist || 1));
-              html += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
-                          <span>Lap ${s.lap}</span>
-                          <span>${s.dist.toFixed(2)} km</span>
-                          <span style="color:${colour};">${min}:${sec}/km</span>
-                          <span style="color:var(--accent-pink);">❤️ ${s.avgHR || '--'}</span>
-                       </div>`;
-          });
-          html += '</div>';
-          splitsTable.innerHTML = html;
-          splitsContainer.style.display = 'block';
-      } else {
-          splitsContainer.style.display = 'none';
-      }
-  }
+  renderImportedRunDetails({ appState, weekData, selectedDay });
 
   const gStats = appState.weeks[wk].gymStats?.[selectedDay] || {};
   const gymSetsContainer = document.getElementById('gymSetsBreakdown');
@@ -677,13 +567,7 @@ export function renderWorkout() {
       }
   }
 
-  // === RENDER MAP FROM IndexedDB ===
-  renderRunMap(wk, selectedDay, runContext.dist, {
-    splits: rStats.splits,
-    thresholdSec: appState.thresholdPaceSeconds,
-    activationId: appState.activeActivationId,
-    sessionId: runContext.sessionId,
-  });
+  renderCockpitRunMap({ appState, weekData, weekKey: wk, selectedDay });
 
   const notesEl = document.getElementById('sessionNotesInput');
   const gymRpeEl = document.getElementById('sessionGymRpeCockpit');
@@ -691,46 +575,8 @@ export function renderWorkout() {
   if (notesEl) notesEl.value = weekData.notes[selectedDay] || '';
   if (gymRpeEl) gymRpeEl.value = weekData.gymRpe?.[selectedDay] || '';
 
-  // --- REORDER AEROBIC TILE DYNAMICALLY ---
-  const runPanel = document.getElementById('cockpitRunPanel');
-  const runSpecsEl = document.getElementById('cockpitRunSpecs');
   const exercisesContainer = document.getElementById('cockpitExercisesContainer');
-
-  const blueprintRun = homeBlueprint.runs || '';
-  const isRunScheduled = blueprintRun && !blueprintRun.toLowerCase().includes('no structured') && blueprintRun.toLowerCase() !== 'rest';
-
-  if (runSpecsEl) runSpecsEl.textContent = blueprintRun || 'Rest';
-
-  const runTypeBadgeEl = document.getElementById('runTypeBadge');
-  if (runTypeBadgeEl) {
-    const runType = isRunScheduled ? detectRunType(blueprintRun) : null;
-    if (runType) {
-      runTypeBadgeEl.textContent = runType.label;
-      runTypeBadgeEl.style.setProperty('--badge-color', runType.color);
-      runTypeBadgeEl.style.display = '';
-    } else {
-      runTypeBadgeEl.style.display = 'none';
-    }
-  }
-
-  // A live run owns the card. Collapsing it — which a re-render would do on any
-  // day with no scheduled run, i.e. exactly when an unscheduled run is being
-  // tracked — hides `.run-body-content` and takes the running session off the
-  // screen mid-run. Reordering is skipped for the same reason: moving the node
-  // detaches the live Leaflet map from under the athlete.
-  const runSessionLive = hasActiveRunSession();
-
-  if (runPanel) {
-    runPanel.classList.toggle('run-collapsed', !isRunScheduled && !runSessionLive);
-  }
-
-  if (runPanel && exercisesContainer && !runSessionLive) {
-    if (!isRunScheduled) {
-      exercisesContainer.after(runPanel);
-    } else {
-      exercisesContainer.before(runPanel);
-    }
-  }
+  positionRunPanel({ homeBlueprint, exercisesContainer });
 
   const daySelectorBar = document.getElementById('cockpitDaySelectorBar');
   if (daySelectorBar) {
@@ -1183,41 +1029,7 @@ export function commitWorkoutUIState() {
   const wk = activeWorkoutWeekKey(appState);
   const weekData = appState.weeks[wk];
 
-  const distEl     = document.getElementById('runInputDist');
-  const timeEl     = document.getElementById('runInputTime');
-  const rpeRunEl   = document.getElementById('runInputRpeCockpit');
-  const paceEl     = document.getElementById('runInputPace');
-  const notesRunEl = document.getElementById('runInputNotes');
-  const avgHREl    = document.getElementById('runInputAvgHR');
-  const maxHREl    = document.getElementById('runInputMaxHR');
-  const elevEl     = document.getElementById('runInputElev');
-  const calsEl     = document.getElementById('runInputCals');
-
-  if (distEl && distEl.offsetParent !== null) {
-    const existing = weekData.runs[selectedDay] || {};
-    const distUnit = _runDistUnit(appState);
-    const update = {
-      ...existing,
-      // Convert the entered display-unit distance back to canonical km.
-      dist:  distEl.value === '' ? '' : _displayDistToKm(distEl.value, distUnit),
-      time:  timeEl.value,
-      rpe:   rpeRunEl.value,
-      pace:  paceEl   ? paceEl.value   : '',
-      notes: notesRunEl ? notesRunEl.value : '',
-      avgHR: avgHREl ? avgHREl.value : '',
-      maxHR: maxHREl ? maxHREl.value : '',
-      elev:  elevEl  ? elevEl.value  : '',
-      cals:  calsEl  ? calsEl.value  : '',
-    };
-    if (hasRunData(update) || existing.sessionId) {
-      upsertRunSession(weekData, selectedDay, update, {
-        sessionId: existing.sessionId || newRunSessionId(),
-        source: existing.source || 'cockpit',
-        localDate: existing.localDate || weekData.dates?.[selectedDay] || null,
-        startTs: existing.startTs,
-      });
-    }
-  }
+  commitRunLogging({ appState, weekData, selectedDay });
 
   if (!weekData.gymStats) weekData.gymStats = {};
   const gTimeEl = document.getElementById('gymInputTime');
@@ -1533,284 +1345,6 @@ export function evaluateAccordionAutoFlowTransitions() {
   }
 }
 
-export function appendCustomSetRow(btnNode, liftName) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  
-  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
-  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName] = [];
-  }
-  appState.weeks[wk].lifts[selectedDay][liftName].push({ w: '', r: '', c: false });
-  _saveState(true);
-  renderWorkout();
-}
-
-export function appendWarmupSetRow(btnNode, liftName) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-
-  if (!appState.weeks[wk].lifts[selectedDay]) appState.weeks[wk].lifts[selectedDay] = {};
-  if (!appState.weeks[wk].lifts[selectedDay][liftName]) {
-    appState.weeks[wk].lifts[selectedDay][liftName] = [];
-  }
-  const sets = appState.weeks[wk].lifts[selectedDay][liftName];
-  // Insert warmup before first working set, or at index 0
-  const firstWorkingIdx = sets.findIndex(s => !s.type || s.type !== 'W');
-  const newSet = { w: '', r: '', c: false, type: 'W' };
-  if (firstWorkingIdx === -1) sets.push(newSet);
-  else sets.splice(firstWorkingIdx, 0, newSet);
-
-  _saveState(true);
-  renderWorkout();
-}
-
-export function removeCustomSetRow(liftName, setIndex) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const week = appState.weeks?.[wk];
-  if (!week) return;
-
-  // The data operation (splice, drop an emptied exercise, and stamp the
-  // athlete's own set count so the scaffolding pass cannot pad the row back)
-  // lives in set-plan.js and is unit-tested; this is the UI around it. The
-  // snapshot it returns is what Undo restores — the ✕ sits ~40px from the ✓, so
-  // a fat-finger on a logged set must be recoverable, not silent data loss.
-  const result = applySetRemoval(week, selectedDay, liftName, setIndex);
-  if (!result.ok) return;
-
-  _saveState(true);
-  renderWorkout();
-  _offerSetUndo({ liftName, selectedDay, wk, snapshot: result });
-}
-
-// Restore the pre-delete snapshot captured by removeCustomSetRow.
-function _restoreRemovedSet(u) {
-  const appState = _getState();
-  const week = appState.weeks?.[u.wk];
-  if (!week) return;
-  if (!restoreSetRemoval(week, u.selectedDay, u.liftName, u.snapshot)) return;
-  _saveState(true);
-  renderWorkout();
-  showToast('Set restored ✓');
-}
-
-// A tappable Undo snackbar (the plain showToast has no action). Sits above the
-// bottom nav, auto-dismisses after 6s.
-let _undoSnackTimer = null;
-function _offerSetUndo(u) {
-  if (typeof document === 'undefined') return;
-  document.getElementById('setUndoSnack')?.remove();
-  if (_undoSnackTimer) { clearTimeout(_undoSnackTimer); _undoSnackTimer = null; }
-
-  const snack = document.createElement('div');
-  snack.id = 'setUndoSnack';
-  snack.setAttribute('role', 'status');
-  snack.style.cssText =
-    'position:fixed;left:50%;transform:translateX(-50%);' +
-    'bottom:calc(88px + env(safe-area-inset-bottom, 0px));z-index:9998;' +
-    'display:flex;align-items:center;gap:14px;max-width:calc(100% - 32px);' +
-    'background:#1e293b;color:#f8fafc;border:1px solid rgba(255,255,255,0.14);' +
-    'border-radius:12px;padding:11px 16px;box-shadow:0 8px 28px rgba(0,0,0,0.4);font-size:0.85rem;';
-  snack.innerHTML =
-    '<span style="flex:1;">Set removed</span>' +
-    '<button type="button" id="setUndoBtn" style="min-height:44px;background:none;border:none;' +
-    'color:#60a5fa;font-weight:800;font-size:0.85rem;cursor:pointer;padding:4px 8px;">UNDO</button>';
-  document.body.appendChild(snack);
-
-  const dismiss = () => { snack.remove(); if (_undoSnackTimer) clearTimeout(_undoSnackTimer); _undoSnackTimer = null; };
-  snack.querySelector('#setUndoBtn')?.addEventListener('click', () => { _restoreRemovedSet(u); dismiss(); });
-  _undoSnackTimer = setTimeout(dismiss, 6000);
-}
-
-export function cycleSetType(liftName, sIdx) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx >= setArr.length) return;
-
-  const cycle = { '': 'W', 'W': 'D', 'D': 'F', 'F': '' };
-  const newType = cycle[setArr[sIdx].type || ''];
-  setArr[sIdx].type = newType;
-
-  // Update DOM without full re-render
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (row) {
-    row.classList.remove('type-warmup', 'type-dropset', 'type-amrap');
-    if (newType === 'W') row.classList.add('type-warmup');
-    else if (newType === 'D') row.classList.add('type-dropset');
-    else if (newType === 'F') row.classList.add('type-amrap');
-    const lbl  = row.querySelector('.set-num-lbl');
-    const pill = row.querySelector('.type-pill');
-    const numLabels  = { '': `S${sIdx + 1}`, 'W': 'W', 'D': 'D', 'F': 'F' };
-    const pillLabels = { '': 'set', 'W': 'warm', 'D': 'drop', 'F': 'amrp' };
-    if (lbl)  lbl.textContent  = numLabels[newType];
-    if (pill) pill.textContent = pillLabels[newType];
-  }
-  _saveState(true);
-}
-
-// Best-available bodyweight for stamping bodyweight sets: latest logged weight,
-// else the settings default, else a neutral fallback.
-/**
- * The athlete's most recent body weight, or null when they have never given
- * one. Deliberately has no fallback: this used to return a hardcoded 75 kg,
- * which then became the LOGGED load on every bodyweight and band-assisted set
- * and flowed on into volume, PRs and the Hybrid Score as though measured.
- */
-function _currentBodyweight(appState) {
-  const log = appState.bodyWeightLog || [];
-  for (let i = log.length - 1; i >= 0; i--) {
-    const w = parseFloat(log[i]?.weight);
-    if (Number.isFinite(w) && w > 0) return w;
-  }
-  const dbw = parseFloat(appState.settings?.defaultBodyWeight);
-  if (Number.isFinite(dbw) && dbw > 0) return dbw;
-  return null;
-}
-
-function _replaceSet(setArr, index, next) {
-  // Preserve array identity because other workout consumers can hold the live
-  // set list, while still applying the pure load-mode result atomically.
-  setArr[index] = next;
-}
-
-function _syncLoadModeRow(liftName, sIdx, set) {
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (!row) return;
-  const mode = resolvedLoadMode(set, liftName);
-  row.dataset.loadMode = mode;
-  row.querySelectorAll('.set-load-choice__btn').forEach((button) => {
-    const active = button.getAttribute('data-mode') === mode;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
-  });
-  const wInput = row.querySelector('.input-weight-node');
-  if (wInput) wInput.value = set.w || '';
-}
-
-/**
- * Body weight, asking for it once if we have never been told.
- *
- * The app used to substitute a hardcoded 75 kg here. Refusing to invent it is
- * right; refusing and then silently logging a zero is not. So the athlete is
- * asked at the exact moment the number is needed, and the answer is stored the
- * same way the profile stores it — `defaultBodyWeight` plus today's entry in
- * `bodyWeightLog` — so it is never asked twice.
- *
- * @returns {Promise<number|null>} null if they dismissed it
- */
-async function _ensureBodyweight(appState) {
-  const known = _currentBodyweight(appState);
-  if (known != null) return known;
-
-  const unit = appState.settings?.weightUnit === 'lbs' ? 'lbs' : 'kg';
-  const entered = await numberPromptModal({
-    title: 'What do you weigh?',
-    message: 'Bodyweight and band-assisted sets are logged against your body weight, so this is the load for those sets.',
-    label: 'Body weight',
-    unit,
-    confirmLabel: 'Save',
-    max: unit === 'lbs' ? 1000 : 450,
-  });
-  if (entered == null) return null;
-
-  if (!appState.settings) appState.settings = {};
-  appState.settings.defaultBodyWeight = entered;
-  if (!Array.isArray(appState.bodyWeightLog)) appState.bodyWeightLog = [];
-  const today = dateKey();
-  const existing = appState.bodyWeightLog.findIndex(l => l?.date === today);
-  if (existing >= 0) appState.bodyWeightLog[existing].weight = entered;
-  else appState.bodyWeightLog.push({ date: today, weight: entered });
-  _saveState(true);
-  return entered;
-}
-
-export async function setSetLoadMode(liftName, sIdx, mode) {
-  if (!['bodyweight', 'weighted', 'assisted'].includes(mode)) return;
-  const appState = _getState();
-  // Both of these record body mass as the load, so they cannot proceed on a
-  // number nobody has ever supplied.
-  if (mode === 'bodyweight' || mode === 'assisted') {
-    if (await _ensureBodyweight(appState) == null) return;
-  }
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
-  const next = applyLoadMode(setArr[sIdx], mode, {
-    bodyweight: _currentBodyweight(appState),
-    bandWeights: appState.settings?.bandWeights,
-  });
-  _replaceSet(setArr, sIdx, next);
-  _syncLoadModeRow(liftName, sIdx, next);
-  _saveState(true);
-}
-
-// The overflow load chip remains the fine-grained band selector. What a band
-// MEANS depends on the exercise: assistance subtracted from body mass on a
-// pull-up, the entire resistance on a pushdown. `applyBandLoad` picks.
-export async function cycleSetLoad(liftName, sIdx) {
-  const appState = _getState();
-  const selectedDay = activeWorkoutDay(appState, _getSelectedDay());
-  const wk = activeWorkoutWeekKey(appState);
-  const setArr = appState.weeks?.[wk]?.lifts?.[selectedDay]?.[liftName];
-  if (!setArr || sIdx < 0 || sIdx >= setArr.length) return;
-  const set = setArr[sIdx];
-  const bands = appState.settings?.bandWeights || { L: 10, M: 20, H: 30 };
-
-  const order = ['', 'BW', 'L', 'M', 'H'];
-  const cur = set.bw ? 'BW' : (set.band || '');
-  const next = order[(order.indexOf(cur) + 1) % order.length];
-
-  // Only the states that actually load body mass need it — a band on a
-  // pushdown resists with its own weight and must never trigger this.
-  const needsBodyweight = next === 'BW'
-    || (next && bandRole(liftName) === 'assist');
-  if (needsBodyweight && await _ensureBodyweight(appState) == null) return;
-
-  let nextSet;
-  if (next === 'BW') {
-    nextSet = applyLoadMode(set, 'bodyweight', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
-  } else if (next) {
-    // The exercise decides whether the band assists or IS the load — a band on
-    // a pull-up subtracts from body mass, a band on a pushdown is the whole
-    // resistance. Passing the lift name is what stops bodyweight leaking into
-    // accessories that never lift it.
-    nextSet = applyBandLoad(set, next, {
-      exercise: liftName,
-      bodyweight: _currentBodyweight(appState),
-      bandWeights: bands,
-    });
-  } else {
-    nextSet = applyLoadMode(set, 'weighted', { bodyweight: _currentBodyweight(appState), bandWeights: bands });
-  }
-  _replaceSet(setArr, sIdx, nextSet);
-
-  // Targeted DOM update (keep the card expanded / scroll position).
-  const exCard = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"]`);
-  const row = exCard?.querySelectorAll('.cockpit-set-row')?.[sIdx];
-  if (row) {
-    const chip = row.querySelector('.btn-load');
-    const labels = { '': 'Weighted', BW: 'Bodyweight', L: '🟢 Light band', M: '🟡 Med band', H: '🔴 Heavy band' };
-    const cls = next === '' ? 'weighted' : next === 'BW' ? 'bw' : next;
-    if (chip) {
-      chip.textContent = labels[next];
-      chip.className = 'btn-load tactile-scale load-' + cls;
-    }
-    const wInput = row.querySelector('.input-weight-node');
-    if (wInput) wInput.value = nextSet.w;
-  }
-  _syncLoadModeRow(liftName, sIdx, nextSet);
-  _saveState(true);
-}
-
 export function showSupersetLinkPanel(exCard) {
   if (!exCard) return;
   const appState   = _getState();
@@ -1895,27 +1429,6 @@ export function unpairSuperset(liftName) {
   Object.keys(dayMeta).forEach(n => { if (dayMeta[n]?.groupId === groupId) delete dayMeta[n].groupId; });
   _saveState(true);
   renderWorkout();
-}
-
-export function setPerSetRir(liftName, sIdx, rir) {
-  const appState = _getState();
-  const day = _getSelectedDay();
-  const wk = activeWorkoutWeekKey(appState);
-  const sets = appState.weeks[wk].lifts?.[day]?.[liftName];
-  if (!sets || !sets[sIdx]) return;
-  const cleared = sets[sIdx].rir === rir; // tap the active chip to clear
-  sets[sIdx].rir = cleared ? null : rir;
-  // Keep a derived RPE (= 10 − RIR) so the progression/fatigue engine, which
-  // reasons over per-set RPE, needs no changes. The 4+ bucket maps to RPE 6.
-  sets[sIdx].rpe = cleared ? null : 10 - rir;
-  _saveState(true);
-  // DOM-only update: toggle active class without full re-render
-  const rowEl = document.querySelector(`.cockpit-exercise[data-liftname="${CSS.escape(liftName)}"] .cockpit-set-row[data-set-index="${sIdx}"]`);
-  if (rowEl) {
-    rowEl.querySelectorAll('.btn-rpe').forEach(btn => {
-      btn.classList.toggle('rpe-selected', parseInt(btn.getAttribute('data-rir'), 10) === sets[sIdx].rir);
-    });
-  }
 }
 
 // Next unfinished exercise after `fromCard` (wrapping to the top), or null when
@@ -2315,20 +1828,10 @@ document.addEventListener('input', (e) => {
   if (target.matches('#runInputDist, #runInputTime, #runInputRpeCockpit, #runInputPace, #runInputNotes')) {
     const state = _getState();
     const day = activeWorkoutDay(state, _getSelectedDay());
-    markSessionInProgress(state.weeks?.[activeWorkoutWeekKey(state)], day);
-  }
-  const distEl  = document.getElementById('runInputDist');
-  const timeEl  = document.getElementById('runInputTime');
-  const paceEl  = document.getElementById('runInputPace');
-  if (!distEl || !timeEl || !paceEl) return;
-
-  if (target.id === 'runInputDist' || target.id === 'runInputTime') {
-    // dist + time → derive pace
-    const computed = _paceFromDistTime(distEl.value, timeEl.value);
-    if (computed) paceEl.value = computed;
-  } else if (target.id === 'runInputPace') {
-    // pace + dist → derive time
-    const derived = _timeFromPaceDist(paceEl.value, distEl.value);
-    if (derived) timeEl.value = derived;
+    handleRunLoggingInput(target, {
+      appState: state,
+      weekKey: activeWorkoutWeekKey(state),
+      selectedDay: day,
+    });
   }
 });
