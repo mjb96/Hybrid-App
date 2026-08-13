@@ -1300,21 +1300,40 @@ it supports.
     `restoreDayWorkoutData`, `snapshotDayWorkoutData` and `deleteDayWorkoutData`
     were all missing from the new module's imports. `@ts-check` on every extracted
     file is what makes these cuts safe at this pace.
-- **THIRD SEAM CUT 2026-08-11 — `js/workout/run-logging.js`** (290 lines):
-  cockpit run rendering, display-unit conversion, manual persistence, imported
-  evidence, map refresh and live-input pace/time derivation now have one owner.
-  **workout.js 2,379 → 2,130 lines.** The event routers stay in workout.js and
-  call the extracted input handler; the finish-review run-RPE write stays with
-  completion, where that lifecycle choice belongs.
+- **THIRD SEAM CUT 2026-08-10 — `js/workout/run-units.js`** (65 lines): distance
+  and pace conversion at the UI boundary. **workout.js 2,379 → 2,334 lines.**
+  - The easiest seam in the file and worth taking early: pure functions, no DOM,
+    no module state — the athlete's unit setting arrives as an argument.
+  - **The real gain is coverage, not line count.** These were private helpers, so
+    nothing could import them and the suite had NO test of them at all —
+    including the entire MILE path, which is every athlete on `distanceUnit:'mi'`.
+    `tests/run_units.test.js` is their first test: 10 cases covering unit
+    defaulting, conversion both ways, pace/time inversion, zero-padded seconds,
+    and the refusal to invent a pace from a distance with no time.
+  - Documented invariant: distance is STORED canonically in km and the display
+    value is ROUNDED, so a round trip is lossy BY DESIGN. A test asserting exact
+    round-tripping would assert something false; one case pins the lossy-but-close
+    behaviour instead, so removing the rounding fails loudly.
+  - Two of my own errors, both caught by running things: the first test asserted a
+    NUMBER where these return strings (they feed input values), and my
+    verification fixture used `distance:` where the state field is `dist:`, which
+    silently produced an empty input and would have "verified" nothing. Fixed,
+    then proven: 10 km stored renders as `10 @ 5:00/km` and `6.21 @ 8:03/mi`.
+- **FOURTH SEAM CUT 2026-08-11 — `js/workout/run-logging.js`** (244 lines):
+  cockpit run rendering, manual persistence, imported evidence, map refresh and
+  live-input pace/time derivation now have one owner. Pure distance/pace
+  conversion remains in `run-units.js`; run logging owns when that UI boundary
+  is applied. **workout.js 2,334 → 2,130 lines.** The event routers stay in
+  workout.js and call the extracted input handler; the finish-review run-RPE
+  write stays with completion, where that lifecycle choice belongs.
   - Canonical kilometres remain the storage boundary. New integration coverage
     proves a miles edit round-trips to km, keeps its existing session identity,
     and preserves imported cadence evidence rather than replacing the run blob.
   - Live-run safety assertions moved with the code: a rerender still cannot
     collapse or reparent an active card and detach its Leaflet map.
-  - `tests/workout_split_guard.test.js` now ratchets both `clear-log.js` and
-    `run-logging.js` as wired, forward-only modules. Verified: 1,787 unit tests,
-    typecheck, smoke, regenerated precache, and all 32 browser checks.
-- **FOURTH SEAM CUT 2026-08-11 — `js/workout/set-mutations.js`** (297 lines):
+  - `tests/workout_split_guard.test.js` ratchets both `clear-log.js` and
+    `run-logging.js` as wired, forward-only modules.
+- **FIFTH SEAM CUT 2026-08-11 — `js/workout/set-mutations.js`** (297 lines):
   row addition/removal and removal Undo, warm-up/type/RIR changes, bodyweight
   prompting, and direct/band load choices now have one owner. **workout.js
   2,130 → 1,837 lines.** The facade still re-exports every existing handler and
@@ -1326,10 +1345,8 @@ it supports.
     kept one source of truth rather than cloning the lookup back into the facade.
   - Quick-log, checkbox completion and finish review stay in workout.js: they
     coordinate PRs, timers, accordion flow and session lifecycle rather than
-    being simple row mutations. The split guard now ratchets
-    `set-mutations.js` as wired and forward-only.
-  - Verified: 1,787 unit tests, typecheck, smoke, regenerated precache, set-row
-    and rest-timer browser contracts, plus all other required browser contracts.
+    being simple row mutations. The split guard ratchets `set-mutations.js` as
+    wired and forward-only.
 - [ ] Next seam: supersets — move its handlers out while the router stays.
   Routers still move last.
 - Split `js/workout.js` by rendering, set mutations, exercise selection, run
@@ -1544,7 +1561,7 @@ even while release work is parked.
 | Exercises | 154 canonical exercises, aliases, equipment/muscle data, filters, details, 16 fully reviewed EZ-bar entries |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,787 tests, typecheck, smoke, precache/workflow gates, 32 responsive/accessibility browser checks |
+| Quality | 1,797 tests, typecheck, smoke, precache/workflow gates, 32 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1609,7 +1626,20 @@ testable on its own.
 
 ## 12. Session log
 
-- **2026-08-11 — fourth workout seam: set mutations extracted.**
+- **2026-08-13 — PR #213 reconciled with the run-unit extraction already on
+  main.**
+  - Merged main's `run-units.js` and its 10 tests without duplicating the pure
+    conversion helpers: `run-logging.js` imports them and owns when the UI
+    boundary is applied; `workout.js` remains the 1,837-line facade.
+  - Combined the working brief and roadmap histories, renumbered the completed
+    seams in landing order, and regenerated one precache containing
+    `run-units.js`, `run-logging.js`, and `set-mutations.js`.
+  - Verified 1,797 unit tests, typecheck, smoke, precache, and all 32 required
+    browser checks. The safe-area check that produced the old push-run's
+    anonymous 404 passed first time. Next: extract supersets; routers remain
+    last.
+
+- **2026-08-11 — fifth workout seam: set mutations extracted.**
   - `js/workout/set-mutations.js` now owns adding and removing set rows,
     removal Undo, warm-up/type/RIR edits, bodyweight prompting, and direct/band
     load selection. `js/workout.js` fell from 2,130 to 1,837 lines while keeping
@@ -1619,16 +1649,14 @@ testable on its own.
     The split guard also refuses to let the new module become orphaned or import
     workout.js back.
   - Verified 1,787 unit tests, typecheck, smoke, precache, and the relevant
-    browser contracts. The initial all-browser run had five otherwise-passing
-    checks marked by transient anonymous 404 console entries; each affected
-    check passed unchanged on immediate rerun. Next: extract supersets; routers
-    remain last.
+    browser contracts. Next: extract supersets; routers remain last.
 
-- **2026-08-11 — third workout seam: cockpit run logging extracted.**
+- **2026-08-11 — fourth workout seam: cockpit run logging extracted.**
   - `js/workout/run-logging.js` now owns the run card's render/persist boundary,
-    unit conversion, imported detail/map rendering, safe live-card positioning,
-    and manual pace/time derivation. `js/workout.js` fell from 2,379 to 2,130
-    lines without moving the event routers or changing its public surface.
+    unit-boundary integration, imported detail/map rendering, safe live-card
+    positioning, and manual pace/time derivation. Pure conversion stays in
+    `run-units.js`. `js/workout.js` fell from 2,334 to 2,130 lines without moving
+    the event routers or changing its public surface.
   - Added regression coverage for manual pace/time derivation and a miles edit
     updating one canonical-km run session without dropping FIT cadence data.
     The live-run source assertions now follow the implementation into the new
@@ -1636,6 +1664,24 @@ testable on its own.
   - Verified 1,787 unit tests, typecheck, smoke, regenerated precache, and all
     32 required browser checks. Next: extract set mutations; supersets follow,
     and the routers still move last.
+
+- **2026-08-10 (third) — run-unit conversion extracted, and tested for the first
+  time.** `js/workout/run-units.js`; workout.js 2,379 → 2,334.
+  - Line count is the least interesting part. These were PRIVATE helpers, so the
+    mile conversion path — every athlete using `distanceUnit:'mi'` — had never
+    been tested by anything. Extraction made them reachable and they now have 10
+    cases, including that a pace is never invented from a distance with no time.
+  - Two of my own mistakes, both caught by running rather than reading: I asserted
+    a number where the functions return strings, and my browser verification used
+    `distance:` where the state field is `dist:` — which produced an empty input
+    and would have passed as "verified" while proving nothing. The second is the
+    more dangerous kind, and it is the third time this session a fixture field
+    name has quietly falsified a check.
+  - Proven end to end afterwards: 10 km stored renders `10 @ 5:00/km` and
+    `6.21 @ 8:03/mi`.
+  - Not run: `running-analytics-check`, whose container threshold (26s vs ~2s in
+    CI) exceeds a sane local timeout. It is analytics, not the cockpit run panel,
+    and CI covers it.
 
 - **2026-08-10 (later) — export audit said "do nothing", and the next cut found a
   bug I had shipped the day before.**

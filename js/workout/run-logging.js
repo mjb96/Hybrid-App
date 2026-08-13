@@ -1,73 +1,27 @@
 // @ts-check
 // =============================================================================
-// COCKPIT RUN LOGGING — render, unit conversion, persistence and live input.
+// COCKPIT RUN LOGGING — render, persistence and live input.
 //
 // Split out of js/workout.js while its event routers stay there.  Run logging is
 // one cohesive seam: the same card renders values in an athlete's unit, accepts
 // edits in that unit, writes canonical kilometres, and keeps its live GPS map
-// safe during a rerender.  It reaches no symbols through workout.js; callers
-// pass the active state and day explicitly, so the module graph stays a tree.
+// safe during a rerender. Pure conversion lives in run-units.js; this module
+// owns when that boundary is applied. It reaches no symbols through workout.js;
+// callers pass the active state and day explicitly, so the graph stays a tree.
 // =============================================================================
 import { renderRunMap } from '../workout-map.js';
 import { hasRunData, newRunSessionId, upsertRunSession } from '../state/run-sessions.js';
 import { detectRunType } from './run-type.js';
 import { hasActiveRunSession } from '../gps-tracker.js';
 import { markSessionInProgress } from './session-status.js';
-
-// Distance is stored canonically in km everywhere. The cockpit run panel accepts
-// and displays the user's configured unit (km|mi) and converts on the boundary.
-const KM_TO_MI = 0.621371;
+import {
+  _runDistUnit, _kmToDisplayDist, _displayDistToKm,
+  _paceFromDistTime, _timeFromPaceDist,
+} from './run-units.js';
 
 /** @returns {HTMLInputElement|null} */
 function _input(id) {
   return /** @type {HTMLInputElement|null} */ (document.getElementById(id));
-}
-
-function _runDistUnit(appState) {
-  return appState?.settings?.distanceUnit === 'mi' ? 'mi' : 'km';
-}
-
-function _kmToDisplayDist(km, unit) {
-  const n = parseFloat(km);
-  if (!isFinite(n)) return '';
-  const v = unit === 'mi' ? n * KM_TO_MI : n;
-  return String(Math.round(v * 100) / 100);
-}
-
-function _displayDistToKm(value, unit) {
-  const n = parseFloat(value);
-  if (!isFinite(n)) return '';
-  const km = unit === 'mi' ? n / KM_TO_MI : n;
-  return String(Math.round(km * 1000) / 1000);
-}
-
-// _paceFromDistTime divides by whichever distance it receives, so passing a
-// display-unit distance yields a pace per configured unit.
-function _paceFromDistTime(distance, timeStr) {
-  const dist = parseFloat(distance);
-  if (!dist || dist <= 0 || !timeStr) return '';
-  const parts = String(timeStr).trim().split(':');
-  let seconds = 0;
-  if (parts.length === 3) seconds = +parts[0] * 3600 + +parts[1] * 60 + parseFloat(parts[2]);
-  else if (parts.length === 2) seconds = +parts[0] * 60 + parseFloat(parts[1]);
-  if (!seconds) return '';
-  const secPerUnit = seconds / dist;
-  const minutes = Math.floor(secPerUnit / 60);
-  const secs = Math.round(secPerUnit % 60).toString().padStart(2, '0');
-  return `${minutes}:${secs}`;
-}
-
-function _timeFromPaceDist(paceStr, distance) {
-  const dist = parseFloat(distance);
-  if (!dist || dist <= 0 || !paceStr) return '';
-  const parts = String(paceStr).trim().replace(/\/km.*/i, '').trim().split(':');
-  if (parts.length !== 2) return '';
-  const secPerUnit = +parts[0] * 60 + parseFloat(parts[1]);
-  if (!secPerUnit) return '';
-  const totalSecs = secPerUnit * dist;
-  const minutes = Math.floor(totalSecs / 60);
-  const secs = Math.round(totalSecs % 60).toString().padStart(2, '0');
-  return `${minutes}:${secs}`;
 }
 
 /** Render the editable cockpit run fields and HR-zone strip. */
