@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -57,7 +57,7 @@ const CLIP_MOCK = `Object.defineProperty(navigator, 'clipboard', { configurable:
 const CLIP_BROKEN = `try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined }); } catch (e) {} document.execCommand = () => false;`;
 
 async function newPage(browser, clipScript) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+  const ctx = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture())]);
   await ctx.addInitScript(clipScript);
   const page = await ctx.newPage();
@@ -225,7 +225,7 @@ try {
 
   // ---- Pass 3: compact-UI hierarchy + mobile layout (320/390/412) ----
   {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+    const ctx = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
     await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture())]);
     await ctx.addInitScript(CLIP_MOCK);
     const page = await ctx.newPage();

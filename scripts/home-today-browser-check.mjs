@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -125,7 +125,7 @@ function fixture({ state = 'ready', theme = 'dark' } = {}) {
 }
 
 async function openState({ state, theme = 'dark', width = 390, height = 844 }) {
-  const context = await browser.newContext({ viewport: { width, height }, timezoneId: TZ });
+  const context = await createBrowserContext(browser, { viewport: { width, height }, timezoneId: TZ });
   const seed = fixture({ state, theme });
   await context.addInitScript(([key, value]) => localStorage.setItem(key, value), [STORAGE_KEY, JSON.stringify(seed)]);
   await context.addInitScript(pinClock, CLOCK);

@@ -18,7 +18,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -74,7 +74,7 @@ function fixture() {
 
 const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] });
 try {
-  const ctx = await browser.newContext({ viewport: VIEWPORT, timezoneId: TZ, colorScheme: 'dark' });
+  const ctx = await createBrowserContext(browser, { viewport: VIEWPORT, timezoneId: TZ, colorScheme: 'dark' });
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture())]);
   const page = await ctx.newPage();
   const errors = [];

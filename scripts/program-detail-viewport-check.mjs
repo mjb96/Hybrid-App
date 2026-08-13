@@ -21,7 +21,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIDTHS = [320, 360, 390, 412];
@@ -47,7 +47,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); };
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
 
 async function openDetail(width, fontPx) {
-  const ctx = await browser.newContext({ viewport: { width, height: 800 }, deviceScaleFactor: 2 });
+  const ctx = await createBrowserContext(browser, { viewport: { width, height: 800 }, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   await page.addInitScript(() => {
     localStorage.setItem('hybrid_engine_v2_state', JSON.stringify({ schemaVersion: 2, settings: { name: 'A', onboardingComplete: true }, currentWeek: '5', activeProgramId: 'hybrid_engine' }));
@@ -132,7 +132,7 @@ for (const w of WIDTHS) {
 // level and equipment tier in a decorative tag row directly under the stats row
 // that already carries them.
 {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const ctx = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

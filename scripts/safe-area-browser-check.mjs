@@ -24,7 +24,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -149,7 +149,7 @@ try {
   //    compute exactly what it computed before the tokens existed.
   // ---------------------------------------------------------------------------
   {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+    const context = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
     await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(onboarded('dark'))]);
     const page = await newPage(context);
     await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -170,7 +170,7 @@ try {
   // 2. Primary destinations with a published Android inset.
   // ---------------------------------------------------------------------------
   for (const [width, theme] of [[320, 'dark'], [360, 'light'], [390, 'dark'], [412, 'light']]) {
-    const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
+    const context = await createBrowserContext(browser, { viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
     await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(onboarded(theme))]);
     // Publish the inset the way MainActivity does, before first paint.
     await context.addInitScript(publishInset, INSET);
@@ -213,7 +213,7 @@ try {
   // 3. Onboarding — the first screen a new user ever sees.
   // ---------------------------------------------------------------------------
   for (const [width, theme] of [[320, 'dark'], [390, 'light']]) {
-    const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
+    const context = await createBrowserContext(browser, { viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
     await context.addInitScript(publishInset, INSET);
     const page = await newPage(context);
     await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -240,7 +240,7 @@ try {
   //    its real module so this tests the shipped markup, not a hand-built copy.
   // ---------------------------------------------------------------------------
   {
-    const context = await browser.newContext({ viewport: { width: 320, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+    const context = await createBrowserContext(browser, { viewport: { width: 320, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
     await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(onboarded('dark'))]);
     await context.addInitScript(publishInset, INSET);
     const page = await newPage(context);

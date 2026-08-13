@@ -12,7 +12,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -63,7 +63,7 @@ const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] }
 const failures = [];
 try {
   for (const [width, theme] of [[320, 'dark'], [390, 'light'], [412, 'dark']]) {
-    const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
+    const context = await createBrowserContext(browser, { viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
     await context.addInitScript(([k, v]) => localStorage.setItem(k, v), ['hybrid_engine_v2_state', JSON.stringify(fixture(theme))]);
     await context.addInitScript(pinClock, CLOCK);
     const page = await context.newPage();
@@ -147,7 +147,7 @@ try {
   // An unfinished session must never be buried: the landing has to surface it
   // as resumable rather than offering a fresh start over the top of it.
   {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+    const context = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
     // A real unfinished independent session: the state must POINT at it
     // (activeStrengthSessionKey) and the record must carry a sessionKind —
     // that is what activeOneOffSession/isOneOffWeek actually require.
