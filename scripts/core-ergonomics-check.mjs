@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WIDTHS = [320, 360, 390, 412];
@@ -119,7 +119,7 @@ async function inspect(page, label, selectors) {
 }
 
 async function appPage(width, text200 = false) {
-  const context = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
+  const context = await createBrowserContext(browser, { viewport: { width, height: 844 }, deviceScaleFactor: 2, reducedMotion: 'reduce' });
   await context.addInitScript((seed) => localStorage.setItem('hybrid_engine_v2_state', JSON.stringify(seed)), state);
   const page = await context.newPage();
   await page.goto(base, { waitUntil: 'networkidle' });
@@ -131,7 +131,7 @@ async function appPage(width, text200 = false) {
 try {
   // Fresh onboarding owns the first-launch path and is measured independently.
   {
-    const context = await browser.newContext({ viewport: { width: 320, height: 720 }, reducedMotion: 'reduce' });
+    const context = await createBrowserContext(browser, { viewport: { width: 320, height: 720 }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.waitForSelector('#onboardingOverlay.active');

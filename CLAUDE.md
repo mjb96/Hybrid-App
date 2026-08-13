@@ -117,6 +117,13 @@ framework; ~12k CSS; service-worker PWA). This file is auto-loaded every session
   until it loads OR FAILS, which measured 12.6s on every offline start.
   `display=swap` does NOT prevent this — it governs the font file, not the
   stylesheet.
+  Every other browser product check creates contexts through
+  `createBrowserContext` (`scripts/browser-runtime.mjs`), which permits the
+  local fixture server and blocks external HTTP(S) hosts. A Google Fonts 404
+  otherwise made identical CI runs fail in different random checks while every
+  product assertion passed. Local missing assets still return real 404s and
+  fail. The performance baseline deliberately uses direct contexts because it
+  owns separate online and externally-blocked scenarios.
 - Service-worker cache: `CACHE_NAME` carries a generated content hash
   (`scripts/gen-precache.mjs`), so editing any precached asset changes `sw.js` and the
   upgrade fires. Non-JS assets are cache-first and a browser only reinstalls a worker

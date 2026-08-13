@@ -15,7 +15,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -97,7 +97,7 @@ function builtInFixture() {
 }
 
 async function newPage(browser, fixture = baseFixture()) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+  const ctx = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
   // Seed ONLY on first load — the init script re-runs on reload, and clobbering
   // localStorage there would hide whether the edit actually persisted.
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture)]);

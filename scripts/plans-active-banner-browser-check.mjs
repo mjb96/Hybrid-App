@@ -15,7 +15,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -79,7 +79,7 @@ const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] }
 const failures = [];
 
 async function plans(week, { width = 390, theme = 'dark' } = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
+  const context = await createBrowserContext(browser, { viewport: { width, height: 844 }, timezoneId: TZ, colorScheme: theme });
   await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [STORAGE_KEY, JSON.stringify(fixture(week))]);
   // Pin the clock so "today" is the fixture's Monday whenever this runs — a
   // check that only passes on some weekdays is not a check.

@@ -18,7 +18,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -66,7 +66,7 @@ function fixture() {
 }
 
 async function newPage(browser) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
+  const ctx = await createBrowserContext(browser, { viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark' });
   await ctx.addInitScript(([k, v]) => { if (!localStorage.getItem(k)) localStorage.setItem(k, v); }, [STORAGE_KEY, JSON.stringify(fixture())]);
   const page = await ctx.newPage();
   const errors = [];

@@ -19,7 +19,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -90,7 +90,7 @@ const fail = (m) => failures.push(m);
 try {
   for (const [width, theme] of [[320, 'dark'], [390, 'light'], [412, 'dark']]) {
     const tag = `${width}px/${theme}`;
-    const context = await browser.newContext({ viewport: { width, height: 900 }, timezoneId: TZ, colorScheme: theme });
+    const context = await createBrowserContext(browser, { viewport: { width, height: 900 }, timezoneId: TZ, colorScheme: theme });
     await context.addInitScript(([k, v]) => localStorage.setItem(k, v), ['hybrid_engine_v2_state', JSON.stringify(fixture(theme))]);
     const page = await context.newPage();
     const errors = [];

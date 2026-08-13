@@ -23,7 +23,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROGRAM_ID = 'hybridhq_foundations'; // a catalog program with a STRENGTH grid day
@@ -87,7 +87,7 @@ async function openSheet(page, { longContent = false } = {}) {
 }
 
 async function newPage(width, height, extraCss = '') {
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2 });
+  const ctx = await createBrowserContext(browser, { viewport: { width, height }, deviceScaleFactor: 2 });
   await ctx.addInitScript(() => {
     localStorage.setItem('hybrid_engine_v2_state', JSON.stringify({
       schemaVersion: 4, currentWeek: '1', activeProgramId: 'hybrid_engine',

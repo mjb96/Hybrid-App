@@ -1561,7 +1561,7 @@ even while release work is parked.
 | Exercises | 157 canonical exercises, 66 with reviewed instructions/difficulty/safety notes, aliases, equipment/muscle data, filters and details |
 | Progress | Calendar-week strength/running, exact evidence, load/readiness, weekly/monthly review, Gym/Run/Recovery detail |
 | History/data | Activity history, exact deletion/undo, activation isolation, export/restore, backups, optional cloud sync/conflict UI |
-| Quality | 1,797 tests, typecheck, smoke, precache/workflow gates, 32 responsive/accessibility browser checks |
+| Quality | 1,800 tests, typecheck, smoke, precache/workflow gates, 32 responsive/accessibility browser checks |
 
 ## 11. Immediate execution queue
 
@@ -1651,9 +1651,32 @@ testable on its own.
     detail page rather than sitting unused in catalogue metadata. A Chromium
     guard proves the new brief, paused lifts and active-recovery day are visible,
     the retired wave is absent, and the page has no 320–412px overflow.
-  - Verified 1,797 unit tests, typecheck, smoke, regenerated precache, and the
+  - Verified 1,800 unit tests after merging the browser-network guard from main,
+    plus typecheck, smoke, regenerated precache, and the
     programme-detail browser check. Next: extract supersets from `workout.js`;
     event routers remain last.
+
+- **2026-08-13 (later) — post-merge release/deploy browser flake removed at the
+  network boundary.**
+  - PR #213's exact Git tree passed both required Web checks, then the two
+    `main` publication workflows failed in different random subsets of the same
+    32 checks. A rerun failed in three different checks again. Every functional
+    assertion passed; each failure was only Chromium's anonymous "Failed to
+    load resource: 404" console line.
+  - A request probe showed the only normal boot-time external resources are the
+    Google Fonts stylesheet and font file. Browser product checks now create
+    contexts through `createBrowserContext`, which permits their local fixture
+    servers and deterministically blocks every external HTTP(S) host. A missing
+    local module, stylesheet, icon or manifest still reaches the page as a real
+    404 and fails loudly.
+  - `tests/browser_check_network_guard.test.js` prevents a future product check
+    from bypassing the isolated context. The performance baseline is an explicit
+    exception: it retains direct contexts and its own online/offline scenarios,
+    so the font-loading performance contract is still measured rather than
+    hidden.
+  - Verified 1,800 unit tests, typecheck, smoke, precache, and all 32 required
+    browser checks. Next: push the fix PR, confirm both Web checks are stable,
+    then return to the supersets extraction; routers remain last.
 
 - **2026-08-13 — PR #213 reconciled with the run-unit extraction already on
   main.**

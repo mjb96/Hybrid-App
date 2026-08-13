@@ -32,7 +32,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium, pinClock } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium, pinClock } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = process.argv.includes('--required');
@@ -235,7 +235,7 @@ try {
 
   const errors = [];
   const newContext = async (state) => {
-    const ctx = await browser.newContext({
+    const ctx = await createBrowserContext(browser, {
       viewport: { width: 390, height: 844 }, timezoneId: TZ, colorScheme: 'dark',
       permissions: ['geolocation'], geolocation: { latitude: -33.865, longitude: 151.2095 },
     });

@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveChromium } from './browser-runtime.mjs';
+import { createBrowserContext, resolveChromium } from './browser-runtime.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const runtime = await resolveChromium();
@@ -106,7 +106,7 @@ const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] }
 try {
   for (const theme of ['dark', 'light']) {
     for (const width of [320, 390, 1024]) {
-      const context = await browser.newContext({
+      const context = await createBrowserContext(browser, {
         viewport: { width, height: 780 },
         deviceScaleFactor: width < 500 ? 2 : 1,
       });
